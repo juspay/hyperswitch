@@ -1,6 +1,7 @@
 //! This module has common utilities for payout method data in HyperSwitch
 
 use common_enums;
+#[cfg(feature = "diesel")]
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -12,10 +13,9 @@ use crate::new_type::{
 };
 
 /// Masked payout method details for storing in db
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub enum AdditionalPayoutMethodData {
     /// Additional data for card payout method
     Card(Box<CardAdditionalData>),
@@ -25,13 +25,13 @@ pub enum AdditionalPayoutMethodData {
     Wallet(Box<WalletAdditionalData>),
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
 
 /// Masked payout method details for card payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Serialize, Deserialize, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct CardAdditionalData {
     /// Issuer of the card
     pub card_issuer: Option<String>,
@@ -72,10 +72,9 @@ pub struct CardAdditionalData {
 }
 
 /// Masked payout method details for bank payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum BankAdditionalData {
     /// Additional data for ach bank transfer payout method
@@ -89,10 +88,9 @@ pub enum BankAdditionalData {
 }
 
 /// Masked payout method details for ach bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AchBankTransferAdditionalData {
     /// Partially masked account number for ach bank debit payment
     #[schema(value_type = String, example = "0001****3456")]
@@ -116,10 +114,9 @@ pub struct AchBankTransferAdditionalData {
 }
 
 /// Masked payout method details for bacs bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct BacsBankTransferAdditionalData {
     /// Partially masked sort code for Bacs payment method
     #[schema(value_type = String, example = "108800")]
@@ -143,10 +140,9 @@ pub struct BacsBankTransferAdditionalData {
 }
 
 /// Masked payout method details for sepa bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct SepaBankTransferAdditionalData {
     /// Partially masked international bank account number (iban) for SEPA
     #[schema(value_type = String, example = "DE8937******013000")]
@@ -170,10 +166,9 @@ pub struct SepaBankTransferAdditionalData {
 }
 
 /// Masked payout method details for pix bank transfer payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct PixBankTransferAdditionalData {
     /// Partially masked unique key for pix transfer
     #[schema(value_type = String, example = "a1f4102e ****** 6fa48899c1d1")]
@@ -197,10 +192,9 @@ pub struct PixBankTransferAdditionalData {
 }
 
 /// Masked payout method details for wallet payout method
-#[derive(
-    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum WalletAdditionalData {
     /// Additional data for paypal wallet payout method
@@ -210,10 +204,9 @@ pub enum WalletAdditionalData {
 }
 
 /// Masked payout method details for paypal wallet payout method
-#[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct PaypalAdditionalData {
     /// Email linked with paypal account
     #[schema(value_type = Option<String>, example = "john.doe@example.com")]
@@ -229,10 +222,9 @@ pub struct PaypalAdditionalData {
 }
 
 /// Masked payout method details for venmo wallet payout method
-#[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct VenmoAdditionalData {
     /// mobile number linked to venmo account
     #[schema(value_type = Option<String>, example = "******* 3349")]

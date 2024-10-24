@@ -2,6 +2,7 @@
 
 use std::{convert::AsRef, fmt, ops, str::FromStr};
 
+#[cfg(feature = "diesel")]
 use diesel::{
     backend::Backend,
     deserialize,
@@ -86,6 +87,7 @@ impl ops::DerefMut for PhoneNumber {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for PhoneNumber
 where
     DB: Backend,
@@ -98,6 +100,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for PhoneNumber
 where
     DB: Backend,
@@ -109,6 +112,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for PhoneNumber
 where
     DB: Backend,
@@ -222,10 +226,9 @@ where
     }
 }
 /// Email address
-#[derive(
-    serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default, AsExpression,
-)]
-#[diesel(sql_type = sql_types::Text)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 #[serde(try_from = "String")]
 pub struct Email(Secret<String, EmailStrategy>);
 
@@ -263,6 +266,7 @@ impl ops::DerefMut for Email {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for Email
 where
     DB: Backend,
@@ -275,6 +279,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for Email
 where
     DB: Backend,
@@ -286,6 +291,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for Email
 where
     DB: Backend,

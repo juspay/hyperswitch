@@ -14,6 +14,7 @@ v1 = ["common_utils/v1"]
 v2 = ["common_utils/v2"]
 customer_v2 = []
 payment_methods_v2 = []
+diesel = []
 
 [dependencies]
 async-bb8-diesel = { git = "https://github.com/jarnura/async-bb8-diesel", rev = "53b4ab901aab7635c8215fd1c2d542c8db443094" }
@@ -29,7 +30,7 @@ time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils" }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["diesel"] }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }

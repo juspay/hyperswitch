@@ -1,5 +1,4 @@
 //! Errors and error specific types for universal use
-
 use crate::types::MinorUnit;
 
 /// Custom Result

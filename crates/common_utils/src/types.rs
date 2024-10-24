@@ -13,6 +13,7 @@ use std::{
 };
 
 use common_enums::enums;
+#[cfg(feature = "diesel")]
 use diesel::{
     backend::Backend,
     deserialize,
@@ -185,8 +186,11 @@ pub enum Surcharge {
 }
 
 /// This struct lets us represent a semantic version type
-#[derive(Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, Ord, PartialOrd)]
-#[diesel(sql_type = Jsonb)]
+
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+// #[diesel(sql_type = Jsonb)]
 #[derive(Serialize, serde::Deserialize)]
 pub struct SemanticVersion(#[serde(with = "Version")] Version);
 
@@ -217,6 +221,7 @@ impl FromStr for SemanticVersion {
     }
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(SemanticVersion);
 
 /// Amount convertor trait for connector
@@ -352,11 +357,12 @@ impl AmountConvertor for MinorUnitForConnector {
 }
 
 /// This Unit struct represents MinorUnit in which core amount works
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::BigInt))]
 #[derive(
     Default,
     Debug,
     serde::Deserialize,
-    AsExpression,
     serde::Serialize,
     Clone,
     Copy,
@@ -366,7 +372,6 @@ impl AmountConvertor for MinorUnitForConnector {
     ToSchema,
     PartialOrd,
 )]
-#[diesel(sql_type = sql_types::BigInt)]
 pub struct MinorUnit(i64);
 
 impl MinorUnit {
@@ -436,6 +441,7 @@ impl Display for MinorUnit {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::BigInt, DB> for MinorUnit
 where
     DB: Backend,
@@ -447,6 +453,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::BigInt, DB> for MinorUnit
 where
     DB: Backend,
@@ -457,6 +464,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::BigInt, DB> for MinorUnit
 where
     DB: Backend,
@@ -587,10 +595,12 @@ impl StringMajorUnit {
     }
 }
 
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 #[derive(
     Debug,
     serde::Deserialize,
-    AsExpression,
+    // AsExpression,
     serde::Serialize,
     Clone,
     PartialEq,
@@ -599,10 +609,11 @@ impl StringMajorUnit {
     ToSchema,
     PartialOrd,
 )]
-#[diesel(sql_type = sql_types::Text)]
+// #[diesel(sql_type = sql_types::Text)]
 /// This domain type can be used for any url
 pub struct Url(url::Url);
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for Url
 where
     DB: Backend,
@@ -614,6 +625,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for Url
 where
     DB: Backend,
@@ -979,10 +991,9 @@ mod amount_conversion_tests {
 }
 
 // Charges structs
-#[derive(
-    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[derive(Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
 /// Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details.
 pub struct ChargeRefunds {
     /// Identifier for charge created for the payment
@@ -997,11 +1008,13 @@ pub struct ChargeRefunds {
     pub revert_transfer: Option<bool>,
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 
 /// A common type of domain type that can be used for fields that contain a string with restriction of length
-#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
-#[diesel(sql_type = sql_types::Text)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq)]
 pub(crate) struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u8>(String);
 
 /// Error generated from violation of constraints for MerchantReferenceId
@@ -1051,6 +1064,7 @@ impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Deserialize<'de>
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> FromSql<sql_types::Text, DB>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
@@ -1063,6 +1077,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> ToSql<sql_types::Text, DB>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
@@ -1074,6 +1089,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Queryable<sql_types::Text, DB>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
@@ -1087,8 +1103,10 @@ where
 }
 
 /// Domain type for description
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
-#[diesel(sql_type = sql_types::Text)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+// #[diesel(sql_type = sql_types::Text)]
 pub struct Description(LengthString<MAX_DESCRIPTION_LENGTH, 1>);
 
 impl Description {
@@ -1099,10 +1117,12 @@ impl Description {
 }
 
 /// Domain type for Statement Descriptor
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
-#[diesel(sql_type = sql_types::Text)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct StatementDescriptor(LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>);
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for Description
 where
     DB: Backend,
@@ -1115,6 +1135,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for Description
 where
     DB: Backend,
@@ -1126,6 +1147,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for Description
 where
     DB: Backend,
@@ -1136,6 +1158,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for StatementDescriptor
 where
     DB: Backend,
@@ -1148,6 +1171,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for StatementDescriptor
 where
     DB: Backend,
@@ -1159,6 +1183,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for StatementDescriptor
 where
     DB: Backend,
@@ -1170,10 +1195,9 @@ where
 }
 
 /// Domain type for unified code
-#[derive(
-    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
-)]
-#[diesel(sql_type = sql_types::Text)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, Queryable))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct UnifiedCode(pub String);
 
 impl TryFrom<String> for UnifiedCode {
@@ -1189,6 +1213,7 @@ impl TryFrom<String> for UnifiedCode {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for UnifiedCode
 where
     DB: Backend,
@@ -1200,6 +1225,8 @@ where
         Ok(row)
     }
 }
+
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for UnifiedCode
 where
     DB: Backend,
@@ -1211,6 +1238,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for UnifiedCode
 where
     DB: Backend,
@@ -1222,10 +1250,9 @@ where
 }
 
 /// Domain type for unified messages
-#[derive(
-    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
-)]
-#[diesel(sql_type = sql_types::Text)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, Queryable))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct UnifiedMessage(pub String);
 
 impl TryFrom<String> for UnifiedMessage {
@@ -1241,6 +1268,7 @@ impl TryFrom<String> for UnifiedMessage {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<sql_types::Text, DB> for UnifiedMessage
 where
     DB: Backend,
@@ -1252,6 +1280,8 @@ where
         Ok(row)
     }
 }
+
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for UnifiedMessage
 where
     DB: Backend,
@@ -1263,6 +1293,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for UnifiedMessage
 where
     DB: Backend,

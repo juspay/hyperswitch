@@ -104,6 +104,7 @@ macro_rules! collect_missing_value_keys {
 /// Implements the `ToSql` and `FromSql` traits on a type to allow it to be serialized/deserialized
 /// to/from JSON data in the database.
 #[macro_export]
+#[cfg(feature = "diesel")]
 macro_rules! impl_to_sql_from_sql_json {
     ($type:ty, $diesel_type:ty) => {
         #[allow(unused_qualifications)]
@@ -146,19 +147,13 @@ macro_rules! impl_to_sql_from_sql_json {
 mod id_type {
     /// Defines an ID type.
     #[macro_export]
+
     macro_rules! id_type {
         ($type:ident, $doc:literal, $diesel_type:ty, $max_length:expr, $min_length:expr) => {
             #[doc = $doc]
-            #[derive(
-                Clone,
-                Hash,
-                PartialEq,
-                Eq,
-                serde::Serialize,
-                serde::Deserialize,
-                diesel::expression::AsExpression,
-            )]
-            #[diesel(sql_type = $diesel_type)]
+            #[cfg_attr(feature = "diesel", derive(diesel::AsExpression))]
+            #[cfg_attr(feature = "diesel", diesel(sql_type = $diesel_type))]
+            #[derive(Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct $type($crate::id_type::LengthId<$max_length, $min_length>);
         };
         ($type:ident, $doc:literal) => {
@@ -255,6 +250,7 @@ mod id_type {
 
     /// Implements the `ToSql` and `FromSql` traits on the specified ID type.
     #[macro_export]
+    #[cfg(feature = "diesel")]
     macro_rules! impl_to_sql_from_sql_id_type {
         ($type:ty, $diesel_type:ty, $max_length:expr, $min_length:expr) => {
             impl<DB> diesel::serialize::ToSql<$diesel_type, DB> for $type
@@ -294,6 +290,7 @@ mod id_type {
 
     /// Implements the `Queryable` trait on the specified ID type.
     #[macro_export]
+    #[cfg(feature = "diesel")]
     macro_rules! impl_queryable_id_type {
         ($type:ty, $diesel_type:ty) => {
             impl<DB> diesel::Queryable<$diesel_type, DB> for $type
