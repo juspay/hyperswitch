@@ -1,4 +1,7 @@
-use common_enums::{ParentGroup, PermissionGroup, PermissionScope, Resource};
+use super::permissions::{self, ResourceExt};
+use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
+use std::collections::HashMap;
+use strum::IntoEnumIterator;
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
@@ -76,6 +79,10 @@ impl PermissionGroupExt for PermissionGroup {
 
 pub trait ParentGroupExt {
     fn resources(&self) -> Vec<Resource>;
+    fn get_descriptions(
+        entity_type: EntityType,
+        groups: Vec<PermissionGroup>,
+    ) -> HashMap<ParentGroup, String>;
 }
 
 impl ParentGroupExt for ParentGroup {
@@ -89,6 +96,34 @@ impl ParentGroupExt for ParentGroup {
             Self::Merchant | Self::Organization => ACCOUNT.to_vec(),
             Self::Recon => RECON.to_vec(),
         }
+    }
+
+    fn get_descriptions(
+        entity_type: EntityType,
+        groups: Vec<PermissionGroup>,
+    ) -> HashMap<Self, String> {
+        ParentGroup::iter()
+            .filter_map(|parent| {
+                let scopes = groups
+                    .iter()
+                    .filter(|group| group.parent() == parent)
+                    .map(|group| group.scope())
+                    .max()?;
+
+                let resources = parent
+                    .resources()
+                    .iter()
+                    .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
+                    .map(|res| permissions::get_resource_name(res, &entity_type))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                Some((
+                    parent,
+                    format!("{} {}", permissions::get_scope_name(&scopes), resources),
+                ))
+            })
+            .collect()
     }
 }
 

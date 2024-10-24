@@ -2904,7 +2904,8 @@ pub enum ParentGroup {
     Recon,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Resource {
     Payment,
     Refund,
@@ -2925,10 +2926,11 @@ pub enum Resource {
     Recon,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PermissionScope {
-    Read,
-    Write,
+    Read = 0,
+    Write = 1,
 }
 
 /// Name of banks supported by Hyperswitch
