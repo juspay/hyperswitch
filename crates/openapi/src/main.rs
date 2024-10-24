@@ -6,6 +6,9 @@ mod routes;
 
 #[allow(clippy::print_stdout)] // Using a logger is not necessary here
 fn main() {
+    #[cfg(all(feature = "v1", feature = "v2"))]
+    compile_error!("features v1 and v2 are mutually exclusive, please enable only one of them");
+
     #[cfg(feature = "v1")]
     let relative_file_path = "api-reference/openapi_spec.json";
 

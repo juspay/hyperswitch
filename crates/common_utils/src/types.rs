@@ -580,6 +580,10 @@ impl StringMajorUnit {
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
     }
+    /// forms a new StringMajorUnit default unit i.e zero
+    pub fn zero() -> Self {
+        Self("0".to_string())
+    }
 
     /// Get string amount from struct to be removed in future
     pub fn get_amount_as_string(&self) -> String {
@@ -602,6 +606,13 @@ impl StringMajorUnit {
 #[diesel(sql_type = sql_types::Text)]
 /// This domain type can be used for any url
 pub struct Url(url::Url);
+
+impl Url {
+    /// Get string representation of the url
+    pub fn get_string_repr(&self) -> &str {
+        self.0.as_str()
+    }
+}
 
 impl<DB> ToSql<sql_types::Text, DB> for Url
 where
@@ -633,6 +644,7 @@ mod client_secret_type {
     use std::fmt;
 
     use masking::PeekInterface;
+    use router_env::logger;
 
     use super::*;
     use crate::id_type;
@@ -655,6 +667,38 @@ mod client_secret_type {
                 self.payment_id.get_string_repr(),
                 self.secret.peek()
             )
+        }
+
+        /// Create a new client secret
+        pub(crate) fn new(payment_id: id_type::GlobalPaymentId, secret: String) -> Self {
+            Self {
+                payment_id,
+                secret: masking::Secret::new(secret),
+            }
+        }
+    }
+
+    impl FromStr for ClientSecret {
+        type Err = ParsingError;
+
+        fn from_str(str_value: &str) -> Result<Self, Self::Err> {
+            let (payment_id, secret) =
+                str_value
+                    .rsplit_once("_secret_")
+                    .ok_or(ParsingError::EncodeError(
+                        "Expected a string in the format '{payment_id}_secret_{secret}'",
+                    ))?;
+
+            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                .map_err(|err| {
+                    logger::error!(global_payment_id_error=?err);
+                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
+                })?;
+
+            Ok(Self {
+                payment_id,
+                secret: masking::Secret::new(secret.to_owned()),
+            })
         }
     }
 
@@ -730,7 +774,23 @@ mod client_secret_type {
     {
         fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
             let string_repr = String::from_sql(value)?;
-            Ok(serde_json::from_str(&string_repr)?)
+            let (payment_id, secret) =
+                string_repr
+                    .rsplit_once("_secret_")
+                    .ok_or(ParsingError::EncodeError(
+                        "Expected a string in the format '{payment_id}_secret_{secret}'",
+                    ))?;
+
+            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                .map_err(|err| {
+                    logger::error!(global_payment_id_error=?err);
+                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
+                })?;
+
+            Ok(Self {
+                payment_id,
+                secret: masking::Secret::new(secret.to_owned()),
+            })
         }
     }
 
@@ -1071,6 +1131,12 @@ impl Description {
     pub fn from_str_unchecked(input_str: &'static str) -> Self {
         Self(LengthString::new_unchecked(input_str.to_owned()))
     }
+
+    // TODO: Remove this function in future once description in router data is updated to domain type
+    /// Get the string representation of the description
+    pub fn get_string_repr(&self) -> &str {
+        &self.0 .0
+    }
 }
 
 /// Domain type for Statement Descriptor
@@ -1245,5 +1311,183 @@ where
 {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
         self.0.to_sql(out)
+    }
+}
+
+#[cfg(feature = "v2")]
+/// Browser information to be used for 3DS 2.0
+// If any of the field is PII, then we can make them as secret
+#[derive(
+    ToSchema,
+    Debug,
+    Clone,
+    serde::Deserialize,
+    serde::Serialize,
+    Eq,
+    PartialEq,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct BrowserInformation {
+    /// Color depth supported by the browser
+    pub color_depth: Option<u8>,
+
+    /// Whether java is enabled in the browser
+    pub java_enabled: Option<bool>,
+
+    /// Whether javascript is enabled in the browser
+    pub java_script_enabled: Option<bool>,
+
+    /// Language supported
+    pub language: Option<String>,
+
+    /// The screen height in pixels
+    pub screen_height: Option<u32>,
+
+    /// The screen width in pixels
+    pub screen_width: Option<u32>,
+
+    /// Time zone of the client
+    pub time_zone: Option<i32>,
+
+    /// Ip address of the client
+    #[schema(value_type = Option<String>)]
+    pub ip_address: Option<std::net::IpAddr>,
+
+    /// List of headers that are accepted
+    #[schema(
+        example = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
+    )]
+    pub accept_header: Option<String>,
+
+    /// User-agent of the browser
+    pub user_agent: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+crate::impl_to_sql_from_sql_json!(BrowserInformation);
+/// Domain type for connector_transaction_id
+/// Maximum length for connector's transaction_id can be 128 characters in HS DB.
+/// In case connector's use an identifier whose length exceeds 128 characters,
+/// the hash value of such identifiers will be stored as connector_transaction_id.
+/// The actual connector's identifier will be stored in a separate column -
+/// connector_transaction_data or something with a similar name.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub enum ConnectorTransactionId {
+    /// Actual transaction identifier
+    TxnId(String),
+    /// Hashed value of the transaction identifier
+    HashedData(String),
+}
+
+impl ConnectorTransactionId {
+    /// Implementation for retrieving the inner identifier
+    pub fn get_id(&self) -> &String {
+        match self {
+            Self::TxnId(id) | Self::HashedData(id) => id,
+        }
+    }
+
+    /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and connector_transaction_data
+    pub fn form_id_and_data(src: String) -> (Self, Option<String>) {
+        let txn_id = Self::from(src.clone());
+        match txn_id {
+            Self::TxnId(_) => (txn_id, None),
+            Self::HashedData(_) => (txn_id, Some(src)),
+        }
+    }
+
+    /// Implementation for retrieving
+    pub fn get_txn_id<'a>(
+        &'a self,
+        txn_data: Option<&'a String>,
+    ) -> Result<&'a String, error_stack::Report<ValidationError>> {
+        match (self, txn_data) {
+            (Self::TxnId(id), _) => Ok(id),
+            (Self::HashedData(_), Some(id)) => Ok(id),
+            (Self::HashedData(id), None) => Err(report!(ValidationError::InvalidValue {
+                message: "connector_transaction_data is empty for HashedData variant".to_string(),
+            })
+            .attach_printable(format!(
+                "connector_transaction_data is empty for connector_transaction_id {}",
+                id
+            ))),
+        }
+    }
+}
+
+impl From<String> for ConnectorTransactionId {
+    fn from(src: String) -> Self {
+        // ID already hashed
+        if src.starts_with("hs_hash_") {
+            Self::HashedData(src)
+        // Hash connector's transaction ID
+        } else if src.len() > 128 {
+            let mut hasher = blake3::Hasher::new();
+            let mut output = [0u8; consts::CONNECTOR_TRANSACTION_ID_HASH_BYTES];
+            hasher.update(src.as_bytes());
+            hasher.finalize_xof().fill(&mut output);
+            let hash = hex::encode(output);
+            Self::HashedData(format!("hs_hash_{}", hash))
+        // Default
+        } else {
+            Self::TxnId(src)
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for ConnectorTransactionId
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for ConnectorTransactionId
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::from(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for ConnectorTransactionId
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        match self {
+            Self::HashedData(id) | Self::TxnId(id) => id.to_sql(out),
+        }
+    }
+}
+
+/// Trait for fetching actual or hashed transaction IDs
+pub trait ConnectorTransactionIdTrait {
+    /// Returns an optional connector transaction ID
+    fn get_optional_connector_transaction_id(&self) -> Option<&String> {
+        None
+    }
+    /// Returns a connector transaction ID
+    fn get_connector_transaction_id(&self) -> &String {
+        self.get_optional_connector_transaction_id()
+            .unwrap_or_else(|| {
+                static EMPTY_STRING: String = String::new();
+                &EMPTY_STRING
+            })
+    }
+    /// Returns an optional connector refund ID
+    fn get_optional_connector_refund_id(&self) -> Option<&String> {
+        self.get_optional_connector_transaction_id()
     }
 }
