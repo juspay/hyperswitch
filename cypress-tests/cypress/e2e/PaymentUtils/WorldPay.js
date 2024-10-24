@@ -63,7 +63,7 @@ const payment_method_data_no3ds = {
 const payment_method_data_3ds = {
   card: {
     last4: "1091",
-    card_type: "Visa",
+    card_type: "CREDIT",
     card_network: "Visa",
     card_issuer: "INTL HDQTRS-CENTER OWNED",
     card_issuing_country: "UNITEDSTATES",
@@ -245,12 +245,6 @@ export const connectorDetails = {
           }
         },
       },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "processing"
-        },
-      }
     },
     SaveCardUseNo3DSAutoCapture: {
       Request: {
@@ -271,16 +265,6 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Missing required param: payment_method_data",
-            code: "IR_04"
-          }
-        },
-      },
-      ResponseCustom: {
         status: 200,
         body: {
           status: "processing"

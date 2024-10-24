@@ -1297,6 +1297,7 @@ Cypress.Commands.add(
       if (response.status === 200) {
         globalState.set("paymentAmount", createConfirmPaymentBody.amount);
         globalState.set("paymentID", response.body.payment_id);
+        globalState.set("paymentStatus", response.body.status);
         expect(response.body.connector, "connector").to.equal(
           globalState.get("connectorId")
         );

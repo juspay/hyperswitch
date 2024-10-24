@@ -37,7 +37,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
         let req_data = data["Request"];
-        let res_data = data["ResponseCustom"] ? data["ResponseCustom"] : data["Response"];
+        let res_data = data["Response"];
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           req_data,
@@ -46,8 +46,12 @@ describe("Card - SaveCard payment flow test", () => {
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        if (should_continue) {
+          // Don't continue if payment status is processing
+          // Payment data is tokenized only after payment is successful
+          let notProcessing = globalState.get("paymentStatus") != "processing";
+          should_continue = notProcessing && utils.should_continue_further(res_data);
+        }
       });
 
       it("retrieve-payment-call-test", () => {
@@ -115,7 +119,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
         let req_data = data["Request"];
-        let res_data = data["ResponseCustom"] ? data["ResponseCustom"] : data["Response"];
+        let res_data = data["Response"];
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           req_data,
@@ -214,7 +218,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
         let req_data = data["Request"];
-        let res_data = data["ResponseCustom"] ? data["ResponseCustom"] : data["Response"];
+        let res_data = data["Response"];
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           req_data,
@@ -312,7 +316,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
         let req_data = data["Request"];
-        let res_data = data["ResponseCustom"] ? data["ResponseCustom"] : data["Response"];
+        let res_data = data["Response"];
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           req_data,

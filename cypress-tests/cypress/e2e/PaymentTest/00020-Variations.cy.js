@@ -460,7 +460,6 @@ describe("Corner cases", () => {
     });
 
     it("Void call", () => {
-      // `commons` here is intentionally used as we need to pass `ResponseCustom`
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "Void"
       ];
@@ -592,7 +591,6 @@ describe("Corner cases", () => {
     });
 
     it("Refund call", () => {
-      // `commons` here is intentionally used as we need to pass `ResponseCustom`
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "Refund"
       ];
@@ -655,7 +653,6 @@ describe("Corner cases", () => {
     });
 
     it("Refund call", () => {
-      // `commons` here is intentionally used as we need to pass `ResponseCustom`
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "Refund"
       ];
