@@ -38,6 +38,7 @@ export const connectorDetails = {
     PaymentIntent: getCustomExchange({
       Request: {
         currency: "USD",
+        amount: 6500,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -89,6 +90,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        amount: 6500,
+        amount_to_capture: 6500,
         customer_acceptance: null,
       },
       Response: {
@@ -110,6 +113,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        amount_to_capture: 100,
         paymentSuccessfulStatus: "succeeded",
         paymentSyncStatus: "succeeded",
         refundStatus: "succeeded",

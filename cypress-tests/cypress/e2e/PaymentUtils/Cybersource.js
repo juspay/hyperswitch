@@ -53,6 +53,8 @@ export const connectorDetails = {
     PaymentIntent: {
       Request: {
         currency: "USD",
+        amount: 6500,
+        amount_to_capture: 6500,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -83,6 +85,7 @@ export const connectorDetails = {
           card: successfulThreeDSTestCardDetails,
         },
         currency: "USD",
+        amount: 6500,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -117,6 +120,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        amount: 6500,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -151,6 +155,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+        amount: 6500,
+        amount_to_capture: 6500,
         customer_acceptance: null,
       },
       Response: {
@@ -164,7 +170,9 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
-      Request: {},
+      Request: {
+        amount_to_capture: 100,
+      },
       Response: {
         status: 200,
         body: {
