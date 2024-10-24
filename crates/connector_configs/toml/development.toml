@@ -1300,8 +1300,8 @@ type="Text"
 
 [[cybersource.connector_wallets_details.samsung_pay]]
 name="service_id"
-label="Service Id"
-placeholder="Enter Service Id"
+label="Samsung Pay Service Id"
+placeholder="Enter Samsung Pay Service Id"
 required=true
 type="Text"
 [[cybersource.connector_wallets_details.samsung_pay]]
