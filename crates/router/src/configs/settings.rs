@@ -1108,7 +1108,6 @@ where
 impl<'de> Deserialize<'de> for TenantConfig {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
-        #[serde(deny_unknown_fields)]
         struct Inner {
             base_url: String,
             schema: String,
