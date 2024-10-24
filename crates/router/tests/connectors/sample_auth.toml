@@ -283,3 +283,6 @@ api_secret = "Client Key"
 
 [thunes]
 api_key="API Key"
+
+[nomupay]
+api_key="API Key"
