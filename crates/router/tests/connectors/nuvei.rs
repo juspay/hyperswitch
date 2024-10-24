@@ -16,7 +16,7 @@ impl utils::Connector for NuveiTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Nuvei;
         utils::construct_connector_data_old(
-            Box::new(&Nuvei),
+            Box::new(&Nuvei::new()),
             types::Connector::Nuvei,
             types::api::GetToken::Connector,
             None,
