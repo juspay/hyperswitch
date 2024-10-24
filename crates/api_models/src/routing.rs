@@ -529,6 +529,7 @@ pub struct DynamicRoutingAlgorithmRef {
 pub struct SuccessBasedAlgorithm {
     pub algorithm_id_with_timestamp:
         DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>,
+    #[serde(default)]
     pub enabled_feature: SuccessBasedRoutingFeatures,
 }
 
@@ -562,9 +563,9 @@ pub struct ToggleSuccessBasedRoutingQuery {
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SuccessBasedRoutingFeatures {
-    #[default]
     Metrics,
     DynamicConnectorSelection,
+    #[default]
     None,
 }
 
