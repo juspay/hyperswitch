@@ -374,6 +374,8 @@ pub enum Flow {
     GetAuthorizationInfo,
     /// Get Roles info
     GetRolesInfo,
+    /// Get Parent Group Info
+    GetParentGroupInfo,
     /// List roles v2
     ListRolesV2,
     /// List invitable roles at entity level
