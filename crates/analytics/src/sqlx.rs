@@ -604,45 +604,6 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::metrics::PaymentIntentMe
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let connector: Option<String> = row.try_get("connector").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let authentication_type: Option<DBEnumWrapper<AuthenticationType>> =
-            row.try_get("authentication_type").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
-        let payment_method: Option<String> =
-            row.try_get("payment_method").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
-        let payment_method_type: Option<String> =
-            row.try_get("payment_method_type").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
-        let card_network: Option<String> = row.try_get("card_network").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let merchant_id: Option<String> = row.try_get("merchant_id").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let card_last_4: Option<String> = row.try_get("card_last_4").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let card_issuer: Option<String> = row.try_get("card_issuer").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let error_reason: Option<String> = row.try_get("error_reason").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -666,15 +627,6 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::metrics::PaymentIntentMe
             status,
             currency,
             profile_id,
-            connector,
-            authentication_type,
-            payment_method,
-            payment_method_type,
-            card_network,
-            merchant_id,
-            card_last_4,
-            card_issuer,
-            error_reason,
             first_attempt,
             total,
             count,
@@ -700,58 +652,10 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::filters::PaymentIntentFi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
-        let connector: Option<String> = row.try_get("connector").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let authentication_type: Option<DBEnumWrapper<AuthenticationType>> =
-            row.try_get("authentication_type").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
-        let payment_method: Option<String> =
-            row.try_get("payment_method").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
-        let payment_method_type: Option<String> =
-            row.try_get("payment_method_type").or_else(|e| match e {
-                ColumnNotFound(_) => Ok(Default::default()),
-                e => Err(e),
-            })?;
-        let card_network: Option<String> = row.try_get("card_network").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let merchant_id: Option<String> = row.try_get("merchant_id").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let card_last_4: Option<String> = row.try_get("card_last_4").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let card_issuer: Option<String> = row.try_get("card_issuer").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
-        let error_reason: Option<String> = row.try_get("error_reason").or_else(|e| match e {
-            ColumnNotFound(_) => Ok(Default::default()),
-            e => Err(e),
-        })?;
         Ok(Self {
             status,
             currency,
             profile_id,
-            connector,
-            authentication_type,
-            payment_method,
-            payment_method_type,
-            card_network,
-            merchant_id,
-            card_last_4,
-            card_issuer,
-            error_reason,
         })
     }
 }

@@ -614,6 +614,7 @@ pub async fn list_users_in_lineage(
                     merchant_id: None,
                     profile_id: None,
                     version: None,
+                    limit: None,
                 },
                 request.entity_type,
             )
@@ -628,6 +629,7 @@ pub async fn list_users_in_lineage(
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: None,
                     version: None,
+                    limit: None,
                 },
                 request.entity_type,
             )
@@ -646,6 +648,7 @@ pub async fn list_users_in_lineage(
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: Some(profile_id),
                     version: None,
+                    limit: None,
                 },
                 request.entity_type,
             )
