@@ -199,7 +199,7 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
             req.request
                 .order_details
                 .as_ref()
-                .and_then(|details| details.first().map(|item| item.amount))
+                .map(|details| details.iter().map(|item| item.amount).sum())
                 .unwrap_or(MinorUnit::zero()),
             req.request.currency,
         )?;
