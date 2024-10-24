@@ -27,7 +27,9 @@ use diesel::{
 };
 #[cfg(feature = "v2")]
 pub use global_id::{
-    payment::GlobalPaymentId, payment_methods::GlobalPaymentMethodId, refunds::GlobalRefundId,
+    payment::{GlobalAttemptId, GlobalPaymentId},
+    payment_methods::GlobalPaymentMethodId,
+    refunds::GlobalRefundId,
     CellId,
 };
 pub use merchant::MerchantId;

@@ -58,6 +58,7 @@ pub struct AuthenticationData {
     pub profile_id: Option<id_type::ProfileId>,
 }
 
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct AuthenticationDataV2 {
     pub merchant_account: domain::MerchantAccount,
@@ -282,6 +283,7 @@ impl AuthInfo for AuthenticationData {
     }
 }
 
+#[cfg(feature = "v2")]
 impl AuthInfo for AuthenticationDataV2 {
     fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
         Some(self.merchant_account.get_id())
@@ -365,6 +367,7 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for ApiKeyAuth
 where
@@ -383,9 +386,8 @@ where
                 .attach_printable("API key is empty");
         }
 
-        let profile_id =
-            get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
-                .get_required_value(headers::X_PROFILE_ID)?;
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let api_key = api_keys::PlaintextApiKey::from(api_key);
         let hash_key = {
@@ -638,7 +640,7 @@ where
     }
 }
 
-#[cfg(feature = "partial-auth")]
+#[cfg(all(feature = "partial-auth", feature = "v2"))]
 #[async_trait]
 impl<A, I> AuthenticateAndFetch<AuthenticationDataV2, A> for HeaderAuth<I>
 where
@@ -658,9 +660,10 @@ where
             .0
             .authenticate_and_fetch(request_headers, state)
             .await?;
-        let profile_id =
-            get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
-                .get_required_value(headers::X_PROFILE_ID)?;
+
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let profile = state
             .store()
@@ -939,17 +942,17 @@ impl<'a> HeaderMapStruct<'a> {
 
     fn get_mandatory_header_value_by_key(
         &self,
-        key: String,
+        key: &str,
     ) -> Result<&str, error_stack::Report<errors::ApiErrorResponse>> {
         self.headers
-            .get(&key)
+            .get(key)
             .ok_or(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!("Missing header key: `{}`", key),
             })
             .attach_printable(format!("Failed to find header key: {}", key))?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "`X-Merchant-Id` in headers",
+                field_name: "`{key}` in headers",
             })
             .attach_printable(format!(
                 "Failed to convert header value to string for header key: {}",
@@ -957,13 +960,23 @@ impl<'a> HeaderMapStruct<'a> {
             ))
     }
 
-    pub fn get_merchant_id_from_header(&self) -> RouterResult<id_type::MerchantId> {
-        self.get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
+    /// Get the id type from the header
+    /// This can be used to extract lineage ids from the headers
+    pub fn get_id_type_from_header<
+        T: TryFrom<
+            std::borrow::Cow<'static, str>,
+            Error = error_stack::Report<errors::ValidationError>,
+        >,
+    >(
+        &self,
+        key: &str,
+    ) -> RouterResult<T> {
+        self.get_mandatory_header_value_by_key(key)
             .map(|val| val.to_owned())
-            .and_then(|merchant_id| {
-                id_type::MerchantId::wrap(merchant_id).change_context(
+            .and_then(|header_value| {
+                T::try_from(std::borrow::Cow::Owned(header_value)).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{}` header is invalid", headers::X_MERCHANT_ID),
+                        message: format!("`{}` header is invalid", key),
                     },
                 )
             })
@@ -988,7 +1001,8 @@ where
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
-        let merchant_id = HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -1158,6 +1172,60 @@ where
                     },
                 )
             })
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for PublishableKeyAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataV2, AuthenticationType)> {
+        let publishable_key =
+            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let key_manager_state = &(&state.session_state()).into();
+        let authentication_data = state
+            .store()
+            .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            })?;
+
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(
+                key_manager_state,
+                &authentication_data.key_store,
+                &profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+
+        let merchant_id = authentication_data.merchant_account.get_id().clone();
+
+        Ok((
+            AuthenticationDataV2 {
+                merchant_account: authentication_data.merchant_account,
+                key_store: authentication_data.key_store,
+                profile,
+            },
+            AuthenticationType::PublishableKey { merchant_id },
+        ))
     }
 }
 
@@ -1357,8 +1425,8 @@ where
         authorization::check_permission(&self.required_permission, &role_info)?;
         authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        let merchant_id_from_header =
-            HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         // Check if token has access to MerchantId that has been requested through headers
         if payload.merchant_id != merchant_id_from_header {
@@ -1393,8 +1461,8 @@ where
         authorization::check_permission(&self.required_permission, &role_info)?;
         authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        let merchant_id_from_header =
-            HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         // Check if token has access to MerchantId that has been requested through headers
         if payload.merchant_id != merchant_id_from_header {
@@ -1770,6 +1838,7 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for JWTAuth
 where
@@ -1785,9 +1854,8 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let profile_id =
-            get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
-                .get_required_value(headers::X_PROFILE_ID)?;
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
@@ -2006,6 +2074,7 @@ impl ClientSecretFetch for payouts::PayoutCreateRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()

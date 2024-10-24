@@ -1,8 +1,10 @@
+#[cfg(feature = "v1")]
+pub use api_models::payments::PaymentsRequest;
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, CustomerDetailsResponse, HeaderPayload, MandateAmountData,
-    MandateData, MandateTransactionType, MandateType, MandateValidationFields, NextActionType,
-    OnlineMandate, OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
+    CryptoData, CustomerAcceptance, CustomerDetailsResponse, MandateAmountData, MandateData,
+    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
+    OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentListResponse,
     PaymentListResponseV2, PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse,
     PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse,
@@ -11,10 +13,10 @@ pub use api_models::payments::{
     PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
     PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
     PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
-    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
+    VerifyResponse, WalletData,
 };
 #[cfg(feature = "v2")]
 pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsCreateIntentResponse};
@@ -41,8 +43,6 @@ pub use super::payments_v2::{
     PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
 };
 use crate::core::errors;
-
-impl super::Router for PaymentsRequest {}
 
 pub trait PaymentIdTypeExt {
     fn get_payment_intent_id(
@@ -89,6 +89,7 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     }
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_test {
     #![allow(clippy::expect_used, clippy::unwrap_used)]

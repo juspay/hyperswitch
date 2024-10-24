@@ -1391,17 +1391,31 @@ pub enum MerchantStorageScheme {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum IntentStatus {
+    /// The payment has succeeded. Refunds and disputes can be initiated.
+    /// Manual retries are not allowed to be performed.
     Succeeded,
+    /// The payment has failed. Refunds and disputes cannot be initiated.
+    /// This payment can be retried manually with a new payment attempt.
     Failed,
+    /// This payment has been cancelled.
     Cancelled,
+    /// This payment is still being processed by the payment processor.
+    /// The status update might happen through webhooks or polling with the connector.
     Processing,
+    /// The payment is waiting on some action from the customer.
     RequiresCustomerAction,
+    /// The payment is waiting on some action from the merchant
+    /// This would be in case of manual fraud approval
     RequiresMerchantAction,
+    /// The payment is waiting to be confirmed with the payment method by the customer.
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
+    /// The payment has been authorized, and it waiting to be captured.
     RequiresCapture,
+    /// The payment has been captured partially. The remaining amount is cannot be captured.
     PartiallyCaptured,
+    /// The payment has been captured partially and the remaining amount is capturable
     PartiallyCapturedAndCapturable,
 }
 

@@ -607,6 +607,13 @@ impl StringMajorUnit {
 /// This domain type can be used for any url
 pub struct Url(url::Url);
 
+impl Url {
+    /// Get string representation of the url
+    pub fn get_string_repr(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
 impl<DB> ToSql<sql_types::Text, DB> for Url
 where
     DB: Backend,
@@ -668,6 +675,30 @@ mod client_secret_type {
                 payment_id,
                 secret: masking::Secret::new(secret),
             }
+        }
+    }
+
+    impl FromStr for ClientSecret {
+        type Err = ParsingError;
+
+        fn from_str(str_value: &str) -> Result<Self, Self::Err> {
+            let (payment_id, secret) =
+                str_value
+                    .rsplit_once("_secret_")
+                    .ok_or(ParsingError::EncodeError(
+                        "Expected a string in the format '{payment_id}_secret_{secret}'",
+                    ))?;
+
+            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                .map_err(|err| {
+                    logger::error!(global_payment_id_error=?err);
+                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
+                })?;
+
+            Ok(Self {
+                payment_id,
+                secret: masking::Secret::new(secret.to_owned()),
+            })
         }
     }
 
@@ -1100,6 +1131,12 @@ impl Description {
     pub fn from_str_unchecked(input_str: &'static str) -> Self {
         Self(LengthString::new_unchecked(input_str.to_owned()))
     }
+
+    // TODO: Remove this function in future once description in router data is updated to domain type
+    /// Get the string representation of the description
+    pub fn get_string_repr(&self) -> &str {
+        &self.0 .0
+    }
 }
 
 /// Domain type for Statement Descriptor
@@ -1277,6 +1314,58 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+/// Browser information to be used for 3DS 2.0
+// If any of the field is PII, then we can make them as secret
+#[derive(
+    ToSchema,
+    Debug,
+    Clone,
+    serde::Deserialize,
+    serde::Serialize,
+    Eq,
+    PartialEq,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct BrowserInformation {
+    /// Color depth supported by the browser
+    pub color_depth: Option<u8>,
+
+    /// Whether java is enabled in the browser
+    pub java_enabled: Option<bool>,
+
+    /// Whether javascript is enabled in the browser
+    pub java_script_enabled: Option<bool>,
+
+    /// Language supported
+    pub language: Option<String>,
+
+    /// The screen height in pixels
+    pub screen_height: Option<u32>,
+
+    /// The screen width in pixels
+    pub screen_width: Option<u32>,
+
+    /// Time zone of the client
+    pub time_zone: Option<i32>,
+
+    /// Ip address of the client
+    #[schema(value_type = Option<String>)]
+    pub ip_address: Option<std::net::IpAddr>,
+
+    /// List of headers that are accepted
+    #[schema(
+        example = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
+    )]
+    pub accept_header: Option<String>,
+
+    /// User-agent of the browser
+    pub user_agent: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+crate::impl_to_sql_from_sql_json!(BrowserInformation);
 /// Domain type for connector_transaction_id
 /// Maximum length for connector's transaction_id can be 128 characters in HS DB.
 /// In case connector's use an identifier whose length exceeds 128 characters,

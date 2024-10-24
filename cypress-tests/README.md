@@ -8,10 +8,14 @@ This Tool is a solution designed to automate testing for the [Hyperswitch](https
 
 ### Prerequisites
 
-Before installing Cypress, ensure you have the following prerequisites installed:
+Before installing Cypress, ensure that `Node` and `npm` is installed on your machine. To check if it is installed, run the following command:
 
-- npm (Node Package Manager)
-- Node.js (18.x and above)
+```shell
+node -v
+npm -v
+```
+
+If not, download and install `Node` from the official [Node.js website](https://nodejs.org/en/download/package-manager/current). This will also install `npm`.
 
 ### Run Test Cases on your local
 
@@ -78,7 +82,7 @@ To run test cases, follow these steps:
    npm run cypress:routing
    ```
 
-In order to run cypress tests against multiple connectors at a time:
+In order to run cypress tests against multiple connectors at a time or in parallel:
 
 1. Set up `.env` file that exports necessary info:
 
@@ -143,61 +147,79 @@ The folder structure of this directory is as follows:
 
 To add a new connector for testing with Hyperswitch, follow these steps:
 
-1.Include the connector details in the `creds.json` file:
+1. Include the connector details in the `creds.json` file:
 
-example:
+   example:
 
-```json
-{
-  "stripe": {
-    "auth_type": "HeaderKey",
-    "api_key": "SK_134"
-  }
-}
-```
+   ```json
+   {
+     "stripe": {
+       "connector_account_details": {
+         "auth_type": "HeaderKey",
+         "api_key": "SK_134"
+       }
+     }
+   }
+   ```
 
-2.Add the new connector details to the ConnectorUtils folder (including CardNo and connector-specific information).
+2. Add the new connector details to the ConnectorUtils folder (including CardNo and connector-specific information).
 
-Refer to Stripe.js file for guidance:
+   Refer to Stripe.js file for guidance:
 
-```javascript
-/cypress-tests/cypress/e2e/ConnectorUtils/Stripe.js
-```
+   ```javascript
+   /cypress-tests/cypress/e2e/ConnectorUtils/Stripe.js
+   ```
 
-Similarly, create a new file named newconnectorname.js and include all the relevant information for that connector.
+   **File Naming:** Create a new file named <connector_name>.js for your specific connector.
 
-3.In util.js, import the new connector details.
+   **Include Relevant Information:** Populate the file with all the necessary details specific to that connector.
+
+   **Handling Unsupported Features:**
+
+   - If a connector does not support a specific payment method or feature:
+   - You can omit the relevant configurations in the <connector_name>.js file.
+   - The handling of unsupported features will be managed by the commons.js file, which will throw an unsupported or not implemented error as appropriate.
+
+3. In `Utils.js`, import the new connector details.
 
 ### Adding Functions
 
-Similarly, add any helper functions or utilities in the `command.js` in support folder and import them into your tests as needed.
+Similarly, add any helper functions or utilities in the `commands.js` in support folder and import them into your tests as needed.
 
 Example: Adding List Mandate function to support `ListMandate` scenario
 
 ```javascript
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
+  // declare all the variables and constants
   const customerId = globalState.get("customerId");
+  // construct the URL for the API call
+  const url: `${globalState.get("baseUrl")}/customers/${customerId}/mandates`
+  const api_key = globalState.get("apiKey");
+
   cy.request({
     method: "GET",
-    url: `${globalState.get("baseUrl")}/customers/${customerId}/mandates`,
+    url: url,
     headers: {
       "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
+      "api-key": api_key,
     },
+    // set failOnStatusCode to false to prevent Cypress from failing the test
+    failOnStatusCode: false,
   }).then((response) => {
-    const xRequestId = response.headers["x-request-id"];
-    if (xRequestId) {
-      cy.task("cli_log", "x-request-id ->> " + xRequestId);
-    } else {
-      cy.task("cli_log", "x-request-id is not available in the response headers");
-    }
+    // mandatorliy log the `x-request-id` to the console
+    logRequestId(response.headers["x-request-id"]);
+
     expect(response.headers["content-type"]).to.include("application/json");
-    console.log(response.body);
-    let i = 0;
-    for (i in response.body) {
-      if (response.body[i].mandate_id === globalState.get("mandateId")) {
-        expect(response.body[i].status).to.equal("active");
+
+    if (response.status === 200) {
+      // do the necessary validations like below
+      for (const key in response.body) {
+        expect(response.body[key]).to.have.property("mandate_id");
+        expect(response.body[key]).to.have.property("status");
       }
+    } else {
+      // handle the error response
+      expect(response.status).to.equal(400);
     }
   });
 });
@@ -232,7 +254,14 @@ describe("Payment Scenarios", () => {
 });
 ```
 
-You can create similar scenarios by calling other functions defined in `command.js`. These functions interact with utility files like `connector.js` and include necessary assertions to support various connector scenarios.
+You can create similar scenarios by calling other functions defined in `commands.js`. These functions interact with utility files like `<connector_name>.js` and include necessary assertions to support various connector scenarios.
+
+### Debugging
+
+It is recommended to run `npm run cypress` while developing new test cases to debug and verify as it opens the Cypress UI allowing the developer to run individual tests. This also opens up the possibility to to view the test execution in real-time and debug any issues that may arise by viewing the request and response payloads directly.
+
+If, for any reason, the `globalState` object does not contain latest data, it must be due to the hooks not being executed in the correct order. In such cases, it is recommended to add `cy.log(globalState)` to the test case to verify the data in the `globalState` object.
+Please refer to the Cypress's official documentation for more information on hooks and their execution order [here](https://docs.cypress.io/app/core-concepts/writing-and-organizing-tests#Hooks).
 
 ## Additional Resources
 
@@ -243,47 +272,63 @@ For more information on using Cypress and writing effective tests, refer to the 
 ```json
 {
   "adyen": {
-    "auth_type": "SignatureKey",
-    "api_key": "api_key",
-    "key1": "key1",
-    "api_secret": "api_secret"
+    "connector_account_details": {
+      "auth_type": "SignatureKey",
+      "api_key": "api_key",
+      "key1": "key1",
+      "api_secret": "api_secret"
+    }
   },
   "bankofamerica": {
-    "auth_type": "SignatureKey",
-    "api_key": "api_key",
-    "key1": "key1",
-    "api_secret": "api_secret"
+    "connector_account_details": {
+      "auth_type": "SignatureKey",
+      "api_key": "api_key",
+      "key1": "key1",
+      "api_secret": "api_secret"
+    }
   },
   "bluesnap": {
-    "auth_type": "BodyKey",
-    "api_key": "api_key",
-    "key1": "key1"
+    "connector_account_details": {
+      "auth_type": "BodyKey",
+      "api_key": "api_key",
+      "key1": "key1"
+    }
   },
   "cybersource": {
-    "auth_type": "SignatureKey",
-    "api_key": "api_key",
-    "key1": "key1",
-    "api_secret": "api_secret"
+    "connector_account_details": {
+      "auth_type": "SignatureKey",
+      "api_key": "api_key",
+      "key1": "key1",
+      "api_secret": "api_secret"
+    }
   },
   "nmi": {
-    "auth_type": "BodyKey",
-    "api_key": "api_key",
-    "key1": "key1"
+    "connector_account_details": {
+      "auth_type": "BodyKey",
+      "api_key": "api_key",
+      "key1": "key1"
+    }
   },
   "paypal": {
-    "auth_type": "BodyKey",
-    "api_key": "api_key",
-    "key1": "key1"
+    "connector_account_details": {
+      "auth_type": "BodyKey",
+      "api_key": "api_key",
+      "key1": "key1"
+    }
   },
   "stripe": {
-    "auth_type": "HeaderKey",
-    "api_key": "api_key"
+    "connector_account_details": {
+      "auth_type": "HeaderKey",
+      "api_key": "api_key"
+    }
   },
   "trustpay": {
-    "auth_type": "SignatureKey",
-    "api_key": "api_key",
-    "key1": "key1",
-    "api_secret": "api_secret"
+    "connector_account_details": {
+      "auth_type": "SignatureKey",
+      "api_key": "api_key",
+      "key1": "key1",
+      "api_secret": "api_secret"
+    }
   }
 }
 ```

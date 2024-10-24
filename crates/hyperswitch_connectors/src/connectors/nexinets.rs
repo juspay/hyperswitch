@@ -68,9 +68,9 @@ impl api::RefundSync for Nexinets {}
 impl Nexinets {
     pub fn connector_transaction_id(
         &self,
-        connector_meta: &Option<serde_json::Value>,
+        connector_meta: Option<&serde_json::Value>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let meta: nexinets::NexinetsPaymentsMetadata = to_connector_meta(connector_meta.clone())?;
+        let meta: nexinets::NexinetsPaymentsMetadata = to_connector_meta(connector_meta.cloned())?;
         Ok(meta.transaction_id)
     }
 }
