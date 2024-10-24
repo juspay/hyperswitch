@@ -1,12 +1,9 @@
 use std::{borrow::Cow, str::FromStr};
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use api_models::customers::CustomerRequestWithEmail;
 use api_models::{
     mandates::RecurringDetails,
     payments::{
-        additional_info as payment_additional_types, AddressDetailsWithPhone, PaymentChargeRequest,
-        RequestSurchargeDetails,
+        additional_info as payment_additional_types, PaymentChargeRequest, RequestSurchargeDetails,
     },
 };
 use base64::Engine;
@@ -39,7 +36,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use openssl::{
     derive::Deriver,
     pkey::PKey,
@@ -126,16 +123,33 @@ pub async fn create_or_update_address_for_payment_by_request(
                 let encrypted_data = types::crypto_operation(
                     &session_state.into(),
                     type_name!(domain::Address),
-                    types::CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
-                        AddressDetailsWithPhone {
-                            address: address.address.clone(),
-                            phone_number: address
-                                .phone
-                                .as_ref()
-                                .and_then(|phone| phone.number.clone()),
-                            email: address.email.clone(),
-                        },
-                    )),
+                    types::CryptoOperation::BatchEncrypt(
+                        domain::FromRequestEncryptableAddress::to_encryptable(
+                            domain::FromRequestEncryptableAddress {
+                                line1: address.address.as_ref().and_then(|a| a.line1.clone()),
+                                line2: address.address.as_ref().and_then(|a| a.line2.clone()),
+                                line3: address.address.as_ref().and_then(|a| a.line3.clone()),
+                                state: address.address.as_ref().and_then(|a| a.state.clone()),
+                                first_name: address
+                                    .address
+                                    .as_ref()
+                                    .and_then(|a| a.first_name.clone()),
+                                last_name: address
+                                    .address
+                                    .as_ref()
+                                    .and_then(|a| a.last_name.clone()),
+                                zip: address.address.as_ref().and_then(|a| a.zip.clone()),
+                                phone_number: address
+                                    .phone
+                                    .as_ref()
+                                    .and_then(|phone| phone.number.clone()),
+                                email: address
+                                    .email
+                                    .as_ref()
+                                    .map(|a| a.clone().expose().switch_strategy()),
+                            },
+                        ),
+                    ),
                     Identifier::Merchant(merchant_key_store.merchant_id.clone()),
                     key,
                 )
@@ -143,9 +157,10 @@ pub async fn create_or_update_address_for_payment_by_request(
                 .and_then(|val| val.try_into_batchoperation())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting address")?;
-                let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while encrypting address")?;
+                let encryptable_address =
+                    domain::FromRequestEncryptableAddress::from_encryptable(encrypted_data)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while encrypting address")?;
                 let address_update = storage::AddressUpdate::Update {
                     city: address
                         .address
@@ -165,7 +180,14 @@ pub async fn create_or_update_address_for_payment_by_request(
                         .as_ref()
                         .and_then(|value| value.country_code.clone()),
                     updated_by: storage_scheme.to_string(),
-                    email: encryptable_address.email,
+                    email: encryptable_address.email.map(|email| {
+                        let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
+                            Encryptable::new(
+                                email.clone().into_inner().switch_strategy(),
+                                email.into_encrypted(),
+                            );
+                        encryptable
+                    }),
                 };
                 let address = db
                     .find_address_by_merchant_id_payment_id_address_id(
@@ -317,23 +339,35 @@ pub async fn get_domain_address(
         let encrypted_data = types::crypto_operation(
             &session_state.into(),
             type_name!(domain::Address),
-            types::CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
-                AddressDetailsWithPhone {
-                    address: address_details.cloned(),
-                    phone_number: address
-                        .phone
-                        .as_ref()
-                        .and_then(|phone| phone.number.clone()),
-                    email: address.email.clone(),
-                },
-            )),
+            types::CryptoOperation::BatchEncrypt(
+                domain::FromRequestEncryptableAddress::to_encryptable(
+                    domain::FromRequestEncryptableAddress {
+                        line1: address.address.as_ref().and_then(|a| a.line1.clone()),
+                        line2: address.address.as_ref().and_then(|a| a.line2.clone()),
+                        line3: address.address.as_ref().and_then(|a| a.line3.clone()),
+                        state: address.address.as_ref().and_then(|a| a.state.clone()),
+                        first_name: address.address.as_ref().and_then(|a| a.first_name.clone()),
+                        last_name: address.address.as_ref().and_then(|a| a.last_name.clone()),
+                        zip: address.address.as_ref().and_then(|a| a.zip.clone()),
+                        phone_number: address
+                            .phone
+                            .as_ref()
+                            .and_then(|phone| phone.number.clone()),
+                        email: address
+                            .email
+                            .as_ref()
+                            .map(|a| a.clone().expose().switch_strategy()),
+                    },
+                ),
+            ),
             Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
         .await
         .and_then(|val| val.try_into_batchoperation())?;
-        let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
-            .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+        let encryptable_address =
+            domain::FromRequestEncryptableAddress::from_encryptable(encrypted_data)
+                .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(domain::Address {
             phone_number: encryptable_address.phone_number,
             country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
@@ -351,7 +385,14 @@ pub async fn get_domain_address(
             modified_at: common_utils::date_time::now(),
             zip: encryptable_address.zip,
             updated_by: storage_scheme.to_string(),
-            email: encryptable_address.email,
+            email: encryptable_address.email.map(|email| {
+                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
+                    Encryptable::new(
+                        email.clone().into_inner().switch_strategy(),
+                        email.into_encrypted(),
+                    );
+                encryptable
+            }),
         })
     }
     .await
@@ -1589,13 +1630,18 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
             let encrypted_data = types::crypto_operation(
                 key_manager_state,
                 type_name!(domain::Customer),
-                types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
-                    CustomerRequestWithEmail {
-                        name: request_customer_details.name.clone(),
-                        email: request_customer_details.email.clone(),
-                        phone: request_customer_details.phone.clone(),
-                    },
-                )),
+                types::CryptoOperation::BatchEncrypt(
+                    domain::FromRequestEncryptableCustomer::to_encryptable(
+                        domain::FromRequestEncryptableCustomer {
+                            name: request_customer_details.name.clone(),
+                            email: request_customer_details
+                                .email
+                                .as_ref()
+                                .map(|e| e.clone().expose().switch_strategy()),
+                            phone: request_customer_details.phone.clone(),
+                        },
+                    ),
+                ),
                 Identifier::Merchant(key_store.merchant_id.clone()),
                 key,
             )
@@ -1603,9 +1649,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
             .and_then(|val| val.try_into_batchoperation())
             .change_context(errors::StorageError::SerializationFailed)
             .attach_printable("Failed while encrypting Customer while Update")?;
-            let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
-                .change_context(errors::StorageError::SerializationFailed)
-                .attach_printable("Failed while encrypting Customer while Update")?;
+            let encryptable_customer =
+                domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
+                    .change_context(errors::StorageError::SerializationFailed)
+                    .attach_printable("Failed while encrypting Customer while Update")?;
             Some(match customer_data {
                 Some(c) => {
                     // Update the customer data if new data is passed in the request
@@ -1616,7 +1663,15 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     {
                         let customer_update = Update {
                             name: encryptable_customer.name,
-                            email: encryptable_customer.email,
+                            email: encryptable_customer.email.map(|email| {
+                                let encryptable: Encryptable<
+                                    masking::Secret<String, pii::EmailStrategy>,
+                                > = Encryptable::new(
+                                    email.clone().into_inner().switch_strategy(),
+                                    email.into_encrypted(),
+                                );
+                                encryptable
+                            }),
                             phone: Box::new(encryptable_customer.phone),
                             phone_country_code: request_customer_details.phone_country_code,
                             description: None,
@@ -1644,7 +1699,15 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         customer_id,
                         merchant_id: merchant_id.to_owned(),
                         name: encryptable_customer.name,
-                        email: encryptable_customer.email,
+                        email: encryptable_customer.email.map(|email| {
+                            let encryptable: Encryptable<
+                                masking::Secret<String, pii::EmailStrategy>,
+                            > = Encryptable::new(
+                                email.clone().into_inner().switch_strategy(),
+                                email.into_encrypted(),
+                            );
+                            encryptable
+                        }),
                         phone: encryptable_customer.phone,
                         phone_country_code: request_customer_details.phone_country_code.clone(),
                         description: None,

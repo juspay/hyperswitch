@@ -4,30 +4,38 @@ use common_utils::{
     date_time,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    id_type, type_name,
+    id_type, pii, type_name,
     types::keymanager::{Identifier, KeyManagerState, ToEncryptable},
 };
 use diesel_models::{address::AddressUpdateInternal, enums};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
 use time::{OffsetDateTime, PrimitiveDateTime};
 
 use super::{behaviour, types};
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, router_derive::ToEncryption)]
 pub struct Address {
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryAlpha2>,
-    pub line1: crypto::OptionalEncryptableSecretString,
-    pub line2: crypto::OptionalEncryptableSecretString,
-    pub line3: crypto::OptionalEncryptableSecretString,
-    pub state: crypto::OptionalEncryptableSecretString,
-    pub zip: crypto::OptionalEncryptableSecretString,
-    pub first_name: crypto::OptionalEncryptableSecretString,
-    pub last_name: crypto::OptionalEncryptableSecretString,
-    pub phone_number: crypto::OptionalEncryptableSecretString,
+    #[encrypt]
+    pub line1: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    pub line2: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    pub line3: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    pub state: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    pub zip: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    pub first_name: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    pub last_name: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    pub phone_number: Option<Encryptable<Secret<String>>>,
     pub country_code: Option<String>,
     #[serde(skip_serializing)]
     #[serde(with = "custom_serde::iso8601")]
@@ -37,7 +45,8 @@ pub struct Address {
     pub modified_at: PrimitiveDateTime,
     pub merchant_id: id_type::MerchantId,
     pub updated_by: String,
-    pub email: crypto::OptionalEncryptableEmail,
+    #[encrypt]
+    pub email: Option<Encryptable<Secret<String, pii::EmailStrategy>>>,
 }
 
 /// Based on the flow, appropriate address has to be used
@@ -191,8 +200,18 @@ impl behaviour::Conversion for Address {
         let decrypted: FxHashMap<String, Encryptable<Secret<String>>> = types::crypto_operation(
             state,
             type_name!(Self::DstType),
-            types::CryptoOperation::BatchDecrypt(diesel_models::Address::to_encryptable(
-                other.clone(),
+            types::CryptoOperation::BatchDecrypt(EncryptedAddress::to_encryptable(
+                EncryptedAddress {
+                    line1: other.line1,
+                    line2: other.line2,
+                    line3: other.line3,
+                    state: other.state,
+                    zip: other.zip,
+                    first_name: other.first_name,
+                    last_name: other.last_name,
+                    phone_number: other.phone_number,
+                    email: other.email,
+                },
             )),
             identifier.clone(),
             key.peek(),
@@ -202,10 +221,11 @@ impl behaviour::Conversion for Address {
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting".to_string(),
         })?;
-        let encryptable_address = diesel_models::Address::from_encryptable(decrypted)
-            .change_context(ValidationError::InvalidValue {
+        let encryptable_address = EncryptedAddress::from_encryptable(decrypted).change_context(
+            ValidationError::InvalidValue {
                 message: "Failed while decrypting".to_string(),
-            })?;
+            },
+        )?;
         Ok(Self {
             address_id: other.address_id,
             city: other.city,
@@ -223,7 +243,13 @@ impl behaviour::Conversion for Address {
             modified_at: other.modified_at,
             updated_by: other.updated_by,
             merchant_id: other.merchant_id,
-            email: encryptable_address.email,
+            email: encryptable_address.email.map(|email| {
+                let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
+                encryptable
+            }),
         })
     }
 

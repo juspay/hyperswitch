@@ -1,12 +1,5 @@
-use common_utils::{
-    crypto, custom_serde,
-    encryption::Encryption,
-    id_type,
-    pii::{self, EmailStrategy},
-    types::{keymanager::ToEncryptable, Description},
-};
-use masking::{ExposeInterface, Secret, SwitchStrategy};
-use rustc_hash::FxHashMap;
+use common_utils::{crypto, custom_serde, id_type, pii, types::Description};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -126,85 +119,6 @@ impl CustomerRequest {
 
     pub fn get_optional_email(&self) -> Option<pii::Email> {
         Some(self.email.clone())
-    }
-}
-
-pub struct CustomerRequestWithEmail {
-    pub name: Option<Secret<String>>,
-    pub email: Option<pii::Email>,
-    pub phone: Option<Secret<String>>,
-}
-
-pub struct CustomerRequestWithEncryption {
-    pub name: Option<Encryption>,
-    pub phone: Option<Encryption>,
-    pub email: Option<Encryption>,
-}
-
-pub struct EncryptableCustomer {
-    pub name: crypto::OptionalEncryptableName,
-    pub phone: crypto::OptionalEncryptablePhone,
-    pub email: crypto::OptionalEncryptableEmail,
-}
-
-impl ToEncryptable<EncryptableCustomer, Secret<String>, Encryption>
-    for CustomerRequestWithEncryption
-{
-    fn to_encryptable(self) -> FxHashMap<String, Encryption> {
-        let mut map = FxHashMap::with_capacity_and_hasher(3, Default::default());
-        self.name.map(|x| map.insert("name".to_string(), x));
-        self.phone.map(|x| map.insert("phone".to_string(), x));
-        self.email.map(|x| map.insert("email".to_string(), x));
-        map
-    }
-
-    fn from_encryptable(
-        mut hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
-    ) -> common_utils::errors::CustomResult<EncryptableCustomer, common_utils::errors::ParsingError>
-    {
-        Ok(EncryptableCustomer {
-            name: hashmap.remove("name"),
-            phone: hashmap.remove("phone"),
-            email: hashmap.remove("email").map(|email| {
-                let encryptable: crypto::Encryptable<Secret<String, EmailStrategy>> =
-                    crypto::Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
-                encryptable
-            }),
-        })
-    }
-}
-
-impl ToEncryptable<EncryptableCustomer, Secret<String>, Secret<String>>
-    for CustomerRequestWithEmail
-{
-    fn to_encryptable(self) -> FxHashMap<String, Secret<String>> {
-        let mut map = FxHashMap::with_capacity_and_hasher(3, Default::default());
-        self.name.map(|x| map.insert("name".to_string(), x));
-        self.phone.map(|x| map.insert("phone".to_string(), x));
-        self.email
-            .map(|x| map.insert("email".to_string(), x.expose().switch_strategy()));
-        map
-    }
-
-    fn from_encryptable(
-        mut hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
-    ) -> common_utils::errors::CustomResult<EncryptableCustomer, common_utils::errors::ParsingError>
-    {
-        Ok(EncryptableCustomer {
-            name: hashmap.remove("name"),
-            email: hashmap.remove("email").map(|email| {
-                let encryptable: crypto::Encryptable<Secret<String, EmailStrategy>> =
-                    crypto::Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
-                encryptable
-            }),
-            phone: hashmap.remove("phone"),
-        })
     }
 }
 

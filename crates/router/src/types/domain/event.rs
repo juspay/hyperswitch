@@ -1,22 +1,23 @@
 use common_utils::{
-    crypto::OptionalEncryptableSecretString,
+    crypto::{Encryptable, OptionalEncryptableSecretString},
+    encryption::Encryption,
     type_name,
     types::keymanager::{KeyManagerState, ToEncryptable},
 };
 use diesel_models::{
     enums::{EventClass, EventObjectType, EventType, WebhookDeliveryAttempt},
     events::{EventMetadata, EventUpdateInternal},
-    EventWithEncryption,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+use rustc_hash::FxHashMap;
 
 use crate::{
     errors::{CustomResult, ValidationError},
     types::domain::types,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct Event {
     pub event_id: String,
     pub event_type: EventType,
@@ -30,8 +31,10 @@ pub struct Event {
     pub primary_object_created_at: Option<time::PrimitiveDateTime>,
     pub idempotent_event_id: Option<String>,
     pub initial_attempt_id: Option<String>,
-    pub request: OptionalEncryptableSecretString,
-    pub response: OptionalEncryptableSecretString,
+    #[encrypt]
+    pub request: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    pub response: Option<Encryptable<Secret<String>>>,
     pub delivery_attempt: Option<WebhookDeliveryAttempt>,
     pub metadata: Option<EventMetadata>,
 }
@@ -96,12 +99,10 @@ impl super::behaviour::Conversion for Event {
         let decrypted = types::crypto_operation(
             state,
             type_name!(Self::DstType),
-            types::CryptoOperation::BatchDecrypt(EventWithEncryption::to_encryptable(
-                EventWithEncryption {
-                    request: item.request.clone(),
-                    response: item.response.clone(),
-                },
-            )),
+            types::CryptoOperation::BatchDecrypt(EncryptedEvent::to_encryptable(EncryptedEvent {
+                request: item.request.clone(),
+                response: item.response.clone(),
+            })),
             key_manager_identifier,
             key.peek(),
         )
@@ -110,7 +111,7 @@ impl super::behaviour::Conversion for Event {
         .change_context(ValidationError::InvalidValue {
             message: "Failed while decrypting event data".to_string(),
         })?;
-        let encryptable_event = EventWithEncryption::from_encryptable(decrypted).change_context(
+        let encryptable_event = EncryptedEvent::from_encryptable(decrypted).change_context(
             ValidationError::InvalidValue {
                 message: "Failed while decrypting event data".to_string(),
             },
