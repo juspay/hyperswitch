@@ -728,7 +728,6 @@ fn handle_cards_response(
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id.clone()),
         redirection_data: Box::new(redirection_data),
-
         mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,

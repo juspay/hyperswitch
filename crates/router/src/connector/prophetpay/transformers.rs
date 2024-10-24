@@ -202,7 +202,6 @@ impl<F>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
                 redirection_data: Box::new(redirection_data),
-
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,

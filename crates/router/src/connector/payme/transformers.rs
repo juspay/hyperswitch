@@ -247,7 +247,6 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
         Ok(Self::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(value.payme_sale_id.clone()),
             redirection_data: Box::new(redirection_data),
-
             mandate_reference: Box::new(value.buyer_key.clone().map(|buyer_key| {
                 MandateReference {
                     connector_mandate_id: Some(buyer_key.expose()),

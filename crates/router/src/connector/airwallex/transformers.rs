@@ -614,7 +614,6 @@ impl
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Box::new(redirection_data),
-
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,

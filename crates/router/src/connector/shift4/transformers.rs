@@ -748,7 +748,6 @@ impl TryFrom<types::PaymentsPreprocessingResponseRouterData<Shift4ThreeDsRespons
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
                 redirection_data: Box::new(redirection_data),
-
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(
                     serde_json::to_value(Shift4CardToken {

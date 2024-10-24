@@ -1125,7 +1125,6 @@ impl<F, T>
                                 transaction_response.transaction_id.clone(),
                             ),
                             redirection_data: Box::new(redirection_data),
-
                             mandate_reference: Box::new(mandate_reference),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response

@@ -1599,7 +1599,6 @@ where
                         .map(types::ResponseId::ConnectorTransactionId)
                         .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
                     redirection_data: Box::new(redirection_data),
-
                     mandate_reference: Box::new(
                         response
                             .payment_option

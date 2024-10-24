@@ -479,7 +479,7 @@ impl<F>
                     resource_id: ResponseId::ConnectorTransactionId(
                         item.response.transaction_id.to_string(),
                     ),
-redirection_data: Box::new(None),
+                    redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,

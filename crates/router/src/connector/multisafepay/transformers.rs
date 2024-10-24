@@ -980,7 +980,6 @@ impl<F, T>
                                 payment_response.data.order_id.clone(),
                             ),
                             redirection_data: Box::new(redirection_data),
-
                             mandate_reference: Box::new(
                                 payment_response
                                     .data

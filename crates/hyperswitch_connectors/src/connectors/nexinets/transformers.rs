@@ -366,7 +366,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, Paym
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data: Box::new(redirection_data),
-
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,

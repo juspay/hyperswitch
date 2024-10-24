@@ -597,7 +597,6 @@ impl<F, T>
                             order.id.to_string(),
                         ),
                         redirection_data: Box::new(redirection_data),
-
                         mandate_reference: Box::new(mandate_reference),
                         connector_metadata: None,
                         network_txn_id: None,

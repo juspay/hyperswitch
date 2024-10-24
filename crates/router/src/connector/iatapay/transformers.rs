@@ -383,7 +383,6 @@ fn get_iatpay_response(
             types::PaymentsResponseData::TransactionResponse {
                 resource_id: id,
                 redirection_data: Box::new(redirection_data),
-
                 mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
