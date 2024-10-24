@@ -10,6 +10,8 @@ use std::sync::Arc;
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use router_env::logger;
 use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
 #[cfg(feature = "v1")]
@@ -20,7 +22,7 @@ use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(any(feature = "dynamic_routing", feature = "v1"))]
-use router_env::{instrument, logger, metrics::add_attributes, tracing};
+use router_env::{instrument, metrics::add_attributes, tracing};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
