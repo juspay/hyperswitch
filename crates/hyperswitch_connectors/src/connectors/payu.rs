@@ -6,6 +6,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -43,11 +44,22 @@ use transformers as payu;
 use crate::{
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
+    utils,
     utils::construct_not_supported_error_report,
 };
 
-#[derive(Debug, Clone)]
-pub struct Payu;
+#[derive(Clone)]
+pub struct Payu {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Payu {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payu
 where
@@ -538,7 +550,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = payu::PayuPaymentsRequest::try_from(req)?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = payu::PayuRouterData::try_from((amount, req))?;
+
+        let connector_req = payu::PayuPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -625,7 +645,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Payu {
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = payu::PayuRefundRequest::try_from(req)?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = payu::PayuRouterData::try_from((amount, req))?;
+        let connector_req = payu::PayuRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
