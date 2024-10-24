@@ -249,8 +249,8 @@ fn generate_to_encryptable(
         )
     })?;
 
-    let structs = struct_types.iter().map(|(suffix, struct_type)| {
-        let name = format_ident!("{}{}", suffix, struct_name);
+    let structs = struct_types.iter().map(|(prefix, struct_type)| {
+        let name = format_ident!("{}{}", prefix, struct_name);
         let temp_fields = struct_type.generate_struct_fields(&inner_types);
         quote! {
             pub struct #name {
