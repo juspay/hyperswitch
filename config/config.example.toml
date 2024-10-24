@@ -741,7 +741,7 @@ enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
 [multitenancy.tenants]
-public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" } # schema -> Postgres db schema, redis_key_prefix -> redis key distinguisher, base_url -> url of the tenant 
+public = { base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" } # schema -> Postgres db schema, redis_key_prefix -> redis key distinguisher, base_url -> url of the tenant
 
 [user_auth_methods]
 encryption_key = "" # Encryption key used for encrypting data in user_authentication_methods table

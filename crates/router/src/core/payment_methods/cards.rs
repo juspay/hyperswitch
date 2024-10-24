@@ -2058,7 +2058,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
             merchant_id,
             payment_method_reference,
             locker_choice,
-            state.tenant.name.clone(),
+            state.tenant.tenant_id.clone(),
             state.request_id,
         )
         .await
@@ -2112,7 +2112,7 @@ pub async fn add_card_to_hs_locker(
             locker,
             payload,
             locker_choice,
-            state.tenant.name.clone(),
+            state.tenant.tenant_id.clone(),
             state.request_id,
         )
         .await?;
@@ -2309,7 +2309,7 @@ pub async fn get_card_from_hs_locker<'a>(
             merchant_id,
             card_reference,
             Some(locker_choice),
-            state.tenant.name.clone(),
+            state.tenant.tenant_id.clone(),
             state.request_id,
         )
         .await
@@ -2355,7 +2355,7 @@ pub async fn delete_card_from_hs_locker<'a>(
         customer_id,
         merchant_id,
         card_reference,
-        state.tenant.name.clone(),
+        state.tenant.tenant_id.clone(),
         state.request_id,
     )
     .await
