@@ -27,6 +27,7 @@ pub enum AuditEventType {
         capture_amount: Option<MinorUnit>,
         multiple_capture_count: Option<i16>,
     },
+    PaymentApprove,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -65,6 +66,7 @@ impl Event for AuditEvent {
             AuditEventType::RefundSuccess => "refund_success",
             AuditEventType::RefundFail => "refund_fail",
             AuditEventType::PaymentCancelled { .. } => "payment_cancelled",
+            AuditEventType::PaymentApprove { .. } => "payment_approve",
         };
         format!(
             "{event_type}-{}",
