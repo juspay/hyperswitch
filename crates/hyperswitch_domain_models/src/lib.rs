@@ -203,7 +203,29 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
-        todo!()
+        let Self {
+            theme,
+            logo,
+            seller_name,
+            sdk_layout,
+            display_sdk_only,
+            enabled_saved_payment_method,
+            transaction_details,
+        } = self;
+        api_models::admin::PaymentLinkConfigRequest {
+            theme,
+            logo,
+            seller_name,
+            sdk_layout,
+            display_sdk_only,
+            enabled_saved_payment_method,
+            transaction_details: transaction_details.map(|transaction_details| {
+                transaction_details
+                    .into_iter()
+                    .map(|transaction_detail| transaction_detail.convert_back())
+                    .collect()
+            }),
+        }
     }
 }
 
@@ -221,7 +243,17 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkTransactionDet
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkTransactionDetails {
-        todo!()
+        let Self {
+            key,
+            value,
+            ui_configuration,
+        } = self;
+        api_models::admin::PaymentLinkTransactionDetails {
+            key,
+            value,
+            ui_configuration: ui_configuration
+                .map(|ui_configuration| ui_configuration.convert_back()),
+        }
     }
 }
 
@@ -237,7 +269,16 @@ impl ApiModelToDieselModelConvertor<api_models::admin::TransactionDetailsUiConfi
         }
     }
     fn convert_back(self) -> api_models::admin::TransactionDetailsUiConfiguration {
-        todo!()
+        let Self {
+            position,
+            is_key_bold,
+            is_value_bold,
+        } = self;
+        api_models::admin::TransactionDetailsUiConfiguration {
+            position,
+            is_key_bold,
+            is_value_bold,
+        }
     }
 }
 
