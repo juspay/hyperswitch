@@ -2213,25 +2213,6 @@ pub async fn update_payment_method_metadata_and_last_used(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn update_payment_method_metadata_and_last_used(
-    state: &routes::SessionState,
-    key_store: &domain::MerchantKeyStore,
-    db: &dyn db::StorageInterface,
-    pm: domain::PaymentMethod,
-    pm_metadata: Option<serde_json::Value>,
-    storage_scheme: MerchantStorageScheme,
-) -> errors::CustomResult<(), errors::VaultError> {
-    let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdateAndLastUsed {
-        metadata: pm_metadata.map(Secret::new),
-        last_used_at: common_utils::date_time::now(),
-    };
-    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
-        .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
-    Ok(())
-}
-
 pub async fn update_payment_method_and_last_used(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,

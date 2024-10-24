@@ -1130,7 +1130,6 @@ pub async fn create_payment_method_in_db(
     payment_method_id: id_type::GlobalPaymentMethodId,
     locker_id: Option<domain::VaultId>,
     merchant_id: &id_type::MerchantId,
-    pm_metadata: Option<common_utils::pii::SecretSerdeValue>,
     customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
     payment_method_data: crypto::OptionalEncryptableValue,
     key_store: &domain::MerchantKeyStore,
@@ -1156,7 +1155,6 @@ pub async fn create_payment_method_in_db(
                 locker_id,
                 payment_method: Some(req.payment_method),
                 payment_method_type: Some(req.payment_method_type),
-                metadata: pm_metadata,
                 payment_method_data,
                 connector_mandate_details,
                 customer_acceptance,
@@ -1211,7 +1209,6 @@ pub async fn create_payment_method_for_intent(
                 locker_id: None,
                 payment_method: None,
                 payment_method_type: None,
-                metadata,
                 payment_method_data: None,
                 connector_mandate_details: None,
                 customer_acceptance: None,
@@ -1686,7 +1683,6 @@ async fn generate_saved_pm_response(
         payment_method,
         payment_method_type: pm.payment_method_type,
         payment_method_data: pmd,
-        metadata: pm.metadata.clone(),
         recurring_enabled: mca_enabled,
         created: Some(pm.created_at),
         bank: bank_details,
@@ -1752,7 +1748,6 @@ pub async fn retrieve_payment_method(
         payment_method_id: payment_method.id.get_string_repr().to_string(),
         payment_method: payment_method.payment_method,
         payment_method_type: payment_method.payment_method_type,
-        metadata: payment_method.metadata.clone(),
         created: Some(payment_method.created_at),
         recurring_enabled: false,
         last_used_at: Some(payment_method.last_used_at),
@@ -1980,35 +1975,6 @@ impl pm_types::SavedPMLPaymentsInfo {
         pm_routes::ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method))
             .insert(intent_fulfillment_time, hyperswitch_token_data, state)
             .await?;
-
-        if let Some(metadata) = pma.metadata.clone() {
-            let pm_metadata_vec: pm_transforms::PaymentMethodMetadata = metadata
-                .parse_value("PaymentMethodMetadata")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to deserialize metadata to PaymentmethodMetadata struct",
-                )?;
-
-            let redis_conn = state
-                .store
-                .get_redis_conn()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to get redis connection")?;
-
-            for pm_metadata in pm_metadata_vec.payment_method_tokenization {
-                let key = format!(
-                    "pm_token_{}_{}_{}",
-                    token, pma.payment_method, pm_metadata.0
-                );
-
-                redis_conn
-                    .set_key_with_expiry(&key, pm_metadata.1, intent_fulfillment_time)
-                    .await
-                    .change_context(errors::StorageError::KVError)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add data in redis")?;
-            }
-        }
 
         Ok(())
     }

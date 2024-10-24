@@ -941,7 +941,6 @@ diesel::table! {
         payment_method -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
-        metadata -> Nullable<Json>,
         payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,
