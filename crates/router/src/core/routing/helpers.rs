@@ -35,7 +35,7 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
-pub const DYNAMIC_ALGORITHM_NAME: &str = "Dynamic routing algorithm";
+pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str = "Success rate based dynamic routing algorithm";
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -915,7 +915,7 @@ pub async fn default_success_based_routing_setup(
         algorithm_id: algorithm_id.clone(),
         profile_id: profile_id.clone(),
         merchant_id,
-        name: DYNAMIC_ALGORITHM_NAME.to_string(),
+        name: SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
         description: None,
         kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
         algorithm_data: serde_json::json!(default_success_based_routing_config),
