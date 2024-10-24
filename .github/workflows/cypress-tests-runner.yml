@@ -13,7 +13,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  CONNECTORS: stripe
+  PAYMENTS_CONNECTORS: "stripe"
+  PAYOUTS_CONNECTORS: "wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -68,7 +69,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "f64157fe-a8f7-43a8-a268-b17e9a8c305f.json.gpg"
+          S3_SOURCE_FILE_NAME: "5a3f7679-445e-4621-86c5-39bd8d26b7c5.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -151,6 +152,11 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
+      - name: Insert card info into the database
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
+
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
         run: cargo build --package router --bin router --jobs 4
@@ -181,29 +187,10 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
+          ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
-          cd cypress-tests
-
-          RED='\033[0;31m'
-          RESET='\033[0m'
-
-          failed_connectors=()
-
-          for connector in $(echo "${CONNECTORS}" | tr "," "\n"); do
-            echo "${connector}"
-            for service in "payments" "payouts"; do
-              if ! ROUTER__SERVER__WORKERS=4 CYPRESS_CONNECTOR="${connector}" npm run cypress:"${service}"; then
-                failed_connectors+=("${connector}-${service}")
-              fi
-            done
-          done
-
-          if [ ${#failed_connectors[@]} -gt 0 ]; then
-            echo -e "${RED}One or more connectors failed to run:${RESET}"
-            printf '%s\n' "${failed_connectors[@]}"
-            exit 1
-          fi
+          scripts/execute_cypress.sh --parallel 3
 
           kill "${{ env.PID }}"
 
@@ -213,6 +200,5 @@ jobs:
         with:
           name: cypress-test-results
           path: |
-            cypress-tests/cypress/reports/*.json
-            cypress-tests/cypress/reports/*.html
+            cypress-tests/cypress/reports/
           retention-days: 1

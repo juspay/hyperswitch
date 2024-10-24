@@ -47,7 +47,7 @@ impl<F: Send + Clone>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _header_payload: &api::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -89,12 +89,6 @@ impl<F: Send + Clone>
             })?
         }
 
-        if payment_intent.amount > request.amount {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Amount should be greater than original authorized amount".to_owned(),
-            })?
-        }
-
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -105,6 +99,14 @@ impl<F: Send + Clone>
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // Incremental authorization should be performed on an amount greater than the original authorized amount (in this case, greater than the net_amount which is sent for authorization)
+        // request.amount is the total amount that should be authorized in incremental authorization which should be greater than the original authorized amount
+        if payment_attempt.get_total_amount() > request.amount {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Amount should be greater than original authorized amount".to_owned(),
+            })?
+        }
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount();
@@ -168,6 +170,7 @@ impl<F: Send + Clone>
             recurring_details: None,
             poll_config: None,
             tax_data: None,
+            session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -197,7 +200,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
         PaymentIncrementalAuthorizationOperation<'b, F>,
         payments::PaymentData<F>,
@@ -232,7 +235,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
             error_code: None,
             error_message: None,
             connector_authorization_id: None,
-            previously_authorized_amount: payment_data.payment_intent.amount,
+            previously_authorized_amount: payment_data.payment_attempt.get_total_amount(),
         };
         let authorization = state
             .store

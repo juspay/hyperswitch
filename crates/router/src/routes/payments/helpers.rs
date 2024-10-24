@@ -7,6 +7,7 @@ use crate::{
     utils::{Encode, ValueExt},
 };
 
+#[cfg(feature = "v1")]
 pub fn populate_ip_into_browser_info(
     req: &actix_web::HttpRequest,
     payload: &mut api::PaymentsRequest,
