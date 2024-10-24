@@ -4051,6 +4051,7 @@ pub async fn apply_filters_on_payments(
                     constraints.payment_method_type,
                     constraints.authentication_type,
                     constraints.merchant_connector_id,
+                    constraints.card_network,
                     merchant.storage_scheme,
                 )
                 .await
