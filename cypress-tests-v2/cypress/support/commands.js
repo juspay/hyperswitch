@@ -173,15 +173,13 @@ Cypress.Commands.add(
       .replaceAll(" ", "")
       .toLowerCase();
 
-    // Update request body
-    merchantAccountCreateBody.organization_id = organization_id;
-
     cy.request({
       method: "POST",
       url: url,
       headers: {
         "Content-Type": "application/json",
         "api-key": api_key,
+        "X-Organization-Id": organization_id,
       },
       body: merchantAccountCreateBody,
       failOnStatusCode: false,
