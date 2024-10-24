@@ -5,7 +5,7 @@ use std::{
 
 use common_utils::id_type;
 
-use crate::{enums::Currency, refunds::RefundStatus};
+use crate::enums::{Currency, RefundStatus};
 
 #[derive(
     Clone,
