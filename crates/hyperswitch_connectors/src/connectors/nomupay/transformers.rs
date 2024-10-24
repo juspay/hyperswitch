@@ -435,8 +435,8 @@ pub struct NomupayErrorResponse {
 }
 
 
-
-impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccount {
+// PoRecipient Request
+impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccount {     
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
@@ -486,8 +486,9 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccount {
     }
 }
 
+// PoRecipient Response
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardSubAccountResponse>>
+impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardSubAccountResponse>>    
     for PayoutsRouterData<F>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -510,18 +511,55 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardSubAccountResponse>>
     }
 }
 
-
-impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethod{
+// PoRecipientAccount Request
+impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethod{     
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
-
         let payout_method_data = item.get_payout_method_data()?;
-
-
-
         match payout_method_data {
             api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
-                api_models::payouts::Bank::Sepa(bank_details) {
+                api_models::payouts::Bank::Sepa(bank_details){
+
+                    let request = item.request.to_owned();
+                    let payout_type = request.payout_type;
+                    let external_id = item.connector_request_reference_id.to_owned();
+            
+                    let country_iso2_code = item
+                        .get_billing_country()
+                        .unwrap_or(enums::CountryAlpha2::CA);
+            
+                    // let auth  =  NomupayAuthType::try_from(&item.router_data.connector_auth_type)?; 
+            
+                    let my_address = Address{
+                        country: item.get_billing_country().unwrap_or(enums::CountryAlpha2::ER),
+                        state_province: item.get_billing_state().unwrap_or(Secret::new("default state".to_string())),
+                        street: item.get_billing_line1().unwrap_or(Secret::new("default street".to_string())),
+                        city: item.get_billing_city().unwrap_or("default city".to_string()),
+                        postal_code: item.get_billing_zip().unwrap_or(Secret::new("123456".to_string())),
+                    };
+            
+                    let profile = Profile {
+                        profile_type: "INDIVIDUAL".to_string(),
+                        first_name: item.get_billing_first_name().unwrap_or(Secret::new("first name".to_string())),
+                        last_name: item.get_billing_last_name().unwrap_or(Secret::new("last name".to_string())),
+                        date_of_birth: "unknown".to_string(),
+                        gender: "unknown".to_string(),
+                        email_address: item.get_billing_email().unwrap(),
+                        phone_number_country_code: item.get_billing_phone().map(|phone|phone.country_code.clone()).unwrap(),
+                        phone_number: Some(item.get_billing_phone_number().unwrap_or(Secret::new("phone number".to_string()))),
+                        address: my_address,
+                    };
+
+
+
+                    Ok(OnboardTransferMethod{
+                        country_code:,
+                        currency_code:,
+                        typee:,
+                        display_name:,
+                        bank_account:,
+                        profile,
+                    })
                 }
                 _=> Err(errors::ConnectorError::NotSupported {
                     message: "SEPA payouts are not supported".to_string(),
@@ -530,9 +568,34 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethod{
                 .into()),
             }
             _ => Err(errors::ConnectorError::NotImplemented(
-                "This payment method is not implemented for Thunes".to_string(),
+                "This payment method is not implemented for Nomupay".to_string(),
             )
             .into()),
         }
     }
 }
+
+// PoRecipientAccount response
+impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardTransferMethodResponse>>
+    for PayoutsRouterData<F>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, OnboardTransferMethodResponse>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PayoutsResponseData {
+                status: Some(PayoutStatus::RequiresCreation),
+                connector_payout_id: item.data.request.connector_payout_id.clone(),
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+
+
