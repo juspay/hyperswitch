@@ -53,7 +53,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Stax {
-    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Stax {
