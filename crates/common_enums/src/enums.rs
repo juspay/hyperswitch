@@ -559,6 +559,7 @@ pub enum CallConnectorAction {
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 pub enum Currency {
     AED,
+    AFN,
     ALL,
     AMD,
     ANG,
@@ -578,10 +579,12 @@ pub enum Currency {
     BOB,
     BRL,
     BSD,
+    BTN,
     BWP,
     BYN,
     BZD,
     CAD,
+    CDF,
     CHF,
     CLP,
     CNY,
@@ -595,6 +598,7 @@ pub enum Currency {
     DOP,
     DZD,
     EGP,
+    ERN,
     ETB,
     EUR,
     FJD,
@@ -616,6 +620,8 @@ pub enum Currency {
     ILS,
     INR,
     IQD,
+    IRR,
+    ISK,
     JMD,
     JOD,
     JPY,
@@ -623,6 +629,7 @@ pub enum Currency {
     KGS,
     KHR,
     KMF,
+    KPW,
     KRW,
     KWD,
     KYD,
@@ -669,6 +676,7 @@ pub enum Currency {
     SAR,
     SBD,
     SCR,
+    SDG,
     SEK,
     SGD,
     SHP,
@@ -679,8 +687,11 @@ pub enum Currency {
     SSP,
     STN,
     SVC,
+    SYP,
     SZL,
     THB,
+    TJS,
+    TMT,
     TND,
     TOP,
     TRY,
@@ -704,6 +715,7 @@ pub enum Currency {
     YER,
     ZAR,
     ZMW,
+    ZWL,
 }
 
 impl Currency {
@@ -757,6 +769,7 @@ impl Currency {
     pub fn iso_4217(&self) -> &'static str {
         match *self {
             Self::AED => "784",
+            Self::AFN => "971",
             Self::ALL => "008",
             Self::AMD => "051",
             Self::ANG => "532",
@@ -776,10 +789,12 @@ impl Currency {
             Self::BOB => "068",
             Self::BRL => "986",
             Self::BSD => "044",
+            Self::BTN => "064",
             Self::BWP => "072",
             Self::BYN => "933",
             Self::BZD => "084",
             Self::CAD => "124",
+            Self::CDF => "976",
             Self::CHF => "756",
             Self::CLP => "152",
             Self::COP => "170",
@@ -792,6 +807,7 @@ impl Currency {
             Self::DOP => "214",
             Self::DZD => "012",
             Self::EGP => "818",
+            Self::ERN => "232",
             Self::ETB => "230",
             Self::EUR => "978",
             Self::FJD => "242",
@@ -813,6 +829,8 @@ impl Currency {
             Self::ILS => "376",
             Self::INR => "356",
             Self::IQD => "368",
+            Self::IRR => "364",
+            Self::ISK => "352",
             Self::JMD => "388",
             Self::JOD => "400",
             Self::JPY => "392",
@@ -820,6 +838,7 @@ impl Currency {
             Self::KGS => "417",
             Self::KHR => "116",
             Self::KMF => "174",
+            Self::KPW => "408",
             Self::KRW => "410",
             Self::KWD => "414",
             Self::KYD => "136",
@@ -867,6 +886,7 @@ impl Currency {
             Self::SAR => "682",
             Self::SBD => "090",
             Self::SCR => "690",
+            Self::SDG => "938",
             Self::SEK => "752",
             Self::SGD => "702",
             Self::SHP => "654",
@@ -877,8 +897,11 @@ impl Currency {
             Self::SSP => "728",
             Self::STN => "930",
             Self::SVC => "222",
+            Self::SYP => "760",
             Self::SZL => "748",
             Self::THB => "764",
+            Self::TJS => "972",
+            Self::TMT => "934",
             Self::TND => "788",
             Self::TOP => "776",
             Self::TRY => "949",
@@ -901,6 +924,7 @@ impl Currency {
             Self::YER => "886",
             Self::ZAR => "710",
             Self::ZMW => "967",
+            Self::ZWL => "932",
         }
     }
 
@@ -910,6 +934,7 @@ impl Currency {
             | Self::CLP
             | Self::DJF
             | Self::GNF
+            | Self::IRR
             | Self::JPY
             | Self::KMF
             | Self::KRW
@@ -923,6 +948,7 @@ impl Currency {
             | Self::XOF
             | Self::XPF => true,
             Self::AED
+            | Self::AFN
             | Self::ALL
             | Self::AMD
             | Self::ANG
@@ -941,10 +967,12 @@ impl Currency {
             | Self::BOB
             | Self::BRL
             | Self::BSD
+            | Self::BTN
             | Self::BWP
             | Self::BYN
             | Self::BZD
             | Self::CAD
+            | Self::CDF
             | Self::CHF
             | Self::CNY
             | Self::COP
@@ -956,6 +984,7 @@ impl Currency {
             | Self::DOP
             | Self::DZD
             | Self::EGP
+            | Self::ERN
             | Self::ETB
             | Self::EUR
             | Self::FJD
@@ -976,11 +1005,13 @@ impl Currency {
             | Self::ILS
             | Self::INR
             | Self::IQD
+            | Self::ISK
             | Self::JMD
             | Self::JOD
             | Self::KES
             | Self::KGS
             | Self::KHR
+            | Self::KPW
             | Self::KWD
             | Self::KYD
             | Self::KZT
@@ -1023,6 +1054,7 @@ impl Currency {
             | Self::SAR
             | Self::SBD
             | Self::SCR
+            | Self::SDG
             | Self::SEK
             | Self::SGD
             | Self::SHP
@@ -1033,8 +1065,11 @@ impl Currency {
             | Self::SSP
             | Self::STN
             | Self::SVC
+            | Self::SYP
             | Self::SZL
             | Self::THB
+            | Self::TJS
+            | Self::TMT
             | Self::TND
             | Self::TOP
             | Self::TRY
@@ -1050,7 +1085,8 @@ impl Currency {
             | Self::XCD
             | Self::YER
             | Self::ZAR
-            | Self::ZMW => false,
+            | Self::ZMW
+            | Self::ZWL => false,
         }
     }
 
@@ -1060,6 +1096,7 @@ impl Currency {
                 true
             }
             Self::AED
+            | Self::AFN
             | Self::ALL
             | Self::AMD
             | Self::AOA
@@ -1078,10 +1115,12 @@ impl Currency {
             | Self::BOB
             | Self::BRL
             | Self::BSD
+            | Self::BTN
             | Self::BWP
             | Self::BYN
             | Self::BZD
             | Self::CAD
+            | Self::CDF
             | Self::CHF
             | Self::CLP
             | Self::CNY
@@ -1095,6 +1134,7 @@ impl Currency {
             | Self::DOP
             | Self::DZD
             | Self::EGP
+            | Self::ERN
             | Self::ETB
             | Self::EUR
             | Self::FJD
@@ -1115,12 +1155,15 @@ impl Currency {
             | Self::IDR
             | Self::ILS
             | Self::INR
+            | Self::IRR
+            | Self::ISK
             | Self::JMD
             | Self::JPY
             | Self::KES
             | Self::KGS
             | Self::KHR
             | Self::KMF
+            | Self::KPW
             | Self::KRW
             | Self::KYD
             | Self::KZT
@@ -1164,6 +1207,7 @@ impl Currency {
             | Self::SAR
             | Self::SBD
             | Self::SCR
+            | Self::SDG
             | Self::SEK
             | Self::SGD
             | Self::SHP
@@ -1174,8 +1218,11 @@ impl Currency {
             | Self::SSP
             | Self::STN
             | Self::SVC
+            | Self::SYP
             | Self::SZL
             | Self::THB
+            | Self::TJS
+            | Self::TMT
             | Self::TOP
             | Self::TRY
             | Self::TTD
@@ -1196,7 +1243,8 @@ impl Currency {
             | Self::XOF
             | Self::YER
             | Self::ZAR
-            | Self::ZMW => false,
+            | Self::ZMW
+            | Self::ZWL => false,
         }
     }
 
@@ -1344,17 +1392,31 @@ pub enum MerchantStorageScheme {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum IntentStatus {
+    /// The payment has succeeded. Refunds and disputes can be initiated.
+    /// Manual retries are not allowed to be performed.
     Succeeded,
+    /// The payment has failed. Refunds and disputes cannot be initiated.
+    /// This payment can be retried manually with a new payment attempt.
     Failed,
+    /// This payment has been cancelled.
     Cancelled,
+    /// This payment is still being processed by the payment processor.
+    /// The status update might happen through webhooks or polling with the connector.
     Processing,
+    /// The payment is waiting on some action from the customer.
     RequiresCustomerAction,
+    /// The payment is waiting on some action from the merchant
+    /// This would be in case of manual fraud approval
     RequiresMerchantAction,
+    /// The payment is waiting to be confirmed with the payment method by the customer.
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
+    /// The payment has been authorized, and it waiting to be captured.
     RequiresCapture,
+    /// The payment has been captured partially. The remaining amount is cannot be captured.
     PartiallyCaptured,
+    /// The payment has been captured partially and the remaining amount is capturable
     PartiallyCapturedAndCapturable,
 }
 
@@ -2829,6 +2891,47 @@ pub enum PermissionGroup {
     ReconOps,
 }
 
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
+pub enum ParentGroup {
+    Operations,
+    Connectors,
+    Workflows,
+    Analytics,
+    Users,
+    #[serde(rename = "MerchantAccess")]
+    Merchant,
+    #[serde(rename = "OrganizationAccess")]
+    Organization,
+    Recon,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+pub enum Resource {
+    Payment,
+    Refund,
+    ApiKey,
+    Account,
+    Connector,
+    Routing,
+    Dispute,
+    Mandate,
+    Customer,
+    Analytics,
+    ThreeDsDecisionManager,
+    SurchargeDecisionManager,
+    User,
+    WebhookEvent,
+    Payout,
+    Report,
+    Recon,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub enum PermissionScope {
+    Read,
+    Write,
+}
+
 /// Name of banks supported by Hyperswitch
 #[derive(
     Clone,
@@ -3308,4 +3411,17 @@ pub enum SurchargeCalculationOverride {
     Skip,
     /// Calculate surcharge
     Calculate,
+}
+
+/// Connector Mandate Status
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorMandateStatus {
+    /// Indicates that the connector mandate is active and can be used for payments.
+    Active,
+    /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
+    Inactive,
 }

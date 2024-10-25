@@ -750,6 +750,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
 pub trait PaymentsCaptureRequestData {
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
 }
 
 impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
@@ -760,6 +761,9 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+        self.capture_method.to_owned()
     }
 }
 
@@ -2464,31 +2468,13 @@ impl FraudCheckRecordReturnRequest for fraud_check::FraudCheckRecordReturnData {
     }
 }
 
-pub trait AccessPaymentAttemptInfo {
-    fn get_browser_info(
-        &self,
-    ) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>>;
-}
-
-impl AccessPaymentAttemptInfo for PaymentAttempt {
-    fn get_browser_info(
-        &self,
-    ) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>> {
-        self.browser_info
-            .clone()
-            .map(|b| b.parse_value("BrowserInformation"))
-            .transpose()
-            .change_context(ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
-            })
-    }
-}
-
+#[cfg(feature = "v1")]
 pub trait PaymentsAttemptData {
     fn get_browser_info(&self)
         -> Result<BrowserInformation, error_stack::Report<ApiErrorResponse>>;
 }
 
+#[cfg(feature = "v1")]
 impl PaymentsAttemptData for PaymentAttempt {
     fn get_browser_info(
         &self,

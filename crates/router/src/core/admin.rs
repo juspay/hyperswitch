@@ -2126,7 +2126,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         Ok(storage::MerchantConnectorAccountUpdate::Update {
             connector_type: Some(self.connector_type),
             connector_label: self.connector_label.clone(),
-            connector_account_details: encrypted_data.connector_account_details,
+            connector_account_details: Box::new(encrypted_data.connector_account_details),
             disabled,
             payment_methods_enabled,
             metadata: self.metadata,
@@ -2140,10 +2140,10 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                 None => None,
             },
             applepay_verified_domains: None,
-            pm_auth_config: self.pm_auth_config,
+            pm_auth_config: Box::new(self.pm_auth_config),
             status: Some(connector_status),
-            additional_merchant_data: encrypted_data.additional_merchant_data,
-            connector_wallets_details: encrypted_data.connector_wallets_details,
+            additional_merchant_data: Box::new(encrypted_data.additional_merchant_data),
+            connector_wallets_details: Box::new(encrypted_data.connector_wallets_details),
         })
     }
 }
@@ -2295,25 +2295,27 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             connector_name: None,
             merchant_connector_id: None,
             connector_label: self.connector_label.clone(),
-            connector_account_details: encrypted_data.connector_account_details,
+            connector_account_details: Box::new(encrypted_data.connector_account_details),
             test_mode: self.test_mode,
             disabled,
             payment_methods_enabled,
             metadata: self.metadata,
             frm_configs,
             connector_webhook_details: match &self.connector_webhook_details {
-                Some(connector_webhook_details) => connector_webhook_details
-                    .encode_to_value()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .map(Some)?
-                    .map(Secret::new),
-                None => None,
+                Some(connector_webhook_details) => Box::new(
+                    connector_webhook_details
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .map(Some)?
+                        .map(Secret::new),
+                ),
+                None => Box::new(None),
             },
             applepay_verified_domains: None,
-            pm_auth_config: self.pm_auth_config,
+            pm_auth_config: Box::new(self.pm_auth_config),
             status: Some(connector_status),
-            additional_merchant_data: encrypted_data.additional_merchant_data,
-            connector_wallets_details: encrypted_data.connector_wallets_details,
+            additional_merchant_data: Box::new(encrypted_data.additional_merchant_data),
+            connector_wallets_details: Box::new(encrypted_data.connector_wallets_details),
         })
     }
 }
@@ -3454,9 +3456,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
         let payment_link_config = self.payment_link_config.map(ForeignInto::foreign_into);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3571,9 +3576,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
         let payment_link_config = self.payment_link_config.map(ForeignInto::foreign_into);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3832,9 +3840,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?
             .map(Secret::new);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3933,9 +3944,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?
             .map(Secret::new);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)

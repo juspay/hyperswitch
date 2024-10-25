@@ -9301,6 +9301,7 @@
         "description": "The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.",
         "enum": [
           "AED",
+          "AFN",
           "ALL",
           "AMD",
           "ANG",
@@ -9320,10 +9321,12 @@
           "BOB",
           "BRL",
           "BSD",
+          "BTN",
           "BWP",
           "BYN",
           "BZD",
           "CAD",
+          "CDF",
           "CHF",
           "CLP",
           "CNY",
@@ -9337,6 +9340,7 @@
           "DOP",
           "DZD",
           "EGP",
+          "ERN",
           "ETB",
           "EUR",
           "FJD",
@@ -9358,6 +9362,8 @@
           "ILS",
           "INR",
           "IQD",
+          "IRR",
+          "ISK",
           "JMD",
           "JOD",
           "JPY",
@@ -9365,6 +9371,7 @@
           "KGS",
           "KHR",
           "KMF",
+          "KPW",
           "KRW",
           "KWD",
           "KYD",
@@ -9411,6 +9418,7 @@
           "SAR",
           "SBD",
           "SCR",
+          "SDG",
           "SEK",
           "SGD",
           "SHP",
@@ -9421,8 +9429,11 @@
           "SSP",
           "STN",
           "SVC",
+          "SYP",
           "SZL",
           "THB",
+          "TJS",
+          "TMT",
           "TND",
           "TOP",
           "TRY",
@@ -9444,7 +9455,8 @@
           "XPF",
           "YER",
           "ZAR",
-          "ZMW"
+          "ZMW",
+          "ZWL"
         ]
       },
       "CurrentBlockThreshold": {
@@ -17336,6 +17348,13 @@
             "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment.",
+            "example": 6540,
+            "nullable": true
+          },
           "amount_capturable": {
             "type": "integer",
             "format": "int64",
@@ -18523,6 +18542,13 @@
             "format": "int64",
             "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment.",
+            "example": 6540,
+            "nullable": true
           },
           "amount_capturable": {
             "type": "integer",
@@ -22936,7 +22962,6 @@
         "type": "object",
         "required": [
           "name",
-          "url",
           "country_code"
         ],
         "properties": {
@@ -22946,7 +22971,8 @@
           },
           "url": {
             "type": "string",
-            "description": "Merchant domain that process payments"
+            "description": "Merchant domain that process payments, required for web payments",
+            "nullable": true
           },
           "country_code": {
             "$ref": "#/components/schemas/CountryAlpha2"

@@ -596,8 +596,8 @@ impl<F, T>
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             order.id.to_string(),
                         ),
-                        redirection_data,
-                        mandate_reference,
+                        redirection_data: Box::new(redirection_data),
+                        mandate_reference: Box::new(mandate_reference),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,

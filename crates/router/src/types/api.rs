@@ -88,9 +88,6 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
             .map(ToString::to_string))
     }
 }
-
-pub trait Router {}
-
 pub trait Connector:
     Send
     + Refund
@@ -437,7 +434,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }
                 enums::Connector::Klarna => Ok(ConnectorEnum::Old(Box::new(&connector::Klarna))),
-                enums::Connector::Mollie => Ok(ConnectorEnum::Old(Box::new(&connector::Mollie))),
+                enums::Connector::Mollie => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Mollie::new())))
+                }
                 enums::Connector::Nexixpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
@@ -474,7 +473,9 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Razorpay::new())))
                 }
                 enums::Connector::Rapyd => Ok(ConnectorEnum::Old(Box::new(&connector::Rapyd))),
-                enums::Connector::Shift4 => Ok(ConnectorEnum::Old(Box::new(&connector::Shift4))),
+                enums::Connector::Shift4 => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
+                }
                 enums::Connector::Square => Ok(ConnectorEnum::Old(Box::new(&connector::Square))),
                 enums::Connector::Stax => Ok(ConnectorEnum::Old(Box::new(&connector::Stax))),
                 enums::Connector::Stripe => {
@@ -485,7 +486,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
                 }
                 enums::Connector::Worldpay => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Worldpay)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
                 enums::Connector::Mifinity => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Mifinity::new())))
@@ -513,7 +514,7 @@ impl ConnectorData {
 
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
                 enums::Connector::Wellsfargo => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Wellsfargo)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Wellsfargo::new())))
                 }
 
                 // enums::Connector::Wellsfargopayout => {

@@ -48,7 +48,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _header_payload: &api::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -378,7 +378,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentSessionUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -389,11 +389,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
                 .tax_data
                 .clone()
                 .map(|tax_data| tax_data.shipping_details);
+            let key_manager_state = state.into();
 
             let shipping_details = shipping_address
                 .clone()
                 .async_map(|shipping_details| {
-                    create_encrypted_data(state, key_store, shipping_details)
+                    create_encrypted_data(&key_manager_state, key_store, shipping_details)
                 })
                 .await
                 .transpose()
