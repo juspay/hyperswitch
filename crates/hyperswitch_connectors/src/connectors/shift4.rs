@@ -4,10 +4,9 @@ use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    
     ext_traits::{ByteSliceExt, BytesExt},
-   
-    request::{Method, Request, RequestBuilder, RequestContent,}, types::{AmountConvertor, MinorUnit, MinorUnitForConnector}
+    request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use http::header::ACCEPT;

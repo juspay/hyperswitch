@@ -961,7 +961,7 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
     map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
     map
 });
- 
+
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;
     fn get_last_name(&self) -> Result<&Secret<String>, Error>;
@@ -2178,8 +2178,7 @@ impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
     fn get_encoded_wallet_token(&self) -> Result<String, Error> {
         match self {
             Self::GooglePay(_) => {
-                let json_token: Value =
-                    self.get_wallet_token_as_json("Google Pay".to_owned())?;
+                let json_token: Value = self.get_wallet_token_as_json("Google Pay".to_owned())?;
                 let token_as_vec = serde_json::to_vec(&json_token).change_context(
                     errors::ConnectorError::InvalidWalletToken {
                         wallet_name: "Google Pay".to_string(),

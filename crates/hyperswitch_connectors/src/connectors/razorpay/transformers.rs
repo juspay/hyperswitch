@@ -789,9 +789,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
             Some(second_factor) => Ok(Self {
                 status,
                 response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(
-                        second_factor.epg_txn_id,
-                    ),
+                    resource_id: ResponseId::ConnectorTransactionId(second_factor.epg_txn_id),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,

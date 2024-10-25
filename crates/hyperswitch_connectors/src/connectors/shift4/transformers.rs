@@ -2,9 +2,10 @@ use api_models::{payments::AddressDetails, webhooks::IncomingWebhookEvent};
 use cards::CardNumber;
 use common_enums::enums;
 use common_utils::{
-    {pii::{self, SecretSerdeValue},
+    pii::{self, SecretSerdeValue},
     request::Method,
-}, types::MinorUnit};
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -13,7 +14,8 @@ use hyperswitch_domain_models::{
     },
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{ CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId
+    router_request_types::{
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsPreProcessingData, ResponseId,
     },
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types::{PaymentsPreProcessingRouterData, RefundsRouterData},
@@ -28,7 +30,8 @@ use crate::{
         PaymentsPreprocessingResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
-        self, to_connector_meta, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _
+        self, to_connector_meta, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingRequestData, RouterData as _,
     },
 };
 
@@ -66,7 +69,7 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsAuthorizeData {
     fn get_complete_authorize_url(&self) -> Option<String> {
         self.complete_authorize_url.clone()
     }
-    
+
     fn get_currency_required(
         &self,
     ) -> Result<enums::Currency, error_stack::Report<errors::ConnectorError>> {
@@ -441,18 +444,12 @@ where
     }
 }
 
-impl<T>
-    TryFrom<
-        &Shift4RouterData<
-            &RouterData<T, CompleteAuthorizeData, PaymentsResponseData>,
-        >,
-    > for Shift4PaymentsRequest
+impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, PaymentsResponseData>>>
+    for Shift4PaymentsRequest
 {
     type Error = Error;
     fn try_from(
-        item: &Shift4RouterData<
-            &RouterData<T, CompleteAuthorizeData, PaymentsResponseData>,
-        >,
+        item: &Shift4RouterData<&RouterData<T, CompleteAuthorizeData, PaymentsResponseData>>,
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
             Some(PaymentMethodData::Card(_)) => {
@@ -823,9 +820,7 @@ pub struct Shift4RefundRequest {
 
 impl<F> TryFrom<&Shift4RouterData<&RefundsRouterData<F>>> for Shift4RefundRequest {
     type Error = Error;
-    fn try_from(
-        item: &Shift4RouterData<&RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &Shift4RouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             charge_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount.to_owned(),

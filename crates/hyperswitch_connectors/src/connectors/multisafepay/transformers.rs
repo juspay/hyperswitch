@@ -10,7 +10,8 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
     types::{self},
 };
