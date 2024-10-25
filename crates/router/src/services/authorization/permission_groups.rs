@@ -1,7 +1,9 @@
-use super::permissions::{self, ResourceExt};
-use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
 use std::collections::HashMap;
+
+use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
 use strum::IntoEnumIterator;
+
+use super::permissions::{self, ResourceExt};
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
