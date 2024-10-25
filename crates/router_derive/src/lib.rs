@@ -696,6 +696,61 @@ pub fn flat_struct_derive(input: proc_macro::TokenStream) -> proc_macro::TokenSt
     proc_macro::TokenStream::from(expanded)
 }
 
+/// Generates the permissions enum and implematations for the permissions
+///
+/// **NOTE:** You have to make sure that all the identifiers used
+/// in the macro input are present in the respective enums as well.
+///
+/// ## Usage
+/// ```
+/// use router_derive::generate_permissions;
+///
+/// enum Scope {
+///     Read,
+///     Write,
+/// }
+///
+/// enum EntityType {
+///    Profile,
+///    Merchant,
+///    Org,
+/// }
+///
+/// enum Resource {
+///    Payments,
+///    Refunds,
+/// }
+///
+/// generate_permissions! {
+///     permissions: [
+///         Payments: {
+///             scopes: [Read, Write],
+///             entities: [Profile, Merchant, Org]
+///         },
+///         Refunds: {
+///             scopes: [Read],
+///             entities: [Profile, Org]
+///         }
+///     ]
+/// }
+/// ```
+/// This will generate the following enum.
+/// ```
+/// enum Permission {
+///    ProfilePaymentsRead,
+///    ProfilePaymentsWrite,
+///    MerchantPaymentsRead,
+///    MerchantPaymentsWrite,
+///    OrgPaymentsRead,
+///    OrgPaymentsWrite,
+///    ProfileRefundsRead,
+///    OrgRefundsRead,
+/// ```
+#[proc_macro]
+pub fn generate_permissions(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    macros::generate_permissions_inner(input)
+}
+
 /// Generates the ToEncryptable trait for a type
 ///
 /// This macro generates the temporary structs which has the fields that needs to be encrypted
