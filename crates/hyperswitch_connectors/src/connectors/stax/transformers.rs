@@ -407,7 +407,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsCaptureRouterData>> for StaxCapture
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct StaxRefundRequest {
-    pub total: MinorUnit,
+    pub total: FloatMajorUnit,
 }
 
 impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundRequest {
