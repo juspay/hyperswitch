@@ -979,7 +979,7 @@ pub async fn routing_update_default_config_for_profile(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
 pub async fn toggle_success_based_routing(
     state: web::Data<AppState>,
@@ -1023,7 +1023,7 @@ pub async fn toggle_success_based_routing(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
 pub async fn success_based_routing_update_configs(
     state: web::Data<AppState>,

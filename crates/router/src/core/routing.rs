@@ -38,6 +38,8 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 
 pub enum TransactionData<'a> {
     Payment(PaymentsDslInput<'a>),
@@ -1157,7 +1159,7 @@ pub async fn update_default_routing_config_for_profile(
     ))
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn toggle_success_based_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -1311,7 +1313,7 @@ pub async fn toggle_success_based_routing(
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn success_based_routing_update_configs(
     state: SessionState,
     request: routing_types::SuccessBasedRoutingConfig,
@@ -1381,5 +1383,17 @@ pub async fn success_based_routing_update_configs(
         1,
         &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
     );
+
+    // let dynamic_routing_id = helpers::generate_tenant_business_profile_id(
+    //     &state.tenant.redis_key_prefix,
+    //     profile_id.get_string_repr(),
+    // );
+    let ins = state
+        .grpc_client
+        .dynamic_routing
+        .success_rate_client
+        .as_ref()
+        .map(|a| a.invalidate_config_window("er".to_string()));
+
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
