@@ -23,7 +23,7 @@ pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsIntentRespon
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-    CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentConfirmIntent,
+    CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync,
     PaymentCreateIntent, PaymentGetIntent, PaymentMethodToken, PostProcessing, PostSessionTokens,
     PreProcessing, Reject, SdkSessionUpdate, Session, SetupMandate, Void,
 };
