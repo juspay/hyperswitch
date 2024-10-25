@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use api_models::user_role::role::{self as role_api};
-use common_enums::{EntityType, ParentGroup, RoleScope};
+use common_enums::{EntityType, ParentGroup, PermissionGroup, RoleScope};
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
@@ -24,7 +24,7 @@ use crate::{
 pub async fn get_role_from_token_with_groups(
     state: SessionState,
     user_from_token: UserFromToken,
-) -> UserResponse<Vec<role_api::PermissionGroup>> {
+) -> UserResponse<Vec<PermissionGroup>> {
     let role_info = user_from_token
         .get_role_info_from_db(&state)
         .await

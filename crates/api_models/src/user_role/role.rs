@@ -1,5 +1,6 @@
-use common_enums::{EntityType, ParentGroup, RoleScope};
-pub use common_enums::{PermissionGroup, PermissionScope, Resource};
+use common_enums::{
+    EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource, RoleScope,
+};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct CreateRoleRequest {
