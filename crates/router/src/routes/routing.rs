@@ -938,33 +938,35 @@ pub async fn toggle_success_based_routing(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<api_models::routing::ToggleSuccessBasedRoutingQuery>,
-    path: web::Path<routing_types::ToggleSuccessBasedRoutingPath>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::ProfileId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::ToggleDynamicRouting;
+    let (merchant_id, profile_id) = path.into_inner();
     let wrapper = routing_types::ToggleSuccessBasedRoutingWrapper {
         status: query.into_inner().status,
-        profile_id: path.into_inner().profile_id,
+        merchant_id,
+        profile_id,
     };
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
         wrapper.clone(),
-        |state,
-         auth: auth::AuthenticationData,
-         wrapper: routing_types::ToggleSuccessBasedRoutingWrapper,
-         _| {
+        |state, _, wrapper: routing_types::ToggleSuccessBasedRoutingWrapper, _| {
             routing::toggle_success_based_routing(
                 state,
-                auth.merchant_account,
-                auth.key_store,
                 wrapper.status,
                 wrapper.profile_id,
+                wrapper.merchant_id,
             )
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuthProfileFromRoute {
+            &auth::AdminApiAuth,
+            &auth::JWTAuthProfileAndMerchantFromRoute {
+                merchant_id: wrapper.merchant_id,
                 profile_id: wrapper.profile_id,
                 required_permission: Permission::ProfileRoutingWrite,
             },
