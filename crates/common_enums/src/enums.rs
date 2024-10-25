@@ -2890,6 +2890,47 @@ pub enum PermissionGroup {
     ReconOps,
 }
 
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
+pub enum ParentGroup {
+    Operations,
+    Connectors,
+    Workflows,
+    Analytics,
+    Users,
+    #[serde(rename = "MerchantAccess")]
+    Merchant,
+    #[serde(rename = "OrganizationAccess")]
+    Organization,
+    Recon,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+pub enum Resource {
+    Payment,
+    Refund,
+    ApiKey,
+    Account,
+    Connector,
+    Routing,
+    Dispute,
+    Mandate,
+    Customer,
+    Analytics,
+    ThreeDsDecisionManager,
+    SurchargeDecisionManager,
+    User,
+    WebhookEvent,
+    Payout,
+    Report,
+    Recon,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+pub enum PermissionScope {
+    Read,
+    Write,
+}
+
 /// Name of banks supported by Hyperswitch
 #[derive(
     Clone,

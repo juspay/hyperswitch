@@ -210,8 +210,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsResponse, T, PaymentsRespon
             status: enums::AttemptStatus::from(item.response.status.status_code),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item
@@ -260,8 +260,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCaptureResponse, T, Payment
             status: enums::AttemptStatus::from(item.response.status.status_code.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::NoResponseId,
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -335,8 +335,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsCancelResponse, T, Payments
             status: enums::AttemptStatus::from(item.response.status.status_code.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item
@@ -464,8 +464,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayuPaymentsSyncResponse, T, PaymentsRe
             status: enums::AttemptStatus::from(order.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(order.order_id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: order

@@ -81,7 +81,7 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
 #[derive(Serialize, Debug)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 pub enum StripeWebhookObject {
-    PaymentIntent(StripePaymentIntentResponse),
+    PaymentIntent(Box<StripePaymentIntentResponse>),
     Refund(StripeRefundResponse),
     Dispute(StripeDisputeResponse),
     Mandate(StripeMandateResponse),
@@ -327,9 +327,9 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
     fn from(value: api::OutgoingWebhookContent) -> Self {
         match value {
             api::OutgoingWebhookContent::PaymentDetails(payment) => {
-                Self::PaymentIntent(payment.into())
+                Self::PaymentIntent(Box::new((*payment).into()))
             }
-            api::OutgoingWebhookContent::RefundDetails(refund) => Self::Refund(refund.into()),
+            api::OutgoingWebhookContent::RefundDetails(refund) => Self::Refund((*refund).into()),
             api::OutgoingWebhookContent::DisputeDetails(dispute) => {
                 Self::Dispute((*dispute).into())
             }
@@ -337,7 +337,7 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
                 Self::Mandate((*mandate).into())
             }
             #[cfg(feature = "payouts")]
-            api::OutgoingWebhookContent::PayoutDetails(payout) => Self::Payout(payout.into()),
+            api::OutgoingWebhookContent::PayoutDetails(payout) => Self::Payout((*payout).into()),
         }
     }
 }

@@ -375,7 +375,7 @@ pub async fn payouts_confirm_core(
         &merchant_account,
         None,
         &key_store,
-        &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
+        &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         locale,
     )
     .await?;
@@ -448,7 +448,7 @@ pub async fn payouts_update_core(
         &merchant_account,
         None,
         &key_store,
-        &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
+        &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         locale,
     )
     .await?;
