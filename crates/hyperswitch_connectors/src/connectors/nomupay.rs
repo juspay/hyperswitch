@@ -544,6 +544,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nomupay {
     }
 }
 
+
+#[cfg(feature = "payouts")]
 impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nomupay {
     fn get_url(
         &self,
@@ -566,7 +568,7 @@ impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nom
         req: &PayoutsRouterData<PoRecipient>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nomupay::OnboardSubAccount::try_from(req)?;
+        let connector_req = nomupay::OnboardSubAccountRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -621,7 +623,7 @@ impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nom
     }
 }
 
-
+#[cfg(feature = "payouts")]
 impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> for Nomupay {
     fn get_url(
         &self,
@@ -651,7 +653,7 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
         req: &PayoutsRouterData<PoRecipientAccount>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = nomupay::OnboardTransferMethod::try_from(req)?;
+        let connector_req = nomupay::OnboardTransferMethodRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -705,6 +707,95 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
         self.build_error_response(res, event_builder)
     }
 }
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nomupay {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        // let auth = nomupay::NomupayAuthType::try_from(&req.connector_auth_type)
+        //     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        // let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
+        //     errors::ConnectorError::MissingRequiredField {
+        //         field_name: "transfer_id",
+        //     },
+        // )?;
+        Ok(format!(
+            "{}/v1alpha1/payments",connectors.nomupay.base_url,
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = nomupay::PaymentRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutFulfillType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutFulfillType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
+        let response: nomupay::PaymentResponse = res
+            .response
+            .parse_struct("WiseFulfillResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+
+
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Nomupay {
