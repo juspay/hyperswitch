@@ -53,9 +53,7 @@ pub fn get_parent_group_description(group: ParentGroup) -> &'static str {
         ParentGroup::Workflows => "Create, modify and delete Routing, 3DS Decision Manager, Surcharge Decision Manager",
         ParentGroup::Analytics => "View Analytics",
         ParentGroup::Users =>  "Manage and invite Users to the Team",
-        ParentGroup::Merchant => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
-        ParentGroup::Organization =>"Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
+        ParentGroup::Account => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
         ParentGroup::Recon => "View and manage reconciliation reports",
-        ParentGroup::Account => "Manage Account Details",
     }
 }

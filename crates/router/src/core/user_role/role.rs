@@ -169,6 +169,10 @@ pub async fn get_parent_info_for_role(
             .get_permission_groups()
             .iter()
             .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+            // TODO: Remove this hashset conversion when merhant access
+            // and organization access groups are removed
+            .collect::<HashSet<_>>()
+            .into_iter()
             .collect(),
     })
     .collect();

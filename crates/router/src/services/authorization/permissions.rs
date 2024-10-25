@@ -82,18 +82,16 @@ pub fn get_resource_name(resource: &Resource, entity_type: &EntityType) -> &'sta
         (Resource::Mandate, _) => "Mandates",
         (Resource::Customer, _) => "Customers",
         (Resource::Payout, _) => "Payouts",
-        (Resource::ApiKey, _) => "ApiKeys",
-        (Resource::Connector, _) => {
-            "Payment Processors, Payout Processors and Fraud & Risk Managers"
-        }
+        (Resource::ApiKey, _) => "Api Keys",
+        (Resource::Connector, _) => "Payment Processors, Payout Processors, Fraud & Risk Managers",
         (Resource::Routing, _) => "Routing",
         (Resource::ThreeDsDecisionManager, _) => "3DS Decision Manager",
         (Resource::SurchargeDecisionManager, _) => "Surcharge Decision Manager",
         (Resource::Analytics, _) => "Analytics",
-        (Resource::Report, _) => "Reports",
+        (Resource::Report, _) => "Operation Reports",
         (Resource::User, _) => "Users",
         (Resource::WebhookEvent, _) => "Webhook Events",
-        (Resource::Recon, _) => "Recon",
+        (Resource::Recon, _) => "Reconciliation Reports",
         (Resource::Account, EntityType::Profile) => "Business Profile Account",
         (Resource::Account, EntityType::Merchant) => "Merchant Account",
         (Resource::Account, EntityType::Organization) => "Organization Account",

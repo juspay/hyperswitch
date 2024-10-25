@@ -2902,12 +2902,6 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    // TODO: To be deprecated
-    #[serde(rename = "MerchantAccess")]
-    Merchant,
-    // TODO: To be deprecated
-    #[serde(rename = "OrganizationAccess")]
-    Organization,
     Recon,
     Account,
 }
@@ -2934,7 +2928,7 @@ pub enum Resource {
     Recon,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum PermissionScope {
     Read = 0,

@@ -39,10 +39,12 @@ impl PermissionGroupExt for PermissionGroup {
             Self::WorkflowsView | Self::WorkflowsManage => ParentGroup::Workflows,
             Self::AnalyticsView => ParentGroup::Analytics,
             Self::UsersView | Self::UsersManage => ParentGroup::Users,
-            Self::MerchantDetailsView | Self::MerchantDetailsManage => ParentGroup::Merchant,
-            Self::OrganizationManage => ParentGroup::Organization,
             Self::ReconOps => ParentGroup::Recon,
-            Self::AccountView | Self::AccountManage => ParentGroup::Account,
+            Self::MerchantDetailsView
+            | Self::OrganizationManage
+            | Self::MerchantDetailsManage
+            | Self::AccountView
+            | Self::AccountManage => ParentGroup::Account,
         }
     }
 
@@ -58,10 +60,14 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ConnectorsView => vec![Self::ConnectorsView],
             Self::ConnectorsManage => vec![Self::ConnectorsView, Self::ConnectorsManage],
 
-            Self::WorkflowsView => vec![Self::WorkflowsView],
-            Self::WorkflowsManage => vec![Self::WorkflowsView, Self::WorkflowsManage],
+            Self::WorkflowsView => vec![Self::WorkflowsView, Self::ConnectorsView],
+            Self::WorkflowsManage => vec![
+                Self::WorkflowsView,
+                Self::WorkflowsManage,
+                Self::ConnectorsView,
+            ],
 
-            Self::AnalyticsView => vec![Self::AnalyticsView],
+            Self::AnalyticsView => vec![Self::AnalyticsView, Self::OperationsView],
 
             Self::UsersView => vec![Self::UsersView],
             Self::UsersManage => {
@@ -99,7 +105,7 @@ impl ParentGroupExt for ParentGroup {
             Self::Workflows => WORKFLOWS.to_vec(),
             Self::Analytics => ANALYTICS.to_vec(),
             Self::Users => USERS.to_vec(),
-            Self::Merchant | Self::Organization | Self::Account => ACCOUNT.to_vec(),
+            Self::Account => ACCOUNT.to_vec(),
             Self::Recon => RECON.to_vec(),
         }
     }
@@ -146,11 +152,10 @@ pub static OPERATIONS: [Resource; 8] = [
 
 pub static CONNECTORS: [Resource; 2] = [Resource::Connector, Resource::Account];
 
-pub static WORKFLOWS: [Resource; 5] = [
+pub static WORKFLOWS: [Resource; 4] = [
     Resource::Routing,
     Resource::ThreeDsDecisionManager,
     Resource::SurchargeDecisionManager,
-    Resource::Connector,
     Resource::Account,
 ];
 
