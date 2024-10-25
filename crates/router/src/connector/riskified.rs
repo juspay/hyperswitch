@@ -314,7 +314,17 @@ impl
                 Ok(RequestContent::Json(Box::new(req_obj)))
             }
             _ => {
-                let req_obj = riskified::TransactionSuccessRequest::try_from(req)?;
+                let amount = convert_amount(
+                    self.amount_converter,
+                    MinorUnit::new(req.request.amount),
+                    req.request
+                        .currency
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "currency",
+                        })?,
+                )?;
+                let req_data = riskified::RiskifiedRouterData::from((amount, req));
+                let req_obj = riskified::TransactionSuccessRequest::try_from(&req_data)?;
                 Ok(RequestContent::Json(Box::new(req_obj)))
             }
         }

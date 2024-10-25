@@ -176,7 +176,7 @@ impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
                 created_at: common_utils::date_time::now(),
                 updated_at: common_utils::date_time::now(),
                 gateway: payment_data.request.gateway.clone(),
-                total_price: StringMajorUnit::new(payment_data.request.amount.to_string()),
+                total_price: payment.amount.clone(),
                 cart_token: payment_data.attempt_id.clone(),
                 line_items: payment_data
                     .request
@@ -449,16 +449,21 @@ pub enum TransactionStatus {
     Approved,
 }
 
-impl TryFrom<&frm_types::FrmTransactionRouterData> for TransactionSuccessRequest {
+impl TryFrom<&RiskifiedRouterData<&frm_types::FrmTransactionRouterData>>
+    for TransactionSuccessRequest
+{
     type Error = Error;
-    fn try_from(item: &frm_types::FrmTransactionRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &RiskifiedRouterData<&frm_types::FrmTransactionRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data.clone();
         Ok(Self {
             order: SuccessfulTransactionData {
                 id: item.attempt_id.clone(),
                 decision: TransactionDecisionData {
                     external_status: TransactionStatus::Approved,
                     reason: None,
-                    amount: StringMajorUnit::new(item.request.amount.to_string()),
+                    amount: item_data.amount.clone(),
                     currency: item.request.get_currency()?,
                     decided_at: common_utils::date_time::now(),
                     payment_details: [TransactionPaymentDetails {
