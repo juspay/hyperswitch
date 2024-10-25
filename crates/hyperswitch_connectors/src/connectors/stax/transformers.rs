@@ -422,7 +422,7 @@ pub struct ChildTransactionsInResponse {
     id: String,
     success: bool,
     created_at: String,
-    total: MinorUnit,
+    total: FloatMajorUnit,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RefundResponse {
