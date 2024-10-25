@@ -226,6 +226,7 @@ mod operations_keyword {
 
     custom_keyword!(operations);
     custom_keyword!(flow);
+    custom_keyword!(payment_data);
 }
 
 #[derive(Debug)]
@@ -237,6 +238,10 @@ pub enum OperationsEnumMeta {
     Flow {
         keyword: operations_keyword::flow,
         value: Vec<Derives>,
+    },
+    PaymentData {
+        keyword: operations_keyword::payment_data,
+        value: syn::Ident,
     },
 }
 
@@ -251,6 +256,7 @@ fn get_operation_properties(
 ) -> syn::Result<OperationProperties> {
     let mut operations = vec![];
     let mut flows = vec![];
+    let mut payment_data = None;
 
     for operation in operation_enums {
         match operation {
@@ -259,6 +265,9 @@ fn get_operation_properties(
             }
             OperationsEnumMeta::Flow { value, .. } => {
                 flows = value;
+            }
+            OperationsEnumMeta::PaymentData { value, .. } => {
+                payment_data = Some(value);
             }
         }
     }
@@ -274,6 +283,13 @@ fn get_operation_properties(
         Err(syn::Error::new(
             Span::call_site(),
             "atleast one flow must be specitied",
+        ))?;
+    }
+
+    if payment_data.is_none() {
+        Err(syn::Error::new(
+            Span::call_site(),
+            "payment data must be specitied",
         ))?;
     }
 
@@ -381,6 +397,7 @@ impl ToTokens for OperationsEnumMeta {
         match self {
             Self::Operations { keyword, .. } => keyword.to_tokens(tokens),
             Self::Flow { keyword, .. } => keyword.to_tokens(tokens),
+            Self::PaymentData { keyword, .. } => keyword.to_tokens(tokens),
         }
     }
 }
@@ -430,6 +447,7 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                     GetTracker,
                     UpdateTracker,
                 }};
+                use hyperswitch_domain_models::payments::PaymentsConfirmData;
                 use #current_crate::types::{
                     SetupMandateRequestData,
                     PaymentsSyncData,
