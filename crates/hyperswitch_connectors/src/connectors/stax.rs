@@ -59,7 +59,7 @@ pub struct Stax {
 impl Stax {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &MinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
