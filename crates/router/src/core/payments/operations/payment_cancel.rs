@@ -43,7 +43,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _header_payload: &api::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, PaymentData<F>>,
     > {
@@ -230,7 +230,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCancelOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,

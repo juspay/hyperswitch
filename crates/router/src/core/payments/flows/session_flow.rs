@@ -40,7 +40,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<api_models::payments::HeaderPayload>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Session,
@@ -80,7 +80,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
-        header_payload: api_models::payments::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -172,7 +172,7 @@ async fn create_applepay_session_token(
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
     business_profile: &domain::Profile,
-    header_payload: api_models::payments::HeaderPayload,
+    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let delayed_response = is_session_response_delayed(state, connector);
     if delayed_response {
@@ -500,7 +500,7 @@ async fn create_applepay_session_token(
 
 fn create_paze_session_token(
     router_data: &types::PaymentsSessionRouterData,
-    _header_payload: api_models::payments::HeaderPayload,
+    _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let paze_wallet_details = router_data
         .connector_wallets_details
@@ -528,7 +528,7 @@ fn create_paze_session_token(
 
 fn create_samsung_pay_session_token(
     router_data: &types::PaymentsSessionRouterData,
-    header_payload: api_models::payments::HeaderPayload,
+    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let samsung_pay_session_token_data = router_data
         .connector_wallets_details
@@ -682,7 +682,7 @@ fn create_apple_pay_session_response(
     connector_name: String,
     delayed_response: bool,
     next_action: payment_types::NextActionCall,
-    header_payload: api_models::payments::HeaderPayload,
+    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     match session_response {
         Some(response) => Ok(types::PaymentsSessionRouterData {
@@ -931,7 +931,7 @@ where
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
-        header_payload: api_models::payments::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self>;
 }
 
@@ -980,7 +980,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
-        header_payload: api_models::payments::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         match connector.get_token {
             api::GetToken::GpayMetadata => {

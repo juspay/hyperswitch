@@ -10,7 +10,7 @@ use api_models::payment_methods::PaymentMethodIntentConfirm;
 use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
-use common_enums::{EntityType, TokenPurpose};
+use common_enums::TokenPurpose;
 use common_utils::{date_time, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -390,9 +390,8 @@ where
                 .attach_printable("API key is empty");
         }
 
-        let profile_id =
-            get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
-                .get_required_value(headers::X_PROFILE_ID)?;
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let api_key = api_keys::PlaintextApiKey::from(api_key);
         let hash_key = {
@@ -666,9 +665,10 @@ where
             .0
             .authenticate_and_fetch(request_headers, state)
             .await?;
-        let profile_id =
-            get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
-                .get_required_value(headers::X_PROFILE_ID)?;
+
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let profile = state
             .store()
@@ -1015,17 +1015,17 @@ impl<'a> HeaderMapStruct<'a> {
 
     fn get_mandatory_header_value_by_key(
         &self,
-        key: String,
+        key: &str,
     ) -> Result<&str, error_stack::Report<errors::ApiErrorResponse>> {
         self.headers
-            .get(&key)
+            .get(key)
             .ok_or(errors::ApiErrorResponse::InvalidRequestData {
                 message: format!("Missing header key: `{}`", key),
             })
             .attach_printable(format!("Failed to find header key: {}", key))?
             .to_str()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "`X-Merchant-Id` in headers",
+                field_name: "`{key}` in headers",
             })
             .attach_printable(format!(
                 "Failed to convert header value to string for header key: {}",
@@ -1033,13 +1033,23 @@ impl<'a> HeaderMapStruct<'a> {
             ))
     }
 
-    pub fn get_merchant_id_from_header(&self) -> RouterResult<id_type::MerchantId> {
-        self.get_mandatory_header_value_by_key(headers::X_MERCHANT_ID.into())
+    /// Get the id type from the header
+    /// This can be used to extract lineage ids from the headers
+    pub fn get_id_type_from_header<
+        T: TryFrom<
+            std::borrow::Cow<'static, str>,
+            Error = error_stack::Report<errors::ValidationError>,
+        >,
+    >(
+        &self,
+        key: &str,
+    ) -> RouterResult<T> {
+        self.get_mandatory_header_value_by_key(key)
             .map(|val| val.to_owned())
-            .and_then(|merchant_id| {
-                id_type::MerchantId::wrap(merchant_id).change_context(
+            .and_then(|header_value| {
+                T::try_from(std::borrow::Cow::Owned(header_value)).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
-                        message: format!("`{}` header is invalid", headers::X_MERCHANT_ID),
+                        message: format!("`{}` header is invalid", key),
                     },
                 )
             })
@@ -1065,7 +1075,8 @@ where
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
-        let merchant_id = HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -1374,7 +1385,6 @@ where
 #[derive(Debug)]
 pub(crate) struct JWTAuth {
     pub permission: Permission,
-    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1394,7 +1404,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         Ok((
             (),
@@ -1424,7 +1433,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         Ok((
             UserFromToken {
@@ -1460,7 +1468,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -1501,7 +1508,6 @@ where
 pub struct JWTAuthOrganizationFromRoute {
     pub organization_id: id_type::OrganizationId,
     pub required_permission: Permission,
-    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1521,7 +1527,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         // Check if token has access to Organization that has been requested in the route
         if payload.org_id != self.organization_id {
@@ -1540,12 +1545,10 @@ where
 pub struct JWTAuthMerchantFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub required_permission: Permission,
-    pub minimum_entity_level: EntityType,
 }
 
 pub struct JWTAuthMerchantFromHeader {
     pub required_permission: Permission,
-    pub minimum_entity_level: EntityType,
 }
 
 #[async_trait]
@@ -1565,10 +1568,9 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        let merchant_id_from_header =
-            HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         // Check if token has access to MerchantId that has been requested through headers
         if payload.merchant_id != merchant_id_from_header {
@@ -1601,10 +1603,9 @@ where
         }
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        let merchant_id_from_header =
-            HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         // Check if token has access to MerchantId that has been requested through headers
         if payload.merchant_id != merchant_id_from_header {
@@ -1638,7 +1639,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-            profile_id: payload.profile_id,
+            profile_id: None,
         };
 
         Ok((
@@ -1672,10 +1673,9 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
-        let merchant_id_from_header =
-            HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
         // Check if token has access to MerchantId that has been requested through headers
         if payload.merchant_id != merchant_id_from_header {
@@ -1744,7 +1744,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -1782,7 +1781,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -1894,7 +1892,6 @@ pub struct JWTAuthMerchantAndProfileFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
-    pub minimum_entity_level: EntityType,
 }
 
 #[cfg(feature = "v1")]
@@ -1927,7 +1924,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -1971,7 +1967,6 @@ where
 pub struct JWTAuthProfileFromRoute {
     pub profile_id: id_type::ProfileId,
     pub required_permission: Permission,
-    pub minimum_entity_level: EntityType,
 }
 
 #[cfg(feature = "v1")]
@@ -1992,7 +1987,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2155,7 +2149,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2211,13 +2204,11 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
-        let profile_id =
-            get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
-                .get_required_value(headers::X_PROFILE_ID)?;
+        let profile_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2282,7 +2273,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2434,6 +2424,7 @@ impl ClientSecretFetch for payouts::PayoutCreateRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -2708,7 +2699,6 @@ where
         }
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state

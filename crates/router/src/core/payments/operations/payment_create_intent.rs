@@ -24,9 +24,9 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct PaymentCreateIntent;
+pub struct PaymentIntentCreate;
 
-impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for &PaymentCreateIntent {
+impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for &PaymentIntentCreate {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -52,7 +52,7 @@ impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for &PaymentCrea
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for PaymentCreateIntent {
+impl<F: Send + Clone> Operation<F, PaymentsCreateIntentRequest> for PaymentIntentCreate {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -83,7 +83,7 @@ type PaymentsCreateIntentOperation<'b, F> =
 
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIntentRequest>
-    for PaymentCreateIntent
+    for PaymentIntentCreate
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -94,8 +94,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
         merchant_account: &domain::MerchantAccount,
         profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
-        _auth_flow: services::AuthFlow,
-        _header_payload: &api::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -188,7 +187,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsCrea
 
 #[async_trait]
 impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIntentRequest>
-    for PaymentCreateIntent
+    for PaymentIntentCreate
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -201,7 +200,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIn
         _updated_customer: Option<storage::CustomerUpdate>,
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
         PaymentsCreateIntentOperation<'b, F>,
         payments::PaymentIntentData<F>,
@@ -215,7 +214,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsCreateIn
 
 impl<F: Send + Clone>
     ValidateRequest<F, PaymentsCreateIntentRequest, payments::PaymentIntentData<F>>
-    for PaymentCreateIntent
+    for PaymentIntentCreate
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
@@ -239,7 +238,7 @@ impl<F: Send + Clone>
 
 #[async_trait]
 impl<F: Clone + Send> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIntentData<F>>
-    for PaymentCreateIntent
+    for PaymentIntentCreate
 {
     #[instrument(skip_all)]
     async fn get_customer_details<'a>(

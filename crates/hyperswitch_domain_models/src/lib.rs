@@ -289,11 +289,11 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
             order_amount: amount_details.order_amount().into(),
             currency: amount_details.currency(),
             shipping_cost: amount_details.shipping_cost(),
-            tax_details: Some(diesel_models::TaxDetails {
-                default: amount_details
-                    .order_tax_amount()
-                    .map(|order_tax_amount| diesel_models::DefaultTax { order_tax_amount }),
-                payment_method_type: None,
+            tax_details: amount_details.order_tax_amount().map(|order_tax_amount| {
+                diesel_models::TaxDetails {
+                    default: Some(diesel_models::DefaultTax { order_tax_amount }),
+                    payment_method_type: None,
+                }
             }),
             skip_external_tax_calculation: payments::TaxCalculationOverride::from(
                 amount_details.skip_external_tax_calculation(),
@@ -303,6 +303,8 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
             ),
             surcharge_amount: amount_details.surcharge_amount(),
             tax_on_surcharge: amount_details.tax_on_surcharge(),
+            // We will not receive this in the request. This will be populated after calling the connector / processor
+            amount_captured: None,
         }
     }
 }

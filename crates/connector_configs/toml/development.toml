@@ -281,7 +281,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[adyen.metadata.google_pay]]
 name="merchant_name"
@@ -484,7 +484,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[authorizedotnet.metadata.google_pay]]
 name="merchant_name"
@@ -813,7 +813,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[bluesnap.metadata.google_pay]]
 name="merchant_name"
@@ -1115,7 +1115,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[checkout.metadata.google_pay]]
 name="merchant_name"
@@ -1215,6 +1215,8 @@ merchant_secret="Source verification key"
   payment_method_type = "google_pay"
 [[cybersource.wallet]]
   payment_method_type = "paze"
+[[cybersource.wallet]]
+  payment_method_type = "samsung_pay"
 [cybersource.connector_auth.SignatureKey]
 api_key="Key"
 key1="Merchant ID"
@@ -1295,6 +1297,33 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="service_id"
+label="Samsung Pay Service Id"
+placeholder="Enter Samsung Pay Service Id"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="merchant_display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[cybersource.connector_wallets_details.samsung_pay]]
+name="allowed_brands"
+label="Allowed Brands"
+placeholder="Enter Allowed Brands"
+required=true
+type="MultiSelect"
+options=["visa","masterCard","amex","discover"]
 
 [cybersource.metadata.acquirer_bin]
 name="acquirer_bin"
@@ -1941,7 +1970,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [nexixpay]
 [[nexixpay.credit]]
@@ -2062,7 +2091,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[nmi.metadata.google_pay]]
 name="merchant_name"
@@ -2202,7 +2231,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[noon.metadata.google_pay]]
 name="merchant_name"
@@ -2260,12 +2289,35 @@ type="Text"
   payment_method_type = "CartesBancaires"
 [[novalnet.debit]]
   payment_method_type = "UnionPay"
+[[novalnet.wallet]]
+  payment_method_type = "google_pay"
+[[novalnet.wallet]]
+  payment_method_type = "paypal"
 [novalnet.connector_auth.SignatureKey]
 api_key="Product Activation Key"
 key1="Payment Access Key"
 api_secret="Tariff ID"
 [novalnet.connector_webhook_details]
 merchant_secret="Source verification key"
+placeholder="Enter Payment Access Key"
+[[novalnet.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[novalnet.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[novalnet.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
 
 [nuvei]
 [[nuvei.credit]]
@@ -2379,7 +2431,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[nuvei.metadata.google_pay]]
 name="merchant_name"
@@ -2839,7 +2891,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [shift4]
 [[shift4.credit]]
@@ -3244,7 +3296,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[trustpay.metadata.google_pay]]
 name="merchant_name"
@@ -3473,7 +3525,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Connector"]
 
 [[worldpay.metadata.google_pay]]
 name="merchant_name"
@@ -4196,7 +4248,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector","Hyperswitch"]
+options=["Hyperswitch"]
 
 [fiuu.connector_webhook_details]
 merchant_secret="Source verification key"
