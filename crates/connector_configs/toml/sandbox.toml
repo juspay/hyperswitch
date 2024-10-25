@@ -2260,6 +2260,8 @@ type="Text"
   payment_method_type = "google_pay"
 [[novalnet.wallet]]
   payment_method_type = "paypal"
+[[novalnet.wallet]]
+  payment_method_type = "apple_pay"
 [novalnet.connector_auth.SignatureKey]
 api_key="Product Activation Key"
 key1="Payment Access Key"
@@ -2285,6 +2287,58 @@ label="Google Pay Merchant Key"
 placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
+
+[[novalnet.metadata.apple_pay]]
+name="certificate"
+label="Merchant Certificate (Base64 Encoded)"
+placeholder="Enter Merchant Certificate (Base64 Encoded)"
+required=true
+type="Text"
+[[novalnet.metadata.apple_pay]]
+name="certificate_keys"
+label="Merchant PrivateKey (Base64 Encoded)"
+placeholder="Enter Merchant PrivateKey (Base64 Encoded)"
+required=true
+type="Text"
+[[novalnet.metadata.apple_pay]]
+name="merchant_identifier"
+label="Apple Merchant Identifier"
+placeholder="Enter Apple Merchant Identifier"
+required=true
+type="Text"
+[[novalnet.metadata.apple_pay]]
+name="display_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+[[novalnet.metadata.apple_pay]]
+name="initiative"
+label="Domain"
+placeholder="Enter Domain"
+required=true
+type="Select"
+options=["web","ios"]
+[[novalnet.metadata.apple_pay]]
+name="initiative_context"
+label="Domain Name"
+placeholder="Enter Domain Name"
+required=true
+type="Text"
+[[novalnet.metadata.apple_pay]]
+name="merchant_business_country"
+label="Merchant Business Country"
+placeholder="Enter Merchant Business Country"
+required=true
+type="Select"
+options=[]
+[[novalnet.metadata.apple_pay]]
+name="payment_processing_details_at"
+label="Payment Processing Details At"
+placeholder="Enter Payment Processing Details At"
+required=true
+type="Radio"
+options=["Connector"]
 
 [nuvei]
 [[nuvei.credit]]
