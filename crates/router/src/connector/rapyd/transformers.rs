@@ -274,6 +274,7 @@ pub struct ResponseData {
     pub country_code: Option<String>,
     pub captured: Option<bool>,
     pub transaction_id: String,
+    pub merchant_reference_id: Option<String>,
     pub paid: Option<bool>,
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
@@ -478,7 +479,9 @@ impl<F, T>
                                 mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
-                                connector_response_reference_id: None,
+                                connector_response_reference_id: data
+                                    .merchant_reference_id
+                                    .to_owned(),
                                 incremental_authorization_allowed: None,
                                 charge_id: None,
                             }),
