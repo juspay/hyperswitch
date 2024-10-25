@@ -7,13 +7,16 @@ use api_models::{
 use common_enums::FrmSuggestion;
 use common_utils::pii::SecretSerdeValue;
 use hyperswitch_domain_models::payments::{payment_attempt::PaymentAttempt, PaymentIntent};
-pub use hyperswitch_domain_models::router_request_types::fraud_check::{
-    Address, Destination, FrmFulfillmentRequest, FulfillmentStatus, Fulfillments, Product,
+pub use hyperswitch_domain_models::{
+    router_request_types::fraud_check::{
+        Address, Destination, FrmFulfillmentRequest, FulfillmentStatus, Fulfillments, Product,
+    },
+    types::OrderDetailsWithAmount,
 };
 use masking::Serialize;
 use serde::Deserialize;
 use utoipa::ToSchema;
-pub use hyperswitch_domain_models::types::OrderDetailsWithAmount;
+
 use super::operation::BoxedFraudCheckOperation;
 use crate::types::{
     domain::MerchantAccount,
