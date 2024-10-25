@@ -48,6 +48,11 @@ export default function getConnectorDetails(connectorId) {
   return x;
 }
 
+export function getConnectorFlowDetails(connectorData, commonData, key) {
+  let data = connectorData[key] === undefined ? commonData[key] : connectorData[key];
+  return data;
+}
+
 function mergeDetails(connectorId) {
   const connectorData = getValueByKey(connectorDetails, connectorId);
   const fallbackData = getValueByKey(connectorDetails, "commons");
