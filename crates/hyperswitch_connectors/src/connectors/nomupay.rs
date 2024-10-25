@@ -27,7 +27,9 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_flow_types::payouts::{PoCancel, PoCreate, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount},
+    router_flow_types::payouts::{
+        PoCancel, PoCreate, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
+    },
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
@@ -544,7 +546,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nomupay {
     }
 }
 
-
 #[cfg(feature = "payouts")]
 impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nomupay {
     fn get_url(
@@ -552,14 +553,17 @@ impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nom
         _req: &PayoutsRouterData<PoRecipient>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/v1alpha1/sub-account", connectors.nomupay.base_url))
+        Ok(format!(
+            "{}/v1alpha1/sub-account",
+            connectors.nomupay.base_url
+        ))
     }
 
     fn get_headers(
         &self,
         req: &PayoutsRouterData<PoRecipient>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError>{
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -630,21 +634,23 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
         req: &PayoutsRouterData<PoRecipientAccount>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-
         let sid = req
             .request
             .connector_payout_id
             .to_owned()
             .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "id" })?;
 
-        Ok(format!("{}/v1alpha1/sub-account/{}/transfer-method", connectors.nomupay.base_url, sid))
+        Ok(format!(
+            "{}/v1alpha1/sub-account/{}/transfer-method",
+            connectors.nomupay.base_url, sid
+        ))
     }
 
     fn get_headers(
         &self,
         req: &PayoutsRouterData<PoRecipientAccount>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError>{
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -664,7 +670,9 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         let request = RequestBuilder::new()
             .method(Method::Post)
-            .url(&types::PayoutRecipientAccountType::get_url(self, req, connectors)?)
+            .url(&types::PayoutRecipientAccountType::get_url(
+                self, req, connectors,
+            )?)
             .attach_default_headers()
             .headers(types::PayoutRecipientAccountType::get_headers(
                 self, req, connectors,
@@ -722,9 +730,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nomup
         //         field_name: "transfer_id",
         //     },
         // )?;
-        Ok(format!(
-            "{}/v1alpha1/payments",connectors.nomupay.base_url,
-        ))
+        Ok(format!("{}/v1alpha1/payments", connectors.nomupay.base_url,))
     }
 
     fn get_headers(
@@ -770,10 +776,10 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nomup
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
-        let response: nomupay::PaymentResponse = res
-            .response
-            .parse_struct("WiseFulfillResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: nomupay::PaymentResponse =
+            res.response
+                .parse_struct("WiseFulfillResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -793,9 +799,6 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nomup
         self.build_error_response(res, event_builder)
     }
 }
-
-
-
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Nomupay {

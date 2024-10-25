@@ -1,5 +1,8 @@
 use common_enums::{enums, Currency, PayoutStatus};
-use common_utils::{pii::Email, types::{StringMajorUnit, StringMinorUnit}};
+use common_utils::{
+    pii::Email,
+    types::{StringMajorUnit, StringMinorUnit},
+};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -10,11 +13,10 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
-use serde::{ Deserialize, Serialize};
-
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{PayoutsResponseRouterData, RefundsResponseRouterData, ResponseRouterData,},
+    types::{PayoutsResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{PaymentsAuthorizeRequestData, RouterData as UtilsRouterData},
 };
 
@@ -71,13 +73,14 @@ pub struct Profile {
     pub email_address: Email,
     pub phone_number_country_code: Option<String>,
     pub phone_number: Option<Secret<String>>,
-    pub address : Address,
+    pub address: Address,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OnboardSubAccountRequest{    //1
-    pub account_id: String,
+pub struct OnboardSubAccountRequest {
+    //1
+    pub account_id: Secret<String>,
     pub client_sub_account_id: String,
     pub profile: Profile,
 }
@@ -92,7 +95,7 @@ pub struct BankAccount {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct VirtualAccountsType{
+pub struct VirtualAccountsType {
     pub country_code: String,
     pub currency_code: String,
     pub bank_id: String,
@@ -101,11 +104,12 @@ pub struct VirtualAccountsType{
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OnboardTransferMethodRequest {  //2
+pub struct OnboardTransferMethodRequest {
+    //2
     pub country_code: enums::CountryAlpha2,
     pub currency_code: Currency,
     #[serde(rename = "type")]
-    pub typee: String,    // type giving error
+    pub typee: String, // type giving error
     pub display_name: Secret<String>,
     pub bank_account: BankAccount,
     pub profile: Profile,
@@ -113,20 +117,22 @@ pub struct OnboardTransferMethodRequest {  //2
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct PaymentRequest {  //3
-    pub source_id: String,
+pub struct PaymentRequest {
+    //3
+    pub source_id: Secret<String>,
     pub destination_id: Option<String>,
     pub payment_reference: Option<String>,
     pub amount: i64,
     pub currency_code: Currency,
     pub purpose: String,
     pub description: String,
-    pub internal_memo:  String,
+    pub internal_memo: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct QuoteRequest {  //4
+pub struct QuoteRequest {
+    //4
     pub source_id: String,
     pub source_currency_code: Currency,
     pub destination_currency_code: Currency,
@@ -136,21 +142,22 @@ pub struct QuoteRequest {  //4
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct CommitRequest { //5
-    pub source_id:  String,
-    pub id:  String,
-    pub destination_id:  String,
-    pub payment_reference:  String,
-    pub amount:  String,
-    pub currency_code:  Currency,
-    pub purpose:  String,
-    pub description:  String,
-    pub internal_memo:  String,
+pub struct CommitRequest {
+    //5
+    pub source_id: String,
+    pub id: String,
+    pub destination_id: String,
+    pub payment_reference: String,
+    pub amount: String,
+    pub currency_code: Currency,
+    pub purpose: String,
+    pub description: String,
+    pub internal_memo: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OnboardSubAccountResponse{
+pub struct OnboardSubAccountResponse {
     pub account_id: String,
     pub id: String,
     pub client_sub_account_id: String,
@@ -163,7 +170,7 @@ pub struct OnboardSubAccountResponse{
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct OnboardTransferMethodResponse{
+pub struct OnboardTransferMethodResponse {
     pub parent_id: String,
     pub account_id: String,
     pub sub_account_id: String,
@@ -184,10 +191,10 @@ pub struct OnboardTransferMethodResponse{
 #[serde(rename_all = "camelCase")]
 pub struct PaymentResponse {
     pub id: String,
-    pub status:  NomupayPaymentStatus,
+    pub status: NomupayPaymentStatus,
     pub created_on: String,
     pub last_updated: String,
-    pub source_id:  String,
+    pub source_id: String,
     pub destination_id: String,
     pub payment_reference: String,
     pub amount: String,
@@ -210,7 +217,7 @@ pub struct FeesType {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct PayoutQuoteResponse{
+pub struct PayoutQuoteResponse {
     pub source_id: String,
     pub destination_currency_code: Currency,
     pub amount: StringMajorUnit,
@@ -221,7 +228,7 @@ pub struct PayoutQuoteResponse{
 }
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct CommitResponse{
+pub struct CommitResponse {
     pub id: String,
     pub status: String,
     pub created_on: String,
@@ -242,20 +249,15 @@ pub struct CommitResponse{
 #[serde(rename_all = "camelCase")]
 pub struct Error {
     pub field: String,
-    pub message: String, 
+    pub message: String,
 }
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NomupayError {
     pub error_code: String,
     pub error_description: Option<String>,
-    pub validation_errors: Option<Vec<Error>>
+    pub validation_errors: Option<Vec<Error>>,
 }
-
-
-
-
-
 
 impl TryFrom<&NomupayRouterData<&PaymentsAuthorizeRouterData>> for NomupayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -322,7 +324,7 @@ impl From<NomupayPaymentStatus> for common_enums::AttemptStatus {
             NomupayPaymentStatus::Processed => Self::Charged,
             NomupayPaymentStatus::Failed => Self::Failure,
             NomupayPaymentStatus::Processing => Self::Authorizing,
-            _=>Self::Pending
+            _ => Self::Pending,
         }
     }
 }
@@ -331,9 +333,9 @@ impl From<NomupayPaymentStatus> for PayoutStatus {
     fn from(item: NomupayPaymentStatus) -> Self {
         match item {
             NomupayPaymentStatus::Processed => Self::Success,
-            NomupayPaymentStatus::Failed =>  Self::Failed,
+            NomupayPaymentStatus::Failed => Self::Failed,
             NomupayPaymentStatus::Processing => Self::Pending,
-            _=>Self::Pending
+            _ => Self::Pending,
         }
     }
 }
@@ -454,48 +456,71 @@ pub struct NomupayErrorResponse {
     pub reason: Option<String>,
 }
 
-
 // PoRecipient Request
-impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccountRequest {     
+impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccountRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
         let payout_type = request.payout_type;
-        let external_id = item.connector_request_reference_id.to_owned();
+        // let external_id = item.connector_request_reference_id.to_owned();
 
-        let country_iso2_code = item
-            .get_billing_country()
-            .unwrap_or(enums::CountryAlpha2::ER);
+        // let country_iso2_code = item
+        //     .get_billing_country()
+        //     .unwrap_or(enums::CountryAlpha2::ER);
 
-        // let auth  =  NomupayAuthType::try_from(&item.router_data.connector_auth_type)?; 
+        // let auth  =  NomupayAuthType::try_from(&item.router_data.connector_auth_type)?;
 
-        let my_address = Address{
-            country: item.get_billing_country().unwrap_or(enums::CountryAlpha2::ER),
-            state_province: item.get_billing_state().unwrap_or(Secret::new("default state".to_string())),
-            street: item.get_billing_line1().unwrap_or(Secret::new("default street".to_string())),
-            city: item.get_billing_city().unwrap_or("default city".to_string()),
-            postal_code: item.get_billing_zip().unwrap_or(Secret::new("123456".to_string())),
+        let my_address = Address {
+            country: item
+                .get_billing_country()
+                .unwrap_or(enums::CountryAlpha2::ER),
+            state_province: item
+                .get_billing_state()
+                .unwrap_or(Secret::new("default state".to_string())),
+            street: item
+                .get_billing_line1()
+                .unwrap_or(Secret::new("default street".to_string())),
+            city: item
+                .get_billing_city()
+                .unwrap_or("default city".to_string()),
+            postal_code: item
+                .get_billing_zip()
+                .unwrap_or(Secret::new("123456".to_string())),
         };
 
         let profile = Profile {
             profile_type: "INDIVIDUAL".to_string(),
-            first_name: item.get_billing_first_name().unwrap_or(Secret::new("first name".to_string())),
-            last_name: item.get_billing_last_name().unwrap_or(Secret::new("last name".to_string())),
+            first_name: item
+                .get_billing_first_name()
+                .unwrap_or(Secret::new("first name".to_string())),
+            last_name: item
+                .get_billing_last_name()
+                .unwrap_or(Secret::new("last name".to_string())),
             date_of_birth: "unknown".to_string(),
             gender: "unknown".to_string(),
             email_address: item.get_billing_email().unwrap(),
-            phone_number_country_code: item.get_billing_phone().map(|phone|phone.country_code.clone()).unwrap(),
-            phone_number: Some(item.get_billing_phone_number().unwrap_or(Secret::new("phone number".to_string()))),
+            phone_number_country_code: item
+                .get_billing_phone()
+                .map(|phone| phone.country_code.clone())
+                .unwrap(),
+            phone_number: Some(
+                item.get_billing_phone_number()
+                    .unwrap_or(Secret::new("phone number".to_string())),
+            ),
             address: my_address,
         };
 
-
-
+        let source_id = match item.connector_auth_type.to_owned() {
+            ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(key1),
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "source_id for PayoutRecipient creation",
+            }),
+        }?;
 
         match payout_type {
             Some(common_enums::PayoutType::Bank) => Ok(OnboardSubAccountRequest {
-                account_id: "how to get it".to_string(),               //need help
-                client_sub_account_id: "how to get it".to_string(),    //need help
+                account_id: source_id,                              //need help
+                client_sub_account_id: "how to get it".to_string(), //need help
                 profile,
             }),
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -508,9 +533,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccountRequest {
 
 // PoRecipient Response
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardSubAccountResponse>>    
-    for PayoutsRouterData<F>
-{
+impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardSubAccountResponse>> for PayoutsRouterData<F> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: PayoutsResponseRouterData<F, OnboardSubAccountResponse>,
@@ -532,70 +555,87 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardSubAccountResponse>>
 }
 
 // PoRecipientAccount Request
-impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest{     
+impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
-        let country_iso2_code = item
-            .get_billing_country()
-            .unwrap_or(enums::CountryAlpha2::ER);
+        // let country_iso2_code = item
+        //     .get_billing_country()
+        //     .unwrap_or(enums::CountryAlpha2::ER);
         let payout_method_data = item.get_payout_method_data()?;
         match payout_method_data {
             api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
-                api_models::payouts::Bank::Sepa(bank_details)=>{
-
-                    let bank_account = BankAccount{
+                api_models::payouts::Bank::Sepa(bank_details) => {
+                    let bank_account = BankAccount {
                         bank_id: bank_details.bic,
                         account_id: bank_details.iban,
                         account_purpose: bank_details.bank_name, // savings or somthing else need help
                     };
 
                     let request = item.request.to_owned();
-                    let payout_type = request.payout_type;
-                    let external_id = item.connector_request_reference_id.to_owned();
-            
+                    // let payout_type = request.payout_type;
+                    // let external_id = item.connector_request_reference_id.to_owned();
+
                     let country_iso2_code = item
                         .get_billing_country()
                         .unwrap_or(enums::CountryAlpha2::CA);
-            
-                    // let auth  =  NomupayAuthType::try_from(&item.router_data.connector_auth_type)?; 
-            
-                    let my_address = Address{
-                        country: item.get_billing_country().unwrap_or(enums::CountryAlpha2::ER),
-                        state_province: item.get_billing_state().unwrap_or(Secret::new("default state".to_string())),
-                        street: item.get_billing_line1().unwrap_or(Secret::new("default street".to_string())),
-                        city: item.get_billing_city().unwrap_or("default city".to_string()),
-                        postal_code: item.get_billing_zip().unwrap_or(Secret::new("123456".to_string())),
+
+                    // let auth  =  NomupayAuthType::try_from(&item.router_data.connector_auth_type)?;
+
+                    let my_address = Address {
+                        country: item
+                            .get_billing_country()
+                            .unwrap_or(enums::CountryAlpha2::ER),
+                        state_province: item
+                            .get_billing_state()
+                            .unwrap_or(Secret::new("default state".to_string())),
+                        street: item
+                            .get_billing_line1()
+                            .unwrap_or(Secret::new("default street".to_string())),
+                        city: item
+                            .get_billing_city()
+                            .unwrap_or("default city".to_string()),
+                        postal_code: item
+                            .get_billing_zip()
+                            .unwrap_or(Secret::new("123456".to_string())),
                     };
-            
+
                     let profile = Profile {
                         profile_type: "INDIVIDUAL".to_string(),
-                        first_name: item.get_billing_first_name().unwrap_or(Secret::new("first name".to_string())),
-                        last_name: item.get_billing_last_name().unwrap_or(Secret::new("last name".to_string())),
+                        first_name: item
+                            .get_billing_first_name()
+                            .unwrap_or(Secret::new("first name".to_string())),
+                        last_name: item
+                            .get_billing_last_name()
+                            .unwrap_or(Secret::new("last name".to_string())),
                         date_of_birth: "unknown".to_string(),
                         gender: "unknown".to_string(),
                         email_address: item.get_billing_email().unwrap(),
-                        phone_number_country_code: item.get_billing_phone().map(|phone|phone.country_code.clone()).unwrap(),
-                        phone_number: Some(item.get_billing_phone_number().unwrap_or(Secret::new("phone number".to_string()))),
+                        phone_number_country_code: item
+                            .get_billing_phone()
+                            .map(|phone| phone.country_code.clone())
+                            .unwrap(),
+                        phone_number: Some(
+                            item.get_billing_phone_number()
+                                .unwrap_or(Secret::new("phone number".to_string())),
+                        ),
                         address: my_address,
                     };
 
-
-
-                    Ok(OnboardTransferMethodRequest{
-                        country_code:country_iso2_code,
-                        currency_code:item.request.destination_currency,
-                        typee:"BANK_ACCOUNT".to_string(),
-                        display_name:item.get_billing_full_name().unwrap(),
+                    Ok(OnboardTransferMethodRequest {
+                        country_code: country_iso2_code,
+                        currency_code: item.request.destination_currency,
+                        typee: "BANK_ACCOUNT".to_string(),
+                        display_name: item.get_billing_full_name().unwrap(),
                         bank_account,
                         profile,
                     })
                 }
-                _=> Err(errors::ConnectorError::NotSupported {
+                _ => Err(errors::ConnectorError::NotSupported {
                     message: "SEPA payouts are not supported".to_string(),
                     connector: "stripe",
                 }
                 .into()),
-            }
+            },
             _ => Err(errors::ConnectorError::NotImplemented(
                 "This payment method is not implemented for Nomupay".to_string(),
             )
@@ -626,33 +666,37 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardTransferMethodResponse>>
     }
 }
 
-
 // PoFulfill Request
-impl<F> TryFrom<&PayoutsRouterData<F>> for PaymentRequest{     
+impl<F> TryFrom<&PayoutsRouterData<F>> for PaymentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
-        Ok(Self { 
-            source_id: (), 
-            destination_id: item.response.map(|i|i.connector_payout_id).unwrap(), 
-            payment_reference: item.request.connector_payout_id, 
-            amount: item.request.amount, 
-            currency_code: item.request.destination_currency, 
-            purpose: "OTHER".to_string(), 
+        let source_id = match item.connector_auth_type.to_owned() {
+            ConnectorAuthType::BodyKey { api_key: _, key1 } => Ok(key1),
+            _ => Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "source_id for PayoutRecipient creation",
+            }),
+        }?;
+        Ok(Self {
+            source_id,
+            destination_id: item
+                .response
+                .clone()
+                .map(|i| i.connector_payout_id)
+                .unwrap(),
+            payment_reference: item.request.clone().connector_payout_id,
+            amount: item.request.amount,
+            currency_code: item.request.destination_currency,
+            purpose: "OTHER".to_string(),
             description: "This a test payment".to_string(),
-            internal_memo: "This is an internal memo".to_string(), 
+            internal_memo: "This is an internal memo".to_string(),
         })
     }
 }
 
-
 // PoFulfill response
-impl<F> TryFrom<PayoutsResponseRouterData<F, PaymentResponse>>
-    for PayoutsRouterData<F>
-{
+impl<F> TryFrom<PayoutsResponseRouterData<F, PaymentResponse>> for PayoutsRouterData<F> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: PayoutsResponseRouterData<F, PaymentResponse>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: PayoutsResponseRouterData<F, PaymentResponse>) -> Result<Self, Self::Error> {
         let response: PaymentResponse = item.response;
 
         Ok(Self {

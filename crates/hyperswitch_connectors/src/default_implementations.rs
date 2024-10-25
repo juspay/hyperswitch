@@ -989,7 +989,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Helcim,
-    connectors::Nomupay,
+    // connectors::Nomupay,
     connectors::Novalnet,
     connectors::Nexixpay,
     connectors::Powertranz,
