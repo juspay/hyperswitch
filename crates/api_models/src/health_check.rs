@@ -9,6 +9,7 @@ pub struct RouterHealthCheckResponse {
     #[cfg(feature = "olap")]
     pub opensearch: bool,
     pub outgoing_request: bool,
+    pub grpc_health_check: bool,
 }
 
 impl common_utils::events::ApiEventMetric for RouterHealthCheckResponse {}

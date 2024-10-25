@@ -95,6 +95,18 @@ async fn deep_health_check_func(
 
     logger::debug!("Analytics health check end");
 
+    logger::debug!("gRPC health check begin");
+
+    let grpc_health_check = state.health_check_grpc().await.map_err(|error| {
+        let message = error.to_string();
+        error.change_context(errors::ApiErrorResponse::HealthCheckError {
+            component: "gRPC services",
+            message,
+        })
+    })?;
+
+    logger::debug!("gRPC health check end");
+
     logger::debug!("Opensearch health check begin");
 
     #[cfg(feature = "olap")]
@@ -129,6 +141,7 @@ async fn deep_health_check_func(
         #[cfg(feature = "olap")]
         opensearch: opensearch_status.into(),
         outgoing_request: outgoing_check.into(),
+        grpc_health_check: grpc_health_check.into(),
     };
 
     Ok(api::ApplicationResponse::Json(response))
