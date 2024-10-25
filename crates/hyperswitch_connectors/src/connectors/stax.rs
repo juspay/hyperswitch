@@ -194,13 +194,7 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         req: &ConnectorCustomerRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount_to_capture = utils::convert_amount(
-            self.amount_converter,
-           req.request.minor_amount,
-           req.request.currency,
-       )?;
-       let connector_router_data = stax::StaxRouterData::try_from((amount_to_capture, req));
-       let connector_req = stax::StaxPaymentsRequest::try_from(&connector_router_data)?;
+        let connector_req = stax::StaxCustomerRequest::try_from(req)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
