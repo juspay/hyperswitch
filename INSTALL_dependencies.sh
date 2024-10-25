@@ -37,7 +37,7 @@ set -o nounset
 
 # utilities
 # convert semver to comparable integer
-if [[ $(id -u) -ne 0 ]]; then
+if [[ "$(id -u)" -ne 0 ]]; then
     print_info "requires sudo"
     SUDO=sudo
 else
@@ -45,10 +45,10 @@ else
 fi
 
 ver () {
-    printf "%03d%03d%03d%03d" $(echo "$1" | tr '.' ' ')
+    printf "%03d%03d%03d%03d" "$(echo "$1" | tr '.' ' ')";
 }
 
-PROGNAME=$(basename $0)
+PROGNAME="$(basename $0)"
 print_info () {
     echo -e "$PROGNAME: $*"
 }
@@ -125,10 +125,10 @@ if command -v cargo > /dev/null; then
 
     need_cmd rustc
 
-    RUST_VERSION=$(rustc -V | cut -d " " -f 2)
+    RUST_VERSION="$(rustc -V | cut -d " " -f 2)"
 
-    _HAVE_VERSION=$(ver ${RUST_VERSION})
-    _NEED_VERSION=$(ver ${RUST_MSRV})
+    _HAVE_VERSION="$(ver ${RUST_VERSION})"
+    _NEED_VERSION="$(ver ${RUST_MSRV})"
 
     print_info "Found rust version \"${RUST_VERSION}\". MSRV is \"${RUST_MSRV}\""
 
