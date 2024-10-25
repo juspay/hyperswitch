@@ -1,6 +1,6 @@
 use api_models::analytics::{payment_intents::PaymentIntentDimensions, Granularity, TimeRange};
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::enums::{AuthenticationType, Currency, IntentStatus};
+use diesel_models::enums::{Currency, IntentStatus};
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
@@ -54,13 +54,4 @@ pub struct PaymentIntentFilterRow {
     pub status: Option<DBEnumWrapper<IntentStatus>>,
     pub currency: Option<DBEnumWrapper<Currency>>,
     pub profile_id: Option<String>,
-    pub connector: Option<String>,
-    pub authentication_type: Option<DBEnumWrapper<AuthenticationType>>,
-    pub payment_method: Option<String>,
-    pub payment_method_type: Option<String>,
-    pub card_network: Option<String>,
-    pub merchant_id: Option<String>,
-    pub card_last_4: Option<String>,
-    pub card_issuer: Option<String>,
-    pub error_reason: Option<String>,
 }

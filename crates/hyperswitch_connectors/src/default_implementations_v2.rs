@@ -207,6 +207,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 default_imp_for_new_connector_integration_payment!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -217,10 +218,14 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -232,7 +237,8 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_new_connector_integration_refund {
@@ -254,6 +260,7 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 default_imp_for_new_connector_integration_refund!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -264,10 +271,14 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -279,7 +290,8 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_new_connector_integration_connector_access_token {
@@ -296,6 +308,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -306,10 +319,14 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -321,7 +338,8 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_new_connector_integration_accept_dispute {
@@ -344,6 +362,7 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -354,10 +373,14 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -369,7 +392,8 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_new_connector_integration_submit_evidence {
@@ -391,6 +415,7 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -401,10 +426,14 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -416,7 +445,8 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_new_connector_integration_defend_dispute {
@@ -438,6 +468,7 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
 default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -448,10 +479,14 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -463,7 +498,8 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_new_connector_integration_file_upload {
@@ -495,6 +531,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 default_imp_for_new_connector_integration_file_upload!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -505,10 +542,14 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -520,7 +561,8 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -544,6 +586,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 default_imp_for_new_connector_integration_payouts_create!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -554,10 +597,14 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -569,7 +616,8 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -593,6 +641,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -603,10 +652,14 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -618,7 +671,8 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -642,6 +696,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -652,10 +707,14 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -667,7 +726,8 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -691,6 +751,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -701,10 +762,14 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -716,7 +781,8 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -740,6 +806,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -750,10 +817,14 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -765,7 +836,8 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -789,6 +861,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -799,10 +872,14 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -814,7 +891,8 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -838,6 +916,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -848,10 +927,14 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -863,7 +946,8 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "payouts")]
@@ -887,6 +971,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -897,10 +982,14 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -912,7 +1001,8 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
@@ -934,6 +1024,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -944,10 +1035,14 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -959,7 +1054,8 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "frm")]
@@ -983,6 +1079,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 default_imp_for_new_connector_integration_frm_sale!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -993,10 +1090,14 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -1008,7 +1109,8 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "frm")]
@@ -1032,6 +1134,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1042,10 +1145,14 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -1057,7 +1164,8 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "frm")]
@@ -1081,6 +1189,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1091,10 +1200,14 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -1106,7 +1219,8 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "frm")]
@@ -1130,6 +1244,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1140,10 +1255,14 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -1155,7 +1274,8 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 #[cfg(feature = "frm")]
@@ -1179,6 +1299,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1189,10 +1310,14 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -1204,7 +1329,8 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );
 
 macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
@@ -1225,6 +1351,7 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Airwallex,
     connectors::Bambora,
+    connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
     connectors::Coinbase,
@@ -1235,10 +1362,14 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Fiserv,
     connectors::Fiservemea,
     connectors::Fiuu,
+    connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
     connectors::Novalnet,
+    connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
     connectors::Powertranz,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -1250,5 +1381,6 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
-    connectors::Volt
+    connectors::Volt,
+    connectors::Zen
 );

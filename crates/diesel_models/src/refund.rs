@@ -317,6 +317,7 @@ pub struct RefundCoreWorkflow {
     pub connector_transaction_data: Option<String>,
 }
 
+#[cfg(feature = "v1")]
 impl common_utils::events::ApiEventMetric for Refund {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::Refund {

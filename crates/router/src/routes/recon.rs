@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::{enums::EntityType, recon as recon_api};
+use api_models::recon as recon_api;
 use router_env::Flow;
 
 use super::AppState;
@@ -38,8 +38,7 @@ pub async fn request_for_recon(state: web::Data<AppState>, http_req: HttpRequest
         (),
         |state, user, _, _| recon::send_recon_request(state, user),
         &authentication::JWTAuth {
-            permission: Permission::ReconAdmin,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::MerchantReconWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -55,8 +54,7 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         (),
         |state, user, _, _| recon::generate_recon_token(state, user),
         &authentication::JWTAuth {
-            permission: Permission::ReconAdmin,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::MerchantReconWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))

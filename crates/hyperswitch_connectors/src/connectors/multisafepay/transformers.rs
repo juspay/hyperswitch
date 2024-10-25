@@ -10,8 +10,7 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData
     },
     types::{self},
 };
@@ -936,7 +935,7 @@ pub struct MultisafepayPaymentsResponse {
 #[serde(untagged)]
 pub enum MultisafepayAuthResponse {
     ErrorResponse(MultisafepayErrorResponse),
-    PaymentResponse(MultisafepayPaymentsResponse),
+    PaymentResponse(Box<MultisafepayPaymentsResponse>),
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsResponseData>>
@@ -979,16 +978,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsRe
                             resource_id: ResponseId::ConnectorTransactionId(
                                 payment_response.data.order_id.clone(),
                             ),
-                            redirection_data,
-                            mandate_reference: payment_response
-                                .data
-                                .payment_details
-                                .and_then(|payment_details| payment_details.recurring_id)
-                                .map(|id| MandateReference {
-                                    connector_mandate_id: Some(id.expose()),
-                                    payment_method_id: None,
-                                    mandate_metadata: None,
-                                }),
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(
+                                payment_response
+                                    .data
+                                    .payment_details
+                                    .and_then(|payment_details| payment_details.recurring_id)
+                                    .map(|id| MandateReference {
+                                        connector_mandate_id: Some(id.expose()),
+                                        payment_method_id: None,
+                                        mandate_metadata: None,
+                                    }),
+                            ),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: Some(

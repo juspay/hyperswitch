@@ -789,9 +789,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsRe
             Some(second_factor) => Ok(Self {
                 status,
                 response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(second_factor.epg_txn_id),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        second_factor.epg_txn_id,
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(second_factor.txn_id),
@@ -1010,8 +1012,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsRespon
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.second_factor.epg_txn_id,
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.second_factor.txn_id),

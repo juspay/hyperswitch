@@ -1,13 +1,13 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
+    
     ext_traits::{ByteSliceExt, BytesExt},
-    request::{Method, Request, RequestBuilder, RequestContent},
+   
+    request::{Method, Request, RequestBuilder, RequestContent,}, types::{AmountConvertor, MinorUnit, MinorUnitForConnector}
 };
 use error_stack::{report, ResultExt};
 use http::header::ACCEPT;
@@ -41,16 +41,26 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::Mask;
-use transformers as shift4;
+use transformers::{self as shift4, Shift4PaymentsRequest, Shift4RefundRequest};
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{construct_not_supported_error_report, RefundsRequestData},
+    utils::{construct_not_supported_error_report, convert_amount, RefundsRequestData},
 };
 
-#[derive(Debug, Clone)]
-pub struct Shift4;
+#[derive(Clone)]
+pub struct Shift4 {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Shift4 {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Shift4
 where
@@ -210,7 +220,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = shift4::Shift4PaymentsRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;
+        let connector_req = Shift4PaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -461,7 +477,21 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = shift4::Shift4PaymentsRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount.ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "minor_amount",
+                }
+            })?,
+            req.request
+                .currency
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?,
+        )?;
+        let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;
+        let connector_req = Shift4PaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -546,7 +576,13 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         req: &PaymentsCompleteAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = shift4::Shift4PaymentsRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;
+        let connector_req = Shift4PaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -628,7 +664,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Shift4 
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = shift4::Shift4RefundRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;
+        let connector_req = Shift4RefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
