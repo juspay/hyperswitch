@@ -1,6 +1,4 @@
 use std::fmt::Debug;
-use http_body_util::combinators::UnsyncBoxBody;
-use tonic::Status;
 
 use api_models::routing::{
     CurrentBlockThreshold, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
@@ -8,6 +6,7 @@ use api_models::routing::{
 };
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
+use http_body_util::combinators::UnsyncBoxBody;
 use hyper::body::Bytes;
 use hyper_util::client::legacy::connect::HttpConnector;
 use serde;
@@ -17,6 +16,7 @@ use success_rate::{
     CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
     UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
+use tonic::Status;
 #[allow(
     missing_docs,
     unused_qualifications,
@@ -49,9 +49,7 @@ type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<By
 #[derive(Debug, Clone)]
 pub struct RoutingStrategy {
     /// success rate service for Dynamic Routing
-    pub success_rate_client: Option<
-        SuccessRateCalculatorClient<Client>,
-    >,
+    pub success_rate_client: Option<SuccessRateCalculatorClient<Client>>,
 }
 
 /// Contains the Dynamic Routing Client Config
@@ -77,12 +75,11 @@ impl DynamicRoutingClientConfig {
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
         let client =
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
-            .http2_only(true)
-            .build_http();
+                .http2_only(true)
+                .build_http();
         let success_rate_client = match self {
             Self::Enabled { host, port } => {
-                let uri = format!("http://{}:{}", host, port)
-                    .parse::<tonic::transport::Uri>()?;
+                let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
                 Some(SuccessRateCalculatorClient::with_origin(client, uri))
             }
             Self::Disabled => None,
