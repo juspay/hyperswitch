@@ -17,7 +17,6 @@ use success_rate::{
     CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
     UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
-// use tonic::transport::Channel;
 #[allow(
     missing_docs,
     unused_qualifications,
@@ -78,13 +77,12 @@ impl DynamicRoutingClientConfig {
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
         let client =
             hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
-                .build_http();
+            .http2_only(true)
+            .build_http();
         let success_rate_client = match self {
             Self::Enabled { host, port } => {
                 let uri = format!("http://{}:{}", host, port)
-                    .parse::<tonic::transport::Uri>()
-                    .expect("Failed to parse the uri");
-                // let channel = tonic::transport::Endpoint::new(uri)?.connect().await?;
+                    .parse::<tonic::transport::Uri>()?;
                 Some(SuccessRateCalculatorClient::with_origin(client, uri))
             }
             Self::Disabled => None,
