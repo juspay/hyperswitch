@@ -1639,7 +1639,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-            profile_id: None,
+            profile_id: payload.profile_id,
         };
 
         Ok((
