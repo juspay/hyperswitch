@@ -1,7 +1,7 @@
 use common_enums::enums;
 use common_utils::{
     pii::Email,
-    types::MinorUnit,
+    types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
