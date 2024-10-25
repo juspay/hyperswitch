@@ -1824,7 +1824,8 @@ impl User {
                 web::resource("/module/list").route(web::get().to(user_role::get_role_information)),
             )
             .service(
-                web::resource("/parent/list").route(web::get().to(user_role::get_role_information)),
+                web::resource("/parent/list")
+                    .route(web::get().to(user_role::get_parent_group_info)),
             )
             .service(
                 web::resource("/update").route(web::post().to(user::update_user_account_details)),

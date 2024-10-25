@@ -41,6 +41,8 @@ fn get_group_description(group: PermissionGroup) -> &'static str {
         PermissionGroup::MerchantDetailsManage => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
         PermissionGroup::OrganizationManage => "Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
         PermissionGroup::ReconOps => "View and manage reconciliation reports",
+        PermissionGroup::AccountView => "View Account Details",
+        PermissionGroup::AccountManage => "Manage Account Details",
     }
 }
 
@@ -54,5 +56,6 @@ pub fn get_parent_group_description(group: ParentGroup) -> &'static str {
         ParentGroup::Merchant => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
         ParentGroup::Organization =>"Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
         ParentGroup::Recon => "View and manage reconciliation reports",
+        ParentGroup::Account => "Manage Account Details",
     }
 }

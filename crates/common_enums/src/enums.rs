@@ -2884,10 +2884,15 @@ pub enum PermissionGroup {
     AnalyticsView,
     UsersView,
     UsersManage,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     MerchantDetailsView,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     MerchantDetailsManage,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     OrganizationManage,
     ReconOps,
+    AccountView,
+    AccountManage,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -2897,11 +2902,14 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
+    // TODO: To be deprecated
     #[serde(rename = "MerchantAccess")]
     Merchant,
+    // TODO: To be deprecated
     #[serde(rename = "OrganizationAccess")]
     Organization,
     Recon,
+    Account,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]

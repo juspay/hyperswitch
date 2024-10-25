@@ -18,7 +18,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WorkflowsView
             | Self::AnalyticsView
             | Self::UsersView
-            | Self::MerchantDetailsView => PermissionScope::Read,
+            | Self::MerchantDetailsView
+            | Self::AccountView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -26,7 +27,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::UsersManage
             | Self::MerchantDetailsManage
             | Self::OrganizationManage
-            | Self::ReconOps => PermissionScope::Write,
+            | Self::ReconOps
+            | Self::AccountManage => PermissionScope::Write,
         }
     }
 
@@ -40,6 +42,7 @@ impl PermissionGroupExt for PermissionGroup {
             Self::MerchantDetailsView | Self::MerchantDetailsManage => ParentGroup::Merchant,
             Self::OrganizationManage => ParentGroup::Organization,
             Self::ReconOps => ParentGroup::Recon,
+            Self::AccountView | Self::AccountManage => ParentGroup::Account,
         }
     }
 
@@ -73,6 +76,9 @@ impl PermissionGroupExt for PermissionGroup {
             }
 
             Self::OrganizationManage => vec![Self::OrganizationManage],
+
+            Self::AccountView => vec![Self::AccountView],
+            Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
         }
     }
 }
@@ -93,7 +99,7 @@ impl ParentGroupExt for ParentGroup {
             Self::Workflows => WORKFLOWS.to_vec(),
             Self::Analytics => ANALYTICS.to_vec(),
             Self::Users => USERS.to_vec(),
-            Self::Merchant | Self::Organization => ACCOUNT.to_vec(),
+            Self::Merchant | Self::Organization | Self::Account => ACCOUNT.to_vec(),
             Self::Recon => RECON.to_vec(),
         }
     }
