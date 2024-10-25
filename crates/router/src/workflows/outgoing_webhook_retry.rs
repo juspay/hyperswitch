@@ -423,7 +423,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             logger::debug!(current_resource_status=%payments_response.status);
 
             Ok((
-                OutgoingWebhookContent::PaymentDetails(payments_response),
+                OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                 event_type,
             ))
         }
@@ -449,7 +449,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             let refund_response = RefundResponse::foreign_from(refund);
 
             Ok((
-                OutgoingWebhookContent::RefundDetails(refund_response),
+                OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
                 event_type,
             ))
         }
@@ -548,7 +548,7 @@ async fn get_outgoing_webhook_content_and_event_type(
             logger::debug!(current_resource_status=%payout_data.payout_attempt.status);
 
             Ok((
-                OutgoingWebhookContent::PayoutDetails(payout_create_response),
+                OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
                 event_type,
             ))
         }

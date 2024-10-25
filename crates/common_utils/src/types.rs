@@ -7,7 +7,8 @@ pub mod authentication;
 use std::{
     borrow::Cow,
     fmt::Display,
-    ops::{Add, Sub},
+    iter::Sum,
+    ops::{Add, Mul, Sub},
     primitive::i64,
     str::FromStr,
 };
@@ -483,6 +484,20 @@ impl Sub for MinorUnit {
     }
 }
 
+impl Mul<u16> for MinorUnit {
+    type Output = Self;
+
+    fn mul(self, a2: u16) -> Self::Output {
+        Self(self.0 * i64::from(a2))
+    }
+}
+
+impl Sum for MinorUnit {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self(0), |a, b| a + b)
+    }
+}
+
 /// Connector specific types to send
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
@@ -579,6 +594,10 @@ impl StringMajorUnit {
             .to_i64()
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
+    }
+    /// forms a new StringMajorUnit default unit i.e zero
+    pub fn zero() -> Self {
+        Self("0".to_string())
     }
 
     /// Get string amount from struct to be removed in future

@@ -1047,6 +1047,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
+        let payment_method_billing_address = payment_data.address.get_payment_method_billing();
         let billing_name = resp
             .address
             .get_payment_method_billing()
@@ -1079,7 +1080,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             resp.request.payment_method_type,
             key_store,
             billing_name,
-            None,
+            payment_method_billing_address,
             business_profile,
         ))
         .await?;
@@ -1500,7 +1501,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
-                            let authentication_data = redirection_data
+                            let authentication_data = (*redirection_data)
                                 .as_ref()
                                 .map(Encode::encode_to_value)
                                 .transpose()
@@ -1917,8 +1918,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        if let Some(dynamic_routing_algorithm) = business_profile.dynamic_routing_algorithm.clone()
-        {
+        if business_profile.dynamic_routing_algorithm.is_some() {
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
@@ -1929,7 +1929,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         &payment_attempt,
                         routable_connectors,
                         &business_profile,
-                        dynamic_routing_algorithm,
                     )
                     .await
                     .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))

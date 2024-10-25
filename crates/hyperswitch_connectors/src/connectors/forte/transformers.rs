@@ -299,8 +299,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsResponse, T, PaymentsRespo
             status: get_status(response_code, action),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
@@ -342,8 +342,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, FortePaymentsSyncResponse, T, PaymentsR
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
@@ -411,8 +411,8 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
             status: enums::AttemptStatus::from(item.response.response.response_code),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
@@ -479,8 +479,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, ForteCancelResponse, T, PaymentsRespons
             status: enums::AttemptStatus::from(item.response.response.response_code),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(transaction_id.to_string()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
