@@ -958,7 +958,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> f
                 request.customer_id.as_ref().or(request
                     .customer
                     .as_ref()
-                    .and_then(|customer| Some(customer.id.clone()))
+                    .map(|customer| customer.id.clone())
                     .as_ref()),
             )?;
         }
