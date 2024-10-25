@@ -31,7 +31,7 @@ pub struct StaxRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(MinorUnit, T)> for StaxRouterData<T> {
+impl<T> TryFrom<(FloatMajorUnit, T)> for StaxRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from((amount, item): (FloatMajorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
