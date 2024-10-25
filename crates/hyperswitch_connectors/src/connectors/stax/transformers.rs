@@ -49,7 +49,7 @@ pub struct StaxPaymentsRequestMetaData {
 #[derive(Debug, Serialize)]
 pub struct StaxPaymentsRequest {
     payment_method_id: Secret<String>,
-    total: MinorUnit,
+    total: FloatMajorUnit,
     is_refundable: bool,
     pre_auth: bool,
     meta: StaxPaymentsRequestMetaData,
