@@ -354,7 +354,7 @@ impl RoleInterface for MockDb {
                     None => true,
                 };
 
-                matches_merchant && role.org_id == *org_id && role.entity_type == entity_type
+                matches_merchant && role.org_id == *org_id && Some(role.entity_type) == entity_type
             })
             .take(limit_usize)
             .cloned()

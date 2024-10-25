@@ -112,7 +112,7 @@ impl From<diesel_models::role::Role> for RoleInfo {
             role_name: role.role_name,
             groups: role.groups.into_iter().map(Into::into).collect(),
             scope: role.scope,
-            entity_type: role.entity_type.unwrap_or(EntityType::Merchant),
+            entity_type: role.entity_type,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,
