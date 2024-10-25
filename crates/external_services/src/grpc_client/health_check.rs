@@ -1,7 +1,7 @@
-use common_utils::errors::CustomResult;
-use common_utils::fp_utils;
-use error_stack::ResultExt;
 use std::fmt::Debug;
+
+use common_utils::{errors::CustomResult, fp_utils};
+use error_stack::ResultExt;
 
 #[allow(
     missing_docs,
@@ -13,11 +13,12 @@ pub mod health_check {
     tonic::include_proto!("grpc.health.v1");
 }
 
-use super::{DynamicRoutingClientConfig, GrpcClientSettings};
 pub use health_check::{
     health_check_response::ServingStatus, health_client::HealthClient, HealthCheckRequest,
     HealthCheckResponse,
 };
+
+use super::{DynamicRoutingClientConfig, GrpcClientSettings};
 
 /// Result type for Dynamic Routing
 pub type HealthCheckResult<T> = CustomResult<T, HealthCheckError>;
