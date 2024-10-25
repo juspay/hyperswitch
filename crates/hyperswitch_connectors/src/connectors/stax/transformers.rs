@@ -27,7 +27,7 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct StaxRouterData<T> {
-    pub amount: MinorUnit,
+    pub amount: FloatMajorUnit,
     pub router_data: T,
 }
 
