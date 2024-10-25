@@ -39,9 +39,7 @@ pub mod placetopay;
 pub mod plaid;
 pub mod prophetpay;
 pub mod rapyd;
-pub mod razorpay;
 pub mod riskified;
-pub mod shift4;
 pub mod signifyd;
 pub mod stripe;
 pub mod threedsecureio;
@@ -61,9 +59,9 @@ pub use hyperswitch_connectors::connectors::{
     dlocal::Dlocal, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu,
     globepay, globepay::Globepay, helcim, helcim::Helcim, mollie, mollie::Mollie, multisafepay,
     multisafepay::Multisafepay, nexixpay, nexixpay::Nexixpay, novalnet, novalnet::Novalnet,
-    powertranz, powertranz::Powertranz, square, square::Square, stax, stax::Stax, taxjar,
-    taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline,
-    worldline::Worldline,
+    powertranz, powertranz::Powertranz, razorpay, razorpay::Razorpay, shift4, shift4::Shift4,
+    square, square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys,
+    tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline,
 };
 
 #[cfg(feature = "dummy_connector")]
@@ -77,7 +75,7 @@ pub use self::{
     netcetera::Netcetera, nexinets::Nexinets, nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo,
     opennode::Opennode, paybox::Paybox, payeezy::Payeezy, payme::Payme, payone::Payone,
     paypal::Paypal, payu::Payu, placetopay::Placetopay, plaid::Plaid, prophetpay::Prophetpay,
-    rapyd::Rapyd, razorpay::Razorpay, riskified::Riskified, shift4::Shift4, signifyd::Signifyd,
-    stripe::Stripe, threedsecureio::Threedsecureio, trustpay::Trustpay, wellsfargo::Wellsfargo,
+    rapyd::Rapyd, riskified::Riskified, signifyd::Signifyd, stripe::Stripe,
+    threedsecureio::Threedsecureio, trustpay::Trustpay, wellsfargo::Wellsfargo,
     wellsfargopayout::Wellsfargopayout, wise::Wise, worldpay::Worldpay, zen::Zen, zsl::Zsl,
 };

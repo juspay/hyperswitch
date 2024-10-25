@@ -17,7 +17,9 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
-    router_data::{ApplePayPredecryptData, PaymentMethodToken, RecurringMandatePaymentData},
+    router_data::{
+        ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+    },
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
@@ -25,12 +27,14 @@ use hyperswitch_domain_models::{
         SetupMandateRequestData,
     },
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::Luma;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use router_env::{logger, metrics::add_attributes};
 use serde::Serializer;
+use serde_json::Value;
 
 use crate::types::RefreshTokenRouterData;
 
@@ -92,7 +96,7 @@ pub(crate) fn to_currency_base_unit_asf64(
 }
 
 pub(crate) fn to_connector_meta_from_secret<T>(
-    connector_meta: Option<Secret<serde_json::Value>>,
+    connector_meta: Option<Secret<Value>>,
 ) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
@@ -112,6 +116,39 @@ pub(crate) fn missing_field_err(
         }
         .into()
     })
+}
+
+pub(crate) fn handle_json_response_deserialization_failure(
+    res: Response,
+    connector: &'static str,
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    crate::metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+        &crate::metrics::CONTEXT,
+        1,
+        &add_attributes([("connector", connector)]),
+    );
+
+    let response_data = String::from_utf8(res.response.to_vec())
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    // check for whether the response is in json format
+    match serde_json::from_str::<Value>(&response_data) {
+        // in case of unexpected response but in json format
+        Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        // in case of unexpected response but in html or string format
+        Err(error_msg) => {
+            logger::error!(deserialization_error=?error_msg);
+            logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
+                reason: Some(response_data),
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
+        }
+    }
 }
 
 pub(crate) fn construct_not_implemented_error_report(
@@ -138,7 +175,7 @@ pub(crate) fn get_unimplemented_payment_method_error_message(connector: &str) ->
     format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
 }
 
-pub(crate) fn to_connector_meta<T>(connector_meta: Option<serde_json::Value>) -> Result<T, Error>
+pub(crate) fn to_connector_meta<T>(connector_meta: Option<Value>) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -1237,12 +1274,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
         self.metadata.clone().and_then(|meta_data| match meta_data {
-            serde_json::Value::Null
-            | serde_json::Value::Bool(_)
-            | serde_json::Value::Number(_)
-            | serde_json::Value::String(_)
-            | serde_json::Value::Array(_) => None,
-            serde_json::Value::Object(_) => Some(meta_data.into()),
+            Value::Null
+            | Value::Bool(_)
+            | Value::Number(_)
+            | Value::String(_)
+            | Value::Array(_) => None,
+            Value::Object(_) => Some(meta_data.into()),
         })
     }
 
@@ -1447,6 +1484,8 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
 }
 
 pub trait PaymentsPreProcessingRequestData {
+    fn get_amount(&self) -> Result<i64, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
 }
 
@@ -1459,6 +1498,12 @@ impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
                 Err(errors::ConnectorError::CaptureMethodNotSupported.into())
             }
         }
+    }
+    fn get_amount(&self) -> Result<i64, Error> {
+        self.amount.ok_or_else(missing_field_err("amount"))
+    }
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
     }
 }
 
