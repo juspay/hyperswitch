@@ -2954,6 +2954,7 @@ default_imp_for_post_session_tokens!(
     connector::Cybersource,
     connector::Datatrans,
     connector::Ebanx,
+    connector::Esnekpos,
     connector::Globalpay,
     connector::Gocardless,
     connector::Gpayments,
