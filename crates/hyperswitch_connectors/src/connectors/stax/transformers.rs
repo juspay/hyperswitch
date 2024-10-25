@@ -390,7 +390,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, StaxPaymentsResponse, T, PaymentsRespon
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaxCaptureRequest {
-    total: Option<MinorUnit>,
+    total: Option<FloatMajorUnit>,
 }
 
 impl TryFrom<&StaxRouterData<&types::PaymentsCaptureRouterData>> for StaxCaptureRequest {
