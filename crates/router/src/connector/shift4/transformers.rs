@@ -1,6 +1,6 @@
 use api_models::payments;
 use cards::CardNumber;
-use common_utils::pii::SecretSerdeValue;
+use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -23,9 +23,23 @@ trait Shift4AuthorizePreprocessingCommon {
     fn get_router_return_url(&self) -> Option<String>;
     fn get_email_optional(&self) -> Option<pii::Email>;
     fn get_complete_authorize_url(&self) -> Option<String>;
-    fn get_amount_required(&self) -> Result<i64, Error>;
     fn get_currency_required(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_payment_method_data_required(&self) -> Result<domain::PaymentMethodData, Error>;
+}
+
+pub struct Shift4RouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> TryFrom<(MinorUnit, T)> for Shift4RouterData<T> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
 }
 
 impl Shift4AuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
@@ -35,10 +49,6 @@ impl Shift4AuthorizePreprocessingCommon for types::PaymentsAuthorizeData {
 
     fn get_complete_authorize_url(&self) -> Option<String> {
         self.complete_authorize_url.clone()
-    }
-
-    fn get_amount_required(&self) -> Result<i64, error_stack::Report<errors::ConnectorError>> {
-        Ok(self.amount)
     }
 
     fn get_currency_required(
@@ -70,10 +80,6 @@ impl Shift4AuthorizePreprocessingCommon for types::PaymentsPreProcessingData {
         self.complete_authorize_url.clone()
     }
 
-    fn get_amount_required(&self) -> Result<i64, Error> {
-        self.get_amount()
-    }
-
     fn get_currency_required(&self) -> Result<diesel_models::enums::Currency, Error> {
         self.get_currency()
     }
@@ -95,7 +101,7 @@ impl Shift4AuthorizePreprocessingCommon for types::PaymentsPreProcessingData {
 }
 #[derive(Debug, Serialize)]
 pub struct Shift4PaymentsRequest {
-    amount: String,
+    amount: MinorUnit,
     currency: enums::Currency,
     captured: bool,
     #[serde(flatten)]
@@ -195,19 +201,19 @@ pub enum CardPayment {
     CardToken(Secret<String>),
 }
 
-impl<T, Req> TryFrom<&types::RouterData<T, Req, types::PaymentsResponseData>>
+impl<T, Req> TryFrom<&Shift4RouterData<&types::RouterData<T, Req, types::PaymentsResponseData>>>
     for Shift4PaymentsRequest
 where
     Req: Shift4AuthorizePreprocessingCommon,
 {
     type Error = Error;
     fn try_from(
-        item: &types::RouterData<T, Req, types::PaymentsResponseData>,
+        item: &Shift4RouterData<&types::RouterData<T, Req, types::PaymentsResponseData>>,
     ) -> Result<Self, Self::Error> {
-        let submit_for_settlement = item.request.is_automatic_capture()?;
-        let amount = item.request.get_amount_required()?.to_string();
-        let currency = item.request.get_currency_required()?;
-        let payment_method = Shift4PaymentMethod::try_from(item)?;
+        let submit_for_settlement = item.router_data.request.is_automatic_capture()?;
+        let amount = item.amount.to_owned();
+        let currency = item.router_data.request.get_currency_required()?;
+        let payment_method = Shift4PaymentMethod::try_from(item.router_data)?;
         Ok(Self {
             amount,
             currency,
@@ -437,27 +443,33 @@ where
     }
 }
 
-impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>>
-    for Shift4PaymentsRequest
+impl<T>
+    TryFrom<
+        &Shift4RouterData<
+            &types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        >,
+    > for Shift4PaymentsRequest
 {
     type Error = Error;
     fn try_from(
-        item: &types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        item: &Shift4RouterData<
+            &types::RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        >,
     ) -> Result<Self, Self::Error> {
-        match &item.request.payment_method_data {
+        match &item.router_data.request.payment_method_data {
             Some(domain::PaymentMethodData::Card(_)) => {
                 let card_token: Shift4CardToken =
-                    to_connector_meta(item.request.connector_meta.clone())?;
+                    to_connector_meta(item.router_data.request.connector_meta.clone())?;
                 Ok(Self {
-                    amount: item.request.amount.to_string(),
-                    currency: item.request.currency,
+                    amount: item.amount.to_owned(),
+                    currency: item.router_data.request.currency,
                     payment_method: Shift4PaymentMethod::CardsNon3DSRequest(Box::new(
                         CardsNon3DSRequest {
                             card: CardPayment::CardToken(card_token.id),
-                            description: item.description.clone(),
+                            description: item.router_data.description.clone(),
                         },
                     )),
-                    captured: item.request.is_auto_capture()?,
+                    captured: item.router_data.request.is_auto_capture()?,
                 })
             }
             Some(domain::PaymentMethodData::Wallet(_))
@@ -687,7 +699,7 @@ pub struct Token {
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct ThreeDSecureInfo {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub enrolled: bool,
     #[serde(rename = "liabilityShift")]
@@ -747,8 +759,8 @@ impl TryFrom<types::PaymentsPreprocessingResponseRouterData<Shift4ThreeDsRespons
             },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(
                     serde_json::to_value(Shift4CardToken {
                         id: item.response.token.id,
@@ -790,13 +802,14 @@ impl<T, F>
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: connector_id,
-                redirection_data: item
-                    .response
-                    .flow
-                    .and_then(|flow| flow.redirect)
-                    .and_then(|redirect| redirect.redirect_url)
-                    .map(|url| services::RedirectForm::from((url, services::Method::Get))),
-                mandate_reference: None,
+                redirection_data: Box::new(
+                    item.response
+                        .flow
+                        .and_then(|flow| flow.redirect)
+                        .and_then(|redirect| redirect.redirect_url)
+                        .map(|url| services::RedirectForm::from((url, services::Method::Get))),
+                ),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
@@ -814,15 +827,17 @@ impl<T, F>
 #[serde(rename_all = "camelCase")]
 pub struct Shift4RefundRequest {
     charge_id: String,
-    amount: i64,
+    amount: MinorUnit,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
+impl<F> TryFrom<&Shift4RouterData<&types::RefundsRouterData<F>>> for Shift4RefundRequest {
     type Error = Error;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &Shift4RouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
-            charge_id: item.request.connector_transaction_id.clone(),
-            amount: item.request.refund_amount,
+            charge_id: item.router_data.request.connector_transaction_id.clone(),
+            amount: item.amount.to_owned(),
         })
     }
 }

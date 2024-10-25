@@ -87,6 +87,7 @@ pub mod headers {
     pub const X_APP_ID: &str = "x-app-id";
     pub const X_REDIRECT_URI: &str = "x-redirect-uri";
     pub const X_TENANT_ID: &str = "x-tenant-id";
+    pub const X_CLIENT_SECRET: &str = "X-Client-Secret";
     pub const X_WP_API_VERSION: &str = "WP-Api-Version";
 }
 

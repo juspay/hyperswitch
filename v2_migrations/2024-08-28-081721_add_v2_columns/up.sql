@@ -42,4 +42,5 @@ ADD COLUMN payment_method_type_v2 VARCHAR,
     ADD COLUMN authentication_applied "AuthenticationType",
     ADD COLUMN external_reference_id VARCHAR(128),
     ADD COLUMN tax_on_surcharge BIGINT,
+    ADD COLUMN payment_method_billing_address BYTEA,
     ADD COLUMN connector_payment_data VARCHAR(512);

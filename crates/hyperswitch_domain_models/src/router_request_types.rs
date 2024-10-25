@@ -362,7 +362,7 @@ pub struct PaymentsPostProcessingData {
     pub connector_transaction_id: Option<String>,
     pub country: Option<common_enums::CountryAlpha2>,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
-    pub header_payload: Option<api_models::payments::HeaderPayload>,
+    pub header_payload: Option<payments::HeaderPayload>,
 }
 
 impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>

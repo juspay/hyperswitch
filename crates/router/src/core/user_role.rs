@@ -16,14 +16,14 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
-        authorization::{info, roles},
+        authorization::{info, permission_groups::PermissionGroupExt, roles},
         ApplicationResponse,
     },
     types::domain,
     utils,
 };
 pub mod role;
-use common_enums::{EntityType, PermissionGroup};
+use common_enums::{EntityType, ParentGroup, PermissionGroup};
 use strum::IntoEnumIterator;
 
 // TODO: To be deprecated
@@ -44,11 +44,10 @@ pub async fn get_authorization_info_with_group_tag(
 ) -> UserResponse<user_role_api::AuthorizationInfoResponse> {
     static GROUPS_WITH_PARENT_TAGS: Lazy<Vec<user_role_api::ParentInfo>> = Lazy::new(|| {
         PermissionGroup::iter()
-            .map(|value| (info::get_parent_name(value), value))
+            .map(|group| (group.parent(), group))
             .fold(
                 HashMap::new(),
-                |mut acc: HashMap<user_role_api::ParentGroup, Vec<PermissionGroup>>,
-                 (key, value)| {
+                |mut acc: HashMap<ParentGroup, Vec<PermissionGroup>>, (key, value)| {
                     acc.entry(key).or_default().push(value);
                     acc
                 },

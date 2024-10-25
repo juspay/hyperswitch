@@ -2435,31 +2435,13 @@ impl FraudCheckRecordReturnRequest for fraud_check::FraudCheckRecordReturnData {
     }
 }
 
-pub trait AccessPaymentAttemptInfo {
-    fn get_browser_info(
-        &self,
-    ) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>>;
-}
-
-impl AccessPaymentAttemptInfo for PaymentAttempt {
-    fn get_browser_info(
-        &self,
-    ) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>> {
-        self.browser_info
-            .clone()
-            .map(|b| b.parse_value("BrowserInformation"))
-            .transpose()
-            .change_context(ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
-            })
-    }
-}
-
+#[cfg(feature = "v1")]
 pub trait PaymentsAttemptData {
     fn get_browser_info(&self)
         -> Result<BrowserInformation, error_stack::Report<ApiErrorResponse>>;
 }
 
+#[cfg(feature = "v1")]
 impl PaymentsAttemptData for PaymentAttempt {
     fn get_browser_info(
         &self,
