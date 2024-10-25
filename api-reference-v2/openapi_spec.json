@@ -1879,7 +1879,7 @@
             }
           },
           "404": {
-            "description": "Payment ID not found"
+            "description": "Payment Intent not found"
           }
         },
         "security": [

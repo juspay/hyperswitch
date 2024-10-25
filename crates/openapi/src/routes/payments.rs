@@ -641,7 +641,7 @@ pub fn payments_create_intent() {}
   params (("id" = String, Path, description = "The unique identifier for the Payment Intent")),
   responses(
       (status = 200, description = "Payment Intent", body = PaymentsIntentResponse),
-      (status = 404, description = "Payment ID not found")
+      (status = 404, description = "Payment Intent not found")
   ),
   tag = "Payments",
   operation_id = "Get the Payment Intent details",

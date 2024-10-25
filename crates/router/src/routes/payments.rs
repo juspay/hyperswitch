@@ -127,11 +127,11 @@ pub async fn payments_create_intent(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationDataV2, req, req_state| {
             payments::payments_intent_core::<
-                api_types::Intent,
+                api_types::PaymentCreateIntent,
                 payment_types::PaymentsIntentResponse,
                 _,
                 _,
-                PaymentIntentData<api_types::Intent>,
+                PaymentIntentData<api_types::PaymentCreateIntent>,
             >(
                 state,
                 req_state,
@@ -188,11 +188,11 @@ pub async fn payments_get_intent(
         payload,
         |state, auth: auth::AuthenticationDataV2, req, req_state| {
             payments::payments_intent_core::<
-                api_types::Intent,
+                api_types::PaymentGetIntent,
                 payment_types::PaymentsIntentResponse,
                 _,
                 _,
-                PaymentIntentData<api_types::Intent>,
+                PaymentIntentData<api_types::PaymentGetIntent>,
             >(
                 state,
                 req_state,
@@ -204,17 +204,7 @@ pub async fn payments_get_intent(
                 header_payload.clone(),
             )
         },
-        match env::which() {
-            env::Env::Production => &auth::HeaderAuth(auth::ApiKeyAuth),
-            _ => auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth),
-                &auth::JWTAuth {
-                    permission: Permission::PaymentWrite,
-                    minimum_entity_level: EntityType::Profile,
-                },
-                req.headers(),
-            ),
-        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

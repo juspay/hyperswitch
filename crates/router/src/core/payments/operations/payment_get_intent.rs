@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use api_models::{enums::FrmSuggestion, payments::PaymentsGetIntentRequest};
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -12,8 +11,8 @@ use crate::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations},
     },
+    db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
-    services,
     types::{
         api, domain,
         storage::{self, enums},
@@ -104,8 +103,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsGetI
         let payment_intent = db
             .find_payment_intent_by_id(key_manager_state, &request.id, key_store, storage_scheme)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Payment Intent Not Found")?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
@@ -189,19 +187,6 @@ impl<F: Clone + Send> Domain<F, PaymentsGetIntentRequest, payments::PaymentInten
         ),
         errors::StorageError,
     > {
-        // validate customer_id if sent in the request
-        if let Some(id) = payment_data.payment_intent.customer_id.clone() {
-            state
-                .store
-                .find_customer_by_global_id(
-                    &state.into(),
-                    id.get_string_repr(),
-                    &payment_data.payment_intent.merchant_id,
-                    merchant_key_store,
-                    storage_scheme,
-                )
-                .await?;
-        }
         Ok((Box::new(self), None))
     }
 
