@@ -43,7 +43,7 @@ export const connectorDetails = {
         status: 200,
         trigger_skip: true,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
         },
       },
     },
@@ -188,6 +188,39 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Response: {
+        status: 501,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for Bluesnap is not implemented",
+            code: "IR_00",
+          },
+        },
+      },
+    },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
       Response: {
         status: 501,
         body: {

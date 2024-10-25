@@ -93,7 +93,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "requires_customer_action",
         },
       },
     },
@@ -423,6 +423,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },

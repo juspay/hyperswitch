@@ -19,7 +19,7 @@ import merchantUpdateBody from "./merchant-update-body.json";
 import refundBody from "./refund-flow-body.json";
 import routingConfigBody from "./routing-config-body.json";
 import saveCardConfirmBody from "./save-card-confirm-body.json";
-import sessionTokenBody from "./session-token-body.json";
+import sessionTokenBody from "./session-token.json";
 import apiKeyUpdateBody from "./update-api-key-body.json";
 import updateBusinessProfile from "./update-business-profile.json";
 import updateConnectorBody from "./update-connector-body.json";
@@ -50,6 +50,7 @@ export {
   refundBody,
   routingConfigBody,
   saveCardConfirmBody,
+  sessionTokenBody,
   updateBusinessProfile,
   updateConnectorBody,
   voidBody,

@@ -2302,7 +2302,6 @@ Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
     expect(response.headers["content-type"]).to.include("application/json");
-
     if (response.body.customer_payment_methods[0]?.payment_token) {
       const paymentToken =
         response.body.customer_payment_methods[0].payment_token;
@@ -2310,6 +2309,10 @@ Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
         response.body.customer_payment_methods[0].payment_method_id;
       globalState.set("paymentToken", paymentToken);
       globalState.set("paymentMethodId", paymentMethodId);
+      expect(
+        response.body.customer_payment_methods[0].payment_method_id,
+        "payment_method_id"
+      ).to.not.be.null;
     } else {
       // We only get an empty array if something's wrong. One exception is a 4xx when no customer exist but it is handled in the test
       expect(response.body)

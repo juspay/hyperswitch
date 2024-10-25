@@ -435,6 +435,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
