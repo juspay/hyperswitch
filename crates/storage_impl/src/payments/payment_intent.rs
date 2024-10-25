@@ -744,7 +744,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
-    
         let mut query = <DieselPaymentIntent as HasTable>::table()
             .group_by(pi_dsl::status)
             .select((pi_dsl::status, diesel::dsl::count_star()))
