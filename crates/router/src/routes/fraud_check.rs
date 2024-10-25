@@ -19,7 +19,7 @@ pub async fn frm_fulfillment(
         state.clone(),
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: services::authentication::AuthenticationData, req, _| {
             frm_core::frm_fulfillment_core(state, auth.merchant_account, auth.key_store, req)
         },
         &services::authentication::ApiKeyAuth,

@@ -9239,8 +9239,79 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Paypal,
                                     RequiredFieldFinal {
                                         mandate: HashMap::new(),
-                                        non_mandate: HashMap::new(),
-                                        common: HashMap::new(),
+                                        non_mandate: HashMap::new(
+                                        ),
+                                        common: HashMap::from(
+                                            [
+                                                (
+                                                    "shipping.address.first_name".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.first_name".to_string(),
+                                                        display_name: "shipping_first_name".to_string(),
+                                                        field_type: enums::FieldType::UserShippingName,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "shipping.address.last_name".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.last_name".to_string(),
+                                                        display_name: "shipping_last_name".to_string(),
+                                                        field_type: enums::FieldType::UserShippingName,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "shipping.address.city".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.city".to_string(),
+                                                        display_name: "city".to_string(),
+                                                        field_type: enums::FieldType::UserShippingAddressCity,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "shipping.address.state".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.state".to_string(),
+                                                        display_name: "state".to_string(),
+                                                        field_type: enums::FieldType::UserShippingAddressState,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "shipping.address.zip".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.zip".to_string(),
+                                                        display_name: "zip".to_string(),
+                                                        field_type: enums::FieldType::UserShippingAddressPincode,
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "shipping.address.country".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.country".to_string(),
+                                                        display_name: "country".to_string(),
+                                                        field_type: enums::FieldType::UserShippingAddressCountry{
+                                                            options: vec![
+                                                                "ALL".to_string(),
+                                                            ]
+                                                        },
+                                                        value: None,
+                                                    }
+                                                ),
+                                                (
+                                                    "shipping.address.line1".to_string(),
+                                                    RequiredFieldInfo {
+                                                        required_field: "shipping.address.line1".to_string(),
+                                                        display_name: "line1".to_string(),
+                                                        field_type: enums::FieldType::UserShippingAddressLine1,
+                                                        value: None,
+                                                    }
+                                                ),
+                                            ]
+                                        ),
                                     }
                                 ),
                                ]),
@@ -11515,9 +11586,9 @@ impl Default for super::settings::RequiredFields {
                                             }
                                         ),
                                         (
-                                            "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                            "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                required_field: "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                                 display_name: "iban".to_string(),
                                                 field_type: enums::FieldType::UserIban,
                                                 value: None,
@@ -11558,9 +11629,9 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                    required_field: "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                                     display_name: "iban".to_string(),
                                                     field_type: enums::FieldType::UserIban,
                                                     value: None,
@@ -11601,9 +11672,9 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_debit.sepa.iban".to_string(),
+                                                    required_field: "payment_method_data.bank_debit.sepa_bank_debit.iban".to_string(),
                                                     display_name: "iban".to_string(),
                                                     field_type: enums::FieldType::UserIban,
                                                     value: None,

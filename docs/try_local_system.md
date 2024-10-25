@@ -56,7 +56,7 @@ Check the Table Of Contents to jump to the relevant section.
    and running migrations (approximately 2 minutes), and for the
    `hyperswitch-web` container to finish compiling before proceeding further.
    You can also choose to
-   [run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
+   [run the scheduler and monitoring services](#running-additional-services)
    in addition to the app server, web client and control center.
 
 5. Verify that the server is up and running by hitting the health endpoint:
@@ -154,7 +154,7 @@ Once the services have been confirmed to be up and running, you can proceed with
    around 15 minutes.
 
 5. (Optional) You can also choose to
-   [start the scheduler and/or monitoring services](#run-the-scheduler-and-monitoring-services)
+   [start the scheduler and/or monitoring services](#running-additional-services)
    in addition to the payments router.
 
 6. Verify that the server is up and running by hitting the health endpoint:

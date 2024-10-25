@@ -36,7 +36,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         _customer: &Option<domain::Customer>,
         _merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
-        _header_payload: Option<api_models::payments::HeaderPayload>,
+        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>>
     {
         todo!()
@@ -52,7 +52,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
-        header_payload: Option<api_models::payments::HeaderPayload>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>>
     {
         let status = storage_enums::AttemptStatus::Pending;
@@ -88,7 +88,11 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             amount_captured: None,
             minor_amount_captured: None,
             request: FraudCheckRecordReturnData {
-                amount: self.payment_attempt.amount.get_amount_as_i64(),
+                amount: self
+                    .payment_attempt
+                    .net_amount
+                    .get_total_amount()
+                    .get_amount_as_i64(),
                 refund_method: RefundMethod::OriginalPaymentInstrument, //we dont consume this data now in payments...hence hardcoded
                 currency,
                 refund_transaction_id: self.refund.clone().map(|refund| refund.refund_id),

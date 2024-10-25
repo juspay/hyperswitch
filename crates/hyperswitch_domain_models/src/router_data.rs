@@ -9,7 +9,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 
-use crate::{payment_address::PaymentAddress, payment_method_data};
+use crate::{payment_address::PaymentAddress, payment_method_data, payments};
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
@@ -83,7 +83,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,
 
-    pub header_payload: Option<api_models::payments::HeaderPayload>,
+    pub header_payload: Option<payments::HeaderPayload>,
 }
 
 // Different patterns of authentication.
@@ -220,6 +220,7 @@ pub struct AccessToken {
 pub enum PaymentMethodToken {
     Token(Secret<String>),
     ApplePayDecrypt(Box<ApplePayPredecryptData>),
+    PazeDecrypt(Box<PazeDecryptedData>),
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -239,6 +240,69 @@ pub struct ApplePayPredecryptData {
 pub struct ApplePayCryptogramData {
     pub online_payment_cryptogram: Secret<String>,
     pub eci_indicator: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazeDecryptedData {
+    pub client_id: Secret<String>,
+    pub profile_id: String,
+    pub token: PazeToken,
+    pub payment_card_network: common_enums::enums::CardNetwork,
+    pub dynamic_data: Vec<PazeDynamicData>,
+    pub billing_address: PazeAddress,
+    pub consumer: PazeConsumer,
+    pub eci: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazeToken {
+    pub payment_token: cards::CardNumber,
+    pub token_expiration_month: Secret<String>,
+    pub token_expiration_year: Secret<String>,
+    pub payment_account_reference: Secret<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazeDynamicData {
+    pub dynamic_data_value: Option<Secret<String>>,
+    pub dynamic_data_type: Option<String>,
+    pub dynamic_data_expiration: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazeAddress {
+    pub name: Option<Secret<String>>,
+    pub line1: Option<Secret<String>>,
+    pub line2: Option<Secret<String>>,
+    pub line3: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
+    pub country_code: Option<common_enums::enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazeConsumer {
+    // This is consumer data not customer data.
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub full_name: Secret<String>,
+    pub email_address: common_utils::pii::Email,
+    pub mobile_number: Option<PazePhoneNumber>,
+    pub country_code: Option<common_enums::enums::CountryAlpha2>,
+    pub language_code: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazePhoneNumber {
+    pub country_code: Secret<String>,
+    pub phone_number: Secret<String>,
 }
 
 #[derive(Debug, Default, Clone)]

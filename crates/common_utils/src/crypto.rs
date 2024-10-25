@@ -485,6 +485,24 @@ impl<T: Clone> Encryptable<T> {
     pub fn into_encrypted(self) -> Secret<Vec<u8>, EncryptionStrategy> {
         self.encrypted
     }
+
+    ///
+    /// Deserialize inner value and return new Encryptable object
+    ///
+    pub fn deserialize_inner_value<U, F>(
+        self,
+        f: F,
+    ) -> CustomResult<Encryptable<U>, errors::ParsingError>
+    where
+        F: FnOnce(T) -> CustomResult<U, errors::ParsingError>,
+        U: Clone,
+    {
+        // Option::map(self, f)
+        let inner = self.inner;
+        let encrypted = self.encrypted;
+        let inner = f(inner)?;
+        Ok(Encryptable { inner, encrypted })
+    }
 }
 
 impl<T: Clone> Deref for Encryptable<Secret<T>> {

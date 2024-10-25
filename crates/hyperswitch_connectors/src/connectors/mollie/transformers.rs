@@ -1,6 +1,6 @@
 use cards::CardNumber;
 use common_enums::enums;
-use common_utils::{pii::Email, request::Method};
+use common_utils::{pii::Email, request::Method, types::StringMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, BankRedirectData, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
@@ -8,7 +8,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -17,7 +17,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
     utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData as CardDataUtil,
+        AddressDetailsData, BrowserInformationData, CardData as CardDataUtil,
         PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData, RouterData as _,
     },
 };
@@ -26,26 +26,16 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize)]
 pub struct MollieRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MollieRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (currency_unit, currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for MollieRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
             router_data,
-        })
+        }
     }
 }
 
@@ -68,7 +58,7 @@ pub struct MolliePaymentsRequest {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Amount {
     currency: enums::Currency,
-    value: String,
+    value: StringMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -181,6 +171,9 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
                                             "Simplified",
                                             "Mollie"
                                         ))?
+                                    }
+                                    PaymentMethodToken::PazeDecrypt(_) => {
+                                        Err(unimplemented_payment_method!("Paze", "Mollie"))?
                                     }
                                 }),
                             },
@@ -514,8 +507,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, MolliePaymentsResponse, T, PaymentsResp
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: url,
-                mandate_reference: None,
+                redirection_data: Box::new(url),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),

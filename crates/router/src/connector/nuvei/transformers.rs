@@ -914,6 +914,7 @@ where
                 | domain::WalletData::MbWayRedirect(_)
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -998,7 +999,8 @@ where
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nuvei"),
                 )
@@ -1202,6 +1204,7 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
             | Some(domain::PaymentMethodData::OpenBanking(_))
             | Some(domain::PaymentMethodData::CardToken(..))
             | Some(domain::PaymentMethodData::NetworkToken(..))
+            | Some(domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | None => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nuvei"),
             )),
@@ -1595,15 +1598,17 @@ where
                         .map_or(response.order_id.clone(), Some) // For paypal there will be no transaction_id, only order_id will be present
                         .map(types::ResponseId::ConnectorTransactionId)
                         .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
-                    redirection_data,
-                    mandate_reference: response
-                        .payment_option
-                        .and_then(|po| po.user_payment_option_id)
-                        .map(|id| types::MandateReference {
-                            connector_mandate_id: Some(id),
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                        }),
+                    redirection_data: Box::new(redirection_data),
+                    mandate_reference: Box::new(
+                        response
+                            .payment_option
+                            .and_then(|po| po.user_payment_option_id)
+                            .map(|id| types::MandateReference {
+                                connector_mandate_id: Some(id),
+                                payment_method_id: None,
+                                mandate_metadata: None,
+                            }),
+                    ),
                     // we don't need to save session token for capture, void flow so ignoring if it is not present
                     connector_metadata: if let Some(token) = response.session_token {
                         Some(

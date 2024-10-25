@@ -91,6 +91,7 @@ pub enum WalletType {
     Cashapp,
     Venmo,
     Mifinity,
+    Paze,
 }
 
 #[derive(

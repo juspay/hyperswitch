@@ -353,8 +353,8 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.operation.order_id.clone(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.operation.order_id),
@@ -413,9 +413,12 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("nexixpay"),
-            ))?,
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("nexixpay"),
+                ))?
+            }
         }
     }
 }
@@ -623,8 +626,8 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.operation.order_id.clone(),
                 ),
-                redirection_data: Some(redirection_form.clone()),
-                mandate_reference: None,
+                redirection_data: Box::new(Some(redirection_form.clone())),
+                mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.operation.order_id),
@@ -741,8 +744,8 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.operation.order_id.clone(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.operation.order_id),
@@ -828,7 +831,8 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 | PaymentMethodData::GiftCard(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
-                | PaymentMethodData::NetworkToken(_) => {
+                | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("nexixpay"),
                     )
@@ -863,8 +867,8 @@ impl<F>
             status: AttemptStatus::from(item.response.operation_result),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: item.data.request.connector_meta.clone(),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
@@ -919,8 +923,8 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.data.request.connector_transaction_id.clone(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(
@@ -982,8 +986,8 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.data.request.connector_transaction_id.clone(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(
