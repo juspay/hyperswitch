@@ -13,7 +13,7 @@ pub use hyperswitch_domain_models::router_request_types::fraud_check::{
 use masking::Serialize;
 use serde::Deserialize;
 use utoipa::ToSchema;
-
+pub use hyperswitch_domain_models::types::OrderDetailsWithAmount;
 use super::operation::BoxedFraudCheckOperation;
 use crate::types::{
     domain::MerchantAccount,
@@ -54,7 +54,7 @@ pub struct FrmData {
     pub fraud_check: FraudCheck,
     pub address: PaymentAddress,
     pub connector_details: ConnectorDetailsCore,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub refund: Option<RefundResponse>,
     pub frm_metadata: Option<SecretSerdeValue>,
 }
@@ -79,7 +79,7 @@ pub struct PaymentToFrmData {
     pub merchant_account: MerchantAccount,
     pub address: PaymentAddress,
     pub connector_details: ConnectorDetailsCore,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub frm_metadata: Option<SecretSerdeValue>,
 }
 

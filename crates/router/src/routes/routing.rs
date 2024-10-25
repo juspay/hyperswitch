@@ -91,8 +91,7 @@ pub async fn routing_create_config(
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
-            permission: Permission::RoutingWrite,
-            minimum_entity_level: EntityType::Profile,
+            permission: Permission::ProfileRoutingWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -263,8 +262,7 @@ pub async fn routing_retrieve_config(
         ),
         #[cfg(feature = "release")]
         &auth::JWTAuth {
-            permission: Permission::RoutingRead,
-            minimum_entity_level: EntityType::Profile,
+            permission: Permission::ProfileRoutingRead,
         },
         api_locking::LockAction::NotApplicable,
     ))

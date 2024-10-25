@@ -534,8 +534,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -702,8 +701,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -870,8 +868,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1148,8 +1145,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1303,8 +1299,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2504,8 +2499,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2662,8 +2656,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2832,8 +2825,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))

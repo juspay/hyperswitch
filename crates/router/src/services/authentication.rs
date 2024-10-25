@@ -1136,7 +1136,8 @@ where
             .authenticate_and_fetch(request_headers, state)
             .await?;
 
-        let merchant_id = HeaderMapStruct::new(request_headers).get_merchant_id_from_header()?;
+        let merchant_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
@@ -1191,7 +1192,7 @@ where
 #[derive(Debug)]
 pub struct EphemeralKeyAuth;
 
-#[cfg(feature = "v1")]
+// #[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
 where
@@ -1215,20 +1216,20 @@ where
             .await
     }
 }
-#[cfg(feature = "v2")]
-#[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        todo!()
-    }
-}
+// #[cfg(feature = "v2")]
+// #[async_trait]
+// impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
+// where
+//     A: SessionStateInfo + Sync,
+// {
+//     async fn authenticate_and_fetch(
+//         &self,
+//         request_headers: &HeaderMap,
+//         state: &A,
+//     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+//         todo!()
+//     }
+// }
 #[derive(Debug)]
 pub struct MerchantIdAuth(pub id_type::MerchantId);
 
@@ -1277,6 +1278,69 @@ where
             merchant_account: merchant,
             key_store,
             profile_id: None,
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantId {
+                merchant_id: auth.merchant_account.get_id().clone(),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let key_manager_state = &(&state.session_state()).into();
+        let profile_id =
+            get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
+                .get_required_value(headers::X_PROFILE_ID)?;
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &self.0,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch merchant key store for the merchant id")
+                }
+            })?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(key_manager_state, &self.0, &key_store)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            })?;
+
+        let auth = AuthenticationData {
+            merchant_account: merchant,
+            key_store,
+            profile,
         };
         Ok((
             auth.clone(),
@@ -1845,7 +1909,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2068,7 +2131,6 @@ where
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
-        authorization::check_entity(self.minimum_entity_level, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state

@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use api_models::payments::OrderDetailsWithAmount;
 use cards::CardNumber;
 use common_utils::{pii::Email, types::MinorUnit};
+use hyperswitch_domain_models::types::OrderDetailsWithAmount;
 use masking::Secret;
 use router::types::{self, domain, storage::enums};
 

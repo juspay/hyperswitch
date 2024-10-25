@@ -2,10 +2,8 @@ use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
-use api_models::{
-    enums::{DisputeStage, DisputeStatus},
-    payments::OrderDetailsWithAmount,
-};
+use api_models::enums::{DisputeStage, DisputeStatus};
+use hyperswitch_domain_models::types::OrderDetailsWithAmount;
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};

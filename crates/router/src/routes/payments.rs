@@ -2052,7 +2052,7 @@ pub async fn payment_confirm_intent(
         state,
         &req,
         internal_payload,
-        |state, auth: auth::AuthenticationDataV2, req, req_state| async {
+        |state, auth: auth::AuthenticationData, req, req_state| async {
             let payment_id = req.global_payment_id;
             let request = req.payload;
 

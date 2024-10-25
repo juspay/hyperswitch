@@ -7,7 +7,7 @@ use std::{
 use api_models::payouts::{self, PayoutVendorAccountDetails};
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, OrderDetailsWithAmount},
+    payments,
 };
 use base64::Engine;
 use common_utils::{
@@ -18,7 +18,7 @@ use common_utils::{
     pii::{self, Email, IpAddress},
     types::{AmountConvertor, MinorUnit},
 };
-use diesel_models::enums;
+use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates,
