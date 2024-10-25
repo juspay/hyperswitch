@@ -207,7 +207,8 @@ impl
                 | domain::PaymentMethodData::GiftCard(_)
                 | domain::PaymentMethodData::CardToken(_)
                 | domain::PaymentMethodData::OpenBanking(_)
-                | domain::PaymentMethodData::NetworkToken(_) => {
+                | domain::PaymentMethodData::NetworkToken(_)
+                | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         connector_util::get_unimplemented_payment_method_error_message("iatapay"),
                     ))?
@@ -381,8 +382,8 @@ fn get_iatpay_response(
 
             types::PaymentsResponseData::TransactionResponse {
                 resource_id: id,
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: connector_response_reference_id.clone(),
@@ -392,8 +393,8 @@ fn get_iatpay_response(
         }
         None => types::PaymentsResponseData::TransactionResponse {
             resource_id: id.clone(),
-            redirection_data: None,
-            mandate_reference: None,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: connector_response_reference_id.clone(),

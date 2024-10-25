@@ -61,6 +61,14 @@ pub enum PaymentIntentMetrics {
     TotalSmartRetries,
     SmartRetriedAmount,
     PaymentIntentCount,
+    PaymentsSuccessRate,
+    SessionizedSuccessfulSmartRetries,
+    SessionizedTotalSmartRetries,
+    SessionizedSmartRetriedAmount,
+    SessionizedPaymentIntentCount,
+    SessionizedPaymentsSuccessRate,
+    SessionizedPaymentProcessedAmount,
+    SessionizedPaymentsDistribution,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -75,6 +83,7 @@ pub mod metric_behaviour {
     pub struct TotalSmartRetries;
     pub struct SmartRetriedAmount;
     pub struct PaymentIntentCount;
+    pub struct PaymentsSuccessRate;
 }
 
 impl From<PaymentIntentMetrics> for NameDescription {
@@ -149,7 +158,19 @@ pub struct PaymentIntentMetricsBucketValue {
     pub successful_smart_retries: Option<u64>,
     pub total_smart_retries: Option<u64>,
     pub smart_retried_amount: Option<u64>,
+    pub smart_retried_amount_without_smart_retries: Option<u64>,
     pub payment_intent_count: Option<u64>,
+    pub successful_payments: Option<u32>,
+    pub successful_payments_without_smart_retries: Option<u32>,
+    pub total_payments: Option<u32>,
+    pub payments_success_rate: Option<f64>,
+    pub payments_success_rate_without_smart_retries: Option<f64>,
+    pub payment_processed_amount: Option<u64>,
+    pub payment_processed_count: Option<u64>,
+    pub payment_processed_amount_without_smart_retries: Option<u64>,
+    pub payment_processed_count_without_smart_retries: Option<u64>,
+    pub payments_success_rate_distribution_without_smart_retries: Option<f64>,
+    pub payments_failure_rate_distribution_without_smart_retries: Option<f64>,
 }
 
 #[derive(Debug, serde::Serialize)]

@@ -39,7 +39,8 @@ pub async fn send_recon_request(
         .attach_printable("Failed to convert recipient's email to UserEmail")?,
         settings: state.conf.clone(),
         subject: format!(
-            "Dashboard Pro Feature Request by {}",
+            "{} {}",
+            consts::EMAIL_SUBJECT_DASHBOARD_FEATURE_REQUEST,
             user_email.expose().peek()
         ),
     };
@@ -145,7 +146,7 @@ pub async fn recon_merchant_account_update(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to form username")?,
         settings: state.conf.clone(),
-        subject: "Approval of Recon Request - Access Granted to Recon Dashboard",
+        subject: consts::EMAIL_SUBJECT_APPROVAL_RECON_REQUEST,
     };
 
     if req.recon_status == enums::ReconStatus::Active {

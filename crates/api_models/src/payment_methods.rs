@@ -1144,8 +1144,6 @@ pub struct SurchargeDetailsResponse {
     pub display_tax_on_surcharge_amount: f64,
     /// sum of display_surcharge_amount and display_tax_on_surcharge_amount
     pub display_total_surcharge_amount: f64,
-    /// sum of original amount,
-    pub display_final_amount: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -1219,12 +1217,14 @@ pub struct ResponsePaymentMethodIntermediate {
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
     pub payment_method: api_enums::PaymentMethod,
     pub connector: String,
+    pub merchant_connector_id: String,
 }
 
 impl ResponsePaymentMethodIntermediate {
     pub fn new(
         pm_type: RequestPaymentMethodTypes,
         connector: String,
+        merchant_connector_id: String,
         pm: api_enums::PaymentMethod,
     ) -> Self {
         Self {
@@ -1233,6 +1233,7 @@ impl ResponsePaymentMethodIntermediate {
             card_networks: pm_type.card_networks,
             payment_method: pm,
             connector,
+            merchant_connector_id,
         }
     }
 }

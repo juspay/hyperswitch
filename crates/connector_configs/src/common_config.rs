@@ -206,7 +206,7 @@ pub enum InputType {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
-pub struct MetaDataInupt {
+pub struct InputData {
     pub name: String,
     pub label: String,
     pub placeholder: String,

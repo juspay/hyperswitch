@@ -248,7 +248,8 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Gocardless"),
                 )
@@ -420,7 +421,8 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))
@@ -521,8 +523,8 @@ impl<F>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 resource_id: ResponseId::NoResponseId,
-                redirection_data: None,
-                mandate_reference,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
                 network_txn_id: None,
                 charge_id: None,
             }),
@@ -672,8 +674,8 @@ impl<F>
             status: enums::AttemptStatus::from(item.response.payments.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
-                redirection_data: None,
-                mandate_reference: Some(mandate_reference),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(Some(mandate_reference)),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -708,8 +710,8 @@ impl<F>
             status: enums::AttemptStatus::from(item.response.payments.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

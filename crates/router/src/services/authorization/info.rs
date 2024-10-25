@@ -1,8 +1,6 @@
-use api_models::user_role::{GroupInfo, ParentGroup, PermissionInfo};
-use common_enums::PermissionGroup;
+use api_models::user_role::GroupInfo;
+use common_enums::{ParentGroup, PermissionGroup};
 use strum::IntoEnumIterator;
-
-use super::{permission_groups::get_permissions_vec, permissions::Permission};
 
 // TODO: To be deprecated
 pub fn get_group_authorization_info() -> Vec<GroupInfo> {
@@ -12,24 +10,9 @@ pub fn get_group_authorization_info() -> Vec<GroupInfo> {
 }
 
 // TODO: To be deprecated
-pub fn get_permission_info_from_permissions(permissions: &[Permission]) -> Vec<PermissionInfo> {
-    permissions
-        .iter()
-        .map(|&per| PermissionInfo {
-            description: Permission::get_permission_description(&per),
-            enum_name: per.into(),
-        })
-        .collect()
-}
-
-// TODO: To be deprecated
 fn get_group_info_from_permission_group(group: PermissionGroup) -> GroupInfo {
     let description = get_group_description(group);
-    GroupInfo {
-        group,
-        description,
-        permissions: get_permission_info_from_permissions(get_permissions_vec(&group)),
-    }
+    GroupInfo { group, description }
 }
 
 // TODO: To be deprecated

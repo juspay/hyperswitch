@@ -610,7 +610,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?
@@ -793,7 +794,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardToken(_)
             | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 ))?
@@ -928,7 +930,7 @@ pub struct MultisafepayPaymentsResponse {
 #[serde(untagged)]
 pub enum MultisafepayAuthResponse {
     ErrorResponse(MultisafepayErrorResponse),
-    PaymentResponse(MultisafepayPaymentsResponse),
+    PaymentResponse(Box<MultisafepayPaymentsResponse>),
 }
 
 impl<F, T>
@@ -977,16 +979,18 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 payment_response.data.order_id.clone(),
                             ),
-                            redirection_data,
-                            mandate_reference: payment_response
-                                .data
-                                .payment_details
-                                .and_then(|payment_details| payment_details.recurring_id)
-                                .map(|id| types::MandateReference {
-                                    connector_mandate_id: Some(id.expose()),
-                                    payment_method_id: None,
-                                    mandate_metadata: None,
-                                }),
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(
+                                payment_response
+                                    .data
+                                    .payment_details
+                                    .and_then(|payment_details| payment_details.recurring_id)
+                                    .map(|id| types::MandateReference {
+                                        connector_mandate_id: Some(id.expose()),
+                                        payment_method_id: None,
+                                        mandate_metadata: None,
+                                    }),
+                            ),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: Some(

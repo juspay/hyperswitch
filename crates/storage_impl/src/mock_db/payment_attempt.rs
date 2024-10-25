@@ -52,7 +52,7 @@ impl PaymentAttemptInterface for MockDb {
         _payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         _authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         _merchanat_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
-        _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+        _card_network: Option<Vec<storage_enums::CardNetwork>>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<i64, StorageError> {
         Err(StorageError::MockDbError)?
@@ -123,21 +123,17 @@ impl PaymentAttemptInterface for MockDb {
     ) -> CustomResult<PaymentAttempt, StorageError> {
         let mut payment_attempts = self.payment_attempts.lock().await;
         let time = common_utils::date_time::now();
-        let payment_attempt = payment_attempt.populate_derived_fields();
         let payment_attempt = PaymentAttempt {
             payment_id: payment_attempt.payment_id,
             merchant_id: payment_attempt.merchant_id,
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
-            amount: payment_attempt.amount,
             net_amount: payment_attempt.net_amount,
             currency: payment_attempt.currency,
             save_to_locker: payment_attempt.save_to_locker,
             connector: payment_attempt.connector,
             error_message: payment_attempt.error_message,
             offer_amount: payment_attempt.offer_amount,
-            surcharge_amount: payment_attempt.surcharge_amount,
-            tax_amount: payment_attempt.tax_amount,
             payment_method_id: payment_attempt.payment_method_id,
             payment_method: payment_attempt.payment_method,
             connector_transaction_id: None,
@@ -185,8 +181,7 @@ impl PaymentAttemptInterface for MockDb {
             customer_acceptance: payment_attempt.customer_acceptance,
             organization_id: payment_attempt.organization_id,
             profile_id: payment_attempt.profile_id,
-            shipping_cost: payment_attempt.shipping_cost,
-            order_tax_amount: payment_attempt.order_tax_amount,
+            connector_mandate_detail: payment_attempt.connector_mandate_detail,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -231,7 +226,7 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v2")]
-    async fn update_payment_attempt_with_attempt_id(
+    async fn update_payment_attempt(
         &self,
         _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,

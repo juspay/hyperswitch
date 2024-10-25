@@ -185,7 +185,7 @@ impl
             Response::Approved => (
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: Some(services::RedirectForm::Nmi {
+                    redirection_data: Box::new(Some(services::RedirectForm::Nmi {
                         amount: utils::to_currency_base_unit_asf64(
                             amount_data,
                             currency_data.to_owned(),
@@ -206,8 +206,8 @@ impl
                             },
                         )?,
                         order_id: item.data.connector_request_reference_id.clone(),
-                    }),
-                    mandate_reference: None,
+                    })),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.transactionid),
@@ -360,8 +360,8 @@ impl
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transactionid,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
@@ -587,7 +587,8 @@ impl
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nmi"),
                 )
@@ -742,8 +743,8 @@ impl
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transactionid.to_owned(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
@@ -837,8 +838,8 @@ impl<T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transactionid.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
@@ -894,8 +895,8 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transactionid.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
@@ -945,8 +946,8 @@ impl<T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transactionid.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.orderid),
@@ -996,8 +997,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SyncResponse, T, types::Payments
                 status: enums::AttemptStatus::from(NmiStatus::from(trn.condition)),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(trn.transaction_id),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
