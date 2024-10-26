@@ -3,13 +3,13 @@
 pub mod dynamic_routing;
 /// gRPC based Heath Check Client interface implementation
 #[cfg(feature = "dynamic_routing")]
-pub mod health_check;
+pub mod health_check_client;
 use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
-use health_check::HealthCheckClient;
+use health_check_client::HealthCheckClient;
 use serde;
 
 /// Struct contains all the gRPC Clients

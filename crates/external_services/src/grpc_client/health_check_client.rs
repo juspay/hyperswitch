@@ -3,20 +3,21 @@ use std::fmt::Debug;
 use common_utils::{errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
 
-#[allow(
-    missing_docs,
-    unused_qualifications,
-    clippy::unwrap_used,
-    clippy::as_conversions
-)]
-pub mod health_check {
-    tonic::include_proto!("grpc.health.v1");
-}
-
 pub use health_check::{
     health_check_response::ServingStatus, health_client::HealthClient, HealthCheckRequest,
     HealthCheckResponse,
 };
+
+#[allow(
+    missing_docs,
+    unused_qualifications,
+    clippy::unwrap_used,
+    clippy::as_conversions,
+    clippy::use_self
+)]
+pub mod health_check {
+    tonic::include_proto!("grpc.health.v1");
+}
 
 use super::{DynamicRoutingClientConfig, GrpcClientSettings};
 
