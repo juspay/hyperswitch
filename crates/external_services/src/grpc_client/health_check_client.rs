@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use common_utils::{errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
-
 pub use health_check::{
     health_check_response::ServingStatus, health_client::HealthClient, HealthCheckRequest,
     HealthCheckResponse,
