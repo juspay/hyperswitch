@@ -9,6 +9,7 @@ pub struct RouterHealthCheckResponse {
     #[cfg(feature = "olap")]
     pub opensearch: bool,
     pub outgoing_request: bool,
+    #[cfg(feature = "dynamic_routing")]
     pub grpc_health_check: bool,
 }
 

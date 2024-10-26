@@ -2,11 +2,13 @@
 #[cfg(feature = "dynamic_routing")]
 pub mod dynamic_routing;
 /// gRPC based Heath Check Client interface implementation
+#[cfg(feature = "dynamic_routing")]
 pub mod health_check;
 use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
+#[cfg(feature = "dynamic_routing")]
 use health_check::HealthCheckClient;
 use serde;
 
@@ -17,6 +19,7 @@ pub struct GrpcClients {
     #[cfg(feature = "dynamic_routing")]
     pub dynamic_routing: RoutingStrategy,
     /// Health Check client for all gRPC services
+    #[cfg(feature = "dynamic_routing")]
     pub health_client: HealthCheckClient,
 }
 /// Type that contains the configs required to construct a  gRPC client with its respective services.
@@ -42,11 +45,13 @@ impl GrpcClientSettings {
             .await
             .expect("Failed to establish a connection with the Dynamic Routing Server");
 
+        #[cfg(feature = "dynamic_routing")]
         let health_client = HealthCheckClient;
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
             dynamic_routing: dynamic_routing_connection,
+            #[cfg(feature = "dynamic_routing")]
             health_client,
         })
     }

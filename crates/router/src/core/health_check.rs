@@ -29,6 +29,7 @@ pub trait HealthCheckInterface {
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckDBError>;
 
+    #[cfg(feature = "dynamic_routing")]
     async fn health_check_grpc(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckGRPCServiceError>;
@@ -163,6 +164,7 @@ impl HealthCheckInterface for app::SessionState {
         Ok(HealthState::Running)
     }
 
+    #[cfg(feature = "dynamic_routing")]
     async fn health_check_grpc(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckGRPCServiceError> {

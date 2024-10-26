@@ -97,6 +97,7 @@ async fn deep_health_check_func(
 
     logger::debug!("gRPC health check begin");
 
+    #[cfg(feature = "dynamic_routing")]
     let grpc_health_check = state.health_check_grpc().await.map_err(|error| {
         let message = error.to_string();
         error.change_context(errors::ApiErrorResponse::HealthCheckError {
@@ -141,6 +142,7 @@ async fn deep_health_check_func(
         #[cfg(feature = "olap")]
         opensearch: opensearch_status.into(),
         outgoing_request: outgoing_check.into(),
+        #[cfg(feature = "dynamic_routing")]
         grpc_health_check: grpc_health_check.into(),
     };
 
