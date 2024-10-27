@@ -9,6 +9,8 @@ use api_models::{
 use async_trait::async_trait;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(feature = "v1")]
 use router_env::logger;
@@ -45,8 +47,6 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 
 pub enum TransactionData<'a> {
     Payment(PaymentsDslInput<'a>),
