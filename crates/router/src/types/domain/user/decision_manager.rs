@@ -1,5 +1,5 @@
-use common_enums::TokenPurpose;
-use diesel_models::{enums::UserStatus, user_role::UserRole};
+use common_enums::{TokenPurpose, UserStatus};
+use diesel_models::user_role::UserRole;
 use error_stack::{report, ResultExt};
 use masking::Secret;
 

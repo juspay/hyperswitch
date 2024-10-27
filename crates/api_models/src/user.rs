@@ -1,10 +1,9 @@
 use std::fmt::Debug;
 
-use common_enums::{EntityType, TokenPurpose};
+use common_enums::{EntityType, TokenPurpose, UserStatus};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
 use masking::Secret;
 
-use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;

@@ -224,27 +224,6 @@ pub enum FraudCheckLastStep {
     Clone,
     Copy,
     Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum UserStatus {
-    Active,
-    #[default]
-    InvitationSent,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
     Eq,
     PartialEq,
     serde::Deserialize,

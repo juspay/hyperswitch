@@ -3,13 +3,13 @@ use std::{collections::HashSet, ops, str::FromStr};
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
-use common_enums::EntityType;
+use common_enums::{EntityType, UserStatus};
 use common_utils::{
     crypto::Encryptable, id_type, new_type::MerchantName, pii, type_name,
     types::keymanager::Identifier,
 };
 use diesel_models::{
-    enums::{TotpStatus, UserRoleVersion, UserStatus},
+    enums::{TotpStatus, UserRoleVersion},
     organization::{self as diesel_org, Organization, OrganizationBridge},
     user as storage_user,
     user_role::{UserRole, UserRoleNew},
@@ -1010,7 +1010,7 @@ impl UserFromStorage {
     }
 }
 
-impl ForeignFrom<UserStatus> for user_role_api::UserStatus {
+impl ForeignFrom<UserStatus> for UserStatus {
     fn foreign_from(value: UserStatus) -> Self {
         match value {
             UserStatus::Active => Self::Active,
