@@ -1,7 +1,5 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use api_models::enums::AuthenticationType;
 use common_enums::enums;
 use common_utils::{

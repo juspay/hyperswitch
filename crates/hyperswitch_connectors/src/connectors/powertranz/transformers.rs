@@ -1,5 +1,5 @@
 use common_enums::enums::{self, AuthenticationType, Currency};
-use common_utils::{pii::IpAddress, types::{MinorUnit, StringMajorUnit}};
+use common_utils::{pii::IpAddress, types::{StringMajorUnit}};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
