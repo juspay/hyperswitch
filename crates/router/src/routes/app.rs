@@ -1699,34 +1699,18 @@ impl Profile {
 impl Profile {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/account/{account_id}/business_profile")
+            .app_data(web::Data::new(state))
             .service(
                 web::resource("")
                     .route(web::post().to(profiles::profile_create))
                     .route(web::get().to(profiles::profiles_list)),
-            )
-            .service(web::scope("/{profile_id}"))
-            .app_data(web::Data::new(state));
-        route = route
-            .service(
-                web::resource("")
-                    .route(web::get().to(profiles::profile_retrieve))
-                    .route(web::post().to(profiles::profile_update))
-                    .route(web::delete().to(profiles::profile_delete)),
-            )
-            .service(
-                web::resource("/toggle_extended_card_info")
-                    .route(web::post().to(profiles::toggle_extended_card_info)),
-            )
-            .service(
-                web::resource("/toggle_connector_agnostic_mit")
-                    .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
             );
 
         #[cfg(feature = "dynamic_routing")]
         {
             route =
                 route.service(
-                    web::scope("/dynamic_routing").service(
+                    web::scope("/{profile_id}/dynamic_routing").service(
                         web::scope("/success_based")
                             .service(
                                 web::resource("/toggle")
@@ -1740,8 +1724,27 @@ impl Profile {
                                 }),
                             )),
                     ),
-                )
+                );
         }
+
+        route = route.service(
+            web::scope("/{profile_id}")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(profiles::profile_retrieve))
+                        .route(web::post().to(profiles::profile_update))
+                        .route(web::delete().to(profiles::profile_delete)),
+                )
+                .service(
+                    web::resource("/toggle_extended_card_info")
+                        .route(web::post().to(profiles::toggle_extended_card_info)),
+                )
+                .service(
+                    web::resource("/toggle_connector_agnostic_mit")
+                        .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
+                ),
+        );
+
         route
     }
 }

@@ -1395,7 +1395,7 @@ pub async fn success_based_routing_update_configs(
     //     &state.tenant.redis_key_prefix,
     //     profile_id.get_string_repr(),
     // );
-    let ins = state
+    state
         .grpc_client
         .dynamic_routing
         .success_rate_client
