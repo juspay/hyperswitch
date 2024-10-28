@@ -143,7 +143,7 @@ async fn deep_health_check_func(
         opensearch: opensearch_status.into(),
         outgoing_request: outgoing_check.into(),
         #[cfg(feature = "dynamic_routing")]
-        grpc_health_check: grpc_health_check.into(),
+        grpc_health_check,
     };
 
     Ok(api::ApplicationResponse::Json(response))

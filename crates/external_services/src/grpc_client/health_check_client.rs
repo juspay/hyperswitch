@@ -1,11 +1,12 @@
 use std::fmt::Debug;
 
-use common_utils::{errors::CustomResult, ext_traits::AsyncExt, fp_utils};
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 pub use health_check::{
     health_check_response::ServingStatus, health_client::HealthClient, HealthCheckRequest,
     HealthCheckResponse,
 };
+use api_models::health_check::{HealthCheckMap, HealthCheckServices};
 
 #[allow(
     missing_docs,
@@ -22,7 +23,6 @@ use super::{DynamicRoutingClientConfig, GrpcClientSettings};
 
 /// Result type for Dynamic Routing
 pub type HealthCheckResult<T> = CustomResult<T, HealthCheckError>;
-
 /// Dynamic Routing Errors
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum HealthCheckError {
@@ -43,37 +43,43 @@ pub struct HealthCheckClient;
 
 impl HealthCheckClient {
     /// Perform health check for all services involved
-    pub async fn perform_health_check(&self, config: &GrpcClientSettings) -> HealthCheckResult<()> {
+    pub async fn perform_health_check(&self, config: &GrpcClientSettings) -> HealthCheckResult<HealthCheckMap> {
         let dynamic_routing_config = &config.dynamic_routing_client;
         let connection = match dynamic_routing_config {
-            DynamicRoutingClientConfig::Enabled { host, port } => Some((host.clone(), *port)),
+            DynamicRoutingClientConfig::Enabled {
+                host,
+                port,
+                service,
+            } => Some((host.clone(), *port, service.clone())),
             _ => None,
         };
-
-        let response: Option<HealthCheckResponse> = connection
-            .async_map(|conn| self.get_response_from_grpc_service(conn.0, conn.1))
-            .await
-            .transpose()
-            .change_context(HealthCheckError::ConnectionError(
-                "error calling dynamic routing service".to_string(),
-            ))?;
 
         #[allow(clippy::as_conversions)]
         let expected_status = ServingStatus::Serving as i32;
 
-        if let Some(resp) = response {
-            fp_utils::when(resp.status != expected_status, || {
-                Err(HealthCheckError::InvalidStatus)
-            })?;
-        }
+        let mut service_map = HealthCheckMap::new();
 
-        Ok(())
+        let health_check_succeed = connection
+            .async_map(|conn| self.get_response_from_grpc_service(conn.0, conn.1, conn.2))
+            .await
+            .transpose()
+            .change_context(HealthCheckError::ConnectionError(
+                "error calling dynamic routing service".to_string(),
+            ))
+            .ok()
+            .flatten()
+            .is_some_and(|resp| resp.status == expected_status);
+
+        service_map.insert(HealthCheckServices::DynamicRoutingService, health_check_succeed);
+
+        Ok(service_map)
     }
 
     async fn get_response_from_grpc_service(
         &self,
         host: String,
         port: u16,
+        service: String,
     ) -> HealthCheckResult<HealthCheckResponse> {
         let uri = format!("http://{}:{}", host, port);
         let channel = tonic::transport::Endpoint::new(uri)
@@ -83,9 +89,7 @@ impl HealthCheckClient {
             .map_err(|err| HealthCheckError::ConnectionError(err.to_string()))?;
         let mut client = HealthClient::new(channel);
 
-        let request = tonic::Request::new(HealthCheckRequest {
-            service: "dynamo".to_string(), // check this in review
-        });
+        let request = tonic::Request::new(HealthCheckRequest { service });
 
         let response = client
             .check(request)

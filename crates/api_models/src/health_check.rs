@@ -1,3 +1,4 @@
+use std::collections::hash_map::HashMap;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RouterHealthCheckResponse {
     pub database: bool,
@@ -10,10 +11,21 @@ pub struct RouterHealthCheckResponse {
     pub opensearch: bool,
     pub outgoing_request: bool,
     #[cfg(feature = "dynamic_routing")]
-    pub grpc_health_check: bool,
+    pub grpc_health_check: HealthCheckMap,
 }
 
 impl common_utils::events::ApiEventMetric for RouterHealthCheckResponse {}
+
+/// gRPC based services eligible for Health check
+#[derive(Debug, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all="snake_case")]
+pub enum HealthCheckServices {
+    /// Dyanmic routing service
+    DynamicRoutingService
+}
+
+
+pub type HealthCheckMap = HashMap<HealthCheckServices, bool>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SchedulerHealthCheckResponse {

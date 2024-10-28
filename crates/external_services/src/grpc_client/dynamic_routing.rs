@@ -57,6 +57,8 @@ pub enum DynamicRoutingClientConfig {
         host: String,
         /// The port of the client
         port: u16,
+        /// Service name
+        service: String,
     },
     #[default]
     /// If the dynamic routing client config has been disabled
@@ -69,7 +71,7 @@ impl DynamicRoutingClientConfig {
         self,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
         let success_rate_client = match self {
-            Self::Enabled { host, port } => {
+            Self::Enabled { host, port, .. } => {
                 let uri = format!("http://{}:{}", host, port);
                 let channel = tonic::transport::Endpoint::new(uri)?.connect().await?;
                 Some(SuccessRateCalculatorClient::new(channel))

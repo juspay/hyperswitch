@@ -3,18 +3,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "dynamic_routing")]
     {
         // Get the directory of the current crate
-        let success_rate_proto_file = router_env::workspace_path()
-            .join("proto")
-            .join("success_rate.proto");
 
-        let health_check_proto_file = router_env::workspace_path()
-            .join("proto")
-            .join("health_check.proto");
+        let proto_path = router_env::workspace_path().join("proto");
+        let success_rate_proto_file = proto_path.join("success_rate.proto");
+
+        let health_check_proto_file = proto_path.join("health_check.proto");
+        let out_dir = std::path::PathBuf::from(std::env::var("OUT_DIR")?);
+
         // Compile the .proto file
-        tonic_build::compile_protos(success_rate_proto_file)
-            .expect("Failed to compile success rate proto file");
-        tonic_build::compile_protos(health_check_proto_file)
-            .expect("Failed to compile gRPC health check proto file");
+        tonic_build::configure()
+            .out_dir(out_dir)
+            .compile(
+                &[success_rate_proto_file, health_check_proto_file],
+                &[proto_path],
+            )
+            .expect("Failed to compile proto files");
     }
     Ok(())
 }
