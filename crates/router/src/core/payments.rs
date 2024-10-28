@@ -4210,12 +4210,9 @@ pub async fn get_aggregates_for_payments(
     let intent_status_with_count = db
         .get_intent_status_with_count(merchant.get_id(), profile_id_list, &time_range)
         .await
-        .map_err(|err| {
-          
-            errors::ApiErrorResponse::InternalServerError
-                .attach_printable(format!("Error fetching payment aggregates: {:?}", err))
-        })?;
-
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch payment intent status")?;
+    
     let mut status_map: HashMap<enums::IntentStatus, i64> =
         intent_status_with_count.into_iter().collect();
 
