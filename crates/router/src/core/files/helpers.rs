@@ -234,6 +234,27 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
     }
 }
 
+#[cfg(feature = "v2")]
+//Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
+pub async fn upload_and_get_provider_provider_file_id_profile_id(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    create_file_request: &api::CreateFileRequest,
+    file_key: String,
+) -> CustomResult<
+    (
+        String,
+        api_models::enums::FileUploadProvider,
+        Option<common_utils::id_type::ProfileId>,
+        Option<common_utils::id_type::MerchantConnectorAccountId>,
+    ),
+    errors::ApiErrorResponse,
+> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 //Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
 pub async fn upload_and_get_provider_provider_file_id_profile_id(
     state: &SessionState,
@@ -279,6 +300,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
                 let payment_attempt = state
                     .store
                     .find_payment_attempt_by_attempt_id_merchant_id(

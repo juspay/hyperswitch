@@ -6,11 +6,11 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-default = ["kv_store", "olap", "v1"]
+default = ["kv_store", "olap"]
 olap = ["storage_impl/olap", "hyperswitch_domain_models/olap"]
 kv_store = []
 email = ["external_services/email"]
-v1 = ["diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1"]
+v1 = ["diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1"]
 
 [dependencies]
 # Third party crates

@@ -1,14 +1,19 @@
 pub mod transformers;
 
+use std::collections::{HashMap, HashSet};
+
+use common_enums::{CaptureMethod, PaymentMethodType};
 use common_utils::{
-    errors::CustomResult,
-    ext_traits::BytesExt,
+    crypto::{self, GenerateDigest},
+    errors::{self as common_errors, CustomResult},
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    payment_method_data::PaymentMethodData,
+    router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -21,8 +26,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -33,20 +38,68 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
-use transformers as fiuu;
+use masking::{ExposeInterface, PeekInterface, Secret};
+use reqwest::multipart::Form;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use transformers::{self as fiuu, FiuuWebhooksResponse};
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, PaymentMethodDataType},
+};
 
+fn parse_response<T>(data: &[u8]) -> Result<T, errors::ConnectorError>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    let response_str = String::from_utf8(data.to_vec()).map_err(|e| {
+        router_env::logger::error!("Error in Deserializing Response Data: {:?}", e);
+        errors::ConnectorError::ResponseDeserializationFailed
+    })?;
+
+    let mut json = serde_json::Map::new();
+    let mut miscellaneous: HashMap<String, Secret<String>> = HashMap::new();
+
+    for line in response_str.lines() {
+        if let Some((key, value)) = line.split_once('=') {
+            if key.trim().is_empty() {
+                router_env::logger::error!("Null or empty key encountered in response.");
+                continue;
+            }
+
+            if let Some(old_value) = json.insert(key.to_string(), Value::String(value.to_string()))
+            {
+                router_env::logger::warn!("Repeated key encountered: {}", key);
+                miscellaneous.insert(key.to_string(), Secret::new(old_value.to_string()));
+            }
+        }
+    }
+    if !miscellaneous.is_empty() {
+        let misc_value = serde_json::to_value(miscellaneous).map_err(|e| {
+            router_env::logger::error!("Error serializing miscellaneous data: {:?}", e);
+            errors::ConnectorError::ResponseDeserializationFailed
+        })?;
+        json.insert("miscellaneous".to_string(), misc_value);
+    }
+
+    let response: T = serde_json::from_value(Value::Object(json)).map_err(|e| {
+        router_env::logger::error!("Error in Deserializing Response Data: {:?}", e);
+        errors::ConnectorError::ResponseDeserializationFailed
+    })?;
+
+    Ok(response)
+}
 #[derive(Clone)]
 pub struct Fiuu {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Fiuu {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -76,15 +129,13 @@ where
 {
     fn build_headers(
         &self,
-        req: &RouterData<Flow, Request, Response>,
+        _req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
+        let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
         Ok(header)
     }
 }
@@ -96,29 +147,10 @@ impl ConnectorCommon for Fiuu {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
-    }
-
-    fn common_get_content_type(&self) -> &'static str {
-        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.fiuu.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = fiuu::FiuuAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -136,17 +168,62 @@ impl ConnectorCommon for Fiuu {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error_code.clone(),
+            message: response.error_desc.clone(),
+            reason: Some(response.error_desc.clone()),
             attempt_status: None,
             connector_transaction_id: None,
         })
     }
 }
+pub fn build_form_from_struct<T: Serialize>(data: T) -> Result<Form, common_errors::ParsingError> {
+    let mut form = Form::new();
+    let serialized = serde_json::to_value(&data).map_err(|e| {
+        router_env::logger::error!("Error serializing data to JSON value: {:?}", e);
+        common_errors::ParsingError::EncodeError("json-value")
+    })?;
+    let serialized_object = serialized.as_object().ok_or_else(|| {
+        router_env::logger::error!("Error: Expected JSON object but got something else");
+        common_errors::ParsingError::EncodeError("Expected object")
+    })?;
+    for (key, values) in serialized_object {
+        let value = match values {
+            Value::String(s) => s.clone(),
+            Value::Number(n) => n.to_string(),
+            Value::Bool(b) => b.to_string(),
+            Value::Array(_) | Value::Object(_) | Value::Null => {
+                router_env::logger::error!(serialization_error =? "Form Construction Failed.");
+                "".to_string()
+            }
+        };
+        form = form.text(key.clone(), value.clone());
+    }
+    Ok(form)
+}
 
 impl ConnectorValidation for Fiuu {
-    //TODO: implement functions when support enabled
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<CaptureMethod>,
+        _pmt: Option<PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            CaptureMethod::Automatic | CaptureMethod::Manual => Ok(()),
+            CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
+                utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd: HashSet<PaymentMethodDataType> =
+            HashSet::from([PaymentMethodDataType::Card]);
+        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Fiuu {
@@ -166,16 +243,23 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         self.build_headers(req, connectors)
     }
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let url = if req.request.off_session == Some(true) {
+            format!(
+                "{}/RMS/API/Recurring/input_v7.php",
+                self.base_url(connectors)
+            )
+        } else {
+            format!(
+                "{}RMS/API/Direct/1.4.0/index.php",
+                self.base_url(connectors)
+            )
+        };
+        Ok(url)
     }
 
     fn get_request_body(
@@ -190,8 +274,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = fiuu::FiuuRouterData::from((amount, req));
-        let connector_req = fiuu::FiuuPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req = if req.request.off_session == Some(true) {
+            let recurring_request = fiuu::FiuuMandateRequest::try_from(&connector_router_data)?;
+            build_form_from_struct(recurring_request)
+                .change_context(errors::ConnectorError::ParsingFailed)?
+        } else {
+            let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
+            build_form_from_struct(payment_request)
+                .change_context(errors::ConnectorError::ParsingFailed)?
+        };
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn build_request(
@@ -206,9 +298,6 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                     self, req, connectors,
                 )?)
                 .attach_default_headers()
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
                 .set_body(types::PaymentsAuthorizeType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -224,7 +313,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: fiuu::FiuuPaymentsResponse = res
             .response
-            .parse_struct("Fiuu PaymentsAuthorizeResponse")
+            .parse_struct("Fiuu FiuuPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -252,17 +341,23 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
         _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let base_url = connectors.fiuu.secondary_base_url.clone();
+        Ok(format!("{}RMS/API/gate-query/index.php", base_url))
+    }
+    fn get_request_body(
+        &self,
+        req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let sync_request = fiuu::FiuuPaymentSyncRequest::try_from(req)?;
+        let connector_req = build_form_from_struct(sync_request)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn build_request(
@@ -272,10 +367,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .set_body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
     }
@@ -286,17 +383,44 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: fiuu::FiuuPaymentsResponse = res
-            .response
-            .parse_struct("fiuu PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        match res.headers {
+            Some(headers) => {
+                let content_header = utils::get_http_header("Content-type", &headers)
+                    .attach_printable("Missing content type in headers")
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+                let response: fiuu::FiuuPaymentResponse = if content_header
+                    == "text/plain;charset=UTF-8"
+                {
+                    parse_response(&res.response)
+                } else {
+                    Err(errors::ConnectorError::ResponseDeserializationFailed)
+                        .attach_printable(format!("Expected content type to be text/plain;charset=UTF-8 , but received different content type as {content_header} in response"))?
+                }?;
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+            None => {
+                // We don't get headers for payment webhook response handling
+                let response: fiuu::FiuuPaymentResponse = res
+                    .response
+                    .parse_struct("fiuu::FiuuPaymentResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+                RouterData::try_from(ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+        }
     }
 
     fn get_error_response(
@@ -309,32 +433,32 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Fiuu {
-    fn get_headers(
-        &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
         _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let base_url = connectors.fiuu.secondary_base_url.clone();
+        Ok(format!("{}RMS/API/capstxn/index.php", base_url))
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = fiuu::FiuuRouterData::from((amount, req));
+        let connector_req = build_form_from_struct(fiuu::PaymentCaptureRequest::try_from(
+            &connector_router_data,
+        )?)
+        .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn build_request(
@@ -347,9 +471,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 .method(Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
                 .set_body(types::PaymentsCaptureType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -363,7 +484,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: fiuu::FiuuPaymentsResponse = res
+        let response: fiuu::PaymentCaptureResponse = res
             .response
             .parse_struct("Fiuu PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -385,27 +506,79 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Fiuu {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Fiuu {
+    fn get_url(
+        &self,
+        _req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = connectors.fiuu.secondary_base_url.clone();
+        Ok(format!("{}RMS/API/refundAPI/refund.php", base_url))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = build_form_from_struct(fiuu::FiuuPaymentCancelRequest::try_from(req)?)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        );
+
+        Ok(request)
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        let response: fiuu::FiuuPaymentCancelResponse = parse_response(&res.response)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiuu {
-    fn get_headers(
-        &self,
-        req: &RefundsRouterData<Execute>,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let base_url = connectors.fiuu.secondary_base_url.clone();
+        Ok(format!("{}RMS/API/refundAPI/index.php", base_url))
     }
 
     fn get_request_body(
@@ -420,8 +593,10 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiuu {
         )?;
 
         let connector_router_data = fiuu::FiuuRouterData::from((refund_amount, req));
-        let connector_req = fiuu::FiuuRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
+        let connector_req =
+            build_form_from_struct(fiuu::FiuuRefundRequest::try_from(&connector_router_data)?)
+                .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn build_request(
@@ -433,9 +608,6 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiuu {
             .method(Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(
-                self, req, connectors,
-            )?)
             .set_body(types::RefundExecuteType::get_request_body(
                 self, req, connectors,
             )?)
@@ -449,9 +621,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiuu {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: fiuu::RefundResponse = res
+        let response: fiuu::FiuuRefundResponse = res
             .response
-            .parse_struct("fiuu RefundResponse")
+            .parse_struct("fiuu FiuuRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -472,24 +644,23 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Fiuu {
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiuu {
-    fn get_headers(
-        &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
     fn get_url(
         &self,
         _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let base_url = connectors.fiuu.secondary_base_url.clone();
+        Ok(format!("{}RMS/API/refundAPI/q_by_txn.php", base_url))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RefundSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = build_form_from_struct(fiuu::FiuuRefundSyncRequest::try_from(req)?)
+            .change_context(errors::ConnectorError::ParsingFailed)?;
+        Ok(RequestContent::FormData(connector_req))
     }
 
     fn build_request(
@@ -499,10 +670,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiuu {
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .set_body(types::RefundSyncType::get_request_body(
                     self, req, connectors,
                 )?)
@@ -516,10 +686,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiuu {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: fiuu::RefundResponse =
-            res.response
-                .parse_struct("fiuu RefundSyncResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: fiuu::FiuuRefundSyncResponse = res
+            .response
+            .parse_struct("fiuu FiuuRefundSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -540,24 +710,184 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Fiuu {
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Fiuu {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::Md5))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        };
+
+        let signature = match resource {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhooks_payment_response) => {
+                webhooks_payment_response.skey
+            }
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => {
+                webhooks_refunds_response.signature
+            }
+        };
+        hex::decode(signature.expose())
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        };
+        let verification_message = match resource {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhooks_payment_response) => {
+                let key0 = format!(
+                    "{}{}{}{}{}{}",
+                    webhooks_payment_response.tran_id,
+                    webhooks_payment_response.order_id,
+                    webhooks_payment_response.status,
+                    webhooks_payment_response.domain.clone().peek(),
+                    webhooks_payment_response.amount.get_amount_as_string(),
+                    webhooks_payment_response.currency
+                );
+                let md5_key0 = hex::encode(
+                    crypto::Md5
+                        .generate_digest(key0.as_bytes())
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                );
+                let key1 = format!(
+                    "{}{}{}{}{}",
+                    webhooks_payment_response.paydate,
+                    webhooks_payment_response.domain.peek(),
+                    md5_key0,
+                    webhooks_payment_response.appcode.peek(),
+                    String::from_utf8_lossy(&connector_webhook_secrets.secret)
+                );
+                key1
+            }
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => {
+                format!(
+                    "{}{}{}{}{}{}{}{}",
+                    webhooks_refunds_response.refund_type,
+                    webhooks_refunds_response.merchant_id.peek(),
+                    webhooks_refunds_response.ref_id,
+                    webhooks_refunds_response.refund_id,
+                    webhooks_refunds_response.txn_id,
+                    webhooks_refunds_response.amount.get_amount_as_string(),
+                    webhooks_refunds_response.status,
+                    String::from_utf8_lossy(&connector_webhook_secrets.secret)
+                )
+            }
+        };
+        Ok(verification_message.as_bytes().to_vec())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?
+        };
+        let resource_id = match resource {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhooks_payment_response) => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                        webhooks_payment_response.order_id,
+                    ),
+                )
+            }
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => {
+                api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(
+                        webhooks_refunds_response.refund_id,
+                    ),
+                )
+            }
+        };
+        Ok(resource_id)
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let resource: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
+        };
+
+        match resource {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhooks_payment_response) => Ok(
+                api_models::webhooks::IncomingWebhookEvent::from(webhooks_payment_response.status),
+            ),
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhooks_refunds_response) => Ok(
+                api_models::webhooks::IncomingWebhookEvent::from(webhooks_refunds_response.status),
+            ),
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+        };
+
+        match payload.clone() {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhook_payment_response) => Ok(
+                Box::new(fiuu::FiuuPaymentResponse::FiuuWebhooksPaymentResponse(
+                    webhook_payment_response,
+                )),
+            ),
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(webhook_refund_response) => {
+                Ok(Box::new(fiuu::FiuuRefundSyncResponse::Webhook(
+                    webhook_refund_response,
+                )))
+            }
+        }
     }
 }

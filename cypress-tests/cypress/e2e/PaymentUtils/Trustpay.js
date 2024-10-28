@@ -321,7 +321,10 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "1133001",
+          error_message:
+            "Giropay payments are not enabled in Project 4107608031",
         },
       },
     },

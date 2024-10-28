@@ -1,13 +1,10 @@
 use common_utils::id_type;
 use diesel::{associations::HasTable, ExpressionMethods};
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
-use crate::schema::organization::dsl;
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-use crate::schema_v2::organization::dsl;
+#[cfg(feature = "v1")]
+use crate::schema::organization::dsl::org_id as dsl_identifier;
+#[cfg(feature = "v2")]
+use crate::schema_v2::organization::dsl::id as dsl_identifier;
 use crate::{organization::*, query::generics, PgPooledConn, StorageResult};
 
 impl OrganizationNew {
@@ -23,13 +20,7 @@ impl Organization {
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_account_v2")
-            ))]
-            dsl::org_id.eq(org_id),
-            #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-            dsl::id.eq(org_id),
+            dsl_identifier.eq(org_id),
         )
         .await
     }
@@ -46,13 +37,7 @@ impl Organization {
             _,
         >(
             conn,
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_account_v2")
-            ))]
-            dsl::org_id.eq(org_id),
-            #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
-            dsl::id.eq(org_id),
+            dsl_identifier.eq(org_id),
             OrganizationUpdateInternal::from(update),
         )
         .await

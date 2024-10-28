@@ -120,6 +120,7 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)> for Pay
             | domain::WalletData::MobilePayRedirect(_)
             | domain::WalletData::PaypalRedirect(_)
             | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::Paze(_)
             | domain::WalletData::SamsungPay(_)
             | domain::WalletData::TwintRedirect { .. }
             | domain::WalletData::VippsRedirect { .. }
@@ -225,7 +226,7 @@ impl
                     customer_email: Some(item.router_data.get_billing_email()?),
                 }))
             }
-            domain::BankRedirectData::Interac {} => {
+            domain::BankRedirectData::Interac { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::InteracOnline,
                     bank_account_country: Some(item.router_data.get_billing_country()?),
@@ -238,7 +239,7 @@ impl
                     customer_email: Some(item.router_data.get_billing_email()?),
                 }))
             }
-            domain::BankRedirectData::Trustly {} => {
+            domain::BankRedirectData::Trustly { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Trustly,
                     bank_account_country: None,
@@ -439,7 +440,8 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
                 ))?
@@ -746,6 +748,7 @@ impl<F, T>
             .map(|id| types::MandateReference {
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
+                mandate_metadata: None,
             });
 
         Ok(Self {
@@ -760,8 +763,8 @@ impl<F, T>
             },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data,
-                mandate_reference,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),

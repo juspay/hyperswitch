@@ -170,13 +170,6 @@ pub enum ResponseType {
     UnsupportedMediaType,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum FiservemeaResponseType {
-    TransactionResponse,
-    ErrorResponse,
-}
-
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FiservemeaTransactionType {
@@ -329,7 +322,7 @@ fn map_status(
 pub struct FiservemeaPaymentsResponse {
     response_type: Option<ResponseType>,
     #[serde(rename = "type")]
-    fiservemea_type: Option<FiservemeaResponseType>,
+    fiservemea_type: Option<String>,
     client_request_id: Option<String>,
     api_trace_id: Option<String>,
     ipg_transaction_id: String,
@@ -368,8 +361,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
             ),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.ipg_transaction_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.order_id,
@@ -526,7 +519,7 @@ pub struct FiservemeaError {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FiservemeaErrorResponse {
     #[serde(rename = "type")]
-    fiservemea_type: Option<FiservemeaResponseType>,
+    fiservemea_type: Option<String>,
     client_request_id: Option<String>,
     api_trace_id: Option<String>,
     pub response_type: Option<String>,

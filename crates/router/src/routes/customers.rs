@@ -1,6 +1,4 @@
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use actix_web::Responder;
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
@@ -24,10 +22,14 @@ pub async fn customers_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| create_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            create_customer(state, auth.merchant_account, auth.key_store, req)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::CustomerWrite),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerWrite,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -50,7 +52,9 @@ pub async fn customers_retrieve(
     .into_inner();
 
     let auth = if auth::is_jwt_auth(req.headers()) {
-        Box::new(auth::JWTAuth(Permission::CustomerRead))
+        Box::new(auth::JWTAuth {
+            permission: Permission::MerchantCustomerRead,
+        })
     } else {
         match auth::is_ephemeral_auth(req.headers()) {
             Ok(auth) => auth,
@@ -63,7 +67,7 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             retrieve_customer(
                 state,
                 auth.merchant_account,
@@ -90,7 +94,9 @@ pub async fn customers_retrieve(
     let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
 
     let auth = if auth::is_jwt_auth(req.headers()) {
-        Box::new(auth::JWTAuth(Permission::CustomerRead))
+        Box::new(auth::JWTAuth {
+            permission: Permission::MerchantCustomerRead,
+        })
     } else {
         match auth::is_ephemeral_auth(req.headers()) {
             Ok(auth) => auth,
@@ -103,7 +109,9 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            retrieve_customer(state, auth.merchant_account, auth.key_store, req)
+        },
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -124,7 +132,7 @@ pub async fn customers_list(
         state,
         &req,
         payload,
-        |state, auth, request, _| {
+        |state, auth: auth::AuthenticationData, request, _| {
             list_customers(
                 state,
                 auth.merchant_account.get_id().to_owned(),
@@ -135,7 +143,9 @@ pub async fn customers_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::CustomerRead),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -160,7 +170,7 @@ pub async fn customers_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             update_customer(
                 state,
                 auth.merchant_account,
@@ -171,7 +181,9 @@ pub async fn customers_update(
         },
         auth::auth_type(
             &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::CustomerWrite),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerWrite,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -195,7 +207,7 @@ pub async fn customers_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             update_customer(
                 state,
                 auth.merchant_account,
@@ -206,7 +218,39 @@ pub async fn customers_update(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::CustomerWrite),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
+pub async fn customers_delete(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::CustomersDelete;
+    let payload = web::Json(customers::GlobalId::new(path.into_inner())).into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            delete_customer(state, auth.merchant_account, req, auth.key_store)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerWrite,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -221,7 +265,7 @@ pub async fn customers_delete(
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
 ) -> impl Responder {
-    let flow = Flow::CustomersCreate;
+    let flow = Flow::CustomersDelete;
     let payload = web::Json(customers::CustomerId {
         customer_id: path.into_inner(),
     })
@@ -232,10 +276,14 @@ pub async fn customers_delete(
         state,
         &req,
         payload,
-        |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
+        |state, auth: auth::AuthenticationData, req, _| {
+            delete_customer(state, auth.merchant_account, req, auth.key_store)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::CustomerWrite),
+            &auth::JWTAuth {
+                permission: Permission::MerchantCustomerWrite,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -260,7 +308,7 @@ pub async fn get_customer_mandates(
         state,
         &req,
         customer_id,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             crate::core::mandate::get_customer_mandates(
                 state,
                 auth.merchant_account,
@@ -270,7 +318,9 @@ pub async fn get_customer_mandates(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MandateRead),
+            &auth::JWTAuth {
+                permission: Permission::MerchantMandateRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

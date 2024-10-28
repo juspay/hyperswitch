@@ -4,18 +4,12 @@ use common_utils::{encryption::Encryption, id_type, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 
 use crate::enums as storage_enums;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::schema::merchant_connector_account;
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::merchant_connector_account;
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(
     Clone,
     Debug,
@@ -58,17 +52,14 @@ pub struct MerchantConnectorAccount {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.merchant_connector_id.clone()
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(
     Clone,
     Debug,
@@ -102,21 +93,18 @@ pub struct MerchantConnectorAccount {
     pub status: storage_enums::ConnectorStatus,
     pub additional_merchant_data: Option<Encryption>,
     pub connector_wallets_details: Option<Encryption>,
-    pub id: id_type::MerchantConnectorAccountId,
     pub version: common_enums::ApiVersion,
+    pub id: id_type::MerchantConnectorAccountId,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountNew {
@@ -149,7 +137,7 @@ pub struct MerchantConnectorAccountNew {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountNew {
@@ -177,10 +165,7 @@ pub struct MerchantConnectorAccountNew {
     pub version: common_enums::ApiVersion,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountUpdateInternal {
@@ -206,7 +191,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub additional_merchant_data: Option<Encryption>,
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountUpdateInternal {
@@ -228,10 +213,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub additional_merchant_data: Option<Encryption>,
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantConnectorAccountUpdateInternal {
     pub fn create_merchant_connector_account(
         self,
@@ -259,7 +241,7 @@ impl MerchantConnectorAccountUpdateInternal {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorAccountUpdateInternal {
     pub fn create_merchant_connector_account(
         self,

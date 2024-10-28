@@ -27,6 +27,9 @@ use crate::{
 #[operation(operations = "all", flow = "session")]
 pub struct PaymentSession;
 
+type PaymentSessionOperation<'b, F> =
+    BoxedOperation<'b, F, api::PaymentsSessionRequest, PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
     for PaymentSession
@@ -40,8 +43,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest>> {
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    ) -> RouterResult<
+        operations::GetTrackerResponse<'a, F, api::PaymentsSessionRequest, PaymentData<F>>,
+    > {
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -75,7 +80,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
+                &payment_intent.payment_id,
                 merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
@@ -158,7 +163,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         let business_profile = db
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
@@ -205,6 +210,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             authentication: None,
             recurring_details: None,
             poll_config: None,
+            tax_data: None,
+            session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -232,11 +239,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
-        PaymentData<F>,
-    )>
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+    ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -263,16 +267,15 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for PaymentSession {
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest, PaymentData<F>>
+    for PaymentSession
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsSessionRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
-        operations::ValidateResult,
-    )> {
+    ) -> RouterResult<(PaymentSessionOperation<'b, F>, operations::ValidateResult)> {
         //paymentid is already generated and should be sent in the request
         let given_payment_id = request.payment_id.clone();
 
@@ -289,10 +292,12 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsSessionRequest>>
-    Domain<F, api::PaymentsSessionRequest> for Op
+impl<
+        F: Clone + Send,
+        Op: Send + Sync + Operation<F, api::PaymentsSessionRequest, Data = PaymentData<F>>,
+    > Domain<F, api::PaymentsSessionRequest, PaymentData<F>> for Op
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest>,
+    for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest, Data = PaymentData<F>>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -303,10 +308,7 @@ where
         key_store: &domain::MerchantKeyStore,
         storage_scheme: common_enums::enums::MerchantStorageScheme,
     ) -> errors::CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsSessionRequest>,
-            Option<domain::Customer>,
-        ),
+        (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
         helpers::create_customer_if_not_exist(
@@ -329,9 +331,9 @@ where
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
+        _business_profile: &domain::Profile,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsSessionRequest>,
+        PaymentSessionOperation<'b, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
@@ -449,10 +451,7 @@ where
             .inspect_err(|err| {
                 logger::error!(session_token_error=?err);
             }) {
-                #[cfg(all(
-                    any(feature = "v1", feature = "v2"),
-                    not(feature = "merchant_connector_account_v2")
-                ))]
+                #[cfg(feature = "v1")]
                 {
                     let new_session_connector_data = api::SessionConnectorData::new(
                         payment_method_type,
@@ -461,7 +460,7 @@ where
                     );
                     session_connector_data.push(new_session_connector_data)
                 }
-                #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+                #[cfg(feature = "v2")]
                 {
                     let new_session_connector_data =
                         api::SessionConnectorData::new(payment_method_type, connector_data, None);
@@ -492,7 +491,9 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
         match value {
             api_models::enums::PaymentMethodType::GooglePay => Self::GpayMetadata,
             api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
+            api_models::enums::PaymentMethodType::SamsungPay => Self::SamsungPayMetadata,
             api_models::enums::PaymentMethodType::Paypal => Self::PaypalSdkMetadata,
+            api_models::enums::PaymentMethodType::Paze => Self::PazeMetadata,
             _ => Self::Connector,
         }
     }

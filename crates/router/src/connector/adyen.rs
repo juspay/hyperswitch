@@ -130,6 +130,7 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::Ach
+                | PaymentMethodType::SamsungPay
                 | PaymentMethodType::Alma
                 | PaymentMethodType::Bacs
                 | PaymentMethodType::Givex
@@ -217,12 +218,12 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Pse
                 | PaymentMethodType::LocalBankTransfer
                 | PaymentMethodType::Efecty
+                | PaymentMethodType::Paze
                 | PaymentMethodType::PagoEfectivo
                 | PaymentMethodType::PromptPay
                 | PaymentMethodType::RedCompra
                 | PaymentMethodType::RedPagos
                 | PaymentMethodType::CryptoCurrency
-                | PaymentMethodType::SamsungPay
                 | PaymentMethodType::Evoucher
                 | PaymentMethodType::Cashapp
                 | PaymentMethodType::UpiCollect

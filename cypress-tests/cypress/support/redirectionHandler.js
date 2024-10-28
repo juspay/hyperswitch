@@ -247,10 +247,9 @@ function bankRedirectRedirection(
           break;
         case "ideal":
           cy.contains("button", "Select your bank").click();
-          cy.get('[data-testid="ideal-box-bank-item-INGBNL2A-content"]')
-            .should("be.visible")
-            .click();
-
+          cy.get(
+            'button[data-testid="bank-item"][id="bank-item-INGBNL2A"]'
+          ).click();
           break;
         case "giropay":
           cy.get("._transactionId__header__iXVd_").should(
@@ -320,6 +319,12 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
                 cy.get('input[value="SUBMIT"]').click();
               });
           });
+      });
+  } else if (connectorId === "novalnet") {
+    cy.get("form", { timeout: WAIT_TIME })
+      .should("exist")
+      .then((form) => {
+        cy.get('input[id="submit"]').click();
       });
   } else if (connectorId === "stripe") {
     cy.get("iframe", { timeout: TIMEOUT })

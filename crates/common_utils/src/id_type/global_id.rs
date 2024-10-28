@@ -1,4 +1,6 @@
-#![allow(unused)]
+pub mod payment;
+pub mod payment_methods;
+pub mod refunds;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
@@ -11,7 +13,7 @@ use crate::{
     id_type::{AlphaNumericId, AlphaNumericIdError, LengthId, LengthIdError},
 };
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize)]
 /// A global id that can be used to identify any entity
 /// This id will have information about the entity and cell in a distributed system architecture
 pub(crate) struct GlobalId(LengthId<MAX_GLOBAL_ID_LENGTH, MIN_GLOBAL_ID_LENGTH>);
@@ -21,6 +23,9 @@ pub(crate) struct GlobalId(LengthId<MAX_GLOBAL_ID_LENGTH, MIN_GLOBAL_ID_LENGTH>)
 pub(crate) enum GlobalEntity {
     Customer,
     Payment,
+    Attempt,
+    PaymentMethod,
+    Refund,
 }
 
 impl GlobalEntity {
@@ -28,12 +33,16 @@ impl GlobalEntity {
         match self {
             Self::Customer => "cus",
             Self::Payment => "pay",
+            Self::PaymentMethod => "pm",
+            Self::Attempt => "att",
+            Self::Refund => "ref",
         }
     }
 }
 
+/// Cell identifier for an instance / deployment of application
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub(crate) struct CellId(LengthId<CELL_IDENTIFIER_LENGTH, CELL_IDENTIFIER_LENGTH>);
+pub struct CellId(LengthId<CELL_IDENTIFIER_LENGTH, CELL_IDENTIFIER_LENGTH>);
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CellIdError {
@@ -58,15 +67,18 @@ impl From<AlphaNumericIdError> for CellIdError {
 
 impl CellId {
     /// Create a new cell id from a string
-    fn from_str(cell_id_string: &str) -> Result<Self, CellIdError> {
-        let trimmed_input_string = cell_id_string.trim().to_string();
+    fn from_str(cell_id_string: impl AsRef<str>) -> Result<Self, CellIdError> {
+        let trimmed_input_string = cell_id_string.as_ref().trim().to_string();
         let alphanumeric_id = AlphaNumericId::from(trimmed_input_string.into())?;
         let length_id = LengthId::from_alphanumeric_id(alphanumeric_id)?;
         Ok(Self(length_id))
     }
 
-    pub fn from_string(input_string: String) -> error_stack::Result<Self, errors::ValidationError> {
-        Self::from_str(&input_string).change_context(
+    /// Create a new cell id from a string
+    pub fn from_string(
+        input_string: impl AsRef<str>,
+    ) -> error_stack::Result<Self, errors::ValidationError> {
+        Self::from_str(input_string).change_context(
             errors::ValidationError::IncorrectValueProvided {
                 field_name: "cell_id",
             },
@@ -76,6 +88,16 @@ impl CellId {
     /// Get the string representation of the cell id
     fn get_string_repr(&self) -> &str {
         &self.0 .0 .0
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CellId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let deserialized_string = String::deserialize(deserializer)?;
+        Self::from_str(deserialized_string.as_str()).map_err(serde::de::Error::custom)
     }
 }
 
@@ -105,8 +127,10 @@ impl GlobalId {
         Self(LengthId::new_unchecked(alphanumeric_id))
     }
 
-    pub fn from_string(input_string: String) -> Result<Self, GlobalIdError> {
-        let length_id = LengthId::from(input_string.into())?;
+    pub(crate) fn from_string(
+        input_string: std::borrow::Cow<'static, str>,
+    ) -> Result<Self, GlobalIdError> {
+        let length_id = LengthId::from(input_string)?;
         let input_string = &length_id.0 .0;
         let (cell_id, remaining) = input_string
             .split_once("_")
@@ -115,6 +139,10 @@ impl GlobalId {
         CellId::from_str(cell_id)?;
 
         Ok(Self(length_id))
+    }
+
+    pub(crate) fn get_string_repr(&self) -> &str {
+        &self.0 .0 .0
     }
 }
 
@@ -152,7 +180,7 @@ impl<'de> serde::Deserialize<'de> for GlobalId {
         D: serde::Deserializer<'de>,
     {
         let deserialized_string = String::deserialize(deserializer)?;
-        Self::from_string(deserialized_string).map_err(serde::de::Error::custom)
+        Self::from_string(deserialized_string.into()).map_err(serde::de::Error::custom)
     }
 }
 
@@ -185,7 +213,7 @@ mod global_id_tests {
     #[test]
     fn test_global_id_from_string() {
         let input_string = "12345_cus_abcdefghijklmnopqrstuvwxyz1234567890";
-        let global_id = GlobalId::from_string(input_string.to_string()).unwrap();
+        let global_id = GlobalId::from_string(input_string.into()).unwrap();
         assert_eq!(global_id.0 .0 .0, input_string);
     }
 

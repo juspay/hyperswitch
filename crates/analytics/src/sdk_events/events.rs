@@ -37,7 +37,7 @@ where
         .add_filter_clause("merchant_id", publishable_key)
         .switch()?;
     query_builder
-        .add_filter_clause("payment_id", request.payment_id)
+        .add_filter_clause("payment_id", &request.payment_id)
         .switch()?;
     query_builder
         .add_custom_filter_clause("event_name", static_event_list, FilterTypes::In)
@@ -58,7 +58,7 @@ where
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct SdkEventsResult {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub event_name: Option<String>,
     pub log_type: Option<String>,
     pub first_event: bool,

@@ -1,19 +1,26 @@
 use bytes::Bytes;
-use common_utils::{date_time::DateFormat, errors::CustomResult, types::MinorUnit};
+use common_utils::{
+    date_time::DateFormat, errors::CustomResult, ext_traits::ValueExt, types::MinorUnit,
+};
 use error_stack::ResultExt;
-use hyperswitch_connectors::utils::CardData;
-use hyperswitch_domain_models::router_data::ConnectorAuthType;
-use masking::Secret;
+use hyperswitch_connectors::utils::{AddressDetailsData, CardData};
+use hyperswitch_domain_models::{
+    router_data::ConnectorAuthType, router_response_types::RedirectForm,
+};
+use hyperswitch_interfaces::consts;
+use masking::{PeekInterface, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
-    connector::utils,
+    connector::utils::{
+        self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData, RouterData,
+    },
     core::errors,
     types::{self, api, domain, storage::enums},
 };
 
 pub struct PayboxRouterData<T> {
-    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
@@ -31,17 +38,22 @@ const CAPTURE_REQUEST: &str = "00002";
 const AUTH_AND_CAPTURE_REQUEST: &str = "00003";
 const SYNC_REQUEST: &str = "00017";
 const REFUND_REQUEST: &str = "00014";
-
 const SUCCESS_CODE: &str = "00000";
-
 const VERSION_PAYBOX: &str = "00104";
-
 const PAY_ORIGIN_INTERNET: &str = "024";
+const THREE_DS_FAIL_CODE: &str = "00000000";
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
-pub struct PayboxPaymentsRequest {
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PayboxPaymentsRequest {
+    Card(PaymentsRequest),
+    CardThreeDs(ThreeDSPaymentsRequest),
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaymentsRequest {
     #[serde(rename = "DATEQ")]
     pub date: String,
 
@@ -83,8 +95,37 @@ pub struct PayboxPaymentsRequest {
 
     #[serde(rename = "CLE")]
     pub key: Secret<String>,
-}
 
+    #[serde(rename = "ID3D")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_ds_data: Option<Secret<String>>,
+}
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ThreeDSPaymentsRequest {
+    id_merchant: Secret<String>,
+    id_session: String,
+    amount: MinorUnit,
+    currency: String,
+    #[serde(rename = "CCNumber")]
+    cc_number: cards::CardNumber,
+    #[serde(rename = "CCExpDate")]
+    cc_exp_date: Secret<String>,
+    #[serde(rename = "CVVCode")]
+    cvv_code: Secret<String>,
+    #[serde(rename = "URLRetour")]
+    url_retour: String,
+    #[serde(rename = "URLHttpDirect")]
+    url_http_direct: String,
+    email_porteur: common_utils::pii::Email,
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    address1: Secret<String>,
+    zip_code: Secret<String>,
+    city: String,
+    country_code: api_models::enums::CountryAlpha2,
+    total_quantity: i32,
+}
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct PayboxCaptureRequest {
     #[serde(rename = "DATEQ")]
@@ -138,7 +179,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCaptureRouterData>> for PayboxCap
             utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
-            DateFormat::YYYYMMDDHHmmss,
+            DateFormat::DDMMYYYYHHmmss,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
@@ -195,7 +236,7 @@ impl TryFrom<&types::RefundSyncRouterData> for PayboxRsyncRequest {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
-            DateFormat::YYYYMMDDHHmmss,
+            DateFormat::DDMMYYYYHHmmss,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
@@ -252,7 +293,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for PayboxPSyncRequest {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
-            DateFormat::YYYYMMDDHHmmss,
+            DateFormat::DDMMYYYYHHmmss,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let paybox_meta_data: PayboxMeta =
@@ -335,26 +376,52 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
                 let format_time = common_utils::date_time::format_date(
                     common_utils::date_time::now(),
-                    DateFormat::YYYYMMDDHHmmss,
+                    DateFormat::DDMMYYYYHHmmss,
                 )
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-                Ok(Self {
-                    date: format_time.clone(),
-                    transaction_type,
-                    paybox_request_number: get_paybox_request_number()?,
-                    amount: item.amount,
-                    description_reference: item.router_data.connector_request_reference_id.clone(),
-                    version: VERSION_PAYBOX.to_string(),
-                    currency,
-                    card_number: req_card.card_number,
-                    expiration_date,
-                    cvv: req_card.card_cvc,
-                    activity: PAY_ORIGIN_INTERNET.to_string(),
-                    site: auth_data.site,
-                    rank: auth_data.rang,
-                    key: auth_data.cle,
-                })
+                if item.router_data.is_three_ds() {
+                    let address = item.router_data.get_billing_address()?;
+                    Ok(Self::CardThreeDs(ThreeDSPaymentsRequest {
+                        id_merchant: auth_data.merchant_id,
+                        id_session: item.router_data.connector_request_reference_id.clone(),
+                        amount: item.amount,
+                        currency,
+                        cc_number: req_card.card_number,
+                        cc_exp_date: expiration_date,
+                        cvv_code: req_card.card_cvc,
+                        url_retour: item.router_data.request.get_complete_authorize_url()?,
+                        url_http_direct: item.router_data.request.get_complete_authorize_url()?,
+                        email_porteur: item.router_data.request.get_email()?,
+                        first_name: address.get_first_name()?.clone(),
+                        last_name: address.get_last_name()?.clone(),
+                        address1: address.get_line1()?.clone(),
+                        zip_code: address.get_zip()?.clone(),
+                        city: address.get_city()?.clone(),
+                        country_code: *address.get_country()?,
+                        total_quantity: 1,
+                    }))
+                } else {
+                    Ok(Self::Card(PaymentsRequest {
+                        date: format_time.clone(),
+                        transaction_type,
+                        paybox_request_number: get_paybox_request_number()?,
+                        amount: item.amount,
+                        description_reference: item
+                            .router_data
+                            .connector_request_reference_id
+                            .clone(),
+                        version: VERSION_PAYBOX.to_string(),
+                        currency,
+                        card_number: req_card.card_number,
+                        expiration_date,
+                        cvv: req_card.card_cvc,
+                        activity: PAY_ORIGIN_INTERNET.to_string(),
+                        site: auth_data.site,
+                        rank: auth_data.rang,
+                        key: auth_data.cle,
+                        three_ds_data: None,
+                    }))
+                }
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
@@ -363,7 +430,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
 
 fn get_transaction_type(capture_method: Option<enums::CaptureMethod>) -> Result<String, Error> {
     match capture_method {
-        Some(enums::CaptureMethod::Automatic) => Ok(AUTH_AND_CAPTURE_REQUEST.to_string()),
+        Some(enums::CaptureMethod::Automatic) | None => Ok(AUTH_AND_CAPTURE_REQUEST.to_string()),
         Some(enums::CaptureMethod::Manual) => Ok(AUTH_REQUEST.to_string()),
         _ => Err(errors::ConnectorError::CaptureMethodNotSupported)?,
     }
@@ -387,21 +454,24 @@ pub struct PayboxAuthType {
     pub(super) site: Secret<String>,
     pub(super) rang: Secret<String>,
     pub(super) cle: Secret<String>,
+    pub(super) merchant_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for PayboxAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let ConnectorAuthType::SignatureKey {
+        if let ConnectorAuthType::MultiAuthKey {
             api_key,
             key1,
             api_secret,
+            key2,
         } = auth_type
         {
             Ok(Self {
                 site: api_key.to_owned(),
                 rang: key1.to_owned(),
                 cle: api_secret.to_owned(),
+                merchant_id: key2.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -409,26 +479,15 @@ impl TryFrom<&ConnectorAuthType> for PayboxAuthType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum PayboxPaymentStatus {
-    Succeeded,
-    Failed,
-    Processing,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PayboxResponse {
+    NonThreeDs(TransactionResponse),
+    ThreeDs(Secret<String>),
+    Error(String),
 }
-
-impl From<PayboxPaymentStatus> for enums::AttemptStatus {
-    fn from(item: PayboxPaymentStatus) -> Self {
-        match item {
-            PayboxPaymentStatus::Succeeded => Self::Charged,
-            PayboxPaymentStatus::Failed => Self::Failure,
-            PayboxPaymentStatus::Processing => Self::Authorizing,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PayboxResponse {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransactionResponse {
     #[serde(rename = "NUMTRANS")]
     pub transaction_number: String,
 
@@ -447,6 +506,27 @@ pub fn parse_url_encoded_to_struct<T: DeserializeOwned>(
 ) -> CustomResult<T, errors::ConnectorError> {
     let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&query_bytes);
     serde_qs::from_str::<T>(cow.as_ref()).change_context(errors::ConnectorError::ParsingFailed)
+}
+
+pub fn parse_paybox_response(
+    query_bytes: Bytes,
+    is_three_ds: bool,
+) -> CustomResult<PayboxResponse, errors::ConnectorError> {
+    let (cow, _, _) = encoding_rs::ISO_8859_10.decode(&query_bytes);
+    let response_str = cow.as_ref();
+
+    if response_str.starts_with("<html>") && is_three_ds {
+        let response = response_str.to_string();
+        return Ok(if response.contains("Erreur") {
+            PayboxResponse::Error(response)
+        } else {
+            PayboxResponse::ThreeDs(response.into())
+        });
+    }
+
+    serde_qs::from_str::<TransactionResponse>(response_str)
+        .map(PayboxResponse::NonThreeDs)
+        .change_context(errors::ConnectorError::ParsingFailed)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -512,13 +592,13 @@ impl<F, T>
         let status = get_status_of_request(response.response_code.clone());
         match status {
             true => Ok(Self {
-                status: enums::AttemptStatus::Pending,
+                status: enums::AttemptStatus::Charged,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         response.paybox_order_id,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
                         connector_request_id: response.transaction_number.clone()
                     })),
@@ -545,26 +625,72 @@ impl<F, T>
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            PayboxResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PayboxResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            PayboxResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
-        let response = item.response.clone();
-        let status = get_status_of_request(response.response_code.clone());
-        match status {
-            true => Ok(Self {
+        match item.response.clone() {
+            PayboxResponse::NonThreeDs(response) => {
+                let status = get_status_of_request(response.response_code.clone());
+                match status {
+                    true => Ok(Self {
+                        status: match item.data.request.is_auto_capture()? {
+                            true => enums::AttemptStatus::Charged,
+                            false => enums::AttemptStatus::Authorized,
+                        },
+                        response: Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                response.paybox_order_id,
+                            ),
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
+                            connector_metadata: Some(serde_json::json!(PayboxMeta {
+                                connector_request_id: response.transaction_number.clone()
+                            })),
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                            incremental_authorization_allowed: None,
+                            charge_id: None,
+                        }),
+                        ..item.data
+                    }),
+                    false => Ok(Self {
+                        response: Err(types::ErrorResponse {
+                            code: response.response_code.clone(),
+                            message: response.response_message.clone(),
+                            reason: Some(response.response_message),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: Some(response.transaction_number),
+                        }),
+                        ..item.data
+                    }),
+                }
+            }
+            PayboxResponse::ThreeDs(data) => Ok(Self {
+                status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        response.paybox_order_id,
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: Some(serde_json::json!(PayboxMeta {
-                        connector_request_id: response.transaction_number.clone()
+                    resource_id: types::ResponseId::NoResponseId,
+                    redirection_data: Box::new(Some(RedirectForm::Html {
+                        html_data: data.peek().to_string(),
                     })),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
@@ -572,14 +698,14 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxResponse, T, types::Paymen
                 }),
                 ..item.data
             }),
-            false => Ok(Self {
+            PayboxResponse::Error(_) => Ok(Self {
                 response: Err(types::ErrorResponse {
-                    code: response.response_code.clone(),
-                    message: response.response_message.clone(),
-                    reason: Some(response.response_message),
+                    code: consts::NO_ERROR_CODE.to_string(),
+                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: Some(consts::NO_ERROR_MESSAGE.to_string()),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: Some(item.response.transaction_number),
+                    connector_transaction_id: None,
                 }),
                 ..item.data
             }),
@@ -605,8 +731,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxSyncResponse, T, types::Pa
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         response.paybox_order_id,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
                         connector_request_id: response.transaction_number.clone()
                     })),
@@ -669,7 +795,7 @@ impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefun
             .to_string();
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
-            DateFormat::YYYYMMDDHHmmss,
+            DateFormat::DDMMYYYYHHmmss,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let paybox_meta_data: PayboxMeta =
@@ -697,30 +823,58 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, PayboxSyncResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, PayboxSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.transaction_number,
-                refund_status: enums::RefundStatus::from(item.response.status),
+        let status = get_status_of_request(item.response.response_code.clone());
+        match status {
+            true => Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    connector_refund_id: item.response.transaction_number,
+                    refund_status: enums::RefundStatus::from(item.response.status),
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            false => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code.clone(),
+                    message: item.response.response_message.clone(),
+                    reason: Some(item.response.response_message),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.transaction_number),
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, PayboxResponse>>
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, TransactionResponse>>
     for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, PayboxResponse>,
+        item: types::RefundsResponseRouterData<api::Execute, TransactionResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.transaction_number,
-                refund_status: common_enums::RefundStatus::Pending,
+        let status = get_status_of_request(item.response.response_code.clone());
+        match status {
+            true => Ok(Self {
+                response: Ok(types::RefundsResponseData {
+                    connector_refund_id: item.response.transaction_number,
+                    refund_status: common_enums::RefundStatus::Pending,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            false => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: item.response.response_code.clone(),
+                    message: item.response.response_message.clone(),
+                    reason: Some(item.response.response_message),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(item.response.transaction_number),
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -729,4 +883,130 @@ pub struct PayboxErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            TransactionResponse,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            TransactionResponse,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.clone();
+        let status = get_status_of_request(response.response_code.clone());
+        match status {
+            true => Ok(Self {
+                status: match item.data.request.is_auto_capture()? {
+                    true => enums::AttemptStatus::Charged,
+                    false => enums::AttemptStatus::Authorized,
+                },
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.paybox_order_id,
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: Some(serde_json::json!(PayboxMeta {
+                        connector_request_id: response.transaction_number.clone()
+                    })),
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            }),
+            false => Ok(Self {
+                response: Err(types::ErrorResponse {
+                    code: response.response_code.clone(),
+                    message: response.response_message.clone(),
+                    reason: Some(response.response_message),
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: Some(response.transaction_number),
+                }),
+                ..item.data
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RedirectionAuthResponse {
+    #[serde(rename = "ID3D")]
+    three_ds_data: Option<Secret<String>>,
+}
+
+impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for PaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "redirect_response",
+            },
+        )?;
+        let redirect_payload: RedirectionAuthResponse = redirect_response
+            .payload
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.redirect_response.payload",
+            })?
+            .peek()
+            .clone()
+            .parse_value("RedirectionAuthResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        match item.router_data.request.payment_method_data.clone() {
+            Some(domain::PaymentMethodData::Card(req_card)) => {
+                let auth_data: PayboxAuthType =
+                    PayboxAuthType::try_from(&item.router_data.connector_auth_type)
+                        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                let transaction_type =
+                    get_transaction_type(item.router_data.request.capture_method)?;
+                let currency =
+                    diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
+                        .to_string();
+                let expiration_date =
+                    req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
+                let format_time = common_utils::date_time::format_date(
+                    common_utils::date_time::now(),
+                    DateFormat::DDMMYYYYHHmmss,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                Ok(Self {
+                    date: format_time.clone(),
+                    transaction_type,
+                    paybox_request_number: get_paybox_request_number()?,
+                    amount: item.router_data.request.minor_amount,
+                    description_reference: item.router_data.connector_request_reference_id.clone(),
+                    version: VERSION_PAYBOX.to_string(),
+                    currency,
+                    card_number: req_card.card_number,
+                    expiration_date,
+                    cvv: req_card.card_cvc,
+                    activity: PAY_ORIGIN_INTERNET.to_string(),
+                    site: auth_data.site,
+                    rank: auth_data.rang,
+                    key: auth_data.cle,
+                    three_ds_data: redirect_payload.three_ds_data.map_or_else(
+                        || Some(Secret::new(THREE_DS_FAIL_CODE.to_string())),
+                        |data| Some(data.clone()),
+                    ),
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
+    }
 }

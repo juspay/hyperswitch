@@ -27,7 +27,7 @@ use crate::{
         errors::{self, ConditionalConfigError as ConfigError},
         payments::{
             conditional_configs::ConditionalConfigResult, routing::make_dsl_input_for_surcharge,
-            types, PaymentData,
+            types,
         },
     },
     db::StorageInterface,
@@ -88,11 +88,10 @@ impl SurchargeSource {
                         )
                     })
                     .transpose()?
-                    .map(|surcharge_details| {
+                    .inspect(|surcharge_details| {
                         let (surcharge_metadata, surcharge_key) = surcharge_metadata_and_key;
                         surcharge_metadata
                             .insert_surcharge_details(surcharge_key, surcharge_details.clone());
-                        surcharge_details
                     }))
             }
             Self::Predetermined(request_surcharge_details) => Ok(Some(
@@ -102,6 +101,22 @@ impl SurchargeSource {
     }
 }
 
+#[cfg(feature = "v2")]
+pub async fn perform_surcharge_decision_management_for_payment_method_list(
+    _state: &SessionState,
+    _algorithm_ref: routing::RoutingAlgorithmRef,
+    _payment_attempt: &storage::PaymentAttempt,
+    _payment_intent: &storage::PaymentIntent,
+    _billing_address: Option<payments::Address>,
+    _response_payment_method_types: &mut [api_models::payment_methods::ResponsePaymentMethodsEnabled],
+) -> ConditionalConfigResult<(
+    types::SurchargeMetadata,
+    surcharge_decision_configs::MerchantSurchargeConfigs,
+)> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn perform_surcharge_decision_management_for_payment_method_list(
     state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
@@ -221,19 +236,18 @@ pub async fn perform_surcharge_decision_management_for_payment_method_list(
     Ok((surcharge_metadata, merchant_surcharge_configs))
 }
 
-pub async fn perform_surcharge_decision_management_for_session_flow<O>(
+#[cfg(feature = "v1")]
+pub async fn perform_surcharge_decision_management_for_session_flow(
     state: &SessionState,
     algorithm_ref: routing::RoutingAlgorithmRef,
-    payment_data: &mut PaymentData<O>,
+    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &storage::PaymentIntent,
+    billing_address: Option<payments::Address>,
     payment_method_type_list: &Vec<common_enums::PaymentMethodType>,
-) -> ConditionalConfigResult<types::SurchargeMetadata>
-where
-    O: Send + Clone,
-{
-    let mut surcharge_metadata =
-        types::SurchargeMetadata::new(payment_data.payment_attempt.attempt_id.clone());
+) -> ConditionalConfigResult<types::SurchargeMetadata> {
+    let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone());
     let surcharge_source = match (
-        payment_data.payment_attempt.get_surcharge_details(),
+        payment_attempt.get_surcharge_details(),
         algorithm_ref.surcharge_config_algo_id,
     ) {
         (Some(request_surcharge_details), _) => {
@@ -242,7 +256,7 @@ where
         (None, Some(algorithm_id)) => {
             let cached_algo = ensure_algorithm_cached(
                 &*state.store,
-                &payment_data.payment_attempt.merchant_id,
+                &payment_attempt.merchant_id,
                 algorithm_id.as_str(),
             )
             .await?;
@@ -251,19 +265,16 @@ where
         }
         (None, None) => return Ok(surcharge_metadata),
     };
-    let mut backend_input = make_dsl_input_for_surcharge(
-        &payment_data.payment_attempt,
-        &payment_data.payment_intent,
-        payment_data.address.get_payment_method_billing().cloned(),
-    )
-    .change_context(ConfigError::InputConstructionError)?;
+    let mut backend_input =
+        make_dsl_input_for_surcharge(payment_attempt, payment_intent, billing_address)
+            .change_context(ConfigError::InputConstructionError)?;
     for payment_method_type in payment_method_type_list {
         backend_input.payment_method.payment_method_type = Some(*payment_method_type);
         // in case of session flow, payment_method will always be wallet
         backend_input.payment_method.payment_method = Some(payment_method_type.to_owned().into());
         surcharge_source.generate_surcharge_details_and_populate_surcharge_metadata(
             &backend_input,
-            &payment_data.payment_attempt,
+            payment_attempt,
             (
                 &mut surcharge_metadata,
                 types::SurchargeKey::PaymentMethodData(
@@ -364,7 +375,9 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
     payment_intent: &storage::PaymentIntent,
     customer_payment_method_list: &mut [api_models::payment_methods::CustomerPaymentMethod],
 ) -> ConditionalConfigResult<types::SurchargeMetadata> {
-    let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.attempt_id.clone());
+    // let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.id.clone());
+    let mut surcharge_metadata = todo!();
+
     let surcharge_source = match (
         payment_attempt.get_surcharge_details(),
         algorithm_ref.surcharge_config_algo_id,
@@ -430,6 +443,15 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
     Ok(surcharge_metadata)
 }
 
+#[cfg(feature = "v2")]
+fn get_surcharge_details_from_surcharge_output(
+    _surcharge_details: surcharge_decision_configs::SurchargeDetailsOutput,
+    _payment_attempt: &storage::PaymentAttempt,
+) -> ConditionalConfigResult<types::SurchargeDetails> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 fn get_surcharge_details_from_surcharge_output(
     surcharge_details: surcharge_decision_configs::SurchargeDetailsOutput,
     payment_attempt: &storage::PaymentAttempt,
@@ -437,7 +459,7 @@ fn get_surcharge_details_from_surcharge_output(
     let surcharge_amount = match surcharge_details.surcharge.clone() {
         surcharge_decision_configs::SurchargeOutput::Fixed { amount } => amount,
         surcharge_decision_configs::SurchargeOutput::Rate(percentage) => percentage
-            .apply_and_ceil_result(payment_attempt.amount)
+            .apply_and_ceil_result(payment_attempt.net_amount.get_total_amount())
             .change_context(ConfigError::DslExecutionError)
             .attach_printable("Failed to Calculate surcharge amount by applying percentage")?,
     };
@@ -453,7 +475,7 @@ fn get_surcharge_details_from_surcharge_output(
         .transpose()?
         .unwrap_or_default();
     Ok(types::SurchargeDetails {
-        original_amount: payment_attempt.amount,
+        original_amount: payment_attempt.net_amount.get_order_amount(),
         surcharge: match surcharge_details.surcharge {
             surcharge_decision_configs::SurchargeOutput::Fixed { amount } => {
                 common_utils_types::Surcharge::Fixed(amount)
@@ -465,7 +487,6 @@ fn get_surcharge_details_from_surcharge_output(
         tax_on_surcharge: surcharge_details.tax_on_surcharge,
         surcharge_amount,
         tax_on_surcharge_amount,
-        final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
     })
 }
 

@@ -1,12 +1,22 @@
 pub mod transformers;
-
+use api_models::{self, webhooks::IncomingWebhookEvent};
+#[cfg(feature = "payouts")]
+use base64::Engine;
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
 #[cfg(feature = "payouts")]
 use common_utils::types::MinorUnitForConnector;
 #[cfg(feature = "payouts")]
 use common_utils::types::{AmountConvertor, MinorUnit};
-use error_stack::{report, ResultExt};
+#[cfg(not(feature = "payouts"))]
+use error_stack::report;
+use error_stack::ResultExt;
+#[cfg(feature = "payouts")]
+use http::HeaderName;
+#[cfg(feature = "payouts")]
+use masking::Secret;
+#[cfg(feature = "payouts")]
+use ring::hmac;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 
@@ -28,7 +38,12 @@ use crate::{
     },
 };
 #[cfg(feature = "payouts")]
-use crate::{events::connector_api_logs::ConnectorEvent, utils::BytesExt};
+use crate::{
+    consts,
+    events::connector_api_logs::ConnectorEvent,
+    types::transformers::ForeignFrom,
+    utils::{crypto, ByteSliceExt, BytesExt},
+};
 
 #[derive(Clone)]
 pub struct Adyenplatform {
@@ -294,24 +309,138 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Adyenplatform {
-    fn get_webhook_object_reference_id(
+    #[cfg(feature = "payouts")]
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    #[cfg(feature = "payouts")]
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let base64_signature = request
+            .headers
+            .get(HeaderName::from_static("hmacsignature"))
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        Ok(base64_signature.as_bytes().to_vec())
+    }
+
+    #[cfg(feature = "payouts")]
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request.body.to_vec())
+    }
+
+    #[cfg(feature = "payouts")]
+    async fn verify_webhook_source(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
+        connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let message = self
+            .get_webhook_source_verification_message(
+                request,
+                merchant_id,
+                &connector_webhook_secrets,
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let raw_key = hex::decode(connector_webhook_secrets.secret)
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)?;
+
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
+        let signed_messaged = hmac::sign(&signing_key, &message);
+        let payload_sign = consts::BASE64_ENGINE.encode(signed_messaged.as_ref());
+        Ok(payload_sign.as_bytes().eq(&signature))
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        #[cfg(feature = "payouts")] request: &api::IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        #[cfg(feature = "payouts")]
+        {
+            let webhook_body: adyenplatform::AdyenplatformIncomingWebhook = request
+                .body
+                .parse_struct("AdyenplatformIncomingWebhook")
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+            Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::PayoutAttemptId(webhook_body.data.reference),
+            ))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        #[cfg(feature = "payouts")] request: &api::IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+        #[cfg(feature = "payouts")]
+        {
+            let webhook_body: adyenplatform::AdyenplatformIncomingWebhook = request
+                .body
+                .parse_struct("AdyenplatformIncomingWebhook")
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+            Ok(IncomingWebhookEvent::foreign_from((
+                webhook_body.webhook_type,
+                webhook_body.data.status,
+                webhook_body.data.tracking,
+            )))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        #[cfg(feature = "payouts")] request: &api::IncomingWebhookRequestDetails<'_>,
+        #[cfg(not(feature = "payouts"))] _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        #[cfg(feature = "payouts")]
+        {
+            let webhook_body: adyenplatform::AdyenplatformIncomingWebhook = request
+                .body
+                .parse_struct("AdyenplatformIncomingWebhook")
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            Ok(Box::new(webhook_body))
+        }
+        #[cfg(not(feature = "payouts"))]
+        {
+            Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        }
     }
 }

@@ -255,3 +255,29 @@ pub async fn routing_retrieve_default_config_for_profiles() {}
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_update_default_config_for_profile() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Toggle success based dynamic routing for profile
+///
+/// Create a success based dynamic routing algorithm
+#[utoipa::path(
+    post,
+    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/toggle",
+    params(
+        ("account_id" = String, Path, description = "Merchant id"),
+        ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
+        ("enable" = SuccessBasedRoutingFeatures, Query, description = "Feature to enable for success based routing"),
+    ),
+    responses(
+        (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Toggle success based dynamic routing algprithm",
+   security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn toggle_success_based_routing() {}

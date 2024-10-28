@@ -37,7 +37,7 @@ pub struct KafkaAuthenticationEvent<'a> {
     pub acs_trans_id: Option<&'a String>,
     pub acs_signed_content: Option<&'a String>,
     pub profile_id: &'a common_utils::id_type::ProfileId,
-    pub payment_id: Option<&'a String>,
+    pub payment_id: Option<&'a common_utils::id_type::PaymentId>,
     pub merchant_connector_id: &'a common_utils::id_type::MerchantConnectorAccountId,
     pub ds_trans_id: Option<&'a String>,
     pub directory_server_id: Option<&'a String>,

@@ -1,0 +1,11 @@
+{
+  "api_key_create": {
+    "name": "Hyperswitch API Key",
+    "expiration": "",
+    "description": null
+  },
+  "api_key_update": {
+    "description": "Hyperswitch Cypress specific API Key",
+    "expiration": ""
+  }
+}

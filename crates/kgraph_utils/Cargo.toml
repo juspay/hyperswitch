@@ -7,11 +7,9 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-default = []
 dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector"]
-v1 = []
-v2 = []
-merchant_connector_account_v2 = ["api_models/merchant_connector_account_v2"]
+v1 = ["api_models/v1", "common_utils/v1"]
+v2 = ["api_models/v2", "common_utils/v2"]
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }

@@ -2,6 +2,8 @@
 use std::str::FromStr;
 
 use api_models::{enums as api_enums, payment_methods::Card};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     ext_traits::{Encode, StringExt},
     id_type,
@@ -10,15 +12,18 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use josekit::jwe;
+use router_env::tracing_actix_web::RequestId;
 use serde::{Deserialize, Serialize};
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::types::payment_methods as pm_types;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
     pii::{prelude::*, Secret},
-    services::{api as services, encryption},
-    types::{api, storage},
+    services::{api as services, encryption, EncryptionAlgorithm},
+    types::{api, domain},
     utils::OptionExt,
 };
 
@@ -82,6 +87,14 @@ pub enum DataDuplicationCheck {
 pub struct CardReqBody {
     pub merchant_id: id_type::MerchantId,
     pub merchant_customer_id: id_type::CustomerId,
+    pub card_reference: String,
+}
+
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CardReqBodyV2 {
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_customer_id: String, // Not changing this as it might lead to api contract failure
     pub card_reference: String,
 }
 
@@ -240,6 +253,88 @@ pub async fn get_decrypted_response_payload(
         .attach_printable("Jws Decryption failed for JwsBody for vault")
 }
 
+pub async fn get_decrypted_vault_response_payload(
+    jwekey: &settings::Jwekey,
+    jwe_body: encryption::JweBody,
+    decryption_scheme: settings::DecryptionScheme,
+) -> CustomResult<String, errors::VaultError> {
+    let public_key = jwekey.vault_encryption_key.peek().as_bytes();
+
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
+
+    let jwt = get_dotted_jwe(jwe_body);
+    let alg = match decryption_scheme {
+        settings::DecryptionScheme::RsaOaep => jwe::RSA_OAEP,
+        settings::DecryptionScheme::RsaOaep256 => jwe::RSA_OAEP_256,
+    };
+
+    let jwe_decrypted = encryption::decrypt_jwe(
+        &jwt,
+        encryption::KeyIdCheck::SkipKeyIdCheck,
+        private_key,
+        alg,
+    )
+    .await
+    .change_context(errors::VaultError::SaveCardFailed)
+    .attach_printable("Jwe Decryption failed for JweBody for vault")?;
+
+    let jws = jwe_decrypted
+        .parse_struct("JwsBody")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)?;
+    let jws_body = get_dotted_jws(jws);
+
+    encryption::verify_sign(jws_body, public_key)
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("Jws Decryption failed for JwsBody for vault")
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub async fn create_jwe_body_for_vault(
+    jwekey: &settings::Jwekey,
+    jws: &str,
+) -> CustomResult<encryption::JweBody, errors::VaultError> {
+    let jws_payload: Vec<&str> = jws.split('.').collect();
+
+    let generate_jws_body = |payload: Vec<&str>| -> Option<encryption::JwsBody> {
+        Some(encryption::JwsBody {
+            header: payload.first()?.to_string(),
+            payload: payload.get(1)?.to_string(),
+            signature: payload.get(2)?.to_string(),
+        })
+    };
+
+    let jws_body =
+        generate_jws_body(jws_payload).ok_or(errors::VaultError::RequestEncryptionFailed)?;
+
+    let payload = jws_body
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let public_key = jwekey.vault_encryption_key.peek().as_bytes();
+
+    let jwe_encrypted =
+        encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error on jwe encrypt")?;
+    let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
+
+    let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {
+        Some(encryption::JweBody {
+            header: payload.first()?.to_string(),
+            iv: payload.get(2)?.to_string(),
+            encrypted_payload: payload.get(3)?.to_string(),
+            tag: payload.get(4)?.to_string(),
+            encrypted_key: payload.get(1)?.to_string(),
+        })
+    };
+
+    let jwe_body =
+        generate_jwe_body(jwe_payload).ok_or(errors::VaultError::RequestEncodingFailed)?;
+
+    Ok(jwe_body)
+}
+
 pub async fn mk_basilisk_req(
     jwekey: &settings::Jwekey,
     jws: &str,
@@ -267,10 +362,11 @@ pub async fn mk_basilisk_req(
         }
     };
 
-    let jwe_encrypted = encryption::encrypt_jwe(&payload, public_key)
-        .await
-        .change_context(errors::VaultError::SaveCardFailed)
-        .attach_printable("Error on jwe encrypt")?;
+    let jwe_encrypted =
+        encryption::encrypt_jwe(&payload, public_key, EncryptionAlgorithm::A256GCM, None)
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .attach_printable("Error on jwe encrypt")?;
     let jwe_payload: Vec<&str> = jwe_encrypted.split('.').collect();
 
     let generate_jwe_body = |payload: Vec<&str>| -> Option<encryption::JweBody> {
@@ -293,6 +389,8 @@ pub async fn mk_add_locker_request_hs(
     locker: &settings::Locker,
     payload: &StoreLockerReq,
     locker_choice: api_enums::LockerChoice,
+    tenant_id: String,
+    request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let payload = payload
         .encode_to_vec()
@@ -311,6 +409,13 @@ pub async fn mk_add_locker_request_hs(
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -409,14 +514,74 @@ pub fn mk_add_card_response_hs(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn mk_add_card_response_hs(
-    _card: api::CardDetail,
-    _card_reference: String,
-    _req: api::PaymentMethodCreate,
-    _merchant_id: &id_type::MerchantId,
+    card: api::CardDetail,
+    card_reference: String,
+    req: api::PaymentMethodCreate,
+    merchant_id: &id_type::MerchantId,
 ) -> api::PaymentMethodResponse {
     todo!()
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub fn generate_pm_vaulting_req_from_update_request(
+    pm_create: pm_types::PaymentMethodVaultingData,
+    pm_update: api::PaymentMethodUpdateData,
+) -> pm_types::PaymentMethodVaultingData {
+    match (pm_create, pm_update) {
+        (
+            pm_types::PaymentMethodVaultingData::Card(card_create),
+            api::PaymentMethodUpdateData::Card(update_card),
+        ) => pm_types::PaymentMethodVaultingData::Card(api::CardDetail {
+            card_number: card_create.card_number,
+            card_exp_month: card_create.card_exp_month,
+            card_exp_year: card_create.card_exp_year,
+            card_issuing_country: card_create.card_issuing_country,
+            card_network: card_create.card_network,
+            card_issuer: card_create.card_issuer,
+            card_type: card_create.card_type,
+            card_holder_name: update_card.card_holder_name,
+            nick_name: update_card.nick_name,
+        }),
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub fn generate_payment_method_response(
+    pm: &domain::PaymentMethod,
+) -> errors::RouterResult<api::PaymentMethodResponse> {
+    let pmd = pm
+        .payment_method_data
+        .clone()
+        .map(|data| data.into_inner().expose())
+        .map(|decrypted_value| decrypted_value.parse_value("PaymentMethodsData"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to parse PaymentMethodsData")?
+        .and_then(|data| match data {
+            api::PaymentMethodsData::Card(card) => {
+                Some(api::PaymentMethodResponseData::Card(card.into()))
+            }
+            _ => None,
+        });
+
+    let resp = api::PaymentMethodResponse {
+        merchant_id: pm.merchant_id.to_owned(),
+        customer_id: pm.customer_id.to_owned(),
+        payment_method_id: pm.id.get_string_repr().to_owned(),
+        payment_method: pm.payment_method,
+        payment_method_type: pm.payment_method_type,
+        metadata: pm.metadata.clone(),
+        created: Some(pm.created_at),
+        recurring_enabled: false,
+        last_used_at: Some(pm.last_used_at),
+        client_secret: pm.client_secret.clone(),
+        payment_method_data: pmd,
+    };
+
+    Ok(resp)
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn mk_get_card_request_hs(
     jwekey: &settings::Jwekey,
     locker: &settings::Locker,
@@ -424,6 +589,8 @@ pub async fn mk_get_card_request_hs(
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
     locker_choice: Option<api_enums::LockerChoice>,
+    tenant_id: String,
+    request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
@@ -450,6 +617,14 @@ pub async fn mk_get_card_request_hs(
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
+
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -495,6 +670,8 @@ pub async fn mk_delete_card_request_hs(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
+    tenant_id: String,
+    request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
     let card_req_body = CardReqBody {
@@ -519,6 +696,60 @@ pub async fn mk_delete_card_request_hs(
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
+
+    request.set_body(RequestContent::Json(Box::new(jwe_payload)));
+    Ok(request)
+}
+
+// Need to fix this once we start moving to v2 completion
+#[cfg(all(feature = "v2", feature = "customer_v2"))]
+pub async fn mk_delete_card_request_hs_by_id(
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
+    id: &String,
+    merchant_id: &id_type::MerchantId,
+    card_reference: &str,
+    tenant_id: String,
+    request_id: Option<RequestId>,
+) -> CustomResult<services::Request, errors::VaultError> {
+    let merchant_customer_id = id.to_owned();
+    let card_req_body = CardReqBodyV2 {
+        merchant_id: merchant_id.to_owned(),
+        merchant_customer_id,
+        card_reference: card_reference.to_owned(),
+    };
+    let payload = card_req_body
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
+
+    let jws = encryption::jws_sign_payload(&payload, &locker.locker_signing_key_id, private_key)
+        .await
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let jwe_payload =
+        mk_basilisk_req(jwekey, &jws, api_enums::LockerChoice::HyperswitchCardVault).await?;
+
+    let mut url = locker.host.to_owned();
+    url.push_str("/cards/delete");
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
+
     request.set_body(RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -538,7 +769,7 @@ pub fn mk_delete_card_response(
     not(feature = "payment_methods_v2")
 ))]
 pub fn get_card_detail(
-    pm: &storage::PaymentMethod,
+    pm: &domain::PaymentMethod,
     response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
@@ -567,7 +798,7 @@ pub fn get_card_detail(
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub fn get_card_detail(
-    pm: &storage::PaymentMethod,
+    _pm: &domain::PaymentMethod,
     response: Card,
 ) -> CustomResult<api::CardDetailFromLocker, errors::VaultError> {
     let card_number = response.card_number;
@@ -575,13 +806,7 @@ pub fn get_card_detail(
     //fetch form card bin
 
     let card_detail = api::CardDetailFromLocker {
-        issuer_country: pm
-            .issuer_country
-            .as_ref()
-            .map(|c| api_enums::CountryAlpha2::from_str(c))
-            .transpose()
-            .ok()
-            .flatten(),
+        issuer_country: None,
         last4_digits: Some(last4_digits),
         card_number: Some(card_number),
         expiry_month: Some(response.card_exp_month),
@@ -598,17 +823,36 @@ pub fn get_card_detail(
     Ok(card_detail)
 }
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl From<api::PaymentMethodCreateData> for pm_types::PaymentMethodVaultingData {
+    fn from(item: api::PaymentMethodCreateData) -> Self {
+        match item {
+            api::PaymentMethodCreateData::Card(card) => Self::Card(card),
+        }
+    }
+}
+
 //------------------------------------------------TokenizeService------------------------------------------------
 pub fn mk_crud_locker_request(
     locker: &settings::Locker,
     path: &str,
     req: api::TokenizePayloadEncrypted,
+    tenant_id: String,
+    request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let mut url = locker.basilisk_host.to_owned();
     url.push_str(path);
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    if let Some(req_id) = request_id {
+        request.add_header(
+            headers::X_REQUEST_ID,
+            req_id.as_hyphenated().to_string().into(),
+        );
+    }
+
     request.set_body(RequestContent::Json(Box::new(req)));
     Ok(request)
 }

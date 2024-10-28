@@ -31,7 +31,9 @@ fn get_default_router_data<F, Req, Resp>(
         customer_id: None,
         connector_customer: None,
         connector: get_irrelevant_id_string("connector", flow_name),
-        payment_id: get_irrelevant_id_string("payment_id", flow_name),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id(flow_name)
+            .get_string_repr()
+            .to_owned(),
         attempt_id: get_irrelevant_id_string("attempt_id", flow_name),
         status: common_enums::AttemptStatus::default(),
         payment_method: common_enums::PaymentMethod::default(),
@@ -72,6 +74,8 @@ fn get_default_router_data<F, Req, Resp>(
         payment_method_status: None,
         minor_amount_captured: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     }
 }
 
@@ -564,8 +568,13 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for MandateR
         );
         router_data.merchant_id = merchant_id;
         router_data.customer_id = Some(customer_id);
-        router_data.payment_id =
-            payment_id.unwrap_or_else(|| get_irrelevant_id_string("payment_id", "mandate revoke"));
+        router_data.payment_id = payment_id
+            .unwrap_or_else(|| {
+                common_utils::id_type::PaymentId::get_irrelevant_id("mandate revoke")
+                    .get_string_repr()
+                    .to_owned()
+            })
+            .to_owned();
         Ok(router_data)
     }
 }

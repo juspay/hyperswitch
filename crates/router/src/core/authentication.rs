@@ -61,8 +61,12 @@ pub async fn perform_authentication(
         webhook_url,
         three_ds_requestor_url,
     )?;
-    let response =
-        utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
+    let response = Box::pin(utils::do_auth_connector_call(
+        state,
+        authentication_connector.clone(),
+        router_data,
+    ))
+    .await?;
     let authentication =
         utils::update_trackers(state, response.clone(), authentication_data, None).await?;
     response
@@ -80,7 +84,7 @@ pub async fn perform_authentication(
 pub async fn perform_post_authentication(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
     authentication_id: String,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
@@ -121,9 +125,9 @@ pub async fn perform_pre_authentication(
     key_store: &domain::MerchantKeyStore,
     card_number: cards::CardNumber,
     token: String,
-    business_profile: &domain::BusinessProfile,
+    business_profile: &domain::Profile,
     acquirer_details: Option<types::AcquirerDetails>,
-    payment_id: Option<String>,
+    payment_id: Option<common_utils::id_type::PaymentId>,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, business_profile).await?;
@@ -133,7 +137,7 @@ pub async fn perform_pre_authentication(
         business_profile.merchant_id.clone(),
         authentication_connector_name.clone(),
         token,
-        business_profile.profile_id.clone(),
+        business_profile.get_id().to_owned(),
         payment_id,
         three_ds_connector_account
             .get_mca_id()

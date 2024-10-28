@@ -1,12 +1,9 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 
 use super::generics;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::schema::merchant_connector_account::dsl;
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::merchant_connector_account::dsl;
 use crate::{
     errors,
@@ -23,10 +20,7 @@ impl MerchantConnectorAccountNew {
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_connector_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl MerchantConnectorAccount {
     pub async fn update(
         self,
@@ -160,7 +154,7 @@ impl MerchantConnectorAccount {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+#[cfg(feature = "v2")]
 impl MerchantConnectorAccount {
     pub async fn update(
         self,
@@ -232,5 +226,19 @@ impl MerchantConnectorAccount {
             )
             .await
         }
+    }
+
+    pub async fn list_by_profile_id(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::profile_id.eq(profile_id.to_owned()),
+            None,
+            None,
+            Some(dsl::created_at.asc()),
+        )
+        .await
     }
 }

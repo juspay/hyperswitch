@@ -20,6 +20,7 @@ pub mod keymanager;
 pub mod link_utils;
 pub mod macros;
 pub mod new_type;
+pub mod payout_method_utils;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
@@ -58,6 +59,8 @@ pub mod date_time {
         YYYYMMDD,
         /// Format the date in 201911050811 format
         YYYYMMDDHHmm,
+        /// Format the date in 05112019081132 format
+        DDMMYYYYHHmmss,
     }
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
@@ -111,6 +114,7 @@ pub mod date_time {
                 DateFormat::YYYYMMDDHHmmss => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
                 DateFormat::YYYYMMDD => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero]"),
                 DateFormat::YYYYMMDDHHmm => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero]"),
+                DateFormat::DDMMYYYYHHmmss => time::macros::format_description!("[day padding:zero][month padding:zero repr:numerical][year repr:full][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
             }
         }
     }
@@ -258,6 +262,12 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
 #[inline]
 pub fn generate_time_ordered_id(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
+}
+
+/// Generate a time-ordered (time-sortable) unique identifier using the current time without prefix
+#[inline]
+pub fn generate_time_ordered_id_without_prefix() -> String {
+    uuid::Uuid::now_v7().as_simple().to_string()
 }
 
 #[allow(missing_docs)]

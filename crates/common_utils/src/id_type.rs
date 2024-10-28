@@ -3,15 +3,20 @@
 
 use std::{borrow::Cow, fmt::Debug};
 
+mod api_key;
 mod customer;
 mod merchant;
 mod merchant_connector_account;
 mod organization;
+mod payment;
 mod profile;
+mod refunds;
 mod routing;
 
+#[cfg(feature = "v2")]
 mod global_id;
 
+pub use api_key::ApiKeyId;
 pub use customer::CustomerId;
 use diesel::{
     backend::Backend,
@@ -20,10 +25,19 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types,
 };
+#[cfg(feature = "v2")]
+pub use global_id::{
+    payment::{GlobalAttemptId, GlobalPaymentId},
+    payment_methods::GlobalPaymentMethodId,
+    refunds::GlobalRefundId,
+    CellId,
+};
 pub use merchant::MerchantId;
 pub use merchant_connector_account::MerchantConnectorAccountId;
 pub use organization::OrganizationId;
+pub use payment::{PaymentId, PaymentReferenceId};
 pub use profile::ProfileId;
+pub use refunds::RefundReferenceId;
 pub use routing::RoutingId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -149,6 +163,7 @@ impl<const MAX_LENGTH: u8, const MIN_LENGTH: u8> LengthId<MAX_LENGTH, MIN_LENGTH
         Self(alphanumeric_id)
     }
 
+    #[cfg(feature = "v2")]
     /// Create a new LengthId from aplhanumeric id
     pub(crate) fn from_alphanumeric_id(
         alphanumeric_id: AlphaNumericId,

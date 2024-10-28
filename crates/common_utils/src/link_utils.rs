@@ -2,7 +2,7 @@
 
 use std::{collections::HashSet, primitive::i64};
 
-use common_enums::enums;
+use common_enums::{enums, UIWidgetFormLayout};
 use diesel::{
     backend::Backend,
     deserialize,
@@ -167,6 +167,8 @@ pub struct PayoutLinkData {
     pub currency: enums::Currency,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: HashSet<String>,
+    /// Form layout of the payout link
+    pub form_layout: Option<UIWidgetFormLayout>,
     /// `test_mode` can be used for testing payout links without any restrictions
     pub test_mode: Option<bool>,
 }

@@ -59,7 +59,7 @@ impl Authorization {
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,

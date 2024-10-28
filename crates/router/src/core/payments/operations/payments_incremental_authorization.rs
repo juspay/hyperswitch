@@ -30,6 +30,9 @@ use crate::{
 #[operation(operations = "all", flow = "incremental_authorization")]
 pub struct PaymentIncrementalAuthorization;
 
+type PaymentIncrementalAuthorizationOperation<'b, F> =
+    BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>;
+
 #[async_trait]
 impl<F: Send + Clone>
     GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
@@ -44,9 +47,15 @@ impl<F: Send + Clone>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _header_payload: &api::HeaderPayload,
-    ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsIncrementalAuthorizationRequest>>
-    {
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    ) -> RouterResult<
+        operations::GetTrackerResponse<
+            'a,
+            F,
+            PaymentsIncrementalAuthorizationRequest,
+            payments::PaymentData<F>,
+        >,
+    > {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
@@ -80,22 +89,24 @@ impl<F: Send + Clone>
             })?
         }
 
-        if payment_intent.amount > request.amount {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "Amount should be greater than original authorized amount".to_owned(),
-            })?
-        }
-
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
+                &payment_intent.payment_id,
                 merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // Incremental authorization should be performed on an amount greater than the original authorized amount (in this case, greater than the net_amount which is sent for authorization)
+        // request.amount is the total amount that should be authorized in incremental authorization which should be greater than the original authorized amount
+        if payment_attempt.get_total_amount() > request.amount {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Amount should be greater than original authorized amount".to_owned(),
+            })?
+        }
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount();
@@ -111,7 +122,7 @@ impl<F: Send + Clone>
             .store
             .find_business_profile_by_profile_id(key_manager_state, key_store, profile_id)
             .await
-            .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
@@ -158,6 +169,8 @@ impl<F: Send + Clone>
             authentication: None,
             recurring_details: None,
             poll_config: None,
+            tax_data: None,
+            session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -187,9 +200,9 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest>,
+        PaymentIncrementalAuthorizationOperation<'b, F>,
         payments::PaymentData<F>,
     )>
     where
@@ -222,7 +235,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
             error_code: None,
             error_message: None,
             connector_authorization_id: None,
-            previously_authorized_amount: payment_data.payment_intent.amount,
+            previously_authorized_amount: payment_data.payment_attempt.get_total_amount(),
         };
         let authorization = state
             .store
@@ -265,7 +278,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest>
+impl<F: Send + Clone>
+    ValidateRequest<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -274,7 +288,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest
         request: &PaymentsIncrementalAuthorizationRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest>,
+        PaymentIncrementalAuthorizationOperation<'b, F>,
         operations::ValidateResult,
     )> {
         Ok((
@@ -290,7 +304,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsIncrementalAuthorizationRequest
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
+impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -303,7 +317,12 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest>,
+            BoxedOperation<
+                'a,
+                F,
+                PaymentsIncrementalAuthorizationRequest,
+                payments::PaymentData<F>,
+            >,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -319,9 +338,9 @@ impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest>
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _business_profile: Option<&domain::BusinessProfile>,
+        _business_profile: &domain::Profile,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, PaymentsIncrementalAuthorizationRequest>,
+        PaymentIncrementalAuthorizationOperation<'a, F>,
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {

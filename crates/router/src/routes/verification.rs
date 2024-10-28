@@ -22,7 +22,7 @@ pub async fn apple_pay_merchant_registration(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, body, _| {
+        |state, auth: auth::AuthenticationData, body, _| {
             verification::verify_merchant_creds_for_applepay(
                 state.clone(),
                 body,
@@ -32,7 +32,9 @@ pub async fn apple_pay_merchant_registration(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::JWTAuth {
+                permission: Permission::ProfileAccountWrite,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -55,7 +57,7 @@ pub async fn retrieve_apple_pay_verified_domains(
         state,
         &req,
         merchant_id.clone(),
-        |state, _, _, _| {
+        |state, _: auth::AuthenticationData, _, _| {
             verification::get_verified_apple_domains_with_mid_mca_id(
                 state,
                 merchant_id.to_owned(),
@@ -64,7 +66,9 @@ pub async fn retrieve_apple_pay_verified_domains(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth(Permission::MerchantAccountRead),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

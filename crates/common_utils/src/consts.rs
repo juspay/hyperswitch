@@ -89,9 +89,6 @@ pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
 /// Default allowed domains for payment links
 pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
 
-/// Default merchant details for payment links
-pub const DEFAULT_TRANSACTION_DETAILS: Option<String> = None;
-
 /// Default ttl for Extended card info  in redis (in seconds)
 pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
 
@@ -121,6 +118,10 @@ pub const CELL_IDENTIFIER_LENGTH: u8 = 5;
 
 /// General purpose base64 engine
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+
+/// URL Safe base64 engine
+pub const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::URL_SAFE;
 /// Regex for matching a domain
 /// Eg -
 /// http://www.example.com
@@ -149,3 +150,15 @@ pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
+
+/// Max length allowed for Description
+pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
+
+/// Max length allowed for Statement Descriptor
+pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 22;
+/// Payout flow identifier used for performing GSM operations
+pub const PAYOUT_FLOW_STR: &str = "payout_flow";
+
+/// The number of bytes allocated for the hashed connector transaction ID.
+/// Total number of characters equals CONNECTOR_TRANSACTION_ID_HASH_BYTES times 2.
+pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;

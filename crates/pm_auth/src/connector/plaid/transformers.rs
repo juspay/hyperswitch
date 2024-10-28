@@ -15,6 +15,8 @@ pub struct PlaidLinkTokenRequest {
     language: String,
     products: Vec<String>,
     user: User,
+    android_package_name: Option<String>,
+    redirect_uri: Option<String>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -41,6 +43,22 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
                         field_name: "country_codes",
                     },
                 )?,
+            },
+            android_package_name: match item.request.client_platform {
+                Some(api_models::enums::ClientPlatform::Android) => {
+                    item.request.android_package_name.clone()
+                }
+                Some(api_models::enums::ClientPlatform::Ios)
+                | Some(api_models::enums::ClientPlatform::Web)
+                | Some(api_models::enums::ClientPlatform::Unknown)
+                | None => None,
+            },
+            redirect_uri: match item.request.client_platform {
+                Some(api_models::enums::ClientPlatform::Ios) => item.request.redirect_uri.clone(),
+                Some(api_models::enums::ClientPlatform::Android)
+                | Some(api_models::enums::ClientPlatform::Web)
+                | Some(api_models::enums::ClientPlatform::Unknown)
+                | None => None,
             },
         })
     }

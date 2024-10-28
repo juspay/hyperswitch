@@ -2,6 +2,7 @@ pub mod opensearch;
 #[cfg(feature = "olap")]
 pub mod user;
 pub mod user_role;
+
 use common_utils::consts;
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 // ID generation
@@ -58,10 +59,6 @@ pub(crate) const API_KEY_LENGTH: usize = 64;
 pub(crate) const APPLEPAY_VALIDATION_URL: &str =
     "https://apple-pay-gateway-cert.apple.com/paymentservices/startSession";
 
-// Qr Image data source starts with this string
-// The base64 image data will be appended to it to image data source
-pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
-
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
@@ -90,7 +87,12 @@ pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
 
-pub const ROLE_CACHE_PREFIX: &str = "CR_";
+pub const EMAIL_SUBJECT_API_KEY_EXPIRY: &str = "API Key Expiry Notice";
+pub const EMAIL_SUBJECT_DASHBOARD_FEATURE_REQUEST: &str = "Dashboard Pro Feature Request by";
+pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str =
+    "Approval of Recon Request - Access Granted to Recon Dashboard";
+
+pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
 
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
@@ -136,3 +138,45 @@ pub const MAX_ALLOWED_AMOUNT: i64 = 999999999;
 //payment attempt default unified error code and unified error message
 pub const DEFAULT_UNIFIED_ERROR_CODE: &str = "UE_000";
 pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
+
+// Recon's feature tag
+pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
+
+/// Vault Add request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
+
+/// Vault Get Fingerprint request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_FINGERPRINT_REQUEST_URL: &str = "/fingerprint";
+
+/// Vault Retrieve request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_RETRIEVE_REQUEST_URL: &str = "/vault/retrieve";
+
+/// Vault Delete request url
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_DELETE_REQUEST_URL: &str = "/vault/delete";
+
+/// Vault Header content type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_HEADER_CONTENT_TYPE: &str = "application/json";
+
+/// Vault Add flow type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_ADD_FLOW_TYPE: &str = "add_to_vault";
+
+/// Vault Retrieve flow type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_RETRIEVE_FLOW_TYPE: &str = "retrieve_from_vault";
+
+/// Vault Delete flow type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
+
+/// Vault Fingerprint fetch flow type
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
+
+/// Worldpay's unique reference ID for a request TODO: Move to hyperswitch_connectors/constants once Worldpay is moved to connectors crate
+pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";

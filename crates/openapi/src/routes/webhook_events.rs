@@ -1,6 +1,6 @@
 /// Events - List
 ///
-/// List all Events associated with a Merchant Account or Business Profile.
+/// List all Events associated with a Merchant Account or Profile.
 #[utoipa::path(
     get,
     path = "/events/{merchant_id}",
@@ -43,14 +43,14 @@
         (
             "profile_id" = Option<String>,
             Query,
-            description = "Only include Events associated with the Business Profile identified by the specified Business Profile ID."
+            description = "Only include Events associated with the Profile identified by the specified Profile ID."
         ),
     ),
     responses(
         (status = 200, description = "List of Events retrieved successfully", body = Vec<EventListItemResponse>),
     ),
     tag = "Event",
-    operation_id = "List all Events associated with a Merchant Account or Business Profile",
+    operation_id = "List all Events associated with a Merchant Account or Profile",
     security(("admin_api_key" = []))
 )]
 pub fn list_initial_webhook_delivery_attempts() {}

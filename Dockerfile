@@ -1,9 +1,10 @@
 FROM rust:bookworm as builder
 
 ARG EXTRA_FEATURES=""
+ARG VERSION_FEATURE_SET="v1"
 
 RUN apt-get update \
-    && apt-get install -y libpq-dev libssl-dev pkg-config
+    && apt-get install -y libpq-dev libssl-dev pkg-config protobuf-compiler
 
 # Copying codebase from current dir to /router dir
 # and creating a fresh build
@@ -32,7 +33,12 @@ ENV RUST_BACKTRACE="short"
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 
 COPY . .
-RUN cargo build --release --features release ${EXTRA_FEATURES}
+RUN cargo build \
+    --release \
+    --no-default-features \
+    --features release \
+    --features ${VERSION_FEATURE_SET} \
+    ${EXTRA_FEATURES}
 
 
 

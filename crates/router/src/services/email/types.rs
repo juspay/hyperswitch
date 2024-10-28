@@ -1,11 +1,12 @@
 use api_models::user::dashboard_metadata::ProdIntent;
+use common_enums::EntityType;
 use common_utils::{
     errors::{self, CustomResult},
     pii,
 };
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 
 use crate::{configs, consts, routes::SessionState};
 #[cfg(feature = "olap")]
@@ -151,15 +152,31 @@ Email         : {user_email}
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct EmailToken {
     email: String,
-    merchant_id: Option<common_utils::id_type::MerchantId>,
     flow: domain::Origin,
     exp: u64,
+    entity: Option<Entity>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct Entity {
+    pub entity_id: String,
+    pub entity_type: EntityType,
+}
+
+impl Entity {
+    pub fn get_entity_type(&self) -> EntityType {
+        self.entity_type
+    }
+
+    pub fn get_entity_id(&self) -> &str {
+        &self.entity_id
+    }
 }
 
 impl EmailToken {
     pub async fn new_token(
         email: domain::UserEmail,
-        merchant_id: Option<common_utils::id_type::MerchantId>,
+        entity: Option<Entity>,
         flow: domain::Origin,
         settings: &configs::Settings,
     ) -> CustomResult<String, UserErrors> {
@@ -167,9 +184,9 @@ impl EmailToken {
         let exp = jwt::generate_exp(expiration_duration)?.as_secs();
         let token_payload = Self {
             email: email.get_secret().expose(),
-            merchant_id,
             flow,
             exp,
+            entity,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
@@ -178,8 +195,8 @@ impl EmailToken {
         pii::Email::try_from(self.email.clone())
     }
 
-    pub fn get_merchant_id(&self) -> Option<&common_utils::id_type::MerchantId> {
-        self.merchant_id.as_ref()
+    pub fn get_entity(&self) -> Option<&Entity> {
+        self.entity.as_ref()
     }
 
     pub fn get_flow(&self) -> domain::Origin {
@@ -320,13 +337,12 @@ impl EmailData for MagicLink {
     }
 }
 
-// TODO: Deprecate this and use InviteRegisteredUser for new invites
 pub struct InviteUser {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
-    pub merchant_id: common_utils::id_type::MerchantId,
+    pub entity: Entity,
     pub auth_id: Option<String>,
 }
 
@@ -335,48 +351,7 @@ impl EmailData for InviteUser {
     async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
-            Some(self.merchant_id.clone()),
-            domain::Origin::ResetPassword,
-            &self.settings,
-        )
-        .await
-        .change_context(EmailError::TokenGenerationFailure)?;
-
-        let invite_user_link = get_link_with_token(
-            &self.settings.user.base_url,
-            token,
-            "set_password",
-            &self.auth_id,
-        );
-
-        let body = html::get_html_body(EmailBody::InviteUser {
-            link: invite_user_link,
-            user_name: self.user_name.clone().get_secret().expose(),
-        });
-
-        Ok(EmailContents {
-            subject: self.subject.to_string(),
-            body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
-        })
-    }
-}
-
-pub struct InviteRegisteredUser {
-    pub recipient_email: domain::UserEmail,
-    pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::Settings>,
-    pub subject: &'static str,
-    pub merchant_id: common_utils::id_type::MerchantId,
-    pub auth_id: Option<String>,
-}
-
-#[async_trait::async_trait]
-impl EmailData for InviteRegisteredUser {
-    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
-        let token = EmailToken::new_token(
-            self.recipient_email.clone(),
-            Some(self.merchant_id.clone()),
+            Some(self.entity.clone()),
             domain::Origin::AcceptInvitationFromEmail,
             &self.settings,
         )
@@ -438,11 +413,11 @@ pub struct BizEmailProd {
 impl BizEmailProd {
     pub fn new(state: &SessionState, data: ProdIntent) -> UserResult<Self> {
         Ok(Self {
-            recipient_email: (domain::UserEmail::new(
-                consts::user::BUSINESS_EMAIL.to_string().into(),
-            ))?,
+            recipient_email: domain::UserEmail::from_pii_email(
+                state.conf.email.prod_intent_recipient_email.clone(),
+            )?,
             settings: state.conf.clone(),
-            subject: "New Prod Intent",
+            subject: consts::user::EMAIL_SUBJECT_NEW_PROD_INTENT,
             user_name: data.poc_name.unwrap_or_default().into(),
             poc_email: data.poc_email.unwrap_or_default().into(),
             legal_business_name: data.legal_business_name.unwrap_or_default(),
@@ -479,6 +454,7 @@ pub struct ProFeatureRequest {
     pub feature_name: String,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub user_name: domain::UserName,
+    pub user_email: domain::UserEmail,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: String,
 }
@@ -492,7 +468,7 @@ impl EmailData for ProFeatureRequest {
             user_name: self.user_name.clone().get_secret().expose(),
             feature_name: self.feature_name.clone(),
             merchant_id: self.merchant_id.clone(),
-            user_email: recipient.peek().to_string(),
+            user_email: self.user_email.clone().get_secret().expose(),
         });
 
         Ok(EmailContents {

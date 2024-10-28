@@ -27,20 +27,27 @@ pub struct OutgoingWebhookEvent {
 #[serde(tag = "outgoing_webhook_event_type", rename_all = "snake_case")]
 pub enum OutgoingWebhookEventContent {
     Payment {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         content: Value,
     },
     Payout {
         payout_id: String,
         content: Value,
     },
+    #[cfg(feature = "v1")]
     Refund {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
+        refund_id: String,
+        content: Value,
+    },
+    #[cfg(feature = "v2")]
+    Refund {
+        payment_id: common_utils::id_type::GlobalPaymentId,
         refund_id: String,
         content: Value,
     },
     Dispute {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         attempt_id: String,
         dispute_id: String,
         content: Value,
@@ -64,7 +71,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
             }),
             Self::RefundDetails(refund_payload) => Some(OutgoingWebhookEventContent::Refund {
                 payment_id: refund_payload.payment_id.clone(),
-                refund_id: refund_payload.refund_id.clone(),
+                refund_id: refund_payload.get_refund_id_as_string(),
                 content: masking::masked_serialize(&refund_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),

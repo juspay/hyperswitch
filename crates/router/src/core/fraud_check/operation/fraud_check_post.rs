@@ -1,9 +1,8 @@
-use api_models::payments::HeaderPayload;
 use async_trait::async_trait;
 use common_enums::{CaptureMethod, FrmSuggestion};
 use common_utils::ext_traits::Encode;
 use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate,
+    payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate, HeaderPayload,
 };
 use router_env::{instrument, logger, tracing};
 
@@ -43,32 +42,59 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct FraudCheckPost;
 
-impl<F: Clone + Send> FraudCheckOperation<F> for &FraudCheckPost {
+impl<F, D> FraudCheckOperation<F, D> for &FraudCheckPost
+where
+    F: Clone + Send,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+{
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(*self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F>)> {
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
         Ok(*self)
     }
-    fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F> + Send + Sync)> {
+    fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
         Ok(*self)
     }
 }
 
-impl<F: Clone + Send> FraudCheckOperation<F> for FraudCheckPost {
+impl<F, D> FraudCheckOperation<F, D> for FraudCheckPost
+where
+    F: Clone + Send,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+{
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<PaymentToFrmData> + Send + Sync)> {
         Ok(self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F>)> {
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, D>)> {
         Ok(self)
     }
-    fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F> + Send + Sync)> {
+    fn to_update_tracker(&self) -> RouterResult<&(dyn UpdateTracker<FrmData, F, D> + Send + Sync)> {
         Ok(self)
     }
 }
 
 #[async_trait]
 impl GetTracker<PaymentToFrmData> for FraudCheckPost {
+    #[cfg(feature = "v2")]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_data: PaymentToFrmData,
+        frm_connector_details: ConnectorDetailsCore,
+    ) -> RouterResult<Option<FrmData>> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -83,7 +109,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
             .ok();
         let existing_fraud_check = db
             .find_fraud_check_by_payment_id_if_present(
-                payment_data.payment_intent.payment_id.clone(),
+                payment_data.payment_intent.get_id().to_owned(),
                 payment_data.merchant_account.get_id().clone(),
             )
             .await
@@ -93,7 +119,7 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
             _ => {
                 db.insert_fraud_check_response(FraudCheckNew {
                     frm_id: utils::generate_id(consts::ID_LENGTH, "frm"),
-                    payment_id: payment_data.payment_intent.payment_id.clone(),
+                    payment_id: payment_data.payment_intent.get_id().to_owned(),
                     merchant_id: payment_data.merchant_account.get_id().clone(),
                     attempt_id: payment_data.payment_attempt.attempt_id.clone(),
                     created_at: common_utils::date_time::now(),
@@ -137,13 +163,21 @@ impl GetTracker<PaymentToFrmData> for FraudCheckPost {
 }
 
 #[async_trait]
-impl<F: Send + Clone> Domain<F> for FraudCheckPost {
+impl<F, D> Domain<F, D> for FraudCheckPost
+where
+    F: Clone + Send,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+{
     #[instrument(skip_all)]
     async fn post_payment_frm<'a>(
         &'a self,
         state: &'a SessionState,
         _req_state: ReqState,
-        payment_data: &mut payments::PaymentData<F>,
+        payment_data: &mut D,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
         customer: &Option<domain::Customer>,
@@ -153,7 +187,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             logger::debug!("post_flow::Sale Skipped");
             return Ok(None);
         }
-        let router_data = frm_core::call_frm_service::<F, frm_api::Sale, _>(
+        let router_data = frm_core::call_frm_service::<F, frm_api::Sale, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
@@ -166,7 +200,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         Ok(Some(FrmRouterData {
             merchant_id: router_data.merchant_id,
             connector: router_data.connector,
-            payment_id: router_data.payment_id,
+            payment_id: router_data.payment_id.clone(),
             attempt_id: router_data.attempt_id,
             request: FrmRequest::Sale(FraudCheckSaleData {
                 amount: router_data.request.amount,
@@ -178,6 +212,25 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         }))
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn execute_post_tasks(
+        &self,
+        _state: &SessionState,
+        _req_state: ReqState,
+        _frm_data: &mut FrmData,
+        _merchant_account: &domain::MerchantAccount,
+        _frm_configs: FrmConfigsObject,
+        _frm_suggestion: &mut Option<FrmSuggestion>,
+        _key_store: domain::MerchantKeyStore,
+        _payment_data: &mut D,
+        _customer: &Option<domain::Customer>,
+        _should_continue_capture: &mut bool,
+    ) -> RouterResult<Option<FrmData>> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn execute_post_tasks(
         &self,
@@ -188,7 +241,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
         _frm_configs: FrmConfigsObject,
         frm_suggestion: &mut Option<FrmSuggestion>,
         key_store: domain::MerchantKeyStore,
-        payment_data: &mut payments::PaymentData<F>,
+        payment_data: &mut D,
         customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>> {
@@ -201,7 +254,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             *frm_suggestion = Some(FrmSuggestion::FrmCancelTransaction);
 
             let cancel_req = api_models::payments::PaymentsCancelRequest {
-                payment_id: frm_data.payment_intent.payment_id.clone(),
+                payment_id: frm_data.payment_intent.get_id().to_owned(),
                 cancellation_reason: frm_data.fraud_check.frm_error.clone(),
                 merchant_connector_details: None,
             };
@@ -211,6 +264,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
                 _,
                 _,
                 _,
+                payments::PaymentData<Void>,
             >(
                 state.clone(),
                 req_state.clone(),
@@ -225,13 +279,13 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
                 HeaderPayload::default(),
             ))
             .await?;
-            logger::debug!("payment_id : {:?} has been cancelled since it has been found fraudulent by configured frm connector",payment_data.payment_attempt.payment_id);
+            logger::debug!("payment_id : {:?} has been cancelled since it has been found fraudulent by configured frm connector",payment_data.get_payment_attempt().payment_id);
             if let services::ApplicationResponse::JsonWithHeaders((payments_response, _)) =
                 cancel_res
             {
-                payment_data.payment_intent.status = payments_response.status;
+                payment_data.set_payment_intent_status(payments_response.status);
             }
-            let _router_data = frm_core::call_frm_service::<F, frm_api::RecordReturn, _>(
+            let _router_data = frm_core::call_frm_service::<F, frm_api::RecordReturn, _, D>(
                 state,
                 payment_data,
                 &mut frm_data.to_owned(),
@@ -253,7 +307,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
             )
         {
             let capture_request = api_models::payments::PaymentsCaptureRequest {
-                payment_id: frm_data.payment_intent.payment_id.clone(),
+                payment_id: frm_data.payment_intent.get_id().to_owned(),
                 merchant_id: None,
                 amount_to_capture: None,
                 refund_uncaptured_amount: None,
@@ -267,6 +321,7 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
                 _,
                 _,
                 _,
+                payments::PaymentData<Capture>,
             >(
                 state.clone(),
                 req_state.clone(),
@@ -281,11 +336,11 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
                 HeaderPayload::default(),
             ))
             .await?;
-            logger::debug!("payment_id : {:?} has been captured since it has been found legit by configured frm connector",payment_data.payment_attempt.payment_id);
+            logger::debug!("payment_id : {:?} has been captured since it has been found legit by configured frm connector",payment_data.get_payment_attempt().payment_id);
             if let services::ApplicationResponse::JsonWithHeaders((payments_response, _)) =
                 capture_response
             {
-                payment_data.payment_intent.status = payments_response.status;
+                payment_data.set_payment_intent_status(payments_response.status);
             }
         };
         return Ok(Some(frm_data.to_owned()));
@@ -295,13 +350,13 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
     async fn pre_payment_frm<'a>(
         &'a self,
         state: &'a SessionState,
-        payment_data: &mut payments::PaymentData<F>,
+        payment_data: &mut D,
         frm_data: &mut FrmData,
         merchant_account: &domain::MerchantAccount,
         customer: &Option<domain::Customer>,
         key_store: domain::MerchantKeyStore,
     ) -> RouterResult<FrmRouterData> {
-        let router_data = frm_core::call_frm_service::<F, frm_api::Sale, _>(
+        let router_data = frm_core::call_frm_service::<F, frm_api::Sale, _, D>(
             state,
             payment_data,
             &mut frm_data.to_owned(),
@@ -327,17 +382,40 @@ impl<F: Send + Clone> Domain<F> for FraudCheckPost {
 }
 
 #[async_trait]
-impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
+impl<F, D> UpdateTracker<FrmData, F, D> for FraudCheckPost
+where
+    F: Clone + Send,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+{
+    #[cfg(feature = "v2")]
     async fn update_tracker<'b>(
         &'b self,
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         mut frm_data: FrmData,
-        payment_data: &mut payments::PaymentData<F>,
+        payment_data: &mut D,
+        frm_suggestion: Option<FrmSuggestion>,
+        frm_router_data: FrmRouterData,
+    ) -> RouterResult<FrmData> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &SessionState,
+        key_store: &domain::MerchantKeyStore,
+        mut frm_data: FrmData,
+        payment_data: &mut D,
         frm_suggestion: Option<FrmSuggestion>,
         frm_router_data: FrmRouterData,
     ) -> RouterResult<FrmData> {
         let db = &*state.store;
+        let key_manager_state = &state.into();
         let frm_check_update = match frm_router_data.response {
             FrmResponse::Sale(response) => match response {
                 Err(err) => Some(FraudCheckUpdate::ErrorUpdate {
@@ -501,24 +579,42 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                         None,
                     ),
                 };
-            payment_data.payment_attempt = db
+
+            let payment_attempt_update = PaymentAttemptUpdate::RejectUpdate {
+                status: payment_attempt_status,
+                error_code: Some(Some(frm_data.fraud_check.frm_status.to_string())),
+                error_message,
+                updated_by: frm_data.merchant_account.storage_scheme.to_string(),
+            };
+
+            #[cfg(feature = "v1")]
+            let payment_attempt = db
                 .update_payment_attempt_with_attempt_id(
-                    payment_data.payment_attempt.clone(),
-                    PaymentAttemptUpdate::RejectUpdate {
-                        status: payment_attempt_status,
-                        error_code: Some(Some(frm_data.fraud_check.frm_status.to_string())),
-                        error_message,
-                        updated_by: frm_data.merchant_account.storage_scheme.to_string(),
-                    },
+                    payment_data.get_payment_attempt().clone(),
+                    payment_attempt_update,
                     frm_data.merchant_account.storage_scheme,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            payment_data.payment_intent = db
+            #[cfg(feature = "v2")]
+            let payment_attempt = db
+                .update_payment_attempt_with_attempt_id(
+                    key_manager_state,
+                    key_store,
+                    payment_data.get_payment_attempt().clone(),
+                    payment_attempt_update,
+                    frm_data.merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            payment_data.set_payment_attempt(payment_attempt);
+
+            let payment_intent = db
                 .update_payment_intent(
-                    &state.into(),
-                    payment_data.payment_intent.clone(),
+                    key_manager_state,
+                    payment_data.get_payment_intent().clone(),
                     PaymentIntentUpdate::RejectUpdate {
                         status: payment_intent_status,
                         merchant_decision,
@@ -529,6 +625,8 @@ impl<F: Clone + Send> UpdateTracker<FrmData, F> for FraudCheckPost {
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            payment_data.set_payment_intent(payment_intent);
         }
         frm_data.fraud_check = match frm_check_update {
             Some(fraud_check_update) => db

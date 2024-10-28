@@ -617,26 +617,61 @@ function renderDynamicMerchantDetails(paymentDetails) {
 }
 
 function appendMerchantDetails(paymentDetails, merchantDynamicDetails) {
-  if (!(typeof paymentDetails.transaction_details === "string" && paymentDetails.transaction_details.length > 0)) {
+  if (
+    !(
+      Array.isArray(paymentDetails.transaction_details) &&
+      paymentDetails.transaction_details.length > 0
+    )
+  ) {
     return;
   }
 
   try {
-    let merchantDetailsObject = JSON.parse(paymentDetails.transaction_details);
+    let merchantDetailsObject = paymentDetails.transaction_details;
+    // sort the merchant details based on the position
+    // if position is null, then it will be shown at the end
+    merchantDetailsObject.sort((a, b) => {
+      if (a.ui_configuration === null || a.ui_configuration.position === null)
+        return 1;
+      if (b.ui_configuration === null || b.ui_configuration.position === null)
+        return -1;
 
-    if (Object.keys(merchantDetailsObject).length > 0) {
+      if (typeof a.ui_configuration.position === "number" && typeof b.ui_configuration.position === "number") {
+        return a.ui_configuration.position - b.ui_configuration.position;
+      }
+      else return 0;
+    });
+
+    if (merchantDetailsObject.length > 0) {
+      // show the dynamic merchant details container
+      show("#hyper-checkout-payment-merchant-dynamic-details");
+      // set min-height for the dynamic merchant details container
+      merchantDynamicDetails.style.minHeight = "80px";
       // render a horizontal line above dynamic merchant details
-      var horizontalLineContainer = document.getElementById("hyper-checkout-payment-horizontal-line-container");
+      var horizontalLineContainer = document.getElementById(
+        "hyper-checkout-payment-horizontal-line-container",
+      );
       var horizontalLine = document.createElement("hr");
       horizontalLine.className = "hyper-checkout-payment-horizontal-line";
       horizontalLineContainer.append(horizontalLine);
 
       // max number of items to show in the merchant details
-      let maxItemsInDetails = 5;
-      for (var key in merchantDetailsObject) {
+      let maxItemsInDetails = 50;
+      for (var item of merchantDetailsObject) {
         var merchantData = document.createElement("div");
         merchantData.className = "hyper-checkout-payment-merchant-dynamic-data";
-        merchantData.innerHTML = key+": "+merchantDetailsObject[key].bold();
+        // make the key and value bold if specified in the ui_configuration
+        var key = item.ui_configuration
+          ? item.ui_configuration.is_key_bold
+            ? item.key.bold()
+            : item.key
+          : item.key;
+        var value = item.ui_configuration
+          ? item.ui_configuration.is_value_bold
+            ? item.value.bold()
+            : item.value
+          : item.value;
+        merchantData.innerHTML = key + " : " + value;
 
         merchantDynamicDetails.append(merchantData);
         if (--maxItemsInDetails === 0) {
@@ -667,7 +702,7 @@ function renderCart(paymentDetails) {
     var MAX_ITEMS_VISIBLE_AFTER_COLLAPSE =
       paymentDetails.max_items_visible_after_collapse;
     var yourCartText = document.createElement("span");
-    var yourCartText = document.getElementById('your-cart-text');
+    var yourCartText = document.getElementById("your-cart-text");
     if (yourCartText) {
       yourCartText.textContent = translations.yourCart;
     }

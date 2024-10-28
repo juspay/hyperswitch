@@ -52,7 +52,7 @@ impl HealthCheckInterface for app::SessionState {
         logger::debug!("Redis set_key was successful");
 
         redis_conn
-            .get_key("test_key")
+            .get_key::<()>("test_key")
             .await
             .change_context(errors::HealthCheckRedisError::GetFailed)?;
 

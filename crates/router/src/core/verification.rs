@@ -103,10 +103,7 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
         .await
         .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let verified_domains = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             key_manager_state,
@@ -119,7 +116,7 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
         .applepay_verified_domains
         .unwrap_or_default();
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let verified_domains = {
         let _ = merchant_connector_id;
         let _ = key_store;

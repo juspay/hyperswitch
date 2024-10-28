@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 
-use common_enums::{EntityType, PermissionGroup, RoleScope};
+use common_enums::{EntityType, PermissionGroup, Resource, RoleScope};
 use common_utils::{errors::CustomResult, id_type};
 
-use super::{permission_groups::get_permissions_vec, permissions::Permission};
+use super::{permission_groups::PermissionGroupExt, permissions::Permission};
 use crate::{core::errors, routes::SessionState};
 
 pub mod predefined_roles;
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct RoleInfo {
     role_id: String,
     role_name: String,
@@ -30,8 +30,13 @@ impl RoleInfo {
         &self.role_name
     }
 
-    pub fn get_permission_groups(&self) -> &Vec<PermissionGroup> {
-        &self.groups
+    pub fn get_permission_groups(&self) -> Vec<PermissionGroup> {
+        self.groups
+            .iter()
+            .flat_map(|group| group.accessible_groups())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect()
     }
 
     pub fn get_scope(&self) -> RoleScope {
@@ -58,20 +63,22 @@ impl RoleInfo {
         self.is_updatable
     }
 
-    pub fn get_permissions_set(&self) -> HashSet<Permission> {
-        self.groups
+    pub fn get_resources_set(&self) -> HashSet<Resource> {
+        self.get_permission_groups()
             .iter()
-            .flat_map(|group| get_permissions_vec(group).iter().copied())
+            .flat_map(|group| group.resources())
             .collect()
     }
 
     pub fn check_permission_exists(&self, required_permission: &Permission) -> bool {
-        self.groups
-            .iter()
-            .any(|group| get_permissions_vec(group).contains(required_permission))
+        required_permission.entity_type() <= self.entity_type
+            && self.get_permission_groups().iter().any(|group| {
+                required_permission.scope() <= group.scope()
+                    && group.resources().contains(&required_permission.resource())
+            })
     }
 
-    pub async fn from_role_id(
+    pub async fn from_role_id_in_merchant_scope(
         state: &SessionState,
         role_id: &str,
         merchant_id: &id_type::MerchantId,
@@ -83,6 +90,22 @@ impl RoleInfo {
             state
                 .store
                 .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+                .await
+                .map(Self::from)
+        }
+    }
+
+    pub async fn from_role_id_in_org_scope(
+        state: &SessionState,
+        role_id: &str,
+        org_id: &id_type::OrganizationId,
+    ) -> CustomResult<Self, errors::StorageError> {
+        if let Some(role) = predefined_roles::PREDEFINED_ROLES.get(role_id) {
+            Ok(role.clone())
+        } else {
+            state
+                .store
+                .find_role_by_role_id_in_org_scope(role_id, org_id)
                 .await
                 .map(Self::from)
         }

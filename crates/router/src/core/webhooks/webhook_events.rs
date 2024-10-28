@@ -13,9 +13,9 @@ use crate::{
 const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT: i64 = 100;
 
 #[derive(Debug)]
-enum MerchantAccountOrBusinessProfile {
-    MerchantAccount(domain::MerchantAccount),
-    BusinessProfile(domain::BusinessProfile),
+enum MerchantAccountOrProfile {
+    MerchantAccount(Box<domain::MerchantAccount>),
+    Profile(Box<domain::Profile>),
 }
 
 #[instrument(skip(state))]
@@ -36,16 +36,16 @@ pub async fn list_initial_delivery_attempts(
     let events = match constraints {
         api_models::webhook_events::EventListConstraintsInternal::ObjectIdFilter { object_id } => {
             match account {
-                MerchantAccountOrBusinessProfile::MerchantAccount(merchant_account) => store
+                MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
                 .list_initial_events_by_merchant_id_primary_object_id(key_manager_state,
                    merchant_account.get_id(),
                     &object_id,
                     &key_store,
                 )
                 .await,
-                MerchantAccountOrBusinessProfile::BusinessProfile(business_profile) => store
+                MerchantAccountOrProfile::Profile(business_profile) => store
                 .list_initial_events_by_profile_id_primary_object_id(key_manager_state,
-                    &business_profile.profile_id,
+                    business_profile.get_id(),
                     &object_id,
                     &key_store,
                 )
@@ -73,7 +73,7 @@ pub async fn list_initial_delivery_attempts(
             };
 
             match account {
-                MerchantAccountOrBusinessProfile::MerchantAccount(merchant_account) => store
+                MerchantAccountOrProfile::MerchantAccount(merchant_account) => store
                 .list_initial_events_by_merchant_id_constraints(key_manager_state,
                    merchant_account.get_id(),
                     created_after,
@@ -83,9 +83,9 @@ pub async fn list_initial_delivery_attempts(
                     &key_store,
                 )
                 .await,
-                MerchantAccountOrBusinessProfile::BusinessProfile(business_profile) => store
+                MerchantAccountOrProfile::Profile(business_profile) => store
                 .list_initial_events_by_profile_id_constraints(key_manager_state,
-                    &business_profile.profile_id,
+                    business_profile.get_id(),
                     created_after,
                     created_before,
                     limit,
@@ -208,7 +208,7 @@ pub async fn retry_delivery_attempt(
         primary_object_type: event_to_retry.primary_object_type,
         created_at: now,
         merchant_id: Some(business_profile.merchant_id.clone()),
-        business_profile_id: Some(business_profile.profile_id.clone()),
+        business_profile_id: Some(business_profile.get_id().to_owned()),
         primary_object_created_at: event_to_retry.primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id),
         initial_attempt_id: event_to_retry.initial_attempt_id,
@@ -266,7 +266,7 @@ async fn get_account_and_key_store(
     state: SessionState,
     merchant_id: common_utils::id_type::MerchantId,
     profile_id: Option<common_utils::id_type::ProfileId>,
-) -> errors::RouterResult<(MerchantAccountOrBusinessProfile, domain::MerchantKeyStore)> {
+) -> errors::RouterResult<(MerchantAccountOrProfile, domain::MerchantKeyStore)> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let merchant_key_store = store
@@ -297,12 +297,12 @@ async fn get_account_and_key_store(
                         different than the merchant_id specified (`{merchant_id:?}`)."
                     )
                 })
-                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                     id: profile_id.get_string_repr().to_owned(),
                 })?;
 
             Ok((
-                MerchantAccountOrBusinessProfile::BusinessProfile(business_profile),
+                MerchantAccountOrProfile::Profile(Box::new(business_profile)),
                 merchant_key_store,
             ))
         }
@@ -318,7 +318,7 @@ async fn get_account_and_key_store(
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
             Ok((
-                MerchantAccountOrBusinessProfile::MerchantAccount(merchant_account),
+                MerchantAccountOrProfile::MerchantAccount(Box::new(merchant_account)),
                 merchant_key_store,
             ))
         }

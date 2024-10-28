@@ -26,52 +26,48 @@ pub struct UserRole {
     pub version: enums::UserRoleVersion,
 }
 
-fn get_entity_id_and_type(user_role: &UserRole) -> (Option<String>, Option<EntityType>) {
-    match (user_role.version, user_role.role_id.as_str()) {
-        (enums::UserRoleVersion::V1, consts::ROLE_ID_ORGANIZATION_ADMIN) => (
-            user_role
-                .org_id
-                .clone()
-                .map(|org_id| org_id.get_string_repr().to_string()),
-            Some(EntityType::Organization),
-        ),
-        (enums::UserRoleVersion::V1, consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER)
-        | (enums::UserRoleVersion::V1, consts::ROLE_ID_INTERNAL_ADMIN) => (
-            user_role
-                .merchant_id
-                .clone()
-                .map(|merchant_id| merchant_id.get_string_repr().to_string()),
-            Some(EntityType::Internal),
-        ),
-        (enums::UserRoleVersion::V1, _) => (
-            user_role
-                .merchant_id
-                .clone()
-                .map(|merchant_id| merchant_id.get_string_repr().to_string()),
-            Some(EntityType::Merchant),
-        ),
-        (enums::UserRoleVersion::V2, _) => (user_role.entity_id.clone(), user_role.entity_type),
+impl UserRole {
+    pub fn get_entity_id_and_type(&self) -> Option<(String, EntityType)> {
+        match (self.version, self.role_id.as_str()) {
+            (enums::UserRoleVersion::V1, consts::ROLE_ID_ORGANIZATION_ADMIN) => {
+                let org_id = self.org_id.clone()?.get_string_repr().to_string();
+                Some((org_id, EntityType::Organization))
+            }
+            (enums::UserRoleVersion::V1, _) => {
+                let merchant_id = self.merchant_id.clone()?.get_string_repr().to_string();
+                Some((merchant_id, EntityType::Merchant))
+            }
+            (enums::UserRoleVersion::V2, _) => self.entity_id.clone().zip(self.entity_type),
+        }
     }
 }
 
 impl Hash for UserRole {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let (entity_id, entity_type) = get_entity_id_and_type(self);
-
         self.user_id.hash(state);
-        entity_id.hash(state);
-        entity_type.hash(state);
+        if let Some((entity_id, entity_type)) = self.get_entity_id_and_type() {
+            entity_id.hash(state);
+            entity_type.hash(state);
+        }
     }
 }
 
 impl PartialEq for UserRole {
     fn eq(&self, other: &Self) -> bool {
-        let (self_entity_id, self_entity_type) = get_entity_id_and_type(self);
-        let (other_entity_id, other_entity_type) = get_entity_id_and_type(other);
-
-        self.user_id == other.user_id
-            && self_entity_id == other_entity_id
-            && self_entity_type == other_entity_type
+        match (
+            self.get_entity_id_and_type(),
+            other.get_entity_id_and_type(),
+        ) {
+            (
+                Some((self_entity_id, self_entity_type)),
+                Some((other_entity_id, other_entity_type)),
+            ) => {
+                self.user_id == other.user_id
+                    && self_entity_id == other_entity_id
+                    && self_entity_type == other_entity_type
+            }
+            _ => self.user_id == other.user_id,
+        }
     }
 }
 

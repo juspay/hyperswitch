@@ -29,7 +29,7 @@ pub struct AddressNew {
     pub country_code: Option<String>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
     pub updated_by: String,
@@ -55,7 +55,7 @@ pub struct Address {
     pub modified_at: PrimitiveDateTime,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: Option<String>,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub updated_by: String,
     pub email: Option<Encryption>,
 }

@@ -942,6 +942,7 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             | common_enums::BankNames::AllianceBank
             | common_enums::BankNames::AmBank
             | common_enums::BankNames::BankOfAmerica
+            | common_enums::BankNames::BankOfChina
             | common_enums::BankNames::BankIslam
             | common_enums::BankNames::BankMuamalat
             | common_enums::BankNames::BankRakyat
@@ -1111,6 +1112,38 @@ pub enum CardBrand {
     Visa,
     MC,
     Amex,
+    Argencard,
+    Bcmc,
+    Bijcard,
+    Cabal,
+    Cartebancaire,
+    Codensa,
+    Cup,
+    Dankort,
+    Diners,
+    Discover,
+    Electron,
+    Elo,
+    Forbrugsforeningen,
+    Hiper,
+    Hipercard,
+    Jcb,
+    Karenmillen,
+    Laser,
+    Maestro,
+    Maestrouk,
+    Mcalphabankbonus,
+    Mir,
+    Naranja,
+    Oasis,
+    Rupay,
+    Shopping,
+    Solo,
+    Troy,
+    Uatp,
+    Visaalphabankbonus,
+    Visadankort,
+    Warehouse,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -1555,7 +1588,8 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::OpenBanking(_)
                 | domain::PaymentMethodData::CardToken(_)
-                | domain::PaymentMethodData::NetworkToken(_) => {
+                | domain::PaymentMethodData::NetworkToken(_)
+                | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
                     ))?
@@ -1736,8 +1770,8 @@ fn get_line_items(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -
             .iter()
             .enumerate()
             .map(|(i, data)| LineItem {
-                amount_including_tax: Some(MinorUnit::new(data.amount)),
-                amount_excluding_tax: Some(MinorUnit::new(data.amount)),
+                amount_including_tax: Some(data.amount),
+                amount_excluding_tax: Some(data.amount),
                 description: Some(data.product_name.clone()),
                 id: Some(format!("Items #{i}")),
                 tax_amount: None,
@@ -1930,6 +1964,22 @@ impl<'a> TryFrom<&domain::GiftCardData> for AdyenPaymentMethod<'a> {
     }
 }
 
+fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<CardBrand> {
+    match card_network {
+        common_enums::CardNetwork::Visa => Some(CardBrand::Visa),
+        common_enums::CardNetwork::Mastercard => Some(CardBrand::MC),
+        common_enums::CardNetwork::CartesBancaires => Some(CardBrand::Cartebancaire),
+        common_enums::CardNetwork::AmericanExpress => Some(CardBrand::Amex),
+        common_enums::CardNetwork::JCB => Some(CardBrand::Jcb),
+        common_enums::CardNetwork::DinersClub => Some(CardBrand::Diners),
+        common_enums::CardNetwork::Discover => Some(CardBrand::Discover),
+        common_enums::CardNetwork::UnionPay => Some(CardBrand::Cup),
+        common_enums::CardNetwork::RuPay => Some(CardBrand::Rupay),
+        common_enums::CardNetwork::Maestro => Some(CardBrand::Maestro),
+        common_enums::CardNetwork::Interac => None,
+    }
+}
+
 impl<'a> TryFrom<(&domain::Card, Option<Secret<String>>)> for AdyenPaymentMethod<'a> {
     type Error = Error;
     fn try_from(
@@ -1942,7 +1992,7 @@ impl<'a> TryFrom<(&domain::Card, Option<Secret<String>>)> for AdyenPaymentMethod
             expiry_year: card.get_expiry_year_4_digit(),
             cvc: Some(card.card_cvc.clone()),
             holder_name: card_holder_name,
-            brand: None,
+            brand: card.card_network.clone().and_then(get_adyen_card_network),
             network_payment_reference: None,
         };
         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
@@ -1997,7 +2047,11 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
             utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
             utils::CardIssuer::Master => Ok(Self::MC),
             utils::CardIssuer::Visa => Ok(Self::Visa),
-            _ => Err(errors::ConnectorError::NotImplemented("CardBrand".to_string()).into()),
+            utils::CardIssuer::Maestro => Ok(Self::Maestro),
+            utils::CardIssuer::Discover => Ok(Self::Discover),
+            utils::CardIssuer::DinersClub => Ok(Self::Diners),
+            utils::CardIssuer::JCB => Ok(Self::Jcb),
+            utils::CardIssuer::CarteBlanche => Ok(Self::Cartebancaire),
         }
     }
 }
@@ -2082,7 +2136,7 @@ impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
             domain::WalletData::SamsungPay(samsung_data) => {
                 let data = SamsungPayPmData {
                     payment_type: PaymentType::Samsungpay,
-                    samsung_pay_token: samsung_data.token.to_owned(),
+                    samsung_pay_token: samsung_data.payment_credential.token_data.data.to_owned(),
                 };
                 Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
@@ -2096,6 +2150,7 @@ impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
             | domain::WalletData::GooglePayRedirect(_)
             | domain::WalletData::GooglePayThirdPartySdk(_)
             | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::Paze(_)
             | domain::WalletData::WeChatPayQr(_)
             | domain::WalletData::CashappQr(_)
             | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
@@ -2527,15 +2582,30 @@ impl<'a>
             }
             payments::MandateReferenceId::NetworkMandateId(network_mandate_id) => {
                 match item.router_data.request.payment_method_data {
-                    domain::PaymentMethodData::Card(ref card) => {
-                        let card_issuer = card.get_card_issuer()?;
-                        let brand = CardBrand::try_from(&card_issuer)?;
+                    domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                        ref card_details_for_network_transaction_id,
+                    ) => {
+                        let brand = match card_details_for_network_transaction_id
+                            .card_network
+                            .clone()
+                            .and_then(get_adyen_card_network)
+                        {
+                            Some(card_network) => card_network,
+                            None => CardBrand::try_from(
+                                &card_details_for_network_transaction_id.get_card_issuer()?,
+                            )?,
+                        };
+
                         let card_holder_name = item.router_data.get_optional_billing_full_name();
                         let adyen_card = AdyenCard {
                             payment_type: PaymentType::Scheme,
-                            number: card.card_number.clone(),
-                            expiry_month: card.card_exp_month.clone(),
-                            expiry_year: card.card_exp_year.clone(),
+                            number: card_details_for_network_transaction_id.card_number.clone(),
+                            expiry_month: card_details_for_network_transaction_id
+                                .card_exp_month
+                                .clone(),
+                            expiry_year: card_details_for_network_transaction_id
+                                .card_exp_year
+                                .clone(),
                             cvc: None,
                             holder_name: card_holder_name,
                             brand: Some(brand),
@@ -2558,13 +2628,20 @@ impl<'a>
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
                     | domain::PaymentMethodData::CardToken(_)
-                    | domain::PaymentMethodData::NetworkToken(_) => {
+                    | domain::PaymentMethodData::NetworkToken(_)
+                    | domain::PaymentMethodData::Card(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
                         })?
                     }
                 }
+            }
+            payments::MandateReferenceId::NetworkTokenWithNTI(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "Network tokenization for payment method".to_string(),
+                    connector: "Adyen",
+                })?
             }
         }?;
         Ok(AdyenPaymentRequest {
@@ -2951,7 +3028,7 @@ fn get_redirect_extra_details(
                 let country = item.get_optional_billing_country();
                 Ok((preferred_language.clone(), country))
             }
-            domain::BankRedirectData::Trustly {}
+            domain::BankRedirectData::Trustly { .. }
             | domain::BankRedirectData::OpenBankingUk { .. } => {
                 let country = item.get_optional_billing_country();
                 Ok((None, country))
@@ -3196,8 +3273,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.payment_psp_reference,
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
@@ -3231,8 +3308,8 @@ impl<F>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -3287,6 +3364,7 @@ pub fn get_adyen_response(
         .map(|mandate_id| types::MandateReference {
             connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
+            mandate_metadata: None,
         });
     let network_txn_id = response.additional_data.and_then(|additional_data| {
         additional_data
@@ -3296,8 +3374,8 @@ pub fn get_adyen_response(
 
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
-        redirection_data: None,
-        mandate_reference,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(mandate_reference),
         connector_metadata: None,
         network_txn_id,
         connector_response_reference_id: Some(response.merchant_reference),
@@ -3360,8 +3438,8 @@ pub fn get_webhook_response(
                     .payment_reference
                     .unwrap_or(response.transaction_id),
             ),
-            redirection_data: None,
-            mandate_reference: None,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(response.merchant_reference_id),
@@ -3430,8 +3508,8 @@ pub fn get_redirection_response(
             Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
             None => types::ResponseId::NoResponseId,
         },
-        redirection_data,
-        mandate_reference: None,
+        redirection_data: Box::new(redirection_data),
+        mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3488,8 +3566,8 @@ pub fn get_present_to_shopper_response(
             Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
             None => types::ResponseId::NoResponseId,
         },
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3545,8 +3623,8 @@ pub fn get_qr_code_response(
             Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
             None => types::ResponseId::NoResponseId,
         },
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3588,8 +3666,8 @@ pub fn get_redirection_error_response(
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3958,8 +4036,8 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
             status: storage_enums::AttemptStatus::Pending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(connector_transaction_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),

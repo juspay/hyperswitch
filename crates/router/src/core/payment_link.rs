@@ -9,10 +9,9 @@ use common_utils::{
         DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
         DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_LOCALE, DEFAULT_MERCHANT_LOGO,
         DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
-        DEFAULT_TRANSACTION_DETAILS,
     },
     ext_traits::{AsyncExt, OptionExt, ValueExt},
-    types::{AmountConvertor, MinorUnit, StringMajorUnitForCore},
+    types::{AmountConvertor, StringMajorUnitForCore},
 };
 use error_stack::{report, ResultExt};
 use futures::future;
@@ -64,12 +63,25 @@ pub async fn retrieve_payment_link(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+#[cfg(feature = "v2")]
 pub async fn form_payment_link_data(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
+    locale: Option<String>,
+) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+pub async fn form_payment_link_data(
+    state: &SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    merchant_id: common_utils::id_type::MerchantId,
+    payment_id: common_utils::id_type::PaymentId,
     locale: Option<String>,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
@@ -114,7 +126,7 @@ pub async fn form_payment_link_data(
                 display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
                 enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-                transaction_details: DEFAULT_TRANSACTION_DETAILS,
+                transaction_details: None,
             }
         };
 
@@ -128,7 +140,7 @@ pub async fn form_payment_link_data(
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
@@ -269,7 +281,7 @@ pub async fn initiate_secure_payment_link_flow(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
@@ -368,7 +380,7 @@ pub async fn initiate_payment_link_flow(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
@@ -535,7 +547,7 @@ fn validate_order_details(
                         .clone_from(&order.product_img_link)
                 };
                 order_details_amount_string.amount = required_conversion_type
-                    .convert(MinorUnit::new(order.amount), currency)
+                    .convert(order.amount, currency)
                     .change_context(errors::ApiErrorResponse::AmountConversionFailed {
                         amount_type: "StringMajorUnit",
                     })?;
@@ -616,24 +628,8 @@ pub fn get_payment_link_config_based_on_priority(
         display_sdk_only,
         enabled_saved_payment_method,
         allowed_domains,
-        transaction_details: payment_create_link_config.and_then(|payment_link_config| {
-            payment_link_config
-                .theme_config
-                .transaction_details
-                .and_then(|transaction_details| {
-                    match serde_json::to_string(&transaction_details).change_context(
-                        errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "transaction_details",
-                        },
-                    ) {
-                        Ok(details) => Some(details),
-                        Err(err) => {
-                            logger::error!("Failed to serialize transaction details: {:?}", err);
-                            None
-                        }
-                    }
-                })
-        }),
+        transaction_details: payment_create_link_config
+            .and_then(|payment_link_config| payment_link_config.theme_config.transaction_details),
     };
 
     Ok((payment_link_config, domain_name))
@@ -659,12 +655,25 @@ fn check_payment_link_invalid_conditions(
     not_allowed_statuses.contains(intent_status)
 }
 
+#[cfg(feature = "v2")]
+pub async fn get_payment_link_status(
+    _state: SessionState,
+    _merchant_account: domain::MerchantAccount,
+    _key_store: domain::MerchantKeyStore,
+    _merchant_id: common_utils::id_type::MerchantId,
+    _payment_id: common_utils::id_type::PaymentId,
+    _request_headers: &header::HeaderMap,
+) -> RouterResponse<services::PaymentLinkFormData> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 pub async fn get_payment_link_status(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     merchant_id: common_utils::id_type::MerchantId,
-    payment_id: String,
+    payment_id: common_utils::id_type::PaymentId,
     request_headers: &header::HeaderMap,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let locale = get_header_value_by_key(ACCEPT_LANGUAGE.into(), request_headers)?
@@ -721,7 +730,7 @@ pub async fn get_payment_link_status(
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
-            transaction_details: DEFAULT_TRANSACTION_DETAILS,
+            transaction_details: None,
         }
     };
 
@@ -735,7 +744,7 @@ pub async fn get_payment_link_status(
     let required_conversion_type = StringMajorUnitForCore;
 
     let amount = required_conversion_type
-        .convert(payment_attempt.net_amount, currency)
+        .convert(payment_attempt.get_total_amount(), currency)
         .change_context(errors::ApiErrorResponse::AmountConversionFailed {
             amount_type: "StringMajorUnit",
         })?;
@@ -753,7 +762,7 @@ pub async fn get_payment_link_status(
     let business_profile = db
         .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 

@@ -54,7 +54,7 @@ fn build_test_data(
 
     let profile_id = common_utils::generate_profile_id_of_default_length();
 
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     let stripe_account = MerchantConnectorResponse {
         connector_type: api_enums::ConnectorType::FizOperations,
         connector_name: "stripe".to_string(),
@@ -71,12 +71,10 @@ fn build_test_data(
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
         additional_merchant_data: None,
+        connector_wallets_details: None,
     };
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let stripe_account = MerchantConnectorResponse {
         connector_type: api_enums::ConnectorType::FizOperations,
         connector_name: "stripe".to_string(),
@@ -98,6 +96,7 @@ fn build_test_data(
         pm_auth_config: None,
         status: api_enums::ConnectorStatus::Inactive,
         additional_merchant_data: None,
+        connector_wallets_details: None,
     };
     let config = CountryCurrencyFilter {
         connector_configs: HashMap::new(),

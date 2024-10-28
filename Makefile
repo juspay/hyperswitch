@@ -84,7 +84,7 @@ clippy :
 # 	make euclid-wasm
 
 euclid-wasm:
-	wasm-pack build --target web --out-dir $(ROOT_DIR)/wasm --out-name euclid $(ROOT_DIR)/crates/euclid_wasm  -- --features dummy_connector
+	wasm-pack build --target web --out-dir $(ROOT_DIR)/wasm --out-name euclid $(ROOT_DIR)/crates/euclid_wasm  -- --features dummy_connector,v1
 
 # Run Rust tests of project.
 #
@@ -112,4 +112,4 @@ precommit : fmt clippy test
 
 
 hack:
-	cargo hack check --workspace --each-feature --all-targets --exclude-features 'v2 merchant_account_v2 payment_v2'
+	cargo hack check --workspace --each-feature --all-targets --exclude-features 'v2 payment_v2'

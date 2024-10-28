@@ -19,12 +19,18 @@ use diesel::{associations::HasTable, ExpressionMethods, NullableExpressionMethod
     not(feature = "customer_v2")
 ))]
 use diesel_models::payout_attempt::PayoutAttempt as DieselPayoutAttempt;
+#[cfg(all(
+    feature = "olap",
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2")
+))]
+use diesel_models::schema::{
+    address::dsl as add_dsl, customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl,
+};
 #[cfg(feature = "olap")]
 use diesel_models::{
-    customers::Customer as DieselCustomer,
-    enums as storage_enums,
-    query::generics::db_metrics,
-    schema::{customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl, payouts::dsl as po_dsl},
+    address::Address as DieselAddress, customers::Customer as DieselCustomer,
+    enums as storage_enums, query::generics::db_metrics, schema::payouts::dsl as po_dsl,
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
@@ -57,8 +63,8 @@ use crate::connection;
     not(feature = "customer_v2")
 ))]
 use crate::store::schema::{
-    customers::all_columns as cust_all_columns, payout_attempt::all_columns as poa_all_columns,
-    payouts::all_columns as po_all_columns,
+    address::all_columns as addr_all_columns, customers::all_columns as cust_all_columns,
+    payout_attempt::all_columns as poa_all_columns, payouts::all_columns as po_all_columns,
 };
 use crate::{
     diesel_error_to_data_error,
@@ -76,8 +82,12 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         new: PayoutsNew,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Insert).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayouts>(
+            self,
+            storage_scheme,
+            Op::Insert,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store.insert_payout(new, storage_scheme).await
@@ -120,11 +130,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::Payouts(new.to_storage_model()),
+                        insertable: Box::new(kv::Insertable::Payouts(new.to_storage_model())),
                     },
                 };
 
-                match kv_wrapper::<DieselPayouts, _, _>(
+                match Box::pin(kv_wrapper::<DieselPayouts, _, _>(
                     self,
                     KvOperation::<DieselPayouts>::HSetNx(
                         &field,
@@ -132,7 +142,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                         redis_entry,
                     ),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hsetnx()
@@ -162,11 +172,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             payout_id: &this.payout_id,
         };
         let field = format!("po_{}", this.payout_id);
-        let storage_scheme = decide_storage_scheme::<_, DieselPayouts>(
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayouts>(
             self,
             storage_scheme,
             Op::Update(key.clone(), &field, None),
-        )
+        ))
         .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
@@ -191,18 +201,18 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
-                        updatable: kv::Updateable::PayoutsUpdate(kv::PayoutsUpdateMems {
+                        updatable: Box::new(kv::Updateable::PayoutsUpdate(kv::PayoutsUpdateMems {
                             orig: origin_diesel_payout,
                             update_data: diesel_payout_update,
-                        }),
+                        })),
                     },
                 };
 
-                kv_wrapper::<(), _, _>(
+                Box::pin(kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::<DieselPayouts>::Hset((&field, redis_value), redis_entry),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hset()
@@ -229,8 +239,12 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
         };
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayouts>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
@@ -241,11 +255,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper::<DieselPayouts, _, _>(
+                        Box::pin(kv_wrapper::<DieselPayouts, _, _>(
                             self,
                             KvOperation::<DieselPayouts>::HGet(&field),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },
@@ -273,8 +287,12 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     er.change_context(new_err)
                 })
         };
-        let storage_scheme =
-            decide_storage_scheme::<_, DieselPayouts>(self, storage_scheme, Op::Find).await;
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayouts>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 let maybe_payouts = database_call().await?;
@@ -294,11 +312,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 let field = format!("po_{payout_id}");
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper::<DieselPayouts, _, _>(
+                        Box::pin(kv_wrapper::<DieselPayouts, _, _>(
                             self,
                             KvOperation::<DieselPayouts>::HGet(&field),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                         .map(Some)
@@ -331,8 +349,15 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
-    {
+    ) -> error_stack::Result<
+        Vec<(
+            Payouts,
+            PayoutAttempt,
+            Option<DieselCustomer>,
+            Option<DieselAddress>,
+        )>,
+        StorageError,
+    > {
         self.router_store
             .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
             .await
@@ -343,7 +368,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     async fn filter_payouts_by_time_range_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         self.router_store
@@ -571,8 +596,17 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
-    {
+    ) -> error_stack::Result<
+        Vec<(
+            Payouts,
+            PayoutAttempt,
+            Option<DieselCustomer>,
+            Option<DieselAddress>,
+        )>,
+        StorageError,
+    > {
+        use common_utils::errors::ReportSwitchExt;
+
         let conn = connection::pg_connection_read(self).await.switch()?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPayouts::table()
@@ -583,6 +617,11 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             .left_join(
                 diesel_models::schema::customers::table
                     .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
+            )
+            .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .left_outer_join(
+                diesel_models::schema::address::table
+                    .on(add_dsl::address_id.nullable().eq(po_dsl::address_id)),
             )
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
@@ -674,17 +713,28 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         query
-            .select((po_all_columns, poa_all_columns, cust_all_columns.nullable()))
-            .get_results_async::<(DieselPayouts, DieselPayoutAttempt, Option<DieselCustomer>)>(conn)
+            .select((
+                po_all_columns,
+                poa_all_columns,
+                cust_all_columns.nullable(),
+                addr_all_columns.nullable(),
+            ))
+            .get_results_async::<(
+                DieselPayouts,
+                DieselPayoutAttempt,
+                Option<DieselCustomer>,
+                Option<DieselAddress>,
+            )>(conn)
             .await
             .map(|results| {
                 results
                     .into_iter()
-                    .map(|(pi, pa, c)| {
+                    .map(|(pi, pa, c, add)| {
                         (
                             Payouts::from_storage_model(pi),
                             PayoutAttempt::from_storage_model(pa),
                             c,
+                            add,
                         )
                     })
                     .collect()
@@ -705,8 +755,15 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &PayoutFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(Payouts, PayoutAttempt, Option<DieselCustomer>)>, StorageError>
-    {
+    ) -> error_stack::Result<
+        Vec<(
+            Payouts,
+            PayoutAttempt,
+            Option<DieselCustomer>,
+            Option<DieselAddress>,
+        )>,
+        StorageError,
+    > {
         todo!()
     }
 
@@ -715,7 +772,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     async fn filter_payouts_by_time_range_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
-        time_range: &api_models::payments::TimeRange,
+        time_range: &common_utils::types::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         let payout_filters = (*time_range).into();
@@ -785,6 +842,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
             )
             .select(po_dsl::payout_id)
+            .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
             .into_boxed();

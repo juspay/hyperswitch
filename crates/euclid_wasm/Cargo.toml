@@ -17,6 +17,7 @@ production = ["connector_configs/production"]
 development = ["connector_configs/development"]
 sandbox = ["connector_configs/sandbox"]
 payouts = ["api_models/payouts", "euclid/payouts"]
+v1 = ["api_models/v1"]
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }

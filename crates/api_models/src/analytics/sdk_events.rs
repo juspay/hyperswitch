@@ -8,7 +8,7 @@ use super::{NameDescription, TimeRange};
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SdkEventsRequest {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub time_range: TimeRange,
 }
 

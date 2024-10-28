@@ -6,9 +6,9 @@ pub mod diesel_exports {
         DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
         DbConnectorStatus as ConnectorStatus, DbConnectorType as ConnectorType,
         DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
-        DbDashboardMetadata as DashboardMetadata, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
-        DbEventObjectType as EventObjectType, DbEventType as EventType,
+        DbDashboardMetadata as DashboardMetadata, DbDeleteStatus as DeleteStatus,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus,
+        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
         DbFutureUsage as FutureUsage, DbGenericLinkType as GenericLinkType,
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
@@ -50,6 +50,7 @@ pub enum RoutingAlgorithmKind {
     Priority,
     VolumeSplit,
     Advanced,
+    Dynamic,
 }
 
 #[derive(
@@ -171,7 +172,7 @@ common_utils::impl_to_sql_from_sql_json!(MandateDataType);
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
-    pub amount: i64,
+    pub amount: common_utils::types::MinorUnit,
     pub currency: Currency,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,

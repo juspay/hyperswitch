@@ -11,7 +11,7 @@ use crate::{
     types::domain,
 };
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn upsert_conditional_config(
     _state: SessionState,
     _key_store: domain::MerchantKeyStore,
@@ -21,10 +21,7 @@ pub async fn upsert_conditional_config(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn upsert_conditional_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
@@ -163,7 +160,7 @@ pub async fn upsert_conditional_config(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn delete_conditional_config(
     _state: SessionState,
     _key_store: domain::MerchantKeyStore,
@@ -172,10 +169,7 @@ pub async fn delete_conditional_config(
     todo!()
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn delete_conditional_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,

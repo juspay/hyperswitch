@@ -36,11 +36,11 @@
       "payment_method_type": "credit",
       "payment_method_data": {
         "card": {
-          "card_number": "371449635398431",
+          "card_number": "4111111111111111",
           "card_exp_month": "03",
           "card_exp_year": "2030",
           "card_holder_name": "joseph Doe",
-          "card_cvc": "7373"
+          "card_cvc": "737"
         }
       },
       "billing": {

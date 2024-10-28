@@ -13,6 +13,7 @@ use error_stack::ResultExt;
 use external_services::email::EmailSettings;
 use external_services::{
     file_storage::FileStorageConfig,
+    grpc_client::GrpcClientSettings,
     managers::{
         encryption_management::EncryptionManagementConfig,
         secrets_management::SecretsManagementConfig,
@@ -94,7 +95,8 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
-    pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConifg, S>,
+    pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
+    pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: SecretStateContainer<ApplepayMerchantConfigs, S>,
     pub lock_settings: LockSettings,
@@ -120,6 +122,12 @@ pub struct Settings<S: SecretState> {
     pub user_auth_methods: SecretStateContainer<UserAuthMethodSettings, S>,
     pub decision: Option<DecisionConfig>,
     pub locker_based_open_banking_connectors: LockerBasedRecipientConnectorList,
+    pub grpc_client: GrpcClientSettings,
+    #[cfg(feature = "v2")]
+    pub cell_information: CellInformation,
+    pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
+    pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
+    pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -208,9 +216,10 @@ pub struct KvConfig {
     pub soft_kill: Option<bool>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct KeyManagerConfig {
-    pub enabled: Option<bool>,
+    pub enabled: bool,
     pub url: String,
     #[cfg(feature = "keymanager_mtls")]
     pub cert: Secret<String>,
@@ -393,6 +402,24 @@ pub struct NetworkTransactionIdSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkTokenizationSupportedCardNetworks {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub card_networks: HashSet<enums::CardNetwork>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct NetworkTokenizationService {
+    pub generate_token_url: url::Url,
+    pub fetch_token_url: url::Url,
+    pub token_service_api_key: Secret<String>,
+    pub public_key: Secret<String>,
+    pub private_key: Secret<String>,
+    pub key_id: String,
+    pub delete_token_url: url::Url,
+    pub check_token_status_url: url::Url,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct SupportedPaymentMethodsForMandate(
     pub HashMap<enums::PaymentMethod, SupportedPaymentMethodTypesForMandate>,
@@ -490,6 +517,10 @@ pub struct NotAvailableFlows {
     pub capture_method: Option<enums::CaptureMethod>,
 }
 
+#[cfg(feature = "payouts")]
+#[derive(Debug, Deserialize, Clone)]
+pub struct PayoutRequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct RequiredFields(pub HashMap<enums::PaymentMethod, PaymentMethodType>);
 
@@ -513,7 +544,6 @@ pub struct RequiredFieldFinal {
 pub struct Secrets {
     pub jwt_secret: Secret<String>,
     pub admin_api_key: Secret<String>,
-    pub recon_admin_api_key: Secret<String>,
     pub master_enc_key: Secret<String>,
 }
 
@@ -669,6 +699,9 @@ pub struct ApiKeys {
 
     #[cfg(feature = "partial-auth")]
     pub checksum_auth_key: Secret<String>,
+
+    #[cfg(feature = "partial-auth")]
+    pub enable_partial_auth: bool,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -684,11 +717,17 @@ pub struct WebhookSourceVerificationCall {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct ApplePayDecryptConifg {
+pub struct ApplePayDecryptConfig {
     pub apple_pay_ppc: Secret<String>,
     pub apple_pay_ppc_key: Secret<String>,
     pub apple_pay_merchant_cert: Secret<String>,
     pub apple_pay_merchant_cert_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PazeDecryptConfig {
+    pub paze_private_key: Secret<String>,
+    pub paze_private_key_passphrase: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -707,6 +746,12 @@ pub struct ConnectorRequestReferenceIdConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct UserAuthMethodSettings {
     pub encryption_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NetworkTokenizationSupportedConnectors {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub connector_list: HashSet<enums::Connector>,
 }
 
 impl Settings<SecuredSecret> {
@@ -818,6 +863,21 @@ impl Settings<SecuredSecret> {
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
         self.generic_link.payment_method_collect.validate()?;
         self.generic_link.payout_link.validate()?;
+
+        #[cfg(feature = "v2")]
+        self.cell_information.validate()?;
+        self.network_tokenization_service
+            .as_ref()
+            .map(|x| x.get_inner().validate())
+            .transpose()?;
+
+        self.paze_decrypt_keys
+            .as_ref()
+            .map(|x| x.get_inner().validate())
+            .transpose()?;
+
+        self.key_manager.get_inner().validate()?;
+
         Ok(())
     }
 }
@@ -838,6 +898,8 @@ impl Settings<RawSecret> {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Payouts {
     pub payout_eligibility: bool,
+    #[serde(default)]
+    pub required_fields: PayoutRequiredFields,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -895,6 +957,26 @@ pub struct ServerTls {
     pub private_key: PathBuf,
     /// certificate file associated with TLS (path to the certificate file (`pem` format))
     pub certificate: PathBuf,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct CellInformation {
+    pub id: common_utils::id_type::CellId,
+}
+
+#[cfg(feature = "v2")]
+impl Default for CellInformation {
+    fn default() -> Self {
+        // We provide a static default cell id for constructing application settings.
+        // This will only panic at application startup if we're unable to construct the default,
+        // around the time of deserializing application settings.
+        // And a panic at application startup is considered acceptable.
+        #[allow(clippy::expect_used)]
+        let cell_id = common_utils::id_type::CellId::from_string("defid")
+            .expect("Failed to create a default for Cell Id");
+        Self { id: cell_id }
+    }
 }
 
 fn deserialize_hashmap_inner<K, V>(

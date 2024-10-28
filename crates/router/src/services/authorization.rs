@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use common_enums::PermissionGroup;
 use common_utils::id_type;
 use error_stack::ResultExt;
 use redis_interface::RedisConnectionPool;
@@ -19,69 +18,57 @@ pub mod permission_groups;
 pub mod permissions;
 pub mod roles;
 
-pub async fn get_permissions<A>(
-    state: &A,
-    token: &AuthToken,
-) -> RouterResult<Vec<permissions::Permission>>
+pub async fn get_role_info<A>(state: &A, token: &AuthToken) -> RouterResult<roles::RoleInfo>
 where
     A: SessionStateInfo + Sync,
 {
-    if let Some(permissions) = get_permissions_from_predefined_roles(&token.role_id) {
-        return Ok(permissions);
+    if let Some(role_info) = roles::predefined_roles::PREDEFINED_ROLES.get(token.role_id.as_str()) {
+        return Ok(role_info.clone());
     }
 
-    if let Ok(permissions) = get_permissions_from_cache(state, &token.role_id)
+    if let Ok(role_info) = get_role_info_from_cache(state, &token.role_id)
         .await
         .map_err(|e| logger::error!("Failed to get permissions from cache {e:?}"))
     {
-        return Ok(permissions);
+        return Ok(role_info.clone());
     }
 
-    let permissions =
-        get_permissions_from_db(state, &token.role_id, &token.merchant_id, &token.org_id).await?;
+    let role_info =
+        get_role_info_from_db(state, &token.role_id, &token.merchant_id, &token.org_id).await?;
 
     let token_expiry =
         i64::try_from(token.exp).change_context(ApiErrorResponse::InternalServerError)?;
     let cache_ttl = token_expiry - common_utils::date_time::now_unix_timestamp();
 
-    set_permissions_in_cache(state, &token.role_id, &permissions, cache_ttl)
+    set_role_info_in_cache(state, &token.role_id, &role_info, cache_ttl)
         .await
-        .map_err(|e| logger::error!("Failed to set permissions in cache {e:?}"))
+        .map_err(|e| logger::error!("Failed to set role info in cache {e:?}"))
         .ok();
-    Ok(permissions)
+    Ok(role_info)
 }
 
-async fn get_permissions_from_cache<A>(
-    state: &A,
-    role_id: &str,
-) -> RouterResult<Vec<permissions::Permission>>
+async fn get_role_info_from_cache<A>(state: &A, role_id: &str) -> RouterResult<roles::RoleInfo>
 where
     A: SessionStateInfo + Sync,
 {
     let redis_conn = get_redis_connection(state)?;
 
     redis_conn
-        .get_and_deserialize_key(&get_cache_key_from_role_id(role_id), "Vec<Permission>")
+        .get_and_deserialize_key(&get_cache_key_from_role_id(role_id), "RoleInfo")
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
 
 pub fn get_cache_key_from_role_id(role_id: &str) -> String {
-    format!("{}{}", consts::ROLE_CACHE_PREFIX, role_id)
+    format!("{}{}", consts::ROLE_INFO_CACHE_PREFIX, role_id)
 }
 
-fn get_permissions_from_predefined_roles(role_id: &str) -> Option<Vec<permissions::Permission>> {
-    roles::predefined_roles::PREDEFINED_ROLES
-        .get(role_id)
-        .map(|role_info| get_permissions_from_groups(role_info.get_permission_groups()))
-}
-
-async fn get_permissions_from_db<A>(
+async fn get_role_info_from_db<A>(
     state: &A,
     role_id: &str,
     merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
-) -> RouterResult<Vec<permissions::Permission>>
+) -> RouterResult<roles::RoleInfo>
 where
     A: SessionStateInfo + Sync,
 {
@@ -89,14 +76,14 @@ where
         .store()
         .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
         .await
-        .map(|role| get_permissions_from_groups(&role.groups))
+        .map(roles::RoleInfo::from)
         .to_not_found_response(ApiErrorResponse::InvalidJwtToken)
 }
 
-pub async fn set_permissions_in_cache<A>(
+pub async fn set_role_info_in_cache<A>(
     state: &A,
     role_id: &str,
-    permissions: &Vec<permissions::Permission>,
+    role_info: &roles::RoleInfo,
     expiry: i64,
 ) -> RouterResult<()>
 where
@@ -105,32 +92,17 @@ where
     let redis_conn = get_redis_connection(state)?;
 
     redis_conn
-        .serialize_and_set_key_with_expiry(
-            &get_cache_key_from_role_id(role_id),
-            permissions,
-            expiry,
-        )
+        .serialize_and_set_key_with_expiry(&get_cache_key_from_role_id(role_id), role_info, expiry)
         .await
         .change_context(ApiErrorResponse::InternalServerError)
 }
 
-pub fn get_permissions_from_groups(groups: &[PermissionGroup]) -> Vec<permissions::Permission> {
-    groups
-        .iter()
-        .flat_map(|group| {
-            permission_groups::get_permissions_vec(group)
-                .iter()
-                .cloned()
-        })
-        .collect()
-}
-
-pub fn check_authorization(
+pub fn check_permission(
     required_permission: &permissions::Permission,
-    permissions: &[permissions::Permission],
+    role_info: &roles::RoleInfo,
 ) -> RouterResult<()> {
-    permissions
-        .contains(required_permission)
+    role_info
+        .check_permission_exists(required_permission)
         .then_some(())
         .ok_or(
             ApiErrorResponse::AccessForbidden {

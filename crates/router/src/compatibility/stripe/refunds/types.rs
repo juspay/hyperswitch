@@ -9,7 +9,7 @@ use crate::types::api::{admin, refunds};
 pub struct StripeCreateRefundRequest {
     pub refund_id: Option<String>,
     pub amount: Option<i64>,
-    pub payment_intent: String,
+    pub payment_intent: common_utils::id_type::PaymentId,
     pub reason: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
@@ -27,7 +27,7 @@ pub struct StripeRefundResponse {
     pub id: String,
     pub amount: i64,
     pub currency: String,
-    pub payment_intent: String,
+    pub payment_intent: common_utils::id_type::PaymentId,
     pub status: StripeRefundStatus,
     pub created: Option<i64>,
     pub metadata: pii::SecretSerdeValue,

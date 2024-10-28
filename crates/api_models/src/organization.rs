@@ -20,7 +20,18 @@ pub struct OrganizationId {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
-pub struct OrganizationRequest {
+#[serde(deny_unknown_fields)]
+pub struct OrganizationCreateRequest {
+    pub organization_name: String,
+    #[schema(value_type = Option<Object>)]
+    pub organization_details: Option<pii::SecretSerdeValue>,
+    #[schema(value_type = Option<Object>)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OrganizationUpdateRequest {
     pub organization_name: Option<String>,
     #[schema(value_type = Option<Object>)]
     pub organization_details: Option<pii::SecretSerdeValue>,

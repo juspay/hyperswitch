@@ -76,7 +76,9 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment method with the specified details already exists in our records")]
     DuplicatePaymentMethod,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment with the specified payment_id already exists in our records")]
-    DuplicatePayment { payment_id: String },
+    DuplicatePayment {
+        payment_id: common_utils::id_type::PaymentId,
+    },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payout with the specified payout_id '{payout_id}' already exists in our records")]
     DuplicatePayout { payout_id: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The config with the specified key already exists in our records")]
@@ -98,7 +100,7 @@ pub enum ApiErrorResponse {
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account does not exist in our records")]
     MerchantConnectorAccountNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Business profile with the given id  '{id}' does not exist in our records")]
-    BusinessProfileNotFound { id: String },
+    ProfileNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Poll with the given id  '{id}' does not exist in our records")]
     PollNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Resource ID does not exist in our records")]
@@ -374,7 +376,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 1, "The payment method with the specified details already exists in our records", None)),
             Self::DuplicatePayment { payment_id } => {
-                AER::BadRequest(ApiError::new("HE", 1, "The payment with the specified payment_id already exists in our records", Some(Extra {reason: Some(format!("{payment_id} already exists")), ..Default::default()})))
+                AER::BadRequest(ApiError::new("HE", 1, "The payment with the specified payment_id already exists in our records", Some(Extra {reason: Some(format!("{payment_id:?} already exists")), ..Default::default()})))
             }
             Self::DuplicatePayout { payout_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
@@ -406,7 +408,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::MerchantConnectorAccountNotFound {id } => {
                 AER::NotFound(ApiError::new("HE", 2, "Merchant connector account does not exist in our records", Some(Extra {reason: Some(format!("{id} does not exist")), ..Default::default()})))
             }
-            Self::BusinessProfileNotFound { id } => {
+            Self::ProfileNotFound { id } => {
                 AER::NotFound(ApiError::new("HE", 2, format!("Business profile with the given id {id} does not exist"), None))
             }
             Self::PollNotFound { .. } => {

@@ -1,4 +1,4 @@
-use std::{net::IpAddr, str::FromStr};
+use std::{net::IpAddr, ops::Not, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 use api_models::user::dashboard_metadata::{
@@ -11,6 +11,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use masking::Secret;
+use router_env::logger;
 
 use crate::{
     core::errors::{UserErrors, UserResult},
@@ -284,8 +285,16 @@ fn not_contains_string(value: &Option<String>, value_to_be_checked: &str) -> boo
 }
 
 pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
-    not_contains_string(&data.poc_email, "juspay")
-        && not_contains_string(&data.business_website, "juspay")
-        && not_contains_string(&data.business_website, "hyperswitch")
-        && not_contains_string(&Some(user_email), "juspay")
+    let poc_email_check = not_contains_string(&data.poc_email, "juspay");
+    let business_website_check = not_contains_string(&data.business_website, "juspay")
+        && not_contains_string(&data.business_website, "hyperswitch");
+    let user_email_check = not_contains_string(&Some(user_email), "juspay");
+
+    if (poc_email_check && business_website_check && user_email_check).not() {
+        logger::info!(prod_intent_email = poc_email_check);
+        logger::info!(prod_intent_email = business_website_check);
+        logger::info!(prod_intent_email = user_email_check);
+    }
+
+    poc_email_check && business_website_check && user_email_check
 }

@@ -484,7 +484,7 @@ async fn insert_metadata(
                             state.conf.proxy.https_url.as_ref(),
                         )
                         .await;
-                    logger::info!(?send_email_result);
+                    logger::info!(prod_intent_email=?send_email_result);
                 }
             }
 
@@ -711,10 +711,7 @@ pub async fn get_merchant_connector_account_by_name(
     connector_name: &str,
     key_store: &MerchantKeyStore,
 ) -> UserResult<Option<domain::MerchantConnectorAccount>> {
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     {
         state
             .store
@@ -731,7 +728,7 @@ pub async fn get_merchant_connector_account_by_name(
             })
             .map(|data| data.first().cloned())
     }
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     {
         let _ = state;
         let _ = merchant_id;

@@ -11,6 +11,7 @@ use crate::{
     types::{api, domain},
 };
 
+#[cfg(feature = "v1")]
 pub async fn get_profile_id_for_mandate(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -32,7 +33,7 @@ pub async fn get_profile_id_for_mandate(
         let profile_id =
             pi.profile_id
                 .clone()
-                .ok_or(errors::ApiErrorResponse::BusinessProfileNotFound {
+                .ok_or(errors::ApiErrorResponse::ProfileNotFound {
                     id: pi
                         .profile_id
                         .map(|profile_id| profile_id.get_string_repr().to_owned())
@@ -51,6 +52,7 @@ pub fn get_mandate_type(
     setup_future_usage: Option<enums::FutureUsage>,
     customer_acceptance: Option<api_payments::CustomerAcceptance>,
     token: Option<String>,
+    payment_method: Option<enums::PaymentMethod>,
 ) -> CustomResult<Option<api::MandateTransactionType>, errors::ValidationError> {
     match (
         mandate_data.clone(),
@@ -58,25 +60,28 @@ pub fn get_mandate_type(
         setup_future_usage,
         customer_acceptance.or(mandate_data.and_then(|m_data| m_data.customer_acceptance)),
         token,
+        payment_method,
     ) {
-        (Some(_), Some(_), Some(enums::FutureUsage::OffSession), Some(_), Some(_)) => {
+        (Some(_), Some(_), Some(enums::FutureUsage::OffSession), Some(_), Some(_), _) => {
             Err(errors::ValidationError::InvalidValue {
                 message: "Expected one out of recurring_details and mandate_data but got both"
                     .to_string(),
             }
             .into())
         }
-        (_, _, Some(enums::FutureUsage::OffSession), Some(_), Some(_))
-        | (_, _, Some(enums::FutureUsage::OffSession), Some(_), _)
-        | (Some(_), _, Some(enums::FutureUsage::OffSession), _, _) => {
+        (_, _, Some(enums::FutureUsage::OffSession), Some(_), Some(_), _)
+        | (_, _, Some(enums::FutureUsage::OffSession), Some(_), _, _)
+        | (Some(_), _, Some(enums::FutureUsage::OffSession), _, _, _) => {
             Ok(Some(api::MandateTransactionType::NewMandateTransaction))
         }
 
-        (_, _, Some(enums::FutureUsage::OffSession), _, Some(_))
-        | (_, Some(_), _, _, _)
-        | (_, _, Some(enums::FutureUsage::OffSession), _, _) => Ok(Some(
-            api::MandateTransactionType::RecurringMandateTransaction,
-        )),
+        (_, _, Some(enums::FutureUsage::OffSession), _, Some(_), _)
+        | (_, Some(_), _, _, _, _)
+        | (_, _, Some(enums::FutureUsage::OffSession), _, _, Some(enums::PaymentMethod::Wallet)) => {
+            Ok(Some(
+                api::MandateTransactionType::RecurringMandateTransaction,
+            ))
+        }
 
         _ => Ok(None),
     }
@@ -90,5 +95,5 @@ pub struct MandateGenericData {
     pub recurring_mandate_payment_data:
         Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
     pub mandate_connector: Option<payments::MandateConnectorDetails>,
-    pub payment_method_info: Option<diesel_models::PaymentMethod>,
+    pub payment_method_info: Option<domain::PaymentMethod>,
 }

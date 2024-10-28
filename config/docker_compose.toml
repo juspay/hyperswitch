@@ -50,7 +50,6 @@ pool_size = 5
 admin_api_key = "test_admin"
 jwt_secret = "secret"
 master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e13a"
-recon_admin_api_key = "recon_test_admin"
 
 [user]
 password_validity_in_days = 90
@@ -131,13 +130,16 @@ coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
+deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
+digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.staging.digitalvirgo.pl"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
 fiuu.base_url = "https://sandbox.merchant.razer.com/"
-fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
+fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
+fiuu.third_base_url = "https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -162,6 +164,7 @@ nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
+paybox.secondary_base_url="https://preprod-tpeweb.paybox.com/"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
@@ -182,6 +185,7 @@ stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
+thunes.base_url = "https://api.limonetikqualif.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
@@ -222,6 +226,8 @@ cards = [
     "cryptopay",
     "cybersource",
     "datatrans",
+    "deutschebank",
+    "digitalvirgo",
     "dlocal",
     "dummyconnector",
     "ebanx",
@@ -263,6 +269,7 @@ cards = [
     "stripe",
     "taxjar",
     "threedsecureio",
+    "thunes",
     "trustpay",
     "tsys",
     "volt",
@@ -313,6 +320,9 @@ bankofamerica = { payment_method = "card" }
 cybersource = { payment_method = "card" }
 nmi = { payment_method = "card" }
 payme = { payment_method = "card" }
+deutschebank = { payment_method = "bank_debit" }
+paybox = { payment_method = "card" }
+nexixpay = { payment_method = "card" }
 
 [dummy_connector]
 enabled = true
@@ -375,7 +385,7 @@ open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,M
 upi_collect = { country = "IN", currency = "INR" }
 
 [pm_filters.plaid]
-open_banking_pis = {currency = "EUR,GBP"}
+open_banking_pis = { currency = "EUR,GBP" }
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -409,6 +419,12 @@ credit = { currency = "USD,GBP,EUR" }
 debit = { currency = "USD,GBP,EUR" }
 apple_pay = { currency = "USD,GBP,EUR" }
 google_pay = { currency = "USD,GBP,EUR" }
+samsung_pay = { currency = "USD,GBP,EUR" }
+paze = { currency = "USD" }
+
+[pm_filters.nexixpay]
+credit = { country = "AT,BE,CY,EE,FI,FR,DE,GR,IE,IT,LV,LT,LU,MT,NL,PT,SK,SI,ES,BG,HR,DK,GB,NO,PL,CZ,RO,SE,CH,HU", currency = "ARS,AUD,BHD,CAD,CLP,CNY,COP,HRK,CZK,DKK,HKD,HUF,INR,JPY,KZT,JOD,KRW,KWD,MYR,MXN,NGN,NOK,PHP,QAR,RUB,SAR,SGD,VND,ZAR,SEK,CHF,THB,AED,EGP,GBP,USD,TWD,BYN,RSD,AZN,RON,TRY,AOA,BGN,EUR,UAH,PLN,BRL" }
+debit = { country = "AT,BE,CY,EE,FI,FR,DE,GR,IE,IT,LV,LT,LU,MT,NL,PT,SK,SI,ES,BG,HR,DK,GB,NO,PL,CZ,RO,SE,CH,HU", currency = "ARS,AUD,BHD,CAD,CLP,CNY,COP,HRK,CZK,DKK,HKD,HUF,INR,JPY,KZT,JOD,KRW,KWD,MYR,MXN,NGN,NOK,PHP,QAR,RUB,SAR,SGD,VND,ZAR,SEK,CHF,THB,AED,EGP,GBP,USD,TWD,BYN,RSD,AZN,RON,TRY,AOA,BGN,EUR,UAH,PLN,BRL" }
 
 [pm_filters.helcim]
 credit = { currency = "USD" }
@@ -418,15 +434,22 @@ debit = { currency = "USD" }
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
 
 [pm_filters.mifinity]
-mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR,CO,CL,PE,VE,UY,PY,BO,EC,GT,HN,SV,NI,CR,PA,DO,CU,PR,NL,NO,PL", currency = "AUD,CAD,CHF,CNY,CZK,DKK,EUR,GBP,INR,JPY,NOK,NZD,PLN,RUB,SEK,ZAR,USD" }
+mifinity = { country = "BR,CN,SG,MY,DE,CH,DK,GB,ES,AD,GI,FI,FR,GR,HR,IT,JP,MX,AR,CO,CL,PE,VE,UY,PY,BO,EC,GT,HN,SV,NI,CR,PA,DO,CU,PR,NL,NO,PL,PT,SE,RU,TR,TW,HK,MO,AX,AL,DZ,AS,AO,AI,AG,AM,AW,AU,AT,AZ,BS,BH,BD,BB,BE,BZ,BJ,BM,BT,BQ,BA,BW,IO,BN,BG,BF,BI,KH,CM,CA,CV,KY,CF,TD,CX,CC,KM,CG,CK,CI,CW,CY,CZ,DJ,DM,EG,GQ,ER,EE,ET,FK,FO,FJ,GF,PF,TF,GA,GM,GE,GH,GL,GD,GP,GU,GG,GN,GW,GY,HT,HM,VA,IS,IN,ID,IE,IM,IL,JE,JO,KZ,KE,KI,KW,KG,LA,LV,LB,LS,LI,LT,LU,MK,MG,MW,MV,ML,MT,MH,MQ,MR,MU,YT,FM,MD,MC,MN,ME,MS,MA,MZ,NA,NR,NP,NC,NZ,NE,NG,NU,NF,MP,OM,PK,PW,PS,PG,PH,PN,QA,RE,RO,RW,BL,SH,KN,LC,MF,PM,VC,WS,SM,ST,SA,SN,RS,SC,SL,SX,SK,SI,SB,SO,ZA,GS,KR,LK,SR,SJ,SZ,TH,TL,TG,TK,TO,TT,TN,TM,TC,TV,UG,UA,AE,UZ,VU,VN,VG,VI,WF,EH,ZM", currency = "AUD,CAD,CHF,CNY,CZK,DKK,EUR,GBP,INR,JPY,NOK,NZD,PLN,RUB,SEK,ZAR,USD,EGP,UYU,UZS" }
 
 [pm_filters.stax]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
 ach = { currency = "USD" }
 
+[pm_filters.worldpay]
+debit = { country = "AF,DZ,AW,AU,AZ,BS,BH,BD,BB,BZ,BM,BT,BO,BA,BW,BR,BN,BG,BI,KH,CA,CV,KY,CL,CO,KM,CD,CR,CZ,DK,DJ,ST,DO,EC,EG,SV,ER,ET,FK,FJ,GM,GE,GH,GI,GT,GN,GY,HT,HN,HK,HU,IS,IN,ID,IR,IQ,IE,IL,IT,JM,JP,JO,KZ,KE,KW,LA,LB,LS,LR,LY,LT,MO,MK,MG,MW,MY,MV,MR,MU,MX,MD,MN,MA,MZ,MM,NA,NZ,NI,NG,KP,NO,AR,PK,PG,PY,PE,UY,PH,PL,GB,QA,OM,RO,RU,RW,WS,SG,ST,ZA,KR,LK,SH,SD,SR,SZ,SE,CH,SY,TW,TJ,TZ,TH,TT,TN,TR,UG,UA,US,UZ,VU,VE,VN,ZM,ZW", currency = "AFN,DZD,ANG,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BZD,BMD,BTN,BOB,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XOF,XAF,XPF,CLP,COP,KMF,CDF,CRC,EUR,CZK,DKK,DJF,DOP,XCD,EGP,SVC,ERN,ETB,EUR,FKP,FJD,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,NZD,NIO,NGN,KPW,NOK,ARS,PKR,PAB,PGK,PYG,PEN,UYU,PHP,PLN,GBP,QAR,OMR,RON,RUB,RWF,WST,SAR,RSD,SCR,SLL,SGD,STN,SBD,SOS,ZAR,KRW,LKR,SHP,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,AED,UGX,UAH,USD,UZS,VUV,VND,YER,CNY,ZMW,ZWL" }
+credit = { country = "AF,DZ,AW,AU,AZ,BS,BH,BD,BB,BZ,BM,BT,BO,BA,BW,BR,BN,BG,BI,KH,CA,CV,KY,CL,CO,KM,CD,CR,CZ,DK,DJ,ST,DO,EC,EG,SV,ER,ET,FK,FJ,GM,GE,GH,GI,GT,GN,GY,HT,HN,HK,HU,IS,IN,ID,IR,IQ,IE,IL,IT,JM,JP,JO,KZ,KE,KW,LA,LB,LS,LR,LY,LT,MO,MK,MG,MW,MY,MV,MR,MU,MX,MD,MN,MA,MZ,MM,NA,NZ,NI,NG,KP,NO,AR,PK,PG,PY,PE,UY,PH,PL,GB,QA,OM,RO,RU,RW,WS,SG,ST,ZA,KR,LK,SH,SD,SR,SZ,SE,CH,SY,TW,TJ,TZ,TH,TT,TN,TR,UG,UA,US,UZ,VU,VE,VN,ZM,ZW", currency = "AFN,DZD,ANG,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BZD,BMD,BTN,BOB,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XOF,XAF,XPF,CLP,COP,KMF,CDF,CRC,EUR,CZK,DKK,DJF,DOP,XCD,EGP,SVC,ERN,ETB,EUR,FKP,FJD,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,NZD,NIO,NGN,KPW,NOK,ARS,PKR,PAB,PGK,PYG,PEN,UYU,PHP,PLN,GBP,QAR,OMR,RON,RUB,RWF,WST,SAR,RSD,SCR,SLL,SGD,STN,SBD,SOS,ZAR,KRW,LKR,SHP,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,AED,UGX,UAH,USD,UZS,VUV,VND,YER,CNY,ZMW,ZWL" }
+google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US" }
+
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
+fiuu.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_of_china,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
 
 [bank_config.online_banking_thailand]
 adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
@@ -496,7 +519,7 @@ database_name = "default"
 [analytics.sqlx]
 username = "db_user"
 password = "db_pass"
-host = "localhost"
+host = "pg"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
@@ -539,13 +562,17 @@ payment_attempts = "hyperswitch-payment-attempt-events"
 payment_intents = "hyperswitch-payment-intent-events"
 refunds = "hyperswitch-refund-events"
 disputes = "hyperswitch-dispute-events"
+sessionizer_payment_attempts = "sessionizer-payment-attempt-events"
+sessionizer_payment_intents = "sessionizer-payment-intent-events"
+sessionizer_refunds = "sessionizer-refund-events"
+sessionizer_disputes = "sessionizer-dispute-events"
 
 [saved_payment_methods]
 sdk_eligible_payment_methods = "card"
 
 [multitenancy]
 enabled = false
-global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
 
 [multitenancy.tenants]
 public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
@@ -584,3 +611,26 @@ ach = { country = "US", currency = "USD" }
 
 [locker_based_open_banking_connectors]
 connector_list = ""
+
+[cell_information]
+id = "12345"
+
+[network_tokenization_supported_card_networks]
+card_networks = "Visa, AmericanExpress, Mastercard"
+
+[network_tokenization_supported_connectors]
+connector_list = "cybersource"
+
+# EmailClient configuration. Only applicable when the `email` feature flag is enabled.
+[email]
+sender_email = "example@example.com"                 # Sender email
+aws_region = ""                                      # AWS region used by AWS SES
+allowed_unverified_days = 1                          # Number of days the api calls ( with jwt token ) can be made without verifying the email
+active_email_client = "SES"                          # The currently active email client
+recon_recipient_email = "recon@example.com"          # Recipient email for recon request email
+prod_intent_recipient_email = "business@example.com" # Recipient email for prod intent email
+
+# Configuration for aws ses, applicable when the active email client is SES
+[email.aws_ses]
+email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
+sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.

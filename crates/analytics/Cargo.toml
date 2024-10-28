@@ -7,9 +7,8 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-default = ["v1"]
-v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1"]
-v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2"]
+v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "common_utils/v1"]
+v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "common_utils/v2"]
 
 [dependencies]
 # First party crates
@@ -37,7 +36,7 @@ opensearch = { version = "2.2.0", features = ["aws-auth"] }
 reqwest = { version = "0.11.27", features = ["serde_json"] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.115"
-sqlx = { version = "0.8.1", features = ["postgres", "runtime-tokio", "runtime-tokio-native-tls", "time", "bigdecimal"] }
+sqlx = { version = "0.8.2", features = ["postgres", "runtime-tokio", "runtime-tokio-native-tls", "time", "bigdecimal"] }
 strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }

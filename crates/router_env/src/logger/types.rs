@@ -169,6 +169,8 @@ pub enum Flow {
     PaymentsFilters,
     /// Payments aggregates flow
     PaymentsAggregate,
+    /// Payments Create Intent flow
+    PaymentsCreateIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -212,6 +214,8 @@ pub enum Flow {
     RefundsList,
     /// Refunds filters flow
     RefundsFilters,
+    /// Refunds aggregates flow
+    RefundsAggregate,
     // Retrieve forex flow.
     RetrieveForexFlow,
     /// Toggles recon service for a merchant.
@@ -242,6 +246,10 @@ pub enum Flow {
     RoutingUpdateDefaultConfig,
     /// Routing delete config
     RoutingDeleteConfig,
+    /// Toggle dynamic routing
+    ToggleDynamicRouting,
+    /// Update dynamic routing config
+    UpdateDynamicRoutingConfigs,
     /// Add record to blocklist
     AddToBlocklist,
     /// Delete record from blocklist
@@ -268,6 +276,8 @@ pub enum Flow {
     DisputesRetrieve,
     /// Dispute List flow
     DisputesList,
+    /// Dispute Filters flow
+    DisputesFilters,
     /// Cards Info flow
     CardsInfo,
     /// Create File flow
@@ -284,6 +294,8 @@ pub enum Flow {
     AttachDisputeEvidence,
     /// Delete Dispute Evidence flow
     DeleteDisputeEvidence,
+    /// Disputes aggregate flow
+    DisputesAggregate,
     /// Retrieve Dispute Evidence flow
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
@@ -298,16 +310,16 @@ pub enum Flow {
     PaymentLinkList,
     /// Payment Link Status
     PaymentLinkStatus,
-    /// Create a business profile
-    BusinessProfileCreate,
-    /// Update a business profile
-    BusinessProfileUpdate,
-    /// Retrieve a business profile
-    BusinessProfileRetrieve,
-    /// Delete a business profile
-    BusinessProfileDelete,
-    /// List all the business profiles for a merchant
-    BusinessProfileList,
+    /// Create a profile
+    ProfileCreate,
+    /// Update a profile
+    ProfileUpdate,
+    /// Retrieve a profile
+    ProfileRetrieve,
+    /// Delete a profile
+    ProfileDelete,
+    /// List all the profiles for a merchant
+    ProfileList,
     /// Different verification flows
     Verification,
     /// Rust locker migration
@@ -354,8 +366,6 @@ pub enum Flow {
     InternalUserSignup,
     /// Switch org
     SwitchOrg,
-    /// Switch merchant
-    SwitchMerchant,
     /// Switch merchant v2
     SwitchMerchantV2,
     /// Switch profile
@@ -364,8 +374,12 @@ pub enum Flow {
     GetAuthorizationInfo,
     /// Get Roles info
     GetRolesInfo,
-    /// List roles
-    ListRoles,
+    /// List roles v2
+    ListRolesV2,
+    /// List invitable roles at entity level
+    ListInvitableRolesAtEntityLevel,
+    /// List updatable roles at entity level
+    ListUpdatableRolesAtEntityLevel,
     /// Get role
     GetRole,
     /// Get role from token
@@ -378,14 +392,10 @@ pub enum Flow {
     GenerateSampleData,
     /// Delete Sample Data
     DeleteSampleData,
-    /// List merchant accounts for user
-    UserMerchantAccountList,
     /// Get details of a user
     GetUserDetails,
     /// Get details of a user role in a merchant account
     GetUserRoleDetails,
-    /// List users for merchant account
-    ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
     PmAuthLinkTokenCreate,
     /// PaymentMethodAuth Exchange token create
@@ -418,10 +428,10 @@ pub enum Flow {
     VerifyEmailRequest,
     /// Update user account details
     UpdateUserAccountDetails,
-    /// Accept user invitation
-    AcceptInvitation,
-    /// Select merchant from invitations
-    MerchantSelect,
+    /// Accept user invitation using entities
+    AcceptInvitationsV2,
+    /// Accept user invitation using entities before user login
+    AcceptInvitationsPreAuth,
     /// Initiate external authentication for a payment
     PaymentsExternalAuthentication,
     /// Authorize the payment after external 3ds authentication
@@ -468,6 +478,8 @@ pub enum Flow {
     ListProfileForUserInOrgAndMerchant,
     /// List Users in Org
     ListUsersInLineage,
+    /// List invitations for user
+    ListInvitationsForUser,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -486,6 +498,12 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    /// Dynamic Tax Calcultion
+    SessionUpdateTaxCalculation,
+    /// Payments confirm intent
+    PaymentsConfirmIntent,
+    /// Payments post session tokens flow
+    PaymentsPostSessionTokens,
 }
 
 ///

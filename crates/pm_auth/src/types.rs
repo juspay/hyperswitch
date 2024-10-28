@@ -3,6 +3,7 @@ pub mod api;
 use std::marker::PhantomData;
 
 use api::auth_service::{BankAccountCredentials, ExchangeToken, LinkToken, RecipientCreate};
+use api_models::enums as api_enums;
 use common_enums::{CountryAlpha2, PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, types};
 use masking::Secret;
@@ -24,6 +25,9 @@ pub struct LinkTokenRequest {
     pub country_codes: Option<Vec<String>>,
     pub language: Option<String>,
     pub user_info: Option<id_type::CustomerId>,
+    pub client_platform: Option<api_enums::ClientPlatform>,
+    pub android_package_name: Option<String>,
+    pub redirect_uri: Option<String>,
 }
 
 #[derive(Debug, Clone)]

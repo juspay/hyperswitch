@@ -1,10 +1,8 @@
 //! Utility macros for the `router` crate.
 #![warn(missing_docs)]
-
 use syn::parse_macro_input;
 
 use crate::macros::diesel::DieselEnumMeta;
-
 mod macros;
 
 /// Uses the [`Debug`][Debug] implementation of a type to derive its [`Display`][Display]
@@ -614,4 +612,140 @@ pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::Token
     macros::try_get_enum::try_get_enum_variant(input)
         .unwrap_or_else(|error| error.into_compile_error())
         .into()
+}
+
+/// Uses the [`Serialize`] implementation of a type to derive a function implementation
+/// for converting nested keys structure into a HashMap of key, value where key is in
+/// the flattened form.
+///
+/// Example
+///
+/// #[derive(Default, Serialize, FlatStruct)]
+/// pub struct User {
+///     name: String,
+///     address: Address,
+///     email: String,
+/// }
+///
+/// #[derive(Default, Serialize)]
+/// pub struct Address {
+///     line1: String,
+///     line2: String,
+///     zip: String,
+/// }
+///
+/// let user = User::default();
+/// let flat_struct_map = user.flat_struct();
+///
+/// [
+///     ("name", "Test"),
+///     ("address.line1", "1397"),
+///     ("address.line2", "Some street"),
+///     ("address.zip", "941222"),
+///     ("email", "test@example.com"),
+/// ]
+#[proc_macro_derive(FlatStruct)]
+pub fn flat_struct_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    let name = &input.ident;
+
+    let expanded = quote::quote! {
+        impl #name {
+            pub fn flat_struct(&self) -> std::collections::HashMap<String, String> {
+                use serde_json::Value;
+                use std::collections::HashMap;
+
+                fn flatten_value(
+                    value: &Value,
+                    prefix: &str,
+                    result: &mut HashMap<String, String>
+                ) {
+                    match value {
+                        Value::Object(map) => {
+                            for (key, val) in map {
+                                let new_key = if prefix.is_empty() {
+                                    key.to_string()
+                                } else {
+                                    format!("{}.{}", prefix, key)
+                                };
+                                flatten_value(val, &new_key, result);
+                            }
+                        }
+                        Value::String(s) => {
+                            result.insert(prefix.to_string(), s.clone());
+                        }
+                        Value::Number(n) => {
+                            result.insert(prefix.to_string(), n.to_string());
+                        }
+                        Value::Bool(b) => {
+                            result.insert(prefix.to_string(), b.to_string());
+                        }
+                        _ => {}
+                    }
+                }
+
+                let mut result = HashMap::new();
+                let value = serde_json::to_value(self).unwrap();
+                flatten_value(&value, "", &mut result);
+                result
+            }
+        }
+    };
+
+    proc_macro::TokenStream::from(expanded)
+}
+
+/// Generates the permissions enum and implematations for the permissions
+///
+/// **NOTE:** You have to make sure that all the identifiers used
+/// in the macro input are present in the respective enums as well.
+///
+/// ## Usage
+/// ```
+/// use router_derive::generate_permissions;
+///
+/// enum Scope {
+///     Read,
+///     Write,
+/// }
+///
+/// enum EntityType {
+///    Profile,
+///    Merchant,
+///    Org,
+/// }
+///
+/// enum Resource {
+///    Payments,
+///    Refunds,
+/// }
+///
+/// generate_permissions! {
+///     permissions: [
+///         Payments: {
+///             scopes: [Read, Write],
+///             entities: [Profile, Merchant, Org]
+///         },
+///         Refunds: {
+///             scopes: [Read],
+///             entities: [Profile, Org]
+///         }
+///     ]
+/// }
+/// ```
+/// This will generate the following enum.
+/// ```
+/// enum Permission {
+///    ProfilePaymentsRead,
+///    ProfilePaymentsWrite,
+///    MerchantPaymentsRead,
+///    MerchantPaymentsWrite,
+///    OrgPaymentsRead,
+///    OrgPaymentsWrite,
+///    ProfileRefundsRead,
+///    OrgRefundsRead,
+/// ```
+#[proc_macro]
+pub fn generate_permissions(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    macros::generate_permissions_inner(input)
 }

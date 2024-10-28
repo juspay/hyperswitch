@@ -1,12 +1,9 @@
 use diesel::{associations::HasTable, ExpressionMethods, Table};
 
 use super::generics;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 use crate::schema::merchant_account::dsl::{self, merchant_id as dsl_identifier};
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::merchant_account::dsl::{self, id as dsl_identifier};
 use crate::{
     errors,
@@ -94,7 +91,7 @@ impl MerchantAccount {
 
     pub async fn list_by_organization_id(
         conn: &PgPooledConn,
-        organization_id: &str,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,

@@ -314,7 +314,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                     create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                         merchant_authentication,
                         profile: Profile {
-                            //The payment ID is included in the description because the connector requires unique description when creating a mandate.
+                            // The payment ID is included in the description because the connector requires unique description when creating a mandate.
                             description: item.payment_id.clone(),
                             payment_profiles: PaymentProfiles {
                                 customer_type: CustomerType::Individual,
@@ -344,7 +344,8 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?
@@ -387,19 +388,19 @@ impl<F, T>
                 status: enums::AttemptStatus::Charged,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: None,
-                    mandate_reference: item.response.customer_profile_id.map(
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(item.response.customer_profile_id.map(
                         |customer_profile_id| types::MandateReference {
-                            connector_mandate_id: item
-                                .response
-                                .customer_payment_profile_id_list
-                                .first()
-                                .map(|payment_profile_id| {
-                                    format!("{customer_profile_id}-{payment_profile_id}")
-                                }),
+                            connector_mandate_id:
+                                item.response.customer_payment_profile_id_list.first().map(
+                                    |payment_profile_id| {
+                                        format!("{customer_profile_id}-{payment_profile_id}")
+                                    },
+                                ),
                             payment_method_id: None,
+                            mandate_metadata: None,
                         },
-                    ),
+                    )),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -502,6 +503,11 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_id,
             )) => TransactionRequest::try_from((item, connector_mandate_id))?,
+            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+                ))?
+            }
             None => {
                 match &item.router_data.request.payment_method_data {
                     domain::PaymentMethodData::Card(ccard) => {
@@ -524,7 +530,8 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
                     | domain::PaymentMethodData::CardToken(_)
-                    | domain::PaymentMethodData::NetworkToken(_) => {
+                    | domain::PaymentMethodData::NetworkToken(_)
+                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "authorizedotnet",
@@ -584,7 +591,8 @@ impl
                 | domain::PaymentMethodData::GiftCard(_)
                 | domain::PaymentMethodData::OpenBanking(_)
                 | domain::PaymentMethodData::CardToken(_)
-                | domain::PaymentMethodData::NetworkToken(_) => {
+                | domain::PaymentMethodData::NetworkToken(_)
+                | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
@@ -1104,6 +1112,7 @@ impl<F, T>
                             },
                         ),
                         payment_method_id: None,
+                        mandate_metadata: None,
                     }
                 });
 
@@ -1115,8 +1124,8 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
-                            redirection_data,
-                            mandate_reference,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(mandate_reference),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -1188,8 +1197,8 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -1518,8 +1527,8 @@ impl<F, Req>
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             transaction.transaction_id.clone(),
                         ),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
@@ -1740,6 +1749,7 @@ fn get_wallet_data(
         | domain::WalletData::MbWayRedirect(_)
         | domain::WalletData::MobilePayRedirect(_)
         | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::Paze(_)
         | domain::WalletData::SamsungPay(_)
         | domain::WalletData::TwintRedirect {}
         | domain::WalletData::VippsRedirect {}

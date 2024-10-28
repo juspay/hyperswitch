@@ -8,9 +8,9 @@ use diesel::{
 use error_stack::{report, ResultExt};
 
 use super::generics;
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 use crate::schema::payment_attempt::dsl;
-#[cfg(all(feature = "v2", feature = "payment_v2"))]
+#[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt::dsl;
 use crate::{
     enums::{self, IntentStatus},
@@ -24,11 +24,12 @@ use crate::{
 
 impl PaymentAttemptNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
-        generics::generic_insert(conn, self.populate_derived_fields()).await
+        generics::generic_insert(conn, self).await
     }
 }
 
 impl PaymentAttempt {
+    #[cfg(feature = "v1")]
     pub async fn update_with_attempt_id(
         self,
         conn: &PgPooledConn,
@@ -56,9 +57,32 @@ impl PaymentAttempt {
         }
     }
 
+    #[cfg(feature = "v2")]
+    pub async fn update_with_attempt_id(
+        self,
+        conn: &PgPooledConn,
+        payment_attempt: PaymentAttemptUpdateInternal,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(conn, dsl::id.eq(self.id.to_owned()), payment_attempt)
+        .await
+        {
+            Err(error) => match error.current_context() {
+                DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    #[cfg(feature = "v1")]
     pub async fn find_optional_by_payment_id_merchant_id(
         conn: &PgPooledConn,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
         generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
@@ -70,10 +94,11 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_connector_transaction_id_payment_id_merchant_id(
         conn: &PgPooledConn,
         connector_transaction_id: &str,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -86,9 +111,10 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_last_successful_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         // perform ordering on the application level instead of database level
@@ -108,9 +134,10 @@ impl PaymentAttempt {
         .ok_or(report!(DatabaseError::NotFound))
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_last_successful_or_partially_captured_attempt_by_payment_id_merchant_id(
         conn: &PgPooledConn,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         // perform ordering on the application level instead of database level
@@ -134,20 +161,34 @@ impl PaymentAttempt {
         .ok_or(report!(DatabaseError::NotFound))
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_connector_txn_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_txn_id: &str,
     ) -> StorageResult<Self> {
+        let (txn_id, txn_data) = common_utils::types::ConnectorTransactionId::form_id_and_data(
+            connector_txn_id.to_string(),
+        );
+        let connector_transaction_id = txn_id
+            .get_txn_id(txn_data.as_ref())
+            .change_context(DatabaseError::Others)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed to retrieve txn_id for ({:?}, {:?})",
+                    txn_id, txn_data
+                )
+            })?;
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::connector_transaction_id.eq(connector_txn_id.to_owned())),
+                .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned())),
         )
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_attempt_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -162,6 +203,16 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v2")]
+    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::id.eq(id.to_owned()),
+        )
+        .await
+    }
+
+    #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_preprocessing_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -176,9 +227,10 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_payment_id_merchant_id_attempt_id(
         conn: &PgPooledConn,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
     ) -> StorageResult<Self> {
@@ -193,10 +245,11 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -215,6 +268,7 @@ impl PaymentAttempt {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_filters_for_payments(
         conn: &PgPooledConn,
         pi: &[PaymentIntent],
@@ -313,6 +367,7 @@ impl PaymentAttempt {
         ))
     }
 
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_attempts(
         conn: &PgPooledConn,
@@ -323,6 +378,7 @@ impl PaymentAttempt {
         payment_method_type: Option<Vec<enums::PaymentMethodType>>,
         authentication_type: Option<Vec<enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
+        card_network: Option<Vec<enums::CardNetwork>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -346,14 +402,26 @@ impl PaymentAttempt {
         if let Some(merchant_connector_id) = merchant_connector_id {
             filter = filter.filter(dsl::merchant_connector_id.eq_any(merchant_connector_id))
         }
+        if let Some(card_network) = card_network {
+            filter = filter.filter(dsl::card_network.eq_any(card_network))
+        }
+
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+        // TODO: Remove these logs after debugging the issue for delay in count query
+        let start_time = std::time::Instant::now();
+        router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
+        let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             filter.get_result_async::<i64>(conn),
             db_metrics::DatabaseOperation::Filter,
         )
         .await
         .change_context(DatabaseError::Others)
-        .attach_printable("Error filtering count of payments")
+        .attach_printable("Error filtering count of payments");
+
+        let duration = start_time.elapsed();
+        router_env::logger::debug!("Completed count query in {:?}", duration);
+
+        result
     }
 }

@@ -72,6 +72,7 @@ impl ForeignFrom<storage_enums::RoutingAlgorithmKind> for RoutingAlgorithmKind {
             storage_enums::RoutingAlgorithmKind::Priority => Self::Priority,
             storage_enums::RoutingAlgorithmKind::VolumeSplit => Self::VolumeSplit,
             storage_enums::RoutingAlgorithmKind::Advanced => Self::Advanced,
+            storage_enums::RoutingAlgorithmKind::Dynamic => Self::Dynamic,
         }
     }
 }
@@ -83,12 +84,13 @@ impl ForeignFrom<RoutingAlgorithmKind> for storage_enums::RoutingAlgorithmKind {
             RoutingAlgorithmKind::Priority => Self::Priority,
             RoutingAlgorithmKind::VolumeSplit => Self::VolumeSplit,
             RoutingAlgorithmKind::Advanced => Self::Advanced,
+            RoutingAlgorithmKind::Dynamic => Self::Dynamic,
         }
     }
 }
 
-impl<F: Clone> From<&routing::TransactionData<'_, F>> for storage_enums::TransactionType {
-    fn from(value: &routing::TransactionData<'_, F>) -> Self {
+impl From<&routing::TransactionData<'_>> for storage_enums::TransactionType {
+    fn from(value: &routing::TransactionData<'_>) -> Self {
         match value {
             routing::TransactionData::Payment(_) => Self::Payment,
             #[cfg(feature = "payouts")]

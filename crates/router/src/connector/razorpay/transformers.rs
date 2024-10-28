@@ -152,7 +152,7 @@ pub struct MerchantAccount {
     reverse_token_enabled: Option<bool>,
     webhook_configs: Option<String>,
     last_modified: Option<String>,
-    token_locker_id: Option<String>,
+    network_token_locker_id: Option<String>,
     enable_sending_last_four_digits: Option<bool>,
     website: Option<String>,
     mobile: Option<String>,
@@ -400,7 +400,8 @@ impl
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }?;
@@ -788,8 +789,8 @@ impl<F, T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         second_factor.epg_txn_id,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(second_factor.txn_id),
@@ -1009,8 +1010,8 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.second_factor.epg_txn_id,
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.second_factor.txn_id),

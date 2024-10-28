@@ -43,7 +43,7 @@ pub async fn list_initial_webhook_delivery_attempts(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::WebhookEventRead,
+                required_permission: Permission::MerchantWebhookEventRead,
             },
             req.headers(),
         ),
@@ -82,7 +82,7 @@ pub async fn list_webhook_delivery_attempts(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::WebhookEventRead,
+                required_permission: Permission::MerchantWebhookEventRead,
             },
             req.headers(),
         ),
@@ -121,7 +121,7 @@ pub async fn retry_webhook_delivery_attempt(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::WebhookEventWrite,
+                required_permission: Permission::MerchantWebhookEventWrite,
             },
             req.headers(),
         ),

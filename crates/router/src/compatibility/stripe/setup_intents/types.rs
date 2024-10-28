@@ -451,7 +451,7 @@ pub(crate) fn into_stripe_next_action(
 
 #[derive(Default, Eq, PartialEq, Serialize)]
 pub struct StripeSetupIntentResponse {
-    pub id: String,
+    pub id: id_type::PaymentId,
     pub object: String,
     pub status: StripeSetupStatus,
     pub client_secret: Option<masking::Secret<String>>,
@@ -536,8 +536,8 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
 #[serde(deny_unknown_fields)]
 pub struct StripePaymentListConstraints {
     pub customer: Option<id_type::CustomerId>,
-    pub starting_after: Option<String>,
-    pub ending_before: Option<String>,
+    pub starting_after: Option<id_type::PaymentId>,
+    pub ending_before: Option<id_type::PaymentId>,
     #[serde(default = "default_limit")]
     pub limit: u32,
     pub created: Option<i64>,

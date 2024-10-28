@@ -163,3 +163,44 @@ pub async fn api_key_revoke() {}
     security(("admin_api_key" = []))
 )]
 pub async fn api_key_revoke() {}
+
+#[cfg(feature = "v1")]
+/// API Key - List
+///
+/// List all the API Keys associated to a merchant account.
+#[utoipa::path(
+    get,
+    path = "/api_keys/{merchant_id}/list",
+    params(
+        ("merchant_id" = String, Path, description = "The unique identifier for the merchant account"),
+        ("limit" = Option<i64>, Query, description = "The maximum number of API Keys to include in the response"),
+        ("skip" = Option<i64>, Query, description = "The number of API Keys to skip when retrieving the list of API keys."),
+    ),
+    responses(
+        (status = 200, description = "List of API Keys retrieved successfully", body = Vec<RetrieveApiKeyResponse>),
+    ),
+    tag = "API Key",
+    operation_id = "List all API Keys associated with a merchant account",
+    security(("admin_api_key" = []))
+)]
+pub async fn api_key_list() {}
+
+#[cfg(feature = "v2")]
+/// API Key - List
+///
+/// List all the API Keys associated to a merchant account.
+#[utoipa::path(
+    get,
+    path = "/v2/api_keys/list",
+    params(
+        ("limit" = Option<i64>, Query, description = "The maximum number of API Keys to include in the response"),
+        ("skip" = Option<i64>, Query, description = "The number of API Keys to skip when retrieving the list of API keys."),
+    ),
+    responses(
+        (status = 200, description = "List of API Keys retrieved successfully", body = Vec<RetrieveApiKeyResponse>),
+    ),
+    tag = "API Key",
+    operation_id = "List all API Keys associated with a merchant account",
+    security(("admin_api_key" = []))
+)]
+pub async fn api_key_list() {}

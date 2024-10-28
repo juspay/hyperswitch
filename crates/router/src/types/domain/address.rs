@@ -46,7 +46,7 @@ pub struct Address {
 #[derive(Debug, Clone)]
 pub struct PaymentAddress {
     pub address: Address,
-    pub payment_id: String,
+    pub payment_id: id_type::PaymentId,
     // This is present in `PaymentAddress` because even `payouts` uses `PaymentAddress`
     pub customer_id: Option<id_type::CustomerId>,
 }

@@ -101,7 +101,7 @@ mod encrypt {
     fn is_encryption_service_enabled(_state: &KeyManagerState) -> bool {
         #[cfg(feature = "encryption_service")]
         {
-            _state.enabled.unwrap_or_default()
+            _state.enabled
         }
         #[cfg(not(feature = "encryption_service"))]
         {

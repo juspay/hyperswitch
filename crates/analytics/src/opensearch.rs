@@ -1,10 +1,12 @@
 use api_models::{
     analytics::search::SearchIndex,
     errors::types::{ApiError, ApiErrorResponse},
-    payments::TimeRange,
 };
 use aws_config::{self, meta::region::RegionProviderChain, Region};
-use common_utils::errors::{CustomResult, ErrorSwitch};
+use common_utils::{
+    errors::{CustomResult, ErrorSwitch},
+    types::TimeRange,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::errors::{StorageError, StorageResult};
 use opensearch::{
@@ -24,7 +26,7 @@ use storage_impl::errors::ApplicationError;
 use time::PrimitiveDateTime;
 
 use super::{health_check::HealthCheck, query::QueryResult, types::QueryExecutionError};
-use crate::query::QueryBuildingError;
+use crate::{enums::AuthInfo, query::QueryBuildingError};
 
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(tag = "auth")]
@@ -40,6 +42,10 @@ pub struct OpenSearchIndexes {
     pub payment_intents: String,
     pub refunds: String,
     pub disputes: String,
+    pub sessionizer_payment_attempts: String,
+    pub sessionizer_payment_intents: String,
+    pub sessionizer_refunds: String,
+    pub sessionizer_disputes: String,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
@@ -79,6 +85,10 @@ impl Default for OpenSearchConfig {
                 payment_intents: "hyperswitch-payment-intent-events".to_string(),
                 refunds: "hyperswitch-refund-events".to_string(),
                 disputes: "hyperswitch-dispute-events".to_string(),
+                sessionizer_payment_attempts: "sessionizer-payment-attempt-events".to_string(),
+                sessionizer_payment_intents: "sessionizer-payment-intent-events".to_string(),
+                sessionizer_refunds: "sessionizer-refund-events".to_string(),
+                sessionizer_disputes: "sessionizer-dispute-events".to_string(),
             },
         }
     }
@@ -102,6 +112,8 @@ pub enum OpenSearchError {
     IndexAccessNotPermittedError(SearchIndex),
     #[error("Opensearch unknown error")]
     UnknownError,
+    #[error("Opensearch access forbidden error")]
+    AccessForbiddenError,
 }
 
 impl ErrorSwitch<OpenSearchError> for QueryBuildingError {
@@ -157,6 +169,12 @@ impl ErrorSwitch<ApiErrorResponse> for OpenSearchError {
             Self::UnknownError => {
                 ApiErrorResponse::InternalServerError(ApiError::new("IR", 6, "Unknown error", None))
             }
+            Self::AccessForbiddenError => ApiErrorResponse::ForbiddenCommonResource(ApiError::new(
+                "IR",
+                7,
+                "Access Forbidden error",
+                None,
+            )),
         }
     }
 }
@@ -209,6 +227,14 @@ impl OpenSearchClient {
             SearchIndex::PaymentIntents => self.indexes.payment_intents.clone(),
             SearchIndex::Refunds => self.indexes.refunds.clone(),
             SearchIndex::Disputes => self.indexes.disputes.clone(),
+            SearchIndex::SessionizerPaymentAttempts => {
+                self.indexes.sessionizer_payment_attempts.clone()
+            }
+            SearchIndex::SessionizerPaymentIntents => {
+                self.indexes.sessionizer_payment_intents.clone()
+            }
+            SearchIndex::SessionizerRefunds => self.indexes.sessionizer_refunds.clone(),
+            SearchIndex::SessionizerDisputes => self.indexes.sessionizer_disputes.clone(),
         }
     }
 
@@ -278,7 +304,10 @@ impl HealthCheck for OpenSearchClient {
         if health.status != OpenSearchHealthStatus::Red {
             Ok(())
         } else {
-            Err(QueryExecutionError::DatabaseError.into())
+            Err::<(), error_stack::Report<QueryExecutionError>>(
+                QueryExecutionError::DatabaseError.into(),
+            )
+            .attach_printable_lazy(|| format!("Opensearch cluster health is red: {health:?}"))
         }
     }
 }
@@ -308,6 +337,36 @@ impl OpenSearchIndexes {
         when(self.disputes.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Opensearch Disputes index must not be empty".into(),
+            ))
+        })?;
+
+        when(
+            self.sessionizer_payment_attempts.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Opensearch Sessionizer Payment Attempts index must not be empty".into(),
+                ))
+            },
+        )?;
+
+        when(
+            self.sessionizer_payment_intents.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Opensearch Sessionizer Payment Intents index must not be empty".into(),
+                ))
+            },
+        )?;
+
+        when(self.sessionizer_refunds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Sessionizer Refunds index must not be empty".into(),
+            ))
+        })?;
+
+        when(self.sessionizer_disputes.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Sessionizer Disputes index must not be empty".into(),
             ))
         })?;
 
@@ -397,13 +456,15 @@ pub struct OpenSearchQueryBuilder {
     pub count: Option<i64>,
     pub filters: Vec<(String, Vec<String>)>,
     pub time_range: Option<OpensearchTimeRange>,
+    pub search_params: Vec<AuthInfo>,
 }
 
 impl OpenSearchQueryBuilder {
-    pub fn new(query_type: OpenSearchQuery, query: String) -> Self {
+    pub fn new(query_type: OpenSearchQuery, query: String, search_params: Vec<AuthInfo>) -> Self {
         Self {
             query_type,
             query,
+            search_params,
             offset: Default::default(),
             count: Default::default(),
             filters: Default::default(),
@@ -498,8 +559,80 @@ impl OpenSearchQueryBuilder {
             }));
         }
 
-        bool_obj.insert("filter".to_string(), Value::Array(filter_array));
-        query_obj.insert("bool".to_string(), Value::Object(bool_obj));
+        let should_array = self
+            .search_params
+            .iter()
+            .map(|user_level| match user_level {
+                AuthInfo::OrgLevel { org_id } => {
+                    let must_clauses = vec![json!({
+                        "term": {
+                            "organization_id.keyword": {
+                                "value": org_id
+                            }
+                        }
+                    })];
+
+                    json!({
+                        "bool": {
+                            "must": must_clauses
+                        }
+                    })
+                }
+                AuthInfo::MerchantLevel {
+                    org_id: _,
+                    merchant_ids,
+                } => {
+                    let must_clauses = vec![
+                        // TODO: Add org_id field to the filters
+                        json!({
+                            "terms": {
+                                "merchant_id.keyword": merchant_ids
+                            }
+                        }),
+                    ];
+
+                    json!({
+                        "bool": {
+                            "must": must_clauses
+                        }
+                    })
+                }
+                AuthInfo::ProfileLevel {
+                    org_id: _,
+                    merchant_id,
+                    profile_ids,
+                } => {
+                    let must_clauses = vec![
+                        // TODO: Add org_id field to the filters
+                        json!({
+                            "term": {
+                                "merchant_id.keyword": {
+                                    "value": merchant_id
+                                }
+                            }
+                        }),
+                        json!({
+                            "terms": {
+                                "profile_id.keyword": profile_ids
+                            }
+                        }),
+                    ];
+
+                    json!({
+                        "bool": {
+                            "must": must_clauses
+                        }
+                    })
+                }
+            })
+            .collect::<Vec<Value>>();
+
+        if !filter_array.is_empty() {
+            bool_obj.insert("filter".to_string(), Value::Array(filter_array));
+        }
+        if !bool_obj.is_empty() {
+            query_obj.insert("bool".to_string(), Value::Object(bool_obj));
+        }
 
         let mut query = Map::new();
         query.insert("query".to_string(), Value::Object(query_obj));
@@ -514,9 +647,19 @@ impl OpenSearchQueryBuilder {
                     .and_then(|f| f.as_array())
                     .map(|filters| self.replace_status_field(filters, index))
                     .unwrap_or_default();
-
+                let mut final_bool_obj = Map::new();
+                if !updated_query.is_empty() {
+                    final_bool_obj.insert("filter".to_string(), Value::Array(updated_query));
+                }
+                if !should_array.is_empty() {
+                    final_bool_obj.insert("should".to_string(), Value::Array(should_array.clone()));
+                    final_bool_obj
+                        .insert("minimum_should_match".to_string(), Value::Number(1.into()));
+                }
                 let mut final_query = Map::new();
-                final_query.insert("bool".to_string(), json!({ "filter": updated_query }));
+                if !final_bool_obj.is_empty() {
+                    final_query.insert("bool".to_string(), Value::Object(final_bool_obj));
+                }
 
                 let mut sort_obj = Map::new();
                 sort_obj.insert(

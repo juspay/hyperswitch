@@ -1,20 +1,25 @@
+use std::collections::HashMap;
+
 use cards::CardNumber;
 use common_utils::{
     consts::default_payouts_list_limit,
-    crypto, id_type, link_utils,
+    crypto, id_type, link_utils, payout_method_utils,
     pii::{self, Email},
+    transformers::ForeignFrom,
+    types::{UnifiedCode, UnifiedMessage},
 };
 use masking::Secret;
+use router_derive::FlatStruct;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{enums as api_enums, payments};
+use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
     PayoutActionRequest(PayoutActionRequest),
-    PayoutCreateRequest(PayoutCreateRequest),
+    PayoutCreateRequest(Box<PayoutCreateRequest>),
     PayoutRetrieveRequest(PayoutRetrieveRequest),
 }
 
@@ -204,6 +209,10 @@ pub struct PayoutCreatePayoutLinkConfig {
     #[schema(value_type = Option<Vec<EnabledPaymentMethod>>, example = r#"[{"payment_method": "bank_transfer", "payment_method_types": ["ach", "bacs"]}]"#)]
     pub enabled_payment_methods: Option<Vec<link_utils::EnabledPaymentMethod>>,
 
+    /// Form layout of the payout link
+    #[schema(value_type = Option<UIWidgetFormLayout>, max_length = 255, example = "tabs")]
+    pub form_layout: Option<api_enums::UIWidgetFormLayout>,
+
     /// `test_mode` allows for opening payout links without any restrictions. This removes
     /// - domain name validations
     /// - check for making sure link is accessed within an iframe
@@ -376,7 +385,7 @@ pub struct Venmo {
     pub telephone_number: Option<Secret<String>>,
 }
 
-#[derive(Debug, ToSchema, Clone, Serialize)]
+#[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateResponse {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
@@ -410,8 +419,27 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<PayoutType>, example = "bank")]
     pub payout_type: Option<api_enums::PayoutType>,
 
+    /// The payout method details for the payout
+    #[schema(value_type = Option<PayoutMethodDataResponse>, example = json!(r#"{
+        "card": {
+            "last4": "2503",
+            "card_type": null,
+            "card_network": null,
+            "card_issuer": null,
+            "card_issuing_country": null,
+            "card_isin": "400000",
+            "card_extended_bin": null,
+            "card_exp_month": "08",
+            "card_exp_year": "25",
+            "card_holder_name": null,
+            "payment_checks": null,
+            "authentication_data": null
+        }
+    }"#))]
+    pub payout_method_data: Option<PayoutMethodDataResponse>,
+
     /// The billing address for the payout
-    #[schema(value_type = Option<Object>, example = json!(r#"{
+    #[schema(value_type = Option<Address>, example = json!(r#"{
         "address": {
             "line1": "1467",
             "line2": "Harrison Street",
@@ -528,6 +556,30 @@ pub struct PayoutCreateResponse {
     /// Customer's phone country code. _Deprecated: Use customer object instead._
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
+
+    /// (This field is not live yet)
+    /// Error code unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutCreateResponse)]
+    #[schema(value_type = Option<String>, max_length = 255, example = "UE_000")]
+    pub unified_code: Option<UnifiedCode>,
+
+    /// (This field is not live yet)
+    /// Error message unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutCreateResponse)]
+    #[schema(value_type = Option<String>, max_length = 1024, example = "Invalid card details")]
+    pub unified_message: Option<UnifiedMessage>,
+}
+
+/// The payout method information for response
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PayoutMethodDataResponse {
+    #[schema(value_type = CardAdditionalData)]
+    Card(Box<payout_method_utils::CardAdditionalData>),
+    #[schema(value_type = BankAdditionalData)]
+    Bank(Box<payout_method_utils::BankAdditionalData>),
+    #[schema(value_type = WalletAdditionalData)]
+    Wallet(Box<payout_method_utils::WalletAdditionalData>),
 }
 
 #[derive(
@@ -561,10 +613,16 @@ pub struct PayoutAttemptResponse {
     pub connector_transaction_id: Option<String>,
     /// If the payout was cancelled the reason provided here
     pub cancellation_reason: Option<String>,
-    /// error code unified across the connectors is received here if there was an error while calling connector
-    pub unified_code: Option<String>,
-    /// error message unified across the connectors is received here if there was an error while calling connector
-    pub unified_message: Option<String>,
+    /// (This field is not live yet)
+    /// Error code unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutAttemptResponse)]
+    #[schema(value_type = Option<String>, max_length = 255, example = "UE_000")]
+    pub unified_code: Option<UnifiedCode>,
+    /// (This field is not live yet)
+    /// Error message unified across the connectors is received here in case of errors while calling the underlying connector
+    #[remove_in(PayoutAttemptResponse)]
+    #[schema(value_type = Option<String>, max_length = 1024, example = "Invalid card details")]
+    pub unified_message: Option<UnifiedMessage>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
@@ -678,7 +736,7 @@ pub struct PayoutListConstraints {
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     #[schema(value_type = Option<TimeRange>)]
-    pub time_range: Option<payments::TimeRange>,
+    pub time_range: Option<common_utils::types::TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -706,7 +764,7 @@ pub struct PayoutListFilterConstraints {
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     #[schema(value_type = Option<TimeRange>)]
-    pub time_range: Option<payments::TimeRange>,
+    pub time_range: Option<common_utils::types::TimeRange>,
     /// The list of connectors to filter payouts list
     #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
     pub connector: Option<Vec<api_enums::PayoutConnectors>>,
@@ -778,10 +836,29 @@ pub struct PayoutLinkDetails {
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
     pub enabled_payment_methods: Vec<link_utils::EnabledPaymentMethod>,
+    pub enabled_payment_methods_with_required_fields: Vec<PayoutEnabledPaymentMethodsInfo>,
     pub amount: common_utils::types::StringMajorUnit,
     pub currency: common_enums::Currency,
     pub locale: String,
+    pub form_layout: Option<common_enums::UIWidgetFormLayout>,
     pub test_mode: bool,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PayoutEnabledPaymentMethodsInfo {
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_types_info: Vec<PaymentMethodTypeInfo>,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentMethodTypeInfo {
+    pub payment_method_type: common_enums::PaymentMethodType,
+    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, FlatStruct)]
+pub struct RequiredFieldsOverrideRequest {
+    pub billing: Option<payments::Address>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -793,9 +870,113 @@ pub struct PayoutLinkStatusDetails {
     pub session_expiry: PrimitiveDateTime,
     pub return_url: Option<url::Url>,
     pub status: api_enums::PayoutStatus,
-    pub error_code: Option<String>,
-    pub error_message: Option<String>,
+    pub error_code: Option<UnifiedCode>,
+    pub error_message: Option<UnifiedMessage>,
     #[serde(flatten)]
     pub ui_config: link_utils::GenericLinkUiConfigFormData,
     pub test_mode: bool,
+}
+
+impl From<Bank> for payout_method_utils::BankAdditionalData {
+    fn from(bank_data: Bank) -> Self {
+        match bank_data {
+            Bank::Ach(AchBankTransfer {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                bank_account_number,
+                bank_routing_number,
+            }) => Self::Ach(Box::new(
+                payout_method_utils::AchBankTransferAdditionalData {
+                    bank_name,
+                    bank_country_code,
+                    bank_city,
+                    bank_account_number: bank_account_number.into(),
+                    bank_routing_number: bank_routing_number.into(),
+                },
+            )),
+            Bank::Bacs(BacsBankTransfer {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                bank_account_number,
+                bank_sort_code,
+            }) => Self::Bacs(Box::new(
+                payout_method_utils::BacsBankTransferAdditionalData {
+                    bank_name,
+                    bank_country_code,
+                    bank_city,
+                    bank_account_number: bank_account_number.into(),
+                    bank_sort_code: bank_sort_code.into(),
+                },
+            )),
+            Bank::Sepa(SepaBankTransfer {
+                bank_name,
+                bank_country_code,
+                bank_city,
+                iban,
+                bic,
+            }) => Self::Sepa(Box::new(
+                payout_method_utils::SepaBankTransferAdditionalData {
+                    bank_name,
+                    bank_country_code,
+                    bank_city,
+                    iban: iban.into(),
+                    bic: bic.map(From::from),
+                },
+            )),
+            Bank::Pix(PixBankTransfer {
+                bank_name,
+                bank_branch,
+                bank_account_number,
+                pix_key,
+                tax_id,
+            }) => Self::Pix(Box::new(
+                payout_method_utils::PixBankTransferAdditionalData {
+                    bank_name,
+                    bank_branch,
+                    bank_account_number: bank_account_number.into(),
+                    pix_key: pix_key.into(),
+                    tax_id: tax_id.map(From::from),
+                },
+            )),
+        }
+    }
+}
+
+impl From<Wallet> for payout_method_utils::WalletAdditionalData {
+    fn from(wallet_data: Wallet) -> Self {
+        match wallet_data {
+            Wallet::Paypal(Paypal {
+                email,
+                telephone_number,
+                paypal_id,
+            }) => Self::Paypal(Box::new(payout_method_utils::PaypalAdditionalData {
+                email: email.map(ForeignFrom::foreign_from),
+                telephone_number: telephone_number.map(From::from),
+                paypal_id: paypal_id.map(From::from),
+            })),
+            Wallet::Venmo(Venmo { telephone_number }) => {
+                Self::Venmo(Box::new(payout_method_utils::VenmoAdditionalData {
+                    telephone_number: telephone_number.map(From::from),
+                }))
+            }
+        }
+    }
+}
+
+impl From<payout_method_utils::AdditionalPayoutMethodData> for PayoutMethodDataResponse {
+    fn from(additional_data: payout_method_utils::AdditionalPayoutMethodData) -> Self {
+        match additional_data {
+            payout_method_utils::AdditionalPayoutMethodData::Card(card_data) => {
+                Self::Card(card_data)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::Bank(bank_data) => {
+                Self::Bank(bank_data)
+            }
+            payout_method_utils::AdditionalPayoutMethodData::Wallet(wallet_data) => {
+                Self::Wallet(wallet_data)
+            }
+        }
+    }
 }

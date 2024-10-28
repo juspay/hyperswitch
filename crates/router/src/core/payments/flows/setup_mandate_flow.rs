@@ -32,6 +32,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::SetupMandateRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::SetupMandate,
@@ -45,6 +46,7 @@ impl
             customer,
             merchant_connector_account,
             merchant_recipient_data,
+            header_payload,
         ))
         .await
     }
@@ -69,8 +71,8 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &domain::BusinessProfile,
-        _header_payload: api_models::payments::HeaderPayload,
+        _business_profile: &domain::Profile,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::SetupMandate,
@@ -109,7 +111,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
-        creds_identifier: Option<&String>,
+        creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
             .await

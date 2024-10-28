@@ -17,8 +17,8 @@ pub struct RefundsResponseData {
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
-        redirection_data: Option<RedirectForm>,
-        mandate_reference: Option<MandateReference>,
+        redirection_data: Box<Option<RedirectForm>>,
+        mandate_reference: Box<Option<MandateReference>>,
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
@@ -68,12 +68,21 @@ pub enum PaymentsResponseData {
     PostProcessingResponse {
         session_token: Option<api_models::payments::OpenBankingSessionToken>,
     },
+    SessionUpdateResponse {
+        status: common_enums::SessionUpdateStatus,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct TaxCalculationResponseData {
+    pub order_tax_amount: MinorUnit,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
+    pub mandate_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -153,6 +162,12 @@ pub enum RedirectForm {
     },
     Mifinity {
         initialization_token: String,
+    },
+    WorldpayDDCForm {
+        endpoint: url::Url,
+        method: Method,
+        form_fields: HashMap<String, String>,
+        collection_id: Option<String>,
     },
 }
 

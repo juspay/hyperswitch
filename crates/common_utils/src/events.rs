@@ -1,7 +1,7 @@
 use common_enums::{PaymentMethod, PaymentMethodType};
 use serde::Serialize;
 
-use crate::id_type;
+use crate::{id_type, types::TimeRange};
 
 pub trait ApiEventMetric {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -15,18 +15,31 @@ pub enum ApiEventsType {
     Payout {
         payout_id: String,
     },
+    #[cfg(feature = "v1")]
     Payment {
-        payment_id: String,
+        payment_id: id_type::PaymentId,
     },
+    #[cfg(feature = "v2")]
+    Payment {
+        payment_id: id_type::GlobalPaymentId,
+    },
+    #[cfg(feature = "v1")]
     Refund {
-        payment_id: Option<String>,
+        payment_id: Option<id_type::PaymentId>,
         refund_id: String,
+    },
+    #[cfg(feature = "v2")]
+    Refund {
+        payment_id: id_type::GlobalPaymentId,
+        refund_id: id_type::GlobalRefundId,
     },
     PaymentMethod {
         payment_method_id: String,
         payment_method: Option<PaymentMethod>,
         payment_method_type: Option<PaymentMethodType>,
     },
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    PaymentMethodCreate,
     #[cfg(all(feature = "v2", feature = "customer_v2"))]
     Customer {
         id: String,
@@ -38,6 +51,9 @@ pub enum ApiEventsType {
     BusinessProfile {
         profile_id: id_type::ProfileId,
     },
+    ApiKey {
+        key_id: id_type::ApiKeyId,
+    },
     User {
         user_id: String,
     },
@@ -46,13 +62,13 @@ pub enum ApiEventsType {
     },
     Webhooks {
         connector: String,
-        payment_id: Option<String>,
+        payment_id: Option<id_type::PaymentId>,
     },
     Routing,
     ResourceListAPI,
     PaymentRedirectionResponse {
         connector: Option<String>,
-        payment_id: Option<String>,
+        payment_id: Option<id_type::PaymentId>,
     },
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
@@ -79,6 +95,24 @@ pub enum ApiEventsType {
 
 impl ApiEventMetric for serde_json::Value {}
 impl ApiEventMetric for () {}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for id_type::PaymentId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for id_type::GlobalPaymentId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.clone(),
+        })
+    }
+}
 
 impl<Q: ApiEventMetric, E> ApiEventMetric for Result<Q, E> {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -114,10 +148,6 @@ impl_api_event_type!(
     (
         String,
         id_type::MerchantId,
-        (id_type::MerchantId, String),
-        (id_type::MerchantId, &String),
-        (&id_type::MerchantId, &String),
-        (&String, &String),
         (Option<i64>, Option<i64>, String),
         (Option<i64>, Option<i64>, id_type::MerchantId),
         bool
@@ -129,3 +159,5 @@ impl<T: ApiEventMetric> ApiEventMetric for &T {
         T::get_api_event_type(self)
     }
 }
+
+impl ApiEventMetric for TimeRange {}

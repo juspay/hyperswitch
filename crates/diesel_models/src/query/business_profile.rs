@@ -1,33 +1,30 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 
 use super::generics;
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
-use crate::schema::business_profile::dsl;
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-use crate::schema_v2::business_profile::dsl;
+#[cfg(feature = "v1")]
+use crate::schema::business_profile::dsl::{self, profile_id as dsl_identifier};
+#[cfg(feature = "v2")]
+use crate::schema_v2::business_profile::dsl::{self, id as dsl_identifier};
 use crate::{
-    business_profile::{BusinessProfile, BusinessProfileNew, BusinessProfileUpdateInternal},
+    business_profile::{Profile, ProfileNew, ProfileUpdateInternal},
     errors, PgPooledConn, StorageResult,
 };
 
-impl BusinessProfileNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BusinessProfile> {
+impl ProfileNew {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Profile> {
         generics::generic_insert(conn, self).await
     }
 }
 
-impl BusinessProfile {
+impl Profile {
     pub async fn update_by_profile_id(
         self,
         conn: &PgPooledConn,
-        business_profile: BusinessProfileUpdateInternal,
+        business_profile: ProfileUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            self.profile_id.clone(),
+            self.get_id().to_owned(),
             business_profile,
         )
         .await
@@ -46,7 +43,7 @@ impl BusinessProfile {
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::profile_id.eq(profile_id.to_owned()),
+            dsl_identifier.eq(profile_id.to_owned()),
         )
         .await
     }
@@ -60,7 +57,7 @@ impl BusinessProfile {
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
-                .and(dsl::profile_id.eq(profile_id.to_owned())),
+                .and(dsl_identifier.eq(profile_id.to_owned())),
         )
         .await
     }
@@ -79,7 +76,7 @@ impl BusinessProfile {
         .await
     }
 
-    pub async fn list_business_profile_by_merchant_id(
+    pub async fn list_profile_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
@@ -105,7 +102,7 @@ impl BusinessProfile {
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
-            dsl::profile_id
+            dsl_identifier
                 .eq(profile_id.to_owned())
                 .and(dsl::merchant_id.eq(merchant_id.to_owned())),
         )

@@ -381,12 +381,31 @@ pub fn payments_confirm() {}
 )]
 pub fn payments_capture() {}
 
+#[cfg(feature = "v1")]
+/// Payments - Session token
+///
+/// Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.
+#[utoipa::path(
+  post,
+  path = "/payments/session_tokens",
+  request_body=PaymentsSessionRequest,
+  responses(
+      (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
+      (status = 400, description = "Missing mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Create Session tokens for a Payment",
+  security(("publishable_key" = []))
+)]
+pub fn payments_connector_session() {}
+
+#[cfg(feature = "v2")]
 /// Payments - Session token
 ///
 /// Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.
 #[utoipa::path(
     post,
-    path = "/payments/session_tokens",
+    path = "/v2/payments/{payment_id}/create-external-sdk-tokens",
     request_body=PaymentsSessionRequest,
     responses(
         (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
@@ -459,7 +478,7 @@ pub fn payments_cancel() {}
 )]
 pub fn payments_list() {}
 
-/// Business Profile level Payments - List
+/// Profile level Payments - List
 ///
 /// To list the payments
 #[utoipa::path(
@@ -545,3 +564,108 @@ pub fn payments_external_authentication() {}
   security(("publishable_key" = []))
 )]
 pub fn payments_complete_authorize() {}
+
+/// Dynamic Tax Calculation
+///
+///
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/calculate_tax",
+    request_body=PaymentsDynamicTaxCalculationRequest,
+    responses(
+        (status = 200, description = "Tax Calculation is done", body = PaymentsDynamicTaxCalculationResponse),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Create Tax Calculation for a Payment",
+    security(("publishable_key" = []))
+)]
+
+pub fn payments_dynamic_tax_calculation() {}
+
+/// Payments - Post Session Tokens
+///
+///
+#[utoipa::path(
+    post,
+    path = "/payments/{payment_id}/post_session_tokens",
+    request_body=PaymentsPostSessionTokensRequest,
+    responses(
+        (status = 200, description = "Post Session Token is done", body = PaymentsPostSessionTokensResponse),
+        (status = 400, description = "Missing mandatory fields")
+    ),
+    tag = "Payments",
+    operation_id = "Create Post Session Tokens for a Payment",
+    security(("publishable_key" = []))
+)]
+
+pub fn payments_post_session_tokens() {}
+
+/// Payments - Create Intent
+///
+/// **Creates a payment intent object when amount_details are passed.**
+///
+/// You will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.
+#[utoipa::path(
+  post,
+  path = "/v2/payments/create-intent",
+  request_body(
+      content = PaymentsCreateIntentRequest,
+      examples(
+          (
+              "Create a payment intent with minimal fields" = (
+                  value = json!({"amount_details": {"order_amount": 6540, "currency": "USD"}})
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment created", body = PaymentsCreateIntentResponse),
+      (status = 400, description = "Missing Mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Create a Payment Intent",
+  security(("api_key" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payments_create_intent() {}
+
+/// Payments - Confirm Intent
+///
+/// **Confirms a payment intent object with the payment method data**
+///
+/// .
+#[utoipa::path(
+  post,
+  path = "/v2/payments/{id}/confirm-intent",
+  request_body(
+      content = PaymentsConfirmIntentRequest,
+      examples(
+          (
+              "Confirm the payment intent with card details" = (
+                  value = json!({
+                    "payment_method_type": "card",
+                    "payment_method_data": {
+                      "card": {
+                        "card_number": "4242424242424242",
+                        "card_exp_month": "10",
+                        "card_exp_year": "25",
+                        "card_holder_name": "joseph Doe",
+                        "card_cvc": "123"
+                      }
+                    },
+                  })
+              )
+          ),
+      ),
+  ),
+  responses(
+      (status = 200, description = "Payment created", body = PaymentsConfirmIntentResponse),
+      (status = 400, description = "Missing Mandatory fields")
+  ),
+  tag = "Payments",
+  operation_id = "Confirm Payment Intent",
+  security(("publisable_key" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payments_confirm_intent() {}

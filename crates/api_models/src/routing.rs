@@ -30,7 +30,7 @@ impl ConnectorSelection {
         }
     }
 }
-#[cfg(all(feature = "v2", feature = "routing_v2"))]
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: String,
@@ -40,7 +40,7 @@ pub struct RoutingConfigRequest {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "routing_v2")))]
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RoutingConfigRequest {
     pub name: Option<String>,
@@ -57,18 +57,18 @@ pub struct ProfileDefaultRoutingConfig {
     pub connectors: Vec<RoutableConnectorChoice>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveQuery {
     pub limit: Option<u16>,
     pub offset: Option<u8>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQuery {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RoutingRetrieveLinkQueryWrapper {
     pub routing_query: RoutingRetrieveQuery,
     pub profile_id: common_utils::id_type::ProfileId,
@@ -197,7 +197,9 @@ pub enum RoutableChoiceSerde {
 impl std::fmt::Display for RoutableConnectorChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let base = self.connector.to_string();
-
+        if let Some(mca_id) = &self.merchant_connector_id {
+            return write!(f, "{}:{}", base, mca_id.get_string_repr());
+        }
         write!(f, "{}", base)
     }
 }
@@ -252,6 +254,21 @@ impl From<RoutableConnectorChoice> for RoutableChoiceSerde {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct RoutableConnectorChoiceWithStatus {
+    pub routable_connector_choice: RoutableConnectorChoice,
+    pub status: bool,
+}
+
+impl RoutableConnectorChoiceWithStatus {
+    pub fn new(routable_connector_choice: RoutableConnectorChoice, status: bool) -> Self {
+        Self {
+            routable_connector_choice,
+            status,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize, strum::Display, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -260,6 +277,7 @@ pub enum RoutingAlgorithmKind {
     Priority,
     VolumeSplit,
     Advanced,
+    Dynamic,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -494,4 +512,168 @@ pub struct RoutingAlgorithmId {
 pub struct RoutingLinkWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub algorithm_id: RoutingAlgorithmId,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DynamicAlgorithmWithTimestamp<T> {
+    pub algorithm_id: Option<T>,
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DynamicRoutingAlgorithmRef {
+    pub success_based_algorithm: Option<SuccessBasedAlgorithm>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SuccessBasedAlgorithm {
+    pub algorithm_id_with_timestamp:
+        DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>,
+    #[serde(default)]
+    pub enabled_feature: SuccessBasedRoutingFeatures,
+}
+
+impl SuccessBasedAlgorithm {
+    pub fn update_enabled_features(&mut self, feature_to_enable: SuccessBasedRoutingFeatures) {
+        self.enabled_feature = feature_to_enable
+    }
+}
+
+impl DynamicRoutingAlgorithmRef {
+    pub fn update_algorithm_id(
+        &mut self,
+        new_id: common_utils::id_type::RoutingId,
+        enabled_feature: SuccessBasedRoutingFeatures,
+    ) {
+        self.success_based_algorithm = Some(SuccessBasedAlgorithm {
+            algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
+                algorithm_id: Some(new_id),
+                timestamp: common_utils::date_time::now_unix_timestamp(),
+            },
+            enabled_feature,
+        })
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ToggleSuccessBasedRoutingQuery {
+    pub enable: SuccessBasedRoutingFeatures,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SuccessBasedRoutingFeatures {
+    Metrics,
+    DynamicConnectorSelection,
+    #[default]
+    None,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct SuccessBasedRoutingUpdateConfigQuery {
+    #[schema(value_type = String)]
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct ToggleSuccessBasedRoutingWrapper {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub feature_to_enable: SuccessBasedRoutingFeatures,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct ToggleSuccessBasedRoutingPath {
+    #[schema(value_type = String)]
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct SuccessBasedRoutingConfig {
+    pub params: Option<Vec<SuccessBasedRoutingConfigParams>>,
+    pub config: Option<SuccessBasedRoutingConfigBody>,
+}
+
+impl Default for SuccessBasedRoutingConfig {
+    fn default() -> Self {
+        Self {
+            params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod]),
+            config: Some(SuccessBasedRoutingConfigBody {
+                min_aggregates_size: Some(2),
+                default_success_rate: Some(100.0),
+                max_aggregates_size: Some(3),
+                current_block_threshold: Some(CurrentBlockThreshold {
+                    duration_in_mins: Some(5),
+                    max_total_count: Some(2),
+                }),
+            }),
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, strum::Display)]
+pub enum SuccessBasedRoutingConfigParams {
+    PaymentMethod,
+    PaymentMethodType,
+    Currency,
+    AuthenticationType,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct SuccessBasedRoutingConfigBody {
+    pub min_aggregates_size: Option<u32>,
+    pub default_success_rate: Option<f64>,
+    pub max_aggregates_size: Option<u32>,
+    pub current_block_threshold: Option<CurrentBlockThreshold>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct CurrentBlockThreshold {
+    pub duration_in_mins: Option<u64>,
+    pub max_total_count: Option<u64>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SuccessBasedRoutingPayloadWrapper {
+    pub updated_config: SuccessBasedRoutingConfig,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+impl SuccessBasedRoutingConfig {
+    pub fn update(&mut self, new: Self) {
+        if let Some(params) = new.params {
+            self.params = Some(params)
+        }
+        if let Some(new_config) = new.config {
+            self.config.as_mut().map(|config| config.update(new_config));
+        }
+    }
+}
+
+impl SuccessBasedRoutingConfigBody {
+    pub fn update(&mut self, new: Self) {
+        if let Some(min_aggregates_size) = new.min_aggregates_size {
+            self.min_aggregates_size = Some(min_aggregates_size)
+        }
+        if let Some(default_success_rate) = new.default_success_rate {
+            self.default_success_rate = Some(default_success_rate)
+        }
+        if let Some(max_aggregates_size) = new.max_aggregates_size {
+            self.max_aggregates_size = Some(max_aggregates_size)
+        }
+        if let Some(current_block_threshold) = new.current_block_threshold {
+            self.current_block_threshold
+                .as_mut()
+                .map(|threshold| threshold.update(current_block_threshold));
+        }
+    }
+}
+
+impl CurrentBlockThreshold {
+    pub fn update(&mut self, new: Self) {
+        if let Some(max_total_count) = new.max_total_count {
+            self.max_total_count = Some(max_total_count)
+        }
+    }
 }

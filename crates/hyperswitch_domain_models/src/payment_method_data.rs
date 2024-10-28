@@ -1,13 +1,16 @@
-use api_models::payments::{additional_info as payment_additional_types, ExtendedCardInfo};
+use api_models::{
+    mandates,
+    payments::{additional_info as payment_additional_types, ExtendedCardInfo},
+};
 use common_enums::enums as api_enums;
 use common_utils::{
     id_type,
+    new_type::{
+        MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
+    },
     pii::{self, Email},
 };
-use masking::{
-    masked_string::{MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode},
-    PeekInterface, Secret,
-};
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
@@ -16,6 +19,7 @@ use time::Date;
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData {
     Card(Card),
+    CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
@@ -43,7 +47,9 @@ pub enum ApplePayFlow {
 impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
-            Self::Card(_) | Self::NetworkToken(_) => Some(common_enums::PaymentMethod::Card),
+            Self::Card(_) | Self::NetworkToken(_) | Self::CardDetailsForNetworkTransactionId(_) => {
+                Some(common_enums::PaymentMethod::Card)
+            }
             Self::CardRedirect(_) => Some(common_enums::PaymentMethod::CardRedirect),
             Self::Wallet(_) => Some(common_enums::PaymentMethod::Wallet),
             Self::PayLater(_) => Some(common_enums::PaymentMethod::PayLater),
@@ -74,6 +80,62 @@ pub struct Card {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardDetailsForNetworkTransactionId {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+}
+
+impl CardDetailsForNetworkTransactionId {
+    pub fn get_nti_and_card_details_for_mit_flow(
+        recurring_details: mandates::RecurringDetails,
+    ) -> Option<(api_models::payments::MandateReferenceId, Self)> {
+        let network_transaction_id_and_card_details = match recurring_details {
+            mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
+                network_transaction_id_and_card_details,
+            ) => Some(network_transaction_id_and_card_details),
+            mandates::RecurringDetails::MandateId(_)
+            | mandates::RecurringDetails::PaymentMethodId(_)
+            | mandates::RecurringDetails::ProcessorPaymentToken(_) => None,
+        }?;
+
+        let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
+            network_transaction_id_and_card_details
+                .network_transaction_id
+                .peek()
+                .to_string(),
+        );
+
+        Some((
+            mandate_reference_id,
+            network_transaction_id_and_card_details.clone().into(),
+        ))
+    }
+}
+
+impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetworkTransactionId {
+    fn from(card_details_for_nti: mandates::NetworkTransactionIdAndCardDetails) -> Self {
+        Self {
+            card_number: card_details_for_nti.card_number,
+            card_exp_month: card_details_for_nti.card_exp_month,
+            card_exp_year: card_details_for_nti.card_exp_year,
+            card_issuer: card_details_for_nti.card_issuer,
+            card_network: card_details_for_nti.card_network,
+            card_type: card_details_for_nti.card_type,
+            card_issuing_country: card_details_for_nti.card_issuing_country,
+            bank_code: card_details_for_nti.bank_code,
+            nick_name: card_details_for_nti.nick_name,
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -117,6 +179,7 @@ pub enum WalletData {
     MobilePayRedirect(Box<MobilePayRedirection>),
     PaypalRedirect(PaypalRedirection),
     PaypalSdk(PayPalWalletData),
+    Paze(PazeWalletData),
     SamsungPay(Box<SamsungPayWalletData>),
     TwintRedirect {},
     VippsRedirect {},
@@ -135,10 +198,37 @@ pub struct MifinityData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct PazeWalletData {
+    pub complete_response: Secret<String>,
+}
 
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct SamsungPayWalletData {
-    /// The encrypted payment token from Samsung
-    pub token: Secret<String>,
+    pub payment_credential: SamsungPayWalletCredentials,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct SamsungPayWalletCredentials {
+    pub method: Option<String>,
+    pub recurring_payment: Option<bool>,
+    pub card_brand: common_enums::SamsungPayCardBrand,
+    pub dpan_last_four_digits: Option<String>,
+    #[serde(rename = "card_last4digits")]
+    pub card_last_four_digits: String,
+    #[serde(rename = "3_d_s")]
+    pub token_data: SamsungPayTokenData,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct SamsungPayTokenData {
+    #[serde(rename = "type")]
+    pub three_ds_type: Option<String>,
+    pub version: String,
+    pub data: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -284,6 +374,7 @@ pub enum BankRedirectData {
         card_number: Option<cards::CardNumber>,
         card_exp_month: Option<Secret<String>>,
         card_exp_year: Option<Secret<String>>,
+        card_holder_name: Option<Secret<String>>,
     },
     Bizum {},
     Blik {
@@ -291,19 +382,26 @@ pub enum BankRedirectData {
     },
     Eps {
         bank_name: Option<common_enums::BankNames>,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Giropay {
         bank_account_bic: Option<Secret<String>>,
         bank_account_iban: Option<Secret<String>>,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Ideal {
         bank_name: Option<common_enums::BankNames>,
     },
-    Interac {},
+    Interac {
+        country: Option<api_enums::CountryAlpha2>,
+        email: Option<Email>,
+    },
     OnlineBankingCzechRepublic {
         issuer: common_enums::BankNames,
     },
-    OnlineBankingFinland {},
+    OnlineBankingFinland {
+        email: Option<Email>,
+    },
     OnlineBankingPoland {
         issuer: common_enums::BankNames,
     },
@@ -312,14 +410,18 @@ pub enum BankRedirectData {
     },
     OpenBankingUk {
         issuer: Option<common_enums::BankNames>,
+        country: Option<api_enums::CountryAlpha2>,
     },
     Przelewy24 {
         bank_name: Option<common_enums::BankNames>,
     },
     Sofort {
+        country: Option<api_enums::CountryAlpha2>,
         preferred_language: Option<String>,
     },
-    Trustly {},
+    Trustly {
+        country: Option<api_enums::CountryAlpha2>,
+    },
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
     },
@@ -424,20 +526,25 @@ pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
+        card_holder_name: Option<Secret<String>>,
+        bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
     SepaBankDebit {
         iban: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BecsBankDebit {
         account_number: Secret<String>,
         bsb_number: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BacsBankDebit {
         account_number: Secret<String>,
         sort_code: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
     },
 }
 
@@ -482,7 +589,7 @@ pub struct NetworkTokenData {
     pub token_number: cards::CardNumber,
     pub token_exp_month: Secret<String>,
     pub token_exp_year: Secret<String>,
-    pub token_cryptogram: Secret<String>,
+    pub token_cryptogram: Option<Secret<String>>,
     pub card_issuer: Option<String>,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_type: Option<String>,
@@ -652,10 +759,11 @@ impl From<api_models::payments::WalletData> for WalletData {
                     token: paypal_sdk_data.token,
                 })
             }
+            api_models::payments::WalletData::Paze(paze_data) => {
+                Self::Paze(PazeWalletData::from(paze_data))
+            }
             api_models::payments::WalletData::SamsungPay(samsung_pay_data) => {
-                Self::SamsungPay(Box::new(SamsungPayWalletData {
-                    token: samsung_pay_data.token,
-                }))
+                Self::SamsungPay(Box::new(SamsungPayWalletData::from(samsung_pay_data)))
             }
             api_models::payments::WalletData::TwintRedirect {} => Self::TwintRedirect {},
             api_models::payments::WalletData::VippsRedirect {} => Self::VippsRedirect {},
@@ -719,6 +827,55 @@ impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
     }
 }
 
+impl From<api_models::payments::SamsungPayTokenData> for SamsungPayTokenData {
+    fn from(samsung_pay_token_data: api_models::payments::SamsungPayTokenData) -> Self {
+        Self {
+            three_ds_type: samsung_pay_token_data.three_ds_type,
+            version: samsung_pay_token_data.version,
+            data: samsung_pay_token_data.data,
+        }
+    }
+}
+
+impl From<api_models::payments::PazeWalletData> for PazeWalletData {
+    fn from(value: api_models::payments::PazeWalletData) -> Self {
+        Self {
+            complete_response: value.complete_response,
+        }
+    }
+}
+
+impl From<Box<api_models::payments::SamsungPayWalletData>> for SamsungPayWalletData {
+    fn from(value: Box<api_models::payments::SamsungPayWalletData>) -> Self {
+        match value.payment_credential {
+            api_models::payments::SamsungPayWalletCredentials::SamsungPayWalletDataForApp(
+                samsung_pay_app_wallet_data,
+            ) => Self {
+                payment_credential: SamsungPayWalletCredentials {
+                    method: samsung_pay_app_wallet_data.method,
+                    recurring_payment: samsung_pay_app_wallet_data.recurring_payment,
+                    card_brand: samsung_pay_app_wallet_data.payment_card_brand.into(),
+                    dpan_last_four_digits: samsung_pay_app_wallet_data.payment_last4_dpan,
+                    card_last_four_digits: samsung_pay_app_wallet_data.payment_last4_fpan,
+                    token_data: samsung_pay_app_wallet_data.token_data.into(),
+                },
+            },
+            api_models::payments::SamsungPayWalletCredentials::SamsungPayWalletDataForWeb(
+                samsung_pay_web_wallet_data,
+            ) => Self {
+                payment_credential: SamsungPayWalletCredentials {
+                    method: samsung_pay_web_wallet_data.method,
+                    recurring_payment: samsung_pay_web_wallet_data.recurring_payment,
+                    card_brand: samsung_pay_web_wallet_data.card_brand.into(),
+                    dpan_last_four_digits: None,
+                    card_last_four_digits: samsung_pay_web_wallet_data.card_last_four_digits,
+                    token_data: samsung_pay_web_wallet_data.token_data.into(),
+                },
+            },
+        }
+    }
+}
+
 impl From<api_models::payments::PayLaterData> for PayLaterData {
     fn from(value: api_models::payments::PayLaterData) -> Self {
         match value {
@@ -743,34 +900,40 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 card_number,
                 card_exp_month,
                 card_exp_year,
+                card_holder_name,
                 ..
             } => Self::BancontactCard {
                 card_number,
                 card_exp_month,
                 card_exp_year,
+                card_holder_name,
             },
             api_models::payments::BankRedirectData::Bizum {} => Self::Bizum {},
             api_models::payments::BankRedirectData::Blik { blik_code } => Self::Blik { blik_code },
-            api_models::payments::BankRedirectData::Eps { bank_name, .. } => {
-                Self::Eps { bank_name }
-            }
+            api_models::payments::BankRedirectData::Eps {
+                bank_name, country, ..
+            } => Self::Eps { bank_name, country },
             api_models::payments::BankRedirectData::Giropay {
                 bank_account_bic,
                 bank_account_iban,
+                country,
                 ..
             } => Self::Giropay {
                 bank_account_bic,
                 bank_account_iban,
+                country,
             },
             api_models::payments::BankRedirectData::Ideal { bank_name, .. } => {
                 Self::Ideal { bank_name }
             }
-            api_models::payments::BankRedirectData::Interac { .. } => Self::Interac {},
+            api_models::payments::BankRedirectData::Interac { country, email } => {
+                Self::Interac { country, email }
+            }
             api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { issuer } => {
                 Self::OnlineBankingCzechRepublic { issuer }
             }
-            api_models::payments::BankRedirectData::OnlineBankingFinland { .. } => {
-                Self::OnlineBankingFinland {}
+            api_models::payments::BankRedirectData::OnlineBankingFinland { email } => {
+                Self::OnlineBankingFinland { email }
             }
             api_models::payments::BankRedirectData::OnlineBankingPoland { issuer } => {
                 Self::OnlineBankingPoland { issuer }
@@ -778,16 +941,23 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
             api_models::payments::BankRedirectData::OnlineBankingSlovakia { issuer } => {
                 Self::OnlineBankingSlovakia { issuer }
             }
-            api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => {
-                Self::OpenBankingUk { issuer }
-            }
+            api_models::payments::BankRedirectData::OpenBankingUk {
+                country, issuer, ..
+            } => Self::OpenBankingUk { country, issuer },
             api_models::payments::BankRedirectData::Przelewy24 { bank_name, .. } => {
                 Self::Przelewy24 { bank_name }
             }
             api_models::payments::BankRedirectData::Sofort {
-                preferred_language, ..
-            } => Self::Sofort { preferred_language },
-            api_models::payments::BankRedirectData::Trustly { .. } => Self::Trustly {},
+                preferred_language,
+                country,
+                ..
+            } => Self::Sofort {
+                country,
+                preferred_language,
+            },
+            api_models::payments::BankRedirectData::Trustly { country } => Self::Trustly {
+                country: Some(country),
+            },
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }
@@ -842,7 +1012,9 @@ impl From<UpiData> for api_models::payments::additional_info::UpiAdditionalData 
     fn from(value: UpiData) -> Self {
         match value {
             UpiData::UpiCollect(upi) => Self::UpiCollect(Box::new(
-                payment_additional_types::UpiCollectAdditionalData { vpa_id: upi.vpa_id },
+                payment_additional_types::UpiCollectAdditionalData {
+                    vpa_id: upi.vpa_id.map(MaskedUpiVpaId::from),
+                },
             )),
             UpiData::UpiIntent(_) => {
                 Self::UpiIntent(Box::new(api_models::payments::UpiIntentData {}))
@@ -1005,6 +1177,8 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
             api_models::payments::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
+                card_holder_name,
+                bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
@@ -1012,28 +1186,39 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
             } => Self::AchBankDebit {
                 account_number,
                 routing_number,
+                card_holder_name,
+                bank_account_holder_name,
                 bank_name,
                 bank_type,
                 bank_holder_type,
             },
-            api_models::payments::BankDebitData::SepaBankDebit { iban, .. } => {
-                Self::SepaBankDebit { iban }
-            }
+            api_models::payments::BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+                ..
+            } => Self::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+            },
             api_models::payments::BankDebitData::BecsBankDebit {
                 account_number,
                 bsb_number,
+                bank_account_holder_name,
                 ..
             } => Self::BecsBankDebit {
                 account_number,
                 bsb_number,
+                bank_account_holder_name,
             },
             api_models::payments::BankDebitData::BacsBankDebit {
                 account_number,
                 sort_code,
+                bank_account_holder_name,
                 ..
             } => Self::BacsBankDebit {
                 account_number,
                 sort_code,
+                bank_account_holder_name,
             },
         }
     }
@@ -1048,50 +1233,48 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_name,
                 bank_type,
                 bank_holder_type,
+                card_holder_name,
+                bank_account_holder_name,
             } => Self::Ach(Box::new(
                 payment_additional_types::AchBankDebitAdditionalData {
-                    account_number: Secret::from(MaskedBankAccount::from(
-                        account_number.peek().to_owned(),
-                    )),
-                    routing_number: Secret::from(MaskedRoutingNumber::from(
-                        routing_number.peek().to_owned(),
-                    )),
+                    account_number: MaskedBankAccount::from(account_number),
+                    routing_number: MaskedRoutingNumber::from(routing_number),
                     bank_name,
                     bank_type,
                     bank_holder_type,
-                    bank_account_holder_name: None,
+                    card_holder_name,
+                    bank_account_holder_name,
                 },
             )),
-            BankDebitData::SepaBankDebit { iban, .. } => Self::Sepa(Box::new(
+            BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+            } => Self::Sepa(Box::new(
                 payment_additional_types::SepaBankDebitAdditionalData {
-                    iban: Secret::from(MaskedIban::from(iban.peek().to_owned())),
-                    bank_account_holder_name: None,
+                    iban: MaskedIban::from(iban),
+                    bank_account_holder_name,
                 },
             )),
             BankDebitData::BecsBankDebit {
                 account_number,
                 bsb_number,
-                ..
+                bank_account_holder_name,
             } => Self::Becs(Box::new(
                 payment_additional_types::BecsBankDebitAdditionalData {
-                    account_number: Secret::from(MaskedBankAccount::from(
-                        account_number.peek().to_owned(),
-                    )),
+                    account_number: MaskedBankAccount::from(account_number),
                     bsb_number,
-                    bank_account_holder_name: None,
+                    bank_account_holder_name,
                 },
             )),
             BankDebitData::BacsBankDebit {
                 account_number,
                 sort_code,
-                ..
+                bank_account_holder_name,
             } => Self::Bacs(Box::new(
                 payment_additional_types::BacsBankDebitAdditionalData {
-                    account_number: Secret::from(MaskedBankAccount::from(
-                        account_number.peek().to_owned(),
-                    )),
-                    sort_code: Secret::from(MaskedSortCode::from(sort_code.peek().to_owned())),
-                    bank_account_holder_name: None,
+                    account_number: MaskedBankAccount::from(account_number),
+                    sort_code: MaskedSortCode::from(sort_code),
+                    bank_account_holder_name,
                 },
             )),
         }
@@ -1161,20 +1344,15 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
             BankTransferData::MandiriVaBankTransfer {} => Self::MandiriVa {},
             BankTransferData::Pix { pix_key, cpf, cnpj } => Self::Pix(Box::new(
                 api_models::payments::additional_info::PixBankTransferAdditionalData {
-                    pix_key: pix_key.map(|pix_key| {
-                        Secret::from(MaskedBankAccount::from(pix_key.peek().to_owned()))
-                    }),
-                    cpf: cpf
-                        .map(|cpf| Secret::from(MaskedBankAccount::from(cpf.peek().to_owned()))),
-                    cnpj: cnpj
-                        .map(|cnpj| Secret::from(MaskedBankAccount::from(cnpj.peek().to_owned()))),
+                    pix_key: pix_key.map(MaskedBankAccount::from),
+                    cpf: cpf.map(MaskedBankAccount::from),
+                    cnpj: cnpj.map(MaskedBankAccount::from),
                 },
             )),
             BankTransferData::Pse {} => Self::Pse {},
             BankTransferData::LocalBankTransfer { bank_code } => Self::LocalBankTransfer(Box::new(
                 api_models::payments::additional_info::LocalBankTransferAdditionalData {
-                    bank_code: bank_code
-                        .map(|bank_code| Secret::from(MaskedBankAccount::from(bank_code))),
+                    bank_code: bank_code.map(MaskedBankAccount::from),
                 },
             )),
         }
@@ -1270,6 +1448,16 @@ pub struct TokenizedBankRedirectValue2 {
     pub customer_id: Option<id_type::CustomerId>,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankDebitValue2 {
+    pub customer_id: Option<id_type::CustomerId>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankDebitValue1 {
+    pub data: BankDebitData,
+}
+
 pub trait GetPaymentMethodType {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType;
 }
@@ -1304,6 +1492,7 @@ impl GetPaymentMethodType for WalletData {
             Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
             Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
             Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,
+            Self::Paze(_) => api_enums::PaymentMethodType::Paze,
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,

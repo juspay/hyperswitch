@@ -16,7 +16,6 @@ pub mod payouts;
 pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
-
 use common_enums::enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,

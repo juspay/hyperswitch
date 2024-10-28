@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 use common_enums as enums;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentConfirmData;
 use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;
@@ -20,6 +22,77 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(feature = "v2")]
+#[async_trait]
+impl
+    ConstructFlowSpecificData<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    > for PaymentConfirmData<api::Authorize>
+{
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<
+        types::RouterData<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > {
+        Box::pin(transformers::construct_payment_router_data_for_authorize(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+            key_store,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+        ))
+        .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        let payment_method = &self
+            .payment_attempt
+            .get_payment_method()
+            .get_required_value("PaymentMethod")?;
+
+        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
+            payments::get_merchant_bank_data_for_open_banking_connectors(
+                merchant_connector_account,
+                key_store,
+                connector,
+                state,
+                merchant_account,
+            )
+            .await?
+        } else {
+            None
+        };
+
+        Ok(data)
+    }
+}
+
+#[cfg(feature = "v1")]
 #[async_trait]
 impl
     ConstructFlowSpecificData<
@@ -37,6 +110,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -56,6 +130,7 @@ impl
             customer,
             merchant_connector_account,
             merchant_recipient_data,
+            header_payload,
         ))
         .await
     }
@@ -70,7 +145,7 @@ impl
     ) -> RouterResult<Option<types::MerchantRecipientData>> {
         let payment_method = &self
             .payment_attempt
-            .payment_method
+            .get_payment_method()
             .get_required_value("PaymentMethod")?;
 
         let data = if *payment_method == enums::PaymentMethod::OpenBanking {
@@ -89,6 +164,7 @@ impl
         Ok(data)
     }
 }
+
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
@@ -97,8 +173,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &domain::BusinessProfile,
-        _header_payload: api_models::payments::HeaderPayload,
+        _business_profile: &domain::Profile,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -139,7 +215,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
-        creds_identifier: Option<&String>,
+        creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
             .await

@@ -1,48 +1,59 @@
+#[cfg(feature = "v1")]
+pub use api_models::payments::PaymentsRequest;
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, CustomerDetailsResponse, HeaderPayload, MandateAmountData,
-    MandateData, MandateTransactionType, MandateType, MandateValidationFields, NextActionType,
-    OnlineMandate, OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
+    CryptoData, CustomerAcceptance, CustomerDetailsResponse, MandateAmountData, MandateData,
+    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
+    OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentListResponse,
     PaymentListResponseV2, PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse,
     PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse,
     PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
-    PaymentsCompleteAuthorizeRequest, PaymentsExternalAuthenticationRequest,
-    PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
-    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+    PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
+    PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+    PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRedirectRequest,
+    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
+    VerifyResponse, WalletData,
 };
+#[cfg(feature = "v2")]
+pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsCreateIntentResponse};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
-    Approve, Authorize, AuthorizeSessionToken, Balance, Capture, CompleteAuthorize,
-    CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentMethodToken,
-    PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
+    Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
+    CreateConnectorCustomer, CreateIntent, IncrementalAuthorization, InitPayment, PSync,
+    PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
+    Session, SetupMandate, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
-    PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization, PaymentReject,
-    PaymentSession, PaymentSync, PaymentToken, PaymentVoid, PaymentsCompleteAuthorize,
-    PaymentsPostProcessing, PaymentsPreProcessing,
+    PaymentAuthorizeSessionToken, PaymentCapture, PaymentIncrementalAuthorization,
+    PaymentPostSessionTokens, PaymentReject, PaymentSession, PaymentSessionUpdate, PaymentSync,
+    PaymentToken, PaymentVoid, PaymentsCompleteAuthorize, PaymentsPostProcessing,
+    PaymentsPreProcessing, TaxCalculation,
 };
 
 pub use super::payments_v2::{
     ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
-    PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2, PaymentRejectV2,
-    PaymentSessionV2, PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2,
-    PaymentsCompleteAuthorizeV2, PaymentsPostProcessingV2, PaymentsPreProcessingV2,
+    PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
+    PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
+    PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
+    PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
 };
 use crate::core::errors;
 
-impl super::Router for PaymentsRequest {}
-
 pub trait PaymentIdTypeExt {
-    fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError>;
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError>;
 }
 
 impl PaymentIdTypeExt for PaymentIdType {
-    fn get_payment_intent_id(&self) -> errors::CustomResult<String, errors::ValidationError> {
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
             Self::ConnectorTransactionId(_)
@@ -78,6 +89,7 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     }
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_test {
     #![allow(clippy::expect_used, clippy::unwrap_used)]
@@ -127,7 +139,12 @@ mod payments_test {
     // Intended to test the serialization and deserialization of the enum PaymentIdType
     #[test]
     fn test_connector_id_type() {
-        let sample_1 = PaymentIdType::PaymentIntentId("test_234565430uolsjdnf48i0".to_string());
+        let sample_1 = PaymentIdType::PaymentIntentId(
+            common_utils::id_type::PaymentId::try_from(std::borrow::Cow::Borrowed(
+                "test_234565430uolsjdnf48i0",
+            ))
+            .unwrap(),
+        );
         let s_sample_1 = serde_json::to_string(&sample_1).unwrap();
         let ds_sample_1 = serde_json::from_str::<PaymentIdType>(&s_sample_1).unwrap();
         assert_eq!(ds_sample_1, sample_1)

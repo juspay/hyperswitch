@@ -12,7 +12,7 @@ use crate::{enums as storage_enums, schema::incremental_authorization};
 pub struct Authorization {
     pub authorization_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub amount: MinorUnit,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -30,7 +30,7 @@ pub struct Authorization {
 pub struct AuthorizationNew {
     pub authorization_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
     pub amount: MinorUnit,
     pub status: storage_enums::AuthorizationStatus,
     pub error_code: Option<String>,

@@ -1,6 +1,9 @@
 use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
-use common_utils::id_type;
+use common_utils::{
+    id_type, payout_method_utils,
+    types::{UnifiedCode, UnifiedMessage},
+};
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
@@ -78,6 +81,9 @@ pub struct PayoutAttempt {
     pub profile_id: id_type::ProfileId,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub unified_code: Option<UnifiedCode>,
+    pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -101,6 +107,9 @@ pub struct PayoutAttemptNew {
     pub profile_id: id_type::ProfileId,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub unified_code: Option<UnifiedCode>,
+    pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +120,9 @@ pub enum PayoutAttemptUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
         is_eligible: Option<bool>,
+
+        unified_code: Option<UnifiedCode>,
+        unified_message: Option<UnifiedMessage>,
     },
     PayoutTokenUpdate {
         payout_token: String,
@@ -125,6 +137,9 @@ pub enum PayoutAttemptUpdate {
         connector: String,
         routing_info: Option<serde_json::Value>,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    },
+    AdditionalPayoutMethodDataUpdate {
+        additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     },
 }
 
@@ -143,6 +158,9 @@ pub struct PayoutAttemptUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub unified_code: Option<UnifiedCode>,
+    pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -158,12 +176,16 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 error_message,
                 error_code,
                 is_eligible,
+                unified_code,
+                unified_message,
             } => Self {
                 connector_payout_id,
                 status: Some(status),
                 error_message,
                 error_code,
                 is_eligible,
+                unified_code,
+                unified_message,
                 ..Default::default()
             },
             PayoutAttemptUpdate::BusinessUpdate {
@@ -186,6 +208,12 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 connector: Some(connector),
                 routing_info,
                 merchant_connector_id,
+                ..Default::default()
+            },
+            PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            } => Self {
+                additional_payout_method_data,
                 ..Default::default()
             },
         }

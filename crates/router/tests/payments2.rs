@@ -2,7 +2,8 @@
     clippy::expect_used,
     clippy::unwrap_in_result,
     clippy::unwrap_used,
-    clippy::print_stdout
+    clippy::print_stdout,
+    unused_imports
 )]
 
 mod utils;
@@ -36,6 +37,7 @@ fn connector_list() {
     assert_eq!(true, true);
 }
 
+#[cfg(feature = "v1")]
 // FIXME: broken test?
 #[ignore]
 #[actix_rt::test]
@@ -73,10 +75,11 @@ async fn payments_create_core() {
         .await
         .unwrap();
 
+    let payment_id =
+        id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
+
     let req = api::PaymentsRequest {
-        payment_id: Some(api::PaymentIdType::PaymentIntentId(
-            "pay_mbabizu24mvu3mela5njyhpit10".to_string(),
-        )),
+        payment_id: Some(api::PaymentIdType::PaymentIntentId(payment_id.clone())),
         merchant_id: Some(merchant_id.clone()),
         amount: Some(MinorUnit::new(6540).into()),
         currency: Some(api_enums::Currency::USD),
@@ -124,7 +127,7 @@ async fn payments_create_core() {
     };
 
     let expected_response = api::PaymentsResponse {
-        payment_id: "pay_mbabizu24mvu3mela5njyhpit10".to_string(),
+        payment_id,
         status: api_enums::IntentStatus::Succeeded,
         amount: MinorUnit::new(6540),
         amount_capturable: MinorUnit::new(0),
@@ -202,7 +205,11 @@ async fn payments_create_core() {
         charges: None,
         frm_metadata: None,
         merchant_order_reference_id: None,
+        order_tax_amount: None,
+        connector_mandate_id: None,
+        shipping_cost: None,
     };
+
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
     let actual_response = Box::pin(payments::payments_core::<
@@ -211,6 +218,7 @@ async fn payments_create_core() {
         _,
         _,
         _,
+        payments::PaymentData<api::Authorize>,
     >(
         state.clone(),
         state.get_req_state(),
@@ -222,7 +230,7 @@ async fn payments_create_core() {
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
         None,
-        api::HeaderPayload::default(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
     ))
     .await
     .unwrap();
@@ -296,6 +304,7 @@ async fn payments_create_core() {
 //     assert_eq!(expected_response, actual_response);
 // }
 
+#[cfg(feature = "v1")]
 // FIXME: broken test?
 #[ignore]
 #[actix_rt::test]
@@ -317,7 +326,9 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
-    let payment_id = "pay_mbabizu24mvu3mela5njyhpit10".to_string();
+    let payment_id =
+        id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
+
     let key_manager_state = &(&state).into();
     let key_store = state
         .store
@@ -462,6 +473,9 @@ async fn payments_create_core_adyen_no_redirect() {
             charges: None,
             frm_metadata: None,
             merchant_order_reference_id: None,
+            order_tax_amount: None,
+            connector_mandate_id: None,
+            shipping_cost: None,
         },
         vec![],
     ));
@@ -471,6 +485,7 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         _,
         _,
+        payments::PaymentData<api::Authorize>,
     >(
         state.clone(),
         state.get_req_state(),
@@ -482,7 +497,7 @@ async fn payments_create_core_adyen_no_redirect() {
         services::AuthFlow::Merchant,
         payments::CallConnectorAction::Trigger,
         None,
-        api::HeaderPayload::default(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
     ))
     .await
     .unwrap();

@@ -1,4 +1,6 @@
 use common_enums::PaymentMethodType;
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::request;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode},
@@ -22,6 +24,11 @@ use crate::{
         storage::{self, enums},
     },
     utils::StringExt,
+};
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::{
+    core::payment_methods::transformers as pm_transforms, headers, services, settings,
+    types::payment_methods as pm_types, utils::ConnectorResponseExt,
 };
 const VAULT_SERVICE_NAME: &str = "CARD";
 
@@ -279,6 +286,58 @@ impl Vaultable for domain::BankRedirectData {
     }
 }
 
+impl Vaultable for domain::BankDebitData {
+    fn get_value1(
+        &self,
+        _customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value1 = domain::TokenizedBankDebitValue1 {
+            data: self.to_owned(),
+        };
+
+        value1
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank debit data")
+    }
+
+    fn get_value2(
+        &self,
+        customer_id: Option<id_type::CustomerId>,
+    ) -> CustomResult<String, errors::VaultError> {
+        let value2 = domain::TokenizedBankDebitValue2 { customer_id };
+
+        value2
+            .encode_to_string_of_json()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank debit supplementary data")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: domain::TokenizedBankDebitValue1 = value1
+            .parse_struct("TokenizedBankDebitValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into bank debit data")?;
+
+        let value2: domain::TokenizedBankDebitValue2 = value2
+            .parse_struct("TokenizedBankDebitValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into supplementary bank debit data")?;
+
+        let bank_transfer_data = value1.data;
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((bank_transfer_data, supp_data))
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum VaultPaymentMethod {
@@ -286,6 +345,7 @@ pub enum VaultPaymentMethod {
     Wallet(String),
     BankTransfer(String),
     BankRedirect(String),
+    BankDebit(String),
 }
 
 impl Vaultable for domain::PaymentMethodData {
@@ -301,6 +361,9 @@ impl Vaultable for domain::PaymentMethodData {
             }
             Self::BankRedirect(bank_redirect) => {
                 VaultPaymentMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
+            }
+            Self::BankDebit(bank_debit) => {
+                VaultPaymentMethod::BankDebit(bank_debit.get_value1(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .attach_printable("Payment method not supported")?,
@@ -324,6 +387,9 @@ impl Vaultable for domain::PaymentMethodData {
             }
             Self::BankRedirect(bank_redirect) => {
                 VaultPaymentMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
+            }
+            Self::BankDebit(bank_debit) => {
+                VaultPaymentMethod::BankDebit(bank_debit.get_value2(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .attach_printable("Payment method not supported")?,
@@ -373,6 +439,10 @@ impl Vaultable for domain::PaymentMethodData {
                 let (bank_redirect, supp_data) =
                     domain::BankRedirectData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankRedirect(bank_redirect), supp_data))
+            }
+            (VaultPaymentMethod::BankDebit(mvalue1), VaultPaymentMethod::BankDebit(mvalue2)) => {
+                let (bank_debit, supp_data) = domain::BankDebitData::from_values(mvalue1, mvalue2)?;
+                Ok((Self::BankDebit(bank_debit), supp_data))
             }
 
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
@@ -1107,6 +1177,191 @@ pub async fn delete_tokenized_data(
             Err(err)
         }
     }
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+async fn create_vault_request<R: pm_types::VaultingInterface>(
+    jwekey: &settings::Jwekey,
+    locker: &settings::Locker,
+    payload: Vec<u8>,
+) -> CustomResult<request::Request, errors::VaultError> {
+    let private_key = jwekey.vault_private_key.peek().as_bytes();
+
+    let jws = services::encryption::jws_sign_payload(
+        &payload,
+        &locker.locker_signing_key_id,
+        private_key,
+    )
+    .await
+    .change_context(errors::VaultError::RequestEncryptionFailed)?;
+
+    let jwe_payload = pm_transforms::create_jwe_body_for_vault(jwekey, &jws).await?;
+
+    let mut url = locker.host.to_owned();
+    url.push_str(R::get_vaulting_request_url());
+    let mut request = request::Request::new(services::Method::Post, &url);
+    request.add_header(
+        headers::CONTENT_TYPE,
+        consts::VAULT_HEADER_CONTENT_TYPE.into(),
+    );
+    request.set_body(request::RequestContent::Json(Box::new(jwe_payload)));
+    Ok(request)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn call_to_vault<V: pm_types::VaultingInterface>(
+    state: &routes::SessionState,
+    payload: Vec<u8>,
+) -> CustomResult<String, errors::VaultError> {
+    let locker = &state.conf.locker;
+    let jwekey = state.conf.jwekey.get_inner();
+
+    let request = create_vault_request::<V>(jwekey, locker, payload).await?;
+    let response = services::call_connector_api(state, request, V::get_vaulting_flow_name())
+        .await
+        .change_context(errors::VaultError::VaultAPIError);
+
+    let jwe_body: services::JweBody = response
+        .get_response_inner("JweBody")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to get JweBody from vault response")?;
+
+    let decrypted_payload = pm_transforms::get_decrypted_vault_response_payload(
+        jwekey,
+        jwe_body,
+        locker.decryption_scheme.clone(),
+    )
+    .await
+    .change_context(errors::VaultError::ResponseDecryptionFailed)
+    .attach_printable("Error getting decrypted vault response payload")?;
+
+    Ok(decrypted_payload)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn get_fingerprint_id_from_vault<
+    D: pm_types::VaultingDataInterface + serde::Serialize,
+>(
+    state: &routes::SessionState,
+    data: &D,
+) -> CustomResult<String, errors::VaultError> {
+    let key = data.get_vaulting_data_key();
+    let data = serde_json::to_string(data)
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode Vaulting data to string")?;
+
+    let payload = pm_types::VaultFingerprintRequest { key, data }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultFingerprintRequest")?;
+
+    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+    let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
+        .parse_struct("VaultFingerprintResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultFingerprintResponse")?;
+
+    Ok(fingerprint_resp.fingerprint_id)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn add_payment_method_to_vault(
+    state: &routes::SessionState,
+    merchant_account: &domain::MerchantAccount,
+    pmd: &pm_types::PaymentMethodVaultingData,
+    existing_vault_id: Option<domain::VaultId>,
+) -> CustomResult<pm_types::AddVaultResponse, errors::VaultError> {
+    let payload = pm_types::AddVaultRequest {
+        entity_id: merchant_account.get_id().to_owned(),
+        vault_id: existing_vault_id
+            .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
+        data: pmd,
+        ttl: state.conf.locker.ttl_for_storage_in_secs,
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)
+    .attach_printable("Failed to encode AddVaultRequest")?;
+
+    let resp = call_to_vault::<pm_types::AddVault>(state, payload)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+    let stored_pm_resp: pm_types::AddVaultResponse = resp
+        .parse_struct("AddVaultResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into AddVaultResponse")?;
+
+    Ok(stored_pm_resp)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn retrieve_payment_method_from_vault(
+    state: &routes::SessionState,
+    merchant_account: &domain::MerchantAccount,
+    pm: &domain::PaymentMethod,
+) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
+    let payload = pm_types::VaultRetrieveRequest {
+        entity_id: merchant_account.get_id().to_owned(),
+        vault_id: pm
+            .locker_id
+            .clone()
+            .ok_or(errors::VaultError::MissingRequiredField {
+                field_name: "locker_id",
+            })
+            .attach_printable("Missing locker_id for VaultRetrieveRequest")?,
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)
+    .attach_printable("Failed to encode VaultRetrieveRequest")?;
+
+    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+    let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
+        .parse_struct("VaultRetrieveResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
+
+    Ok(stored_pm_resp)
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[instrument(skip_all)]
+pub async fn delete_payment_method_data_from_vault(
+    state: &routes::SessionState,
+    merchant_account: &domain::MerchantAccount,
+    vault_id: domain::VaultId,
+) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
+    let payload = pm_types::VaultDeleteRequest {
+        entity_id: merchant_account.get_id().to_owned(),
+        vault_id,
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)
+    .attach_printable("Failed to encode VaultDeleteRequest")?;
+
+    let resp = call_to_vault::<pm_types::VaultDelete>(state, payload)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed")?;
+
+    let stored_pm_resp: pm_types::VaultDeleteResponse = resp
+        .parse_struct("VaultDeleteResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultDeleteResponse")?;
+
+    Ok(stored_pm_resp)
 }
 
 // ********************************************** PROCESS TRACKER **********************************************

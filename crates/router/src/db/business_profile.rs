@@ -17,24 +17,23 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-pub trait BusinessProfileInterface
+pub trait ProfileInterface
 where
-    domain::BusinessProfile:
-        Conversion<DstType = storage::BusinessProfile, NewDstType = storage::BusinessProfileNew>,
+    domain::Profile: Conversion<DstType = storage::Profile, NewDstType = storage::ProfileNew>,
 {
     async fn insert_business_profile(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        business_profile: domain::BusinessProfile,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError>;
+        business_profile: domain::Profile,
+    ) -> CustomResult<domain::Profile, errors::StorageError>;
 
     async fn find_business_profile_by_profile_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError>;
+    ) -> CustomResult<domain::Profile, errors::StorageError>;
 
     async fn find_business_profile_by_merchant_id_profile_id(
         &self,
@@ -42,7 +41,7 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError>;
+    ) -> CustomResult<domain::Profile, errors::StorageError>;
 
     async fn find_business_profile_by_profile_name_merchant_id(
         &self,
@@ -50,39 +49,39 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError>;
+    ) -> CustomResult<domain::Profile, errors::StorageError>;
 
-    async fn update_business_profile_by_profile_id(
+    async fn update_profile_by_profile_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        current_state: domain::BusinessProfile,
-        business_profile_update: domain::BusinessProfileUpdate,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError>;
+        current_state: domain::Profile,
+        profile_update: domain::ProfileUpdate,
+    ) -> CustomResult<domain::Profile, errors::StorageError>;
 
-    async fn delete_business_profile_by_profile_id_merchant_id(
+    async fn delete_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError>;
 
-    async fn list_business_profile_by_merchant_id(
+    async fn list_profile_by_merchant_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
-    ) -> CustomResult<Vec<domain::BusinessProfile>, errors::StorageError>;
+    ) -> CustomResult<Vec<domain::Profile>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
-impl BusinessProfileInterface for Store {
+impl ProfileInterface for Store {
     #[instrument(skip_all)]
     async fn insert_business_profile(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        business_profile: domain::BusinessProfile,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        business_profile: domain::Profile,
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         business_profile
             .construct_new()
@@ -106,9 +105,9 @@ impl BusinessProfileInterface for Store {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::BusinessProfile::find_by_profile_id(&conn, profile_id)
+        storage::Profile::find_by_profile_id(&conn, profile_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -126,9 +125,9 @@ impl BusinessProfileInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::BusinessProfile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
+        storage::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -147,9 +146,9 @@ impl BusinessProfileInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::BusinessProfile::find_by_profile_name_merchant_id(&conn, profile_name, merchant_id)
+        storage::Profile::find_by_profile_name_merchant_id(&conn, profile_name, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -162,21 +161,18 @@ impl BusinessProfileInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn update_business_profile_by_profile_id(
+    async fn update_profile_by_profile_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        current_state: domain::BusinessProfile,
-        business_profile_update: domain::BusinessProfileUpdate,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        current_state: domain::Profile,
+        profile_update: domain::ProfileUpdate,
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         Conversion::convert(current_state)
             .await
             .change_context(errors::StorageError::EncryptionError)?
-            .update_by_profile_id(
-                &conn,
-                storage::BusinessProfileUpdateInternal::from(business_profile_update),
-            )
+            .update_by_profile_id(&conn, storage::ProfileUpdateInternal::from(profile_update))
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
             .convert(
@@ -189,26 +185,26 @@ impl BusinessProfileInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn delete_business_profile_by_profile_id_merchant_id(
+    async fn delete_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::BusinessProfile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
+        storage::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     #[instrument(skip_all)]
-    async fn list_business_profile_by_merchant_id(
+    async fn list_profile_by_merchant_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
-    ) -> CustomResult<Vec<domain::BusinessProfile>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::Profile>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::BusinessProfile::list_business_profile_by_merchant_id(&conn, merchant_id)
+        storage::Profile::list_profile_by_merchant_id(&conn, merchant_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
             .async_and_then(|business_profiles| async {
@@ -232,13 +228,13 @@ impl BusinessProfileInterface for Store {
 }
 
 #[async_trait::async_trait]
-impl BusinessProfileInterface for MockDb {
+impl ProfileInterface for MockDb {
     async fn insert_business_profile(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        business_profile: domain::BusinessProfile,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+        business_profile: domain::Profile,
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         let stored_business_profile = Conversion::convert(business_profile)
             .await
             .change_context(errors::StorageError::EncryptionError)?;
@@ -263,12 +259,12 @@ impl BusinessProfileInterface for MockDb {
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.business_profiles
             .lock()
             .await
             .iter()
-            .find(|business_profile| business_profile.profile_id == *profile_id)
+            .find(|business_profile| business_profile.get_id() == profile_id)
             .cloned()
             .async_map(|business_profile| async {
                 business_profile
@@ -296,14 +292,14 @@ impl BusinessProfileInterface for MockDb {
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.business_profiles
             .lock()
             .await
             .iter()
             .find(|business_profile| {
                 business_profile.merchant_id == *merchant_id
-                    && business_profile.profile_id == *profile_id
+                    && business_profile.get_id() == profile_id
             })
             .cloned()
             .async_map(|business_profile| async {
@@ -326,30 +322,29 @@ impl BusinessProfileInterface for MockDb {
             )
     }
 
-    async fn update_business_profile_by_profile_id(
+    async fn update_profile_by_profile_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        current_state: domain::BusinessProfile,
-        business_profile_update: domain::BusinessProfileUpdate,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
-        let profile_id = current_state.profile_id.clone();
+        current_state: domain::Profile,
+        profile_update: domain::ProfileUpdate,
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
+        let profile_id = current_state.get_id().to_owned();
         self.business_profiles
             .lock()
             .await
             .iter_mut()
-            .find(|business_profile| business_profile.profile_id == profile_id)
+            .find(|business_profile| business_profile.get_id() == current_state.get_id())
             .async_map(|business_profile| async {
-                let business_profile_updated =
-                    storage::BusinessProfileUpdateInternal::from(business_profile_update)
-                        .apply_changeset(
-                            Conversion::convert(current_state)
-                                .await
-                                .change_context(errors::StorageError::EncryptionError)?,
-                        );
-                *business_profile = business_profile_updated.clone();
+                let profile_updated = storage::ProfileUpdateInternal::from(profile_update)
+                    .apply_changeset(
+                        Conversion::convert(current_state)
+                            .await
+                            .change_context(errors::StorageError::EncryptionError)?,
+                    );
+                *business_profile = profile_updated.clone();
 
-                business_profile_updated
+                profile_updated
                     .convert(
                         key_manager_state,
                         merchant_key_store.key.get_inner(),
@@ -362,13 +357,13 @@ impl BusinessProfileInterface for MockDb {
             .transpose()?
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "No business profile found for profile_id = {profile_id:?}"
+                    "No business profile found for profile_id = {profile_id:?}",
                 ))
                 .into(),
             )
     }
 
-    async fn delete_business_profile_by_profile_id_merchant_id(
+    async fn delete_profile_by_profile_id_merchant_id(
         &self,
         profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -377,7 +372,7 @@ impl BusinessProfileInterface for MockDb {
         let index = business_profiles
             .iter()
             .position(|business_profile| {
-                business_profile.profile_id == *profile_id
+                business_profile.get_id() == profile_id
                     && business_profile.merchant_id == *merchant_id
             })
             .ok_or::<errors::StorageError>(errors::StorageError::ValueNotFound(format!(
@@ -387,12 +382,12 @@ impl BusinessProfileInterface for MockDb {
         Ok(true)
     }
 
-    async fn list_business_profile_by_merchant_id(
+    async fn list_profile_by_merchant_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
-    ) -> CustomResult<Vec<domain::BusinessProfile>, errors::StorageError> {
+    ) -> CustomResult<Vec<domain::Profile>, errors::StorageError> {
         let business_profiles = self
             .business_profiles
             .lock()
@@ -425,7 +420,7 @@ impl BusinessProfileInterface for MockDb {
         merchant_key_store: &domain::MerchantKeyStore,
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
-    ) -> CustomResult<domain::BusinessProfile, errors::StorageError> {
+    ) -> CustomResult<domain::Profile, errors::StorageError> {
         self.business_profiles
             .lock()
             .await

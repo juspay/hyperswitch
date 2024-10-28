@@ -20,7 +20,6 @@ use api_models::{
     payments::{self},
     webhooks,
 };
-use base64::Engine;
 use common_utils::types::keymanager::KeyManagerState;
 pub use common_utils::{
     crypto,
@@ -35,12 +34,11 @@ use common_utils::{
     types::keymanager::{Identifier, ToEncryptable},
 };
 use error_stack::ResultExt;
+pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use image::Luma;
 use nanoid::nanoid;
-use qrcode;
 use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -48,6 +46,8 @@ use tracing_futures::Instrument;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(feature = "v1")]
+use crate::core::webhooks as webhooks_core;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::types::storage;
 use crate::{
@@ -55,7 +55,7 @@ use crate::{
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        webhooks as webhooks_core,
+        payments as payments_core,
     },
     logger,
     routes::{metrics, SessionState},
@@ -163,41 +163,11 @@ impl<E> ConnectorResponseExt
 }
 
 #[inline]
-pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
-    format!("{payment_id}_{attempt_count}")
-}
-#[derive(Debug)]
-pub struct QrImage {
-    pub data: String,
+pub fn get_payout_attempt_id(payout_id: impl std::fmt::Display, attempt_count: i16) -> String {
+    format!("{payout_id}_{attempt_count}")
 }
 
-impl QrImage {
-    pub fn new_from_data(
-        data: String,
-    ) -> Result<Self, error_stack::Report<common_utils::errors::QrCodeError>> {
-        let qr_code = qrcode::QrCode::new(data.as_bytes())
-            .change_context(common_utils::errors::QrCodeError::FailedToCreateQrCode)?;
-
-        // Renders the QR code into an image.
-        let qrcode_image_buffer = qr_code.render::<Luma<u8>>().build();
-        let qrcode_dynamic_image = image::DynamicImage::ImageLuma8(qrcode_image_buffer);
-
-        let mut image_bytes = std::io::BufWriter::new(std::io::Cursor::new(Vec::new()));
-
-        // Encodes qrcode_dynamic_image and write it to image_bytes
-        let _ = qrcode_dynamic_image.write_to(&mut image_bytes, image::ImageFormat::Png);
-
-        let image_data_source = format!(
-            "{},{}",
-            consts::QR_IMAGE_DATA_SOURCE_STRING,
-            consts::BASE64_ENGINE.encode(image_bytes.buffer())
-        );
-        Ok(Self {
-            data: image_data_source,
-        })
-    }
-}
-
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_payment_id_type(
     state: &SessionState,
     payment_id_type: payments::PaymentIdType,
@@ -261,6 +231,7 @@ pub async fn find_payment_intent_from_payment_id_type(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_refund_id_type(
     state: &SessionState,
     refund_id_type: webhooks::RefundIdType,
@@ -307,6 +278,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_payment_intent_from_mandate_id_type(
     state: &SessionState,
     mandate_id_type: webhooks::MandateIdType,
@@ -346,6 +318,7 @@ pub async fn find_payment_intent_from_mandate_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+#[cfg(feature = "v1")]
 pub async fn find_mca_from_authentication_id_type(
     state: &SessionState,
     authentication_id_type: webhooks::AuthenticationIdType,
@@ -370,10 +343,7 @@ pub async fn find_mca_from_authentication_id_type(
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         }
     };
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_connector_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     {
         db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &state.into(),
@@ -391,7 +361,7 @@ pub async fn find_mca_from_authentication_id_type(
             },
         )
     }
-    #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+    #[cfg(feature = "v2")]
     //get mca using id
     {
         let _ = key_store;
@@ -400,6 +370,7 @@ pub async fn find_mca_from_authentication_id_type(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_mca_from_payment_intent(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -408,6 +379,9 @@ pub async fn get_mca_from_payment_intent(
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
+    let key_manager_state: &KeyManagerState = &state.into();
+
+    #[cfg(feature = "v1")]
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
@@ -416,13 +390,22 @@ pub async fn get_mca_from_payment_intent(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    let key_manager_state: &KeyManagerState = &state.into();
+
+    #[cfg(feature = "v2")]
+    let payment_attempt = db
+        .find_payment_attempt_by_attempt_id_merchant_id(
+            key_manager_state,
+            key_store,
+            &payment_intent.active_attempt.get_id(),
+            merchant_account.get_id(),
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
     match payment_attempt.merchant_connector_id {
         Some(merchant_connector_id) => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     key_manager_state,
@@ -437,7 +420,7 @@ pub async fn get_mca_from_payment_intent(
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 //get mca using id
                 let _id = merchant_connector_id;
@@ -456,10 +439,7 @@ pub async fn get_mca_from_payment_intent(
                 .attach_printable("profile_id is not set in payment_intent")?
                 .clone();
 
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
@@ -477,7 +457,7 @@ pub async fn get_mca_from_payment_intent(
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 //get mca using id
                 let _ = profile_id;
@@ -517,10 +497,7 @@ pub async fn get_mca_from_payout_attempt(
     let key_manager_state: &KeyManagerState = &state.into();
     match payout.merchant_connector_id {
         Some(merchant_connector_id) => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     key_manager_state,
@@ -535,7 +512,7 @@ pub async fn get_mca_from_payout_attempt(
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 //get mca using id
                 let _id = merchant_connector_id;
@@ -546,10 +523,7 @@ pub async fn get_mca_from_payout_attempt(
             }
         }
         None => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     key_manager_state,
@@ -568,7 +542,7 @@ pub async fn get_mca_from_payout_attempt(
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 todo!()
             }
@@ -576,6 +550,7 @@ pub async fn get_mca_from_payout_attempt(
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_mca_from_object_reference_id(
     state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -585,21 +560,15 @@ pub async fn get_mca_from_object_reference_id(
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
     let db = &*state.store;
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let default_profile_id = merchant_account.default_profile.as_ref();
 
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let default_profile_id = Option::<&String>::None;
 
     match default_profile_id {
         Some(profile_id) => {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "merchant_connector_account_v2")
-            ))]
+            #[cfg(feature = "v1")]
             {
                 db.find_merchant_connector_account_by_profile_id_connector_name(
                     &state.into(),
@@ -617,7 +586,7 @@ pub async fn get_mca_from_object_reference_id(
                     },
                 )
             }
-            #[cfg(all(feature = "v2", feature = "merchant_connector_account_v2"))]
+            #[cfg(feature = "v2")]
             {
                 let _db = db;
                 let _profile_id = profile_id;
@@ -1105,12 +1074,13 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
         .unwrap_or(true)
 }
 
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
-pub async fn trigger_payments_webhook<F, Op>(
+pub async fn trigger_payments_webhook<F, Op, D>(
     merchant_account: domain::MerchantAccount,
-    business_profile: domain::BusinessProfile,
+    business_profile: domain::Profile,
     key_store: &domain::MerchantKeyStore,
-    payment_data: crate::core::payments::PaymentData<F>,
+    payment_data: D,
     customer: Option<domain::Customer>,
     state: &SessionState,
     operation: Op,
@@ -1118,12 +1088,32 @@ pub async fn trigger_payments_webhook<F, Op>(
 where
     F: Send + Clone + Sync,
     Op: Debug,
+    D: payments_core::OperationSessionGetters<F>,
 {
-    let status = payment_data.payment_intent.status;
-    let payment_id = payment_data.payment_intent.payment_id.clone();
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn trigger_payments_webhook<F, Op, D>(
+    merchant_account: domain::MerchantAccount,
+    business_profile: domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: D,
+    customer: Option<domain::Customer>,
+    state: &SessionState,
+    operation: Op,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync,
+    Op: Debug,
+    D: payments_core::OperationSessionGetters<F>,
+{
+    let status = payment_data.get_payment_intent().status;
+    let payment_id = payment_data.get_payment_intent().get_id().to_owned();
+
     let captures = payment_data
-        .multiple_capture_data
-        .clone()
+        .get_multiple_capture_data()
         .map(|multiple_capture_data| {
             multiple_capture_data
                 .get_all_captures()
@@ -1174,11 +1164,11 @@ where
                             &cloned_key_store,
                             event_type,
                             diesel_models::enums::EventClass::Payments,
-                            payment_id,
+                            payment_id.get_string_repr().to_owned(),
                             diesel_models::enums::EventObjectType::PaymentDetails,
-                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                            webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                                 payments_response_json,
-                            ),
+                            )),
                             primary_object_created_at,
                         ))
                         .await
@@ -1205,15 +1195,5 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
         Err(err) => Err(err)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Join Error"),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::utils;
-    #[test]
-    fn test_image_data_source_url() {
-        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
-        assert!(qr_image_data_source_url.is_ok());
     }
 }

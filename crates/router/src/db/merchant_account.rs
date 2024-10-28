@@ -74,7 +74,7 @@ where
     async fn list_merchant_accounts_by_organization_id(
         &self,
         state: &KeyManagerState,
-        organization_id: &str,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
 
     async fn delete_merchant_account_by_merchant_id(
@@ -282,7 +282,7 @@ impl MerchantAccountInterface for Store {
     async fn list_merchant_accounts_by_organization_id(
         &self,
         state: &KeyManagerState,
-        organization_id: &str,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         use futures::future::try_join_all;
         let conn = connection::pg_connection_read(self).await?;
@@ -555,7 +555,7 @@ impl MerchantAccountInterface for MockDb {
     async fn list_merchant_accounts_by_organization_id(
         &self,
         _state: &KeyManagerState,
-        _organization_id: &str,
+        _organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -580,10 +580,7 @@ async fn publish_and_redact_merchant_account_cache(
         .as_ref()
         .map(|publishable_key| CacheKind::Accounts(publishable_key.into()));
 
-    #[cfg(all(
-        any(feature = "v1", feature = "v2"),
-        not(feature = "merchant_account_v2")
-    ))]
+    #[cfg(feature = "v1")]
     let cgraph_key = merchant_account.default_profile.as_ref().map(|profile_id| {
         CacheKind::CGraph(
             format!(
@@ -596,7 +593,7 @@ async fn publish_and_redact_merchant_account_cache(
     });
 
     // TODO: we will not have default profile in v2
-    #[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+    #[cfg(feature = "v2")]
     let cgraph_key = None;
 
     let mut cache_keys = vec![CacheKind::Accounts(

@@ -11,10 +11,7 @@ use crate::{
     types::domain,
 };
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn upsert_surcharge_decision_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
@@ -142,7 +139,7 @@ pub async fn upsert_surcharge_decision_config(
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn upsert_surcharge_decision_config(
     _state: SessionState,
     _key_store: domain::MerchantKeyStore,
@@ -152,10 +149,7 @@ pub async fn upsert_surcharge_decision_config(
     todo!();
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 pub async fn delete_surcharge_decision_config(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
@@ -192,7 +186,7 @@ pub async fn delete_surcharge_decision_config(
     Ok(service_api::ApplicationResponse::StatusOk)
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 pub async fn delete_surcharge_decision_config(
     _state: SessionState,
     _key_store: domain::MerchantKeyStore,

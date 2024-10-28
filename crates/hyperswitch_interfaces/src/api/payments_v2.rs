@@ -3,18 +3,20 @@
 use hyperswitch_domain_models::{
     router_data_v2::PaymentFlowData,
     router_flow_types::payments::{
-        Approve, Authorize, AuthorizeSessionToken, Capture, CompleteAuthorize,
+        Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
-        PostProcessing, PreProcessing, Reject, Session, SetupMandate, Void,
+        PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+        SetupMandate, Void,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostProcessingData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, SetupMandateRequestData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData,
     },
-    router_response_types::PaymentsResponseData,
+    router_response_types::{PaymentsResponseData, TaxCalculationResponseData},
 };
 
 use crate::api::{ConnectorCommon, ConnectorIntegrationV2, ConnectorValidation};
@@ -84,6 +86,39 @@ pub trait PaymentIncrementalAuthorizationV2:
     IncrementalAuthorization,
     PaymentFlowData,
     PaymentsIncrementalAuthorizationData,
+    PaymentsResponseData,
+>
+{
+}
+
+///trait TaxCalculationV2
+pub trait TaxCalculationV2:
+    ConnectorIntegrationV2<
+    CalculateTax,
+    PaymentFlowData,
+    PaymentsTaxCalculationData,
+    TaxCalculationResponseData,
+>
+{
+}
+
+///trait PaymentSessionUpdateV2
+pub trait PaymentSessionUpdateV2:
+    ConnectorIntegrationV2<
+    SdkSessionUpdate,
+    PaymentFlowData,
+    SdkPaymentsSessionUpdateData,
+    PaymentsResponseData,
+>
+{
+}
+
+///trait PaymentPostSessionTokensV2
+pub trait PaymentPostSessionTokensV2:
+    ConnectorIntegrationV2<
+    PostSessionTokens,
+    PaymentFlowData,
+    PaymentsPostSessionTokensData,
     PaymentsResponseData,
 >
 {
@@ -163,5 +198,8 @@ pub trait PaymentV2:
     + PaymentsPostProcessingV2
     + ConnectorCustomerV2
     + PaymentIncrementalAuthorizationV2
+    + TaxCalculationV2
+    + PaymentSessionUpdateV2
+    + PaymentPostSessionTokensV2
 {
 }

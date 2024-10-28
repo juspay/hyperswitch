@@ -6,7 +6,8 @@ let globalState;
 
 describe("Priority Based Routing Test", () => {
   let should_continue = true;
-  context("Create Jwt Token", () => {
+
+  context("Login", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -16,14 +17,11 @@ describe("Priority Based Routing Test", () => {
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
-    it("create-jwt-token", () => {
-      let data = utils.getConnectorDetails("common")["jwt"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
 
-      cy.createJWTToken(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+    it("User login", () => {
+      cy.userLogin(globalState);
+      cy.terminate2Fa(globalState);
+      cy.userInfo(globalState);
     });
 
     it("merchant retrieve call", () => {

@@ -16,6 +16,20 @@ use crate::{
     utils, SessionState,
 };
 
+#[cfg(feature = "v2")]
+pub async fn construct_fulfillment_router_data<'a>(
+    _state: &'a SessionState,
+    _payment_intent: &'a storage::PaymentIntent,
+    _payment_attempt: &storage::PaymentAttempt,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _connector: String,
+    _fulfillment_request: FrmFulfillmentRequest,
+) -> RouterResult<FrmFulfillmentRouterData> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn construct_fulfillment_router_data<'a>(
     state: &'a SessionState,
@@ -58,7 +72,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         flow: std::marker::PhantomData,
         merchant_id: merchant_account.get_id().clone(),
         connector,
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -75,7 +89,10 @@ pub async fn construct_fulfillment_router_data<'a>(
         minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: FraudCheckFulfillmentData {
-            amount: payment_attempt.amount.get_amount_as_i64(),
+            amount: payment_attempt
+                .net_amount
+                .get_total_amount()
+                .get_amount_as_i64(),
             order_details: payment_intent.order_details.clone(),
             fulfillment_req: fulfillment_request,
         },
@@ -108,6 +125,8 @@ pub async fn construct_fulfillment_router_data<'a>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
     };
     Ok(router_data)
 }

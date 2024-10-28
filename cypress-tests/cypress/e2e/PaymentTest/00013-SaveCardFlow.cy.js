@@ -376,10 +376,10 @@ describe("Card - SaveCard payment flow test", () => {
       let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
         if (!should_continue) {
           this.skip();
         }
+        saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
       });
 
       it("customer-create-call-test", () => {

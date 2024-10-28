@@ -54,7 +54,10 @@ pub async fn payment_link_retrieve(
 pub async fn initiate_payment_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::PaymentId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::PaymentLinkInitiate;
     let (merchant_id, payment_id) = path.into_inner();
@@ -69,7 +72,7 @@ pub async fn initiate_payment_link(
         state,
         &req,
         payload.clone(),
-        |state, auth, _, _| {
+        |state, auth: auth::AuthenticationData, _, _| {
             initiate_payment_link_flow(
                 state,
                 auth.merchant_account,
@@ -88,7 +91,10 @@ pub async fn initiate_payment_link(
 pub async fn initiate_secure_payment_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::PaymentId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::PaymentSecureLinkInitiate;
     let (merchant_id, payment_id) = path.into_inner();
@@ -102,7 +108,7 @@ pub async fn initiate_secure_payment_link(
         state,
         &req,
         payload.clone(),
-        |state, auth, _, _| {
+        |state, auth: auth::AuthenticationData, _, _| {
             initiate_secure_payment_link_flow(
                 state,
                 auth.merchant_account,
@@ -154,7 +160,9 @@ pub async fn payments_link_list(
         state,
         &req,
         payload,
-        |state, auth, payload, _| list_payment_link(state, auth.merchant_account, payload),
+        |state, auth: auth::AuthenticationData, payload, _| {
+            list_payment_link(state, auth.merchant_account, payload)
+        },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
@@ -164,7 +172,10 @@ pub async fn payments_link_list(
 pub async fn payment_link_status(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::PaymentId,
+    )>,
 ) -> impl Responder {
     let flow = Flow::PaymentLinkStatus;
     let (merchant_id, payment_id) = path.into_inner();
@@ -179,7 +190,7 @@ pub async fn payment_link_status(
         state,
         &req,
         payload.clone(),
-        |state, auth, _, _| {
+        |state, auth: auth::AuthenticationData, _, _| {
             get_payment_link_status(
                 state,
                 auth.merchant_account,

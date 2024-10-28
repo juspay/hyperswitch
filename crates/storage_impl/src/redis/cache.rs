@@ -72,6 +72,16 @@ pub static PM_FILTERS_CGRAPH_CACHE: Lazy<Cache> = Lazy::new(|| {
     )
 });
 
+/// Dynamic Algorithm Cache
+pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+    Cache::new(
+        "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
+        CACHE_TTL,
+        CACHE_TTI,
+        Some(MAX_CAPACITY),
+    )
+});
+
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
@@ -91,6 +101,7 @@ pub enum CacheKind<'a> {
     DecisionManager(Cow<'a, str>),
     Surcharge(Cow<'a, str>),
     CGraph(Cow<'a, str>),
+    SuccessBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
 }

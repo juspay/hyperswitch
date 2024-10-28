@@ -1,12 +1,11 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use api_models::user as user_api;
 use common_enums::UserAuthType;
 use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
-use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 
@@ -75,37 +74,15 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &SessionState) -> UserResult<RoleInfo> {
-        RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
-            .await
-            .change_context(UserErrors::InternalServerError)
+        RoleInfo::from_role_id_in_merchant_scope(
+            state,
+            &self.role_id,
+            &self.merchant_id,
+            &self.org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
     }
-}
-
-pub async fn generate_jwt_auth_token_without_profile(
-    state: &SessionState,
-    user: &UserFromStorage,
-    user_role: &UserRole,
-) -> UserResult<Secret<String>> {
-    let token = AuthToken::new_token(
-        user.get_user_id().to_string(),
-        user_role
-            .merchant_id
-            .as_ref()
-            .ok_or(report!(UserErrors::InternalServerError))
-            .attach_printable("merchant_id not found for user_role")?
-            .clone(),
-        user_role.role_id.clone(),
-        &state.conf,
-        user_role
-            .org_id
-            .as_ref()
-            .ok_or(report!(UserErrors::InternalServerError))
-            .attach_printable("org_id not found for user_role")?
-            .clone(),
-        None,
-    )
-    .await?;
-    Ok(Secret::new(token))
 }
 
 pub async fn generate_jwt_auth_token_with_attributes(
@@ -114,7 +91,7 @@ pub async fn generate_jwt_auth_token_with_attributes(
     merchant_id: id_type::MerchantId,
     org_id: id_type::OrganizationId,
     role_id: String,
-    profile_id: Option<id_type::ProfileId>,
+    profile_id: id_type::ProfileId,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user_id,
@@ -122,32 +99,10 @@ pub async fn generate_jwt_auth_token_with_attributes(
         role_id,
         &state.conf,
         org_id,
-        profile_id,
+        Some(profile_id),
     )
     .await?;
     Ok(Secret::new(token))
-}
-
-pub fn get_dashboard_entry_response(
-    state: &SessionState,
-    user: UserFromStorage,
-    user_role: UserRole,
-    token: Secret<String>,
-) -> UserResult<user_api::DashboardEntryResponse> {
-    let verification_days_left = get_verification_days_left(state, &user)?;
-
-    Ok(user_api::DashboardEntryResponse {
-        merchant_id: user_role.merchant_id.ok_or(
-            report!(UserErrors::InternalServerError)
-                .attach_printable("merchant_id not found for user_role"),
-        )?,
-        token,
-        name: user.get_name(),
-        email: user.get_email(),
-        user_id: user.get_user_id().to_string(),
-        verification_days_left,
-        user_role: user_role.role_id,
-    })
 }
 
 #[allow(unused_variables)]
@@ -161,54 +116,6 @@ pub fn get_verification_days_left(
     return Ok(None);
 }
 
-pub fn get_multiple_merchant_details_with_status(
-    user_roles: Vec<UserRole>,
-    merchant_accounts: Vec<MerchantAccount>,
-    roles: Vec<RoleInfo>,
-) -> UserResult<Vec<user_api::UserMerchantAccount>> {
-    let merchant_account_map = merchant_accounts
-        .into_iter()
-        .map(|merchant_account| (merchant_account.get_id().clone(), merchant_account))
-        .collect::<HashMap<_, _>>();
-
-    let role_map = roles
-        .into_iter()
-        .map(|role_info| (role_info.get_role_id().to_string(), role_info))
-        .collect::<HashMap<_, _>>();
-
-    user_roles
-        .into_iter()
-        .map(|user_role| {
-            let Some(merchant_id) = &user_role.merchant_id else {
-                return Err(report!(UserErrors::InternalServerError))
-                    .attach_printable("merchant_id not found for user_role");
-            };
-            let Some(org_id) = &user_role.org_id else {
-                return Err(report!(UserErrors::InternalServerError)
-                    .attach_printable("org_id not found in user_role"));
-            };
-            let merchant_account = merchant_account_map
-                .get(merchant_id)
-                .ok_or(UserErrors::InternalServerError)
-                .attach_printable("Merchant account for user role doesn't exist")?;
-
-            let role_info = role_map
-                .get(&user_role.role_id)
-                .ok_or(UserErrors::InternalServerError)
-                .attach_printable("Role info for user role doesn't exist")?;
-
-            Ok(user_api::UserMerchantAccount {
-                merchant_id: merchant_id.to_owned(),
-                merchant_name: merchant_account.merchant_name.clone(),
-                is_active: user_role.status == UserStatus::Active,
-                role_id: user_role.role_id,
-                role_name: role_info.get_role_name().to_string(),
-                org_id: org_id.to_owned(),
-            })
-        })
-        .collect()
-}
-
 pub async fn get_user_from_db_by_email(
     state: &SessionState,
     email: domain::UserEmail,
@@ -218,13 +125,6 @@ pub async fn get_user_from_db_by_email(
         .find_user_by_email(&email.into_inner())
         .await
         .map(UserFromStorage::from)
-}
-
-pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> Secret<String> {
-    match resp {
-        user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
-        user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
-    }
 }
 
 pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnectionPool>> {

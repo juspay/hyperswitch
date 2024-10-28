@@ -5,7 +5,6 @@ use crate::enums;
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct ReconUpdateMerchantRequest {
-    pub merchant_id: common_utils::id_type::MerchantId,
     pub recon_status: enums::ReconStatus,
     pub user_email: pii::Email,
 }

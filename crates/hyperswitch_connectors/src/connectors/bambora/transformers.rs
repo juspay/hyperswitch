@@ -1,6 +1,9 @@
 use base64::Engine;
 use common_enums::enums;
-use common_utils::{ext_traits::ValueExt, pii::IpAddress};
+use common_utils::{
+    ext_traits::ValueExt,
+    pii::{Email, IpAddress},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -86,6 +89,7 @@ pub struct BamboraPaymentsRequest {
     customer_ip: Option<Secret<String, IpAddress>>,
     term_url: Option<String>,
     card: BamboraCard,
+    billing: AddressData,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -173,6 +177,28 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
                     complete: item.router_data.request.is_auto_capture()?,
                 };
 
+                let (country, province) = match (
+                    item.router_data.get_optional_billing_country(),
+                    item.router_data.get_optional_billing_state_2_digit(),
+                ) {
+                    (Some(billing_country), Some(billing_state)) => {
+                        (Some(billing_country), Some(billing_state))
+                    }
+                    _ => (None, None),
+                };
+
+                let billing = AddressData {
+                    name: item.router_data.get_optional_billing_full_name(),
+                    address_line1: item.router_data.get_optional_billing_line1(),
+                    address_line2: item.router_data.get_optional_billing_line2(),
+                    city: item.router_data.get_optional_billing_city(),
+                    province,
+                    country,
+                    postal_code: item.router_data.get_optional_billing_zip(),
+                    phone_number: item.router_data.get_optional_billing_phone_number(),
+                    email_address: item.router_data.get_optional_billing_email(),
+                };
+
                 Ok(Self {
                     order_number: item.router_data.connector_request_reference_id.clone(),
                     amount: item.amount,
@@ -180,6 +206,7 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
                     card,
                     customer_ip,
                     term_url: item.router_data.request.complete_authorize_url.clone(),
+                    billing,
                 })
             }
             PaymentMethodData::CardRedirect(_)
@@ -197,10 +224,13 @@ impl TryFrom<BamboraRouterData<&types::PaymentsAuthorizeRouterData>> for Bambora
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("bambora"),
-            )
-            .into()),
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bambora"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -342,15 +372,15 @@ pub struct AvsObject {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AddressData {
-    name: Secret<String>,
-    address_line1: Secret<String>,
-    address_line2: Secret<String>,
-    city: String,
-    province: String,
-    country: String,
-    postal_code: Secret<String>,
-    phone_number: Secret<String>,
-    email_address: Secret<String>,
+    name: Option<Secret<String>>,
+    address_line1: Option<Secret<String>>,
+    address_line2: Option<Secret<String>>,
+    city: Option<String>,
+    province: Option<Secret<String>>,
+    country: Option<enums::CountryAlpha2>,
+    postal_code: Option<Secret<String>>,
+    phone_number: Option<Secret<String>>,
+    email_address: Option<Email>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -441,8 +471,8 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(pg_response.id.to_string()),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(pg_response.order_number.to_string()),
@@ -461,8 +491,8 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
                     status: enums::AttemptStatus::AuthenticationPending,
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::NoResponseId,
-                        redirection_data,
-                        mandate_reference: None,
+                        redirection_data: Box::new(redirection_data),
+                        mandate_reference: Box::new(None),
                         connector_metadata: Some(
                             serde_json::to_value(BamboraMeta {
                                 three_d_session_data: response.three_d_session_data.expose(),
@@ -511,8 +541,8 @@ impl<F>
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
@@ -556,8 +586,8 @@ impl<F>
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
@@ -591,8 +621,8 @@ impl<F>
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),
@@ -626,8 +656,8 @@ impl<F>
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_number.to_string()),

@@ -3,7 +3,9 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use crate::{enums::Currency, refunds::RefundStatus};
+use common_utils::id_type;
+
+use crate::enums::{Currency, RefundStatus};
 
 #[derive(
     Clone,
@@ -39,6 +41,8 @@ pub struct RefundFilters {
     pub connector: Vec<String>,
     #[serde(default)]
     pub refund_type: Vec<RefundType>,
+    #[serde(default)]
+    pub profile_id: Vec<id_type::ProfileId>,
 }
 
 #[derive(
@@ -62,6 +66,7 @@ pub enum RefundDimensions {
     RefundStatus,
     Connector,
     RefundType,
+    ProfileId,
 }
 
 #[derive(
@@ -117,6 +122,7 @@ pub struct RefundMetricsBucketIdentifier {
     pub connector: Option<String>,
 
     pub refund_type: Option<String>,
+    pub profile_id: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -130,6 +136,7 @@ impl Hash for RefundMetricsBucketIdentifier {
         self.refund_status.hash(state);
         self.connector.hash(state);
         self.refund_type.hash(state);
+        self.profile_id.hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -149,6 +156,7 @@ impl RefundMetricsBucketIdentifier {
         refund_status: Option<String>,
         connector: Option<String>,
         refund_type: Option<String>,
+        profile_id: Option<String>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -156,6 +164,7 @@ impl RefundMetricsBucketIdentifier {
             refund_status,
             connector,
             refund_type,
+            profile_id,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }

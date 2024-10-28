@@ -1,15 +1,19 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "v2")]
+pub use api_models::admin;
 pub use api_models::{
     admin::{
-        BusinessProfileCreate, BusinessProfileResponse, BusinessProfileUpdate,
         MerchantAccountCreate, MerchantAccountDeleteResponse, MerchantAccountResponse,
         MerchantAccountUpdate, MerchantConnectorCreate, MerchantConnectorDeleteResponse,
         MerchantConnectorDetails, MerchantConnectorDetailsWrap, MerchantConnectorId,
         MerchantConnectorResponse, MerchantDetails, MerchantId, PaymentMethodsEnabled,
-        ToggleAllKVRequest, ToggleAllKVResponse, ToggleKVRequest, ToggleKVResponse, WebhookDetails,
+        ProfileCreate, ProfileResponse, ProfileUpdate, ToggleAllKVRequest, ToggleAllKVResponse,
+        ToggleKVRequest, ToggleKVResponse, WebhookDetails,
     },
-    organization::{OrganizationId, OrganizationRequest, OrganizationResponse},
+    organization::{
+        OrganizationCreateRequest, OrganizationId, OrganizationResponse, OrganizationUpdateRequest,
+    },
 };
 use common_utils::ext_traits::ValueExt;
 use diesel_models::organization::OrganizationBridge;
@@ -40,10 +44,7 @@ impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResp
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "merchant_account_v2")
-))]
+#[cfg(feature = "v1")]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ParsingError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -85,7 +86,7 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     }
 }
 
-#[cfg(all(feature = "v2", feature = "merchant_account_v2"))]
+#[cfg(feature = "v2")]
 impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(item: domain::MerchantAccount) -> Result<Self, Self::Error> {
@@ -109,14 +110,12 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
         })
     }
 }
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(feature = "business_profile_v2")
-))]
-impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
+#[cfg(feature = "v1")]
+impl ForeignTryFrom<domain::Profile> for ProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
-    fn foreign_try_from(item: domain::BusinessProfile) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: domain::Profile) -> Result<Self, Self::Error> {
+        let profile_id = item.get_id().to_owned();
         let outgoing_webhook_custom_http_headers = item
             .outgoing_webhook_custom_http_headers
             .map(|headers| {
@@ -131,7 +130,7 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
 
         Ok(Self {
             merchant_id: item.merchant_id,
-            profile_id: item.profile_id,
+            profile_id,
             profile_name: item.profile_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
@@ -168,15 +167,20 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
             outgoing_webhook_custom_http_headers,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
+            is_network_tokenization_enabled: item.is_network_tokenization_enabled,
+            is_auto_retries_enabled: item.is_auto_retries_enabled,
+            max_auto_retries_enabled: item.max_auto_retries_enabled,
         })
     }
 }
 
-#[cfg(all(feature = "v2", feature = "business_profile_v2"))]
-impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
+#[cfg(feature = "v2")]
+impl ForeignTryFrom<domain::Profile> for ProfileResponse {
     type Error = error_stack::Report<errors::ParsingError>;
 
-    fn foreign_try_from(item: domain::BusinessProfile) -> Result<Self, Self::Error> {
+    fn foreign_try_from(item: domain::Profile) -> Result<Self, Self::Error> {
+        let id = item.get_id().to_owned();
+
         let outgoing_webhook_custom_http_headers = item
             .outgoing_webhook_custom_http_headers
             .map(|headers| {
@@ -191,13 +195,13 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
 
         let order_fulfillment_time = item
             .order_fulfillment_time
-            .map(api_models::admin::OrderFulfillmentTime::new)
+            .map(admin::OrderFulfillmentTime::try_new)
             .transpose()
             .change_context(errors::ParsingError::IntegerOverflow)?;
 
         Ok(Self {
             merchant_id: item.merchant_id,
-            id: item.profile_id,
+            id,
             profile_name: item.profile_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
@@ -231,20 +235,18 @@ impl ForeignTryFrom<domain::BusinessProfile> for BusinessProfileResponse {
             order_fulfillment_time_origin: item.order_fulfillment_time_origin,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
+            is_network_tokenization_enabled: item.is_network_tokenization_enabled,
         })
     }
 }
 
-#[cfg(all(
-    any(feature = "v1", feature = "v2"),
-    not(any(feature = "merchant_account_v2", feature = "business_profile_v2"))
-))]
-pub async fn create_business_profile_from_merchant_account(
+#[cfg(feature = "v1")]
+pub async fn create_profile_from_merchant_account(
     state: &SessionState,
     merchant_account: domain::MerchantAccount,
-    request: BusinessProfileCreate,
+    request: ProfileCreate,
     key_store: &MerchantKeyStore,
-) -> Result<domain::BusinessProfile, error_stack::Report<errors::ApiErrorResponse>> {
+) -> Result<domain::Profile, error_stack::Report<errors::ApiErrorResponse>> {
     use common_utils::ext_traits::AsyncExt;
 
     use crate::core;
@@ -263,10 +265,15 @@ pub async fn create_business_profile_from_merchant_account(
         .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
     let payment_link_config = request.payment_link_config.map(ForeignInto::foreign_into);
+    let key_manager_state = state.into();
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
         .async_map(|headers| {
-            core::payment_methods::cards::create_encrypted_data(state, key_store, headers)
+            core::payment_methods::cards::create_encrypted_data(
+                &key_manager_state,
+                key_store,
+                headers,
+            )
         })
         .await
         .transpose()
@@ -285,7 +292,7 @@ pub async fn create_business_profile_from_merchant_account(
         })
         .transpose()?;
 
-    Ok(domain::BusinessProfile {
+    Ok(domain::Profile::from(domain::ProfileSetter {
         profile_id,
         merchant_id,
         profile_name: request.profile_name.unwrap_or("default".to_string()),
@@ -351,5 +358,9 @@ pub async fn create_business_profile_from_merchant_account(
         outgoing_webhook_custom_http_headers: outgoing_webhook_custom_http_headers.map(Into::into),
         tax_connector_id: request.tax_connector_id,
         is_tax_connector_enabled: request.is_tax_connector_enabled,
-    })
+        dynamic_routing_algorithm: None,
+        is_network_tokenization_enabled: request.is_network_tokenization_enabled,
+        is_auto_retries_enabled: request.is_auto_retries_enabled.unwrap_or_default(),
+        max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
+    }))
 }

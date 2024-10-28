@@ -2,7 +2,7 @@ use common_utils::types::MinorUnit;
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::payments::payment_attempt::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
+    PaymentAttempt, PaymentAttemptUpdate,
 };
 
 use crate::{
@@ -21,6 +21,16 @@ pub trait PaymentAttemptExt {
 }
 
 impl PaymentAttemptExt for PaymentAttempt {
+    #[cfg(feature = "v2")]
+    fn make_new_capture(
+        &self,
+        capture_amount: MinorUnit,
+        capture_status: enums::CaptureStatus,
+    ) -> RouterResult<CaptureNew> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     fn make_new_capture(
         &self,
         capture_amount: MinorUnit,
@@ -53,24 +63,46 @@ impl PaymentAttemptExt for PaymentAttempt {
             capture_sequence,
             connector_capture_id: None,
             connector_response_reference_id: None,
+            connector_capture_data: None,
         })
     }
+
+    #[cfg(feature = "v1")]
     fn get_next_capture_id(&self) -> String {
         let next_sequence_number = self.multiple_capture_count.unwrap_or_default() + 1;
         format!("{}_{}", self.attempt_id.clone(), next_sequence_number)
     }
-    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
-        self.surcharge_amount.map(|surcharge_amount| {
-            api_models::payments::RequestSurchargeDetails {
-                surcharge_amount,
-                tax_amount: self.tax_amount,
-            }
-        })
+
+    #[cfg(feature = "v2")]
+    fn get_next_capture_id(&self) -> String {
+        todo!()
     }
+
+    #[cfg(feature = "v1")]
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
+        self.net_amount
+            .get_surcharge_amount()
+            .map(
+                |surcharge_amount| api_models::payments::RequestSurchargeDetails {
+                    surcharge_amount,
+                    tax_amount: self.net_amount.get_tax_on_surcharge(),
+                },
+            )
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_surcharge_details(&self) -> Option<api_models::payments::RequestSurchargeDetails> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     fn get_total_amount(&self) -> MinorUnit {
-        self.amount
-            + self.surcharge_amount.unwrap_or_default()
-            + self.tax_amount.unwrap_or_default()
+        self.net_amount.get_total_amount()
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_total_amount(&self) -> MinorUnit {
+        todo!()
     }
 }
 
@@ -85,13 +117,16 @@ impl AttemptStatusExt for enums::AttemptStatus {
 }
 
 #[cfg(test)]
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(
+    feature = "v1", // Ignoring tests for v2 since they aren't actively running
+    feature = "dummy_connector"
+))]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stderr)]
+    use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
     use tokio::sync::oneshot;
     use uuid::Uuid;
 
-    use super::*;
     use crate::{
         configs::settings::Settings,
         db::StorageImpl,
@@ -121,7 +156,8 @@ mod tests {
     #[tokio::test]
     async fn test_payment_attempt_insert() {
         let state = create_single_connection_test_transaction_pool().await;
-        let payment_id = Uuid::new_v4().to_string();
+        let payment_id =
+            common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
         let payment_attempt = PaymentAttemptNew {
@@ -132,14 +168,11 @@ mod tests {
             merchant_id: Default::default(),
             attempt_id: Default::default(),
             status: Default::default(),
-            amount: Default::default(),
             net_amount: Default::default(),
             currency: Default::default(),
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
-            surcharge_amount: Default::default(),
-            tax_amount: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -183,6 +216,7 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
 
         let store = state
@@ -204,7 +238,8 @@ mod tests {
     async fn test_find_payment_attempt() {
         let state = create_single_connection_test_transaction_pool().await;
         let current_time = common_utils::date_time::now();
-        let payment_id = Uuid::new_v4().to_string();
+        let payment_id =
+            common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let attempt_id = Uuid::new_v4().to_string();
         let merchant_id = common_utils::id_type::MerchantId::new_from_unix_timestamp();
         let connector = types::Connector::DummyConnector1.to_string();
@@ -217,14 +252,11 @@ mod tests {
             modified_at: current_time.into(),
             attempt_id: attempt_id.clone(),
             status: Default::default(),
-            amount: Default::default(),
             net_amount: Default::default(),
             currency: Default::default(),
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
-            surcharge_amount: Default::default(),
-            tax_amount: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -268,6 +300,7 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
         let store = state
             .stores
@@ -302,11 +335,14 @@ mod tests {
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant1"))
                 .unwrap();
+
+        let payment_id =
+            common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
 
         let payment_attempt = PaymentAttemptNew {
-            payment_id: uuid.clone(),
+            payment_id: payment_id.clone(),
             merchant_id: merchant_id.clone(),
             connector: Some(connector),
             created_at: current_time.into(),
@@ -314,14 +350,11 @@ mod tests {
             mandate_id: Some("man_121212".to_string()),
             attempt_id: uuid.clone(),
             status: Default::default(),
-            amount: Default::default(),
             net_amount: Default::default(),
             currency: Default::default(),
             save_to_locker: Default::default(),
             error_message: Default::default(),
             offer_amount: Default::default(),
-            surcharge_amount: Default::default(),
-            tax_amount: Default::default(),
             payment_method_id: Default::default(),
             payment_method: Default::default(),
             capture_method: Default::default(),
@@ -364,6 +397,7 @@ mod tests {
             customer_acceptance: Default::default(),
             profile_id: common_utils::generate_profile_id_of_default_length(),
             organization_id: Default::default(),
+            connector_mandate_detail: Default::default(),
         };
         let store = state
             .stores
@@ -376,7 +410,7 @@ mod tests {
 
         let response = store
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                &uuid,
+                &payment_id,
                 &merchant_id,
                 &uuid,
                 enums::MerchantStorageScheme::PostgresOnly,

@@ -52,8 +52,8 @@ impl From<api_models::payouts::PayoutListConstraints> for PayoutFetchConstraints
     }
 }
 
-impl From<api_models::payments::TimeRange> for PayoutFetchConstraints {
-    fn from(value: api_models::payments::TimeRange) -> Self {
+impl From<common_utils::types::TimeRange> for PayoutFetchConstraints {
+    fn from(value: common_utils::types::TimeRange) -> Self {
         Self::List(Box::new(PayoutListParams {
             offset: 0,
             starting_at: Some(value.start_time),

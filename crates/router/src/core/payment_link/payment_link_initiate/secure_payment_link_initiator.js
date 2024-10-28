@@ -57,7 +57,7 @@ if (!isFramed) {
     });
     var type =
       paymentDetails.sdk_layout === "spaced_accordion" ||
-      paymentDetails.sdk_layout === "accordion"
+        paymentDetails.sdk_layout === "accordion"
         ? "accordion"
         : paymentDetails.sdk_layout;
 
@@ -103,6 +103,35 @@ if (!isFramed) {
     arr.splice(0, 3);
     arr.unshift("status");
     arr.unshift("payment_link");
-    window.location.href = window.location.origin + "/" + arr.join("/")+ "?locale=" + paymentDetails.locale;
+    let returnUrl =
+      window.location.origin +
+      "/" +
+      arr.join("/") +
+      "?locale=" +
+      paymentDetails.locale;
+    try {
+      window.top.location.href = returnUrl;
+
+      // Push logs to logs endpoint
+    } catch (error) {
+      var url = window.location.href;
+      var { paymentId, merchantId, attemptId, connector } = parseRoute(url);
+      var urlToPost = getEnvRoute(url);
+      var message = {
+        message: "CRITICAL ERROR - Failed to redirect top document. Falling back to redirecting using window.location",
+        reason: error.message,
+      }
+      var log = {
+        message,
+        url,
+        paymentId,
+        merchantId,
+        attemptId,
+        connector,
+      };
+      postLog(log, urlToPost);
+
+      window.location.href = returnUrl;
+    }
   }
 }

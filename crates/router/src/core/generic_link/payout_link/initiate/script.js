@@ -160,12 +160,13 @@ if (!isTestMode && !isFramed) {
       theme: payoutDetails.theme,
       collectorName: payoutDetails.merchant_name,
       logo: payoutDetails.logo,
-      enabledPaymentMethods: payoutDetails.enabled_payment_methods,
+      enabledPaymentMethods: payoutDetails.enabled_payment_methods_with_required_fields,
       returnUrl: payoutDetails.return_url,
       sessionExpiry,
       amount: payoutDetails.amount,
       currency: payoutDetails.currency,
       flow: "PayoutLinkInitiate",
+      formLayout: payoutDetails.form_layout,
     };
     payoutWidget = widgets.create("paymentMethodCollect", payoutOptions);
 

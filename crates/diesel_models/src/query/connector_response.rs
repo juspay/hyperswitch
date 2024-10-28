@@ -136,7 +136,7 @@ impl ConnectorResponse {
     #[instrument(skip(conn))]
     pub async fn find_by_payment_id_merchant_id_attempt_id(
         conn: &PgPooledConn,
-        payment_id: &str,
+        payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
     ) -> StorageResult<Self> {
