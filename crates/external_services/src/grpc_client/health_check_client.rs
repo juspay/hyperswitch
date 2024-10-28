@@ -1,12 +1,12 @@
 use std::fmt::Debug;
 
+use api_models::health_check::{HealthCheckMap, HealthCheckServices};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 pub use health_check::{
     health_check_response::ServingStatus, health_client::HealthClient, HealthCheckRequest,
     HealthCheckResponse,
 };
-use api_models::health_check::{HealthCheckMap, HealthCheckServices};
 
 #[allow(
     missing_docs,
@@ -43,7 +43,10 @@ pub struct HealthCheckClient;
 
 impl HealthCheckClient {
     /// Perform health check for all services involved
-    pub async fn perform_health_check(&self, config: &GrpcClientSettings) -> HealthCheckResult<HealthCheckMap> {
+    pub async fn perform_health_check(
+        &self,
+        config: &GrpcClientSettings,
+    ) -> HealthCheckResult<HealthCheckMap> {
         let dynamic_routing_config = &config.dynamic_routing_client;
         let connection = match dynamic_routing_config {
             DynamicRoutingClientConfig::Enabled {
@@ -70,7 +73,10 @@ impl HealthCheckClient {
             .flatten()
             .is_some_and(|resp| resp.status == expected_status);
 
-        service_map.insert(HealthCheckServices::DynamicRoutingService, health_check_succeed);
+        service_map.insert(
+            HealthCheckServices::DynamicRoutingService,
+            health_check_succeed,
+        );
 
         Ok(service_map)
     }

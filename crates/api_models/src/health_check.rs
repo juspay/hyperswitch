@@ -18,12 +18,11 @@ impl common_utils::events::ApiEventMetric for RouterHealthCheckResponse {}
 
 /// gRPC based services eligible for Health check
 #[derive(Debug, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all="snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum HealthCheckServices {
     /// Dyanmic routing service
-    DynamicRoutingService
+    DynamicRoutingService,
 }
-
 
 pub type HealthCheckMap = HashMap<HealthCheckServices, bool>;
 
