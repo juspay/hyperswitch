@@ -3996,6 +3996,7 @@ dependencies = [
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
  "image",
+ "josekit",
  "masking",
  "once_cell",
  "qrcode",

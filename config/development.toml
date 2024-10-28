@@ -559,7 +559,7 @@ nexixpay = { payment_method = "card" }
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
-payout_connector_list = "stripe,wise"
+payout_connector_list = "nomupay,stripe,wise"
 
 [dummy_connector]
 enabled = true
@@ -765,3 +765,10 @@ card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
 connector_list = "cybersource"
+
+[nomupay.metadata.private_key]
+name="Private key for signature generation"
+label="Enter your private key"
+placeholder="------BEGIN PRIVATE KEY-------"
+required=true
+type="Text"

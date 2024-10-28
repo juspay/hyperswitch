@@ -245,6 +245,12 @@ pub struct CommitResponse {
     pub expire_on: String,
 }
 
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct NomupayMetadata {
+    pub private_key: String,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Error {
