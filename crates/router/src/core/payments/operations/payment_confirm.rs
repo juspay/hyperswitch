@@ -98,7 +98,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount.get_amount_as_i64(),
+                payment_intent.amount,
                 false,
             )?;
         }
@@ -1496,7 +1496,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .event(AuditEvent::new(AuditEventType::PaymentConfirm {
                 client_src,
                 client_ver,
-                frm_message,
+                frm_message: Box::new(frm_message),
             }))
             .with(payment_data.to_event())
             .emit();

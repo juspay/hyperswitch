@@ -35,6 +35,7 @@ pub struct RapydPaymentsRequest {
     pub currency: enums::Currency,
     pub payment_method: PaymentMethod,
     pub payment_method_options: Option<PaymentMethodOptions>,
+    pub merchant_reference_id: Option<String>,
     pub capture: Option<bool>,
     pub description: Option<String>,
     pub complete_payment_url: Option<String>,
@@ -160,6 +161,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
             payment_method,
             capture,
             payment_method_options,
+            merchant_reference_id: Some(item.router_data.connector_request_reference_id.clone()),
             description: None,
             error_payment_url: Some(return_url.clone()),
             complete_payment_url: Some(return_url),
@@ -272,6 +274,7 @@ pub struct ResponseData {
     pub country_code: Option<String>,
     pub captured: Option<bool>,
     pub transaction_id: String,
+    pub merchant_reference_id: Option<String>,
     pub paid: Option<bool>,
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
@@ -472,11 +475,13 @@ impl<F, T>
                                 resource_id: types::ResponseId::ConnectorTransactionId(
                                     data.id.to_owned(),
                                 ), //transaction_id is also the field but this id is used to initiate a refund
-                                redirection_data,
-                                mandate_reference: None,
+                                redirection_data: Box::new(redirection_data),
+                                mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
-                                connector_response_reference_id: None,
+                                connector_response_reference_id: data
+                                    .merchant_reference_id
+                                    .to_owned(),
                                 incremental_authorization_allowed: None,
                                 charge_id: None,
                             }),

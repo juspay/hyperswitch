@@ -130,7 +130,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::Payouts(new.to_storage_model()),
+                        insertable: Box::new(kv::Insertable::Payouts(new.to_storage_model())),
                     },
                 };
 
@@ -201,10 +201,10 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
-                        updatable: kv::Updateable::PayoutsUpdate(kv::PayoutsUpdateMems {
+                        updatable: Box::new(kv::Updateable::PayoutsUpdate(kv::PayoutsUpdateMems {
                             orig: origin_diesel_payout,
                             update_data: diesel_payout_update,
-                        }),
+                        })),
                     },
                 };
 

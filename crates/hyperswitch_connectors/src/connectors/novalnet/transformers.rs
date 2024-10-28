@@ -33,8 +33,7 @@ use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
-        PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData,
-        RouterData as OtherRouterData,
+        PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
     },
 };
 
@@ -57,6 +56,7 @@ pub enum NovalNetPaymentTypes {
     CREDITCARD,
     PAYPAL,
     GOOGLEPAY,
+    APPLEPAY,
 }
 
 #[derive(Default, Debug, Serialize, Clone)]
@@ -103,11 +103,17 @@ pub struct NovalnetGooglePay {
     wallet_data: Secret<String>,
 }
 
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub struct NovalnetApplePay {
+    wallet_data: Secret<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum NovalNetPaymentData {
     Card(NovalnetCard),
     GooglePay(NovalnetGooglePay),
+    ApplePay(NovalnetApplePay),
     MandatePayment(NovalnetMandate),
 }
 
@@ -143,38 +149,9 @@ impl TryFrom<&api_enums::PaymentMethodType> for NovalNetPaymentTypes {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &api_enums::PaymentMethodType) -> Result<Self, Self::Error> {
         match item {
+            api_enums::PaymentMethodType::ApplePay => Ok(Self::APPLEPAY),
             api_enums::PaymentMethodType::Credit => Ok(Self::CREDITCARD),
-            api_enums::PaymentMethodType::Debit
-            | api_enums::PaymentMethodType::Klarna
-            | api_enums::PaymentMethodType::BancontactCard
-            | api_enums::PaymentMethodType::Blik
-            | api_enums::PaymentMethodType::Eps
-            | api_enums::PaymentMethodType::Giropay
-            | api_enums::PaymentMethodType::Ideal
-            | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
-            | api_enums::PaymentMethodType::OnlineBankingFinland
-            | api_enums::PaymentMethodType::OnlineBankingPoland
-            | api_enums::PaymentMethodType::OnlineBankingSlovakia
-            | api_enums::PaymentMethodType::Sofort
-            | api_enums::PaymentMethodType::Trustly => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Novalnet"),
-                ))?
-            }
             api_enums::PaymentMethodType::GooglePay => Ok(Self::GOOGLEPAY),
-            api_enums::PaymentMethodType::AliPay
-            | api_enums::PaymentMethodType::ApplePay
-            | api_enums::PaymentMethodType::AliPayHk
-            | api_enums::PaymentMethodType::MbWay
-            | api_enums::PaymentMethodType::MobilePay
-            | api_enums::PaymentMethodType::WeChatPay
-            | api_enums::PaymentMethodType::SamsungPay
-            | api_enums::PaymentMethodType::Affirm
-            | api_enums::PaymentMethodType::AfterpayClearpay
-            | api_enums::PaymentMethodType::PayBright
-            | api_enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Novalnet"),
-            ))?,
             api_enums::PaymentMethodType::Paypal => Ok(Self::PAYPAL),
             _ => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Novalnet"),
@@ -299,6 +276,30 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             return_url: None,
                             error_return_url: None,
                             payment_data: Some(novalnet_google_pay),
+                            enforce_3d,
+                            create_token,
+                        };
+
+                        Ok(Self {
+                            merchant,
+                            transaction,
+                            customer,
+                            custom,
+                        })
+                    }
+                    WalletDataPaymentMethod::ApplePay(payment_method_data) => {
+                        let transaction = NovalnetPaymentsRequestTransaction {
+                            test_mode,
+                            payment_type: NovalNetPaymentTypes::APPLEPAY,
+                            amount: item.amount.clone(),
+                            currency: item.router_data.request.currency,
+                            order_no: item.router_data.connector_request_reference_id.clone(),
+                            hook_url: Some(hook_url),
+                            return_url: None,
+                            error_return_url: None,
+                            payment_data: Some(NovalNetPaymentData::ApplePay(NovalnetApplePay {
+                                wallet_data: Secret::new(payment_method_data.payment_data.clone()),
+                            })),
                             enforce_3d: None,
                             create_token,
                         };
@@ -310,8 +311,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             custom,
                         })
                     }
-                    WalletDataPaymentMethod::ApplePay(_)
-                    | WalletDataPaymentMethod::AliPayQr(_)
+                    WalletDataPaymentMethod::AliPayQr(_)
                     | WalletDataPaymentMethod::AliPayRedirect(_)
                     | WalletDataPaymentMethod::AliPayHkRedirect(_)
                     | WalletDataPaymentMethod::MomoRedirect(_)
@@ -578,14 +578,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     .and_then(|transaction_data| transaction_data.status)
                     .unwrap_or(if redirection_data.is_some() {
                         NovalnetTransactionStatus::Progress
-                    } else if mandate_reference_id.is_some() {
-                        NovalnetTransactionStatus::OnHold
+                        // NOTE: Novalnet does not send us the transaction.status for redirection flow
+                        // so status is mapped to Progress if flow has redirection data
                     } else {
                         NovalnetTransactionStatus::Pending
                     });
-                // NOTE: if result.status is success, we should always get a redirection url for 3DS flow
-                // since Novalnet does not always send the transaction.status
-                // so default value is kept as Progress if flow is 3ds, otherwise default value is kept as Pending
 
                 Ok(Self {
                     status: common_enums::AttemptStatus::from(transaction_status),
@@ -594,14 +591,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                             .clone()
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data,
-                        mandate_reference: mandate_reference_id.as_ref().map(|id| {
+                        redirection_data: Box::new(redirection_data),
+                        mandate_reference: Box::new(mandate_reference_id.as_ref().map(|id| {
                             MandateReference {
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
                             }
-                        }),
+                        })),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
@@ -995,14 +992,14 @@ impl<F>
                             .clone()
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data: None,
-                        mandate_reference: mandate_reference_id.as_ref().map(|id| {
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(mandate_reference_id.as_ref().map(|id| {
                             MandateReference {
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
                             }
-                        }),
+                        })),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
@@ -1085,8 +1082,8 @@ impl<F>
                             .clone()
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),
@@ -1254,8 +1251,8 @@ impl<F>
                             .clone()
                             .map(ResponseId::ConnectorTransactionId)
                             .unwrap_or(ResponseId::NoResponseId),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: transaction_id.clone(),

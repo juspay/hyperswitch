@@ -613,7 +613,7 @@ async fn payments_incoming_webhook_flow(
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
-                    api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                    api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
                 ))
                 .await?;
@@ -745,7 +745,7 @@ async fn payouts_incoming_webhook_flow(
                 enums::EventClass::Payouts,
                 updated_payout_attempt.payout_id.clone(),
                 enums::EventObjectType::PayoutDetails,
-                api::OutgoingWebhookContent::PayoutDetails(payout_create_response),
+                api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
                 Some(updated_payout_attempt.created_at),
             ))
             .await?;
@@ -852,7 +852,7 @@ async fn refunds_incoming_webhook_flow(
             enums::EventClass::Refunds,
             refund_id,
             enums::EventObjectType::RefundDetails,
-            api::OutgoingWebhookContent::RefundDetails(refund_response),
+            api::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
             Some(updated_refund.created_at),
         ))
         .await?;
@@ -1128,7 +1128,9 @@ async fn external_authentication_incoming_webhook_flow(
                                 enums::EventClass::Payments,
                                 payment_id.get_string_repr().to_owned(),
                                 enums::EventObjectType::PaymentDetails,
-                                api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                                api::OutgoingWebhookContent::PaymentDetails(Box::new(
+                                    payments_response,
+                                )),
                                 primary_object_created_at,
                             ))
                             .await?;
@@ -1334,7 +1336,7 @@ async fn frm_incoming_webhook_flow(
                         enums::EventClass::Payments,
                         payment_id.get_string_repr().to_owned(),
                         enums::EventObjectType::PaymentDetails,
-                        api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                        api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                         primary_object_created_at,
                     ))
                     .await?;
@@ -1498,7 +1500,7 @@ async fn bank_transfer_webhook_flow(
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
-                    api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                    api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
                 ))
                 .await?;

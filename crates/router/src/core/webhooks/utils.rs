@@ -64,7 +64,7 @@ pub async fn construct_webhook_router_data<'a>(
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
     let auth_type: types::ConnectorAuthType =
-        helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account.clone())
+        helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account.clone()))
             .get_connector_account_details()
             .parse_value("ConnectorAuthType")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
