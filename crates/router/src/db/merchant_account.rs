@@ -1,7 +1,7 @@
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use diesel_models::MerchantAccountUpdateInternal;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -22,6 +22,7 @@ use crate::{
         storage,
     },
 };
+
 #[async_trait::async_trait]
 pub trait MerchantAccountInterface
 where
@@ -501,17 +502,41 @@ impl MerchantAccountInterface for MockDb {
     async fn update_merchant(
         &self,
         state: &KeyManagerState,
-        this: domain::MerchantAccount,
-        merchant_account: storage::MerchantAccountUpdate,
+        merchant_account: domain::MerchantAccount,
+        merchant_account_update: storage::MerchantAccountUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
-        self.update_specific_fields_in_merchant(
-            state,
-            this.get_id(),
-            merchant_account,
-            merchant_key_store,
-        )
-        .await
+        let merchant_id = merchant_account.get_id().to_owned();
+        let mut accounts = self.merchant_accounts.lock().await;
+        accounts
+            .iter_mut()
+            .find(|account| account.get_id() == merchant_account.get_id())
+            .async_map(|account| async {
+                let update = MerchantAccountUpdateInternal::from(merchant_account_update)
+                    .apply_changeset(
+                        Conversion::convert(merchant_account)
+                            .await
+                            .change_context(errors::StorageError::EncryptionError)?,
+                    );
+                *account = update.clone();
+                update
+                    .convert(
+                        state,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()?
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "Merchant ID: {:?} not found",
+                    merchant_id
+                ))
+                .into(),
+            )
     }
 
     async fn update_specific_fields_in_merchant(
@@ -522,16 +547,31 @@ impl MerchantAccountInterface for MockDb {
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
-        let account = accounts
+        accounts
             .iter_mut()
             .find(|account| account.get_id() == merchant_id)
-            .ok_or(errors::StorageError::ValueNotFound(format!(
-                "Merchant ID: {:?} not found",
-                merchant_id
-            )))?;
-        account.from_update(merchant_account_update.into());
-        self.find_merchant_account_by_merchant_id(state, merchant_id, merchant_key_store)
+            .async_map(|account| async {
+                let update = MerchantAccountUpdateInternal::from(merchant_account_update)
+                    .apply_changeset(account.clone());
+                *account = update.clone();
+                update
+                    .convert(
+                        state,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
             .await
+            .transpose()?
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "Merchant ID: {:?} not found",
+                    merchant_id
+                ))
+                .into(),
+            )
     }
 
     async fn find_merchant_account_by_publishable_key(
@@ -581,7 +621,9 @@ impl MerchantAccountInterface for MockDb {
     ) -> CustomResult<usize, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
         Ok(accounts.iter_mut().fold(0, |acc, account| {
-            account.from_update(merchant_account_update.clone().into());
+            let update = MerchantAccountUpdateInternal::from(merchant_account_update.clone())
+                .apply_changeset(account.clone());
+            *account = update;
             acc + 1
         }))
     }
@@ -590,7 +632,6 @@ impl MerchantAccountInterface for MockDb {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
         let mut accounts = self.merchant_accounts.lock().await;
         accounts.retain(|x| x.get_id() != merchant_id);
         Ok(true)

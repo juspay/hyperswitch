@@ -197,60 +197,6 @@ impl MerchantAccount {
     }
 }
 
-// Edits self based on other value
-// Edits other value based on self
-trait Edit<T> {
-    fn edit_self_from_other(&mut self, other: Self);
-    fn edit_value_from_self(self, value:&mut T);
-}
-
-// Option<T> implements Edit for two scenarios.
-// self reference, points to other if other is Some variant
-// value reference, points to internal value of Option if present. 
-impl<T> Edit<T> for Option<T> {
-    fn edit_self_from_other(&mut self, other: Self) {
-        if other.is_some() {
-            *self = other;
-        }
-    }
-    fn edit_value_from_self(self, value:&mut T){
-        if let Some(x)=self{
-            *value=x;
-        }
-    }
-}
-
-impl MerchantAccount {
-    #[cfg(feature = "v1")]
-    pub fn from_update(&mut self, update: MerchantAccountUpdateInternal) {
-        self.merchant_name.edit_self_from_other(update.merchant_name);
-        self.merchant_details.edit_self_from_other(update.merchant_details);
-        self.return_url.edit_self_from_other(update.return_url);
-        self.webhook_details.edit_self_from_other(update.webhook_details);
-        self.sub_merchants_enabled.edit_self_from_other(update.sub_merchants_enabled);
-        self.parent_merchant_id.edit_self_from_other(update.parent_merchant_id);
-        update.enable_payment_response_hash.edit_value_from_self(&mut self.enable_payment_response_hash);
-        self.payment_response_hash_key.edit_self_from_other(update.payment_response_hash_key);
-        update.redirect_to_merchant_with_http_post.edit_value_from_self(&mut self.redirect_to_merchant_with_http_post);
-        self.publishable_key.edit_self_from_other(update.publishable_key);
-        update.storage_scheme.edit_value_from_self(&mut self.storage_scheme);
-        self.locker_id.edit_self_from_other(update.locker_id);
-        self.metadata.edit_self_from_other(update.metadata);
-        self.routing_algorithm.edit_self_from_other(update.routing_algorithm);
-        update.primary_business_details.edit_value_from_self(&mut self.primary_business_details);
-        self.modified_at = update.modified_at;
-        self.intent_fulfillment_time.edit_self_from_other(update.intent_fulfillment_time);
-        self.frm_routing_algorithm.edit_self_from_other(update.frm_routing_algorithm);
-        self.payout_routing_algorithm.edit_self_from_other(update.payout_routing_algorithm);
-        update.organization_id.edit_value_from_self(&mut self.organization_id);
-        update.is_recon_enabled.edit_value_from_self(&mut self.is_recon_enabled);
-        update.default_profile.edit_value_from_self(&mut self.default_profile);
-        update.recon_status.edit_value_from_self(&mut self.recon_status);
-        self.payment_link_config.edit_self_from_other(update.payment_link_config);
-        self.pm_collect_link_config.edit_self_from_other(update.pm_collect_link_config);
-    }
-}
-
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
@@ -343,4 +289,72 @@ pub struct MerchantAccountUpdateInternal {
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+}
+
+#[cfg(feature = "v1")]
+impl MerchantAccountUpdateInternal {
+    pub fn apply_changeset(self, source: MerchantAccount) -> MerchantAccount {
+        let Self {
+            merchant_name,
+            merchant_details,
+            return_url,
+            webhook_details,
+            sub_merchants_enabled,
+            parent_merchant_id,
+            enable_payment_response_hash,
+            payment_response_hash_key,
+            redirect_to_merchant_with_http_post,
+            publishable_key,
+            storage_scheme,
+            locker_id,
+            metadata,
+            routing_algorithm,
+            primary_business_details,
+            modified_at,
+            intent_fulfillment_time,
+            frm_routing_algorithm,
+            payout_routing_algorithm,
+            organization_id,
+            is_recon_enabled,
+            default_profile,
+            recon_status,
+            payment_link_config,
+            pm_collect_link_config,
+        } = self;
+
+        MerchantAccount {
+            merchant_id: source.merchant_id,
+            return_url: return_url.or(source.return_url),
+            enable_payment_response_hash: enable_payment_response_hash
+                .unwrap_or(source.enable_payment_response_hash),
+            payment_response_hash_key: payment_response_hash_key
+                .or(source.payment_response_hash_key),
+            redirect_to_merchant_with_http_post: redirect_to_merchant_with_http_post
+                .unwrap_or(source.redirect_to_merchant_with_http_post),
+            merchant_name: merchant_name.or(source.merchant_name),
+            merchant_details: merchant_details.or(source.merchant_details),
+            webhook_details: webhook_details.or(source.webhook_details),
+            sub_merchants_enabled: sub_merchants_enabled.or(source.sub_merchants_enabled),
+            parent_merchant_id: parent_merchant_id.or(source.parent_merchant_id),
+            publishable_key: publishable_key.or(source.publishable_key),
+            storage_scheme: storage_scheme.unwrap_or(source.storage_scheme),
+            locker_id: locker_id.or(source.locker_id),
+            metadata: metadata.or(source.metadata),
+            routing_algorithm: routing_algorithm.or(source.routing_algorithm),
+            primary_business_details: primary_business_details
+                .unwrap_or(source.primary_business_details),
+            intent_fulfillment_time: intent_fulfillment_time.or(source.intent_fulfillment_time),
+            created_at: source.created_at,
+            modified_at: modified_at,
+            frm_routing_algorithm: frm_routing_algorithm.or(source.frm_routing_algorithm),
+            payout_routing_algorithm: payout_routing_algorithm.or(source.payout_routing_algorithm),
+            organization_id: organization_id.unwrap_or(source.organization_id),
+            is_recon_enabled: is_recon_enabled.unwrap_or(source.is_recon_enabled),
+            default_profile: default_profile.unwrap_or(source.default_profile),
+            recon_status: recon_status.unwrap_or(source.recon_status),
+            payment_link_config: payment_link_config.or(source.payment_link_config),
+            pm_collect_link_config: pm_collect_link_config.or(source.pm_collect_link_config),
+            version: source.version,
+        }
+    }
 }
