@@ -1,8 +1,8 @@
 #[cfg(feature = "olap")]
 use analytics::health_check::HealthCheck;
-use api_models::health_check::HealthState;
 #[cfg(feature = "dynamic_routing")]
 use api_models::health_check::HealthCheckMap;
+use api_models::health_check::HealthState;
 use error_stack::ResultExt;
 use router_env::logger;
 
