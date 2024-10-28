@@ -176,9 +176,9 @@ A Nix development environment simplifies the setup of required project dependenc
 
 ### Install nix
 
-We recommend that you install Nix using [the DetSys nix-installer](https://nixos.asia/en/install), which automatically enables flakes.
+We recommend that you install Nix using [the DetSys nix-installer][detsys-nixos-installer], which automatically enables flakes.
 
-As an **optional** next step, if you are interested in using Nix to manage your dotfiles and local packages, you can setup [nixos-unified-template](https://github.com/juspay/nixos-unified-template#on-non-nixos).
+As an **optional** next step, if you are interested in using Nix to manage your dotfiles and local packages, you can setup [nixos-unified-template][nixos-unified-template-repo].
 
 ### Using external services through Nix
 
@@ -722,3 +722,5 @@ To explore more of our APIs, please check the remaining folders in the
 [refunds-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-4d1315c6-ac61-4411-8f7d-15d4e4e736a1
 [refunds-retrieve]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-137d6260-24f7-4752-9e69-26b61b83df0d
 [connector-specific-details]: https://docs.google.com/spreadsheets/d/e/2PACX-1vQWHLza9m5iO4Ol-tEBx22_Nnq8Mb3ISCWI53nrinIGLK8eHYmHGnvXFXUXEut8AFyGyI9DipsYaBLG/pubhtml?gid=748960791&single=true
+[detsys-nixos-installer]: https://nixos.asia/en/install
+[nixos-unified-template-repo]: https://github.com/juspay/nixos-unified-template#on-non-nixos

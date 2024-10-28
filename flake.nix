@@ -31,7 +31,6 @@
           devShells.default = pkgs.mkShell {
             name = "hyperswitch-shell";
             packages = with pkgs; [
-              fd
               just
               nixd
               openssl
