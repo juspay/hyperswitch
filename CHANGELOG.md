@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.18.0-hotfix3
+
+### Bug Fixes
+
+- **core:** Fix setup mandate payments to store connector mandate details ([#6450](https://github.com/juspay/hyperswitch/pull/6450)) ([`a71219c`](https://github.com/juspay/hyperswitch/commit/a71219c7d066472bf08a880888ee5cb227750f44))
+
+- - -
+
 ## 2024.10.18.0-hotfix2
 
 ### Features
