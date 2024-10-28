@@ -1,7 +1,7 @@
 use std::{collections::HashSet, ops, str::FromStr};
 
 use api_models::{
-    admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
+    admin as admin_api, organization as api_org, user as user_api,
 };
 use common_enums::{EntityType, UserStatus};
 use common_utils::{
@@ -1010,11 +1010,11 @@ impl UserFromStorage {
     }
 }
 
-impl ForeignFrom<UserStatus> for UserStatus {
-    fn foreign_from(value: UserStatus) -> Self {
+impl ForeignFrom<Self> for Self {
+    fn foreign_from(value: Self) -> Self {
         match value {
-            UserStatus::Active => Self::Active,
-            UserStatus::InvitationSent => Self::InvitationSent,
+            Self::Active => Self::Active,
+            Self::InvitationSent => Self::InvitationSent,
         }
     }
 }
