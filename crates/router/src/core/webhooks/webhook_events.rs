@@ -14,8 +14,8 @@ const INITIAL_DELIVERY_ATTEMPTS_LIST_MAX_LIMIT: i64 = 100;
 
 #[derive(Debug)]
 enum MerchantAccountOrProfile {
-    MerchantAccount(domain::MerchantAccount),
-    Profile(domain::Profile),
+    MerchantAccount(Box<domain::MerchantAccount>),
+    Profile(Box<domain::Profile>),
 }
 
 #[instrument(skip(state))]
@@ -302,7 +302,7 @@ async fn get_account_and_key_store(
                 })?;
 
             Ok((
-                MerchantAccountOrProfile::Profile(business_profile),
+                MerchantAccountOrProfile::Profile(Box::new(business_profile)),
                 merchant_key_store,
             ))
         }
@@ -318,7 +318,7 @@ async fn get_account_and_key_store(
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
             Ok((
-                MerchantAccountOrProfile::MerchantAccount(merchant_account),
+                MerchantAccountOrProfile::MerchantAccount(Box::new(merchant_account)),
                 merchant_key_store,
             ))
         }

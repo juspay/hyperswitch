@@ -123,6 +123,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for payments
         routes::payments::payments_create_intent,
+        routes::payments::payments_confirm_intent,
 
         //Routes for refunds
         routes::refunds::refunds_create,
@@ -130,6 +131,7 @@ Never share your secret api keys. Keep them guarded and secure.
     components(schemas(
         common_utils::types::MinorUnit,
         common_utils::types::TimeRange,
+        common_utils::types::BrowserInformation,
         common_utils::link_utils::GenericLinkUiConfig,
         common_utils::link_utils::EnabledPaymentMethod,
         common_utils::payout_method_utils::AdditionalPayoutMethodData,
@@ -152,7 +154,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::organization::OrganizationCreateRequest,
         api_models::organization::OrganizationUpdateRequest,
         api_models::organization::OrganizationResponse,
-        api_models::admin::MerchantAccountCreate,
+        api_models::admin::MerchantAccountCreateWithoutOrgId,
         api_models::admin::MerchantAccountUpdate,
         api_models::admin::MerchantAccountDeleteResponse,
         api_models::admin::MerchantConnectorDeleteResponse,
@@ -315,10 +317,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CardRedirectData,
         api_models::payments::CardToken,
         api_models::payments::CustomerAcceptance,
-        api_models::payments::PaymentsRequest,
-        api_models::payments::PaymentsCreateRequest,
-        api_models::payments::PaymentsUpdateRequest,
-        api_models::payments::PaymentsConfirmRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsCreateResponseOpenApi,
         api_models::payments::PaymentRetrieveBody,
@@ -415,13 +413,15 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ThreeDsCompletionIndicator,
         api_models::payments::MifinityData,
         api_models::enums::TransactionStatus,
-        api_models::payments::BrowserInformation,
         api_models::payments::PaymentCreatePaymentLinkConfig,
         api_models::payments::ThreeDsData,
         api_models::payments::ThreeDsMethodData,
         api_models::payments::PollConfigResponse,
         api_models::payments::ExternalAuthenticationDetailsResponse,
         api_models::payments::ExtendedCardInfo,
+        api_models::payments::PaymentsConfirmIntentRequest,
+        api_models::payments::PaymentsConfirmIntentResponse,
+        api_models::payments::AmountDetailsResponse,
         api_models::payment_methods::RequiredFieldInfo,
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
@@ -584,6 +584,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsDynamicTaxCalculationRequest,
         api_models::payments::PaymentsDynamicTaxCalculationResponse,
         api_models::payments::DisplayAmountOnSdk,
+        api_models::payments::ErrorDetails,
+        common_utils::types::BrowserInformation,
+        api_models::payments::ConfirmIntentAmountDetailsResponse,
     )),
     modifiers(&SecurityAddon)
 )]

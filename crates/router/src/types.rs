@@ -441,6 +441,7 @@ impl Capturable for PaymentsIncrementalAuthorizationData {
     }
 }
 impl Capturable for PaymentsSyncData {
+    #[cfg(feature = "v1")]
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
         F: Clone,
@@ -451,6 +452,21 @@ impl Capturable for PaymentsSyncData {
             .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
             .map(|amt| amt.get_amount_as_i64())
     }
+
+    #[cfg(feature = "v2")]
+    fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
+    where
+        F: Clone,
+    {
+        // TODO: add a getter for this
+        payment_data
+            .payment_attempt
+            .amount_details
+            .amount_to_capture
+            .or_else(|| Some(payment_data.payment_attempt.get_total_amount()))
+            .map(|amt| amt.get_amount_as_i64())
+    }
+
     fn get_amount_capturable<F>(
         &self,
         _payment_data: &PaymentData<F>,
@@ -863,6 +879,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             charges: None, // TODO: allow charges on mandates?
             merchant_order_reference_id: None,
             integrity_object: None,
+            shipping_cost: data.request.shipping_cost,
         }
     }
 }
