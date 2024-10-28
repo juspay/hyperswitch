@@ -356,7 +356,6 @@ dependencies = [
  "currency_conversion",
  "diesel_models",
  "error-stack",
- "euclid_wasm",
  "futures 0.3.30",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
