@@ -2808,9 +2808,9 @@ pub enum RoleScope {
 impl From<RoleScope> for EntityType {
     fn from(role_scope: RoleScope) -> Self {
         match role_scope {
-            RoleScope::Organization => EntityType::Organization,
-            RoleScope::Merchant => EntityType::Merchant,
-            RoleScope::Profile => EntityType::Profile,
+            RoleScope::Organization => Self::Organization,
+            RoleScope::Merchant => Self::Merchant,
+            RoleScope::Profile => Self::Profile,
         }
     }
 }
@@ -3210,6 +3210,7 @@ pub enum ApiVersion {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    strum::EnumIter,
     ToSchema,
     Hash,
 )]

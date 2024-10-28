@@ -1,6 +1,10 @@
 use common_enums::enums;
 use common_utils::id_type;
-use diesel_models::role as storage;
+use diesel_models::{
+    enums::{EntityType, RoleScope},
+    query::role::EntityTypeForQuery,
+    role as storage,
+};
 use error_stack::report;
 use router_env::{instrument, tracing};
 
@@ -58,7 +62,14 @@ pub trait RoleInterface {
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
-        entity_type: Option<enums::EntityType>,
+        entity_type: Option<EntityType>,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
+
+    async fn list_roles_for_role_entity_type(
+        &self,
+        entity_type: EntityTypeForQuery,
+        is_lineage_data_required: bool,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
 }
@@ -153,7 +164,7 @@ impl RoleInterface for Store {
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
-        entity_type: Option<enums::EntityType>,
+        entity_type: Option<EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -163,6 +174,24 @@ impl RoleInterface for Store {
             merchant_id.cloned(),
             profile_id.cloned(),
             entity_type,
+            limit,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn list_roles_for_role_entity_type(
+        &self,
+        entity_type: EntityTypeForQuery,
+        is_lineage_data_required: bool,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Role::list_roles_for_role_entity_type(
+            &conn,
+            entity_type,
+            is_lineage_data_required,
             limit,
         )
         .await
@@ -233,7 +262,7 @@ impl RoleInterface for MockDb {
             .find(|role| {
                 role.role_id == role_id
                     && (role.merchant_id == *merchant_id
-                        || (role.org_id == *org_id && role.scope == enums::RoleScope::Organization))
+                        || (role.org_id == *org_id && role.scope == RoleScope::Organization))
             })
             .cloned()
             .ok_or(
@@ -323,8 +352,7 @@ impl RoleInterface for MockDb {
             .iter()
             .filter(|role| {
                 role.merchant_id == *merchant_id
-                    || (role.org_id == *org_id
-                        && role.scope == diesel_models::enums::RoleScope::Organization)
+                    || (role.org_id == *org_id && role.scope == RoleScope::Organization)
             })
             .cloned()
             .collect();
@@ -346,7 +374,7 @@ impl RoleInterface for MockDb {
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
-        entity_type: Option<enums::EntityType>,
+        entity_type: Option<EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let roles = self.roles.lock().await;
@@ -356,8 +384,7 @@ impl RoleInterface for MockDb {
             .filter(|role| {
                 let matches_merchant = match merchant_id {
                     Some(merchant_id) => {
-                        role.merchant_id == *merchant_id
-                            && role.scope == diesel_models::enums::RoleScope::Merchant
+                        role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant
                     }
                     None => true,
                 };
@@ -367,15 +394,96 @@ impl RoleInterface for MockDb {
                     .as_ref()
                     .zip(profile_id)
                     .map(|(role_profile_id, user_profile_id)| {
-                        user_profile_id == role_profile_id
-                            && role.scope == diesel_models::enums::RoleScope::Profile
+                        user_profile_id == role_profile_id && role.scope == RoleScope::Profile
                     })
                     .unwrap_or(true);
-                let matches_org_scope = role.scope == diesel_models::enums::RoleScope::Organization;
+                let matches_org_scope = role.scope == RoleScope::Organization;
 
                 (matches_profile || matches_merchant || matches_org_scope)
                     && role.org_id == *org_id
                     && role.entity_type == entity_type
+            })
+            .take(limit_usize)
+            .cloned()
+            .collect();
+
+        Ok(roles_list)
+    }
+
+    async fn list_roles_for_role_entity_type(
+        &self,
+        entity_type: EntityTypeForQuery,
+        is_lineage_data_required: bool,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
+        let roles = self.roles.lock().await;
+        let limit_usize = limit.unwrap_or(u32::MAX).try_into().unwrap_or(usize::MAX);
+        let roles_list: Vec<_> = roles
+            .iter()
+            .filter(|role| {
+                let entity_type_of_role = role.entity_type.unwrap_or(EntityType::Merchant);
+
+                match &entity_type {
+                    EntityTypeForQuery::Organization(org_id) => {
+                        let entity_in_vec = if is_lineage_data_required {
+                            vec![
+                                EntityType::Organization,
+                                EntityType::Merchant,
+                                EntityType::Profile,
+                            ]
+                        } else {
+                            vec![EntityType::Organization]
+                        };
+
+                        let matches_scope = role.scope == RoleScope::Organization
+                            || role.scope == RoleScope::Merchant
+                            || role.scope == RoleScope::Profile;
+
+                        role.org_id == *org_id
+                            && (matches_scope)
+                            && entity_in_vec.contains(&entity_type_of_role)
+                    }
+                    EntityTypeForQuery::Merchant(org_id, merchant_id) => {
+                        let entity_in_vec = if is_lineage_data_required {
+                            vec![EntityType::Merchant, EntityType::Profile]
+                        } else {
+                            vec![EntityType::Merchant]
+                        };
+
+                        let matches_merchant =
+                            role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant;
+                        let matches_profile =
+                            role.merchant_id == *merchant_id && role.scope == RoleScope::Profile;
+
+                        role.org_id == *org_id
+                            && (role.scope == RoleScope::Organization
+                                || matches_merchant
+                                || matches_profile)
+                            && entity_in_vec.contains(&entity_type_of_role)
+                    }
+                    EntityTypeForQuery::Profile(org_id, merchant_id, profile_id) => {
+                        let entity_in_vec = vec![EntityType::Profile];
+
+                        let matches_merchant =
+                            role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant;
+
+                        let matches_profile = role.merchant_id == *merchant_id
+                            && role
+                                .profile_id
+                                .as_ref()
+                                .map(|profile_id_from_role| {
+                                    profile_id_from_role == profile_id
+                                        && role.scope == RoleScope::Profile
+                                })
+                                .unwrap_or(true);
+
+                        role.org_id == *org_id
+                            && (role.scope == RoleScope::Organization
+                                || matches_merchant
+                                || matches_profile)
+                            && entity_in_vec.contains(&entity_type_of_role)
+                    }
+                }
             })
             .take(limit_usize)
             .cloned()

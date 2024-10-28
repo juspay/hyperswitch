@@ -1,4 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
+use common_enums::EntityType;
 use common_utils::id_type;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, result::Error as DieselError,
@@ -15,6 +16,17 @@ impl RoleNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Role> {
         generics::generic_insert(conn, self).await
     }
+}
+
+#[derive(Debug)]
+pub enum EntityTypeForQuery {
+    Profile(
+        id_type::OrganizationId,
+        id_type::MerchantId,
+        id_type::ProfileId,
+    ),
+    Merchant(id_type::OrganizationId, id_type::MerchantId),
+    Organization(id_type::OrganizationId),
 }
 
 impl Role {
@@ -118,25 +130,104 @@ impl Role {
             query = query.filter(
                 dsl::merchant_id
                     .eq(merchant_id)
-                    .and(dsl::scope.eq(RoleScope::Merchant)),
+                    .or(dsl::scope.eq(RoleScope::Organization)),
             );
-        }
-
-        if let Some(profile_id) = profile_id {
-            query = query.or_filter(
-                dsl::profile_id
-                    .eq(profile_id)
-                    .and(dsl::scope.eq(RoleScope::Profile)),
-            );
-        }
-
-        if entity_type.is_some() {
-            query = query.or_filter(dsl::scope.eq(RoleScope::Organization));
         }
 
         if let Some(entity_type) = entity_type {
             query = query.filter(dsl::entity_type.eq(entity_type))
         }
+
+        if let Some(limit) = limit {
+            query = query.limit(limit.into());
+        }
+
+        router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
+
+        match generics::db_metrics::track_database_call::<Self, _, _>(
+            query.get_results_async(conn),
+            generics::db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        {
+            Ok(value) => Ok(value),
+            Err(err) => match err {
+                DieselError::NotFound => {
+                    Err(report!(err)).change_context(errors::DatabaseError::NotFound)
+                }
+                _ => Err(report!(err)).change_context(errors::DatabaseError::Others),
+            },
+        }
+    }
+    pub async fn list_roles_for_role_entity_type(
+        conn: &PgPooledConn,
+        entity_type: EntityTypeForQuery,
+        is_lineage_data_required: bool,
+        limit: Option<u32>,
+    ) -> StorageResult<Vec<Self>> {
+        let mut query = <Self as HasTable>::table().into_boxed();
+
+        match entity_type {
+            EntityTypeForQuery::Organization(org_id) => {
+                let entity_in_vec = if is_lineage_data_required {
+                    vec![
+                        EntityType::Organization,
+                        EntityType::Merchant,
+                        EntityType::Profile,
+                    ]
+                } else {
+                    vec![EntityType::Organization]
+                };
+                query = query
+                    .filter(dsl::org_id.eq(org_id))
+                    .filter(
+                        dsl::scope
+                            .eq(RoleScope::Organization)
+                            .or(dsl::scope.eq(RoleScope::Merchant))
+                            .or(dsl::scope.eq(RoleScope::Profile)),
+                    )
+                    .filter(dsl::entity_type.eq_any(entity_in_vec))
+            }
+
+            EntityTypeForQuery::Merchant(org_id, merchant_id) => {
+                let entity_in_vec = if is_lineage_data_required {
+                    vec![EntityType::Merchant, EntityType::Profile]
+                } else {
+                    vec![EntityType::Merchant]
+                };
+                query = query
+                    .filter(dsl::org_id.eq(org_id))
+                    .filter(
+                        dsl::scope
+                            .eq(RoleScope::Organization)
+                            .or(dsl::scope
+                                .eq(RoleScope::Merchant)
+                                .and(dsl::merchant_id.eq(merchant_id.clone())))
+                            .or(dsl::scope
+                                .eq(RoleScope::Profile)
+                                .and(dsl::merchant_id.eq(merchant_id))),
+                    )
+                    .filter(dsl::entity_type.eq_any(entity_in_vec))
+            }
+
+            EntityTypeForQuery::Profile(org_id, merchant_id, profile_id) => {
+                let entity_in_vec = vec![EntityType::Profile];
+                query = query
+                    .filter(dsl::org_id.eq(org_id))
+                    .filter(
+                        dsl::scope
+                            .eq(RoleScope::Organization)
+                            .or(dsl::scope
+                                .eq(RoleScope::Merchant)
+                                .and(dsl::merchant_id.eq(merchant_id.clone())))
+                            .or(dsl::scope
+                                .eq(RoleScope::Profile)
+                                .and(dsl::merchant_id.eq(merchant_id))
+                                .and(dsl::profile_id.eq(profile_id))),
+                    )
+                    .filter(dsl::entity_type.eq_any(entity_in_vec))
+            }
+        };
 
         if let Some(limit) = limit {
             query = query.limit(limit.into());
