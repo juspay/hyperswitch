@@ -597,7 +597,9 @@ pub struct SuccessBasedRoutingConfig {
 impl Default for SuccessBasedRoutingConfig {
     fn default() -> Self {
         Self {
-            params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod(common_enums::PaymentMethod::Card)]),
+            params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod(
+                common_enums::PaymentMethod::Card,
+            )]),
             config: Some(SuccessBasedRoutingConfigBody {
                 min_aggregates_size: Some(2),
                 default_success_rate: Some(100.0),
