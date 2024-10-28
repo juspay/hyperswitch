@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_utils::{errors::CustomResult, fp_utils};
+use common_utils::{errors::CustomResult, fp_utils, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 pub use health_check::{
     health_check_response::ServingStatus, health_client::HealthClient, HealthCheckRequest,
@@ -37,7 +37,7 @@ pub enum HealthCheckError {
     InvalidStatus,
 }
 
-/// Health Check CLient type
+/// Health Check Client type
 #[derive(Debug, Clone)]
 pub struct HealthCheckClient;
 
@@ -48,22 +48,26 @@ impl HealthCheckClient {
         let connection = match dynamic_routing_config {
             DynamicRoutingClientConfig::Enabled { host, port } => Some((host.clone(), *port)),
             _ => None,
-        }
-        .ok_or(HealthCheckError::MissingFields)?;
+        };
 
-        let response = self
-            .get_response_from_grpc_service(connection.0, connection.1)
-            .await
-            .change_context(HealthCheckError::ConnectionError(
-                "error calling dynamic routing service".to_string(),
-            ))?;
+        let response: Option<HealthCheckResponse> = connection.async_map(|conn| {
+            self
+            .get_response_from_grpc_service(conn.0, conn.1)
+        })
+        .await
+        .transpose()
+        .change_context(HealthCheckError::ConnectionError(
+            "error calling dynamic routing service".to_string(),
+        ))?;
 
         #[allow(clippy::as_conversions)]
         let expected_status = ServingStatus::Serving as i32;
 
-        fp_utils::when(response.status != expected_status, || {
-            Err(HealthCheckError::InvalidStatus)
-        })?;
+        if let Some(resp) = response {
+            fp_utils::when(resp.status != expected_status, || {
+                Err(HealthCheckError::InvalidStatus)
+            })?;
+        }
 
         Ok(())
     }
@@ -82,14 +86,14 @@ impl HealthCheckClient {
         let mut client = HealthClient::new(channel);
 
         let request = tonic::Request::new(HealthCheckRequest {
-            service: "dynamo".to_string(),
+            service: "dynamo".to_string(),   // check this in review
         });
 
         let response = client
             .check(request)
             .await
             .change_context(HealthCheckError::ConnectionError(
-                "error calling dynamic routing service".to_string(),
+                "Failed to call dynamic routing service".to_string(),
             ))?
             .into_inner();
 
