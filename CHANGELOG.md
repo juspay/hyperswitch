@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.28.2
+
+### Bug Fixes
+
+- **connector:**
+  - [Novalnet] Remove webhook placeholder connector config ([#6451](https://github.com/juspay/hyperswitch/pull/6451)) ([`e33340e`](https://github.com/juspay/hyperswitch/commit/e33340e70b59e9e4f18e92fc27d8c90b3df5768b))
+  - [Adyen] Add MYR currency config ([#6442](https://github.com/juspay/hyperswitch/pull/6442)) ([`925e424`](https://github.com/juspay/hyperswitch/commit/925e4240e4ad6da1d243769b184842c0d8251a7d))
+
+**Full Changelog:** [`2024.10.28.1...2024.10.28.2`](https://github.com/juspay/hyperswitch/compare/2024.10.28.1...2024.10.28.2)
+
+- - -
+
 ## 2024.10.28.1
 
 ### Bug Fixes
