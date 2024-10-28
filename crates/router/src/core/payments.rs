@@ -5587,10 +5587,15 @@ where
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let connectors = {
         if business_profile.dynamic_routing_algorithm.is_some() {
-            routing::perform_success_based_routing(state, connectors.clone(), business_profile, payment_data)
-                .await
-                .map_err(|e| logger::error!(success_rate_routing_error=?e))
-                .unwrap_or(connectors)
+            routing::perform_success_based_routing(
+                state,
+                connectors.clone(),
+                business_profile,
+                payment_data,
+            )
+            .await
+            .map_err(|e| logger::error!(success_rate_routing_error=?e))
+            .unwrap_or(connectors)
         } else {
             connectors
         }
