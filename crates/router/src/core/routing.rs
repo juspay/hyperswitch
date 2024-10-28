@@ -12,11 +12,10 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::{mandates, payment_address};
-#[cfg(feature = "v1")]
-use router_env::logger;
-use router_env::metrics::add_attributes;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use router_env::{logger, metrics::add_attributes};
 use rustc_hash::FxHashSet;
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use storage_impl::redis::cache;
 
 #[cfg(feature = "payouts")]
@@ -1448,16 +1447,16 @@ pub async fn success_based_routing_update_configs(
         &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
     );
 
-    // let dynamic_routing_id = helpers::generate_tenant_business_profile_id(
-    //     &state.tenant.redis_key_prefix,
-    //     profile_id.get_string_repr(),
-    // );
+    let dynamic_routing_id = helpers::generate_tenant_business_profile_id(
+        &state.tenant.redis_key_prefix,
+        profile_id.get_string_repr(),
+    );
     state
         .grpc_client
         .dynamic_routing
         .success_rate_client
         .as_ref()
-        .map(|a| a.invalidate_config_window("er".to_string()));
+        .map(|a| a.invalidate_config_window(dynamic_routing_id));
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
