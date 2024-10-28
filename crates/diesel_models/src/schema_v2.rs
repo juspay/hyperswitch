@@ -215,6 +215,11 @@ diesel::table! {
         default_fallback_routing -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
+        dynamic_routing_algorithm -> Nullable<Json>,
+        is_network_tokenization_enabled -> Bool,
+        is_auto_retries_enabled -> Nullable<Bool>,
+        max_auto_retries_enabled -> Nullable<Int2>,
     }
 }
 
@@ -812,6 +817,9 @@ diesel::table! {
         connector_payment_data -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
+        shipping_cost -> Nullable<Int8>,
+        order_tax_amount -> Nullable<Int8>,
+        connector_mandate_detail -> Nullable<Jsonb>,
     }
 }
 
