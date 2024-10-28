@@ -1010,7 +1010,7 @@ impl UserFromStorage {
     }
 }
 
-impl ForeignFrom<Self> for Self {
+impl ForeignFrom<UserStatus> for UserStatus {
     fn foreign_from(value: Self) -> Self {
         match value {
             Self::Active => Self::Active,
