@@ -789,8 +789,8 @@ impl<F, T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         second_factor.epg_txn_id,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(second_factor.txn_id),
@@ -1010,8 +1010,8 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.second_factor.epg_txn_id,
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.second_factor.txn_id),

@@ -22,7 +22,7 @@ use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::{business_profile, merchant_account};
 #[cfg(feature = "v2")]
-use crate::{errors, ApiModelToDieselModelConvertor};
+use crate::{errors, payment_method_data, ApiModelToDieselModelConvertor};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -101,7 +101,7 @@ impl PaymentIntent {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Copy, serde::Serialize)]
 pub enum TaxCalculationOverride {
     /// Skip calling the external tax provider
     Skip,
@@ -110,7 +110,7 @@ pub enum TaxCalculationOverride {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Copy, serde::Serialize)]
 pub enum SurchargeCalculationOverride {
     /// Skip calculating surcharge
     Skip,
@@ -157,6 +157,9 @@ pub struct AmountDetails {
     pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
     pub tax_on_surcharge: Option<MinorUnit>,
+    /// The total amount captured for the order. This is the sum of all the captured amounts for the order.
+    /// For automatic captures, this will be the same as net amount for the order
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -174,6 +177,49 @@ impl AmountDetails {
         match self.skip_external_tax_calculation {
             TaxCalculationOverride::Skip => false,
             TaxCalculationOverride::Calculate => true,
+        }
+    }
+
+    /// Calculate the net amount for the order
+    pub fn calculate_net_amount(&self) -> MinorUnit {
+        self.order_amount
+            + self.shipping_cost.unwrap_or(MinorUnit::zero())
+            + self.surcharge_amount.unwrap_or(MinorUnit::zero())
+            + self.tax_on_surcharge.unwrap_or(MinorUnit::zero())
+    }
+
+    pub fn create_attempt_amount_details(
+        &self,
+        confirm_intent_request: &api_models::payments::PaymentsConfirmIntentRequest,
+    ) -> payment_attempt::AttemptAmountDetails {
+        let net_amount = self.calculate_net_amount();
+
+        let surcharge_amount = match self.skip_surcharge_calculation {
+            SurchargeCalculationOverride::Skip => self.surcharge_amount,
+            SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let tax_on_surcharge = match self.skip_surcharge_calculation {
+            SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
+            SurchargeCalculationOverride::Calculate => None,
+        };
+
+        let order_tax_amount = match self.skip_external_tax_calculation {
+            TaxCalculationOverride::Skip => self.tax_details.as_ref().and_then(|tax_details| {
+                tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+            }),
+            TaxCalculationOverride::Calculate => None,
+        };
+
+        payment_attempt::AttemptAmountDetails {
+            net_amount,
+            amount_to_capture: None,
+            surcharge_amount,
+            tax_on_surcharge,
+            // This will be updated when we receive response from the connector
+            amount_capturable: MinorUnit::zero(),
+            shipping_cost: self.shipping_cost,
+            order_tax_amount,
         }
     }
 }
@@ -294,6 +340,23 @@ impl PaymentIntent {
             })
             .unwrap_or(Ok(common_enums::RequestIncrementalAuthorization::default()))
     }
+
+    /// Check if the client secret is associated with the payment and if it has been expired
+    pub fn validate_client_secret(
+        &self,
+        client_secret: &common_utils::types::ClientSecret,
+    ) -> Result<(), errors::api_error_response::ApiErrorResponse> {
+        common_utils::fp_utils::when(self.client_secret != *client_secret, || {
+            Err(errors::api_error_response::ApiErrorResponse::ClientSecretInvalid)
+        })?;
+
+        common_utils::fp_utils::when(self.session_expiry < common_utils::date_time::now(), || {
+            Err(errors::api_error_response::ApiErrorResponse::ClientSecretExpired)
+        })?;
+
+        Ok(())
+    }
+
     pub async fn create_domain_model_from_request(
         payment_id: &id_type::GlobalPaymentId,
         merchant_account: &merchant_account::MerchantAccount,
@@ -384,6 +447,48 @@ impl PaymentIntent {
     }
 }
 
+#[cfg(feature = "v1")]
+#[derive(Default, Debug, Clone)]
+pub struct HeaderPayload {
+    pub payment_confirm_source: Option<common_enums::PaymentSource>,
+    pub client_source: Option<String>,
+    pub client_version: Option<String>,
+    pub x_hs_latency: Option<bool>,
+    pub browser_name: Option<common_enums::BrowserName>,
+    pub x_client_platform: Option<common_enums::ClientPlatform>,
+    pub x_merchant_domain: Option<String>,
+    pub locale: Option<String>,
+    pub x_app_id: Option<String>,
+    pub x_redirect_uri: Option<String>,
+}
+
+// TODO: uncomment fields as necessary
+#[cfg(feature = "v2")]
+#[derive(Default, Debug, Clone)]
+pub struct HeaderPayload {
+    /// The source with which the payment is confirmed.
+    pub payment_confirm_source: Option<common_enums::PaymentSource>,
+    // pub client_source: Option<String>,
+    // pub client_version: Option<String>,
+    pub x_hs_latency: Option<bool>,
+    pub browser_name: Option<common_enums::BrowserName>,
+    pub x_client_platform: Option<common_enums::ClientPlatform>,
+    pub x_merchant_domain: Option<String>,
+    pub locale: Option<String>,
+    pub x_app_id: Option<String>,
+    pub x_redirect_uri: Option<String>,
+    pub client_secret: Option<common_utils::types::ClientSecret>,
+}
+
+impl HeaderPayload {
+    pub fn with_source(payment_confirm_source: common_enums::PaymentSource) -> Self {
+        Self {
+            payment_confirm_source: Some(payment_confirm_source),
+            ..Default::default()
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone)]
 pub struct PaymentIntentData<F>
@@ -392,4 +497,17 @@ where
 {
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
+}
+
+// TODO: Check if this can be merged with existing payment data
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentConfirmData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: PaymentAttempt,
+    pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
 }
