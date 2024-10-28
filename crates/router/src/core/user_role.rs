@@ -115,7 +115,7 @@ pub async fn update_user_role(
     let mut is_updated = false;
 
     let v2_user_role_to_be_updated = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
@@ -169,7 +169,7 @@ pub async fn update_user_role(
         }
 
         state
-            .store
+            .global_store
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
                 &user_from_token.org_id,
@@ -188,7 +188,7 @@ pub async fn update_user_role(
     }
 
     let v1_user_role_to_be_updated = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
@@ -242,7 +242,7 @@ pub async fn update_user_role(
         }
 
         state
-            .store
+            .global_store
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
                 &user_from_token.org_id,
@@ -429,7 +429,7 @@ pub async fn delete_user_role(
 
     // Find in V2
     let user_role_v2 = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
             &user_from_token.org_id,
@@ -476,7 +476,7 @@ pub async fn delete_user_role(
 
         user_role_deleted_flag = true;
         state
-            .store
+            .global_store
             .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
                 &user_from_token.org_id,
@@ -491,7 +491,7 @@ pub async fn delete_user_role(
 
     // Find in V1
     let user_role_v1 = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
             &user_from_token.org_id,
@@ -538,7 +538,7 @@ pub async fn delete_user_role(
 
         user_role_deleted_flag = true;
         state
-            .store
+            .global_store
             .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
                 &user_from_token.org_id,
@@ -558,7 +558,7 @@ pub async fn delete_user_role(
 
     // Check if user has any more role associations
     let remaining_roles = state
-        .store
+        .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: user_from_db.get_user_id(),
             org_id: None,
@@ -739,7 +739,7 @@ pub async fn list_invitations_for_user(
     user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<Vec<user_role_api::ListInvitationForUserResponse>> {
     let user_roles = state
-        .store
+        .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: &user_from_token.user_id,
             org_id: None,

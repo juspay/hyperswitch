@@ -638,6 +638,7 @@ impl NewUser {
 
     pub fn get_no_level_user_role(
         self,
+        tenant_id: String,
         role_id: String,
         user_status: UserStatus,
     ) -> NewUserRole<NoLevel> {
@@ -653,6 +654,7 @@ impl NewUser {
             created_at: now,
             last_modified: now,
             entity: NoLevel,
+            tenant_id: tenant_id,
         }
     }
 
@@ -668,7 +670,7 @@ impl NewUser {
             .get_organization_id();
 
         let org_user_role = self
-            .get_no_level_user_role(role_id, user_status)
+            .get_no_level_user_role(state.tenant.tenant_id.clone(), role_id, user_status)
             .add_entity(OrganizationLevel { org_id });
 
         org_user_role.insert_in_v2(&state).await
@@ -1104,6 +1106,8 @@ pub struct NewUserRole<E: Clone> {
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub entity: E,
+    //TODO: This to be removed and a new type TenantLevel to be created
+    pub tenant_id: String,
 }
 
 impl NewUserRole<NoLevel> {
@@ -1120,6 +1124,7 @@ impl NewUserRole<NoLevel> {
             last_modified_by: self.last_modified_by,
             created_at: self.created_at,
             last_modified: self.last_modified,
+            tenant_id: self.tenant_id,
         }
     }
 }
@@ -1187,6 +1192,7 @@ where
             entity_id: Some(entity.entity_id),
             entity_type: Some(entity.entity_type),
             version: UserRoleVersion::V2,
+            tenant_id: self.tenant_id,
         }
     }
 
@@ -1196,7 +1202,7 @@ where
         let new_v2_role = self.convert_to_new_v2_role(entity.into());
 
         state
-            .store
+            .global_store
             .insert_user_role(new_v2_role)
             .await
             .change_context(UserErrors::InternalServerError)
