@@ -1,10 +1,7 @@
 use api_models::user_role::role::{self as role_api};
 use common_enums::{EntityType, RoleScope};
 use common_utils::generate_id_with_default_len;
-use diesel_models::{
-    query::role::EntityTypeForQuery,
-    role::{RoleNew, RoleUpdate},
-};
+use diesel_models::role::{ListRolesByEntityPayload, RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
 
 use crate::{
@@ -229,8 +226,8 @@ pub async fn list_roles_with_info(
         match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
             EntityType::Organization => state
                 .store
-                .list_roles_for_role_entity_type(
-                    EntityTypeForQuery::Organization(user_from_token.org_id),
+                .generic_list_roles_by_entity_type(
+                    ListRolesByEntityPayload::Organization(user_from_token.org_id),
                     request.entity_type.is_none(),
                     None,
                 )
@@ -239,8 +236,8 @@ pub async fn list_roles_with_info(
                 .attach_printable("Failed to get roles")?,
             EntityType::Merchant => state
                 .store
-                .list_roles_for_role_entity_type(
-                    EntityTypeForQuery::Merchant(
+                .generic_list_roles_by_entity_type(
+                    ListRolesByEntityPayload::Merchant(
                         user_from_token.org_id,
                         user_from_token.merchant_id,
                     ),
@@ -257,8 +254,8 @@ pub async fn list_roles_with_info(
                 };
                 state
                     .store
-                    .list_roles_for_role_entity_type(
-                        EntityTypeForQuery::Profile(
+                    .generic_list_roles_by_entity_type(
+                        ListRolesByEntityPayload::Profile(
                             user_from_token.org_id,
                             user_from_token.merchant_id,
                             profile_id,
@@ -321,8 +318,8 @@ pub async fn list_roles_at_entity_level(
     let custom_roles = match req.entity_type {
         EntityType::Organization => state
             .store
-            .list_roles_for_role_entity_type(
-                EntityTypeForQuery::Organization(user_from_token.org_id),
+            .generic_list_roles_by_entity_type(
+                ListRolesByEntityPayload::Organization(user_from_token.org_id),
                 false,
                 None,
             )
@@ -332,8 +329,11 @@ pub async fn list_roles_at_entity_level(
 
         EntityType::Merchant => state
             .store
-            .list_roles_for_role_entity_type(
-                EntityTypeForQuery::Merchant(user_from_token.org_id, user_from_token.merchant_id),
+            .generic_list_roles_by_entity_type(
+                ListRolesByEntityPayload::Merchant(
+                    user_from_token.org_id,
+                    user_from_token.merchant_id,
+                ),
                 false,
                 None,
             )
@@ -348,8 +348,8 @@ pub async fn list_roles_at_entity_level(
 
             state
                 .store
-                .list_roles_for_role_entity_type(
-                    EntityTypeForQuery::Profile(
+                .generic_list_roles_by_entity_type(
+                    ListRolesByEntityPayload::Profile(
                         user_from_token.org_id,
                         user_from_token.merchant_id,
                         profile_id,

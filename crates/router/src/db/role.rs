@@ -1,8 +1,6 @@
-use common_enums::enums;
 use common_utils::id_type;
 use diesel_models::{
     enums::{EntityType, RoleScope},
-    query::role::EntityTypeForQuery,
     role as storage,
 };
 use error_stack::report;
@@ -61,14 +59,13 @@ pub trait RoleInterface {
         &self,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&id_type::ProfileId>,
         entity_type: Option<EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
 
-    async fn list_roles_for_role_entity_type(
+    async fn generic_list_roles_by_entity_type(
         &self,
-        entity_type: EntityTypeForQuery,
+        entity_type: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError>;
@@ -163,7 +160,6 @@ impl RoleInterface for Store {
         &self,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&id_type::ProfileId>,
         entity_type: Option<EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
@@ -172,7 +168,6 @@ impl RoleInterface for Store {
             &conn,
             org_id.to_owned(),
             merchant_id.cloned(),
-            profile_id.cloned(),
             entity_type,
             limit,
         )
@@ -181,14 +176,14 @@ impl RoleInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn list_roles_for_role_entity_type(
+    async fn generic_list_roles_by_entity_type(
         &self,
-        entity_type: EntityTypeForQuery,
+        entity_type: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Role::list_roles_for_role_entity_type(
+        storage::Role::generic_list_roles_by_entity_type(
             &conn,
             entity_type,
             is_lineage_data_required,
@@ -373,7 +368,6 @@ impl RoleInterface for MockDb {
         &self,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&id_type::ProfileId>,
         entity_type: Option<EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
@@ -383,25 +377,11 @@ impl RoleInterface for MockDb {
             .iter()
             .filter(|role| {
                 let matches_merchant = match merchant_id {
-                    Some(merchant_id) => {
-                        role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant
-                    }
+                    Some(merchant_id) => role.merchant_id == *merchant_id,
                     None => true,
                 };
 
-                let matches_profile = role
-                    .profile_id
-                    .as_ref()
-                    .zip(profile_id)
-                    .map(|(role_profile_id, user_profile_id)| {
-                        user_profile_id == role_profile_id && role.scope == RoleScope::Profile
-                    })
-                    .unwrap_or(true);
-                let matches_org_scope = role.scope == RoleScope::Organization;
-
-                (matches_profile || matches_merchant || matches_org_scope)
-                    && role.org_id == *org_id
-                    && role.entity_type == entity_type
+                matches_merchant && role.org_id == *org_id && role.entity_type == entity_type
             })
             .take(limit_usize)
             .cloned()
@@ -410,9 +390,10 @@ impl RoleInterface for MockDb {
         Ok(roles_list)
     }
 
-    async fn list_roles_for_role_entity_type(
+    #[instrument(skip_all)]
+    async fn generic_list_roles_by_entity_type(
         &self,
-        entity_type: EntityTypeForQuery,
+        entity_type: storage::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
@@ -424,7 +405,7 @@ impl RoleInterface for MockDb {
                 let entity_type_of_role = role.entity_type.unwrap_or(EntityType::Merchant);
 
                 match &entity_type {
-                    EntityTypeForQuery::Organization(org_id) => {
+                    storage::ListRolesByEntityPayload::Organization(org_id) => {
                         let entity_in_vec = if is_lineage_data_required {
                             vec![
                                 EntityType::Organization,
@@ -443,7 +424,7 @@ impl RoleInterface for MockDb {
                             && (matches_scope)
                             && entity_in_vec.contains(&entity_type_of_role)
                     }
-                    EntityTypeForQuery::Merchant(org_id, merchant_id) => {
+                    storage::ListRolesByEntityPayload::Merchant(org_id, merchant_id) => {
                         let entity_in_vec = if is_lineage_data_required {
                             vec![EntityType::Merchant, EntityType::Profile]
                         } else {
@@ -461,7 +442,7 @@ impl RoleInterface for MockDb {
                                 || matches_profile)
                             && entity_in_vec.contains(&entity_type_of_role)
                     }
-                    EntityTypeForQuery::Profile(org_id, merchant_id, profile_id) => {
+                    storage::ListRolesByEntityPayload::Profile(org_id, merchant_id, profile_id) => {
                         let entity_in_vec = vec![EntityType::Profile];
 
                         let matches_merchant =

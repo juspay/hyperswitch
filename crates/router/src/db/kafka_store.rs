@@ -3525,23 +3525,22 @@ impl RoleInterface for KafkaStore {
         &self,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
-        profile_id: Option<&id_type::ProfileId>,
         entity_type: Option<enums::EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store
-            .list_roles_for_org_by_parameters(org_id, merchant_id, profile_id, entity_type, limit)
+            .list_roles_for_org_by_parameters(org_id, merchant_id, entity_type, limit)
             .await
     }
 
-    async fn list_roles_for_role_entity_type(
+    async fn generic_list_roles_by_entity_type(
         &self,
-        entity_type: diesel_models::query::role::EntityTypeForQuery,
+        entity_type: diesel_models::role::ListRolesByEntityPayload,
         is_lineage_data_required: bool,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store
-            .list_roles_for_role_entity_type(entity_type, is_lineage_data_required, limit)
+            .generic_list_roles_by_entity_type(entity_type, is_lineage_data_required, limit)
             .await
     }
 }

@@ -75,3 +75,13 @@ impl From<RoleUpdate> for RoleUpdateInternal {
         }
     }
 }
+
+pub enum ListRolesByEntityPayload {
+    Profile(
+        id_type::OrganizationId,
+        id_type::MerchantId,
+        id_type::ProfileId,
+    ),
+    Merchant(id_type::OrganizationId, id_type::MerchantId),
+    Organization(id_type::OrganizationId),
+}

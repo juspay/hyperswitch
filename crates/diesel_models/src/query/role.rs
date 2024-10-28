@@ -1,3 +1,8 @@
+use crate::{
+    enums::RoleScope, errors, query::generics, role::*, schema::roles::dsl, PgPooledConn,
+    StorageResult,
+};
+
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_enums::EntityType;
 use common_utils::id_type;
@@ -7,26 +12,10 @@ use diesel::{
 };
 use error_stack::{report, ResultExt};
 
-use crate::{
-    enums::RoleScope, errors, query::generics, role::*, schema::roles::dsl, PgPooledConn,
-    StorageResult,
-};
-
 impl RoleNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Role> {
         generics::generic_insert(conn, self).await
     }
-}
-
-#[derive(Debug)]
-pub enum EntityTypeForQuery {
-    Profile(
-        id_type::OrganizationId,
-        id_type::MerchantId,
-        id_type::ProfileId,
-    ),
-    Merchant(id_type::OrganizationId, id_type::MerchantId),
-    Organization(id_type::OrganizationId),
 }
 
 impl Role {
@@ -118,8 +107,7 @@ impl Role {
         conn: &PgPooledConn,
         org_id: id_type::OrganizationId,
         merchant_id: Option<id_type::MerchantId>,
-        profile_id: Option<id_type::ProfileId>,
-        entity_type: Option<common_enums::EntityType>,
+        entity_type: Option<EntityType>,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table()
@@ -159,16 +147,16 @@ impl Role {
             },
         }
     }
-    pub async fn list_roles_for_role_entity_type(
+    pub async fn generic_list_roles_by_entity_type(
         conn: &PgPooledConn,
-        entity_type: EntityTypeForQuery,
+        entity_type: ListRolesByEntityPayload,
         is_lineage_data_required: bool,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table().into_boxed();
 
         match entity_type {
-            EntityTypeForQuery::Organization(org_id) => {
+            ListRolesByEntityPayload::Organization(org_id) => {
                 let entity_in_vec = if is_lineage_data_required {
                     vec![
                         EntityType::Organization,
@@ -189,7 +177,7 @@ impl Role {
                     .filter(dsl::entity_type.eq_any(entity_in_vec))
             }
 
-            EntityTypeForQuery::Merchant(org_id, merchant_id) => {
+            ListRolesByEntityPayload::Merchant(org_id, merchant_id) => {
                 let entity_in_vec = if is_lineage_data_required {
                     vec![EntityType::Merchant, EntityType::Profile]
                 } else {
@@ -210,7 +198,7 @@ impl Role {
                     .filter(dsl::entity_type.eq_any(entity_in_vec))
             }
 
-            EntityTypeForQuery::Profile(org_id, merchant_id, profile_id) => {
+            ListRolesByEntityPayload::Profile(org_id, merchant_id, profile_id) => {
                 let entity_in_vec = vec![EntityType::Profile];
                 query = query
                     .filter(dsl::org_id.eq(org_id))
