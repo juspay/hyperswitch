@@ -1085,6 +1085,34 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         ))
         .await?;
 
+        payment_data.payment_method_info = if let Some(payment_method_id) = &payment_method_id {
+            match state
+                .store
+                .find_payment_method(
+                    &(state.into()),
+                    key_store,
+                    payment_method_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+            {
+                Ok(payment_method) => Some(payment_method),
+                Err(error) => {
+                    if error.current_context().is_db_not_found() {
+                        logger::info!("Payment Method not found in db {:?}", error);
+                        None
+                    } else {
+                        Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error retrieving payment method from db")
+                            .map_err(|err| logger::error!(payment_method_retrieve=?err))
+                            .ok()
+                    }
+                }
+            }
+        } else {
+            None
+        };
         let mandate_id = mandate::mandate_procedure(
             state,
             resp,
