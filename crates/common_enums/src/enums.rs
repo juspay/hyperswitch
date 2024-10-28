@@ -1,4 +1,5 @@
 use std::num::{ParseFloatError, TryFromIntError};
+pub use super::connector_enums;
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

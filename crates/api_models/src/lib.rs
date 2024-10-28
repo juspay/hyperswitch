@@ -11,6 +11,7 @@ pub mod currency;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
+pub mod connector_enums;
 pub mod ephemeral_key;
 #[cfg(feature = "errors")]
 pub mod errors;
