@@ -25,6 +25,7 @@ pub mod stax;
 pub mod taxjar;
 pub mod thunes;
 pub mod tsys;
+pub mod uas;
 pub mod volt;
 pub mod worldline;
 pub mod zen;
@@ -37,4 +38,5 @@ pub use self::{
     nexixpay::Nexixpay, novalnet::Novalnet, payeezy::Payeezy, payu::Payu, powertranz::Powertranz,
     square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt,
     worldline::Worldline, zen::Zen,
+, uas::Uas,
 };

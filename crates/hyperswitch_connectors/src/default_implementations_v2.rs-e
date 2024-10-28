@@ -1,11 +1,46 @@
-// impl api::PaymentIncrementalAuthorization for Helcim {}
-// impl api::ConnectorCustomer for Helcim {}
-// impl api::PaymentsPreProcessing for Helcim {}
-// impl api::PaymentReject for Helcim {}
-// impl api::PaymentApprove for Helcim {}
-use common_utils::errors::CustomResult;
+use hyperswitch_domain_models::{
+    router_data::AccessToken,
+    router_data_v2::{
+        flow_common_types::{
+            DisputesFlowData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
+            WebhookSourceVerifyData,
+        },
+        AccessTokenFlowData, FilesFlowData,
+    },
+    router_flow_types::{
+        dispute::{Accept, Defend, Evidence},
+        files::{Retrieve, Upload},
+        mandate_revoke::MandateRevoke,
+        payments::{
+            Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
+            CreateConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
+            PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate, Session,
+            SetupMandate, Void,
+        },
+        refunds::{Execute, RSync},
+        webhooks::VerifyWebhookSource,
+        AccessTokenAuth,
+    },
+    router_request_types::{
+        AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
+        CompleteAuthorizeData, ConnectorCustomerData, DefendDisputeRequestData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
+        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
+    },
+    router_response_types::{
+        AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
+        PaymentsResponseData, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
+        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
+    },
+};
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::{
+    router_data_v2::FrmFlowData,
     router_flow_types::fraud_check::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
     router_request_types::fraud_check::{
         FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
@@ -15,6 +50,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
+    router_data_v2::PayoutFlowData,
     router_flow_types::payouts::{
         PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
         PoSync,
@@ -22,310 +58,153 @@ use hyperswitch_domain_models::{
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
-use hyperswitch_domain_models::{
-    router_flow_types::{
-        dispute::{Accept, Defend, Evidence},
-        files::{Retrieve, Upload},
-        mandate_revoke::MandateRevoke,
-        payments::{
-            Approve, AuthorizeSessionToken, CalculateTax, CompleteAuthorize,
-            CreateConnectorCustomer, IncrementalAuthorization, PostProcessing, PostSessionTokens,
-            PreProcessing, Reject, SdkSessionUpdate,
-        },
-        webhooks::VerifyWebhookSource,
-    },
-    router_request_types::{
-        AcceptDisputeRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
-        ConnectorCustomerData, DefendDisputeRequestData, MandateRevokeRequestData,
-        PaymentsApproveData, PaymentsIncrementalAuthorizationData, PaymentsPostProcessingData,
-        PaymentsPostSessionTokensData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsTaxCalculationData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SubmitEvidenceRequestData, UploadFileRequestData, VerifyWebhookSourceRequestData,
-    },
-    router_response_types::{
-        AcceptDisputeResponse, DefendDisputeResponse, MandateRevokeResponseData,
-        PaymentsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        TaxCalculationResponseData, UploadFileResponse, VerifyWebhookSourceResponseData,
-    },
-};
 #[cfg(feature = "frm")]
-use hyperswitch_interfaces::api::fraud_check::{
-    FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
-    FraudCheckTransaction,
+use hyperswitch_interfaces::api::fraud_check_v2::{
+    FraudCheckCheckoutV2, FraudCheckFulfillmentV2, FraudCheckRecordReturnV2, FraudCheckSaleV2,
+    FraudCheckTransactionV2,
 };
 #[cfg(feature = "payouts")]
-use hyperswitch_interfaces::api::payouts::{
-    PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
-    PayoutRecipientAccount, PayoutSync,
+use hyperswitch_interfaces::api::payouts_v2::{
+    PayoutCancelV2, PayoutCreateV2, PayoutEligibilityV2, PayoutFulfillV2, PayoutQuoteV2,
+    PayoutRecipientAccountV2, PayoutRecipientV2, PayoutSyncV2,
 };
 use hyperswitch_interfaces::{
     api::{
-        self,
-        disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
-        files::{FileUpload, RetrieveFile, UploadFile},
-        payments::{
-            ConnectorCustomer, PaymentApprove, PaymentAuthorizeSessionToken,
-            PaymentIncrementalAuthorization, PaymentPostSessionTokens, PaymentReject,
-            PaymentSessionUpdate, PaymentsCompleteAuthorize, PaymentsPostProcessing,
-            PaymentsPreProcessing, TaxCalculation,
+        disputes_v2::{AcceptDisputeV2, DefendDisputeV2, DisputeV2, SubmitEvidenceV2},
+        files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2},
+        payments_v2::{
+            ConnectorCustomerV2, MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2,
+            PaymentAuthorizeV2, PaymentCaptureV2, PaymentIncrementalAuthorizationV2,
+            PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
+            PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
+            PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
         },
-        ConnectorIntegration, ConnectorMandateRevoke, ConnectorRedirectResponse,
+        refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
+        ConnectorAccessTokenV2, ConnectorMandateRevokeV2, ConnectorVerifyWebhookSourceV2,
     },
-    errors::ConnectorError,
+    connector_integration_v2::ConnectorIntegrationV2,
 };
 
-macro_rules! default_imp_for_authorize_session_token {
+use crate::connectors;
+
+macro_rules! default_imp_for_new_connector_integration_payment {
     ($($path:ident::$connector:ident),*) => {
-        $( impl PaymentAuthorizeSessionToken for $path::$connector {}
+        $(
+            impl PaymentV2 for $path::$connector{}
+            impl PaymentAuthorizeV2 for $path::$connector{}
+            impl PaymentAuthorizeSessionTokenV2 for $path::$connector{}
+            impl PaymentSyncV2 for $path::$connector{}
+            impl PaymentVoidV2 for $path::$connector{}
+            impl PaymentApproveV2 for $path::$connector{}
+            impl PaymentRejectV2 for $path::$connector{}
+            impl PaymentCaptureV2 for $path::$connector{}
+            impl PaymentSessionV2 for $path::$connector{}
+            impl MandateSetupV2 for $path::$connector{}
+            impl PaymentIncrementalAuthorizationV2 for $path::$connector{}
+            impl PaymentsCompleteAuthorizeV2 for $path::$connector{}
+            impl PaymentTokenV2 for $path::$connector{}
+            impl ConnectorCustomerV2 for $path::$connector{}
+            impl PaymentsPreProcessingV2 for $path::$connector{}
+            impl PaymentsPostProcessingV2 for $path::$connector{}
+            impl TaxCalculationV2 for $path::$connector{}
+            impl PaymentSessionUpdateV2 for $path::$connector{}
+            impl PaymentPostSessionTokensV2 for $path::$connector{}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<Authorize,PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<PSync,PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Void, PaymentFlowData, PaymentsCancelData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Approve,PaymentFlowData, PaymentsApproveData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Reject,PaymentFlowData, PaymentsRejectData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Capture,PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<Session,PaymentFlowData, PaymentsSessionData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<SetupMandate,PaymentFlowData, SetupMandateRequestData, PaymentsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            CompleteAuthorize,
+            PaymentFlowData,
+                CompleteAuthorizeData,
+                PaymentsResponseData,
+            >            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            PaymentMethodToken,
+            PaymentFlowData,
+                PaymentMethodTokenizationData,
+                PaymentsResponseData,
+            > for   $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
+            CreateConnectorCustomer,
+            PaymentFlowData,
+                ConnectorCustomerData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
+            PreProcessing,
+            PaymentFlowData,
+                PaymentsPreProcessingData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl ConnectorIntegrationV2<
+            PostProcessing,
+            PaymentFlowData,
+                PaymentsPostProcessingData,
+                PaymentsResponseData,
+            > for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<
                 AuthorizeSessionToken,
+                PaymentFlowData,
                 AuthorizeSessionTokenData,
                 PaymentsResponseData
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-default_imp_for_authorize_session_token!(
-	connectors::Uas,
-    connectors::Bambora,
-    connectors::Billwerk,
-    connectors::Bitpay,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Deutschebank,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Fiuu,
-    connectors::Forte,
-    connectors::Globepay,
-    connectors::Helcim,
-    connectors::Novalnet,
-    connectors::Nexinets,
-    connectors::Nexixpay,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Powertranz,
-    connectors::Mollie,
-    connectors::Stax,
-    connectors::Taxjar,
-    connectors::Volt,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Worldline,
-    connectors::Zen
-);
-
-macro_rules! default_imp_for_calculate_tax {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl TaxCalculation for $path::$connector {}
-            impl
-            ConnectorIntegration<
-                CalculateTax,
-                PaymentsTaxCalculationData,
-                TaxCalculationResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-default_imp_for_calculate_tax!(
-	connectors::Uas,
-    connectors::Bambora,
-    connectors::Billwerk,
-    connectors::Bitpay,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Forte,
-    connectors::Helcim,
-    connectors::Stax,
-    connectors::Square,
-    connectors::Novalnet,
-    connectors::Mollie,
-    connectors::Nexinets,
-    connectors::Nexixpay,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Fiuu,
-    connectors::Globepay,
-    connectors::Worldline,
-    connectors::Zen,
-    connectors::Powertranz,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Volt,
-    connectors::Deutschebank
-);
-
-macro_rules! default_imp_for_session_update {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl PaymentSessionUpdate for $path::$connector {}
-            impl
-            ConnectorIntegration<
-                SdkSessionUpdate,
-                SdkPaymentsSessionUpdateData,
-                PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-default_imp_for_session_update!(
-	connectors::Uas,
-    connectors::Bambora,
-    connectors::Billwerk,
-    connectors::Bitpay,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Forte,
-    connectors::Helcim,
-    connectors::Stax,
-    connectors::Square,
-    connectors::Taxjar,
-    connectors::Mollie,
-    connectors::Novalnet,
-    connectors::Nexinets,
-    connectors::Nexixpay,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Fiuu,
-    connectors::Globepay,
-    connectors::Worldline,
-    connectors::Zen,
-    connectors::Powertranz,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Deutschebank,
-    connectors::Volt
-);
-
-macro_rules! default_imp_for_post_session_tokens {
-    ($($path:ident::$connector:ident),*) => {
-        $( impl PaymentPostSessionTokens for $path::$connector {}
-            impl
-            ConnectorIntegration<
-                PostSessionTokens,
-                PaymentsPostSessionTokensData,
-                PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-default_imp_for_post_session_tokens!(
-	connectors::Uas,
-    connectors::Bambora,
-    connectors::Bitpay,
-    connectors::Billwerk,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Square,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Forte,
-    connectors::Helcim,
-    connectors::Stax,
-    connectors::Taxjar,
-    connectors::Mollie,
-    connectors::Novalnet,
-    connectors::Nexinets,
-    connectors::Nexixpay,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Fiuu,
-    connectors::Globepay,
-    connectors::Worldline,
-    connectors::Powertranz,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Deutschebank,
-    connectors::Volt,
-    connectors::Zen
-);
-
-use crate::connectors;
-macro_rules! default_imp_for_complete_authorize {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl PaymentsCompleteAuthorize for $path::$connector {}
-            impl
-            ConnectorIntegration<
-            CompleteAuthorize,
-            CompleteAuthorizeData,
+        > for $path::$connector{}
+        impl ConnectorIntegrationV2<
+            CalculateTax,
+            PaymentFlowData,
+            PaymentsTaxCalculationData,
+            TaxCalculationResponseData,
+            > for $path::$connector{}
+         impl ConnectorIntegrationV2<
+            SdkSessionUpdate,
+            PaymentFlowData,
+            SdkPaymentsSessionUpdateData,
             PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-default_imp_for_complete_authorize!(
-	connectors::Uas,
-    connectors::Billwerk,
-    connectors::Bitpay,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Fiuu,
-    connectors::Forte,
-    connectors::Globepay,
-    connectors::Helcim,
-    connectors::Novalnet,
-    connectors::Nexinets,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Stax,
-    connectors::Square,
-    connectors::Taxjar,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Worldline,
-    connectors::Volt,
-    connectors::Zen
-);
-
-macro_rules! default_imp_for_incremental_authorization {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl PaymentIncrementalAuthorization for $path::$connector {}
-            impl
-            ConnectorIntegration<
-            IncrementalAuthorization,
-            PaymentsIncrementalAuthorizationData,
+            > for $path::$connector{}
+        impl
+            ConnectorIntegrationV2<
+            PostSessionTokens,
+            PaymentFlowData,
+            PaymentsPostSessionTokensData,
             PaymentsResponseData,
-        > for $path::$connector
-        {}
+            > for $path::$connector{}
     )*
     };
 }
 
-default_imp_for_incremental_authorization!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_payment!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -358,23 +237,23 @@ default_imp_for_incremental_authorization!(
     connectors::Zen
 );
 
-macro_rules! default_imp_for_create_customer {
+macro_rules! default_imp_for_new_connector_integration_refund {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl ConnectorCustomer for $path::$connector {}
+            impl RefundV2 for $path::$connector{}
+            impl RefundExecuteV2 for $path::$connector{}
+            impl RefundSyncV2 for $path::$connector{}
             impl
-            ConnectorIntegration<
-            CreateConnectorCustomer,
-            ConnectorCustomerData,
-            PaymentsResponseData,
-        > for $path::$connector
-        {}
+            ConnectorIntegrationV2<Execute, RefundFlowData, RefundsData, RefundsResponseData>
+            for $path::$connector{}
+            impl
+            ConnectorIntegrationV2<RSync, RefundFlowData, RefundsData, RefundsResponseData>
+            for $path::$connector{}
     )*
     };
 }
 
-default_imp_for_create_customer!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_refund!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -390,13 +269,14 @@ default_imp_for_create_customer!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
-    connectors::Mollie,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
     connectors::Payeezy,
     connectors::Payu,
     connectors::Powertranz,
+    connectors::Mollie,
+    connectors::Stax,
     connectors::Square,
     connectors::Taxjar,
     connectors::Thunes,
@@ -406,118 +286,18 @@ default_imp_for_create_customer!(
     connectors::Zen
 );
 
-macro_rules! default_imp_for_connector_redirect_response {
+macro_rules! default_imp_for_new_connector_integration_connector_access_token {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl ConnectorRedirectResponse for $path::$connector {
-                fn get_flow_type(
-                    &self,
-                    _query_params: &str,
-                    _json_payload: Option<serde_json::Value>,
-                    _action: common_enums::enums::PaymentAction
-                ) -> CustomResult<common_enums::enums::CallConnectorAction, ConnectorError> {
-                    Ok(common_enums::enums::CallConnectorAction::Trigger)
-                }
-            }
-    )*
-    };
-}
-
-default_imp_for_connector_redirect_response!(
-	connectors::Uas,
-    connectors::Billwerk,
-    connectors::Bitpay,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Deutschebank,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Fiuu,
-    connectors::Forte,
-    connectors::Globepay,
-    connectors::Helcim,
-    connectors::Nexinets,
-    connectors::Nexixpay,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Powertranz,
-    connectors::Stax,
-    connectors::Square,
-    connectors::Taxjar,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Worldline,
-    connectors::Volt
-);
-
-macro_rules! default_imp_for_pre_processing_steps{
-    ($($path:ident::$connector:ident),*)=> {
-        $(
-            impl PaymentsPreProcessing for $path::$connector {}
+            impl ConnectorAccessTokenV2 for $path::$connector{}
             impl
-            ConnectorIntegration<
-            PreProcessing,
-            PaymentsPreProcessingData,
-            PaymentsResponseData,
-        > for $path::$connector
-        {}
+            ConnectorIntegrationV2<AccessTokenAuth, AccessTokenFlowData, AccessTokenRequestData, AccessToken>
+            for $path::$connector{}
     )*
     };
 }
 
-default_imp_for_pre_processing_steps!(
-	connectors::Uas,
-    connectors::Bambora,
-    connectors::Billwerk,
-    connectors::Bitpay,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Deutschebank,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Fiuu,
-    connectors::Forte,
-    connectors::Globepay,
-    connectors::Helcim,
-    connectors::Novalnet,
-    connectors::Nexinets,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Powertranz,
-    connectors::Mollie,
-    connectors::Stax,
-    connectors::Square,
-    connectors::Taxjar,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Worldline,
-    connectors::Volt,
-    connectors::Zen
-);
-
-macro_rules! default_imp_for_post_processing_steps{
-    ($($path:ident::$connector:ident),*)=> {
-        $(
-            impl PaymentsPostProcessing for $path::$connector {}
-            impl
-            ConnectorIntegration<
-            PostProcessing,
-            PaymentsPostProcessingData,
-            PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-default_imp_for_post_processing_steps!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -550,161 +330,15 @@ default_imp_for_post_processing_steps!(
     connectors::Zen
 );
 
-macro_rules! default_imp_for_approve {
+macro_rules! default_imp_for_new_connector_integration_accept_dispute {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl PaymentApprove for $path::$connector {}
+            impl DisputeV2 for $path::$connector {}
+            impl AcceptDisputeV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
-            Approve,
-            PaymentsApproveData,
-            PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-default_imp_for_approve!(
-	connectors::Uas,
-    connectors::Bambora,
-    connectors::Billwerk,
-    connectors::Bitpay,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Deutschebank,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Fiuu,
-    connectors::Forte,
-    connectors::Globepay,
-    connectors::Helcim,
-    connectors::Novalnet,
-    connectors::Nexinets,
-    connectors::Nexixpay,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Powertranz,
-    connectors::Mollie,
-    connectors::Stax,
-    connectors::Square,
-    connectors::Taxjar,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Worldline,
-    connectors::Volt,
-    connectors::Zen
-);
-
-macro_rules! default_imp_for_reject {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl PaymentReject for $path::$connector {}
-            impl
-            ConnectorIntegration<
-            Reject,
-            PaymentsRejectData,
-            PaymentsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-default_imp_for_reject!(
-	connectors::Uas,
-    connectors::Bambora,
-    connectors::Billwerk,
-    connectors::Bitpay,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Deutschebank,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Fiuu,
-    connectors::Forte,
-    connectors::Globepay,
-    connectors::Helcim,
-    connectors::Novalnet,
-    connectors::Nexinets,
-    connectors::Nexixpay,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Powertranz,
-    connectors::Mollie,
-    connectors::Stax,
-    connectors::Square,
-    connectors::Taxjar,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Worldline,
-    connectors::Volt,
-    connectors::Zen
-);
-
-macro_rules! default_imp_for_webhook_source_verification {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl api::ConnectorVerifyWebhookSource for $path::$connector {}
-            impl
-            ConnectorIntegration<
-            VerifyWebhookSource,
-            VerifyWebhookSourceRequestData,
-            VerifyWebhookSourceResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-default_imp_for_webhook_source_verification!(
-	connectors::Uas,
-    connectors::Bambora,
-    connectors::Billwerk,
-    connectors::Bitpay,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Deutschebank,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Fiuu,
-    connectors::Forte,
-    connectors::Globepay,
-    connectors::Helcim,
-    connectors::Novalnet,
-    connectors::Nexinets,
-    connectors::Nexixpay,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Powertranz,
-    connectors::Mollie,
-    connectors::Stax,
-    connectors::Square,
-    connectors::Taxjar,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Worldline,
-    connectors::Volt,
-    connectors::Zen
-);
-
-macro_rules! default_imp_for_accept_dispute {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl Dispute for $path::$connector {}
-            impl AcceptDispute for $path::$connector {}
-            impl
-                ConnectorIntegration<
+                ConnectorIntegrationV2<
                 Accept,
+                DisputesFlowData,
                 AcceptDisputeRequestData,
                 AcceptDisputeResponse,
             > for $path::$connector
@@ -713,8 +347,7 @@ macro_rules! default_imp_for_accept_dispute {
     };
 }
 
-default_imp_for_accept_dispute!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -747,13 +380,14 @@ default_imp_for_accept_dispute!(
     connectors::Zen
 );
 
-macro_rules! default_imp_for_submit_evidence {
+macro_rules! default_imp_for_new_connector_integration_submit_evidence {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl SubmitEvidence for $path::$connector {}
+            impl SubmitEvidenceV2 for $path::$connector {}
             impl
-                ConnectorIntegration<
+                ConnectorIntegrationV2<
                 Evidence,
+                DisputesFlowData,
                 SubmitEvidenceRequestData,
                 SubmitEvidenceResponse,
             > for $path::$connector
@@ -762,8 +396,7 @@ macro_rules! default_imp_for_submit_evidence {
     };
 }
 
-default_imp_for_submit_evidence!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -796,13 +429,14 @@ default_imp_for_submit_evidence!(
     connectors::Zen
 );
 
-macro_rules! default_imp_for_defend_dispute {
+macro_rules! default_imp_for_new_connector_integration_defend_dispute {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl DefendDispute for $path::$connector {}
+            impl DefendDisputeV2 for $path::$connector {}
             impl
-                ConnectorIntegration<
+                ConnectorIntegrationV2<
                 Defend,
+                DisputesFlowData,
                 DefendDisputeRequestData,
                 DefendDisputeResponse,
             > for $path::$connector
@@ -811,8 +445,7 @@ macro_rules! default_imp_for_defend_dispute {
     };
 }
 
-default_imp_for_defend_dispute!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -845,22 +478,24 @@ default_imp_for_defend_dispute!(
     connectors::Zen
 );
 
-macro_rules! default_imp_for_file_upload {
+macro_rules! default_imp_for_new_connector_integration_file_upload {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl FileUpload for $path::$connector {}
-            impl UploadFile for $path::$connector {}
+            impl FileUploadV2 for $path::$connector {}
+            impl UploadFileV2 for $path::$connector {}
             impl
-                ConnectorIntegration<
+                ConnectorIntegrationV2<
                 Upload,
+                FilesFlowData,
                 UploadFileRequestData,
                 UploadFileResponse,
             > for $path::$connector
             {}
-            impl RetrieveFile for $path::$connector {}
+            impl RetrieveFileV2 for $path::$connector {}
             impl
-                ConnectorIntegration<
+                ConnectorIntegrationV2<
                 Retrieve,
+                FilesFlowData,
                 RetrieveFileRequestData,
                 RetrieveFileResponse,
             > for $path::$connector
@@ -869,8 +504,7 @@ macro_rules! default_imp_for_file_upload {
     };
 }
 
-default_imp_for_file_upload!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_file_upload!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -904,13 +538,14 @@ default_imp_for_file_upload!(
 );
 
 #[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_create {
+macro_rules! default_imp_for_new_connector_integration_payouts_create {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl PayoutCreate for $path::$connector {}
+            impl PayoutCreateV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             PoCreate,
+            PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
         > for $path::$connector
@@ -920,8 +555,7 @@ macro_rules! default_imp_for_payouts_create {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_create!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_payouts_create!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -955,64 +589,14 @@ default_imp_for_payouts_create!(
 );
 
 #[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_retrieve {
+macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl PayoutSync for $path::$connector {}
+            impl PayoutEligibilityV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
-            PoSync,
-            PayoutsData,
-            PayoutsResponseData,
-        > for $path::$connector
-        {}
-    )*
-    };
-}
-
-#[cfg(feature = "payouts")]
-default_imp_for_payouts_retrieve!(
-	connectors::Uas,
-    connectors::Bambora,
-    connectors::Billwerk,
-    connectors::Bitpay,
-    connectors::Cashtocode,
-    connectors::Coinbase,
-    connectors::Cryptopay,
-    connectors::Deutschebank,
-    connectors::Digitalvirgo,
-    connectors::Dlocal,
-    connectors::Fiserv,
-    connectors::Fiservemea,
-    connectors::Fiuu,
-    connectors::Forte,
-    connectors::Globepay,
-    connectors::Helcim,
-    connectors::Novalnet,
-    connectors::Nexinets,
-    connectors::Nexixpay,
-    connectors::Payeezy,
-    connectors::Payu,
-    connectors::Powertranz,
-    connectors::Mollie,
-    connectors::Stax,
-    connectors::Square,
-    connectors::Taxjar,
-    connectors::Thunes,
-    connectors::Tsys,
-    connectors::Worldline,
-    connectors::Volt,
-    connectors::Zen
-);
-
-#[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_eligibility {
-    ($($path:ident::$connector:ident),*) => {
-        $(
-            impl PayoutEligibility for $path::$connector {}
-            impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             PoEligibility,
+            PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
         > for $path::$connector
@@ -1022,8 +606,7 @@ macro_rules! default_imp_for_payouts_eligibility {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_eligibility!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1057,13 +640,14 @@ default_imp_for_payouts_eligibility!(
 );
 
 #[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_fulfill {
+macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl PayoutFulfill for $path::$connector {}
+            impl PayoutFulfillV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             PoFulfill,
+            PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
         > for $path::$connector
@@ -1073,8 +657,7 @@ macro_rules! default_imp_for_payouts_fulfill {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_fulfill!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1108,13 +691,14 @@ default_imp_for_payouts_fulfill!(
 );
 
 #[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_cancel {
+macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl PayoutCancel for $path::$connector {}
+            impl PayoutCancelV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             PoCancel,
+            PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
         > for $path::$connector
@@ -1124,8 +708,7 @@ macro_rules! default_imp_for_payouts_cancel {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_cancel!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1159,13 +742,14 @@ default_imp_for_payouts_cancel!(
 );
 
 #[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_quote {
+macro_rules! default_imp_for_new_connector_integration_payouts_quote {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl PayoutQuote for $path::$connector {}
+            impl PayoutQuoteV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             PoQuote,
+            PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
         > for $path::$connector
@@ -1175,8 +759,7 @@ macro_rules! default_imp_for_payouts_quote {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_quote!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1210,13 +793,14 @@ default_imp_for_payouts_quote!(
 );
 
 #[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_recipient {
+macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl PayoutRecipient for $path::$connector {}
+            impl PayoutRecipientV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             PoRecipient,
+            PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
         > for $path::$connector
@@ -1226,8 +810,7 @@ macro_rules! default_imp_for_payouts_recipient {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_recipient!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1261,13 +844,14 @@ default_imp_for_payouts_recipient!(
 );
 
 #[cfg(feature = "payouts")]
-macro_rules! default_imp_for_payouts_recipient_account {
+macro_rules! default_imp_for_new_connector_integration_payouts_sync {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl PayoutRecipientAccount for $path::$connector {}
+            impl PayoutSyncV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
-            PoRecipientAccount,
+            ConnectorIntegrationV2<
+            PoSync,
+            PayoutFlowData,
             PayoutsData,
             PayoutsResponseData,
         > for $path::$connector
@@ -1277,8 +861,107 @@ macro_rules! default_imp_for_payouts_recipient_account {
 }
 
 #[cfg(feature = "payouts")]
-default_imp_for_payouts_recipient_account!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_payouts_sync!(
+    connectors::Bambora,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Globepay,
+    connectors::Helcim,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Mollie,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline,
+    connectors::Volt,
+    connectors::Zen
+);
+
+#[cfg(feature = "payouts")]
+macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl PayoutRecipientAccountV2 for $path::$connector {}
+            impl
+            ConnectorIntegrationV2<
+            PoRecipientAccount,
+            PayoutFlowData,
+            PayoutsData,
+            PayoutsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "payouts")]
+default_imp_for_new_connector_integration_payouts_recipient_account!(
+    connectors::Bambora,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Coinbase,
+    connectors::Cryptopay,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Globepay,
+    connectors::Helcim,
+    connectors::Novalnet,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Mollie,
+    connectors::Stax,
+    connectors::Square,
+    connectors::Taxjar,
+    connectors::Thunes,
+    connectors::Tsys,
+    connectors::Worldline,
+    connectors::Volt,
+    connectors::Zen
+);
+
+macro_rules! default_imp_for_new_connector_integration_webhook_source_verification {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl ConnectorVerifyWebhookSourceV2 for $path::$connector {}
+            impl
+            ConnectorIntegrationV2<
+            VerifyWebhookSource,
+            WebhookSourceVerifyData,
+            VerifyWebhookSourceRequestData,
+            VerifyWebhookSourceResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1312,13 +995,14 @@ default_imp_for_payouts_recipient_account!(
 );
 
 #[cfg(feature = "frm")]
-macro_rules! default_imp_for_frm_sale {
+macro_rules! default_imp_for_new_connector_integration_frm_sale {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl FraudCheckSale for $path::$connector {}
+            impl FraudCheckSaleV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             Sale,
+            FrmFlowData,
             FraudCheckSaleData,
             FraudCheckResponseData,
         > for $path::$connector
@@ -1328,8 +1012,7 @@ macro_rules! default_imp_for_frm_sale {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_sale!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_frm_sale!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1363,13 +1046,14 @@ default_imp_for_frm_sale!(
 );
 
 #[cfg(feature = "frm")]
-macro_rules! default_imp_for_frm_checkout {
+macro_rules! default_imp_for_new_connector_integration_frm_checkout {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl FraudCheckCheckout for $path::$connector {}
+            impl FraudCheckCheckoutV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             Checkout,
+            FrmFlowData,
             FraudCheckCheckoutData,
             FraudCheckResponseData,
         > for $path::$connector
@@ -1379,8 +1063,7 @@ macro_rules! default_imp_for_frm_checkout {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_checkout!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1414,13 +1097,14 @@ default_imp_for_frm_checkout!(
 );
 
 #[cfg(feature = "frm")]
-macro_rules! default_imp_for_frm_transaction {
+macro_rules! default_imp_for_new_connector_integration_frm_transaction {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl FraudCheckTransaction for $path::$connector {}
+            impl FraudCheckTransactionV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             Transaction,
+            FrmFlowData,
             FraudCheckTransactionData,
             FraudCheckResponseData,
         > for $path::$connector
@@ -1430,8 +1114,7 @@ macro_rules! default_imp_for_frm_transaction {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_transaction!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1465,13 +1148,14 @@ default_imp_for_frm_transaction!(
 );
 
 #[cfg(feature = "frm")]
-macro_rules! default_imp_for_frm_fulfillment {
+macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl FraudCheckFulfillment for $path::$connector {}
+            impl FraudCheckFulfillmentV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             Fulfillment,
+            FrmFlowData,
             FraudCheckFulfillmentData,
             FraudCheckResponseData,
         > for $path::$connector
@@ -1481,8 +1165,7 @@ macro_rules! default_imp_for_frm_fulfillment {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_fulfillment!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1516,13 +1199,14 @@ default_imp_for_frm_fulfillment!(
 );
 
 #[cfg(feature = "frm")]
-macro_rules! default_imp_for_frm_record_return {
+macro_rules! default_imp_for_new_connector_integration_frm_record_return {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl FraudCheckRecordReturn for $path::$connector {}
+            impl FraudCheckRecordReturnV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             RecordReturn,
+            FrmFlowData,
             FraudCheckRecordReturnData,
             FraudCheckResponseData,
         > for $path::$connector
@@ -1532,8 +1216,7 @@ macro_rules! default_imp_for_frm_record_return {
 }
 
 #[cfg(feature = "frm")]
-default_imp_for_frm_record_return!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1566,12 +1249,13 @@ default_imp_for_frm_record_return!(
     connectors::Zen
 );
 
-macro_rules! default_imp_for_revoking_mandates {
+macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
     ($($path:ident::$connector:ident),*) => {
-        $( impl ConnectorMandateRevoke for $path::$connector {}
+        $( impl ConnectorMandateRevokeV2 for $path::$connector {}
             impl
-            ConnectorIntegration<
+            ConnectorIntegrationV2<
             MandateRevoke,
+            MandateRevokeFlowData,
             MandateRevokeRequestData,
             MandateRevokeResponseData,
         > for $path::$connector
@@ -1580,8 +1264,7 @@ macro_rules! default_imp_for_revoking_mandates {
     };
 }
 
-default_imp_for_revoking_mandates!(
-	connectors::Uas,
+default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,

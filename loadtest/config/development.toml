@@ -156,6 +156,7 @@ stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
+uas.base_url = "localhost:8080"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
@@ -238,6 +239,7 @@ cards = [
     "thunes",
     "trustpay",
     "tsys",
+    "uas",
     "volt",
     "wellsfargo",
     "wellsfargopayout",
