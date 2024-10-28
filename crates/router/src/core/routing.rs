@@ -7,6 +7,8 @@ use api_models::{
     routing::{self as routing_types, RoutingRetrieveQuery},
 };
 use async_trait::async_trait;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use common_utils::ext_traits::AsyncExt;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -1447,7 +1449,7 @@ pub async fn success_based_routing_update_configs(
         &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
     );
 
-    let dynamic_routing_id = helpers::generate_tenant_business_profile_id(
+    let prefix_of_dynamic_routing_keys = helpers::generate_tenant_business_profile_id(
         &state.tenant.redis_key_prefix,
         profile_id.get_string_repr(),
     );
@@ -1456,7 +1458,16 @@ pub async fn success_based_routing_update_configs(
         .dynamic_routing
         .success_rate_client
         .as_ref()
-        .map(|a| a.invalidate_config_window(dynamic_routing_id));
+        .async_map(|sr_client| async {
+            sr_client
+                .invalidate_config_window(prefix_of_dynamic_routing_keys)
+                .await
+                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Failed to invalidate the config window".to_string(),
+                })
+        })
+        .await
+        .transpose()?;
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
