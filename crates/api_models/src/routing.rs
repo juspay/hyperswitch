@@ -597,7 +597,7 @@ pub struct SuccessBasedRoutingConfig {
 impl Default for SuccessBasedRoutingConfig {
     fn default() -> Self {
         Self {
-            params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod(common_enums::PaymentMethod::Card)]),
+            params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod]),
             config: Some(SuccessBasedRoutingConfigBody {
                 min_aggregates_size: Some(2),
                 default_success_rate: Some(100.0),
@@ -613,14 +613,14 @@ impl Default for SuccessBasedRoutingConfig {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, strum::Display)]
 pub enum SuccessBasedRoutingConfigParams {
-    PaymentMethod(common_enums::PaymentMethod),
-    PaymentMethodType(common_enums::PaymentMethodType),
-    AuthenticationType(common_enums::AuthenticationType),
-    Currency(common_enums::Currency),
-    PaymentType(common_enums::PaymentType),
-    Country(common_enums::Country),
-    CardNetwork(common_enums::CardNetwork),
-    CardBin(String),
+    PaymentMethod,
+    PaymentMethodType,
+    AuthenticationType,
+    Currency,
+    PaymentType,
+    Country,
+    CardNetwork,
+    CardBin,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]

@@ -90,6 +90,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse>;
     /// To update the success rate with the given label
@@ -107,23 +108,24 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse> {
-        let params = success_rate_based_config
-            .params
-            .map(|vec| {
-                vec.into_iter().fold(String::new(), |mut acc_str, params| {
-                    if !acc_str.is_empty() {
-                        acc_str.push(':')
-                    }
-                    acc_str.push_str(params.to_string().as_str());
-                    acc_str
-                })
-            })
-            .get_required_value("params")
-            .change_context(DynamicRoutingError::MissingRequiredField {
-                field: "params".to_string(),
-            })?;
+        // let params = success_rate_based_config
+        //     .params
+        //     .map(|vec| {
+        //         vec.into_iter().fold(String::new(), |mut acc_str, params| {
+        //             if !acc_str.is_empty() {
+        //                 acc_str.push(':')
+        //             }
+        //             acc_str.push_str(params.to_string().as_str());
+        //             acc_str
+        //         })
+        //     })
+        //     .get_required_value("params")
+        //     .change_context(DynamicRoutingError::MissingRequiredField {
+        //         field: "params".to_string(),
+        //     })?;
 
         let labels = label_input
             .into_iter()

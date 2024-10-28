@@ -39,7 +39,7 @@ use rand::{
 };
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
-
+use super::{OperationSessionGetters, OperationSessionSetters};
 #[cfg(feature = "v2")]
 use crate::core::admin;
 #[cfg(feature = "payouts")]
@@ -1236,11 +1236,17 @@ pub fn make_dsl_input_for_surcharge(
 
 /// success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn perform_success_based_routing(
+pub async fn perform_success_based_routing<F, D>(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
+    payment_data: &D,
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> 
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+
     let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
         business_profile
             .dynamic_routing_algorithm
@@ -1293,6 +1299,8 @@ pub async fn perform_success_based_routing(
         .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
         .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
+        let success_based_routing_config_params = interpolate_success_based_routing_params(success_based_routing_configs, payment_data);
+
         let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
             &state.tenant.redis_key_prefix,
             business_profile.get_id().get_string_repr(),
@@ -1343,4 +1351,44 @@ pub async fn perform_success_based_routing(
     } else {
         Ok(routable_connectors)
     }
+}
+
+pub async fn interpolate_success_based_routing_params<F, D>(
+    success_rate_based_config: api_routing::SuccessBasedRoutingConfig,
+    payment_data: &D,
+) -> Vec<String>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let mut res = Vec::new();
+    for param in success_rate_based_config.params.unwrap() {
+        let val:String = match param {
+                    api_routing::SuccessBasedRoutingConfigParams::PaymentMethod => payment_data.get_payment_attempt().payment_method.unwrap().to_string(),
+                    api_routing::SuccessBasedRoutingConfigParams::PaymentMethodType => payment_data.get_payment_attempt().get_payment_method_type().unwrap().to_string(),
+                    api_routing::SuccessBasedRoutingConfigParams::AuthenticationType => payment_data.get_payment_attempt().authentication_type.unwrap().to_string(),
+                    api_routing::SuccessBasedRoutingConfigParams::Currency => payment_data.get_currency().to_string(),
+                    api_routing::SuccessBasedRoutingConfigParams::Country => payment_data.get_billing_address().unwrap().address.unwrap().country.unwrap().to_string(),
+                    api_routing::SuccessBasedRoutingConfigParams::PaymentType => todo!(),
+                    api_routing::SuccessBasedRoutingConfigParams::CardNetwork =>
+                        payment_data.get_payment_attempt().payment_method_data.as_ref()
+                                    .and_then(|data| data.as_object())
+                                    .and_then(|card| card.get("card"))
+                                    .and_then(|data| data.as_object())
+                                    .and_then(|card| card.get("card_network"))
+                                    .and_then(|network| network.as_str())
+                                    .map(|network| network.to_string()).unwrap(),
+                    api_routing::SuccessBasedRoutingConfigParams::CardBin => 
+                        payment_data.get_payment_attempt().payment_method_data.as_ref()
+                                    .and_then(|data| data.as_object())
+                                    .and_then(|card| card.get("card"))
+                                    .and_then(|data| data.as_object())
+                                    .and_then(|card| card.get("card_number"))
+                                    .and_then(|network| network.as_str())
+                                    .map(|network| network.to_string()).unwrap(),
+                };
+        res.push(val);
+    }
+    res
+
 }
