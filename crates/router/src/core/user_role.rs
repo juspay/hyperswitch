@@ -92,7 +92,7 @@ pub async fn get_parent_group_info(
     .await
     .to_not_found_response(UserErrors::InvalidRoleId)?;
 
-    let parent_groups = ParentGroup::get_descriptions(
+    let parent_groups = ParentGroup::get_descriptions_for_groups(
         role_info.get_entity_type(),
         PermissionGroup::iter().collect(),
     )

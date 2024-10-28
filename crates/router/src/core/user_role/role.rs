@@ -157,7 +157,7 @@ pub async fn get_parent_info_for_role(
         return Err(UserErrors::InvalidRoleId.into());
     }
 
-    let parent_groups = ParentGroup::get_descriptions(
+    let parent_groups = ParentGroup::get_descriptions_for_groups(
         role_info.get_entity_type(),
         role_info.get_permission_groups().to_vec(),
     )
