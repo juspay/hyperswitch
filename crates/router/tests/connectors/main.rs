@@ -42,6 +42,7 @@ mod gpayments;
 mod helcim;
 mod iatapay;
 mod itaubank;
+mod jpmorgan;
 mod mifinity;
 mod mollie;
 mod multisafepay;

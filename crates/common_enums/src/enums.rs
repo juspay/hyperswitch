@@ -160,6 +160,7 @@ pub enum AttemptStatus {
 #[strum(serialize_all = "snake_case")]
 /// Connectors eligible for payments routing
 pub enum RoutableConnectors {
+    //Jpmorgan,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -221,6 +222,7 @@ pub enum RoutableConnectors {
     Helcim,
     Iatapay,
     Itaubank,
+    //Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,

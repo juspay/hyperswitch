@@ -129,6 +129,7 @@ cards = [
     "helcim",
     "iatapay",
     "itaubank",
+    "jpmorgan",
     "mollie",
     "multisafepay",
     "netcetera",
@@ -229,6 +230,7 @@ gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayment
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
+jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"

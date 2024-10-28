@@ -108,6 +108,7 @@ pub enum Connector {
     Helcim,
     Iatapay,
     Itaubank,
+    //Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,
@@ -216,6 +217,7 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
+			// | Self::Jpmorgan
 			// | Self::Fiuu
             | Self::Adyen
             | Self::Adyenplatform

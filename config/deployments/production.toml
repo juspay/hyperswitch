@@ -65,6 +65,7 @@ gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayment
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://iata-pay.iata.org/api/v1"
 itaubank.base_url = "https://secure.api.itau/"
+jpmorgan.base_url = "https://api-ms.payments.jpmorgan.com/api/v2"
 klarna.base_url = "https://api{{klarna_region}}.klarna.com/"
 mifinity.base_url = "https://secure.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
