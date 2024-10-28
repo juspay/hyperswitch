@@ -190,7 +190,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
-          . scripts/execute_cypress.sh --parallel 3
+          scripts/execute_cypress.sh --parallel 3
 
           kill "${{ env.PID }}"
 
