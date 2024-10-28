@@ -474,7 +474,9 @@ impl ConnectorData {
                 enums::Connector::Rapyd => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
                 }
-                enums::Connector::Shift4 => Ok(ConnectorEnum::Old(Box::new(&connector::Shift4))),
+                enums::Connector::Shift4 => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
+                }
                 enums::Connector::Square => Ok(ConnectorEnum::Old(Box::new(&connector::Square))),
                 enums::Connector::Stax => Ok(ConnectorEnum::Old(Box::new(&connector::Stax))),
                 enums::Connector::Stripe => {
