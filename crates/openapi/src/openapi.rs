@@ -82,6 +82,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_link::payment_link_retrieve,
         routes::payments::payments_external_authentication,
         routes::payments::payments_complete_authorize,
+        routes::payments::payments_post_session_tokens,
 
         // Routes for refunds
         routes::refunds::refunds_create,
@@ -159,7 +160,6 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::routing_retrieve_default_config_for_profiles,
         routes::routing::routing_update_default_config_for_profile,
         routes::routing::toggle_success_based_routing,
-        routes::routing::success_based_routing_update_configs,
 
         // Routes for blocklist
         routes::blocklist::remove_entry_from_blocklist,
@@ -565,6 +565,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::RoutingDictionaryRecord,
         api_models::routing::RoutingKind,
         api_models::routing::RoutableConnectorChoice,
+        api_models::routing::SuccessBasedRoutingFeatures,
         api_models::routing::LinkedRoutingConfigRetrieveResponse,
         api_models::routing::RoutingRetrieveResponse,
         api_models::routing::ProfileDefaultRoutingConfig,
@@ -576,11 +577,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::routing::ConnectorVolumeSplit,
         api_models::routing::ConnectorSelection,
         api_models::routing::ToggleSuccessBasedRoutingQuery,
-        api_models::routing::SuccessBasedRoutingConfig,
-        api_models::routing::SuccessBasedRoutingConfigParams,
-        api_models::routing::SuccessBasedRoutingConfigBody,
-        api_models::routing::CurrentBlockThreshold,
-        api_models::routing::SuccessBasedRoutingUpdateConfigQuery,
         api_models::routing::ToggleSuccessBasedRoutingPath,
         api_models::routing::ast::RoutableChoiceKind,
         api_models::enums::RoutableConnectors,
@@ -646,6 +642,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::WalletResponseData,
         api_models::payments::PaymentsDynamicTaxCalculationResponse,
         api_models::payments::DisplayAmountOnSdk,
+        api_models::payments::PaymentsPostSessionTokensRequest,
+        api_models::payments::PaymentsPostSessionTokensResponse,
     )),
     modifiers(&SecurityAddon)
 )]

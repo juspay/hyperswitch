@@ -1,20 +1,33 @@
 use base64::Engine;
 use cards::CardNumber;
-use common_utils::errors::CustomResult;
-use domain::PaymentMethodData;
+use common_enums::{enums, AttemptStatus};
+use common_utils::{consts, errors::CustomResult, request::Method};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{
+        ApplePayWalletData, BankRedirectData, Card, PaymentMethodData, WalletData,
+    },
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData,
+    },
+};
+use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{
-        self, CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData,
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        self, CardData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData, WalletData as _,
     },
-    consts,
-    core::errors,
-    services,
-    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -163,9 +176,9 @@ pub struct ApplepayPaymentMethod {
     token_type: String,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
+impl TryFrom<&PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let return_url = item.request.router_return_url.clone();
         let nexinets_async = NexinetsAsyncDetails {
             success_url: return_url.clone(),
@@ -195,11 +208,11 @@ pub struct NexinetsAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for NexinetsAuthType {
+impl TryFrom<&ConnectorAuthType> for NexinetsAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => {
+            ConnectorAuthType::BodyKey { api_key, key1 } => {
                 let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
                 let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
                 Ok(Self {
@@ -224,48 +237,48 @@ pub enum NexinetsPaymentStatus {
     Aborted,
 }
 
-impl ForeignFrom<(NexinetsPaymentStatus, NexinetsTransactionType)> for enums::AttemptStatus {
-    fn foreign_from((status, method): (NexinetsPaymentStatus, NexinetsTransactionType)) -> Self {
-        match status {
-            NexinetsPaymentStatus::Success => match method {
-                NexinetsTransactionType::Preauth => Self::Authorized,
-                NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => Self::Charged,
-                NexinetsTransactionType::Cancel => Self::Voided,
-            },
-            NexinetsPaymentStatus::Declined
-            | NexinetsPaymentStatus::Failure
-            | NexinetsPaymentStatus::Expired
-            | NexinetsPaymentStatus::Aborted => match method {
-                NexinetsTransactionType::Preauth => Self::AuthorizationFailed,
-                NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => {
-                    Self::CaptureFailed
-                }
-                NexinetsTransactionType::Cancel => Self::VoidFailed,
-            },
-            NexinetsPaymentStatus::Ok => match method {
-                NexinetsTransactionType::Preauth => Self::Authorized,
-                _ => Self::Pending,
-            },
-            NexinetsPaymentStatus::Pending => Self::AuthenticationPending,
-            NexinetsPaymentStatus::InProgress => Self::Pending,
-        }
+fn get_status(status: NexinetsPaymentStatus, method: NexinetsTransactionType) -> AttemptStatus {
+    match status {
+        NexinetsPaymentStatus::Success => match method {
+            NexinetsTransactionType::Preauth => AttemptStatus::Authorized,
+            NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => {
+                AttemptStatus::Charged
+            }
+            NexinetsTransactionType::Cancel => AttemptStatus::Voided,
+        },
+        NexinetsPaymentStatus::Declined
+        | NexinetsPaymentStatus::Failure
+        | NexinetsPaymentStatus::Expired
+        | NexinetsPaymentStatus::Aborted => match method {
+            NexinetsTransactionType::Preauth => AttemptStatus::AuthorizationFailed,
+            NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => {
+                AttemptStatus::CaptureFailed
+            }
+            NexinetsTransactionType::Cancel => AttemptStatus::VoidFailed,
+        },
+        NexinetsPaymentStatus::Ok => match method {
+            NexinetsTransactionType::Preauth => AttemptStatus::Authorized,
+            _ => AttemptStatus::Pending,
+        },
+        NexinetsPaymentStatus::Pending => AttemptStatus::AuthenticationPending,
+        NexinetsPaymentStatus::InProgress => AttemptStatus::Pending,
     }
 }
 
-impl TryFrom<&common_enums::enums::BankNames> for NexinetsBIC {
+impl TryFrom<&enums::BankNames> for NexinetsBIC {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(bank: &common_enums::enums::BankNames) -> Result<Self, Self::Error> {
+    fn try_from(bank: &enums::BankNames) -> Result<Self, Self::Error> {
         match bank {
-            common_enums::enums::BankNames::AbnAmro => Ok(Self::AbnAmro),
-            common_enums::enums::BankNames::AsnBank => Ok(Self::AsnBank),
-            common_enums::enums::BankNames::Bunq => Ok(Self::Bunq),
-            common_enums::enums::BankNames::Ing => Ok(Self::Ing),
-            common_enums::enums::BankNames::Knab => Ok(Self::Knab),
-            common_enums::enums::BankNames::Rabobank => Ok(Self::Rabobank),
-            common_enums::enums::BankNames::Regiobank => Ok(Self::Regiobank),
-            common_enums::enums::BankNames::SnsBank => Ok(Self::SnsBank),
-            common_enums::enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
-            common_enums::enums::BankNames::VanLanschot => Ok(Self::VanLanschot),
+            enums::BankNames::AbnAmro => Ok(Self::AbnAmro),
+            enums::BankNames::AsnBank => Ok(Self::AsnBank),
+            enums::BankNames::Bunq => Ok(Self::Bunq),
+            enums::BankNames::Ing => Ok(Self::Ing),
+            enums::BankNames::Knab => Ok(Self::Knab),
+            enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            enums::BankNames::Regiobank => Ok(Self::Regiobank),
+            enums::BankNames::SnsBank => Ok(Self::SnsBank),
+            enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
+            enums::BankNames::VanLanschot => Ok(Self::VanLanschot),
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: bank.to_string(),
                 connector: "Nexinets".to_string(),
@@ -311,24 +324,12 @@ pub struct NexinetsPaymentsMetadata {
     pub psync_flow: NexinetsTransactionType,
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            NexinetsPreAuthOrDebitResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            NexinetsPreAuthOrDebitResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let transaction = match item.response.transactions.first() {
             Some(order) => order,
@@ -343,11 +344,11 @@ impl<F, T>
         let redirection_data = item
             .response
             .redirect_url
-            .map(|url| services::RedirectForm::from((url, services::Method::Get)));
+            .map(|url| RedirectForm::from((url, Method::Get)));
         let resource_id = match item.response.transaction_type.clone() {
-            NexinetsTransactionType::Preauth => types::ResponseId::NoResponseId,
+            NexinetsTransactionType::Preauth => ResponseId::NoResponseId,
             NexinetsTransactionType::Debit => {
-                types::ResponseId::ConnectorTransactionId(transaction.transaction_id.clone())
+                ResponseId::ConnectorTransactionId(transaction.transaction_id.clone())
             }
             _ => Err(errors::ConnectorError::ResponseHandlingFailed)?,
         };
@@ -355,20 +356,17 @@ impl<F, T>
             .response
             .payment_instrument
             .payment_instrument_id
-            .map(|id| types::MandateReference {
+            .map(|id| MandateReference {
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
             });
         Ok(Self {
-            status: enums::AttemptStatus::foreign_from((
-                transaction.status.clone(),
-                item.response.transaction_type,
-            )),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+            status: get_status(transaction.status.clone(), item.response.transaction_type),
+            response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
-                redirection_data,
-                mandate_reference,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id),
@@ -393,9 +391,9 @@ pub struct NexinetsOrder {
     pub order_id: String,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for NexinetsCaptureOrVoidRequest {
+impl TryFrom<&PaymentsCaptureRouterData> for NexinetsCaptureOrVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             initial_amount: item.request.amount_to_capture,
             currency: item.request.currency,
@@ -403,9 +401,9 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NexinetsCaptureOrVoidRequest
     }
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for NexinetsCaptureOrVoidRequest {
+impl TryFrom<&PaymentsCancelRouterData> for NexinetsCaptureOrVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             initial_amount: item.request.get_amount()?,
             currency: item.request.get_currency()?,
@@ -423,13 +421,12 @@ pub struct NexinetsPaymentResponse {
     pub transaction_type: NexinetsTransactionType,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, NexinetsPaymentResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, NexinetsPaymentResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, NexinetsPaymentResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let transaction_id = Some(item.response.transaction_id.clone());
         let connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
@@ -440,19 +437,16 @@ impl<F, T>
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let resource_id = match item.response.transaction_type.clone() {
             NexinetsTransactionType::Debit | NexinetsTransactionType::Capture => {
-                types::ResponseId::ConnectorTransactionId(item.response.transaction_id)
+                ResponseId::ConnectorTransactionId(item.response.transaction_id)
             }
-            _ => types::ResponseId::NoResponseId,
+            _ => ResponseId::NoResponseId,
         };
         Ok(Self {
-            status: enums::AttemptStatus::foreign_from((
-                item.response.status,
-                item.response.transaction_type,
-            )),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
+            status: get_status(item.response.status, item.response.transaction_type),
+            response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order.order_id),
@@ -473,9 +467,9 @@ pub struct NexinetsRefundRequest {
     pub currency: enums::Currency,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for NexinetsRefundRequest {
+impl<F> TryFrom<&RefundsRouterData<F>> for NexinetsRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             initial_amount: item.request.refund_amount,
             currency: item.request.currency,
@@ -521,15 +515,15 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, NexinetsRefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, NexinetsRefundResponse>>
+    for RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, NexinetsRefundResponse>,
+        item: RefundsResponseRouterData<Execute, NexinetsRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -538,15 +532,15 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, NexinetsRefundRespon
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, NexinetsRefundResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl TryFrom<RefundsResponseRouterData<RSync, NexinetsRefundResponse>>
+    for RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, NexinetsRefundResponse>,
+        item: RefundsResponseRouterData<RSync, NexinetsRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
             }),
@@ -571,7 +565,7 @@ pub struct OrderErrorDetails {
 }
 
 fn get_payment_details_and_product(
-    item: &types::PaymentsAuthorizeRouterData,
+    item: &PaymentsAuthorizeRouterData,
 ) -> Result<
     (Option<NexinetsPaymentDetails>, NexinetsProduct),
     error_stack::Report<errors::ConnectorError>,
@@ -583,9 +577,9 @@ fn get_payment_details_and_product(
         )),
         PaymentMethodData::Wallet(wallet) => Ok(get_wallet_details(wallet)?),
         PaymentMethodData::BankRedirect(bank_redirect) => match bank_redirect {
-            domain::BankRedirectData::Eps { .. } => Ok((None, NexinetsProduct::Eps)),
-            domain::BankRedirectData::Giropay { .. } => Ok((None, NexinetsProduct::Giropay)),
-            domain::BankRedirectData::Ideal { bank_name, .. } => Ok((
+            BankRedirectData::Eps { .. } => Ok((None, NexinetsProduct::Eps)),
+            BankRedirectData::Giropay { .. } => Ok((None, NexinetsProduct::Giropay)),
+            BankRedirectData::Ideal { bank_name, .. } => Ok((
                 Some(NexinetsPaymentDetails::BankRedirects(Box::new(
                     NexinetsBankRedirects {
                         bic: bank_name
@@ -595,21 +589,21 @@ fn get_payment_details_and_product(
                 ))),
                 NexinetsProduct::Ideal,
             )),
-            domain::BankRedirectData::Sofort { .. } => Ok((None, NexinetsProduct::Sofort)),
-            domain::BankRedirectData::BancontactCard { .. }
-            | domain::BankRedirectData::Blik { .. }
-            | domain::BankRedirectData::Bizum { .. }
-            | domain::BankRedirectData::Interac { .. }
-            | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
-            | domain::BankRedirectData::OnlineBankingFinland { .. }
-            | domain::BankRedirectData::OnlineBankingPoland { .. }
-            | domain::BankRedirectData::OnlineBankingSlovakia { .. }
-            | domain::BankRedirectData::OpenBankingUk { .. }
-            | domain::BankRedirectData::Przelewy24 { .. }
-            | domain::BankRedirectData::Trustly { .. }
-            | domain::BankRedirectData::OnlineBankingFpx { .. }
-            | domain::BankRedirectData::OnlineBankingThailand { .. }
-            | domain::BankRedirectData::LocalBankRedirect {} => {
+            BankRedirectData::Sofort { .. } => Ok((None, NexinetsProduct::Sofort)),
+            BankRedirectData::BancontactCard { .. }
+            | BankRedirectData::Blik { .. }
+            | BankRedirectData::Bizum { .. }
+            | BankRedirectData::Interac { .. }
+            | BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | BankRedirectData::OnlineBankingFinland { .. }
+            | BankRedirectData::OnlineBankingPoland { .. }
+            | BankRedirectData::OnlineBankingSlovakia { .. }
+            | BankRedirectData::OpenBankingUk { .. }
+            | BankRedirectData::Przelewy24 { .. }
+            | BankRedirectData::Trustly { .. }
+            | BankRedirectData::OnlineBankingFpx { .. }
+            | BankRedirectData::OnlineBankingThailand { .. }
+            | BankRedirectData::LocalBankRedirect {} => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nexinets"),
                 ))?
@@ -638,8 +632,8 @@ fn get_payment_details_and_product(
 }
 
 fn get_card_data(
-    item: &types::PaymentsAuthorizeRouterData,
-    card: &domain::payments::Card,
+    item: &PaymentsAuthorizeRouterData,
+    card: &Card,
 ) -> Result<NexinetsPaymentDetails, errors::ConnectorError> {
     let (card_data, cof_contract) = match item.request.is_mandate_payment() {
         true => {
@@ -666,10 +660,10 @@ fn get_card_data(
 }
 
 fn get_applepay_details(
-    wallet_data: &domain::WalletData,
-    applepay_data: &domain::ApplePayWalletData,
+    wallet_data: &WalletData,
+    applepay_data: &ApplePayWalletData,
 ) -> CustomResult<ApplePayDetails, errors::ConnectorError> {
-    let payment_data = wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?;
+    let payment_data = WalletData::get_wallet_token_as_json(wallet_data, "Apple Pay".to_string())?;
     Ok(ApplePayDetails {
         payment_data,
         payment_method: ApplepayPaymentMethod {
@@ -681,9 +675,7 @@ fn get_applepay_details(
     })
 }
 
-fn get_card_details(
-    req_card: &domain::payments::Card,
-) -> Result<CardDetails, errors::ConnectorError> {
+fn get_card_details(req_card: &Card) -> Result<CardDetails, errors::ConnectorError> {
     Ok(CardDetails {
         card_number: req_card.card_number.clone(),
         expiry_month: req_card.card_exp_month.clone(),
@@ -693,14 +685,14 @@ fn get_card_details(
 }
 
 fn get_wallet_details(
-    wallet: &domain::WalletData,
+    wallet: &WalletData,
 ) -> Result<
     (Option<NexinetsPaymentDetails>, NexinetsProduct),
     error_stack::Report<errors::ConnectorError>,
 > {
     match wallet {
-        domain::WalletData::PaypalRedirect(_) => Ok((None, NexinetsProduct::Paypal)),
-        domain::WalletData::ApplePay(applepay_data) => Ok((
+        WalletData::PaypalRedirect(_) => Ok((None, NexinetsProduct::Paypal)),
+        WalletData::ApplePay(applepay_data) => Ok((
             Some(NexinetsPaymentDetails::Wallet(Box::new(
                 NexinetsWalletDetails::ApplePayToken(Box::new(get_applepay_details(
                     wallet,
@@ -709,32 +701,32 @@ fn get_wallet_details(
             ))),
             NexinetsProduct::Applepay,
         )),
-        domain::WalletData::AliPayQr(_)
-        | domain::WalletData::AliPayRedirect(_)
-        | domain::WalletData::AliPayHkRedirect(_)
-        | domain::WalletData::MomoRedirect(_)
-        | domain::WalletData::KakaoPayRedirect(_)
-        | domain::WalletData::GoPayRedirect(_)
-        | domain::WalletData::GcashRedirect(_)
-        | domain::WalletData::ApplePayRedirect(_)
-        | domain::WalletData::ApplePayThirdPartySdk(_)
-        | domain::WalletData::DanaRedirect { .. }
-        | domain::WalletData::GooglePay(_)
-        | domain::WalletData::GooglePayRedirect(_)
-        | domain::WalletData::GooglePayThirdPartySdk(_)
-        | domain::WalletData::MbWayRedirect(_)
-        | domain::WalletData::MobilePayRedirect(_)
-        | domain::WalletData::PaypalSdk(_)
-        | domain::WalletData::Paze(_)
-        | domain::WalletData::SamsungPay(_)
-        | domain::WalletData::TwintRedirect { .. }
-        | domain::WalletData::VippsRedirect { .. }
-        | domain::WalletData::TouchNGoRedirect(_)
-        | domain::WalletData::WeChatPayRedirect(_)
-        | domain::WalletData::WeChatPayQr(_)
-        | domain::WalletData::CashappQr(_)
-        | domain::WalletData::SwishQr(_)
-        | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+        WalletData::AliPayQr(_)
+        | WalletData::AliPayRedirect(_)
+        | WalletData::AliPayHkRedirect(_)
+        | WalletData::MomoRedirect(_)
+        | WalletData::KakaoPayRedirect(_)
+        | WalletData::GoPayRedirect(_)
+        | WalletData::GcashRedirect(_)
+        | WalletData::ApplePayRedirect(_)
+        | WalletData::ApplePayThirdPartySdk(_)
+        | WalletData::DanaRedirect { .. }
+        | WalletData::GooglePay(_)
+        | WalletData::GooglePayRedirect(_)
+        | WalletData::GooglePayThirdPartySdk(_)
+        | WalletData::MbWayRedirect(_)
+        | WalletData::MobilePayRedirect(_)
+        | WalletData::PaypalSdk(_)
+        | WalletData::Paze(_)
+        | WalletData::SamsungPay(_)
+        | WalletData::TwintRedirect { .. }
+        | WalletData::VippsRedirect { .. }
+        | WalletData::TouchNGoRedirect(_)
+        | WalletData::WeChatPayRedirect(_)
+        | WalletData::WeChatPayQr(_)
+        | WalletData::CashappQr(_)
+        | WalletData::SwishQr(_)
+        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
         ))?,
     }

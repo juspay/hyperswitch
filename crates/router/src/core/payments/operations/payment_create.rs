@@ -39,10 +39,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{
-        app::{ReqState, SessionStateInfo},
-        SessionState,
-    },
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         self,
@@ -76,7 +73,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        header_payload: &api::HeaderPayload,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -341,7 +338,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount.get_amount_as_i64(),
+                payment_intent.amount,
                 false,
             )?;
         }
@@ -562,6 +559,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             recurring_details,
             poll_config: None,
             tax_data: None,
+            session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -777,7 +775,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -843,14 +841,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let raw_customer_details = customer
             .map(|customer| CustomerData::foreign_try_from(customer.clone()))
             .transpose()?;
-        let session_state = state.session_state();
-
+        let key_manager_state = state.into();
         // Updation of Customer Details for the cases where both customer_id and specific customer
         // details are provided in Payment Create Request
         let customer_details = raw_customer_details
             .clone()
             .async_map(|customer_details| {
-                create_encrypted_data(&session_state, key_store, customer_details)
+                create_encrypted_data(&key_manager_state, key_store, customer_details)
             })
             .await
             .transpose()
@@ -958,7 +955,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> f
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                request.customer_id.as_ref(),
+                request.customer_id.as_ref().or(request
+                    .customer
+                    .as_ref()
+                    .map(|customer| customer.id.clone())
+                    .as_ref()),
             )?;
         }
 
@@ -1209,8 +1210,10 @@ impl PaymentCreate {
                     .map(Secret::new),
                 organization_id: organization_id.clone(),
                 profile_id,
+                connector_mandate_detail: None,
             },
             additional_pm_data,
+
         ))
     }
 

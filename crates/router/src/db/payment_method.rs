@@ -210,13 +210,13 @@ mod storage {
 
                         Box::pin(db_utils::try_redis_get_else_try_database_get(
                             async {
-                                kv_wrapper(
+                                Box::pin(kv_wrapper(
                                     self,
                                     KvOperation::<storage_types::PaymentMethod>::HGet(
                                         &lookup.sk_id,
                                     ),
                                     key,
-                                )
+                                ))
                                 .await?
                                 .try_into_hget()
                             },
@@ -348,13 +348,13 @@ mod storage {
 
                         Box::pin(db_utils::try_redis_get_else_try_database_get(
                             async {
-                                kv_wrapper(
+                                Box::pin(kv_wrapper(
                                     self,
                                     KvOperation::<storage_types::PaymentMethod>::HGet(
                                         &lookup.sk_id,
                                     ),
                                     key,
-                                )
+                                ))
                                 .await?
                                 .try_into_hget()
                             },
@@ -496,11 +496,11 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::PaymentMethod(payment_method_new),
+                            insertable: Box::new(kv::Insertable::PaymentMethod(payment_method_new)),
                         },
                     };
 
-                    match kv_wrapper::<diesel_models::PaymentMethod, _, _>(
+                    match Box::pin(kv_wrapper::<diesel_models::PaymentMethod, _, _>(
                         self,
                         KvOperation::<diesel_models::PaymentMethod>::HSetNx(
                             &field,
@@ -508,7 +508,7 @@ mod storage {
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hsetnx()
@@ -588,23 +588,23 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::PaymentMethodUpdate(
+                            updatable: Box::new(kv::Updateable::PaymentMethodUpdate(Box::new(
                                 kv::PaymentMethodUpdateMems {
                                     orig: payment_method,
                                     update_data: p_update,
                                 },
-                            ),
+                            ))),
                         },
                     };
 
-                    kv_wrapper::<(), _, _>(
+                    Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::<diesel_models::PaymentMethod>::Hset(
                             (&field, redis_value),
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hset()
@@ -743,11 +743,11 @@ mod storage {
                     let pattern = "payment_method_id_*";
 
                     let redis_fut = async {
-                        let kv_result = kv_wrapper::<storage_types::PaymentMethod, _, _>(
+                        let kv_result = Box::pin(kv_wrapper::<storage_types::PaymentMethod, _, _>(
                             self,
                             KvOperation::<storage_types::PaymentMethod>::Scan(pattern),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_scan();
                         kv_result.map(|payment_methods| {

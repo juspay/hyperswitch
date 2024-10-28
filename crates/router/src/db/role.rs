@@ -80,7 +80,7 @@ impl RoleInterface for Store {
         &self,
         role_id: &str,
     ) -> CustomResult<storage::Role, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Role::find_by_role_id(&conn, role_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -93,7 +93,7 @@ impl RoleInterface for Store {
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Role::find_by_role_id_in_merchant_scope(&conn, role_id, merchant_id, org_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -105,7 +105,7 @@ impl RoleInterface for Store {
         role_id: &str,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Role::find_by_role_id_in_org_scope(&conn, role_id, org_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -140,7 +140,7 @@ impl RoleInterface for Store {
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Role::list_roles(&conn, merchant_id, org_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -154,7 +154,7 @@ impl RoleInterface for Store {
         entity_type: Option<enums::EntityType>,
         limit: Option<u32>,
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Role::generic_roles_list_for_org(
             &conn,
             org_id.to_owned(),

@@ -19,7 +19,7 @@ use crate::{enums as api_enums, payment_methods::RequiredFieldInfo, payments};
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
     PayoutActionRequest(PayoutActionRequest),
-    PayoutCreateRequest(PayoutCreateRequest),
+    PayoutCreateRequest(Box<PayoutCreateRequest>),
     PayoutRetrieveRequest(PayoutRetrieveRequest),
 }
 

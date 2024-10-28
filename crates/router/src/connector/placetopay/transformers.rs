@@ -263,8 +263,8 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.internal_reference.to_string(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: item
                     .response
                     .authorization

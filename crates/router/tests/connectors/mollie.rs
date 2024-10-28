@@ -13,7 +13,7 @@ impl utils::Connector for MollieTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Mollie;
         utils::construct_connector_data_old(
-            Box::new(&Mollie),
+            Box::new(Mollie::new()),
             types::Connector::Mollie,
             types::api::GetToken::Connector,
             None,

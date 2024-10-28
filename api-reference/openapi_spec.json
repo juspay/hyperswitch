@@ -912,6 +912,46 @@
         ]
       }
     },
+    "/payments/{payment_id}/post_session_tokens": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Post Session Tokens",
+        "description": "\n",
+        "operationId": "Create Post Session Tokens for a Payment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsPostSessionTokensRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Post Session Token is done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsPostSessionTokensResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/refunds": {
       "post": {
         "tags": [
@@ -3912,12 +3952,12 @@
             }
           },
           {
-            "name": "status",
+            "name": "enable",
             "in": "query",
-            "description": "Boolean value for mentioning the expected state of dynamic routing",
+            "description": "Feature to enable for success based routing",
             "required": true,
             "schema": {
-              "type": "boolean"
+              "$ref": "#/components/schemas/SuccessBasedRoutingFeatures"
             }
           }
         ],
@@ -3954,87 +3994,6 @@
           },
           {
             "jwt_key": []
-          }
-        ]
-      }
-    },
-    "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/config/:algorithm_id": {
-      "patch": {
-        "tags": [
-          "Routing"
-        ],
-        "summary": "Routing - Update config for success based dynamic routing",
-        "description": "Update config for success based dynamic routing",
-        "operationId": "Update configs for success based dynamic routing algorithm",
-        "parameters": [
-          {
-            "name": "account_id",
-            "in": "path",
-            "description": "Merchant id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "profile_id",
-            "in": "path",
-            "description": "The unique identifier for a profile",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "algorithm_id",
-            "in": "path",
-            "description": "The unique identifier for routing algorithm",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SuccessBasedRoutingConfig"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Routing Algorithm updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Request body is malformed"
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "404": {
-            "description": "Resource missing"
-          },
-          "422": {
-            "description": "Unprocessable request"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "admin_api_key": []
           }
         ]
       }
@@ -9260,6 +9219,7 @@
         "description": "The three letter ISO currency code in uppercase. Eg: 'USD' for the United States Dollar.",
         "enum": [
           "AED",
+          "AFN",
           "ALL",
           "AMD",
           "ANG",
@@ -9279,10 +9239,12 @@
           "BOB",
           "BRL",
           "BSD",
+          "BTN",
           "BWP",
           "BYN",
           "BZD",
           "CAD",
+          "CDF",
           "CHF",
           "CLP",
           "CNY",
@@ -9296,6 +9258,7 @@
           "DOP",
           "DZD",
           "EGP",
+          "ERN",
           "ETB",
           "EUR",
           "FJD",
@@ -9317,6 +9280,8 @@
           "ILS",
           "INR",
           "IQD",
+          "IRR",
+          "ISK",
           "JMD",
           "JOD",
           "JPY",
@@ -9324,6 +9289,7 @@
           "KGS",
           "KHR",
           "KMF",
+          "KPW",
           "KRW",
           "KWD",
           "KYD",
@@ -9370,6 +9336,7 @@
           "SAR",
           "SBD",
           "SCR",
+          "SDG",
           "SEK",
           "SGD",
           "SHP",
@@ -9380,8 +9347,11 @@
           "SSP",
           "STN",
           "SVC",
+          "SYP",
           "SZL",
           "THB",
+          "TJS",
+          "TMT",
           "TND",
           "TOP",
           "TRY",
@@ -9403,25 +9373,9 @@
           "XPF",
           "YER",
           "ZAR",
-          "ZMW"
+          "ZMW",
+          "ZWL"
         ]
-      },
-      "CurrentBlockThreshold": {
-        "type": "object",
-        "properties": {
-          "duration_in_mins": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true,
-            "minimum": 0
-          },
-          "max_total_count": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true,
-            "minimum": 0
-          }
-        }
       },
       "CustomerAcceptance": {
         "type": "object",
@@ -13811,6 +13765,7 @@
       "NextActionCall": {
         "type": "string",
         "enum": [
+          "post_session_tokens",
           "confirm",
           "sync",
           "complete_authorize"
@@ -14264,9 +14219,7 @@
             "minimum": 0
           },
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "the amount per quantity of product"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "requires_shipping": {
             "type": "boolean",
@@ -17294,6 +17247,13 @@
             "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
           },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment.",
+            "example": 6540,
+            "nullable": true
+          },
           "amount_capturable": {
             "type": "integer",
             "format": "int64",
@@ -17796,6 +17756,11 @@
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Session Id",
+            "nullable": true
           }
         }
       },
@@ -17925,6 +17890,55 @@
             "type": "string",
             "description": "Reason for incremental authorization",
             "nullable": true
+          }
+        }
+      },
+      "PaymentsPostSessionTokensRequest": {
+        "type": "object",
+        "required": [
+          "client_secret",
+          "payment_method_type",
+          "payment_method"
+        ],
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "It's a token used for client side verification."
+          },
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          }
+        }
+      },
+      "PaymentsPostSessionTokensResponse": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "status"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "The identifier for the payment"
+          },
+          "next_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NextActionData"
+              }
+            ],
+            "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IntentStatus"
+              }
+            ],
+            "default": "requires_confirmation"
           }
         }
       },
@@ -18427,6 +18441,13 @@
             "format": "int64",
             "description": "The payment net amount. net_amount = amount + surcharge_details.surcharge_amount + surcharge_details.tax_amount + shipping_cost + order_tax_amount,\nIf no surcharge_details, shipping_cost, order_tax_amount, net_amount = amount",
             "example": 6540
+          },
+          "shipping_cost": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The shipping cost for the payment.",
+            "example": 6540,
+            "nullable": true
           },
           "amount_capturable": {
             "type": "integer",
@@ -20965,7 +20986,9 @@
         "required": [
           "client_id",
           "client_name",
-          "client_profile_id"
+          "client_profile_id",
+          "transaction_currency_code",
+          "transaction_amount"
         ],
         "properties": {
           "client_id": {
@@ -20979,6 +21002,21 @@
           "client_profile_id": {
             "type": "string",
             "description": "Paze Client Profile ID"
+          },
+          "transaction_currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "transaction_amount": {
+            "type": "string",
+            "description": "The transaction amount",
+            "example": "38.02"
+          },
+          "email_address": {
+            "type": "string",
+            "description": "Email Address",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -22839,7 +22877,6 @@
         "type": "object",
         "required": [
           "name",
-          "url",
           "country_code"
         ],
         "properties": {
@@ -22849,7 +22886,8 @@
           },
           "url": {
             "type": "string",
-            "description": "Merchant domain that process payments"
+            "description": "Merchant domain that process payments, required for web payments",
+            "nullable": true
           },
           "country_code": {
             "$ref": "#/components/schemas/CountryAlpha2"
@@ -23039,6 +23077,10 @@
         "properties": {
           "next_action": {
             "$ref": "#/components/schemas/NextActionCall"
+          },
+          "order_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -23499,79 +23541,13 @@
           "destination"
         ]
       },
-      "SuccessBasedRoutingConfig": {
-        "type": "object",
-        "properties": {
-          "params": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SuccessBasedRoutingConfigParams"
-            },
-            "nullable": true
-          },
-          "config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SuccessBasedRoutingConfigBody"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
-      "SuccessBasedRoutingConfigBody": {
-        "type": "object",
-        "properties": {
-          "min_aggregates_size": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true,
-            "minimum": 0
-          },
-          "default_success_rate": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "max_aggregates_size": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true,
-            "minimum": 0
-          },
-          "current_block_threshold": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CurrentBlockThreshold"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
-      "SuccessBasedRoutingConfigParams": {
+      "SuccessBasedRoutingFeatures": {
         "type": "string",
         "enum": [
-          "PaymentMethod",
-          "PaymentMethodType",
-          "Currency",
-          "AuthenticationType"
+          "metrics",
+          "dynamic_connector_selection",
+          "none"
         ]
-      },
-      "SuccessBasedRoutingUpdateConfigQuery": {
-        "type": "object",
-        "required": [
-          "algorithm_id",
-          "profile_id"
-        ],
-        "properties": {
-          "algorithm_id": {
-            "type": "string"
-          },
-          "profile_id": {
-            "type": "string"
-          }
-        }
       },
       "SurchargeDetailsResponse": {
         "type": "object",
@@ -23836,11 +23812,11 @@
       "ToggleSuccessBasedRoutingQuery": {
         "type": "object",
         "required": [
-          "status"
+          "enable"
         ],
         "properties": {
-          "status": {
-            "type": "boolean"
+          "enable": {
+            "$ref": "#/components/schemas/SuccessBasedRoutingFeatures"
           }
         }
       },
