@@ -17,11 +17,11 @@ email = ["external_services/email", "scheduler/email", "olap"]
 # keymanager_create, keymanager_mtls, encryption_service should not be removed or added to default feature. Once this features were enabled it can't be disabled as these are breaking changes.
 keymanager_create = []
 keymanager_mtls = ["reqwest/rustls-tls", "common_utils/keymanager_mtls"]
-encryption_service = ["hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
+encryption_service = ["keymanager_create","hyperswitch_domain_models/encryption_service", "common_utils/encryption_service"]
 km_forward_x_request_id = ["common_utils/km_forward_x_request_id"]
 frm = ["api_models/frm", "hyperswitch_domain_models/frm", "hyperswitch_connectors/frm", "hyperswitch_interfaces/frm"]
 stripe = []
-release = ["stripe", "email", "accounts_cache", "kv_store", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3", "keymanager_mtls", "keymanager_create", "encryption_service"]
+release = ["stripe", "email", "accounts_cache", "kv_store", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3", "keymanager_mtls", "keymanager_create", "encryption_service", "dynamic_routing"]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
 accounts_cache = []
@@ -33,10 +33,9 @@ payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_connectors
 payout_retry = ["payouts"]
 recon = ["email", "api_models/recon"]
 retry = []
-v2 = ["customer_v2", "payment_methods_v2", "payment_v2", "common_default", "api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2", "common_utils/v2"]
-v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1"]
+v2 = ["customer_v2", "payment_methods_v2", "common_default", "api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2", "common_utils/v2"]
+v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1", "common_utils/v1"]
 customer_v2 = ["api_models/customer_v2", "diesel_models/customer_v2", "hyperswitch_domain_models/customer_v2", "storage_impl/customer_v2"]
-payment_v2 = ["api_models/payment_v2", "diesel_models/payment_v2", "hyperswitch_domain_models/payment_v2", "storage_impl/payment_v2"]
 payment_methods_v2 = ["api_models/payment_methods_v2", "diesel_models/payment_methods_v2", "hyperswitch_domain_models/payment_methods_v2", "storage_impl/payment_methods_v2", "common_utils/payment_methods_v2"]
 dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing"]
 
@@ -83,7 +82,7 @@ nanoid = "0.4.0"
 num_cpus = "1.16.0"
 num-traits = "0.2.19"
 once_cell = "1.19.0"
-openidconnect = "3.5.0" # TODO: remove reqwest
+openidconnect = "3.5.0"                                                                                                      # TODO: remove reqwest
 openssl = "0.10.64"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
@@ -116,6 +115,7 @@ tracing-futures = { version = "0.2.5", features = ["tokio"] }
 unicode-segmentation = "1.11.0"
 unidecode = "0.3.0"
 url = { version = "2.5.0", features = ["serde"] }
+urlencoding = "2.1.3"
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order", "time"] }
 uuid = { version = "1.8.0", features = ["v4"] }
 validator = "0.17.0"
@@ -124,7 +124,7 @@ x509-parser = "0.16.0"
 # First party crates
 
 analytics = { version = "0.1.0", path = "../analytics", optional = true, default-features = false }
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors"]}
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager", "encryption_service"] }

@@ -10,6 +10,7 @@ use common_utils::{
     ext_traits::{Encode, StringExt, ValueExt},
     fp_utils::when,
     pii,
+    types::ConnectorTransactionIdTrait,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
@@ -289,7 +290,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
                 })?
             }
             api_enums::Connector::Nexinets => Self::Nexinets,
-            // api_enums::Connector::Nexixpay => Self::Nexixpay,
+            api_enums::Connector::Nexixpay => Self::Nexixpay,
             api_enums::Connector::Nmi => Self::Nmi,
             api_enums::Connector::Noon => Self::Noon,
             api_enums::Connector::Novalnet => Self::Novalnet,
@@ -476,6 +477,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Dana
             | api_enums::PaymentMethodType::MbWay
             | api_enums::PaymentMethodType::MobilePay
+            | api_enums::PaymentMethodType::Paze
             | api_enums::PaymentMethodType::SamsungPay
             | api_enums::PaymentMethodType::Twint
             | api_enums::PaymentMethodType::Vipps
@@ -1288,17 +1290,21 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
     }
 }
 
+#[cfg(feature = "v1")]
 impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
     fn foreign_from(payment_attempt: storage::PaymentAttempt) -> Self {
+        let connector_transaction_id = payment_attempt
+            .get_connector_payment_id()
+            .map(ToString::to_string);
         Self {
             attempt_id: payment_attempt.attempt_id,
             status: payment_attempt.status,
-            amount: payment_attempt.amount,
+            amount: payment_attempt.net_amount.get_order_amount(),
             currency: payment_attempt.currency,
             connector: payment_attempt.connector,
             error_message: payment_attempt.error_reason,
             payment_method: payment_attempt.payment_method,
-            connector_transaction_id: payment_attempt.connector_transaction_id,
+            connector_transaction_id,
             capture_method: payment_attempt.capture_method,
             authentication_type: payment_attempt.authentication_type,
             created_at: payment_attempt.created_at,
@@ -1321,6 +1327,7 @@ impl ForeignFrom<storage::PaymentAttempt> for payments::PaymentAttemptResponse {
 
 impl ForeignFrom<storage::Capture> for payments::CaptureResponse {
     fn foreign_from(capture: storage::Capture) -> Self {
+        let connector_capture_id = capture.get_optional_connector_transaction_id().cloned();
         Self {
             capture_id: capture.capture_id,
             status: capture.status,
@@ -1328,7 +1335,7 @@ impl ForeignFrom<storage::Capture> for payments::CaptureResponse {
             currency: capture.currency,
             connector: capture.connector,
             authorized_attempt_id: capture.authorized_attempt_id,
-            connector_capture_id: capture.connector_capture_id,
+            connector_capture_id,
             capture_sequence: capture.capture_sequence,
             error_message: capture.error_message,
             error_code: capture.error_code,
@@ -1393,7 +1400,8 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
     }
 }
 
-impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
+#[cfg(feature = "v1")]
+impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderPayload {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
         let payment_confirm_source: Option<api_enums::PaymentSource> =
@@ -1476,6 +1484,104 @@ impl ForeignTryFrom<&HeaderMap> for payments::HeaderPayload {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderPayload {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
+        use std::str::FromStr;
+
+        use crate::headers::X_CLIENT_SECRET;
+
+        let payment_confirm_source: Option<api_enums::PaymentSource> =
+            get_header_value_by_key(X_PAYMENT_CONFIRM_SOURCE.into(), headers)?
+                .map(|source| {
+                    source
+                        .to_owned()
+                        .parse_enum("PaymentSource")
+                        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Invalid data received in payment_confirm_source header"
+                                .into(),
+                        })
+                        .attach_printable(
+                            "Failed while paring PaymentConfirmSource header value to enum",
+                        )
+                })
+                .transpose()?;
+        when(
+            payment_confirm_source.is_some_and(|payment_confirm_source| {
+                payment_confirm_source.is_for_internal_use_only()
+            }),
+            || {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Invalid data received in payment_confirm_source header".into(),
+                }))
+            },
+        )?;
+        let locale =
+            get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)?.map(|val| val.to_string());
+        let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
+            .map(|value| value == Some("true"))
+            .unwrap_or(false);
+
+        let client_source =
+            get_header_value_by_key(X_CLIENT_SOURCE.into(), headers)?.map(|val| val.to_string());
+
+        let client_version =
+            get_header_value_by_key(X_CLIENT_VERSION.into(), headers)?.map(|val| val.to_string());
+
+        let browser_name_str =
+            get_header_value_by_key(BROWSER_NAME.into(), headers)?.map(|val| val.to_string());
+
+        let browser_name: Option<api_enums::BrowserName> = browser_name_str.map(|browser_name| {
+            browser_name
+                .parse_enum("BrowserName")
+                .unwrap_or(api_enums::BrowserName::Unknown)
+        });
+
+        let x_client_platform_str =
+            get_header_value_by_key(X_CLIENT_PLATFORM.into(), headers)?.map(|val| val.to_string());
+
+        let x_client_platform: Option<api_enums::ClientPlatform> =
+            x_client_platform_str.map(|x_client_platform| {
+                x_client_platform
+                    .parse_enum("ClientPlatform")
+                    .unwrap_or(api_enums::ClientPlatform::Unknown)
+            });
+
+        let x_merchant_domain =
+            get_header_value_by_key(X_MERCHANT_DOMAIN.into(), headers)?.map(|val| val.to_string());
+
+        let x_app_id =
+            get_header_value_by_key(X_APP_ID.into(), headers)?.map(|val| val.to_string());
+
+        let x_redirect_uri =
+            get_header_value_by_key(X_REDIRECT_URI.into(), headers)?.map(|val| val.to_string());
+
+        // TODO: combine publishable key and client secret when we unify the auth
+        let client_secret = get_header_value_by_key(X_CLIENT_SECRET.into(), headers)?
+            .map(common_utils::types::ClientSecret::from_str)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Invalid data received in client_secret header".into(),
+            })?;
+
+        Ok(Self {
+            payment_confirm_source,
+            // client_source,
+            // client_version,
+            x_hs_latency: Some(x_hs_latency),
+            browser_name,
+            x_client_platform,
+            x_merchant_domain,
+            locale,
+            x_app_id,
+            x_redirect_uri,
+            client_secret,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
 impl
     ForeignTryFrom<(
         Option<&storage::PaymentAttempt>,
@@ -1547,7 +1653,8 @@ impl
             currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
             shipping: shipping.map(api_types::Address::from),
             billing: billing_address,
-            amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
+            amount: payment_attempt
+                .map(|pa| api_types::Amount::from(pa.net_amount.get_order_amount())),
             email: customer
                 .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone())))
                 .or(customer_details_from_pi.clone().and_then(|cd| cd.email)),

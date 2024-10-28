@@ -1,6 +1,6 @@
 use api_models::user::sample_data::SampleDataRequest;
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::{user::sample_data::PaymentAttemptBatchNew, RefundNew};
+use diesel_models::{DisputeNew, RefundNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
 
@@ -39,19 +39,23 @@ pub async fn generate_sample_data_for_user(
         .change_context(SampleDataError::InternalServerError)
         .attach_printable("Not able to fetch merchant key store")?; // If not able to fetch merchant key store for any reason, this should be an internal server error
 
-    let (payment_intents, payment_attempts, refunds): (
+    let (payment_intents, payment_attempts, refunds, disputes): (
         Vec<PaymentIntent>,
-        Vec<PaymentAttemptBatchNew>,
+        Vec<diesel_models::user::sample_data::PaymentAttemptBatchNew>,
         Vec<RefundNew>,
+        Vec<DisputeNew>,
     ) = sample_data.into_iter().fold(
-        (Vec::new(), Vec::new(), Vec::new()),
-        |(mut pi, mut pa, mut rf), (payment_intent, payment_attempt, refund)| {
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+        |(mut pi, mut pa, mut rf, mut dp), (payment_intent, payment_attempt, refund, dispute)| {
             pi.push(payment_intent);
             pa.push(payment_attempt);
             if let Some(refund) = refund {
                 rf.push(refund);
             }
-            (pi, pa, rf)
+            if let Some(dispute) = dispute {
+                dp.push(dispute);
+            }
+            (pi, pa, rf, dp)
         },
     );
 
@@ -70,10 +74,16 @@ pub async fn generate_sample_data_for_user(
         .insert_refunds_batch_for_sample_data(refunds)
         .await
         .switch()?;
+    state
+        .store
+        .insert_disputes_batch_for_sample_data(disputes)
+        .await
+        .switch()?;
 
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn delete_sample_data_for_user(
     state: SessionState,
     user_from_token: UserFromToken,
@@ -106,6 +116,11 @@ pub async fn delete_sample_data_for_user(
     state
         .store
         .delete_refunds_for_sample_data(&merchant_id_del)
+        .await
+        .switch()?;
+    state
+        .store
+        .delete_disputes_for_sample_data(&merchant_id_del)
         .await
         .switch()?;
 

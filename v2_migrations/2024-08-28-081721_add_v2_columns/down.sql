@@ -31,3 +31,13 @@ ALTER TABLE payment_intent DROP COLUMN merchant_reference_id,
     DROP COLUMN customer_present,
     DROP COLUMN routing_algorithm_id,
     DROP COLUMN payment_link_config;
+
+ALTER TABLE payment_attempt DROP COLUMN payment_method_type_v2,
+    DROP COLUMN connector_payment_id,
+    DROP COLUMN payment_method_subtype,
+    DROP COLUMN routing_result,
+    DROP COLUMN authentication_applied,
+    DROP COLUMN external_reference_id,
+    DROP COLUMN tax_on_surcharge,
+    DROP COLUMN payment_method_billing_address,
+    DROP COLUMN connector_payment_data;

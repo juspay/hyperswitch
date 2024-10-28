@@ -33,3 +33,14 @@ ADD COLUMN merchant_reference_id VARCHAR(64),
     ADD COLUMN customer_present BOOLEAN,
     ADD COLUMN routing_algorithm_id VARCHAR(64),
     ADD COLUMN payment_link_config JSONB;
+
+ALTER TABLE payment_attempt
+ADD COLUMN payment_method_type_v2 VARCHAR,
+    ADD COLUMN connector_payment_id VARCHAR(128),
+    ADD COLUMN payment_method_subtype VARCHAR(64),
+    ADD COLUMN routing_result JSONB,
+    ADD COLUMN authentication_applied "AuthenticationType",
+    ADD COLUMN external_reference_id VARCHAR(128),
+    ADD COLUMN tax_on_surcharge BIGINT,
+    ADD COLUMN payment_method_billing_address BYTEA,
+    ADD COLUMN connector_payment_data VARCHAR(512);

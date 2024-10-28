@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 crate::id_type!(
     ProfileId,
     "A type for profile_id that can be used for business profile ids"
@@ -18,5 +20,14 @@ impl crate::events::ApiEventMetric for ProfileId {
         Some(crate::events::ApiEventsType::BusinessProfile {
             profile_id: self.clone(),
         })
+    }
+}
+
+impl FromStr for ProfileId {
+    type Err = error_stack::Report<crate::errors::ValidationError>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let cow_string = std::borrow::Cow::Owned(s.to_string());
+        Self::try_from(cow_string)
     }
 }

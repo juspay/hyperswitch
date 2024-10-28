@@ -1,9 +1,8 @@
-use api_models::payments::HeaderPayload;
 use async_trait::async_trait;
 use common_enums::{CaptureMethod, FrmSuggestion};
 use common_utils::ext_traits::Encode;
 use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate,
+    payment_attempt::PaymentAttemptUpdate, payment_intent::PaymentIntentUpdate, HeaderPayload,
 };
 use router_env::{instrument, logger, tracing};
 
@@ -588,7 +587,7 @@ where
                 updated_by: frm_data.merchant_account.storage_scheme.to_string(),
             };
 
-            #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+            #[cfg(feature = "v1")]
             let payment_attempt = db
                 .update_payment_attempt_with_attempt_id(
                     payment_data.get_payment_attempt().clone(),
@@ -598,7 +597,7 @@ where
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            #[cfg(all(feature = "v2", feature = "payment_v2"))]
+            #[cfg(feature = "v2")]
             let payment_attempt = db
                 .update_payment_attempt_with_attempt_id(
                     key_manager_state,

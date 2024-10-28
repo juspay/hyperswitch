@@ -169,6 +169,8 @@ pub enum Flow {
     PaymentsFilters,
     /// Payments aggregates flow
     PaymentsAggregate,
+    /// Payments Create Intent flow
+    PaymentsCreateIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -364,8 +366,6 @@ pub enum Flow {
     InternalUserSignup,
     /// Switch org
     SwitchOrg,
-    /// Switch merchant
-    SwitchMerchant,
     /// Switch merchant v2
     SwitchMerchantV2,
     /// Switch profile
@@ -374,8 +374,6 @@ pub enum Flow {
     GetAuthorizationInfo,
     /// Get Roles info
     GetRolesInfo,
-    /// List roles
-    ListRoles,
     /// List roles v2
     ListRolesV2,
     /// List invitable roles at entity level
@@ -394,14 +392,10 @@ pub enum Flow {
     GenerateSampleData,
     /// Delete Sample Data
     DeleteSampleData,
-    /// List merchant accounts for user
-    UserMerchantAccountList,
     /// Get details of a user
     GetUserDetails,
     /// Get details of a user role in a merchant account
     GetUserRoleDetails,
-    /// List users for merchant account
-    ListUsersForMerchantAccount,
     /// PaymentMethodAuth Link token create
     PmAuthLinkTokenCreate,
     /// PaymentMethodAuth Exchange token create
@@ -434,12 +428,8 @@ pub enum Flow {
     VerifyEmailRequest,
     /// Update user account details
     UpdateUserAccountDetails,
-    /// Accept user invitation using merchant_ids
-    AcceptInvitation,
     /// Accept user invitation using entities
     AcceptInvitationsV2,
-    /// Select merchant from invitations
-    MerchantSelect,
     /// Accept user invitation using entities before user login
     AcceptInvitationsPreAuth,
     /// Initiate external authentication for a payment
@@ -510,6 +500,10 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
+    /// Payments confirm intent
+    PaymentsConfirmIntent,
+    /// Payments post session tokens flow
+    PaymentsPostSessionTokens,
 }
 
 ///

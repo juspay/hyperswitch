@@ -97,6 +97,7 @@ cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
 deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
+digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.staging.digitalvirgo.pl"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
@@ -192,6 +193,7 @@ cards = [
     "cybersource",
     "datatrans",
     "deutschebank",
+    "digitalvirgo",
     "dlocal",
     "dummyconnector",
     "ebanx",
@@ -367,7 +369,7 @@ enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "" }
 
 [multitenancy.tenants]
-public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+public = { base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
 [email]
 sender_email = "example@example.com"

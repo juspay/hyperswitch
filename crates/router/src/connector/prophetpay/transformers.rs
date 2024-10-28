@@ -201,8 +201,8 @@ impl<F>
             status: enums::AttemptStatus::AuthenticationPending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -401,8 +401,8 @@ impl<F>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transaction_id,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -452,8 +452,8 @@ impl<F, T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transaction_id,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -503,8 +503,8 @@ impl<F, T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.transaction_id,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,

@@ -30,3 +30,6 @@ ADD COLUMN IF NOT EXISTS id VARCHAR(64);
 
 ------------------------ Payment Attempt -----------------------
 ALTER TABLE payment_attempt DROP COLUMN id;
+
+ALTER TABLE payment_attempt
+ADD COLUMN IF NOT EXISTS id VARCHAR(64);

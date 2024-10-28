@@ -9,6 +9,7 @@ fmt *FLAGS:
     cargo +nightly fmt {{ fmt_flags }} {{ FLAGS }}
 
 check_flags := '--all-targets'
+v2_lints:= '-D warnings -Aunused -Aclippy::todo -Aclippy::diverging_sub_expression'
 
 alias c := check
 
@@ -44,7 +45,7 @@ clippy_v2 *FLAGS:
     ')"
 
     set -x
-    cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}" {{ FLAGS }}
+    cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ v2_lints }} {{ FLAGS }}
     set +x
 
 check_v2 *FLAGS:
@@ -60,7 +61,7 @@ check_v2 *FLAGS:
     ')"
 
     set -x
-    cargo check {{ check_flags }} --no-default-features --features "${FEATURES}" {{ FLAGS }}
+    cargo check {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ FLAGS }}
     set +x
 
 run_v2:
@@ -114,7 +115,7 @@ run *FLAGS:
 
 alias r := run
 
-doc_flags := '--all-features --all-targets --exclude-features "v2 payment_v2"'
+doc_flags := '--all-features --all-targets --exclude-features "v2"'
 
 # Generate documentation
 doc *FLAGS:

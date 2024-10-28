@@ -9,7 +9,7 @@ ALTER TABLE ORGANIZATION DROP CONSTRAINT organization_pkey_id;
 ALTER TABLE ORGANIZATION
 ADD CONSTRAINT organization_pkey PRIMARY KEY (org_id);
 
-ALTER TABLE organization DROP CONSTRAINT organization_organization_name_key;
+ALTER TABLE ORGANIZATION DROP CONSTRAINT organization_organization_name_key;
 
 -- back fill
 UPDATE ORGANIZATION
@@ -83,10 +83,21 @@ ALTER TABLE payment_intent
 ADD PRIMARY KEY (payment_id, merchant_id);
 
 ALTER TABLE payment_intent
-ALTER COLUMN profile_id DROP NOT NULL;
+ALTER COLUMN currency DROP NOT NULL,
+    ALTER COLUMN client_secret DROP NOT NULL,
+    ALTER COLUMN profile_id DROP NOT NULL;
+ALTER TABLE payment_intent ALTER COLUMN active_attempt_id SET NOT NULL;
+ALTER TABLE payment_intent ALTER COLUMN session_expiry DROP NOT NULL;
 
-ALTER TABLE payment_intent
-ALTER COLUMN currency DROP NOT NULL;
+------------------------ Payment Attempt -----------------------
+ALTER TABLE payment_attempt DROP CONSTRAINT payment_attempt_pkey;
 
-ALTER TABLE payment_intent
-ALTER COLUMN client_secret DROP NOT NULL;
+UPDATE payment_attempt
+SET attempt_id = id
+WHERE attempt_id IS NULL;
+
+ALTER TABLE payment_attempt
+ALTER COLUMN net_amount DROP NOT NULL;
+
+ALTER TABLE payment_attempt
+ADD PRIMARY KEY (attempt_id, merchant_id);

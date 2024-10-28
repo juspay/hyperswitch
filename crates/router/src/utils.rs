@@ -381,7 +381,7 @@ pub async fn get_mca_from_payment_intent(
     let db = &*state.store;
     let key_manager_state: &KeyManagerState = &state.into();
 
-    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+    #[cfg(feature = "v1")]
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &payment_intent.active_attempt.get_id(),
@@ -391,7 +391,7 @@ pub async fn get_mca_from_payment_intent(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    #[cfg(all(feature = "v2", feature = "payment_v2"))]
+    #[cfg(feature = "v2")]
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             key_manager_state,
@@ -1166,9 +1166,9 @@ where
                             diesel_models::enums::EventClass::Payments,
                             payment_id.get_string_repr().to_owned(),
                             diesel_models::enums::EventObjectType::PaymentDetails,
-                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                            webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                                 payments_response_json,
-                            ),
+                            )),
                             primary_object_created_at,
                         ))
                         .await

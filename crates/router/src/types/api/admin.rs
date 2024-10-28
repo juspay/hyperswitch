@@ -168,6 +168,8 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
+            is_auto_retries_enabled: item.is_auto_retries_enabled,
+            max_auto_retries_enabled: item.max_auto_retries_enabled,
         })
     }
 }
@@ -263,10 +265,15 @@ pub async fn create_profile_from_merchant_account(
         .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
     let payment_link_config = request.payment_link_config.map(ForeignInto::foreign_into);
+    let key_manager_state = state.into();
     let outgoing_webhook_custom_http_headers = request
         .outgoing_webhook_custom_http_headers
         .async_map(|headers| {
-            core::payment_methods::cards::create_encrypted_data(state, key_store, headers)
+            core::payment_methods::cards::create_encrypted_data(
+                &key_manager_state,
+                key_store,
+                headers,
+            )
         })
         .await
         .transpose()
@@ -353,5 +360,7 @@ pub async fn create_profile_from_merchant_account(
         is_tax_connector_enabled: request.is_tax_connector_enabled,
         dynamic_routing_algorithm: None,
         is_network_tokenization_enabled: request.is_network_tokenization_enabled,
+        is_auto_retries_enabled: request.is_auto_retries_enabled.unwrap_or_default(),
+        max_auto_retries_enabled: request.max_auto_retries_enabled.map(i16::from),
     }))
 }

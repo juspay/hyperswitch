@@ -763,6 +763,7 @@ pub fn is_operation_allowed<Op: Debug>(operation: &Op) -> bool {
     .contains(&format!("{operation:?}").as_str())
 }
 
+#[cfg(feature = "v1")]
 impl From<PaymentToFrmData> for PaymentDetails {
     fn from(payment_data: PaymentToFrmData) -> Self {
         Self {
@@ -837,7 +838,7 @@ pub async fn frm_fulfillment_core(
     }
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "payment_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn make_fulfillment_api_call(
     db: &dyn StorageInterface,
