@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_utils::{errors::CustomResult, fp_utils, ext_traits::AsyncExt};
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt, fp_utils};
 use error_stack::ResultExt;
 pub use health_check::{
     health_check_response::ServingStatus, health_client::HealthClient, HealthCheckRequest,
@@ -50,15 +50,13 @@ impl HealthCheckClient {
             _ => None,
         };
 
-        let response: Option<HealthCheckResponse> = connection.async_map(|conn| {
-            self
-            .get_response_from_grpc_service(conn.0, conn.1)
-        })
-        .await
-        .transpose()
-        .change_context(HealthCheckError::ConnectionError(
-            "error calling dynamic routing service".to_string(),
-        ))?;
+        let response: Option<HealthCheckResponse> = connection
+            .async_map(|conn| self.get_response_from_grpc_service(conn.0, conn.1))
+            .await
+            .transpose()
+            .change_context(HealthCheckError::ConnectionError(
+                "error calling dynamic routing service".to_string(),
+            ))?;
 
         #[allow(clippy::as_conversions)]
         let expected_status = ServingStatus::Serving as i32;
@@ -86,7 +84,7 @@ impl HealthCheckClient {
         let mut client = HealthClient::new(channel);
 
         let request = tonic::Request::new(HealthCheckRequest {
-            service: "dynamo".to_string(),   // check this in review
+            service: "dynamo".to_string(), // check this in review
         });
 
         let response = client
