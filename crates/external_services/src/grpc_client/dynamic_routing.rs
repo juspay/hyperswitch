@@ -100,8 +100,8 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         success_rate_based_config: SuccessBasedRoutingConfig,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
-    /// To invalidate the configs window
-    async fn invalidate_config_window(
+    /// To invalidates the success rate routing keys
+    async fn invalidate_success_rate_routing_keys(
         &self,
         id: String,
     ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
@@ -216,7 +216,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         Ok(response)
     }
 
-    async fn invalidate_config_window(
+    async fn invalidate_success_rate_routing_keys(
         &self,
         id: String,
     ) -> DynamicRoutingResult<InvalidateWindowsResponse> {
@@ -228,7 +228,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             .invalidate_windows(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
-                "Failed to invalidate the configs window".to_string(),
+                "Failed to invalidate the success rate routing keys".to_string(),
             ))?
             .into_inner();
         Ok(response)
