@@ -20,7 +20,7 @@ impl common_utils::events::ApiEventMetric for RouterHealthCheckResponse {}
 #[derive(Debug, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HealthCheckServices {
-    /// Dyanmic routing service
+    /// Dynamic routing service
     DynamicRoutingService,
 }
 
