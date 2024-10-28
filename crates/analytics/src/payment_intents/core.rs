@@ -256,10 +256,20 @@ pub async fn get_metrics(
             if let Some(retried_amount) = collected_values.smart_retried_amount {
                 let amount_in_usd = id
                     .currency
-                    .and_then(|currency| {
-                        i64::try_from(retried_amount).ok().and_then(|amount_i64| {
-                            convert(ex_rates, currency, Currency::USD, amount_i64).ok()
-                        })
+                    .and_then(|currency| match i64::try_from(retried_amount) {
+                        Ok(amount_i64) => {
+                            match convert(ex_rates, currency, Currency::USD, amount_i64) {
+                                Ok(converted_amount) => Some(converted_amount),
+                                Err(e) => {
+                                    logger::error!("Currency conversion error: {:?}", e);
+                                    None
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            logger::error!("Amount conversion error: {:?}", e);
+                            None
+                        }
                     })
                     .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
                     .unwrap_or_default();
@@ -272,10 +282,20 @@ pub async fn get_metrics(
             {
                 let amount_in_usd = id
                     .currency
-                    .and_then(|currency| {
-                        i64::try_from(retried_amount).ok().and_then(|amount_i64| {
-                            convert(ex_rates, currency, Currency::USD, amount_i64).ok()
-                        })
+                    .and_then(|currency| match i64::try_from(retried_amount) {
+                        Ok(amount_i64) => {
+                            match convert(ex_rates, currency, Currency::USD, amount_i64) {
+                                Ok(converted_amount) => Some(converted_amount),
+                                Err(e) => {
+                                    logger::error!("Currency conversion error: {:?}", e);
+                                    None
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            logger::error!("Amount conversion error: {:?}", e);
+                            None
+                        }
                     })
                     .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
                     .unwrap_or_default();
@@ -287,10 +307,20 @@ pub async fn get_metrics(
             if let Some(amount) = collected_values.payment_processed_amount {
                 let amount_in_usd = id
                     .currency
-                    .and_then(|currency| {
-                        i64::try_from(amount).ok().and_then(|amount_i64| {
-                            convert(ex_rates, currency, Currency::USD, amount_i64).ok()
-                        })
+                    .and_then(|currency| match i64::try_from(amount) {
+                        Ok(amount_i64) => {
+                            match convert(ex_rates, currency, Currency::USD, amount_i64) {
+                                Ok(converted_amount) => Some(converted_amount),
+                                Err(e) => {
+                                    logger::error!("Currency conversion error: {:?}", e);
+                                    None
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            logger::error!("Amount conversion error: {:?}", e);
+                            None
+                        }
                     })
                     .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
                     .unwrap_or_default();
@@ -304,10 +334,20 @@ pub async fn get_metrics(
             if let Some(amount) = collected_values.payment_processed_amount_without_smart_retries {
                 let amount_in_usd = id
                     .currency
-                    .and_then(|currency| {
-                        i64::try_from(amount).ok().and_then(|amount_i64| {
-                            convert(ex_rates, currency, Currency::USD, amount_i64).ok()
-                        })
+                    .and_then(|currency| match i64::try_from(amount) {
+                        Ok(amount_i64) => {
+                            match convert(ex_rates, currency, Currency::USD, amount_i64) {
+                                Ok(converted_amount) => Some(converted_amount),
+                                Err(e) => {
+                                    logger::error!("Currency conversion error: {:?}", e);
+                                    None
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            logger::error!("Amount conversion error: {:?}", e);
+                            None
+                        }
                     })
                     .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
                     .unwrap_or_default();
