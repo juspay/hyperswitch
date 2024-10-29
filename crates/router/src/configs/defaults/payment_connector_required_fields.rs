@@ -1,11 +1,14 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap,HashSet};
 
-use api_models::{enums, payment_methods::RequiredFieldInfo};
+use api_models::{
+    enums,
+    payment_methods::RequiredFieldInfo,
+};
 
 use crate::settings::{
-    self, ConnectorFields, Mandates, PaymentMethodType, RequiredFieldFinal,
-    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
-    SupportedPaymentMethodsForMandate,
+    self,
+    ConnectorFields, PaymentMethodType, SupportedPaymentMethodTypesForMandate,Mandates,
+    RequiredFieldFinal, SupportedPaymentMethodsForMandate, SupportedConnectorsForMandate
 };
 
 impl Default for Mandates {
@@ -100,6 +103,8 @@ impl Default for Mandates {
         }
     }
 }
+
+
 
 impl Default for settings::RequiredFields {
     fn default() -> Self {
@@ -3382,6 +3387,24 @@ impl Default for settings::RequiredFields {
                                             )
                                         ]
                                     ),
+                                    common: HashMap::new(),
+                                }
+                            ),
+                            (
+                                enums::Connector::Fiuu,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::from([
+                                        (
+                                            "billing.email".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.billing.email".to_string(),
+                                                display_name: "email".to_string(),
+                                                field_type: enums::FieldType::UserEmailAddress,
+                                                value: None,
+                                            }
+                                        )
+                                    ]),
+                                    non_mandate: HashMap::new(),
                                     common: HashMap::new(),
                                 }
                             ),

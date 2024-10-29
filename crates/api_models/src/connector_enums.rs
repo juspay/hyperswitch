@@ -1,4 +1,4 @@
-pub use common_enums::*;
+pub use common_enums::enums::{PayoutType,PaymentMethod};
 #[cfg(feature = "dummy_connector")]
 use common_utils::errors;
 use utoipa::ToSchema;
@@ -192,7 +192,6 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
-			// | Self::Fiuu
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
