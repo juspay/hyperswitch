@@ -13572,6 +13572,7 @@
         "type": "object",
         "required": [
           "id",
+          "status",
           "amount_details",
           "client_secret",
           "capture_method",
@@ -13588,6 +13589,9 @@
           "id": {
             "type": "string",
             "description": "Global Payment Id for the payment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
           },
           "amount_details": {
             "$ref": "#/components/schemas/AmountDetailsResponse"
