@@ -731,7 +731,6 @@ default_imp_for_new_connector_integration_payment!(
     connector::Wellsfargo,
     connector::Wellsfargopayout,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -792,7 +791,6 @@ default_imp_for_new_connector_integration_refund!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -848,7 +846,6 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -926,7 +923,6 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -986,7 +982,6 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 default_imp_for_new_connector_integration_submit_evidence!(
@@ -1030,7 +1025,6 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1101,7 +1095,6 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1251,7 +1244,6 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1314,7 +1306,6 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1377,7 +1368,6 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1440,7 +1430,6 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1503,7 +1492,6 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1566,7 +1554,6 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1629,7 +1616,6 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1692,7 +1678,6 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1753,7 +1738,6 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1903,7 +1887,6 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -1966,7 +1949,6 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -2029,7 +2011,6 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -2092,7 +2073,6 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -2155,7 +2135,6 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 
@@ -2215,7 +2194,6 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wise,
-    connector::Worldpay,
     connector::Plaid
 );
 

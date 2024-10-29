@@ -14,3 +14,6 @@ pub const USER_AGENT: &str = "Hyperswitch-Backend-Server";
 
 /// Unsupported response type error message
 pub const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
+
+/// Worldpay's unique reference ID for a request TODO: Move to hyperswitch_connectors/constants once Worldpay is moved to connectors crate
+pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";

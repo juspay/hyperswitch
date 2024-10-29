@@ -1502,7 +1502,17 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                 .is_some()
     }
 }
+pub trait AddressData {
+    fn get_optional_full_name(&self) -> Option<Secret<String>>;
+}
 
+impl AddressData for Address {
+    fn get_optional_full_name(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|billing_address| billing_address.get_optional_full_name())
+    }
+}
 pub trait PaymentsPreProcessingRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;

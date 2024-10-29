@@ -31,6 +31,7 @@ pub mod thunes;
 pub mod tsys;
 pub mod volt;
 pub mod worldline;
+pub mod worldpay;
 pub mod zen;
 pub mod zsl;
 
@@ -41,6 +42,6 @@ pub use self::{
     forte::Forte, globepay::Globepay, helcim::Helcim, mollie::Mollie, multisafepay::Multisafepay,
     nexinets::Nexinets, nexixpay::Nexixpay, novalnet::Novalnet, payeezy::Payeezy, payu::Payu,
     powertranz::Powertranz, razorpay::Razorpay, shift4::Shift4, square::Square, stax::Stax,
-    taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt, worldline::Worldline, zen::Zen,
-    zsl::Zsl,
+    taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt, worldline::Worldline,
+    worldpay::Worldpay, zen::Zen, zsl::Zsl,
 };

@@ -238,6 +238,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -292,6 +293,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -341,6 +343,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -396,6 +399,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -450,6 +454,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -504,6 +509,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -568,6 +574,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -624,6 +631,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -680,6 +688,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -736,6 +745,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -792,6 +802,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -848,6 +859,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -904,6 +916,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -960,6 +973,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1016,6 +1030,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1070,6 +1085,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1126,6 +1142,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1182,6 +1199,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1238,6 +1256,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1294,6 +1313,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1350,6 +1370,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1403,6 +1424,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );

@@ -302,8 +302,7 @@ default_imp_for_webhook_source_verification!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_create_customer {
@@ -373,8 +372,7 @@ default_imp_for_create_customer!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_connector_redirect_response {
@@ -597,8 +595,7 @@ default_imp_for_accept_dispute!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_file_upload {
@@ -689,8 +686,7 @@ default_imp_for_file_upload!(
     connector::Opennode,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_submit_evidence {
@@ -759,8 +755,7 @@ default_imp_for_submit_evidence!(
     connector::Opennode,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_defend_dispute {
@@ -830,8 +825,7 @@ default_imp_for_defend_dispute!(
     connector::Opennode,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_pre_processing_steps{
@@ -909,8 +903,7 @@ default_imp_for_pre_processing_steps!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 #[cfg(feature = "dummy_connector")]
@@ -966,8 +959,7 @@ default_imp_for_post_processing_steps!(
     connector::Threedsecureio,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_payouts {
@@ -1118,8 +1110,7 @@ default_imp_for_payouts_create!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Wellsfargo,
-    connector::Wellsfargopayout,
-    connector::Worldpay
+    connector::Wellsfargopayout
 );
 
 #[cfg(feature = "payouts")]
@@ -1191,8 +1182,7 @@ default_imp_for_payouts_retrieve!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 #[cfg(feature = "payouts")]
@@ -1265,8 +1255,7 @@ default_imp_for_payouts_eligibility!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Wellsfargo,
-    connector::Wellsfargopayout,
-    connector::Worldpay
+    connector::Wellsfargopayout
 );
 
 #[cfg(feature = "payouts")]
@@ -1331,8 +1320,7 @@ default_imp_for_payouts_fulfill!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Wellsfargo,
-    connector::Wellsfargopayout,
-    connector::Worldpay
+    connector::Wellsfargopayout
 );
 
 #[cfg(feature = "payouts")]
@@ -1401,8 +1389,7 @@ default_imp_for_payouts_cancel!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Wellsfargo,
-    connector::Wellsfargopayout,
-    connector::Worldpay
+    connector::Wellsfargopayout
 );
 
 #[cfg(feature = "payouts")]
@@ -1473,8 +1460,7 @@ default_imp_for_payouts_quote!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Wellsfargo,
-    connector::Wellsfargopayout,
-    connector::Worldpay
+    connector::Wellsfargopayout
 );
 
 #[cfg(feature = "payouts")]
@@ -1544,8 +1530,7 @@ default_imp_for_payouts_recipient!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Wellsfargo,
-    connector::Wellsfargopayout,
-    connector::Worldpay
+    connector::Wellsfargopayout
 );
 
 #[cfg(feature = "payouts")]
@@ -1620,8 +1605,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_approve {
@@ -1693,8 +1677,7 @@ default_imp_for_approve!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_reject {
@@ -1766,8 +1749,7 @@ default_imp_for_reject!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_fraud_check {
@@ -1928,8 +1910,7 @@ default_imp_for_frm_sale!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 #[cfg(feature = "frm")]
@@ -2001,8 +1982,7 @@ default_imp_for_frm_checkout!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 #[cfg(feature = "frm")]
@@ -2074,8 +2054,7 @@ default_imp_for_frm_transaction!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 #[cfg(feature = "frm")]
@@ -2147,8 +2126,7 @@ default_imp_for_frm_fulfillment!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 #[cfg(feature = "frm")]
@@ -2220,8 +2198,7 @@ default_imp_for_frm_record_return!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_incremental_authorization {
@@ -2291,8 +2268,7 @@ default_imp_for_incremental_authorization!(
     connector::Threedsecureio,
     connector::Trustpay,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_revoking_mandates {
@@ -2358,8 +2334,7 @@ default_imp_for_revoking_mandates!(
     connector::Stripe,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_connector_authentication {
@@ -2590,8 +2565,7 @@ default_imp_for_authorize_session_token!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_calculate_tax {
@@ -2661,8 +2635,7 @@ default_imp_for_calculate_tax!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_session_update {
@@ -2731,8 +2704,7 @@ default_imp_for_session_update!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );
 
 macro_rules! default_imp_for_post_session_tokens {
@@ -2801,6 +2773,5 @@ default_imp_for_post_session_tokens!(
     connector::Trustpay,
     connector::Wellsfargo,
     connector::Wellsfargopayout,
-    connector::Wise,
-    connector::Worldpay
+    connector::Wise
 );

@@ -121,6 +121,7 @@ default_imp_for_authorize_session_token!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
@@ -167,6 +168,7 @@ default_imp_for_calculate_tax!(
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl,
     connectors::Powertranz,
@@ -219,6 +221,7 @@ default_imp_for_session_update!(
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl,
     connectors::Powertranz,
@@ -271,6 +274,7 @@ default_imp_for_post_session_tokens!(
     connectors::Fiuu,
     connectors::Globepay,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Powertranz,
     connectors::Thunes,
     connectors::Tsys,
@@ -375,6 +379,7 @@ default_imp_for_incremental_authorization!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -427,6 +432,7 @@ default_imp_for_create_customer!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -527,6 +533,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -580,6 +587,7 @@ default_imp_for_post_processing_steps!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -633,6 +641,7 @@ default_imp_for_approve!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -686,6 +695,7 @@ default_imp_for_reject!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -739,6 +749,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -793,6 +804,7 @@ default_imp_for_accept_dispute!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -846,6 +858,7 @@ default_imp_for_submit_evidence!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -899,6 +912,7 @@ default_imp_for_defend_dispute!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -961,6 +975,7 @@ default_imp_for_file_upload!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1016,6 +1031,7 @@ default_imp_for_payouts_create!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1071,6 +1087,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1126,6 +1143,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1181,6 +1199,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1236,6 +1255,7 @@ default_imp_for_payouts_cancel!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1291,6 +1311,7 @@ default_imp_for_payouts_quote!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1346,6 +1367,7 @@ default_imp_for_payouts_recipient!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1401,6 +1423,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1456,6 +1479,7 @@ default_imp_for_frm_sale!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1511,6 +1535,7 @@ default_imp_for_frm_checkout!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1566,6 +1591,7 @@ default_imp_for_frm_transaction!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1621,6 +1647,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1676,6 +1703,7 @@ default_imp_for_frm_record_return!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl
@@ -1728,6 +1756,7 @@ default_imp_for_revoking_mandates!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Worldline,
+    connectors::Worldpay,
     connectors::Volt,
     connectors::Zen,
     connectors::Zsl

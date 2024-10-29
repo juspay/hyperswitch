@@ -34,6 +34,7 @@ serde_with = "3.7.0"
 strum = { version = "0.26", features = ["derive"] }
 time = "0.3.35"
 url = "2.5.0"
+urlencoding = "2.1.3"
 uuid = { version = "1.8.0", features = ["v4"] }
 
 # First party crates
