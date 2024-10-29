@@ -294,6 +294,24 @@ impl Default for settings::RequiredFields {
                                 }
                             ),
                             (
+                                enums::Connector::Fiuu,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::from([
+                                        (
+                                            "billing.email".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.billing.email".to_string(),
+                                                display_name: "email".to_string(),
+                                                field_type: enums::FieldType::UserEmailAddress,
+                                                value: None,
+                                            }
+                                        )
+                                    ]),
+                                    non_mandate: HashMap::new(),
+                                    common: HashMap::new(),
+                                }
+                            ),
+                            (
                                 enums::Connector::Authorizedotnet,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),

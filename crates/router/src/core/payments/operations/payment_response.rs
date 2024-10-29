@@ -1085,6 +1085,34 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         ))
         .await?;
 
+        payment_data.payment_method_info = if let Some(payment_method_id) = &payment_method_id {
+            match state
+                .store
+                .find_payment_method(
+                    &(state.into()),
+                    key_store,
+                    payment_method_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+            {
+                Ok(payment_method) => Some(payment_method),
+                Err(error) => {
+                    if error.current_context().is_db_not_found() {
+                        logger::info!("Payment Method not found in db {:?}", error);
+                        None
+                    } else {
+                        Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error retrieving payment method from db")
+                            .map_err(|err| logger::error!(payment_method_retrieve=?err))
+                            .ok()
+                    }
+                }
+            }
+        } else {
+            None
+        };
         let mandate_id = mandate::mandate_procedure(
             state,
             resp,
@@ -1918,8 +1946,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        if let Some(dynamic_routing_algorithm) = business_profile.dynamic_routing_algorithm.clone()
-        {
+        if business_profile.dynamic_routing_algorithm.is_some() {
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
@@ -1930,7 +1957,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         &payment_attempt,
                         routable_connectors,
                         &business_profile,
-                        dynamic_routing_algorithm,
                     )
                     .await
                     .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))

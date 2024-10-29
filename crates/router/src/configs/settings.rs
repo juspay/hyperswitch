@@ -141,8 +141,12 @@ impl Multitenancy {
     pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
         &self.tenants.0
     }
-    pub fn get_tenant_names(&self) -> Vec<String> {
-        self.tenants.0.keys().cloned().collect()
+    pub fn get_tenant_ids(&self) -> Vec<String> {
+        self.tenants
+            .0
+            .values()
+            .map(|tenant| tenant.tenant_id.clone())
+            .collect()
     }
     pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
@@ -154,13 +158,12 @@ pub struct DecisionConfig {
     pub base_url: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<String, Tenant>);
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Tenant {
-    pub name: String,
+    pub tenant_id: String,
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
@@ -1100,6 +1103,38 @@ where
             }
         })
     })?
+}
+
+impl<'de> Deserialize<'de> for TenantConfig {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Inner {
+            base_url: String,
+            schema: String,
+            redis_key_prefix: String,
+            clickhouse_database: String,
+        }
+
+        let hashmap = <HashMap<String, Inner>>::deserialize(deserializer)?;
+
+        Ok(Self(
+            hashmap
+                .into_iter()
+                .map(|(key, value)| {
+                    (
+                        key.clone(),
+                        Tenant {
+                            tenant_id: key,
+                            base_url: value.base_url,
+                            schema: value.schema,
+                            redis_key_prefix: value.redis_key_prefix,
+                            clickhouse_database: value.clickhouse_database,
+                        },
+                    )
+                })
+                .collect(),
+        ))
+    }
 }
 
 #[cfg(test)]
