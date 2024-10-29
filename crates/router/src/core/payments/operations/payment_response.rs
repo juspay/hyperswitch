@@ -13,7 +13,7 @@ use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::payments::PaymentConfirmData;
+use hyperswitch_domain_models::payments::{PaymentConfirmData, PaymentStatusData};
 use router_derive;
 use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use storage_impl::DataModelExt;
@@ -27,8 +27,8 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        mandate, payment_methods,
-        payment_methods::cards::create_encrypted_data,
+        mandate,
+        payment_methods::{self, cards::create_encrypted_data},
         payments::{
             helpers::{
                 self as payments_helpers,
@@ -2281,6 +2281,189 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                     .attach_printable("Unable to update payment attempt")?;
 
                 payment_data.payment_attempt = updated_payment_attempt;
+            }
+        }
+        // TODO: Implement this
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Send + Clone> Operation<F, types::PaymentsSyncData> for PaymentResponse {
+    type Data = PaymentStatusData<F>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<&(dyn PostUpdateTracker<F, Self::Data, types::PaymentsSyncData> + Send + Sync)>
+    {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        mut payment_data: PaymentStatusData<F>,
+        response: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentStatusData<F>>
+    where
+        F: 'b + Send + Sync,
+    {
+        use common_utils::ext_traits::OptionExt;
+
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        let response_router_data = response;
+        let payment_attempt = payment_data
+            .payment_attempt
+            .clone()
+            .get_required_value("payment_attempt")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("payment attempt is not set in payment data")?;
+
+        match response_router_data.response {
+            Ok(response) => match response {
+                types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata,
+                    network_txn_id,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed,
+                    charge_id,
+                } => {
+                    let attempt_status = response_router_data.status;
+                    let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                    let connector_payment_id = match resource_id {
+                        types::ResponseId::NoResponseId => None,
+                        types::ResponseId::ConnectorTransactionId(id)
+                        | types::ResponseId::EncodedData(id) => Some(id),
+                    };
+
+                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntentPostUpdate { status: intent_status, updated_by: storage_scheme.to_string() };
+                    let updated_payment_intent = db
+                        .update_payment_intent(
+                            key_manager_state,
+                            payment_data.payment_intent,
+                            payment_intent_update,
+                            key_store,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to update payment intent")?;
+                    payment_data.payment_intent = updated_payment_intent;
+
+                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentResponse { status: attempt_status, connector_payment_id, updated_by: storage_scheme.to_string() };
+                    let updated_payment_attempt = db
+                        .update_payment_attempt(
+                            key_manager_state,
+                            key_store,
+                            payment_attempt,
+                            payment_attempt_update,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to update payment attempt")?;
+                    payment_data.payment_attempt = Some(updated_payment_attempt);
+                }
+                types::PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list,
+                } => todo!(),
+                types::PaymentsResponseData::SessionResponse { session_token } => todo!(),
+                types::PaymentsResponseData::SessionTokenResponse { session_token } => todo!(),
+                types::PaymentsResponseData::TransactionUnresolvedResponse {
+                    resource_id,
+                    reason,
+                    connector_response_reference_id,
+                } => todo!(),
+                types::PaymentsResponseData::TokenizationResponse { token } => todo!(),
+                types::PaymentsResponseData::ConnectorCustomerResponse {
+                    connector_customer_id,
+                } => todo!(),
+                types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    enrolled_v2,
+                    related_transaction_id,
+                } => todo!(),
+                types::PaymentsResponseData::PreProcessingResponse {
+                    pre_processing_id,
+                    connector_metadata,
+                    session_token,
+                    connector_response_reference_id,
+                } => todo!(),
+                types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status,
+                    connector_authorization_id,
+                    error_code,
+                    error_message,
+                } => todo!(),
+                types::PaymentsResponseData::PostProcessingResponse { session_token } => todo!(),
+                types::PaymentsResponseData::SessionUpdateResponse { status } => todo!(),
+            },
+            Err(ErrorResponse {
+                code,
+                message,
+                reason,
+                status_code,
+                attempt_status,
+                connector_transaction_id,
+            }) => {
+                let attempt_status = common_enums::AttemptStatus::Failure;
+                let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntentPostUpdate { status: intent_status, updated_by: storage_scheme.to_string() };
+
+                let updated_payment_intent = db
+                    .update_payment_intent(
+                        key_manager_state,
+                        payment_data.payment_intent,
+                        payment_intent_update,
+                        key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to update payment intent")?;
+
+                payment_data.payment_intent = updated_payment_intent;
+
+                // TODO: populate unified code and message and translation by calling gsm and translation table
+                let error_details =
+                    hyperswitch_domain_models::payments::payment_attempt::ErrorDetails {
+                        code,
+                        message,
+                        reason,
+                        unified_code: None,
+                        unified_message: None,
+                    };
+
+                let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentError { status: attempt_status, error: error_details,updated_by: storage_scheme.to_string() };
+                let updated_payment_attempt = db
+                    .update_payment_attempt(
+                        key_manager_state,
+                        key_store,
+                        payment_attempt,
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to update payment attempt")?;
+
+                payment_data.payment_attempt = Some(updated_payment_attempt);
             }
         }
         // TODO: Implement this

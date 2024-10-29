@@ -5,16 +5,14 @@ use api_models::{
 };
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::{
-    payment_attempt::PaymentAttempt, PaymentConfirmData, PaymentIntent,
-};
+use hyperswitch_domain_models::payments::PaymentConfirmData;
 use router_env::{instrument, tracing};
 use tracing_futures::Instrument;
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        authentication,
+        admin,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             self, helpers,
@@ -270,15 +268,44 @@ impl<F: Clone + Send> Domain<F, PaymentsConfirmIntentRequest, PaymentConfirmData
         Ok((Box::new(self), None, None))
     }
 
-    async fn get_connector<'a>(
+    #[cfg(feature = "v2")]
+    async fn perform_routing<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
+        business_profile: &domain::Profile,
         state: &SessionState,
-        request: &PaymentsConfirmIntentRequest,
-        _payment_intent: &storage::PaymentIntent,
-        _key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
-        todo!()
+        // TODO: do not take the whole payment data here
+        payment_data: &mut PaymentConfirmData<F>,
+        mechant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
+        use crate::core::payments::OperationSessionSetters;
+
+        let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
+            .get_default_fallback_list_of_connector_under_profile()
+            .change_context(errors::RoutingError::FallbackConfigFetchFailed)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let first_chosen_connector = fallback_config
+            .first()
+            .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)?;
+
+        let connector_name = first_chosen_connector.connector.to_string();
+        let merchant_connector_id = first_chosen_connector
+            .merchant_connector_id
+            .clone()
+            .get_required_value("merchant_connector_id")?;
+
+        payment_data.set_connector_in_payment_attempt(Some(connector_name.to_string()));
+        payment_data.set_merchant_connector_id_in_attempt(Some(merchant_connector_id.clone()));
+
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &connector_name,
+            api::GetToken::Connector,
+            Some(merchant_connector_id),
+        )?;
+
+        Ok(ConnectorCallType::PreDetermined(connector_data))
     }
 }
 
@@ -328,6 +355,7 @@ impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequ
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
                 updated_by: storage_scheme.to_string(),
+                active_attempt_id: payment_data.payment_attempt.id.clone(),
             };
 
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {

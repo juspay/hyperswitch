@@ -24,12 +24,12 @@ impl PaymentIntent {
     pub async fn update(
         self,
         conn: &PgPooledConn,
-        payment_intent: PaymentIntentUpdate,
+        payment_intent_update: PaymentIntentUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id.to_owned(),
-            PaymentIntentUpdateInternal::from(payment_intent),
+            payment_intent_update,
         )
         .await
         {

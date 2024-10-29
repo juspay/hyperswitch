@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
 use crate::payment_attempt::PaymentAttemptUpdateInternal;
+
+#[cfg(feature = "v2")]
+use crate::payment_intent::PaymentIntentUpdateInternal;
+
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
@@ -108,9 +112,16 @@ impl DBOperation {
                 Insertable::Mandate(m) => DBResult::Mandate(Box::new(m.insert(conn).await?)),
             },
             Self::Update { updatable } => match *updatable {
+                #[cfg(feature = "v1")]
                 Updateable::PaymentIntentUpdate(a) => {
                     DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
                 }
+                #[cfg(feature = "v2")]
+                Updateable::PaymentIntentUpdate(a) => DBResult::PaymentIntent(Box::new(
+                    a.orig
+                        .update(conn, PaymentIntentUpdateInternal::from(a.update_data))
+                        .await?,
+                )),
                 #[cfg(feature = "v1")]
                 Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,

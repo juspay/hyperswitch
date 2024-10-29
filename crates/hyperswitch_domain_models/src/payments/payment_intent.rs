@@ -271,6 +271,7 @@ pub enum PaymentIntentUpdate {
 pub enum PaymentIntentUpdate {
     ConfirmIntent {
         status: storage_enums::IntentStatus,
+        active_attempt_id: id_type::GlobalAttemptId,
         updated_by: String,
     },
     ConfirmIntentPostUpdate {
@@ -356,13 +357,43 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
-// TODO: convert directly to diesel_models::PaymentIntentUpdateInternal
+// This conversion is used in the `update_payment_intent` function
+#[cfg(feature = "v2")]
+impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
+    fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
+        match payment_intent_update {
+            PaymentIntentUpdate::ConfirmIntent {
+                status,
+                active_attempt_id,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                active_attempt_id: Some(active_attempt_id),
+                modified_at: common_utils::date_time::now(),
+                updated_by,
+            },
+            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
+                status: Some(status),
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                updated_by,
+            },
+        }
+    }
+}
+
+// This conversion is required for the `apply_changeset` function used for mockdb
 #[cfg(feature = "v2")]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
-            PaymentIntentUpdate::ConfirmIntent { status, updated_by } => Self {
+            PaymentIntentUpdate::ConfirmIntent {
+                status,
+                active_attempt_id,
+                updated_by,
+            } => Self {
                 status: Some(status),
+                active_attempt_id: Some(active_attempt_id),
                 updated_by,
                 ..Default::default()
             },
@@ -576,19 +607,21 @@ use diesel_models::{
     PaymentIntentUpdate as DieselPaymentIntentUpdate,
     PaymentIntentUpdateFields as DieselPaymentIntentUpdateFields,
 };
-#[cfg(feature = "v2")]
-impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
-    fn from(value: PaymentIntentUpdate) -> Self {
-        match value {
-            PaymentIntentUpdate::ConfirmIntent { status, updated_by } => {
-                Self::ConfirmIntent { status, updated_by }
-            }
-            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => {
-                Self::ConfirmIntentPostUpdate { status, updated_by }
-            }
-        }
-    }
-}
+
+// TODO: check where this conversion is used
+// #[cfg(feature = "v2")]
+// impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
+//     fn from(value: PaymentIntentUpdate) -> Self {
+//         match value {
+//             PaymentIntentUpdate::ConfirmIntent { status, updated_by } => {
+//                 Self::ConfirmIntent { status, updated_by }
+//             }
+//             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => {
+//                 Self::ConfirmIntentPostUpdate { status, updated_by }
+//             }
+//         }
+//     }
+// }
 
 #[cfg(feature = "v1")]
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
@@ -1132,7 +1165,7 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced,
             setup_future_usage,
             client_secret,
-            active_attempt,
+            active_attempt_id,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -1180,7 +1213,7 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced,
             setup_future_usage: Some(setup_future_usage),
             client_secret,
-            active_attempt_id: active_attempt.map(|attempt| attempt.get_id()),
+            active_attempt_id,
             order_details: order_details
                 .map(|order_details| {
                     order_details
@@ -1307,9 +1340,7 @@ impl behaviour::Conversion for PaymentIntent {
                 last_synced: storage_model.last_synced,
                 setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
                 client_secret: storage_model.client_secret,
-                active_attempt: storage_model
-                    .active_attempt_id
-                    .map(RemoteStorageObject::ForeignID),
+                active_attempt_id: storage_model.active_attempt_id,
                 order_details: storage_model
                     .order_details
                     .map(|order_details| {
@@ -1389,7 +1420,7 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced: self.last_synced,
             setup_future_usage: Some(self.setup_future_usage),
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt.map(|attempt| attempt.get_id()),
+            active_attempt_id: self.active_attempt_id,
             order_details: self
                 .order_details
                 .map(|order_details| {
