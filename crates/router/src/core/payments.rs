@@ -2478,20 +2478,6 @@ where
         (None, false)
     };
 
-    if should_add_task_to_process_tracker(payment_data) {
-        operation
-            .to_domain()?
-            .add_task_to_process_tracker(
-                state,
-                payment_data.get_payment_attempt(),
-                validate_result.requeue,
-                schedule_time,
-            )
-            .await
-            .map_err(|error| logger::error!(process_tracker_error=?error))
-            .ok();
-    }
-
     // Update the payment trackers just before calling the connector
     // Since the request is already built in the previous step,
     // there should be no error in request construction from hyperswitch end
@@ -2516,7 +2502,8 @@ where
         // update this in router_data.
         // This is added because few connector integrations do not update the status,
         // and rely on previous status set in router_data
-        router_data.status = payment_data.get_payment_attempt().status;
+        // TODO: status is already set when constructing payment data, why should this be done again?
+        // router_data.status = payment_data.get_payment_attempt().status;
         router_data
             .decide_flows(
                 state,
