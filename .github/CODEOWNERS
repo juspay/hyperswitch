@@ -48,7 +48,7 @@ crates/hyperswitch_connectors/ @juspay/hyperswitch-connector
 crates/api_models/src/connector_enums.rs @juspay/hyperswitch-connector
 crates/common_enums/src/connector_enums.rs @juspay/hyperswitch-connector
 crates/router/src/configs/defaults/payment_connector_required_fields.rs @juspay/hyperswitch-connector
-/Users/chikke.srujan/hyperswitch/crates/hyperswitch_interfaces/src/configs.rs @juspay/hyperswitch-connector
+crates/hyperswitch_interfaces/src/configs.rs @juspay/hyperswitch-connector
 
 crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 
