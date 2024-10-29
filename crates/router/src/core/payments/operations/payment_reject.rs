@@ -20,6 +20,7 @@ use crate::{
         storage::{self, enums},
     },
     utils::OptionExt,
+    events::audit_events::{AuditEvent, AuditEventType},
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
@@ -209,7 +210,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for Payme
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -264,7 +265,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for Payme
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
+        
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentReject))
+            .with(payment_data.to_event())
+            .emit();
+        
         Ok((Box::new(self), payment_data))
     }
 }
