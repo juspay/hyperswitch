@@ -407,7 +407,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                                     connector_id.get_payment_method_id(),
                                     None,
                                     None,
-                                    None
+                                    connector_id.get_connector_mandate_request_reference_id(),
                                 )
                                 ))
                             }

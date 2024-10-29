@@ -455,5 +455,4 @@ pub trait MandateBehaviour {
         &self,
     ) -> Option<&hyperswitch_domain_models::mandates::MandateData>;
     fn get_customer_acceptance(&self) -> Option<payments::CustomerAcceptance>;
-    // fn get_connector_mandate_request_reference_id(&self) -> Option<String>;
 }

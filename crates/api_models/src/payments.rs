@@ -1346,20 +1346,20 @@ impl ConnectorMandateReferenceId {
         self.connector_mandate_request_reference_id.clone()
     }
 
-    pub fn set_connector_mandate_id(&mut self, value: Option<String>) {
-        self.connector_mandate_id = value;
-    }
-
-    pub fn set_payment_method_id(&mut self, value: Option<String>) {
-        self.payment_method_id = value;
-    }
-
-    pub fn set_mandate_metadata(&mut self, value: Option<serde_json::Value>) {
-        self.mandate_metadata = value;
-    }
-
-    pub fn set_connector_mandate_request_reference_id(&mut self, value: Option<String>) {
-        self.connector_mandate_request_reference_id = value;
+    pub fn update(
+        &mut self,
+        connector_mandate_id: Option<String>,
+        payment_method_id: Option<String>,
+        update_history: Option<Vec<UpdateHistory>>,
+        mandate_metadata: Option<serde_json::Value>,
+        connector_mandate_request_reference_id: Option<String>,
+    ) {
+        self.connector_mandate_id = connector_mandate_id.or(self.connector_mandate_id.clone());
+        self.payment_method_id = payment_method_id.or(self.payment_method_id.clone());
+        self.update_history = update_history.or(self.update_history.clone());
+        self.mandate_metadata = mandate_metadata.or(self.mandate_metadata.clone());
+        self.connector_mandate_request_reference_id = connector_mandate_request_reference_id
+            .or(self.connector_mandate_request_reference_id.clone());
     }
 }
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]

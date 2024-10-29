@@ -80,7 +80,7 @@ pub async fn save_payment_method<FData>(
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&api::Address>,
     business_profile: &domain::Profile,
-    original_connector_mandate_request_reference_id: Option<String>,
+    mut original_connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -173,9 +173,6 @@ where
                     }
                     _ => (None, None, None),
                 };
-            // Reassign `connector_mandate_request_reference_id` to use fallback if necessary
-            let connector_mandate_request_reference_id = connector_mandate_request_reference_id
-                .or(original_connector_mandate_request_reference_id.clone());
 
             let pm_id = if customer_acceptance.is_some() {
                 let payment_method_create_request =
@@ -695,13 +692,24 @@ where
             };
             // check if there needs to be a config if yes then remove it to a different place
             let connector_mandate_reference_id = if connector_mandate_id.is_some() {
-                Some(ConnectorMandateReferenceId::new(
-                    connector_mandate_id.clone(),
-                    None,
-                    None,
-                    mandate_metadata.clone(),
-                    connector_mandate_request_reference_id.clone(),
-                ))
+                if let Some(ref mut record) = original_connector_mandate_reference_id {
+                    record.update(
+                        connector_mandate_id,
+                        None,
+                        None,
+                        mandate_metadata,
+                        connector_mandate_request_reference_id,
+                    );
+                    Some(record.clone())
+                } else {
+                    Some(ConnectorMandateReferenceId::new(
+                        connector_mandate_id,
+                        None,
+                        None,
+                        mandate_metadata,
+                        connector_mandate_request_reference_id,
+                    ))
+                }
             } else {
                 None
             };
