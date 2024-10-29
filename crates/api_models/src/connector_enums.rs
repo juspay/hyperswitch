@@ -1,4 +1,4 @@
-pub use common_enums::enums::{PayoutType,PaymentMethod};
+pub use common_enums::enums::{PaymentMethod, PayoutType};
 #[cfg(feature = "dummy_connector")]
 use common_utils::errors;
 use utoipa::ToSchema;

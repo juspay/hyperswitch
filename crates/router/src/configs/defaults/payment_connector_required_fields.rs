@@ -1,14 +1,11 @@
-use std::collections::{HashMap,HashSet};
+use std::collections::{HashMap, HashSet};
 
-use api_models::{
-    enums,
-    payment_methods::RequiredFieldInfo,
-};
+use api_models::{enums, payment_methods::RequiredFieldInfo};
 
 use crate::settings::{
-    self,
-    ConnectorFields, PaymentMethodType, SupportedPaymentMethodTypesForMandate,Mandates,
-    RequiredFieldFinal, SupportedPaymentMethodsForMandate, SupportedConnectorsForMandate
+    self, ConnectorFields, Mandates, PaymentMethodType, RequiredFieldFinal,
+    SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate,
 };
 
 impl Default for Mandates {
@@ -103,8 +100,6 @@ impl Default for Mandates {
         }
     }
 }
-
-
 
 impl Default for settings::RequiredFields {
     fn default() -> Self {
