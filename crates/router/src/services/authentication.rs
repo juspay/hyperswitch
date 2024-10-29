@@ -907,27 +907,13 @@ where
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch merchant key store for the merchant id")
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch merchant account for the merchant id")
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -970,14 +956,7 @@ where
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch merchant key store for the merchant id")
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let profile = state
             .store()
             .find_business_profile_by_merchant_id_profile_id(
@@ -992,14 +971,7 @@ where
             .store()
             .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch merchant account for the merchant id")
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -1116,14 +1088,7 @@ where
             .store()
             .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch merchant account for the merchant id")
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -1182,14 +1147,7 @@ where
             .store()
             .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch merchant account for the merchant id")
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -1253,26 +1211,13 @@ where
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch merchant key store for the merchant id")
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(key_manager_state, &self.0, &key_store)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -1311,14 +1256,7 @@ where
                 &state.store().get_master_key().to_vec().into(),
             )
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch merchant key store for the merchant id")
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let profile = state
             .store()
@@ -1334,13 +1272,7 @@ where
             .store()
             .find_merchant_account_by_merchant_id(key_manager_state, &self.0, &key_store)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -1384,13 +1316,7 @@ where
             .store()
             .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            })
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
             .map(|(merchant_account, key_store)| {
                 let merchant_id = merchant_account.get_id().clone();
                 (
@@ -1427,13 +1353,7 @@ where
             .store()
             .find_merchant_account_by_publishable_key(key_manager_state, publishable_key)
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-            })?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant_id = merchant_account.get_id().clone();
         let profile = state
             .store()
