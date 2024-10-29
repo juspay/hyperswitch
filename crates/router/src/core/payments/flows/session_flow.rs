@@ -527,7 +527,13 @@ fn create_paze_session_token(
             field_name: "connector_wallets_details".to_string(),
             expected_format: "paze_metadata_format".to_string(),
         })?;
-
+    let required_amount_type = StringMajorUnitForConnector;
+    let transaction_currency_code = router_data.request.currency;
+    let transaction_amount = required_amount_type
+        .convert(router_data.request.minor_amount, transaction_currency_code)
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for paze".to_string(),
+        })?;
     Ok(types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::Paze(Box::new(
@@ -535,6 +541,9 @@ fn create_paze_session_token(
                     client_id: paze_wallet_details.data.client_id,
                     client_name: paze_wallet_details.data.client_name,
                     client_profile_id: paze_wallet_details.data.client_profile_id,
+                    transaction_currency_code,
+                    transaction_amount,
+                    email_address: router_data.request.email.clone(),
                 },
             )),
         }),
