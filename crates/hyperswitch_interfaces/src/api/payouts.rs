@@ -8,8 +8,24 @@ use hyperswitch_domain_models::{
     router_request_types::PayoutsData, router_response_types::PayoutsResponseData,
 };
 
-use crate::api::ConnectorIntegration;
+use crate::api::{self, ConnectorIntegration};
 
+/// The `Payouts`
+#[cfg(feature = "payouts")]
+pub trait Payouts:
+    api::ConnectorCommon
+    + PayoutCancel
+    + PayoutCreate
+    + PayoutEligibility
+    + PayoutFulfill
+    + PayoutQuote
+    + PayoutRecipient
+    + PayoutRecipientAccount
+    + PayoutSync
+{
+}
+#[cfg(not(feature = "payouts"))]
+pub trait Payouts {}
 /// trait PayoutCancel
 pub trait PayoutCancel: ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> {}
 

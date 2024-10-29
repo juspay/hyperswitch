@@ -441,7 +441,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
                 enums::Connector::Nmi => Ok(ConnectorEnum::Old(Box::new(connector::Nmi::new()))),
-                // enums::Connector::Nomupay => Ok(ConnectorEnum::Old(Box::new(connector::Nomupay))),
+                enums::Connector::Nomupay => Ok(ConnectorEnum::Old(Box::new(connector::Nomupay::new()))),
                 enums::Connector::Noon => Ok(ConnectorEnum::Old(Box::new(connector::Noon::new()))),
                 enums::Connector::Novalnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))

@@ -116,7 +116,7 @@ pub enum Connector {
     Nexinets,
     Nexixpay,
     Nmi,
-    // Nomupay,
+    Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -253,7 +253,7 @@ impl Connector {
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
-            // | Self::Nomupay
+            | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -344,6 +344,7 @@ pub enum PayoutConnectors {
     Adyenplatform,
     Cybersource,
     Ebanx,
+    Nomupay,
     Payone,
     Paypal,
     Stripe,
@@ -358,6 +359,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Nomupay => Self::Nomupay,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
@@ -374,6 +376,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Ebanx => Self::Ebanx,
+            PayoutConnectors::Nomupay => Self::Nomupay,
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
@@ -391,6 +394,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Ebanx => Ok(Self::Ebanx),
+            Connector::Nomupay => Ok(Self::Nomupay),
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),

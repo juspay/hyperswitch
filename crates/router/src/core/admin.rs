@@ -1433,6 +1433,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 nmi::transformers::NmiAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Nomupay => {
+                nomupay::transformers::NomupayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Noon => {
                 noon::transformers::NoonAuthType::try_from(self.auth_type)?;
                 Ok(())

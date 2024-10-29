@@ -38,7 +38,7 @@ use masking::Maskable;
 use router_env::metrics::add_attributes;
 use serde_json::json;
 
-pub use self::{payments::*, refunds::*};
+pub use self::{payments::*, refunds::*, payouts::*};
 use crate::{
     configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, consts, errors,
     events::connector_api_logs::ConnectorEvent, metrics, types,
@@ -410,3 +410,4 @@ pub trait ConnectorRedirectResponse {
         Ok(CallConnectorAction::Avoid)
     }
 }
+

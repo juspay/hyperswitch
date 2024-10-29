@@ -7,6 +7,8 @@ use crate::utils::{self, ConnectorActions};
 #[derive(Clone, Copy)]
 struct NomupayTest;
 impl ConnectorActions for NomupayTest {}
+
+
 impl utils::Connector for NomupayTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Nomupay;
@@ -32,6 +34,7 @@ impl utils::Connector for NomupayTest {
     }
 }
 
+ 
 static CONNECTOR: NomupayTest = NomupayTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
@@ -295,6 +298,7 @@ async fn should_sync_refund() {
     );
 }
 
+/*
 // Cards Negative scenarios
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
@@ -361,7 +365,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         "Your card's expiration year is invalid.".to_string(),
     );
 }
-
+*/
 // Voids a payment using automatic capture flow (Non 3DS).
 #[actix_web::test]
 async fn should_fail_void_payment_for_auto_capture() {

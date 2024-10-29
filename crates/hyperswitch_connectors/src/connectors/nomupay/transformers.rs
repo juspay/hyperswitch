@@ -253,7 +253,7 @@ pub struct NomupayMetadata {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Error {
+pub struct NomupayErrorType {
     pub field: String,
     pub message: String,
 }
@@ -262,7 +262,7 @@ pub struct Error {
 pub struct NomupayError {
     pub error_code: String,
     pub error_description: Option<String>,
-    pub validation_errors: Option<Vec<Error>>,
+    pub validation_errors: Option<Vec<NomupayErrorType>>,
 }
 
 impl TryFrom<&NomupayRouterData<&PaymentsAuthorizeRouterData>> for NomupayPaymentsRequest {
