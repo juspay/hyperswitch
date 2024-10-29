@@ -115,14 +115,14 @@ impl ConnectorCommon for Multisafepay {
 
         let attempt_status = Option::<AttemptStatus>::from(response.clone());
 
-        Ok(multisafepay::populate_error_reason((
+        Ok(multisafepay::populate_error_reason(
             Some(response.error_code.to_string()),
             Some(response.error_info.clone()),
             Some(response.error_info),
             res.status_code,
             attempt_status,
             None,
-        )))
+        ))
     }
 }
 

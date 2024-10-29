@@ -966,14 +966,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsRe
                 Ok(Self {
                     status,
                     response: if utils::is_payment_failure(status) {
-                        Err(populate_error_reason((
+                        Err(populate_error_reason(
                             payment_response.data.reason_code,
                             payment_response.data.reason.clone(),
                             payment_response.data.reason,
                             item.http_code,
                             Some(status),
                             Some(payment_response.data.order_id),
-                        )))
+                        ))
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
@@ -1006,14 +1006,14 @@ impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsRe
             MultisafepayAuthResponse::ErrorResponse(error_response) => {
                 let attempt_status = Option::<AttemptStatus>::from(error_response.clone());
                 Ok(Self {
-                    response: Err(populate_error_reason((
+                    response: Err(populate_error_reason(
                         Some(error_response.error_code.to_string()),
                         Some(error_response.error_info.clone()),
                         Some(error_response.error_info),
                         item.http_code,
                         attempt_status,
                         None,
-                    ))),
+                    )),
                     ..item.data
                 })
             }
@@ -1021,15 +1021,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsRe
     }
 }
 pub fn populate_error_reason(
-    (code, message, reason, http_code, attempt_status, connector_transaction_id): (
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        u16,
-        Option<AttemptStatus>,
-        Option<String>,
-    ),
-) -> ErrorResponse {
+    code: Option<String>, message:Option<String>, reason: Option<String>, http_code: u16, attempt_status: Option<AttemptStatus>, connector_transaction_id: Option<String>) -> ErrorResponse {
     ErrorResponse {
         code: code.unwrap_or(NO_ERROR_CODE.to_string()),
         message: message.clone().unwrap_or(NO_ERROR_MESSAGE.to_string()),
@@ -1174,14 +1166,14 @@ impl TryFrom<RefundsResponseRouterData<RSync, MultisafepayRefundResponse>>
                 })
             }
             MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
-                response: Err(populate_error_reason((
+                response: Err(populate_error_reason(
                     Some(error_response.error_code.to_string()),
                     Some(error_response.error_info.clone()),
                     Some(error_response.error_info),
                     item.http_code,
                     None,
                     None,
-                ))),
+                )),
                 ..item.data
             }),
         }
