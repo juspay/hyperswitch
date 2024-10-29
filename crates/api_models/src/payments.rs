@@ -1309,12 +1309,59 @@ pub struct NetworkTokenWithNTIRef {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct ConnectorMandateReferenceId {
-    pub connector_mandate_id: Option<String>,
-    pub payment_method_id: Option<String>,
-    pub update_history: Option<Vec<UpdateHistory>>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    connector_mandate_id: Option<String>,
+    payment_method_id: Option<String>,
+    update_history: Option<Vec<UpdateHistory>>,
+    mandate_metadata: Option<serde_json::Value>,
+    connector_mandate_request_reference_id: Option<String>,
 }
 
+impl ConnectorMandateReferenceId {
+    pub fn new(
+        connector_mandate_id: Option<String>,
+        payment_method_id: Option<String>,
+        update_history: Option<Vec<UpdateHistory>>,
+        mandate_metadata: Option<serde_json::Value>,
+        connector_mandate_request_reference_id: Option<String>,
+    ) -> Self {
+        Self {
+            connector_mandate_id,
+            payment_method_id,
+            update_history,
+            mandate_metadata,
+            connector_mandate_request_reference_id,
+        }
+    }
+
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.connector_mandate_id.clone()
+    }
+    pub fn get_payment_method_id(&self) -> Option<String> {
+        self.payment_method_id.clone()
+    }
+    pub fn get_mandate_metadata(&self) -> Option<serde_json::Value> {
+        self.mandate_metadata.clone()
+    }
+    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.connector_mandate_request_reference_id.clone()
+    }
+
+    pub fn set_connector_mandate_id(&mut self, value: Option<String>) {
+        self.connector_mandate_id = value;
+    }
+
+    pub fn set_payment_method_id(&mut self, value: Option<String>) {
+        self.payment_method_id = value;
+    }
+
+    pub fn set_mandate_metadata(&mut self, value: Option<serde_json::Value>) {
+        self.mandate_metadata = value;
+    }
+
+    pub fn set_connector_mandate_request_reference_id(&mut self, value: Option<String>) {
+        self.connector_mandate_request_reference_id = value;
+    }
+}
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct UpdateHistory {
     pub connector_mandate_id: Option<String>,
