@@ -1247,6 +1247,8 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    use crate::core::routing::helpers::interpolate_success_based_routing_params;
+
     let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
         business_profile
             .dynamic_routing_algorithm
@@ -1300,7 +1302,7 @@ where
         .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
         let success_based_routing_config_params =
-            interpolate_success_based_routing_params(success_based_routing_configs, payment_data);
+            interpolate_success_based_routing_params(success_based_routing_configs.clone(), payment_data);
 
         let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
             &state.tenant.redis_key_prefix,
@@ -1311,6 +1313,7 @@ where
             .calculate_success_rate(
                 tenant_business_profile_id,
                 success_based_routing_configs,
+                success_based_routing_config_params,
                 routable_connectors,
             )
             .await
@@ -1352,70 +1355,4 @@ where
     } else {
         Ok(routable_connectors)
     }
-}
-
-pub async fn interpolate_success_based_routing_params<F, D>(
-    success_rate_based_config: api_routing::SuccessBasedRoutingConfig,
-    payment_data: &D,
-) -> Vec<String>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
-    let mut res = Vec::new();
-    for param in success_rate_based_config.params.unwrap() {
-        let val: String = match param {
-            api_routing::SuccessBasedRoutingConfigParams::PaymentMethod => payment_data
-                .get_payment_attempt()
-                .payment_method
-                .unwrap()
-                .to_string(),
-            api_routing::SuccessBasedRoutingConfigParams::PaymentMethodType => payment_data
-                .get_payment_attempt()
-                .get_payment_method_type()
-                .unwrap()
-                .to_string(),
-            api_routing::SuccessBasedRoutingConfigParams::AuthenticationType => payment_data
-                .get_payment_attempt()
-                .authentication_type
-                .unwrap()
-                .to_string(),
-            api_routing::SuccessBasedRoutingConfigParams::Currency => {
-                payment_data.get_currency().to_string()
-            }
-            api_routing::SuccessBasedRoutingConfigParams::Country => payment_data
-                .get_billing_address()
-                .unwrap()
-                .address
-                .unwrap()
-                .country
-                .unwrap()
-                .to_string(),
-            api_routing::SuccessBasedRoutingConfigParams::PaymentType => todo!(),
-            api_routing::SuccessBasedRoutingConfigParams::CardNetwork => payment_data
-                .get_payment_attempt()
-                .payment_method_data
-                .as_ref()
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_network"))
-                .and_then(|network| network.as_str())
-                .map(|network| network.to_string())
-                .unwrap(),
-            api_routing::SuccessBasedRoutingConfigParams::CardBin => payment_data
-                .get_payment_attempt()
-                .payment_method_data
-                .as_ref()
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_number"))
-                .and_then(|network| network.as_str())
-                .map(|network| network.to_string())
-                .unwrap(),
-        };
-        res.push(val);
-    }
-    res
 }

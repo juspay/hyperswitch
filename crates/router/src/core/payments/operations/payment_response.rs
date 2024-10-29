@@ -1916,17 +1916,26 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         utils::flatten_join_error(payment_attempt_fut)
     )?;
 
+    payment_data.payment_intent = payment_intent;
+    payment_data.payment_attempt = payment_attempt;
+    router_data.payment_method_status.and_then(|status| {
+        payment_data
+            .payment_method_info
+            .as_mut()
+            .map(|info| info.status = status)
+    });
+
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
         if business_profile.dynamic_routing_algorithm.is_some() {
             let state = state.clone();
             let business_profile = business_profile.clone();
-            let payment_attempt = payment_attempt.clone();
+            let payment_data = payment_data.clone();
             tokio::spawn(
                 async move {
                     push_metrics_for_success_based_routing(
                         &state,
-                        &payment_attempt,
+                        &payment_data,
                         routable_connectors,
                         &business_profile,
                     )
@@ -1938,14 +1947,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             );
         }
     }
-    payment_data.payment_intent = payment_intent;
-    payment_data.payment_attempt = payment_attempt;
-    router_data.payment_method_status.and_then(|status| {
-        payment_data
-            .payment_method_info
-            .as_mut()
-            .map(|info| info.status = status)
-    });
 
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),

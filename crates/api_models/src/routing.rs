@@ -617,7 +617,6 @@ pub enum SuccessBasedRoutingConfigParams {
     PaymentMethodType,
     AuthenticationType,
     Currency,
-    PaymentType,
     Country,
     CardNetwork,
     CardBin,
