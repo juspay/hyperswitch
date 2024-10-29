@@ -410,7 +410,7 @@ pub async fn migrate_payment_method(
                     card_number,
                     &req,
                 );
-                get_client_secret_or_add_payment_method_for_migration(
+            get_client_secret_or_add_payment_method_for_migration(
                 &state,
                 payment_method_create_request,
                 merchant_account,
@@ -922,7 +922,13 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     if condition {
-        Box::pin(add_payment_method_for_migration(state, req, merchant_account, key_store)).await
+        Box::pin(add_payment_method_for_migration(
+            state,
+            req,
+            merchant_account,
+            key_store,
+        ))
+        .await
     } else {
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
@@ -1462,7 +1468,6 @@ pub async fn add_payment_method(
 
     Ok(services::ApplicationResponse::Json(resp))
 }
-
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
