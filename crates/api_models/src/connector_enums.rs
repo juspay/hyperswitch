@@ -207,11 +207,11 @@ impl Connector {
             | Self::Cashtocode
             | Self::Coinbase
             | Self::Cryptopay
-| Self::Deutschebank
+            | Self::Deutschebank
             | Self::Dlocal
             | Self::Ebanx
             | Self::Fiserv
-| Self::Fiservemea
+            | Self::Fiservemea
             | Self::Fiuu
             | Self::Forte
             | Self::Globalpay
@@ -230,8 +230,8 @@ impl Connector {
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
-| Self::Paybox
-| Self::Payme
+            | Self::Paybox
+            | Self::Payme
             | Self::Payone
             | Self::Paypal
             | Self::Payu
@@ -243,12 +243,12 @@ impl Connector {
             | Self::Square
             | Self::Stax
             | Self::Taxjar
-            //| Self::Thunes
+            // | Self::Thunes
             | Self::Trustpay
             | Self::Tsys
             | Self::Volt
             | Self::Wellsfargo
-// | Self::Wellsfargopayout
+            // | Self::Wellsfargopayout
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
