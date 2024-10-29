@@ -453,6 +453,20 @@
         "summary": "Merchant Account - Create",
         "description": "Create a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.\n\nBefore creating the merchant account, it is mandatory to create an organization.",
         "operationId": "Create a Merchant Account",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organization ID for which the merchant account has to be created.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Organization-Id": "org_abcdefghijklmnop"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -466,8 +480,7 @@
                       "primary_contact_person": "John Doe",
                       "primary_email": "example@company.com"
                     },
-                    "merchant_name": "Cloth Store",
-                    "organization_id": "org_abcdefghijklmnop"
+                    "merchant_name": "Cloth Store"
                   }
                 },
                 "Create a merchant account with metadata": {
@@ -476,14 +489,12 @@
                     "metadata": {
                       "key_1": "John Doe",
                       "key_2": "Trends"
-                    },
-                    "organization_id": "org_abcdefghijklmnop"
+                    }
                   }
                 },
                 "Create a merchant account with minimal fields": {
                   "value": {
-                    "merchant_name": "Cloth Store",
-                    "organization_id": "org_abcdefghijklmnop"
+                    "merchant_name": "Cloth Store"
                   }
                 }
               }
@@ -9385,8 +9396,7 @@
       "MerchantAccountCreate": {
         "type": "object",
         "required": [
-          "merchant_name",
-          "organization_id"
+          "merchant_name"
         ],
         "properties": {
           "merchant_name": {
@@ -9407,13 +9417,6 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information about the merchant account.",
             "nullable": true
-          },
-          "organization_id": {
-            "type": "string",
-            "description": "The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization",
-            "example": "org_q98uSGAYbjEwqs0mJwnz",
-            "maxLength": 64,
-            "minLength": 1
           }
         },
         "additionalProperties": false
@@ -10974,9 +10977,7 @@
             "minimum": 0
           },
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "the amount per quantity of product"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "requires_shipping": {
             "type": "boolean",
@@ -16199,7 +16200,9 @@
         "required": [
           "client_id",
           "client_name",
-          "client_profile_id"
+          "client_profile_id",
+          "transaction_currency_code",
+          "transaction_amount"
         ],
         "properties": {
           "client_id": {
@@ -16213,6 +16216,21 @@
           "client_profile_id": {
             "type": "string",
             "description": "Paze Client Profile ID"
+          },
+          "transaction_currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "transaction_amount": {
+            "type": "string",
+            "description": "The transaction amount",
+            "example": "38.02"
+          },
+          "email_address": {
+            "type": "string",
+            "description": "Email Address",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
