@@ -34,6 +34,7 @@ pub struct PayuPaymentsRequest {
     description: String,
     pay_methods: PayuPaymentMethod,
     continue_url: Option<String>,
+    ext_order_id: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -133,6 +134,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     .to_string(),
             ),
             merchant_pos_id: auth_type.merchant_pos_id,
+            ext_order_id: Some(item.connector_request_reference_id.clone()),
             total_amount: item.request.amount,
             currency_code: item.request.currency,
             description: item.description.clone().ok_or(

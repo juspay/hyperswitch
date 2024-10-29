@@ -280,6 +280,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         charges: None,
         merchant_order_reference_id: None,
         integrity_object: None,
+        shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1978,7 +1979,7 @@ pub fn voucher_next_steps_check(
 }
 
 pub fn change_order_details_to_new_type(
-    order_amount: i64,
+    order_amount: MinorUnit,
     order_details: api_models::payments::OrderDetails,
 ) -> Option<Vec<api_models::payments::OrderDetailsWithAmount>> {
     Some(vec![api_models::payments::OrderDetailsWithAmount {
@@ -2155,6 +2156,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .payment_intent
             .merchant_order_reference_id
             .clone();
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
@@ -2201,6 +2203,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             charges,
             merchant_order_reference_id,
             integrity_object: None,
+            shipping_cost,
         })
     }
 }
@@ -2539,11 +2542,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             + shipping_cost
             + surcharge_amount;
         Ok(Self {
-            net_amount,
+            amount: net_amount,
             order_tax_amount,
             currency: payment_data.currency,
-            amount: payment_data.payment_intent.amount,
+            order_amount: payment_data.payment_intent.amount,
             session_id: payment_data.session_id,
+            shipping_cost: payment_data.payment_intent.shipping_cost,
         })
     }
 }
@@ -2580,9 +2584,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             .clone();
         Ok(Self {
             amount, //need to change after we move to connector module
+            order_amount: payment_data.payment_intent.amount,
             currency: payment_data.currency,
             merchant_order_reference_id,
             capture_method: payment_data.payment_attempt.capture_method,
+            shipping_cost: payment_data.payment_intent.shipping_cost,
         })
     }
 }
@@ -2649,6 +2655,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             ),
             order_details,
             surcharge_details: payment_data.surcharge_details,
+            email: payment_data.email,
         })
     }
 }
@@ -2708,6 +2715,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 },
             ),
             order_details,
+            email: payment_data.email,
             surcharge_details: payment_data.surcharge_details,
         })
     }
@@ -2775,6 +2783,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
+            shipping_cost: payment_data.payment_intent.shipping_cost,
         })
     }
 }

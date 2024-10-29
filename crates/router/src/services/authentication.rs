@@ -1004,7 +1004,7 @@ where
 }
 
 /// A helper struct to extract headers from the request
-struct HeaderMapStruct<'a> {
+pub(crate) struct HeaderMapStruct<'a> {
     headers: &'a HeaderMap,
 }
 
@@ -1050,6 +1050,18 @@ impl<'a> HeaderMapStruct<'a> {
                 T::try_from(std::borrow::Cow::Owned(header_value)).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!("`{}` header is invalid", key),
+                    },
+                )
+            })
+    }
+    #[cfg(feature = "v2")]
+    pub fn get_organization_id_from_header(&self) -> RouterResult<id_type::OrganizationId> {
+        self.get_mandatory_header_value_by_key(headers::X_ORGANIZATION_ID)
+            .map(|val| val.to_owned())
+            .and_then(|organization_id| {
+                id_type::OrganizationId::wrap(organization_id).change_context(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("`{}` header is invalid", headers::X_ORGANIZATION_ID),
                     },
                 )
             })

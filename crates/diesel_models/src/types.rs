@@ -1,4 +1,4 @@
-use common_utils::{hashing::HashedString, pii};
+use common_utils::{hashing::HashedString, pii, types::MinorUnit};
 use diesel::{
     sql_types::{Json, Jsonb},
     AsExpression, FromSqlRow,
@@ -13,7 +13,7 @@ pub struct OrderDetailsWithAmount {
     /// The quantity of the product to be purchased
     pub quantity: u16,
     /// the amount per quantity of product
-    pub amount: i64,
+    pub amount: MinorUnit,
     // Does the order includes shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product
