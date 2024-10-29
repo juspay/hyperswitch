@@ -341,6 +341,7 @@ impl ConnectorValidation for Paypal {
         let mandate_supported_pmd = std::collections::HashSet::from([
             PaymentMethodDataType::Card,
             PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::PaypalSdk,
         ]);
         connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
@@ -1030,6 +1031,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             PaypalAuthResponse::PaypalThreeDsResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
+                println!("$$here PaypalThreeDsResponse");
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),

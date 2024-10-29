@@ -466,7 +466,7 @@ pub struct Attributes {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PaypalRedirectionResponse {
-    attributes: AttributeResponse,
+    attributes: Option<AttributeResponse>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -511,7 +511,7 @@ pub enum PaymentSourceItem {
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CardVaultResponse {
-    attributes: AttributeResponse,
+    attributes: Option<AttributeResponse>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
@@ -680,8 +680,8 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>>
         let payment_source = Some(PaymentSourceItem::Paypal(
             PaypalRedirectionRequest::PaypalRedirectionStruct(PaypalRedirectionStruct {
                 experience_context: ContextStruct {
-                    return_url: None,
-                    cancel_url: None,
+                    return_url: Some("https://google.com".to_string()),
+                    cancel_url: Some("https://google.com".to_string()),
                     shipping_preference: ShippingPreference::GetFromFile,
                     user_action: Some(UserAction::PayNow),
                 },
@@ -1693,10 +1693,12 @@ impl<F, T>
                 mandate_reference: Box::new(Some(MandateReference {
                     connector_mandate_id: match item.response.payment_source.clone() {
                         Some(paypal_source) => match paypal_source {
-                            PaymentSourceItemResponse::Paypal(paypal_source) => {
-                                Some(paypal_source.attributes.vault.id)
+                            PaymentSourceItemResponse::Paypal(paypal_source) => paypal_source
+                                .attributes
+                                .and_then(|attr| Some(attr.vault.id)),
+                            PaymentSourceItemResponse::Card(card) => {
+                                card.attributes.and_then(|attr| Some(attr.vault.id))
                             }
-                            PaymentSourceItemResponse::Card(card) => Some(card.attributes.vault.id),
                         },
                         None => None,
                     },
