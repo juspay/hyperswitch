@@ -44,12 +44,6 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "v2")]
-pub use self::{
-    payment_confirm_intent::PaymentIntentConfirm, payment_create_intent::PaymentIntentCreate,
-    payment_get::PaymentGet,
-};
-
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
 pub use self::{
@@ -60,6 +54,11 @@ pub use self::{
     payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
+};
+#[cfg(feature = "v2")]
+pub use self::{
+    payment_confirm_intent::PaymentIntentConfirm, payment_create_intent::PaymentIntentCreate,
+    payment_get::PaymentGet,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{

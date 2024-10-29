@@ -3,10 +3,8 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
 use crate::payment_attempt::PaymentAttemptUpdateInternal;
-
 #[cfg(feature = "v2")]
 use crate::payment_intent::PaymentIntentUpdateInternal;
-
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
