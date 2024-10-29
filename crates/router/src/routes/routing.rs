@@ -942,7 +942,7 @@ pub async fn toggle_success_based_routing(
 ) -> impl Responder {
     let flow = Flow::ToggleDynamicRouting;
     let wrapper = routing_types::ToggleSuccessBasedRoutingWrapper {
-        status: query.into_inner().status,
+        feature_to_enable: query.into_inner().enable,
         profile_id: path.into_inner().profile_id,
     };
     Box::pin(oss_api::server_wrap(
@@ -958,7 +958,7 @@ pub async fn toggle_success_based_routing(
                 state,
                 auth.merchant_account,
                 auth.key_store,
-                wrapper.status,
+                wrapper.feature_to_enable,
                 wrapper.profile_id,
             )
         },
