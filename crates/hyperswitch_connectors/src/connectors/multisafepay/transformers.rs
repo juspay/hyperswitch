@@ -1021,7 +1021,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, MultisafepayAuthResponse, T, PaymentsRe
     }
 }
 pub fn populate_error_reason(
-    code: Option<String>, message:Option<String>, reason: Option<String>, http_code: u16, attempt_status: Option<AttemptStatus>, connector_transaction_id: Option<String>) -> ErrorResponse {
+    code: Option<String>,
+    message: Option<String>,
+    reason: Option<String>,
+    http_code: u16,
+    attempt_status: Option<AttemptStatus>,
+    connector_transaction_id: Option<String>,
+) -> ErrorResponse {
     ErrorResponse {
         code: code.unwrap_or(NO_ERROR_CODE.to_string()),
         message: message.clone().unwrap_or(NO_ERROR_MESSAGE.to_string()),
