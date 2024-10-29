@@ -28,15 +28,18 @@ use storage_impl::redis::cache;
 
 #[cfg(feature = "v2")]
 use crate::types::domain::MerchantConnectorAccount;
+#[cfg(feature = "v1")]
+use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
 use crate::{
-    core::{errors::{self, RouterResult}, payments::{OperationSessionGetters, OperationSessionSetters}},
+    core::{
+        errors::{self, RouterResult},
+        payments::{OperationSessionGetters, OperationSessionSetters},
+    },
     db::StorageInterface,
     routes::SessionState,
     types::{domain, storage},
     utils::StringExt,
 };
-#[cfg(feature = "v1")]
-use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";
 
@@ -645,7 +648,7 @@ pub async fn push_metrics_for_success_based_routing<F, D>(
     payment_data: &D,
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-) -> RouterResult<()> 
+) -> RouterResult<()>
 where
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Clone,
@@ -702,8 +705,10 @@ where
             business_profile.get_id().get_string_repr(),
         );
 
-        let success_based_routing_config_params =
-            interpolate_success_based_routing_params(success_based_routing_configs.clone(), payment_data);
+        let success_based_routing_config_params = interpolate_success_based_routing_params(
+            success_based_routing_configs.clone(),
+            payment_data,
+        );
 
         let success_based_connectors = client
             .calculate_success_rate(

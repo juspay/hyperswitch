@@ -1301,8 +1301,10 @@ where
         .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
         .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
-        let success_based_routing_config_params =
-            interpolate_success_based_routing_params(success_based_routing_configs.clone(), payment_data);
+        let success_based_routing_config_params = interpolate_success_based_routing_params(
+            success_based_routing_configs.clone(),
+            payment_data,
+        );
 
         let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
             &state.tenant.redis_key_prefix,
