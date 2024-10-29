@@ -1,10 +1,10 @@
-pub use super::connector_enums::Connector;
 use std::str::FromStr;
 
 pub use common_enums::*;
 #[cfg(feature = "dummy_connector")]
-
 use utoipa::ToSchema;
+
+pub use super::connector_enums::Connector;
 
 #[derive(
     Clone,

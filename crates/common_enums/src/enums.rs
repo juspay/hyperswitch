@@ -1,8 +1,9 @@
 use std::num::{ParseFloatError, TryFromIntError};
-pub use super::connector_enums::RoutableConnectors;
 
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+pub use super::connector_enums::RoutableConnectors;
 
 #[doc(hidden)]
 pub mod diesel_exports {

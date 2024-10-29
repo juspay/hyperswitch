@@ -5,13 +5,13 @@ pub mod apple_pay_certificates_migration;
 pub mod blocklist;
 pub mod cards_info;
 pub mod conditional_configs;
+pub mod connector_enums;
 pub mod connector_onboarding;
 pub mod consts;
 pub mod currency;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
-pub mod connector_enums;
 pub mod ephemeral_key;
 #[cfg(feature = "errors")]
 pub mod errors;
