@@ -14,4 +14,3 @@ pub const USER_AGENT: &str = "Hyperswitch-Backend-Server";
 
 /// Unsupported response type error message
 pub const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
-
