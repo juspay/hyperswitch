@@ -357,10 +357,10 @@ where
                     network_txn_id,
                     ..
                 } => (mandate_reference.clone(), network_txn_id.clone()),
-                _ => (None, None),
+                _ => (Box::new(None), None),
             };
 
-            let mandate_ids = mandate_reference
+            let mandate_ids = (*mandate_reference)
                 .as_ref()
                 .map(|md| {
                     md.encode_to_value()
@@ -379,7 +379,7 @@ where
                 mandate_ids,
                 network_txn_id,
                 get_insensitive_payment_method_data_if_exists(resp),
-                mandate_reference,
+                *mandate_reference,
                 merchant_connector_id,
             )?
             else {
@@ -439,7 +439,7 @@ impl ForeignFrom<Result<types::PaymentsResponseData, types::ErrorResponse>>
         match resp {
             Ok(types::PaymentsResponseData::TransactionResponse {
                 mandate_reference, ..
-            }) => mandate_reference,
+            }) => *mandate_reference,
             _ => None,
         }
     }
