@@ -430,7 +430,9 @@ impl ConnectorData {
                 enums::Connector::Itaubank => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }
-                enums::Connector::Klarna => Ok(ConnectorEnum::Old(Box::new(&connector::Klarna))),
+                enums::Connector::Klarna => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))
+                }
                 enums::Connector::Mollie => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Mollie::new())))
                 }
@@ -456,7 +458,7 @@ impl ConnectorData {
                 enums::Connector::Payone => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payone::new())))
                 }
-                enums::Connector::Payu => Ok(ConnectorEnum::Old(Box::new(&connector::Payu))),
+                enums::Connector::Payu => Ok(ConnectorEnum::Old(Box::new(connector::Payu::new()))),
                 enums::Connector::Placetopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Placetopay::new())))
                 }
@@ -469,8 +471,12 @@ impl ConnectorData {
                 enums::Connector::Razorpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Razorpay::new())))
                 }
-                enums::Connector::Rapyd => Ok(ConnectorEnum::Old(Box::new(&connector::Rapyd))),
-                enums::Connector::Shift4 => Ok(ConnectorEnum::Old(Box::new(&connector::Shift4))),
+                enums::Connector::Rapyd => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
+                }
+                enums::Connector::Shift4 => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
+                }
                 enums::Connector::Square => Ok(ConnectorEnum::Old(Box::new(&connector::Square))),
                 enums::Connector::Stax => Ok(ConnectorEnum::Old(Box::new(&connector::Stax))),
                 enums::Connector::Stripe => {
@@ -505,11 +511,11 @@ impl ConnectorData {
                 enums::Connector::Trustpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustpay::new())))
                 }
-                enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(&connector::Tsys))),
+                enums::Connector::Tsys => Ok(ConnectorEnum::Old(Box::new(connector::Tsys::new()))),
 
                 enums::Connector::Volt => Ok(ConnectorEnum::Old(Box::new(connector::Volt::new()))),
                 enums::Connector::Wellsfargo => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Wellsfargo)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Wellsfargo::new())))
                 }
 
                 // enums::Connector::Wellsfargopayout => {

@@ -2058,7 +2058,7 @@ pub async fn get_payment_method_from_hs_locker<'a>(
             merchant_id,
             payment_method_reference,
             locker_choice,
-            state.tenant.name.clone(),
+            state.tenant.tenant_id.clone(),
             state.request_id,
         )
         .await
@@ -2112,7 +2112,7 @@ pub async fn add_card_to_hs_locker(
             locker,
             payload,
             locker_choice,
-            state.tenant.name.clone(),
+            state.tenant.tenant_id.clone(),
             state.request_id,
         )
         .await?;
@@ -2309,7 +2309,7 @@ pub async fn get_card_from_hs_locker<'a>(
             merchant_id,
             card_reference,
             Some(locker_choice),
-            state.tenant.name.clone(),
+            state.tenant.tenant_id.clone(),
             state.request_id,
         )
         .await
@@ -2355,7 +2355,7 @@ pub async fn delete_card_from_hs_locker<'a>(
         customer_id,
         merchant_id,
         card_reference,
-        state.tenant.name.clone(),
+        state.tenant.tenant_id.clone(),
         state.request_id,
     )
     .await
@@ -2980,6 +2980,7 @@ pub async fn list_payment_methods(
             api_enums::PaymentMethodType::ApplePay,
             api_enums::PaymentMethodType::Klarna,
             api_enums::PaymentMethodType::Paypal,
+            api_enums::PaymentMethodType::SamsungPay,
         ]);
 
         let mut chosen = Vec::<api::SessionConnectorData>::new();
@@ -3031,6 +3032,15 @@ pub async fn list_payment_methods(
                             .connector
                             .connector_name
                             .to_string()
+                        && first_routable_connector
+                            .connector
+                            .merchant_connector_id
+                            .as_ref()
+                            .map(|merchant_connector_id| {
+                                *merchant_connector_id.get_string_repr()
+                                    == intermediate.merchant_connector_id
+                            })
+                            .unwrap_or_default()
                 } else {
                     false
                 }
@@ -4070,6 +4080,7 @@ pub async fn filter_payment_methods(
                         let response_pm_type = ResponsePaymentMethodIntermediate::new(
                             payment_method_object,
                             connector.clone(),
+                            mca_id.get_string_repr().to_string(),
                             payment_method,
                         );
                         resp.push(response_pm_type);

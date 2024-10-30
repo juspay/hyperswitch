@@ -1117,6 +1117,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_total_surcharge_amount(&self) -> Option<i64>;
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
+    fn get_customer_name(&self) -> Result<Secret<String>, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1170,7 +1171,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.connector_mandate_id.clone()
+                    connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
                 | None
@@ -1270,6 +1271,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.authentication_data
             .clone()
             .ok_or_else(missing_field_err("authentication_data"))
+    }
+
+    fn get_customer_name(&self) -> Result<Secret<String>, Error> {
+        self.customer_name
+            .clone()
+            .ok_or_else(missing_field_err("customer_name"))
     }
 }
 

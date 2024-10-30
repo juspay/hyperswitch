@@ -402,8 +402,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -441,8 +440,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -487,8 +485,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -528,8 +525,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -567,8 +563,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -613,8 +608,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -654,8 +648,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -693,8 +686,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -739,8 +731,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -774,8 +765,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -813,8 +803,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -853,8 +842,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -893,8 +881,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -924,8 +911,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -953,8 +939,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -989,8 +974,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1018,8 +1002,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1049,8 +1032,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1078,8 +1060,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1114,8 +1095,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1139,8 +1119,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1168,8 +1147,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1201,8 +1179,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1235,8 +1212,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1267,8 +1243,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1318,8 +1293,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1367,8 +1341,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1423,8 +1396,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1474,8 +1446,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1523,8 +1494,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1579,8 +1549,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1630,8 +1599,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1679,8 +1647,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1734,8 +1701,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::GenerateReport,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileReportRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1773,8 +1739,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1798,8 +1763,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1830,8 +1794,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -1948,8 +1911,7 @@ pub mod routes {
                 .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2065,8 +2027,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2096,8 +2057,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2132,8 +2092,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2161,8 +2120,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2202,8 +2160,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2248,8 +2205,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2287,8 +2243,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2319,8 +2274,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2349,8 +2303,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Organization,
+                permission: Permission::OrganizationAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))
@@ -2386,8 +2339,7 @@ pub mod routes {
                     .map(ApplicationResponse::Json)
             },
             &auth::JWTAuth {
-                permission: Permission::Analytics,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAnalyticsRead,
             },
             api_locking::LockAction::NotApplicable,
         ))

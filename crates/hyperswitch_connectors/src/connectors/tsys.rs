@@ -1,12 +1,11 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -41,10 +40,18 @@ use hyperswitch_interfaces::{
 use transformers as tsys;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
+#[derive(Clone)]
+pub struct Tsys {
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+}
 
-#[derive(Debug, Clone)]
-pub struct Tsys;
-
+impl Tsys {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &StringMinorUnitForConnector,
+        }
+    }
+}
 impl api::Payment for Tsys {}
 impl api::PaymentSession for Tsys {}
 impl api::ConnectorAccessToken for Tsys {}
@@ -156,7 +163,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = tsys::TsysPaymentsRequest::try_from(req)?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = tsys::TsysRouterData::from((amount, req));
+        let connector_req: transformers::TsysPaymentsRequest =
+            tsys::TsysPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -316,7 +330,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = tsys::TsysPaymentsCaptureRequest::try_from(req)?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+        let connector_router_data = tsys::TsysRouterData::from((amount, req));
+        let connector_req = tsys::TsysPaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -473,7 +493,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Tsys {
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = tsys::TsysRefundRequest::try_from(req)?;
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = tsys::TsysRouterData::from((amount, req));
+
+        let connector_req = tsys::TsysRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

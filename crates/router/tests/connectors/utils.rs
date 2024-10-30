@@ -546,6 +546,7 @@ pub trait ConnectorActions: Connector {
             integrity_check: Ok(()),
             additional_merchant_data: None,
             header_payload: None,
+            connector_mandate_request_reference_id: None,
         }
     }
 
@@ -947,6 +948,8 @@ impl Default for PaymentAuthorizeType {
             charges: None,
             integrity_object: None,
             merchant_order_reference_id: None,
+            additional_payment_method_data: None,
+            shipping_cost: None,
         };
         Self(data)
     }

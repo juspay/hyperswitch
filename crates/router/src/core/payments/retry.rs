@@ -424,7 +424,7 @@ where
         }) => {
             let encoded_data = payment_data.get_payment_attempt().encoded_data.clone();
 
-            let authentication_data = redirection_data
+            let authentication_data = (*redirection_data)
                 .as_ref()
                 .map(Encode::encode_to_value)
                 .transpose()
