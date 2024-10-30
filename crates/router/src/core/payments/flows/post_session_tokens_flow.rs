@@ -27,7 +27,7 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsPostSessionTokensRouterData> {

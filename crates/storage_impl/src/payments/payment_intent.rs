@@ -495,6 +495,41 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .change_context(StorageError::DecryptionError)
     }
 
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn update_payment_intent(
+        &self,
+        state: &KeyManagerState,
+        this: PaymentIntent,
+        payment_intent: PaymentIntentUpdate,
+        merchant_key_store: &MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let conn = pg_connection_write(self).await?;
+        let diesel_payment_intent_update = DieselPaymentIntentUpdate::from(payment_intent);
+
+        let diesel_payment_intent = this
+            .convert()
+            .await
+            .change_context(StorageError::EncryptionError)?
+            .update(&conn, diesel_payment_intent_update)
+            .await
+            .map_err(|er| {
+                let new_err = diesel_error_to_data_error(er.current_context());
+                er.change_context(new_err)
+            })?;
+
+        PaymentIntent::convert_back(
+            state,
+            diesel_payment_intent,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)
+    }
+
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn update_payment_intent(
         &self,
