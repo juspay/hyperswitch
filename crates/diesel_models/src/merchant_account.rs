@@ -260,6 +260,36 @@ pub struct MerchantAccountUpdateInternal {
     pub recon_status: Option<storage_enums::ReconStatus>,
 }
 
+#[cfg(feature = "v2")]
+impl MerchantAccountUpdateInternal {
+    pub fn apply_changeset(self, source: MerchantAccount) -> MerchantAccount {
+        let Self {
+            merchant_name,
+            merchant_details,
+            publishable_key,
+            storage_scheme,
+            metadata,
+            modified_at,
+            organization_id,
+            recon_status,
+        } = self;
+
+        MerchantAccount {
+            merchant_name: merchant_name.or(source.merchant_name),
+            merchant_details: merchant_details.or(source.merchant_details),
+            publishable_key: publishable_key.or(source.publishable_key),
+            storage_scheme: storage_scheme.unwrap_or(source.storage_scheme),
+            metadata: metadata.or(source.metadata),
+            created_at: source.created_at,
+            modified_at,
+            organization_id: organization_id.unwrap_or(source.organization_id),
+            recon_status: recon_status.unwrap_or(source.recon_status),
+            version,
+            id,
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_account)]
@@ -345,7 +375,7 @@ impl MerchantAccountUpdateInternal {
                 .unwrap_or(source.primary_business_details),
             intent_fulfillment_time: intent_fulfillment_time.or(source.intent_fulfillment_time),
             created_at: source.created_at,
-            modified_at: modified_at,
+            modified_at,
             frm_routing_algorithm: frm_routing_algorithm.or(source.frm_routing_algorithm),
             payout_routing_algorithm: payout_routing_algorithm.or(source.payout_routing_algorithm),
             organization_id: organization_id.unwrap_or(source.organization_id),
