@@ -237,7 +237,7 @@ pub enum MerchantAccountUpdate {
 
 #[cfg(feature = "v2")]
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MerchantAccountUpdate {
     Update {
         merchant_name: OptionalEncryptableName,

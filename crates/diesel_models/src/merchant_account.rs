@@ -284,8 +284,8 @@ impl MerchantAccountUpdateInternal {
             modified_at,
             organization_id: organization_id.unwrap_or(source.organization_id),
             recon_status: recon_status.unwrap_or(source.recon_status),
-            version,
-            id,
+            version: source.version,
+            id: source.id,
         }
     }
 }
