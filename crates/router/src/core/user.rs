@@ -7,12 +7,12 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
-use common_enums::EntityType;
+use common_enums::{EntityType, UserStatus};
 use common_utils::{type_name, types::keymanager::Identifier};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
 use diesel_models::{
-    enums::{TotpStatus, UserRoleVersion, UserStatus},
+    enums::{TotpStatus, UserRoleVersion},
     organization::OrganizationBridge,
     user as storage_user,
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},

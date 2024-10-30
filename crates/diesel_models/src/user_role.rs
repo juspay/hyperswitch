@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use common_enums::EntityType;
+use common_enums::{EntityType, UserStatus};
 use common_utils::{consts, id_type};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
@@ -15,7 +15,7 @@ pub struct UserRole {
     pub merchant_id: Option<id_type::MerchantId>,
     pub role_id: String,
     pub org_id: Option<id_type::OrganizationId>,
-    pub status: enums::UserStatus,
+    pub status: UserStatus,
     pub created_by: String,
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
@@ -78,7 +78,7 @@ pub struct UserRoleNew {
     pub merchant_id: Option<id_type::MerchantId>,
     pub role_id: String,
     pub org_id: Option<id_type::OrganizationId>,
-    pub status: enums::UserStatus,
+    pub status: UserStatus,
     pub created_by: String,
     pub last_modified_by: String,
     pub created_at: PrimitiveDateTime,
@@ -93,7 +93,7 @@ pub struct UserRoleNew {
 #[diesel(table_name = user_roles)]
 pub struct UserRoleUpdateInternal {
     role_id: Option<String>,
-    status: Option<enums::UserStatus>,
+    status: Option<UserStatus>,
     last_modified_by: Option<String>,
     last_modified: PrimitiveDateTime,
 }
@@ -101,7 +101,7 @@ pub struct UserRoleUpdateInternal {
 #[derive(Clone)]
 pub enum UserRoleUpdate {
     UpdateStatus {
-        status: enums::UserStatus,
+        status: UserStatus,
         modified_by: String,
     },
     UpdateRole {

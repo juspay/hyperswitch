@@ -1,4 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
+use common_enums::UserStatus;
 use common_utils::id_type;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, result::Error as DieselError,
@@ -7,11 +8,7 @@ use diesel::{
 use error_stack::{report, ResultExt};
 
 use crate::{
-    enums::{UserRoleVersion, UserStatus},
-    errors,
-    query::generics,
-    schema::user_roles::dsl,
-    user_role::*,
+    enums::UserRoleVersion, errors, query::generics, schema::user_roles::dsl, user_role::*,
     PgPooledConn, StorageResult,
 };
 

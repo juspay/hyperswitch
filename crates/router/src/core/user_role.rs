@@ -1,10 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use api_models::{user as user_api, user_role as user_role_api};
+use common_enums::UserStatus;
 use diesel_models::{
-    enums::{UserRoleVersion, UserStatus},
-    organization::OrganizationBridge,
-    user_role::UserRoleUpdate,
+    enums::UserRoleVersion, organization::OrganizationBridge, user_role::UserRoleUpdate,
 };
 use error_stack::{report, ResultExt};
 use masking::Secret;

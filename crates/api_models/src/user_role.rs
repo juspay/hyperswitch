@@ -34,12 +34,6 @@ pub struct UpdateUserRoleRequest {
     pub role_id: String,
 }
 
-#[derive(Debug, serde::Serialize)]
-pub enum UserStatus {
-    Active,
-    InvitationSent,
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeleteUserRoleRequest {
     pub email: pii::Email,

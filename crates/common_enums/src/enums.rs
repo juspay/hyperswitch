@@ -3424,3 +3424,24 @@ pub enum ConnectorMandateStatus {
     /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
     Inactive,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UserStatus {
+    Active,
+    #[default]
+    InvitationSent,
+}

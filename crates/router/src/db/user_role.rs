@@ -1,8 +1,6 @@
+use common_enums::UserStatus;
 use common_utils::id_type;
-use diesel_models::{
-    enums::{self, UserStatus},
-    user_role as storage,
-};
+use diesel_models::{enums, user_role as storage};
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 

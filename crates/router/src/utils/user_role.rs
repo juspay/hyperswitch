@@ -1,9 +1,9 @@
 use std::{cmp, collections::HashSet};
 
-use common_enums::{EntityType, PermissionGroup};
+use common_enums::{EntityType, PermissionGroup, UserStatus};
 use common_utils::id_type;
 use diesel_models::{
-    enums::{UserRoleVersion, UserStatus},
+    enums::UserRoleVersion,
     user_role::{UserRole, UserRoleUpdate},
 };
 use error_stack::{report, Report, ResultExt};
