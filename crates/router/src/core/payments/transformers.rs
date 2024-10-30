@@ -755,7 +755,7 @@ where
 }
 
 #[cfg(feature = "v2")]
-impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsCreateIntentResponse
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsIntentResponse
 where
     F: Clone,
     Op: Debug,

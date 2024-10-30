@@ -1021,7 +1021,7 @@ pub async fn payments_intent_operation_core<F, Req, Op, D>(
 ) -> RouterResult<(D, Req, Option<domain::Customer>)>
 where
     F: Send + Clone + Sync,
-    Req: Authenticate + Clone,
+    Req: Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
@@ -1454,7 +1454,7 @@ pub async fn payments_intent_core<F, Res, Req, Op, D>(
 where
     F: Send + Clone + Sync,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
-    Req: Debug + Authenticate + Clone,
+    Req: Debug + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     Res: transformers::ToResponse<F, D, Op>,
 {
