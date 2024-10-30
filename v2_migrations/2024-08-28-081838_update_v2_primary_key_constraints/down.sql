@@ -103,4 +103,5 @@ ALTER TABLE payment_attempt
 ADD PRIMARY KEY (attempt_id, merchant_id);
 
 ALTER TABLE payment_attempt
+ALTER COLUMN active_attempt_id
 SET DEFAULT 'xxx';
