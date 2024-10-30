@@ -622,49 +622,6 @@ pub mod routes {
         .await
     }
 
-    // #[cfg(feature = "v2")]
-    // /// # Panics
-    // ///
-    // /// Panics if `json_payload` array does not contain one `GetPaymentIntentMetricRequest` element.
-    // pub async fn get_profile_payment_intent_metrics(
-    //     state: web::Data<AppState>,
-    //     req: actix_web::HttpRequest,
-    //     json_payload: web::Json<[GetPaymentIntentMetricRequest; 1]>,
-    // ) -> impl Responder {
-    //     // safety: This shouldn't panic owing to the data type
-    //     #[allow(clippy::expect_used)]
-    //     let payload = json_payload
-    //         .into_inner()
-    //         .to_vec()
-    //         .pop()
-    //         .expect("Couldn't get GetPaymentIntentMetricRequest");
-    //     let flow = AnalyticsFlow::GetPaymentIntentMetrics;
-    //     Box::pin(api::server_wrap(
-    //         flow,
-    //         state,
-    //         &req,
-    //         payload,
-    //         |state, auth: AuthenticationData, req, _| async move {
-    //             let org_id = auth.merchant_account.get_org_id();
-    //             let merchant_id = auth.merchant_account.get_id();
-    //             let profile_id = auth.profile.get_id();
-    //             let auth: AuthInfo = AuthInfo::ProfileLevel {
-    //                 org_id: org_id.clone(),
-    //                 merchant_id: merchant_id.clone(),
-    //                 profile_ids: vec![profile_id.clone()],
-    //             };
-    //             analytics::payment_intents::get_metrics(&state.pool, &auth, req)
-    //                 .await
-    //                 .map(ApplicationResponse::Json)
-    //         },
-    //         &auth::JWTAuth {
-    //             permission: Permission::ProfileAnalyticsRead,
-    //         },
-    //         api_locking::LockAction::NotApplicable,
-    //     ))
-    //     .await
-    // }
-
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetRefundMetricRequest` element.
@@ -788,49 +745,6 @@ pub mod routes {
         ))
         .await
     }
-
-    // #[cfg(feature = "v2")]
-    // /// # Panics
-    // ///
-    // /// Panics if `json_payload` array does not contain one `GetRefundMetricRequest` element.
-    // pub async fn get_profile_refund_metrics(
-    //     state: web::Data<AppState>,
-    //     req: actix_web::HttpRequest,
-    //     json_payload: web::Json<[GetRefundMetricRequest; 1]>,
-    // ) -> impl Responder {
-    //     #[allow(clippy::expect_used)]
-    //     // safety: This shouldn't panic owing to the data type
-    //     let payload = json_payload
-    //         .into_inner()
-    //         .to_vec()
-    //         .pop()
-    //         .expect("Couldn't get GetRefundMetricRequest");
-    //     let flow = AnalyticsFlow::GetRefundsMetrics;
-    //     Box::pin(api::server_wrap(
-    //         flow,
-    //         state,
-    //         &req,
-    //         payload,
-    //         |state, auth: AuthenticationData, req, _| async move {
-    //             let org_id = auth.merchant_account.get_org_id();
-    //             let merchant_id = auth.merchant_account.get_id();
-    //             let profile_id = auth.profile.get_id();
-    //             let auth: AuthInfo = AuthInfo::ProfileLevel {
-    //                 org_id: org_id.clone(),
-    //                 merchant_id: merchant_id.clone(),
-    //                 profile_ids: vec![profile_id.clone()],
-    //             };
-    //             analytics::refunds::get_metrics(&state.pool, &auth, req)
-    //                 .await
-    //                 .map(ApplicationResponse::Json)
-    //         },
-    //         &auth::JWTAuth {
-    //             permission: Permission::ProfileAnalyticsRead,
-    //         },
-    //         api_locking::LockAction::NotApplicable,
-    //     ))
-    //     .await
-    // }
 
     /// # Panics
     ///
@@ -1076,39 +990,6 @@ pub mod routes {
         .await
     }
 
-    // #[cfg(feature = "v2")]
-    // pub async fn get_profile_payment_filters(
-    //     state: web::Data<AppState>,
-    //     req: actix_web::HttpRequest,
-    //     json_payload: web::Json<GetPaymentFiltersRequest>,
-    // ) -> impl Responder {
-    //     let flow = AnalyticsFlow::GetPaymentFilters;
-    //     Box::pin(api::server_wrap(
-    //         flow,
-    //         state,
-    //         &req,
-    //         json_payload.into_inner(),
-    //         |state, auth: AuthenticationData, req, _| async move {
-    //             let org_id = auth.merchant_account.get_org_id();
-    //             let merchant_id = auth.merchant_account.get_id();
-    //             let profile_id = auth.profile.get_id();
-    //             let auth: AuthInfo = AuthInfo::ProfileLevel {
-    //                 org_id: org_id.clone(),
-    //                 merchant_id: merchant_id.clone(),
-    //                 profile_ids: vec![profile_id.clone()],
-    //             };
-    //             analytics::payments::get_filters(&state.pool, req, &auth)
-    //                 .await
-    //                 .map(ApplicationResponse::Json)
-    //         },
-    //         &auth::JWTAuth {
-    //             permission: Permission::ProfileAnalyticsRead,
-    //         },
-    //         api_locking::LockAction::NotApplicable,
-    //     ))
-    //     .await
-    // }
-
     pub async fn get_payment_intents_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1230,38 +1111,6 @@ pub mod routes {
         ))
         .await
     }
-    // #[cfg(feature = "v2")]
-    // pub async fn get_profile_refund_filters(
-    //     state: web::Data<AppState>,
-    //     req: actix_web::HttpRequest,
-    //     json_payload: web::Json<GetRefundFilterRequest>,
-    // ) -> impl Responder {
-    //     let flow = AnalyticsFlow::GetRefundFilters;
-    //     Box::pin(api::server_wrap(
-    //         flow,
-    //         state,
-    //         &req,
-    //         json_payload.into_inner(),
-    //         |state, auth: AuthenticationData, req: GetRefundFilterRequest, _| async move {
-    //             let org_id = auth.merchant_account.get_org_id();
-    //             let merchant_id = auth.merchant_account.get_id();
-    //             let profile_id = auth.profile.get_id();
-    //             let auth: AuthInfo = AuthInfo::ProfileLevel {
-    //                 org_id: org_id.clone(),
-    //                 merchant_id: merchant_id.clone(),
-    //                 profile_ids: vec![profile_id.clone()],
-    //             };
-    //             analytics::refunds::get_filters(&state.pool, req, &auth)
-    //                 .await
-    //                 .map(ApplicationResponse::Json)
-    //         },
-    //         &auth::JWTAuth {
-    //             permission: Permission::ProfileAnalyticsRead,
-    //         },
-    //         api_locking::LockAction::NotApplicable,
-    //     ))
-    //     .await
-    // }
 
     pub async fn get_frm_filters(
         state: web::Data<AppState>,
@@ -2267,39 +2116,6 @@ pub mod routes {
         .await
     }
 
-    // #[cfg(feature = "v2")]
-    // pub async fn get_profile_dispute_filters(
-    //     state: web::Data<AppState>,
-    //     req: actix_web::HttpRequest,
-    //     json_payload: web::Json<api_models::analytics::GetDisputeFilterRequest>,
-    // ) -> impl Responder {
-    //     let flow = AnalyticsFlow::GetDisputeFilters;
-    //     Box::pin(api::server_wrap(
-    //         flow,
-    //         state,
-    //         &req,
-    //         json_payload.into_inner(),
-    //         |state, auth: AuthenticationData, req, _| async move {
-    //             let org_id = auth.merchant_account.get_org_id();
-    //             let merchant_id = auth.merchant_account.get_id();
-    //             let profile_id = auth.profile.get_id();
-    //             let auth: AuthInfo = AuthInfo::ProfileLevel {
-    //                 org_id: org_id.clone(),
-    //                 merchant_id: merchant_id.clone(),
-    //                 profile_ids: vec![profile_id.clone()],
-    //             };
-    //             analytics::disputes::get_filters(&state.pool, req, &auth)
-    //                 .await
-    //                 .map(ApplicationResponse::Json)
-    //         },
-    //         &auth::JWTAuth {
-    //             permission: Permission::ProfileAnalyticsRead,
-    //         },
-    //         api_locking::LockAction::NotApplicable,
-    //     ))
-    //     .await
-    // }
-
     pub async fn get_org_dispute_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2413,49 +2229,6 @@ pub mod routes {
         ))
         .await
     }
-
-    // #[cfg(feature = "v2")]
-    // /// # Panics
-    // ///
-    // /// Panics if `json_payload` array does not contain one `GetDisputeMetricRequest` element.
-    // pub async fn get_profile_dispute_metrics(
-    //     state: web::Data<AppState>,
-    //     req: actix_web::HttpRequest,
-    //     json_payload: web::Json<[GetDisputeMetricRequest; 1]>,
-    // ) -> impl Responder {
-    //     // safety: This shouldn't panic owing to the data type
-    //     #[allow(clippy::expect_used)]
-    //     let payload = json_payload
-    //         .into_inner()
-    //         .to_vec()
-    //         .pop()
-    //         .expect("Couldn't get GetDisputeMetricRequest");
-    //     let flow = AnalyticsFlow::GetDisputeMetrics;
-    //     Box::pin(api::server_wrap(
-    //         flow,
-    //         state,
-    //         &req,
-    //         payload,
-    //         |state, auth: AuthenticationData, req, _| async move {
-    //             let org_id = auth.merchant_account.get_org_id();
-    //             let merchant_id = auth.merchant_account.get_id();
-    //             let profile_id = auth.profile.get_id();
-    //             let auth: AuthInfo = AuthInfo::ProfileLevel {
-    //                 org_id: org_id.clone(),
-    //                 merchant_id: merchant_id.clone(),
-    //                 profile_ids: vec![profile_id.clone()],
-    //             };
-    //             analytics::disputes::get_metrics(&state.pool, &auth, req)
-    //                 .await
-    //                 .map(ApplicationResponse::Json)
-    //         },
-    //         &auth::JWTAuth {
-    //             permission: Permission::ProfileAnalyticsRead,
-    //         },
-    //         api_locking::LockAction::NotApplicable,
-    //     ))
-    //     .await
-    // }
 
     /// # Panics
     ///
@@ -2591,38 +2364,4 @@ pub mod routes {
         ))
         .await
     }
-
-    // #[cfg(feature = "v2")]
-    // pub async fn get_profile_sankey(
-    //     state: web::Data<AppState>,
-    //     req: actix_web::HttpRequest,
-    //     json_payload: web::Json<TimeRange>,
-    // ) -> impl Responder {
-    //     let flow = AnalyticsFlow::GetSankey;
-    //     let payload = json_payload.into_inner();
-    //     Box::pin(api::server_wrap(
-    //         flow,
-    //         state,
-    //         &req,
-    //         payload,
-    //         |state: crate::routes::SessionState, auth: AuthenticationData, req, _| async move {
-    //             let org_id = auth.merchant_account.get_org_id();
-    //             let merchant_id = auth.merchant_account.get_id();
-    //             let profile_id = auth.profile.get_id();
-    //             let auth: AuthInfo = AuthInfo::ProfileLevel {
-    //                 org_id: org_id.clone(),
-    //                 merchant_id: merchant_id.clone(),
-    //                 profile_ids: vec![profile_id.clone()],
-    //             };
-    //             analytics::payment_intents::get_sankey(&state.pool, &auth, req)
-    //                 .await
-    //                 .map(ApplicationResponse::Json)
-    //         },
-    //         &auth::JWTAuth {
-    //             permission: Permission::ProfileAnalyticsRead,
-    //         },
-    //         api_locking::LockAction::NotApplicable,
-    //     ))
-    //     .await
-    // }
 }
