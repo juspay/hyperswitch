@@ -680,8 +680,8 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsPostSessionTokensRouterData>>
         let payment_source = Some(PaymentSourceItem::Paypal(
             PaypalRedirectionRequest::PaypalRedirectionStruct(PaypalRedirectionStruct {
                 experience_context: ContextStruct {
-                    return_url: Some("https://google.com".to_string()),
-                    cancel_url: Some("https://google.com".to_string()),
+                    return_url: item.router_data.request.router_return_url.clone(),
+                    cancel_url: item.router_data.request.router_return_url.clone(),
                     shipping_preference: ShippingPreference::GetFromFile,
                     user_action: Some(UserAction::PayNow),
                 },
@@ -1693,11 +1693,11 @@ impl<F, T>
                 mandate_reference: Box::new(Some(MandateReference {
                     connector_mandate_id: match item.response.payment_source.clone() {
                         Some(paypal_source) => match paypal_source {
-                            PaymentSourceItemResponse::Paypal(paypal_source) => paypal_source
-                                .attributes
-                                .and_then(|attr| Some(attr.vault.id)),
+                            PaymentSourceItemResponse::Paypal(paypal_source) => {
+                                paypal_source.attributes.map(|attr| attr.vault.id)
+                            }
                             PaymentSourceItemResponse::Card(card) => {
-                                card.attributes.and_then(|attr| Some(attr.vault.id))
+                                card.attributes.map(|attr| attr.vault.id)
                             }
                         },
                         None => None,

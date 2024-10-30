@@ -1031,7 +1031,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             PaypalAuthResponse::PaypalThreeDsResponse(response) => {
                 event_builder.map(|i| i.set_response_body(&response));
                 router_env::logger::info!(connector_response=?response);
-                println!("$$here PaypalThreeDsResponse");
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
