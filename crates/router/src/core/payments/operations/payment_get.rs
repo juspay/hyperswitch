@@ -1,7 +1,7 @@
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
-    payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData, PaymentsStatusRequest},
+    payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData, PaymentsRetrieveRequest},
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
@@ -61,65 +61,65 @@ impl ValidateStatusForOperation for PaymentGet {
 }
 
 type BoxedConfirmOperation<'b, F> =
-    super::BoxedOperation<'b, F, PaymentsStatusRequest, PaymentStatusData<F>>;
+    super::BoxedOperation<'b, F, PaymentsRetrieveRequest, PaymentStatusData<F>>;
 
 // TODO: change the macro to include changes for v2
 // TODO: PaymentData in the macro should be an input
-impl<F: Send + Clone> Operation<F, PaymentsStatusRequest> for &PaymentGet {
+impl<F: Send + Clone> Operation<F, PaymentsRetrieveRequest> for &PaymentGet {
     type Data = PaymentStatusData<F>;
     fn to_validate_request(
         &self,
-    ) -> RouterResult<&(dyn ValidateRequest<F, PaymentsStatusRequest, Self::Data> + Send + Sync)>
+    ) -> RouterResult<&(dyn ValidateRequest<F, PaymentsRetrieveRequest, Self::Data> + Send + Sync)>
     {
         Ok(*self)
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, PaymentsStatusRequest> + Send + Sync)> {
+    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, PaymentsRetrieveRequest> + Send + Sync)> {
         Ok(*self)
     }
-    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, PaymentsStatusRequest, Self::Data>)> {
+    fn to_domain(&self) -> RouterResult<&(dyn Domain<F, PaymentsRetrieveRequest, Self::Data>)> {
         Ok(*self)
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, PaymentsStatusRequest> + Send + Sync)>
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, PaymentsRetrieveRequest> + Send + Sync)>
     {
         Ok(*self)
     }
 }
 #[automatically_derived]
-impl<F: Send + Clone> Operation<F, PaymentsStatusRequest> for PaymentGet {
+impl<F: Send + Clone> Operation<F, PaymentsRetrieveRequest> for PaymentGet {
     type Data = PaymentStatusData<F>;
     fn to_validate_request(
         &self,
-    ) -> RouterResult<&(dyn ValidateRequest<F, PaymentsStatusRequest, Self::Data> + Send + Sync)>
+    ) -> RouterResult<&(dyn ValidateRequest<F, PaymentsRetrieveRequest, Self::Data> + Send + Sync)>
     {
         Ok(self)
     }
     fn to_get_tracker(
         &self,
-    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, PaymentsStatusRequest> + Send + Sync)> {
+    ) -> RouterResult<&(dyn GetTracker<F, Self::Data, PaymentsRetrieveRequest> + Send + Sync)> {
         Ok(self)
     }
-    fn to_domain(&self) -> RouterResult<&dyn Domain<F, PaymentsStatusRequest, Self::Data>> {
+    fn to_domain(&self) -> RouterResult<&dyn Domain<F, PaymentsRetrieveRequest, Self::Data>> {
         Ok(self)
     }
     fn to_update_tracker(
         &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, PaymentsStatusRequest> + Send + Sync)>
+    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, PaymentsRetrieveRequest> + Send + Sync)>
     {
         Ok(self)
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsStatusRequest, PaymentStatusData<F>>
+impl<F: Send + Clone> ValidateRequest<F, PaymentsRetrieveRequest, PaymentStatusData<F>>
     for PaymentGet
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &PaymentsStatusRequest,
+        request: &PaymentsRetrieveRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, operations::ValidateResult)> {
         let validate_result = operations::ValidateResult {
@@ -133,19 +133,19 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsStatusRequest, PaymentStatusDat
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsStatusRequest> for PaymentGet {
+impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveRequest> for PaymentGet {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
-        request: &PaymentsStatusRequest,
+        request: &PaymentsRetrieveRequest,
         merchant_account: &domain::MerchantAccount,
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
-        operations::GetTrackerResponse<'a, F, PaymentsStatusRequest, PaymentStatusData<F>>,
+        operations::GetTrackerResponse<'a, F, PaymentsRetrieveRequest, PaymentStatusData<F>>,
     > {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -181,10 +181,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsStatusRequest>
             .await
             .transpose()?;
 
+        let should_sync_with_connector =
+            request.force_sync && payment_intent.status.should_force_sync_with_connector();
+
         let payment_data = PaymentStatusData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
+            should_sync_with_connector,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -197,7 +201,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsStatusRequest>
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsStatusRequest, PaymentStatusData<F>> for PaymentGet {
+impl<F: Clone + Send> Domain<F, PaymentsRetrieveRequest, PaymentStatusData<F>> for PaymentGet {
     async fn get_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -253,7 +257,7 @@ impl<F: Clone + Send> Domain<F, PaymentsStatusRequest, PaymentStatusData<F>> for
         mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
         match &payment_data.payment_attempt {
-            Some(payment_attempt) => {
+            Some(payment_attempt) if payment_data.should_sync_with_connector => {
                 let connector = payment_attempt
                     .connector
                     .as_ref()
@@ -279,13 +283,13 @@ impl<F: Clone + Send> Domain<F, PaymentsStatusRequest, PaymentStatusData<F>> for
 
                 Ok(ConnectorCallType::PreDetermined(connector_data))
             }
-            None => Ok(ConnectorCallType::Skip),
+            None | Some(_) => Ok(ConnectorCallType::Skip),
         }
     }
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentStatusData<F>, PaymentsStatusRequest> for PaymentGet {
+impl<F: Clone> UpdateTracker<F, PaymentStatusData<F>, PaymentsRetrieveRequest> for PaymentGet {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,

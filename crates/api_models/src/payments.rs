@@ -4479,7 +4479,7 @@ pub struct PaymentsConfirmIntentRequest {
 /// Request for Payment Status
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct PaymentsStatusRequest {
+pub struct PaymentsRetrieveRequest {
     /// A boolean used to indicate if the payment status should be fetched from the connector
     /// If this is set to true, the status will be fetched from the connector
     #[serde(default)]
@@ -5129,6 +5129,7 @@ pub struct PaymentsResponseForm {
     pub order_id: String,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsRetrieveRequest {
     /// The type of ID (ex: payment intent id, payment attempt id or connector txn id)

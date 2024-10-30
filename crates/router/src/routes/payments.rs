@@ -2083,7 +2083,7 @@ pub async fn payment_confirm_intent(
 pub async fn payment_status(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<api_models::payments::PaymentsStatusRequest>,
+    payload: web::Query<api_models::payments::PaymentsRetrieveRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
     use hyperswitch_domain_models::payments::PaymentStatusData;
