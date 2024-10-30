@@ -24,6 +24,7 @@ pub struct Merchant {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Instruction {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub settlement: Option<AutoSettlement>,
     pub method: PaymentMethod,
     pub payment_instrument: PaymentInstrument,

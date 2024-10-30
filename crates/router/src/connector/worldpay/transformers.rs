@@ -280,13 +280,19 @@ impl
         };
         Ok(Self {
             instruction: Instruction {
-                settlement: item
-                    .router_data
-                    .request
-                    .capture_method
-                    .map(|capture_method| AutoSettlement {
-                        auto: capture_method == enums::CaptureMethod::Automatic,
-                    }),
+                settlement: match (
+                    item.router_data.request.capture_method.unwrap_or_default(),
+                    item.amount,
+                ) {
+                    // Settlement field not allowed for zero amount
+                    (_, 0) => None,
+                    (enums::CaptureMethod::Automatic, _) => Some(AutoSettlement { auto: true }),
+                    (enums::CaptureMethod::Manual, _)
+                    | (enums::CaptureMethod::ManualMultiple, _) => {
+                        Some(AutoSettlement { auto: false })
+                    }
+                    _ => None,
+                },
                 method: PaymentMethod::try_from((
                     item.router_data.payment_method,
                     item.router_data.request.payment_method_type,
