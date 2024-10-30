@@ -57,7 +57,7 @@ impl HealthCheckClient {
             _ => None,
         };
 
-        // SAFETY : This is a safe cast as there exists a vaild
+        // SAFETY : This is a safe cast as there exists a valid
         // integer value for this variant
         #[allow(clippy::as_conversions)]
         let expected_status = ServingStatus::Serving as i32;
