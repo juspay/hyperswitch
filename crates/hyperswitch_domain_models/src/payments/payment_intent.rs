@@ -272,6 +272,7 @@ pub enum PaymentIntentUpdate {
     ConfirmIntent {
         status: storage_enums::IntentStatus,
         updated_by: String,
+        active_attempt_id: id_type::GlobalAttemptId,
     },
     ConfirmIntentPostUpdate {
         status: storage_enums::IntentStatus,
@@ -361,9 +362,14 @@ pub struct PaymentIntentUpdateInternal {
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
-            PaymentIntentUpdate::ConfirmIntent { status, updated_by } => Self {
+            PaymentIntentUpdate::ConfirmIntent {
+                status,
+                updated_by,
+                active_attempt_id,
+            } => Self {
                 status: Some(status),
                 updated_by,
+                active_attempt_id: Some(active_attempt_id),
                 ..Default::default()
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
@@ -580,9 +586,15 @@ use diesel_models::{
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
         match value {
-            PaymentIntentUpdate::ConfirmIntent { status, updated_by } => {
-                Self::ConfirmIntent { status, updated_by }
-            }
+            PaymentIntentUpdate::ConfirmIntent {
+                status,
+                updated_by,
+                active_attempt_id,
+            } => Self::ConfirmIntent {
+                status,
+                updated_by,
+                active_attempt_id,
+            },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => {
                 Self::ConfirmIntentPostUpdate { status, updated_by }
             }
@@ -1132,7 +1144,7 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced,
             setup_future_usage,
             client_secret,
-            active_attempt,
+            active_attempt_id,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -1180,7 +1192,7 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced,
             setup_future_usage: Some(setup_future_usage),
             client_secret,
-            active_attempt_id: active_attempt.map(|attempt| attempt.get_id()),
+            active_attempt_id,
             order_details: order_details
                 .map(|order_details| {
                     order_details
@@ -1307,9 +1319,7 @@ impl behaviour::Conversion for PaymentIntent {
                 last_synced: storage_model.last_synced,
                 setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
                 client_secret: storage_model.client_secret,
-                active_attempt: storage_model
-                    .active_attempt_id
-                    .map(RemoteStorageObject::ForeignID),
+                active_attempt_id: storage_model.active_attempt_id,
                 order_details: storage_model
                     .order_details
                     .map(|order_details| {
@@ -1389,7 +1399,7 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced: self.last_synced,
             setup_future_usage: Some(self.setup_future_usage),
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt.map(|attempt| attempt.get_id()),
+            active_attempt_id: self.active_attempt_id,
             order_details: self
                 .order_details
                 .map(|order_details| {

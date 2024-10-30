@@ -2195,6 +2195,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                         types::ResponseId::ConnectorTransactionId(id)
                         | types::ResponseId::EncodedData(id) => Some(id),
                     };
+                    let authentication_data = (*redirection_data)
+                        .as_ref()
+                        .map(Encode::encode_to_value)
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Could not parse the connector response")?
+                        .map(masking::Secret::new);
 
                     let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntentPostUpdate { status: intent_status, updated_by: storage_scheme.to_string() };
                     let updated_payment_intent = db
@@ -2210,7 +2217,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                         .attach_printable("Unable to update payment intent")?;
                     payment_data.payment_intent = updated_payment_intent;
 
-                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentResponse { status: attempt_status, connector_payment_id, updated_by: storage_scheme.to_string() };
+                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentResponse { status: attempt_status, connector_payment_id, updated_by: storage_scheme.to_string(), authentication_data };
                     let updated_payment_attempt = db
                         .update_payment_attempt(
                             key_manager_state,

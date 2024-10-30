@@ -837,7 +837,7 @@ where
     fn generate_response(
         payment_data: D,
         _customer: Option<domain::Customer>,
-        _base_url: &str,
+        base_url: &str,
         operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
@@ -871,6 +871,12 @@ where
             .clone()
             .map(api_models::payments::ErrorDetails::foreign_from);
 
+        let next_action = payment_attempt.authentication_data.as_ref().map(|_| {
+            api_models::payments::NextActionData::RedirectToUrl {
+                redirect_to_url: helpers::create_start_redirection_url(base_url, payment_intent),
+            }
+        });
+
         let response = Self {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -881,6 +887,7 @@ where
             payment_method_data: None,
             payment_method_type: payment_attempt.payment_method_type,
             payment_method_subtype: payment_attempt.payment_method_subtype,
+            next_action,
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             connector_reference_id: None,
             merchant_connector_id,

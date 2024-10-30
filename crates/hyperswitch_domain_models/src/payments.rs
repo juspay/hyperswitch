@@ -259,8 +259,8 @@ pub struct PaymentIntent {
     pub setup_future_usage: storage_enums::FutureUsage,
     /// The client secret that is generated for the payment. This is used to authenticate the payment from client facing apis.
     pub client_secret: common_utils::types::ClientSecret,
-    /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
-    pub active_attempt: Option<RemoteStorageObject<PaymentAttempt>>,
+    /// The active attempt id for the payment intent. This is the payment attempt that is currently active for the payment intent.
+    pub active_attempt_id: Option<id_type::GlobalAttemptId>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
@@ -409,7 +409,7 @@ impl PaymentIntent {
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
             client_secret,
-            active_attempt: None,
+            active_attempt_id: None,
             order_details,
             allowed_payment_method_types,
             connector_metadata,

@@ -4530,6 +4530,9 @@ pub struct PaymentsConfirmIntentResponse {
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
+    /// Additional information required for redirection
+    pub next_action: Option<NextActionData>,
+
     /// A unique identifier for a payment provided by the connector
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_transaction_id: Option<String>,
@@ -4548,6 +4551,20 @@ pub struct PaymentsConfirmIntentResponse {
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[cfg(feature = "v2")]
+pub struct PaymentStartRedirectionRequest {
+    /// Global Payment ID
+    pub id: id_type::GlobalPaymentId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[cfg(feature = "v2")]
+pub struct PaymentStartRedirectionParams {
+    /// The identifier for the Merchant Account.
+    pub merchant_id: id_type::MerchantId,
 }
 
 /// Fee information to be charged on the payment being collected

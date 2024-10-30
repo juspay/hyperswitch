@@ -31,7 +31,7 @@ pub struct PaymentIntent {
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub client_secret: common_utils::types::ClientSecret,
-    pub active_attempt_id: Option<String>,
+    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
@@ -248,7 +248,7 @@ pub struct PaymentIntentNew {
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub client_secret: common_utils::types::ClientSecret,
-    pub active_attempt_id: Option<String>,
+    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
@@ -357,6 +357,7 @@ pub enum PaymentIntentUpdate {
     ConfirmIntent {
         status: storage_enums::IntentStatus,
         updated_by: String,
+        active_attempt_id: common_utils::id_type::GlobalAttemptId,
     },
     /// Update the payment intent details on payment intent confirmation, after calling the connector
     ConfirmIntentPostUpdate {
@@ -518,7 +519,7 @@ pub struct PaymentIntentUpdateInternal {
     // pub setup_future_usage: Option<storage_enums::FutureUsage>,
     // pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
-    // pub active_attempt_id: Option<String>,
+    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
     // pub description: Option<String>,
     // pub statement_descriptor: Option<String>,
     // #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
@@ -592,7 +593,7 @@ impl PaymentIntentUpdate {
             // setup_future_usage,
             // metadata,
             modified_at: _,
-            // active_attempt_id,
+            active_attempt_id,
             // description,
             // statement_descriptor,
             // order_details,
@@ -618,7 +619,7 @@ impl PaymentIntentUpdate {
             // setup_future_usage: setup_future_usage.or(source.setup_future_usage),
             // metadata: metadata.or(source.metadata),
             modified_at: common_utils::date_time::now(),
-            // active_attempt_id: active_attempt_id.unwrap_or(source.active_attempt_id),
+            active_attempt_id: active_attempt_id.or(source.active_attempt_id),
             // description: description.or(source.description),
             // statement_descriptor: statement_descriptor.or(source.statement_descriptor),
             // order_details: order_details.or(source.order_details),
@@ -733,15 +734,21 @@ impl PaymentIntentUpdate {
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
-            PaymentIntentUpdate::ConfirmIntent { status, updated_by } => Self {
+            PaymentIntentUpdate::ConfirmIntent {
+                status,
+                updated_by,
+                active_attempt_id,
+            } => Self {
                 status: Some(status),
                 modified_at: common_utils::date_time::now(),
                 updated_by,
+                active_attempt_id: Some(active_attempt_id),
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
                 status: Some(status),
                 modified_at: common_utils::date_time::now(),
                 updated_by,
+                active_attempt_id: None,
             },
         }
     }
