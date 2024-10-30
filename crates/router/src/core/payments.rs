@@ -5216,21 +5216,15 @@ where
                                     }))
                                 },
                             )?;
-                            let mandate_reference_id =
-                                Some(payments_api::MandateReferenceId::ConnectorMandateId(
-                                    payments_api::ConnectorMandateReferenceId {
-                                        connector_mandate_id: Some(
-                                            mandate_reference_record.connector_mandate_id.clone(),
-                                        ),
-                                        payment_method_id: Some(
-                                            payment_method_info.get_id().clone(),
-                                        ),
-                                        update_history: None,
-                                        mandate_metadata: mandate_reference_record
-                                            .mandate_metadata
-                                            .clone(),
-                                    },
-                                ));
+                            let mandate_reference_id = Some(payments_api::MandateReferenceId::ConnectorMandateId(
+                                api_models::payments::ConnectorMandateReferenceId::new(
+                                    Some(mandate_reference_record.connector_mandate_id.clone()),  // connector_mandate_id
+                                    Some(payment_method_info.get_id().clone()),                  // payment_method_id
+                                    None,                                                        // update_history
+                                    mandate_reference_record.mandate_metadata.clone(),           // mandate_metadata
+                                    mandate_reference_record.connector_mandate_request_reference_id.clone(), // connector_mandate_request_reference_id
+                                )
+                            ));
                             payment_data.set_recurring_mandate_payment_data(
                                 hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
                                     payment_method_type: mandate_reference_record
@@ -5240,9 +5234,8 @@ where
                                     original_payment_authorized_currency: mandate_reference_record
                                         .original_payment_authorized_currency,
                                     mandate_metadata: mandate_reference_record
-                                        .mandate_metadata.clone(),
+                                        .mandate_metadata.clone()
                                 });
-
                             connector_choice = Some((connector_data, mandate_reference_id.clone()));
                             break;
                         }
