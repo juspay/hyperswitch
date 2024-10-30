@@ -263,10 +263,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListInvitableRolesAtEntityLevel
             | Flow::ListUpdatableRolesAtEntityLevel
             | Flow::GetRole
+            | Flow::GetRoleV2
             | Flow::GetRoleFromToken
+            | Flow::GetRoleFromTokenV2
             | Flow::UpdateUserRole
             | Flow::GetAuthorizationInfo
             | Flow::GetRolesInfo
+            | Flow::GetParentGroupInfo
             | Flow::AcceptInvitationsV2
             | Flow::AcceptInvitationsPreAuth
             | Flow::DeleteUserRole
