@@ -1,5 +1,10 @@
 use api_models::payments::AdditionalPaymentData;
-use common_utils::{ext_traits::ValueExt, id_type, pii::Email, types::StringMajorUnit};
+use common_utils::{
+    ext_traits::ValueExt,
+    id_type,
+    pii::Email,
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+};
 use error_stack::{self, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -7,21 +12,25 @@ use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::{
-        AddressDetailsData, FraudCheckCheckoutRequest, FraudCheckTransactionRequest, RouterData,
+        convert_amount, AddressDetailsData, FraudCheckCheckoutRequest,
+        FraudCheckTransactionRequest, RouterData,
     },
     core::{errors, fraud_check::types as core_types},
     types::{
-        self, api, api::Fulfillment, fraud_check as frm_types, storage::enums as storage_enums,
+        self,
+        api::{self, Fulfillment},
+        fraud_check as frm_types,
+        storage::enums as storage_enums,
         ResponseId, ResponseRouterData,
     },
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
-#[derive(Debug, Serialize)]
 pub struct RiskifiedRouterData<T> {
     pub amount: StringMajorUnit,
     pub router_data: T,
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl<T> From<(StringMajorUnit, T)> for RiskifiedRouterData<T> {
@@ -29,6 +38,7 @@ impl<T> From<(StringMajorUnit, T)> for RiskifiedRouterData<T> {
         Self {
             amount,
             router_data,
+            amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -183,7 +193,12 @@ impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
                     .get_order_details()?
                     .iter()
                     .map(|order_detail| LineItem {
-                        price: StringMajorUnit::new(order_detail.amount.to_string()),
+                        price: convert_amount(
+                            payment.amount_converter,
+                            MinorUnit::new(order_detail.amount),
+                            common_enums::Currency::USD,
+                        )
+                        .unwrap(),
                         quantity: i32::from(order_detail.quantity),
                         title: order_detail.product_name.clone(),
                         product_type: order_detail.product_type.clone(),
