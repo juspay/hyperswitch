@@ -9,7 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector}
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -27,7 +27,9 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundExecuteRouterData, RefundSyncRouterData, RefundsRouterData
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundExecuteRouterData,
+        RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -35,7 +37,8 @@ use hyperswitch_interfaces::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
         ConnectorValidation,
     },
-    configs::Connectors, errors,
+    configs::Connectors,
+    errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, PaymentsVoidType, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
@@ -90,7 +93,7 @@ where
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string().into(),
             ),
-            (headers::X_WP_API_VERSION.to_string(), "2024-06-01".into()),
+            (headers::WP_API_VERSION.to_string(), "2024-06-01".into()),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         headers.append(&mut api_key);

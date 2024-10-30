@@ -36,7 +36,7 @@ use router_env::{logger, metrics::add_attributes};
 use serde::Serializer;
 use serde_json::Value;
 
-use crate::types::RefreshTokenRouterData;
+use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -131,7 +131,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
     res: Response,
     connector: &'static str,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    crate::metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+    crate::metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE.add(
         &crate::metrics::CONTEXT,
         1,
         &add_attributes([("connector", connector)]),
@@ -151,7 +151,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: consts::NO_ERROR_CODE.to_string(),
-                message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
+                message: UNSUPPORTED_ERROR_MESSAGE.to_string(),
                 reason: Some(response_data),
                 attempt_status: None,
                 connector_transaction_id: None,

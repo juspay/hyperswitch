@@ -11,7 +11,3 @@ pub const ACCEPT_HEADER: &str = "text/html,application/json";
 
 /// User agent for request send from backend server
 pub const USER_AGENT: &str = "Hyperswitch-Backend-Server";
-
-/// Unsupported response type error message
-pub const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
-
