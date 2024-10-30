@@ -21,7 +21,15 @@ pub struct ConnectorMandateReferenceId {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub mandate_metadata: Option<serde_json::Value>,
+    pub connector_mandate_request_reference_id: Option<String>,
 }
+
+impl ConnectorMandateReferenceId {
+    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.connector_mandate_request_reference_id.clone()
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
@@ -414,6 +422,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -2158,6 +2167,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 customer_acceptance,
                 shipping_cost,
                 order_tax_amount,
+                connector_mandate_detail,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2209,7 +2219,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost,
                 order_tax_amount,
                 connector_transaction_data: None,
-                connector_mandate_detail: None,
+                connector_mandate_detail,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
