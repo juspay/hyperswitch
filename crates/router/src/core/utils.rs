@@ -1310,7 +1310,7 @@ pub fn get_connector_label(
                 format!("{connector_name}_{business_country}_{business_label}");
 
             // Business sub label is currently being used only for cybersource
-            // To ensure backwards compatibality, cybersource mca's created be this change
+            // To ensure backwards compatibality, cybersource mca's created before this change
             // will have the business_sub_label value as default.
             //
             // Even when creating the connector account, if no sub label is provided, default will be used

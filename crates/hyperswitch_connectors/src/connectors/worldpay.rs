@@ -9,7 +9,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector}
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -27,9 +27,7 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
-        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundExecuteRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundExecuteRouterData, RefundSyncRouterData, RefundsRouterData
     },
 };
 use hyperswitch_interfaces::{
@@ -37,8 +35,7 @@ use hyperswitch_interfaces::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
         ConnectorValidation,
     },
-    configs::Connectors,
-    consts, errors,
+    configs::Connectors, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, PaymentsVoidType, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
@@ -51,7 +48,7 @@ use response::{
     EventType, ResponseIdStr, WorldpayErrorResponse, WorldpayEventResponse,
     WorldpayPaymentsResponse, WorldpayWebhookEventType, WorldpayWebhookTransactionId,
 };
-use transformers as worldpay;
+use transformers::{self as worldpay, WP_CORRELATION_ID};
 
 use crate::{
     constants::headers,
@@ -263,7 +260,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
                 router_env::logger::info!(connector_response=?response);
                 let optional_correlation_id = res.headers.and_then(|headers| {
                     headers
-                        .get(consts::WP_CORRELATION_ID)
+                        .get(WP_CORRELATION_ID)
                         .and_then(|header_value| header_value.to_str().ok())
                         .map(|id| id.to_string())
                 });
@@ -390,7 +387,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
 
         let optional_correlation_id = res.headers.and_then(|headers| {
             headers
-                .get(consts::WP_CORRELATION_ID)
+                .get(WP_CORRELATION_ID)
                 .and_then(|header_value| header_value.to_str().ok())
                 .map(|id| id.to_string())
         });
@@ -502,7 +499,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 router_env::logger::info!(connector_response=?response);
                 let optional_correlation_id = res.headers.and_then(|headers| {
                     headers
-                        .get(consts::WP_CORRELATION_ID)
+                        .get(WP_CORRELATION_ID)
                         .and_then(|header_value| header_value.to_str().ok())
                         .map(|id| id.to_string())
                 });
@@ -627,7 +624,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         router_env::logger::info!(connector_response=?response);
         let optional_correlation_id = res.headers.and_then(|headers| {
             headers
-                .get(consts::WP_CORRELATION_ID)
+                .get(WP_CORRELATION_ID)
                 .and_then(|header_value| header_value.to_str().ok())
                 .map(|id| id.to_string())
         });
@@ -850,7 +847,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
                 router_env::logger::info!(connector_response=?response);
                 let optional_correlation_id = res.headers.and_then(|headers| {
                     headers
-                        .get(consts::WP_CORRELATION_ID)
+                        .get(WP_CORRELATION_ID)
                         .and_then(|header_value| header_value.to_str().ok())
                         .map(|id| id.to_string())
                 });

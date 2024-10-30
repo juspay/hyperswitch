@@ -47,6 +47,9 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, MinorUnit, T)> for Worldpa
     }
 }
 
+/// Worldpay's unique reference ID for a request TODO: Move to hyperswitch_connectors/constants once Worldpay is moved to connectors crate
+pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorldpayConnectorMetadataObject {
     pub merchant_name: Option<Secret<String>>,
