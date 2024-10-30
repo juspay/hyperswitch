@@ -1056,6 +1056,7 @@ pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
     fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_number_with_nullable_country_code(&self) -> Result<Secret<String>, Error>;
     fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error>;
     fn extract_country_code(&self) -> Result<String, Error>;
 }
@@ -1078,6 +1079,13 @@ impl PhoneDetailsData for PhoneDetails {
     fn get_number_with_country_code(&self) -> Result<Secret<String>, Error> {
         let number = self.get_number()?;
         let country_code = self.get_country_code()?;
+        Ok(Secret::new(format!("{}{}", country_code, number.peek())))
+    }
+    fn get_number_with_nullable_country_code(&self) -> Result<Secret<String>, Error> {
+        let number = self.get_number()?;
+        let country_code = self
+            .get_country_code()
+            .map_or(String::new(), |cc| cc.clone());
         Ok(Secret::new(format!("{}{}", country_code, number.peek())))
     }
     fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error> {

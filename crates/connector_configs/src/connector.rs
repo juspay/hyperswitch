@@ -239,6 +239,7 @@ pub struct ConnectorConfig {
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
     pub taxjar: Option<ConnectorTomlConfig>,
+    pub esnekpos: Option<ConnectorTomlConfig>,
 }
 
 impl ConnectorConfig {
@@ -344,6 +345,7 @@ impl ConnectorConfig {
             Connector::Deutschebank => Ok(connector_data.deutschebank),
             Connector::Dlocal => Ok(connector_data.dlocal),
             Connector::Ebanx => Ok(connector_data.ebanx_payout),
+            Connector::Esnekpos => Ok(connector_data.esnekpos),
             Connector::Fiserv => Ok(connector_data.fiserv),
             Connector::Fiservemea => Ok(connector_data.fiservemea),
             Connector::Fiuu => Ok(connector_data.fiuu),

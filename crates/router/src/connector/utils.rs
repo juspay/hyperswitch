@@ -128,6 +128,7 @@ pub trait RouterData {
     fn get_optional_billing_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line1(&self) -> Option<Secret<String>>;
     fn get_optional_billing_line2(&self) -> Option<Secret<String>>;
+    fn get_optional_line1_and_line2(&self) -> Option<Secret<String>>;
     fn get_optional_billing_city(&self) -> Option<String>;
     fn get_optional_billing_country(&self) -> Option<enums::CountryAlpha2>;
     fn get_optional_billing_zip(&self) -> Option<Secret<String>>;
@@ -436,6 +437,30 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
                     .clone()
                     .address
                     .and_then(|billing_details| billing_details.line2)
+            })
+    }
+
+    fn get_optional_line1_and_line2(&self) -> Option<Secret<String>> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address.clone().address.and_then(|billing_details| {
+                    let line1 = billing_details.line1.clone();
+                    let line2 = billing_details.line2.clone();
+
+                    match (line1, line2) {
+                        (Some(line1), Some(line2)) => {
+                            let line1val = line1.expose();
+                            let line2val = line2.expose();
+
+                            let addstr = format!("{}, {}", line1val, line2val);
+                            Some(Secret::new(addstr))
+                        }
+                        (Some(line1), None) => Some(line1),
+                        (None, Some(line2)) => Some(line2),
+                        (None, None) => None,
+                    }
+                })
             })
     }
 
@@ -1758,6 +1783,7 @@ pub trait PhoneDetailsData {
     fn get_number(&self) -> Result<Secret<String>, Error>;
     fn get_country_code(&self) -> Result<String, Error>;
     fn get_number_with_country_code(&self) -> Result<Secret<String>, Error>;
+    fn get_number_with_nullable_country_code(&self) -> Result<Secret<String>, Error>;
     fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error>;
     fn extract_country_code(&self) -> Result<String, Error>;
 }
@@ -1780,6 +1806,13 @@ impl PhoneDetailsData for api::PhoneDetails {
     fn get_number_with_country_code(&self) -> Result<Secret<String>, Error> {
         let number = self.get_number()?;
         let country_code = self.get_country_code()?;
+        Ok(Secret::new(format!("{}{}", country_code, number.peek())))
+    }
+    fn get_number_with_nullable_country_code(&self) -> Result<Secret<String>, Error> {
+        let number = self.get_number()?;
+        let country_code = self
+            .get_country_code()
+            .map_or(String::new(), |cc| cc.clone());
         Ok(Secret::new(format!("{}{}", country_code, number.peek())))
     }
     fn get_number_with_hash_country_code(&self) -> Result<Secret<String>, Error> {

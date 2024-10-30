@@ -1348,6 +1348,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 ebanx::transformers::EbanxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Esnekpos => {
+                esnekpos::transformers::EsnekposAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Fiserv => {
                 fiserv::transformers::FiservAuthType::try_from(self.auth_type)?;
                 fiserv::transformers::FiservSessionObject::try_from(self.connector_meta_data)?;

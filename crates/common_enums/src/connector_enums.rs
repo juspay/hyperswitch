@@ -70,6 +70,7 @@ pub enum RoutableConnectors {
     // Digitalvirgo, template code for future usage
     Dlocal,
     Ebanx,
+    Esnekpos,
     Fiserv,
     Fiservemea,
     Fiuu,

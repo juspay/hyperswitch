@@ -2960,6 +2960,21 @@ api_key="API Key"
 [shift4.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[esnekpos]
+[[esnekpos.credit]]
+  payment_method_type = "Mastercard"
+[[esnekpos.credit]]
+  payment_method_type = "Visa"
+[[esnekpos.debit]]
+  payment_method_type = "Mastercard"
+[[esnekpos.debit]]
+  payment_method_type = "Visa"
+[esnekpos.connector_auth.BodyKey]
+api_key="Merchant Key"
+key1="Merchant"
+[esnekpos.connector_webhook_details]
+merchant_secret="Source verification key"
+
 [stripe]
 [[stripe.credit]]
   payment_method_type = "Mastercard"
