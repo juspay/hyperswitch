@@ -1,7 +1,7 @@
 mod payments;
 use std::num::{ParseFloatError, TryFromIntError};
 
-pub use payments::*;
+pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
