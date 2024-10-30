@@ -384,7 +384,7 @@ pub struct ShippingName {
 pub struct CardRequestStruct {
     billing_address: Option<Address>,
     expiry: Option<Secret<String>>,
-    name: Secret<String>,
+    name: Option<Secret<String>>,
     number: Option<cards::CardNumber>,
     security_code: Option<Secret<String>>,
     attributes: Option<CardRequestAttributes>,
@@ -790,10 +790,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     CardRequestStruct {
                         billing_address: get_address_info(item.router_data.get_optional_billing()),
                         expiry,
-                        name: item
-                            .router_data
-                            .get_optional_billing_full_name()
-                            .unwrap_or(Secret::new("".to_string())),
+                        name: item.router_data.get_optional_billing_full_name(),
                         number: Some(ccard.card_number.clone()),
                         security_code: Some(ccard.card_cvc.clone()),
                         attributes: Some(CardRequestAttributes {
