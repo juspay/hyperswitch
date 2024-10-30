@@ -1927,7 +1927,7 @@ pub async fn terminate_two_factor_auth(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if !skip_two_factor_auth {
+    if !skip_two_factor_auth || state.conf.user.force_two_factor_auth {
         if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?
             && !tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?
         {
@@ -1997,9 +1997,12 @@ pub async fn check_two_factor_auth_status_with_attempts(
         .await
         .change_context(UserErrors::InternalServerError)?
         .into();
+
+    let is_skippable = state.conf.user.force_two_factor_auth.not();
     if user_from_db.get_totp_status() == TotpStatus::NotSet {
         return Ok(ApplicationResponse::Json(user_api::TwoFactorStatus {
             status: None,
+            is_skippable,
         }));
     };
 
@@ -2018,6 +2021,7 @@ pub async fn check_two_factor_auth_status_with_attempts(
             totp,
             recovery_code,
         }),
+        is_skippable,
     }))
 }
 

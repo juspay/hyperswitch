@@ -395,6 +395,7 @@ password_validity_in_days = 90       # Number of days after which password shoul
 two_factor_auth_expiry_in_secs = 300 # Number of seconds after which 2FA should be done again if doing update/change from inside
 totp_issuer_name = "Hyperswitch"     # Name of the issuer for TOTP
 base_url = ""                        # Base url used for user specific redirects and emails
+force_two_factor_auth = false        # Whether to force two factor authentication for all users
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
