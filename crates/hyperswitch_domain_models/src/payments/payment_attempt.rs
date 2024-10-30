@@ -1277,7 +1277,6 @@ impl PaymentAttemptUpdate {
     }
 }
 
-// TODO: Add fields as necessary
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentAttemptUpdate {
@@ -1294,11 +1293,17 @@ pub enum PaymentAttemptUpdate {
         connector_payment_id: Option<String>,
         updated_by: String,
     },
+    /// Update the payment attempt after force syncing with the connector
+    SyncUpdate {
+        status: storage_enums::AttemptStatus,
+        updated_by: String,
+    },
     /// Update the payment attempt on confirming the intent, after calling the connector on error response
-    ConfirmIntentError {
+    ErrorUpdate {
         status: storage_enums::AttemptStatus,
         error: ErrorDetails,
         updated_by: String,
+        connector_payment_id: Option<String>,
     },
 }
 
@@ -1921,9 +1926,10 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_payment_id: None,
                 connector: Some(connector),
             },
-            PaymentAttemptUpdate::ConfirmIntentError {
+            PaymentAttemptUpdate::ErrorUpdate {
                 status,
                 error,
+                connector_payment_id,
                 updated_by,
             } => Self {
                 status: Some(status),
@@ -1936,7 +1942,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 merchant_connector_id: None,
                 unified_code: None,
                 unified_message: None,
-                connector_payment_id: None,
+                connector_payment_id,
                 connector: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse {
@@ -1955,6 +1961,20 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_code: None,
                 unified_message: None,
                 connector_payment_id,
+                connector: None,
+            },
+            PaymentAttemptUpdate::SyncUpdate { status, updated_by } => Self {
+                status: Some(status),
+                error_message: None,
+                error_code: None,
+                modified_at: common_utils::date_time::now(),
+                browser_info: None,
+                error_reason: None,
+                updated_by,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
                 connector: None,
             },
         }

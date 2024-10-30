@@ -2293,7 +2293,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                         unified_message: None,
                     };
 
-                let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentError { status: attempt_status, error: error_details,updated_by: storage_scheme.to_string() };
+                let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate { status: attempt_status, error: error_details, connector_payment_id: connector_transaction_id, updated_by: storage_scheme.to_string() };
                 let updated_payment_attempt = db
                     .update_payment_attempt(
                         key_manager_state,
@@ -2379,7 +2379,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
                         | types::ResponseId::EncodedData(id) => Some(id),
                     };
 
-                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntentPostUpdate { status: intent_status, updated_by: storage_scheme.to_string() };
+                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::SyncUpdate { status: intent_status, updated_by: storage_scheme.to_string() };
                     let updated_payment_intent = db
                         .update_payment_intent(
                             key_manager_state,
@@ -2393,7 +2393,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
                         .attach_printable("Unable to update payment intent")?;
                     payment_data.payment_intent = updated_payment_intent;
 
-                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentResponse { status: attempt_status, connector_payment_id, updated_by: storage_scheme.to_string() };
+                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::SyncUpdate { status: attempt_status, updated_by: storage_scheme.to_string() };
                     let updated_payment_attempt = db
                         .update_payment_attempt(
                             key_manager_state,
@@ -2476,7 +2476,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
                         unified_message: None,
                     };
 
-                let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentError { status: attempt_status, error: error_details,updated_by: storage_scheme.to_string() };
+                let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate { status: attempt_status, error: error_details, connector_payment_id: connector_transaction_id, updated_by: storage_scheme.to_string() };
                 let updated_payment_attempt = db
                     .update_payment_attempt(
                         key_manager_state,

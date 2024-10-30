@@ -278,6 +278,10 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
     },
+    SyncUpdate {
+        status: storage_enums::IntentStatus,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -378,6 +382,12 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 updated_by,
             },
+            PaymentIntentUpdate::SyncUpdate { status, updated_by } => Self {
+                status: Some(status),
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                updated_by,
+            },
         }
     }
 }
@@ -398,6 +408,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 ..Default::default()
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
+                status: Some(status),
+                updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::SyncUpdate { status, updated_by } => Self {
                 status: Some(status),
                 updated_by,
                 ..Default::default()
