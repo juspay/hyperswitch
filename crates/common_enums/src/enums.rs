@@ -2884,10 +2884,15 @@ pub enum PermissionGroup {
     AnalyticsView,
     UsersView,
     UsersManage,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     MerchantDetailsView,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     MerchantDetailsManage,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     OrganizationManage,
     ReconOps,
+    AccountView,
+    AccountManage,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -2897,14 +2902,12 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    #[serde(rename = "MerchantAccess")]
-    Merchant,
-    #[serde(rename = "OrganizationAccess")]
-    Organization,
     Recon,
+    Account,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Resource {
     Payment,
     Refund,
@@ -2925,10 +2928,11 @@ pub enum Resource {
     Recon,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
+#[serde(rename_all = "snake_case")]
 pub enum PermissionScope {
-    Read,
-    Write,
+    Read = 0,
+    Write = 1,
 }
 
 /// Name of banks supported by Hyperswitch
