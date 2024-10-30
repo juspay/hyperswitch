@@ -5165,6 +5165,12 @@ where
 
     let mut connector_choice = None;
 
+    router_env::logger::info!(
+        "[DEBUGG]\nconnectors: {:?}\npayment_method_info: {:?}\n",
+        connector_mandate_details.clone(),
+        payment_method_info.clone()
+    );
+
     for connector_data in connectors {
         let merchant_connector_id = connector_data
             .merchant_connector_id

@@ -16,6 +16,7 @@ use self::{requests::*, response::*};
 use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
+    connector::utils::PaymentMethodDataType,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -28,7 +29,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
         ErrorResponse, Response,
     },
     utils::BytesExt,
@@ -143,6 +144,28 @@ impl ConnectorValidation for Worldpay {
             ),
         }
     }
+
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<enums::PaymentMethodType>,
+        pm_data: types::domain::payments::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
+
+        let res = connector_utils::is_mandate_supported(
+            pm_data.clone(),
+            pm_type.clone(),
+            mandate_supported_pmd,
+            self.id(),
+        );
+        router_env::logger::info!(
+            "[DEBUGG] pm_data: {:?}\npm_type: {:?}\nres: {:?}",
+            pm_data,
+            pm_type,
+            res
+        );
+        res
+    }
 }
 
 impl api::Payment for Worldpay {}
@@ -155,19 +178,120 @@ impl
         types::PaymentsResponseData,
     > for Worldpay
 {
+    fn get_headers(
+        &self,
+        req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}api/payments", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let authorize_req = types::PaymentsAuthorizeRouterData::foreign_from((
+            req,
+            types::PaymentsAuthorizeData::foreign_from(req),
+        ));
+
+        let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let connector_router_data = worldpay::WorldpayRouterData::try_from((
+            &self.get_currency_unit(),
+            authorize_req.request.currency.clone(),
+            authorize_req.request.minor_amount.clone(),
+            &authorize_req,
+        ))?;
+        let connector_req =
+            WorldpayPaymentsRequest::try_from((&connector_router_data, &auth.entity_id))?;
+
+        router_env::logger::info!(
+            "[DEBUGG] connector_req: {:?}\n authorize_req: {:?}\n req: {:?}",
+            connector_req.clone(),
+            authorize_req,
+            req,
+        );
+
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
+        req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Worldpay".to_string())
-                .into(),
-        )
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(types::SetupMandateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
+        let response: WorldpayPaymentsResponse = res
+            .response
+            .parse_struct("Worldpay PaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        let optional_correlation_id = res.headers.and_then(|headers| {
+            headers
+                .get(consts::WP_CORRELATION_ID)
+                .and_then(|header_value| header_value.to_str().ok())
+                .map(|id| id.to_string())
+        });
+
+        types::RouterData::foreign_try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            optional_correlation_id,
+        ))
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -585,6 +709,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let connector_req =
             WorldpayPaymentsRequest::try_from((&connector_router_data, &auth.entity_id))?;
+        router_env::logger::info!(
+            "[DEBUGG] connector_req: {:?}\n authorize_req: {:?}",
+            connector_req.clone(),
+            req
+        );
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -630,7 +759,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .map(|id| id.to_string())
         });
 
-        types::RouterData::foreign_try_from((
+        let res = types::RouterData::foreign_try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
@@ -638,7 +767,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             },
             optional_correlation_id,
         ))
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        router_env::logger::info!("[DEBUGG] res: {:?}", res.clone());
+
+        Ok(res)
     }
 
     fn get_error_response(

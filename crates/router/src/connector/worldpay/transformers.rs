@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
-use api_models::payments::Address;
+use api_models::payments::{Address, MandateIds, MandateReferenceId};
 use base64::Engine;
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, pii, types::MinorUnit};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use hyperswitch_connectors::utils::{PaymentsAuthorizeRequestData, RouterData};
+use hyperswitch_domain_models::router_response_types::MandateReference;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -68,6 +69,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject
 fn fetch_payment_instrument(
     payment_method: domain::PaymentMethodData,
     billing_address: Option<&Address>,
+    mandate_ids: Option<MandateIds>,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         domain::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
@@ -102,6 +104,29 @@ fn fetch_payment_instrument(
                 None
             },
         })),
+        domain::PaymentMethodData::MandatePayment => mandate_ids
+            .and_then(|mandate_ids| {
+                mandate_ids
+                    .mandate_reference_id
+                    .and_then(|mandate_id| match mandate_id {
+                        MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
+                            connector_mandate_id.connector_mandate_id.map(|href| {
+                                PaymentInstrument::CardToken(CardToken {
+                                    payment_type: PaymentType::Token,
+                                    href,
+                                    cvc: None,
+                                })
+                            })
+                        }
+                        _ => None,
+                    })
+            })
+            .ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                }
+                .into(),
+            ),
         domain::PaymentMethodData::Wallet(wallet) => match wallet {
             domain::WalletData::GooglePay(data) => {
                 Ok(PaymentInstrument::Googlepay(WalletPayment {
@@ -150,7 +175,6 @@ fn fetch_payment_instrument(
         | domain::PaymentMethodData::BankDebit(_)
         | domain::PaymentMethodData::BankTransfer(_)
         | domain::PaymentMethodData::Crypto(_)
-        | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::Reward
         | domain::PaymentMethodData::RealTimePayment(_)
         | domain::PaymentMethodData::Upi(_)
@@ -273,20 +297,56 @@ impl
                     },
                     challenge: ThreeDSRequestChallenge {
                         return_url: item.router_data.request.get_complete_authorize_url()?,
+                        preference: if item.router_data.request.is_mandate_payment() {
+                            Some(ThreeDsPreference::ChallengeMandated)
+                        } else {
+                            None
+                        },
                     },
                 })
             }
             _ => None,
         };
+        let (token_creation, customer_agreement) = match (
+            item.router_data.request.setup_future_usage.clone(),
+            item.router_data.request.off_session.clone(),
+        ) {
+            // CIT
+            (Some(enums::FutureUsage::OffSession), _) => (
+                Some(TokenCreation {
+                    token_type: TokenCreationType::Worldpay,
+                }),
+                Some(CustomerAgreement {
+                    agreement_type: CustomerAgreementType::Subscription,
+                    stored_card_usage: StoredCardUsageType::First,
+                }),
+            ),
+            // MIT
+            (_, Some(true)) => (
+                None,
+                Some(CustomerAgreement {
+                    agreement_type: CustomerAgreementType::Subscription,
+                    stored_card_usage: StoredCardUsageType::Subsequent,
+                }),
+            ),
+            _ => (None, None),
+        };
+        router_env::logger::debug!("[DEBUGGG]\nreq: {:?}", item.router_data.request);
         Ok(Self {
             instruction: Instruction {
-                settlement: item
-                    .router_data
-                    .request
-                    .capture_method
-                    .map(|capture_method| AutoSettlement {
-                        auto: capture_method == enums::CaptureMethod::Automatic,
-                    }),
+                settlement: match (
+                    item.router_data.request.capture_method.unwrap_or_default(),
+                    item.amount,
+                ) {
+                    // Settlement not allowed for zero amount
+                    (_, 0) => None,
+                    (enums::CaptureMethod::Automatic, _) => Some(AutoSettlement { auto: true }),
+                    (enums::CaptureMethod::Manual, _)
+                    | (enums::CaptureMethod::ManualMultiple, _) => {
+                        Some(AutoSettlement { auto: false })
+                    }
+                    _ => None,
+                },
                 method: PaymentMethod::try_from((
                     item.router_data.payment_method,
                     item.router_data.request.payment_method_type,
@@ -294,6 +354,7 @@ impl
                 payment_instrument: fetch_payment_instrument(
                     item.router_data.request.payment_method_data.clone(),
                     item.router_data.get_optional_billing(),
+                    item.router_data.request.mandate_id.clone(),
                 )?,
                 narrative: InstructionNarrative {
                     line1: merchant_name.expose(),
@@ -304,6 +365,8 @@ impl
                 },
                 debt_repayment: None,
                 three_ds,
+                token_creation,
+                customer_agreement,
             },
             merchant: Merchant {
                 entity: entity_id.clone(),
@@ -354,7 +417,7 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
     fn from(item: PaymentOutcome) -> Self {
         match item {
             PaymentOutcome::Authorized => Self::Authorized,
-            PaymentOutcome::SentForSettlement => Self::CaptureInitiated,
+            PaymentOutcome::SentForSettlement => Self::Charged,
             PaymentOutcome::ThreeDsDeviceDataRequired => Self::DeviceDataCollectionPending,
             PaymentOutcome::ThreeDsAuthenticationFailed => Self::AuthenticationFailed,
             PaymentOutcome::ThreeDsChallenged => Self::AuthenticationPending,
@@ -372,7 +435,7 @@ impl From<&EventType> for enums::AttemptStatus {
     fn from(value: &EventType) -> Self {
         match value {
             EventType::SentForAuthorization => Self::Authorizing,
-            EventType::SentForSettlement => Self::CaptureInitiated,
+            EventType::SentForSettlement => Self::Authorized,
             EventType::Settled => Self::Charged,
             EventType::Authorized => Self::Authorized,
             EventType::Refused | EventType::SettlementFailed => Self::Failure,
@@ -420,14 +483,21 @@ impl<F, T>
         ),
     ) -> Result<Self, Self::Error> {
         let (router_data, optional_correlation_id) = item;
-        let (description, redirection_data, error) = router_data
+        let (description, redirection_data, mandate_reference, error) = router_data
             .response
             .other_fields
             .as_ref()
             .map(|other_fields| match other_fields {
-                WorldpayPaymentResponseFields::AuthorizedResponse(res) => {
-                    (res.description.clone(), None, None)
-                }
+                WorldpayPaymentResponseFields::AuthorizedResponse(res) => (
+                    res.description.clone(),
+                    None,
+                    res.token.as_ref().map(|mandate_token| MandateReference {
+                        connector_mandate_id: Some(mandate_token.href.clone().expose()),
+                        payment_method_id: Some(mandate_token.token_id.clone()),
+                        mandate_metadata: None,
+                    }),
+                    None,
+                ),
                 WorldpayPaymentResponseFields::DDCResponse(res) => (
                     None,
                     Some(services::RedirectForm::WorldpayDDCForm {
@@ -446,6 +516,7 @@ impl<F, T>
                         ]),
                     }),
                     None,
+                    None,
                 ),
                 WorldpayPaymentResponseFields::ThreeDsChallenged(res) => (
                     None,
@@ -458,15 +529,17 @@ impl<F, T>
                         )]),
                     }),
                     None,
+                    None,
                 ),
                 WorldpayPaymentResponseFields::RefusedResponse(res) => (
                     None,
                     None,
+                    None,
                     Some((res.refusal_code.clone(), res.refusal_description.clone())),
                 ),
-                WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None),
+                WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None, None),
             })
-            .unwrap_or((None, None, None));
+            .unwrap_or((None, None, None, None));
         let worldpay_status = router_data.response.outcome.clone();
         let optional_error_message = match worldpay_status {
             PaymentOutcome::ThreeDsAuthenticationFailed => {
@@ -486,7 +559,7 @@ impl<F, T>
                     optional_correlation_id.clone(),
                 ))?,
                 redirection_data: Box::new(redirection_data),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: optional_correlation_id.clone(),

@@ -40,6 +40,16 @@ pub struct AuthorizedResponse {
     pub description: Option<String>,
     pub risk_factors: Option<Vec<RiskFactorsInner>>,
     pub fraud: Option<Fraud>,
+    /// Mandate's token
+    pub token: Option<MandateToken>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateToken {
+    pub href: Secret<String>,
+    pub token_id: String,
+    pub token_expiry_date_time: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
