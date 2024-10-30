@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use common_enums::{EntityType, PermissionGroup, RoleScope};
+use common_enums::{EntityType, PermissionGroup, Resource, RoleScope};
 use common_utils::{errors::CustomResult, id_type};
 
-use super::{permission_groups::get_permissions_vec, permissions::Permission};
+use super::{permission_groups::PermissionGroupExt, permissions::Permission};
 use crate::{core::errors, routes::SessionState};
 
 pub mod predefined_roles;
@@ -30,8 +30,13 @@ impl RoleInfo {
         &self.role_name
     }
 
-    pub fn get_permission_groups(&self) -> &Vec<PermissionGroup> {
-        &self.groups
+    pub fn get_permission_groups(&self) -> Vec<PermissionGroup> {
+        self.groups
+            .iter()
+            .flat_map(|group| group.accessible_groups())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect()
     }
 
     pub fn get_scope(&self) -> RoleScope {
@@ -58,17 +63,19 @@ impl RoleInfo {
         self.is_updatable
     }
 
-    pub fn get_permissions_set(&self) -> HashSet<Permission> {
-        self.groups
+    pub fn get_resources_set(&self) -> HashSet<Resource> {
+        self.get_permission_groups()
             .iter()
-            .flat_map(|group| get_permissions_vec(group).iter().copied())
+            .flat_map(|group| group.resources())
             .collect()
     }
 
     pub fn check_permission_exists(&self, required_permission: &Permission) -> bool {
-        self.groups
-            .iter()
-            .any(|group| get_permissions_vec(group).contains(required_permission))
+        required_permission.entity_type() <= self.entity_type
+            && self.get_permission_groups().iter().any(|group| {
+                required_permission.scope() <= group.scope()
+                    && group.resources().contains(&required_permission.resource())
+            })
     }
 
     pub async fn from_role_id_in_merchant_scope(

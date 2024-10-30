@@ -157,10 +157,9 @@ where
 
             let (connector_mandate_id, mandate_metadata) = match responses {
                 types::PaymentsResponseData::TransactionResponse {
-                    ref mandate_reference,
-                    ..
+                    mandate_reference, ..
                 } => {
-                    if let Some(mandate_ref) = mandate_reference {
+                    if let Some(ref mandate_ref) = *mandate_reference {
                         (
                             mandate_ref.connector_mandate_id.clone(),
                             mandate_ref.mandate_metadata.clone(),
@@ -180,6 +179,7 @@ where
                         payment_method_type,
                         &customer_id.clone(),
                         billing_name,
+                        payment_method_billing_address,
                     )
                     .await?;
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;

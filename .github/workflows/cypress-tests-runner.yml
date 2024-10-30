@@ -159,7 +159,7 @@ jobs:
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 4
+        run: cargo build --package router --bin router --jobs 3
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}

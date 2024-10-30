@@ -1620,7 +1620,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             phone: Box::new(encryptable_customer.phone),
                             phone_country_code: request_customer_details.phone_country_code,
                             description: None,
-                            connector_customer: None,
+                            connector_customer: Box::new(None),
                             metadata: None,
                             address_id: None,
                         };
@@ -3581,7 +3581,7 @@ pub async fn insert_merchant_connector_creds_to_config(
 
 #[derive(Clone)]
 pub enum MerchantConnectorAccountType {
-    DbVal(domain::MerchantConnectorAccount),
+    DbVal(Box<domain::MerchantConnectorAccount>),
     CacheVal(api_models::admin::MerchantConnectorDetails),
 }
 
@@ -3795,7 +3795,7 @@ pub async fn get_merchant_connector_account(
                         todo!()
                     }
                 };
-            mca.map(MerchantConnectorAccountType::DbVal)
+            mca.map(Box::new).map(MerchantConnectorAccountType::DbVal)
         }
     }
 }
@@ -5445,13 +5445,13 @@ pub async fn get_unified_translation(
 }
 pub fn validate_order_details_amount(
     order_details: Vec<api_models::payments::OrderDetailsWithAmount>,
-    amount: i64,
+    amount: MinorUnit,
     should_validate: bool,
 ) -> Result<(), errors::ApiErrorResponse> {
     if should_validate {
-        let total_order_details_amount: i64 = order_details
+        let total_order_details_amount: MinorUnit = order_details
             .iter()
-            .map(|order| order.amount * i64::from(order.quantity))
+            .map(|order| order.amount * order.quantity)
             .sum();
 
         if total_order_details_amount != amount {

@@ -3071,9 +3071,9 @@ where
                 let should_continue = matches!(
                     router_data.response,
                     Ok(router_types::PaymentsResponseData::TransactionResponse {
-                        redirection_data: None,
+                        ref redirection_data,
                         ..
-                    })
+                    }) if redirection_data.is_none()
                 ) && router_data.status
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)
@@ -4051,6 +4051,7 @@ pub async fn apply_filters_on_payments(
                     constraints.payment_method_type,
                     constraints.authentication_type,
                     constraints.merchant_connector_id,
+                    constraints.card_network,
                     merchant.storage_scheme,
                 )
                 .await
@@ -5519,7 +5520,10 @@ where
             let routing_choice = choice
                 .first()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-            if connector_data.connector.connector_name == routing_choice.connector.connector_name {
+            if connector_data.connector.connector_name == routing_choice.connector.connector_name
+                && connector_data.connector.merchant_connector_id
+                    == routing_choice.connector.merchant_connector_id
+            {
                 final_list.push(connector_data);
             }
         }
@@ -5578,6 +5582,19 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
+
+    // dynamic success based connector selection
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    let connectors = {
+        if business_profile.dynamic_routing_algorithm.is_some() {
+            routing::perform_success_based_routing(state, connectors.clone(), business_profile)
+                .await
+                .map_err(|e| logger::error!(success_rate_routing_error=?e))
+                .unwrap_or(connectors)
+        } else {
+            connectors
+        }
+    };
 
     let connector_data = connectors
         .into_iter()
