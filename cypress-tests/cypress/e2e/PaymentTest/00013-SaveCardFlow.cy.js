@@ -46,8 +46,13 @@ describe("Card - SaveCard payment flow test", () => {
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        if (should_continue) {
+          // Don't continue if payment status is processing during auto capture
+          // Payment data is tokenized only after payment is successful
+          let notProcessing = res_data?.body?.status != "processing";
+          should_continue =
+            notProcessing && utils.should_continue_further(res_data);
+        }
       });
 
       it("retrieve-payment-call-test", () => {

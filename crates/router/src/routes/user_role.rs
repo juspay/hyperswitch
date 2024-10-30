@@ -55,6 +55,26 @@ pub async fn get_role_from_token(state: web::Data<AppState>, req: HttpRequest) -
     .await
 }
 
+pub async fn get_groups_and_resources_for_role_from_token(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetRoleFromTokenV2;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        (),
+        |state, user, _, _| async move {
+            role_core::get_groups_and_resources_for_role_from_token(state, user).await
+        },
+        &auth::DashboardNoPermissionAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn create_role(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -91,6 +111,31 @@ pub async fn get_role(
         request_payload,
         |state, user, payload, _| async move {
             role_core::get_role_with_groups(state, user, payload).await
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfileUserRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn get_parent_info_for_role(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::GetRoleV2;
+    let request_payload = user_role_api::role::GetRoleRequest {
+        role_id: path.into_inner(),
+    };
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &req,
+        request_payload,
+        |state, user, payload, _| async move {
+            role_core::get_parent_info_for_role(state, user, payload).await
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
@@ -217,6 +262,28 @@ pub async fn get_role_information(
         (),
         |_, _: (), _, _| async move {
             user_role_core::get_authorization_info_with_group_tag().await
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfileUserRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn get_parent_group_info(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::GetParentGroupInfo;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, user_from_token, _, _| async move {
+            user_role_core::get_parent_group_info(state, user_from_token).await
         },
         &auth::JWTAuth {
             permission: Permission::ProfileUserRead,
