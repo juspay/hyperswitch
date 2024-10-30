@@ -47,7 +47,7 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, MinorUnit, T)> for Worldpa
     }
 }
 
-/// Worldpay's unique reference ID for a request 
+/// Worldpay's unique reference ID for a request
 pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
