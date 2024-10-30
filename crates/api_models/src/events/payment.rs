@@ -2,8 +2,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 #[cfg(feature = "v2")]
 use super::{
-    PaymentsConfirmIntentResponse, PaymentsCreateIntentRequest, PaymentsGetIntentRequest, PaymentStartRedirectionRequest,
-    PaymentsIntentResponse,
+    PaymentStartRedirectionRequest, PaymentsConfirmIntentResponse, PaymentsCreateIntentRequest,
+    PaymentsGetIntentRequest, PaymentsIntentResponse,
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
