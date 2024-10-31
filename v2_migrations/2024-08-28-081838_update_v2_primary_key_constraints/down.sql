@@ -94,6 +94,10 @@ SET NOT NULL;
 ALTER TABLE payment_intent
 ALTER COLUMN session_expiry DROP NOT NULL;
 
+ALTER TABLE payment_intent
+ALTER COLUMN active_attempt_id
+SET DEFAULT 'xxx';
+
 ------------------------ Payment Attempt -----------------------
 ALTER TABLE payment_attempt DROP CONSTRAINT payment_attempt_pkey;
 
@@ -106,6 +110,3 @@ ALTER COLUMN net_amount DROP NOT NULL;
 
 ALTER TABLE payment_attempt
 ADD PRIMARY KEY (attempt_id, merchant_id);
-
-ALTER TABLE payment_attempt
-SET DEFAULT 'xxx';

@@ -2074,6 +2074,13 @@ impl ClientSecretFetch for payments::PaymentsRequest {
     }
 }
 
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 impl ClientSecretFetch for PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()

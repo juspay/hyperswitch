@@ -516,6 +516,7 @@ pub async fn construct_router_data_for_psync<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload,
+        connector_mandate_request_reference_id: None,
     };
 
     Ok(router_data)

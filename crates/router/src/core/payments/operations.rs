@@ -50,6 +50,8 @@ pub use self::payment_confirm_intent::PaymentIntentConfirm;
 #[cfg(feature = "v2")]
 pub use self::payment_create_intent::PaymentIntentCreate;
 #[cfg(feature = "v2")]
+pub use self::payment_get::PaymentGet;
+#[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
@@ -61,11 +63,6 @@ pub use self::{
     payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
-};
-#[cfg(feature = "v2")]
-pub use self::{
-    payment_confirm_intent::PaymentIntentConfirm, payment_create_intent::PaymentIntentCreate,
-    payment_get::PaymentGet,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
