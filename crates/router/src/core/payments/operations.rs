@@ -51,7 +51,6 @@ pub use self::payment_confirm_intent::PaymentIntentConfirm;
 pub use self::payment_create_intent::PaymentIntentCreate;
 #[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
-
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
 pub use self::{
