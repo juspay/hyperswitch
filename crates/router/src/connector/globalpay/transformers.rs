@@ -262,6 +262,7 @@ fn get_payment_response(
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             })
     });
     match status {
@@ -472,7 +473,7 @@ fn get_mandate_details(item: &types::PaymentsAuthorizeRouterData) -> Result<Mand
             match mandate_ids.mandate_reference_id.clone() {
                 Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                     connector_mandate_ids,
-                )) => connector_mandate_ids.connector_mandate_id,
+                )) => connector_mandate_ids.get_connector_mandate_id(),
                 _ => None,
             }
         });

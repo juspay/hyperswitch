@@ -528,6 +528,10 @@ impl Payments {
                         .route(web::post().to(payments::payment_confirm_intent)),
                 )
                 .service(
+                    web::resource("/get-intent")
+                        .route(web::get().to(payments::payments_get_intent)),
+                )
+                .service(
                     web::resource("/create-external-sdk-tokens")
                         .route(web::post().to(payments::payments_connector_session)),
                 )
@@ -1820,8 +1824,13 @@ impl User {
                 web::resource("/permission_info")
                     .route(web::get().to(user_role::get_authorization_info)),
             )
+            // TODO: To be deprecated
             .service(
                 web::resource("/module/list").route(web::get().to(user_role::get_role_information)),
+            )
+            .service(
+                web::resource("/parent/list")
+                    .route(web::get().to(user_role::get_parent_group_info)),
             )
             .service(
                 web::resource("/update").route(web::post().to(user::update_user_account_details)),
@@ -2018,6 +2027,9 @@ impl User {
                             .route(web::get().to(user_role::get_role_from_token))
                             .route(web::post().to(user_role::create_role)),
                     )
+                    .service(web::resource("/v2").route(
+                        web::get().to(user_role::get_groups_and_resources_for_role_from_token),
+                    ))
                     // TODO: To be deprecated
                     .service(
                         web::resource("/v2/list")
@@ -2040,6 +2052,10 @@ impl User {
                         web::resource("/{role_id}")
                             .route(web::get().to(user_role::get_role))
                             .route(web::put().to(user_role::update_role)),
+                    )
+                    .service(
+                        web::resource("/{role_id}/v2")
+                            .route(web::get().to(user_role::get_parent_info_for_role)),
                     ),
             );
 

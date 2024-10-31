@@ -809,6 +809,7 @@ impl<F>
                                     connector_mandate_id: Some(token.clone().expose()),
                                     payment_method_id: None,
                                     mandate_metadata: None,
+                                    connector_mandate_request_reference_id: None,
                                 })
                             });
                     let status = match non_threeds_data.status.as_str() {
@@ -1184,6 +1185,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                                 connector_mandate_id: Some(token.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
+                                connector_mandate_request_reference_id:None
                             })
                         }
                         Err(err) => {

@@ -29,10 +29,11 @@ pub mod payments_incremental_authorization;
 pub mod tax_calculation;
 
 #[cfg(feature = "v2")]
-pub mod payment_create_intent;
-
-#[cfg(feature = "v2")]
 pub mod payment_confirm_intent;
+#[cfg(feature = "v2")]
+pub mod payment_create_intent;
+#[cfg(feature = "v2")]
+pub mod payment_get_intent;
 
 #[cfg(feature = "v2")]
 pub mod payment_get;
@@ -43,6 +44,13 @@ use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
+
+#[cfg(feature = "v2")]
+pub use self::payment_confirm_intent::PaymentIntentConfirm;
+#[cfg(feature = "v2")]
+pub use self::payment_create_intent::PaymentIntentCreate;
+#[cfg(feature = "v2")]
+pub use self::payment_get_intent::PaymentGetIntent;
 
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]

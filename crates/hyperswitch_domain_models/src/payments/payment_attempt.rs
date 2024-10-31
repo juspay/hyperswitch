@@ -787,6 +787,7 @@ pub enum PaymentAttemptUpdate {
         client_source: Option<String>,
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -1027,6 +1028,7 @@ impl PaymentAttemptUpdate {
                 client_source,
                 client_version,
                 customer_acceptance,
+                connector_mandate_detail,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -1060,6 +1062,7 @@ impl PaymentAttemptUpdate {
                 customer_acceptance,
                 shipping_cost: net_amount.get_shipping_cost(),
                 order_tax_amount: net_amount.get_order_tax_amount(),
+                connector_mandate_detail,
             },
             Self::VoidUpdate {
                 status,
