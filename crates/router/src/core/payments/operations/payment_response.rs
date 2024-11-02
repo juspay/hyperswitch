@@ -181,7 +181,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 .ok();
             }
         };
-
+        let connector_mandate_reference_id = payment_data
+            .payment_attempt
+            .connector_mandate_detail
+            .as_ref()
+            .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
             connector_name.clone(),
@@ -193,6 +197,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             billing_name.clone(),
             payment_method_billing_address,
             business_profile,
+            connector_mandate_reference_id.clone(),
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -307,6 +312,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         billing_name,
                         payment_method_billing_address.as_ref(),
                         &business_profile,
+                        connector_mandate_reference_id,
                     ))
                     .await;
 
@@ -571,7 +577,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        let (connector_mandate_id, mandate_metadata) = resp
+        let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
             .ok()
@@ -584,17 +590,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                         (
                             mandate_ref.connector_mandate_id.clone(),
                             mandate_ref.mandate_metadata.clone(),
+                            mandate_ref.connector_mandate_request_reference_id.clone(),
                         )
                     })
                 } else {
                     None
                 }
             })
-            .unwrap_or((None, None));
+            .unwrap_or((None, None, None));
 
         update_connector_mandate_details_for_the_flow(
             connector_mandate_id,
             mandate_metadata,
+            connector_mandate_request_reference_id,
             payment_data,
         )?;
 
@@ -1066,6 +1074,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                     field_name: "connector_name",
                 }
             })?;
+        let connector_mandate_reference_id = payment_data
+            .payment_attempt
+            .connector_mandate_detail
+            .as_ref()
+            .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
+
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         let tokenization::SavePaymentMethodDataResponse {
             payment_method_id,
@@ -1082,9 +1096,38 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             billing_name,
             payment_method_billing_address,
             business_profile,
+            connector_mandate_reference_id,
         ))
         .await?;
 
+        payment_data.payment_method_info = if let Some(payment_method_id) = &payment_method_id {
+            match state
+                .store
+                .find_payment_method(
+                    &(state.into()),
+                    key_store,
+                    payment_method_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+            {
+                Ok(payment_method) => Some(payment_method),
+                Err(error) => {
+                    if error.current_context().is_db_not_found() {
+                        logger::info!("Payment Method not found in db {:?}", error);
+                        None
+                    } else {
+                        Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error retrieving payment method from db")
+                            .map_err(|err| logger::error!(payment_method_retrieve=?err))
+                            .ok()
+                    }
+                }
+            }
+        } else {
+            None
+        };
         let mandate_id = mandate::mandate_procedure(
             state,
             resp,
@@ -1158,7 +1201,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        let (connector_mandate_id, mandate_metadata) = resp
+        let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
             .ok()
@@ -1171,16 +1214,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                         (
                             mandate_ref.connector_mandate_id.clone(),
                             mandate_ref.mandate_metadata.clone(),
+                            mandate_ref.connector_mandate_request_reference_id.clone(),
                         )
                     })
                 } else {
                     None
                 }
             })
-            .unwrap_or((None, None));
+            .unwrap_or((None, None, None));
         update_connector_mandate_details_for_the_flow(
             connector_mandate_id,
             mandate_metadata,
+            connector_mandate_request_reference_id,
             payment_data,
         )?;
 
@@ -1567,10 +1612,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         })
                                         .unwrap_or(false)
                                     {
-                                        let (connector_mandate_id, mandate_metadata) = payment_data.payment_attempt.connector_mandate_detail.clone()
-                                        .map(|cmr| (cmr.connector_mandate_id, cmr.mandate_metadata))
-                                        .unwrap_or((None, None));
 
+                                        let (connector_mandate_id, mandate_metadata,connector_mandate_request_reference_id) = payment_data.payment_attempt.connector_mandate_detail.clone()
+                                        .map(|cmr| (cmr.connector_mandate_id, cmr.mandate_metadata,cmr.connector_mandate_request_reference_id))
+                                        .unwrap_or((None, None,None));
                                         // Update the connector mandate details with the payment attempt connector mandate id
                                         let connector_mandate_details =
                                                     tokenization::update_connector_mandate_details(
@@ -1587,6 +1632,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                                         payment_data.payment_attempt.merchant_connector_id.clone(),
                                                         connector_mandate_id,
                                                         mandate_metadata,
+                                                        connector_mandate_request_reference_id
                                                     )?;
                                         // Update the payment method table with the active mandate record
                                         payment_methods::cards::update_payment_method_connector_mandate_details(
@@ -2290,15 +2336,33 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 fn update_connector_mandate_details_for_the_flow<F: Clone>(
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<serde_json::Value>,
+    connector_mandate_request_reference_id: Option<String>,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<()> {
+    let mut original_connector_mandate_reference_id = payment_data
+        .payment_attempt
+        .connector_mandate_detail
+        .as_ref()
+        .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
     let connector_mandate_reference_id = if connector_mandate_id.is_some() {
-        Some(ConnectorMandateReferenceId {
-            connector_mandate_id: connector_mandate_id.clone(),
-            payment_method_id: None,
-            update_history: None,
-            mandate_metadata: mandate_metadata.clone(),
-        })
+        if let Some(ref mut record) = original_connector_mandate_reference_id {
+            record.update(
+                connector_mandate_id,
+                None,
+                None,
+                mandate_metadata,
+                connector_mandate_request_reference_id,
+            );
+            Some(record.clone())
+        } else {
+            Some(ConnectorMandateReferenceId::new(
+                connector_mandate_id,
+                None,
+                None,
+                mandate_metadata,
+                connector_mandate_request_reference_id,
+            ))
+        }
     } else {
         None
     };

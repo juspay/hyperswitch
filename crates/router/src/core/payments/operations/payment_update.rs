@@ -329,7 +329,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             api_models::payments::MandateIds {
                                 mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None, mandate_metadata:connector_id.mandate_metadata, },
+                                    api_models::payments::ConnectorMandateReferenceId::new(
+                                        connector_id.get_connector_mandate_id(),        // connector_mandate_id
+                                        connector_id.get_payment_method_id(),           // payment_method_id
+                                        None,                                     // update_history
+                                        connector_id.get_mandate_metadata(),            // mandate_metadata
+                                        connector_id.get_connector_mandate_request_reference_id()  // connector_mandate_request_reference_id
+                                    )
                                 ))
                             }
                          }),

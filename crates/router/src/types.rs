@@ -879,6 +879,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             charges: None, // TODO: allow charges on mandates?
             merchant_order_reference_id: None,
             integrity_object: None,
+            additional_payment_method_data: None,
             shipping_cost: data.request.shipping_cost,
         }
     }
@@ -936,6 +937,9 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             integrity_check: Ok(()),
             additional_merchant_data: data.additional_merchant_data.clone(),
             header_payload: data.header_payload.clone(),
+            connector_mandate_request_reference_id: data
+                .connector_mandate_request_reference_id
+                .clone(),
         }
     }
 }
@@ -1000,6 +1004,7 @@ impl<F1, F2>
             integrity_check: Ok(()),
             additional_merchant_data: data.additional_merchant_data.clone(),
             header_payload: data.header_payload.clone(),
+            connector_mandate_request_reference_id: None,
         }
     }
 }

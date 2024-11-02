@@ -287,10 +287,17 @@ impl PaymentsCreateIntentRequest {
     }
 }
 
+// This struct is only used internally, not visible in API Reference
+#[derive(Debug, Clone, serde::Serialize)]
+#[cfg(feature = "v2")]
+pub struct PaymentsGetIntentRequest {
+    pub id: id_type::GlobalPaymentId,
+}
+
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
-pub struct PaymentsCreateIntentResponse {
+pub struct PaymentsIntentResponse {
     /// Global Payment Id for the payment
     #[schema(value_type = String)]
     pub id: id_type::GlobalPaymentId,
@@ -1309,12 +1316,59 @@ pub struct NetworkTokenWithNTIRef {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct ConnectorMandateReferenceId {
-    pub connector_mandate_id: Option<String>,
-    pub payment_method_id: Option<String>,
-    pub update_history: Option<Vec<UpdateHistory>>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    connector_mandate_id: Option<String>,
+    payment_method_id: Option<String>,
+    update_history: Option<Vec<UpdateHistory>>,
+    mandate_metadata: Option<serde_json::Value>,
+    connector_mandate_request_reference_id: Option<String>,
 }
 
+impl ConnectorMandateReferenceId {
+    pub fn new(
+        connector_mandate_id: Option<String>,
+        payment_method_id: Option<String>,
+        update_history: Option<Vec<UpdateHistory>>,
+        mandate_metadata: Option<serde_json::Value>,
+        connector_mandate_request_reference_id: Option<String>,
+    ) -> Self {
+        Self {
+            connector_mandate_id,
+            payment_method_id,
+            update_history,
+            mandate_metadata,
+            connector_mandate_request_reference_id,
+        }
+    }
+
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.connector_mandate_id.clone()
+    }
+    pub fn get_payment_method_id(&self) -> Option<String> {
+        self.payment_method_id.clone()
+    }
+    pub fn get_mandate_metadata(&self) -> Option<serde_json::Value> {
+        self.mandate_metadata.clone()
+    }
+    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.connector_mandate_request_reference_id.clone()
+    }
+
+    pub fn update(
+        &mut self,
+        connector_mandate_id: Option<String>,
+        payment_method_id: Option<String>,
+        update_history: Option<Vec<UpdateHistory>>,
+        mandate_metadata: Option<serde_json::Value>,
+        connector_mandate_request_reference_id: Option<String>,
+    ) {
+        self.connector_mandate_id = connector_mandate_id.or(self.connector_mandate_id.clone());
+        self.payment_method_id = payment_method_id.or(self.payment_method_id.clone());
+        self.update_history = update_history.or(self.update_history.clone());
+        self.mandate_metadata = mandate_metadata.or(self.mandate_metadata.clone());
+        self.connector_mandate_request_reference_id = connector_mandate_request_reference_id
+            .or(self.connector_mandate_request_reference_id.clone());
+    }
+}
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct UpdateHistory {
     pub connector_mandate_id: Option<String>,
@@ -3567,6 +3621,7 @@ pub struct WalletResponse {
     details: Option<WalletResponseData>,
 }
 
+/// Hyperswitch supports SDK integration with Apple Pay and Google Pay wallets. For other wallets, we integrate with their respective connectors, redirecting the customer to the connector for wallet payments. As a result, we don’t receive any payment method data in the confirm call for payments made through other wallets.
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletResponseData {
