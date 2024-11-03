@@ -1,3 +1,4 @@
+use common_utils::types::ConnectorTransactionIdTrait;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 
 use super::generics;
@@ -65,5 +66,24 @@ impl Capture {
             Some(dsl::created_at.asc()),
         )
         .await
+    }
+}
+
+impl ConnectorTransactionIdTrait for Capture {
+    fn get_optional_connector_transaction_id(&self) -> Option<&String> {
+        match self
+            .connector_capture_id
+            .as_ref()
+            .map(|capture_id| capture_id.get_txn_id(self.connector_capture_data.as_ref()))
+            .transpose()
+        {
+            Ok(capture_id) => capture_id,
+
+            // In case hashed data is missing from DB, use the hashed ID as connector transaction ID
+            Err(_) => self
+                .connector_capture_id
+                .as_ref()
+                .map(|txn_id| txn_id.get_id()),
+        }
     }
 }

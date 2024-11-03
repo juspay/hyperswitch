@@ -90,7 +90,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 payment_flows::CallConnectorAction::Trigger,
                 services::AuthFlow::Client,
                 None,
-                api::HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
             ))
             .await?;
 

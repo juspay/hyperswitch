@@ -1,16 +1,17 @@
 use std::marker::PhantomData;
 
+// use api_models::{admin::ExtendedCardInfoConfig, enums::FrmSuggestion, payments::ExtendedCardInfo};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+use api_models::payment_methods::PaymentMethodsData;
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
     // payment_methods::PaymentMethodsData,
-    payments::{ExtendedCardInfo, GetAddressFromPaymentMethodData},
+    payments::{ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData},
 };
-// use api_models::{admin::ExtendedCardInfoConfig, enums::FrmSuggestion, payments::ExtendedCardInfo};
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use api_models::{payment_methods::PaymentMethodsData, payments::AdditionalPaymentData};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
+use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -23,6 +24,7 @@ use tracing_futures::Instrument;
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
+    consts,
     core::payment_methods::cards::create_encrypted_data,
     events::audit_events::{AuditEvent, AuditEventType},
 };
@@ -45,6 +47,7 @@ use crate::{
         api::{self, ConnectorCallType, PaymentIdTypeExt},
         domain::{self},
         storage::{self, enums as storage_enums},
+        transformers::ForeignFrom,
     },
     utils::{self, OptionExt},
 };
@@ -66,7 +69,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        header_payload: &api::HeaderPayload,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let key_manager_state = &state.into();
@@ -98,7 +101,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount.get_amount_as_i64(),
+                payment_intent.amount,
                 false,
             )?;
         }
@@ -573,6 +576,39 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_method_info,
         } = mandate_details;
 
+        let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
+            let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
+                .payment_method_data
+                .clone()
+                .map(|x| x.into_inner().expose())
+                .and_then(|v| {
+                    v.parse_value("PaymentMethodsData")
+                        .map_err(|err| {
+                            router_env::logger::info!(
+                                "PaymentMethodsData deserialization failed: {:?}",
+                                err
+                            )
+                        })
+                        .ok()
+                })
+                .and_then(|pmd| match pmd {
+                    PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                    _ => None,
+                });
+            card_detail_from_locker.map(|card_details| {
+                let additional_data = card_details.into();
+                api_models::payments::AdditionalPaymentData::Card(Box::new(additional_data))
+            })
+        } else {
+            None
+        };
+        payment_attempt.payment_method_data = additional_pm_data_from_locker
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
+
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
 
         payment_attempt.payment_method_type = payment_method_type
@@ -614,7 +650,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         } else {
             (None, payment_method_info)
         };
-
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = mandate_data.map(|mut sm| {
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
@@ -680,14 +715,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                         mandate_id: None,
                         mandate_reference_id: Some(
                             api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                api_models::payments::ConnectorMandateReferenceId {
-                                    connector_mandate_id: Some(
-                                        token.processor_payment_token.clone(),
-                                    ),
-                                    payment_method_id: None,
-                                    update_history: None,
-                                    mandate_metadata: None,
-                                },
+                                ConnectorMandateReferenceId::new(
+                                    Some(token.processor_payment_token.clone()), // connector_mandate_id
+                                    None, // payment_method_id
+                                    None, // update_history
+                                    None, // mandate_metadata
+                                    None, // connector_mandate_request_reference_id
+                                ),
                             ),
                         ),
                     })
@@ -715,6 +749,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .net_amount
             .set_order_tax_amount(order_tax_amount);
 
+        payment_attempt.connector_mandate_detail = Some(
+            DieselConnectorMandateReferenceId::foreign_from(ConnectorMandateReferenceId::new(
+                None,
+                None,
+                None, // update_history
+                None, // mandate_metadata
+                Some(common_utils::generate_id_with_len(
+                    consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH.to_owned(),
+                )), // connector_mandate_request_reference_id
+            )),
+        );
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -1066,7 +1111,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _updated_customer: Option<storage::CustomerUpdate>,
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,
@@ -1092,7 +1137,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
-        header_payload: api::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,
@@ -1199,31 +1244,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
 
-        let encode_additional_pm_to_value = if let Some(ref pm) = payment_data.payment_method_info {
-            let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
-                .payment_method_data
-                .clone()
-                .map(|x| x.into_inner().expose())
-                .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-                .and_then(|pmd| match pmd {
-                    PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-                    _ => None,
-                });
-
-            card_detail_from_locker.and_then(|card_details| {
-                let additional_data = card_details.into();
-                let additional_data_payment =
-                    AdditionalPaymentData::Card(Box::new(additional_data));
-                additional_data_payment
-                    .encode_to_value()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to encode additional pm data")
-                    .ok()
-            })
-        } else {
-            None
-        };
-
         let customer_details = payment_data.payment_intent.customer_details.clone();
         let business_sub_label = payment_data.payment_attempt.business_sub_label.clone();
         let authentication_type = payment_data.payment_attempt.authentication_type;
@@ -1279,7 +1299,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let m_payment_token = payment_token.clone();
         let m_additional_pm_data = encoded_additional_pm_data
             .clone()
-            .or(encode_additional_pm_to_value);
+            .or(payment_data.payment_attempt.payment_method_data);
         let m_business_sub_label = business_sub_label.clone();
         let m_straight_through_algorithm = straight_through_algorithm.clone();
         let m_error_code = error_code.clone();
@@ -1351,6 +1371,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                                 surcharge_amount,
                                 tax_amount,
                             ),
+                        connector_mandate_detail: payment_data
+                            .payment_attempt
+                            .connector_mandate_detail,
                     },
                     storage_scheme,
                 )
@@ -1361,8 +1384,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         );
 
         let billing_address = payment_data.address.get_payment_billing();
+        let key_manager_state = state.into();
         let billing_details = billing_address
-            .async_map(|billing_details| create_encrypted_data(state, key_store, billing_details))
+            .async_map(|billing_details| {
+                create_encrypted_data(&key_manager_state, key_store, billing_details)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1370,7 +1396,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let shipping_address = payment_data.address.get_shipping();
         let shipping_details = shipping_address
-            .async_map(|shipping_details| create_encrypted_data(state, key_store, shipping_details))
+            .async_map(|shipping_details| {
+                create_encrypted_data(&key_manager_state, key_store, shipping_details)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1492,7 +1520,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .event(AuditEvent::new(AuditEventType::PaymentConfirm {
                 client_src,
                 client_ver,
-                frm_message,
+                frm_message: Box::new(frm_message),
             }))
             .with(payment_data.to_event())
             .emit();

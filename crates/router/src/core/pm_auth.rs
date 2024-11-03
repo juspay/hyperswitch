@@ -51,7 +51,7 @@ pub async fn create_link_token(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     payload: api_models::pm_auth::LinkTokenCreateRequest,
-    headers: Option<api_models::payments::HeaderPayload>,
+    headers: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResponse<api_models::pm_auth::LinkTokenCreateResponse> {
     let db = &*state.store;
 
@@ -216,7 +216,7 @@ pub async fn create_link_token(
     _merchant_account: domain::MerchantAccount,
     _key_store: domain::MerchantKeyStore,
     _payload: api_models::pm_auth::LinkTokenCreateRequest,
-    _headers: Option<api_models::payments::HeaderPayload>,
+    _headers: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResponse<api_models::pm_auth::LinkTokenCreateResponse> {
     todo!()
 }
@@ -373,7 +373,7 @@ async fn store_bank_details_in_payment_methods(
             payment_methods::PaymentMethodDataBankCreds,
         ),
     > = HashMap::new();
-
+    let key_manager_state = (&state).into();
     for pm in payment_methods {
         if pm.payment_method == Some(enums::PaymentMethod::BankDebit)
             && pm.payment_method_data.is_some()
@@ -480,8 +480,9 @@ async fn store_bank_details_in_payment_methods(
             );
 
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
+
             let encrypted_data =
-                cards::create_encrypted_data(&state, &key_store, payment_method_data)
+                cards::create_encrypted_data(&key_manager_state, &key_store, payment_method_data)
                     .await
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Unable to encrypt customer details")?;
@@ -493,11 +494,14 @@ async fn store_bank_details_in_payment_methods(
             update_entries.push((pm.clone(), pm_update));
         } else {
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
-            let encrypted_data =
-                cards::create_encrypted_data(&state, &key_store, Some(payment_method_data))
-                    .await
-                    .change_context(ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unable to encrypt customer details")?;
+            let encrypted_data = cards::create_encrypted_data(
+                &key_manager_state,
+                &key_store,
+                Some(payment_method_data),
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt customer details")?;
 
             #[cfg(all(
                 any(feature = "v1", feature = "v2"),

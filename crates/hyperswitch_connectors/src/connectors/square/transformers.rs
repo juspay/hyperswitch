@@ -385,8 +385,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResp
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment.id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.payment.reference_id,

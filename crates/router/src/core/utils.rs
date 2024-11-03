@@ -12,7 +12,7 @@ use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{
     errors::CustomResult,
     ext_traits::AsyncExt,
-    types::{keymanager::KeyManagerState, MinorUnit},
+    types::{keymanager::KeyManagerState, ConnectorTransactionIdTrait, MinorUnit},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -217,6 +217,7 @@ pub async fn construct_payout_router_data<'a, F>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
 
     Ok(router_data)
@@ -290,7 +291,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url.clone(),
         merchant_account.get_id(),
-        &connector_id.to_string(),
+        connector_id,
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
@@ -325,6 +326,8 @@ pub async fn construct_refund_router_data<'a, F>(
             field_name: "browser_info",
         })?;
 
+    let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
@@ -349,7 +352,7 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
-            connector_transaction_id: refund.connector_transaction_id.clone(),
+            connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,
             currency,
@@ -358,14 +361,14 @@ pub async fn construct_refund_router_data<'a, F>(
             webhook_url,
             connector_metadata: payment_attempt.connector_metadata.clone(),
             reason: refund.refund_reason.clone(),
-            connector_refund_id: refund.connector_refund_id.clone(),
+            connector_refund_id: connector_refund_id.clone(),
             browser_info,
             charges,
             integrity_object: None,
         },
 
         response: Ok(types::RefundsResponseData {
-            connector_refund_id: refund.connector_refund_id.clone().unwrap_or_default(),
+            connector_refund_id: connector_refund_id.unwrap_or_default(),
             refund_status: refund.refund_status,
         }),
         access_token: None,
@@ -393,6 +396,7 @@ pub async fn construct_refund_router_data<'a, F>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
 
     Ok(router_data)
@@ -703,6 +707,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
     Ok(router_data)
 }
@@ -798,6 +803,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
     Ok(router_data)
 }
@@ -899,6 +905,7 @@ pub async fn construct_upload_file_router_data<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
     Ok(router_data)
 }
@@ -1020,6 +1027,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
     Ok(router_data)
 }
@@ -1118,6 +1126,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
     Ok(router_data)
 }
@@ -1210,6 +1219,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
     Ok(router_data)
 }

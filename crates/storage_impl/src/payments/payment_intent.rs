@@ -103,7 +103,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::PaymentIntent(new_payment_intent),
+                        insertable: Box::new(kv::Insertable::PaymentIntent(Box::new(
+                            new_payment_intent,
+                        ))),
                     },
                 };
 
@@ -113,7 +115,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
                     .change_context(StorageError::EncryptionError)?;
 
-                match kv_wrapper::<DieselPaymentIntent, _, _>(
+                match Box::pin(kv_wrapper::<DieselPaymentIntent, _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::HSetNx(
                         &field,
@@ -121,7 +123,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         redis_entry,
                     ),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hsetnx()
@@ -219,20 +221,20 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
-                        updatable: kv::Updateable::PaymentIntentUpdate(
+                        updatable: Box::new(kv::Updateable::PaymentIntentUpdate(Box::new(
                             kv::PaymentIntentUpdateMems {
                                 orig: origin_diesel_intent,
                                 update_data: diesel_intent_update,
                             },
-                        ),
+                        ))),
                     },
                 };
 
-                kv_wrapper::<(), _, _>(
+                Box::pin(kv_wrapper::<(), _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value), redis_entry),
                     key,
-                )
+                ))
                 .await
                 .map_err(|err| err.to_redis_failed_response(&key_str))?
                 .try_into_hset()
@@ -316,11 +318,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let field = payment_id.get_hash_key_for_kv_store();
                 Box::pin(utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper::<DieselPaymentIntent, _, _>(
+                        Box::pin(kv_wrapper::<DieselPaymentIntent, _, _>(
                             self,
                             KvOperation::<DieselPaymentIntent>::HGet(&field),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_hget()
                     },

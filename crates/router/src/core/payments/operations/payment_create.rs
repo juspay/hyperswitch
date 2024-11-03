@@ -13,7 +13,10 @@ use common_utils::{
         MinorUnit,
     },
 };
-use diesel_models::ephemeral_key;
+use diesel_models::{
+    ephemeral_key,
+    payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
+};
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
@@ -39,10 +42,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::{
-        app::{ReqState, SessionStateInfo},
-        SessionState,
-    },
+    routes::{app::ReqState, SessionState},
     services,
     types::{
         self,
@@ -52,7 +52,7 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
@@ -76,7 +76,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        header_payload: &api::HeaderPayload,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -341,13 +341,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount.get_amount_as_i64(),
+                payment_intent.amount,
                 false,
             )?;
         }
 
         #[cfg(feature = "v1")]
-        let payment_attempt = db
+        let mut payment_attempt = db
             .insert_payment_attempt(payment_attempt_new, storage_scheme)
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
@@ -402,12 +402,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             api_models::payments::MandateIds {
                                 mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                api_models::payments::ConnectorMandateReferenceId{
-                                    connector_mandate_id: connector_id.connector_mandate_id,
-                                    payment_method_id: connector_id.payment_method_id,
-                                    update_history: None,
-                                    mandate_metadata: None,
-                                }
+                                api_models::payments::ConnectorMandateReferenceId::new(
+                                    connector_id.get_connector_mandate_id(),
+                                    connector_id.get_payment_method_id(),
+                                    None,
+                                    None,
+                                    connector_id.get_connector_mandate_request_reference_id(),
+                                )
                                 ))
                             }
                          }),
@@ -439,14 +440,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             mandate_id: None,
                             mandate_reference_id: Some(
                                 api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {
-                                        connector_mandate_id: Some(
-                                            token.processor_payment_token.clone(),
-                                        ),
-                                        payment_method_id: None,
-                                        update_history: None,
-                                        mandate_metadata: None,
-                                    },
+                                    api_models::payments::ConnectorMandateReferenceId::new(
+                                        Some(token.processor_payment_token.clone()),
+                                        None,
+                                        None,
+                                        None,
+                                        None,
+                                    ),
                                 ),
                             ),
                         })
@@ -503,7 +503,54 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
 
+        let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
+            let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
+                .payment_method_data
+                .clone()
+                .map(|x| x.into_inner().expose())
+                .and_then(|v| {
+                    v.parse_value("PaymentMethodsData")
+                        .map_err(|err| {
+                            router_env::logger::info!(
+                                "PaymentMethodsData deserialization failed: {:?}",
+                                err
+                            )
+                        })
+                        .ok()
+                })
+                .and_then(|pmd| match pmd {
+                    PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                    _ => None,
+                });
+
+            card_detail_from_locker.map(|card_details| {
+                let additional_data = card_details.into();
+                api_models::payments::AdditionalPaymentData::Card(Box::new(additional_data))
+            })
+        } else {
+            None
+        };
+
+        payment_attempt.payment_method_data = additional_pm_data_from_locker
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
         let amount = payment_attempt.get_total_amount().into();
+
+        payment_attempt.connector_mandate_detail =
+            Some(DieselConnectorMandateReferenceId::foreign_from(
+                api_models::payments::ConnectorMandateReferenceId::new(
+                    None,
+                    None,
+                    None, // update_history
+                    None, // mandate_metadata
+                    Some(common_utils::generate_id_with_len(
+                        consts::CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH.to_owned(),
+                    )), // connector_mandate_request_reference_id
+                ),
+            ));
 
         let address = PaymentAddress::new(
             shipping_address.as_ref().map(From::from),
@@ -778,7 +825,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -844,14 +891,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let raw_customer_details = customer
             .map(|customer| CustomerData::foreign_try_from(customer.clone()))
             .transpose()?;
-        let session_state = state.session_state();
-
+        let key_manager_state = state.into();
         // Updation of Customer Details for the cases where both customer_id and specific customer
         // details are provided in Payment Create Request
         let customer_details = raw_customer_details
             .clone()
             .async_map(|customer_details| {
-                create_encrypted_data(&session_state, key_store, customer_details)
+                create_encrypted_data(&key_manager_state, key_store, customer_details)
             })
             .await
             .transpose()
@@ -959,7 +1005,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> f
 
             helpers::validate_customer_id_mandatory_cases(
                 request.setup_future_usage.is_some(),
-                request.customer_id.as_ref(),
+                request.customer_id.as_ref().or(request
+                    .customer
+                    .as_ref()
+                    .map(|customer| customer.id.clone())
+                    .as_ref()),
             )?;
         }
 
@@ -1210,8 +1260,10 @@ impl PaymentCreate {
                     .map(Secret::new),
                 organization_id: organization_id.clone(),
                 profile_id,
+                connector_mandate_detail: None,
             },
             additional_pm_data,
+
         ))
     }
 

@@ -379,8 +379,8 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_string(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
@@ -430,8 +430,8 @@ impl<F>
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
@@ -479,8 +479,8 @@ impl<F>
                     resource_id: ResponseId::ConnectorTransactionId(
                         item.response.transaction_id.to_string(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: item.response.invoice_number.clone(),
@@ -559,8 +559,8 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_string(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
@@ -616,8 +616,8 @@ impl<F>
                 resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_string(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
