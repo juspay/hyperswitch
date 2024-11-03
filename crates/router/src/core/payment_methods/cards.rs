@@ -4689,26 +4689,25 @@ pub async fn get_mca_status(
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
         return true;
     }
-    if let Some(connector_mandate_details) = connector_mandate_details {
-        let mca_ids = merchant_connector_accounts
-            .into_iter()
-            .filter(|mca| {
-                mca.disabled.is_some_and(|disabled| !disabled)
-                    && profile_id
-                        .as_ref()
-                        .is_some_and(|profile_id| *profile_id == mca.profile_id)
-            })
-            .map(|mca| mca.get_id())
-            .collect::<HashSet<_>>();
+    match connector_mandate_details {
+        Some(connector_mandate_details) => {
+            let mca_ids = merchant_connector_accounts
+                .into_iter()
+                .filter(|mca| {
+                    mca.disabled.is_some_and(|disabled| !disabled)
+                        && profile_id
+                            .as_ref()
+                            .is_some_and(|profile_id| *profile_id == mca.profile_id)
+                })
+                .map(|mca| mca.get_id())
+                .collect::<HashSet<_>>();
 
-        if connector_mandate_details
-            .keys()
-            .any(|mca_id| mca_ids.contains(mca_id))
-        {
-            return true;
+            connector_mandate_details
+                .keys()
+                .any(|mca_id| mca_ids.contains(mca_id))
         }
+        None => false,
     }
-    false
 }
 
 pub async fn decrypt_generic_data<T>(
