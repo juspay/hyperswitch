@@ -19,7 +19,7 @@ impl Connector for AirwallexTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Airwallex;
         utils::construct_connector_data_old(
-            Box::new(&Airwallex),
+            Box::new(Airwallex::new()),
             types::Connector::Airwallex,
             types::api::GetToken::Connector,
             None,

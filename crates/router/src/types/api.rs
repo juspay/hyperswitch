@@ -324,7 +324,7 @@ impl ConnectorData {
                     connector::Adyenplatform::new(),
                 ))),
                 enums::Connector::Airwallex => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Airwallex)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Airwallex::new())))
                 }
                 enums::Connector::Authorizedotnet => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
