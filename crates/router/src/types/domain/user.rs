@@ -654,7 +654,7 @@ impl NewUser {
             created_at: now,
             last_modified: now,
             entity: NoLevel,
-            tenant_id: tenant_id,
+            tenant_id,
         }
     }
 
