@@ -496,8 +496,8 @@ Cypress.Commands.add(
           authDetails.connector_account_details;
 
         if (authDetails && authDetails.metadata) {
-          createConnectorBody.metadata = {
-            ...createConnectorBody.metadata, // Preserve existing metadata fields
+          mcaCreateBody.metadata = {
+            ...mcaCreateBody.metadata, // Preserve existing metadata fields
             ...authDetails.metadata, // Merge with authDetails.metadata
           };
         }
