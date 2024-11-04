@@ -28,8 +28,6 @@ use storage_impl::redis::cache;
 
 #[cfg(feature = "v2")]
 use crate::types::domain::MerchantConnectorAccount;
-#[cfg(feature = "v1")]
-use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
 use crate::{
     core::errors::{self, RouterResult},
     db::StorageInterface,
@@ -37,6 +35,8 @@ use crate::{
     types::{domain, storage},
     utils::StringExt,
 };
+#[cfg(feature = "v1")]
+use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";
 
@@ -646,8 +646,7 @@ pub async fn push_metrics_for_success_based_routing(
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
     success_based_routing_config_params_interpolator: SuccessBasedRoutingConfigParamsInterpolator,
-) -> RouterResult<()> 
-{
+) -> RouterResult<()> {
     let success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
         business_profile
             .dynamic_routing_algorithm
@@ -699,7 +698,8 @@ pub async fn push_metrics_for_success_based_routing(
             business_profile.get_id().get_string_repr(),
         );
 
-        let success_based_routing_config_params = success_based_routing_config_params_interpolator.get_string_val();
+        let success_based_routing_config_params =
+            success_based_routing_config_params_interpolator.get_string_val();
 
         let success_based_connectors = client
             .calculate_success_rate(
@@ -975,32 +975,42 @@ pub struct SuccessBasedRoutingConfigParamsInterpolator {
 
 impl SuccessBasedRoutingConfigParamsInterpolator {
     pub fn new(
-            payment_method: Option<common_enums::PaymentMethod>,
-            payment_method_type: Option<common_enums::PaymentMethodType>,
-            authentication_type: Option<common_enums::AuthenticationType>,
-            currency: Option<common_enums::Currency>,
-            country: Option<common_enums::CountryAlpha2>,
-            card_network: Option<String>,
-            card_bin: Option<String>,
-        ) -> Self {
-            SuccessBasedRoutingConfigParamsInterpolator {
-                payment_method,
-                payment_method_type,
-                authentication_type,
-                currency,
-                country,
-                card_network,
-                card_bin,
-            }
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+        authentication_type: Option<common_enums::AuthenticationType>,
+        currency: Option<common_enums::Currency>,
+        country: Option<common_enums::CountryAlpha2>,
+        card_network: Option<String>,
+        card_bin: Option<String>,
+    ) -> Self {
+        SuccessBasedRoutingConfigParamsInterpolator {
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            currency,
+            country,
+            card_network,
+            card_bin,
         }
+    }
 
     pub fn get_string_val(&self) -> String {
         let parts: Vec<String> = vec![
-            self.payment_method.as_ref().map_or(String::new(), |pm| pm.to_string()),
-            self.payment_method_type.as_ref().map_or(String::new(), |pmt| pmt.to_string()),
-            self.authentication_type.as_ref().map_or(String::new(), |at| at.to_string()),
-            self.currency.as_ref().map_or(String::new(), |cur| cur.to_string()),
-            self.country.as_ref().map_or(String::new(), |cn| cn.to_string()),
+            self.payment_method
+                .as_ref()
+                .map_or(String::new(), |pm| pm.to_string()),
+            self.payment_method_type
+                .as_ref()
+                .map_or(String::new(), |pmt| pmt.to_string()),
+            self.authentication_type
+                .as_ref()
+                .map_or(String::new(), |at| at.to_string()),
+            self.currency
+                .as_ref()
+                .map_or(String::new(), |cur| cur.to_string()),
+            self.country
+                .as_ref()
+                .map_or(String::new(), |cn| cn.to_string()),
             self.card_network.clone().unwrap_or_default(),
             self.card_bin.clone().unwrap_or_default(),
         ];

@@ -1241,8 +1241,7 @@ pub async fn perform_success_based_routing(
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
     success_based_routing_config_params_interpolator: routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
-) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>>
-{
+) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
     let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
         business_profile
             .dynamic_routing_algorithm
@@ -1295,7 +1294,8 @@ pub async fn perform_success_based_routing(
         .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
         .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
-        let success_based_routing_config_params = success_based_routing_config_params_interpolator.get_string_val();
+        let success_based_routing_config_params =
+            success_based_routing_config_params_interpolator.get_string_val();
 
         let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
             &state.tenant.redis_key_prefix,
