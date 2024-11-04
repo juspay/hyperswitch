@@ -2,30 +2,49 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::ext_traits::ValueExt;
-use diesel_models::enums;
+use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
+use common_enums::enums;
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::{BytesExt, ValueExt},
+    request::{Method, Request, RequestBuilder, RequestContent},
+};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    api::ApplicationResponse,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+    },
+    router_request_types::{
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSessionRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
+        TokenizationRouterData,
+    },
+};
+use hyperswitch_interfaces::{
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    configs::Connectors,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{self, Response},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+};
 use masking::{ExposeInterface, Secret};
-use transformers as zsl;
+use transformers::{self as zsl, get_status};
 
 use crate::{
-    configs::settings,
-    connector::utils as connector_utils,
-    core::errors::{self, CustomResult},
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self},
-        ConnectorIntegration, ConnectorValidation,
-    },
-    types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-        transformers::ForeignFrom,
-        ErrorResponse, RequestContent, Response,
-    },
-    utils::BytesExt,
+    constants::headers,
+    types::{RefreshTokenRouterData, ResponseRouterData},
+    utils::construct_not_supported_error_report,
 };
 
 #[derive(Debug, Clone)]
@@ -50,9 +69,9 @@ where
 {
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        _req: &RouterData<Flow, Request, Response>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -74,7 +93,7 @@ impl ConnectorCommon for Zsl {
         "application/x-www-form-urlencoded"
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.zsl.base_url.as_ref()
     }
 
@@ -113,9 +132,10 @@ impl ConnectorValidation for Zsl {
             enums::CaptureMethod::Automatic => Ok(()),
             enums::CaptureMethod::Manual
             | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => Err(
-                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
-            ),
+            | enums::CaptureMethod::Scheduled => Err(construct_not_supported_error_report(
+                capture_method,
+                self.id(),
+            )),
         }
     }
 
@@ -124,14 +144,12 @@ impl ConnectorValidation for Zsl {
     }
 }
 
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Zsl
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Zsl {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -141,16 +159,16 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}ecp", self.base_url(connectors)))
     }
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_router_data = zsl::ZslRouterData::try_from((
             &self.get_currency_unit(),
@@ -164,12 +182,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
@@ -186,17 +204,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response = serde_urlencoded::from_bytes::<zsl::ZslPaymentsResponse>(&res.response)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i: &mut ConnectorEvent| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -220,15 +238,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Zsl
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Zsl {
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: zsl::ZslWebhookResponse = res
             .response
             .parse_struct("ZslWebhookResponse")
@@ -237,7 +253,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         event_builder.map(|i: &mut ConnectorEvent| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -245,14 +261,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Zsl
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Zsl {
     fn build_request(
         &self,
-        _req: &types::PaymentsSessionRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &PaymentsSessionRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Session flow".to_owned(),
             connector: "Zsl",
@@ -261,18 +275,14 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Zsl
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Zsl
 {
     fn build_request(
         &self,
-        _req: &types::TokenizationRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &TokenizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "PaymentMethod Tokenization flow ".to_owned(),
             connector: "Zsl",
@@ -281,14 +291,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Zsl
-{
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Zsl {
     fn build_request(
         &self,
-        _req: &types::RefreshTokenRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "AccessTokenAuth flow".to_owned(),
             connector: "Zsl",
@@ -297,22 +305,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
-    > for Zsl
-{
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Zsl {
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "SetupMandate flow".to_owned(),
             connector: "Zsl",
@@ -321,14 +319,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Zsl
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Zsl {
     fn build_request(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Capture flow".to_owned(),
             connector: "Zsl",
@@ -337,14 +333,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Zsl
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Zsl {
     fn build_request(
         &self,
-        _req: &types::PaymentsCancelRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Void flow ".to_owned(),
             connector: "Zsl",
@@ -353,12 +347,12 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     }
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Zsl {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Zsl {
     fn build_request(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Refund flow".to_owned(),
             connector: "Zsl",
@@ -367,12 +361,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Zsl {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Zsl {
     fn build_request(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &RefundSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Rsync flow ".to_owned(),
             connector: "Zsl",
@@ -382,33 +376,31 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Zsl {
+impl IncomingWebhook for Zsl {
     fn get_webhook_object_reference_id(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+        Ok(ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::PaymentAttemptId(notif.mer_ref),
         ))
     }
 
     fn get_webhook_event_type(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
 
-        Ok(api_models::webhooks::IncomingWebhookEvent::foreign_from(
-            notif.status,
-        ))
+        Ok(get_status(notif.status))
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         let response = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
@@ -417,14 +409,14 @@ impl api::IncomingWebhook for Zsl {
 
     async fn verify_webhook_source(
         &self,
-        request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
         connector_account_details: common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_account_details = connector_account_details
-            .parse_value::<types::ConnectorAuthType>("ConnectorAuthType")
+            .parse_value::<ConnectorAuthType>("ConnectorAuthType")
             .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let auth_type = zsl::ZslAuthType::try_from(&connector_account_details)?;
         let key = auth_type.api_key.expose();
@@ -449,12 +441,9 @@ impl api::IncomingWebhook for Zsl {
 
     fn get_webhook_api_response(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
-    {
-        Ok(services::api::ApplicationResponse::TextPlain(
-            "CALLBACK-OK".to_string(),
-        ))
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
+        Ok(ApplicationResponse::TextPlain("CALLBACK-OK".to_string()))
     }
 }
 
