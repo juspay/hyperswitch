@@ -3,7 +3,7 @@ use common_utils::{
     ext_traits::ValueExt,
     id_type,
     pii::Email,
-    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{self, ResultExt};
 use masking::Secret;
@@ -61,7 +61,7 @@ pub struct CheckoutRequest {
     gateway: Option<String>,
     browser_ip: Option<std::net::IpAddr>,
     total_price: StringMajorUnit,
-    total_discounts: StringMajorUnit,
+    total_discounts: i64,
     cart_token: String,
     referring_site: String,
     line_items: Vec<LineItem>,
@@ -178,6 +178,33 @@ impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
         let billing_address = payment_data.get_billing()?;
         let shipping_address = payment_data.get_shipping_address_with_phone_number()?;
         let address = payment_data.get_billing_address()?;
+        let line_items = payment_data
+            .request
+            .get_order_details()?
+            .iter()
+            .map(|order_detail| {
+                let price = convert_amount(
+                    payment.amount_converter,
+                    order_detail.amount,
+                    payment_data.request.currency.ok_or_else(|| {
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "currency",
+                        }
+                    })?,
+                )?;
+
+                Ok(LineItem {
+                    price,
+                    quantity: i32::from(order_detail.quantity),
+                    title: order_detail.product_name.clone(),
+                    product_type: order_detail.product_type.clone(),
+                    requires_shipping: order_detail.requires_shipping,
+                    product_id: order_detail.product_id.clone(),
+                    category: order_detail.category.clone(),
+                    brand: order_detail.brand.clone(),
+                })
+            })
+            .collect::<Result<Vec<_>, Self::Error>>()?;
 
         Ok(Self {
             order: CheckoutRequest {
@@ -188,30 +215,11 @@ impl TryFrom<&RiskifiedRouterData<&frm_types::FrmCheckoutRouterData>>
                 gateway: payment_data.request.gateway.clone(),
                 total_price: payment.amount.clone(),
                 cart_token: payment_data.attempt_id.clone(),
-                line_items: payment_data
-                    .request
-                    .get_order_details()?
-                    .iter()
-                    .map(|order_detail| LineItem {
-                        price: convert_amount(
-                            payment.amount_converter,
-                            MinorUnit::new(order_detail.amount),
-                            common_enums::Currency::USD,
-                        )
-                        .unwrap(),
-                        quantity: i32::from(order_detail.quantity),
-                        title: order_detail.product_name.clone(),
-                        product_type: order_detail.product_type.clone(),
-                        requires_shipping: order_detail.requires_shipping,
-                        product_id: order_detail.product_id.clone(),
-                        category: order_detail.category.clone(),
-                        brand: order_detail.brand.clone(),
-                    })
-                    .collect::<Vec<_>>(),
+                line_items,
                 source: Source::DesktopWeb,
                 billing_address: OrderAddress::try_from(billing_address).ok(),
                 shipping_address: OrderAddress::try_from(shipping_address).ok(),
-                total_discounts: StringMajorUnit::new("0".to_string()),
+                total_discounts: 0,
                 currency: payment_data.request.currency,
                 referring_site: "hyperswitch.io".to_owned(),
                 discount_codes: Vec::new(),
