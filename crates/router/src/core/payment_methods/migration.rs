@@ -88,3 +88,55 @@ pub fn get_payment_method_records(
         }),
     }
 }
+
+#[derive(Debug)]
+pub struct RecordMigrationStatus {
+    pub card_migrated: Option<bool>,
+    pub network_token_migrated: Option<bool>,
+    pub connector_mandate_details_migrated: Option<bool>,
+    pub network_transaction_migrated: Option<bool>,
+}
+
+#[derive(Debug)]
+pub struct RecordMigrationStatusBuilder {
+    pub card_migrated: Option<bool>,
+    pub network_token_migrated: Option<bool>,
+    pub connector_mandate_details_migrated: Option<bool>,
+    pub network_transaction_migrated: Option<bool>,
+}
+
+impl RecordMigrationStatusBuilder{
+    pub fn new() -> Self {
+        Self {
+            card_migrated: None,
+            network_token_migrated: None,
+            connector_mandate_details_migrated: None,
+            network_transaction_migrated: None,
+        }
+    }
+
+    pub fn card_migrated(&mut self, card_migrated: bool) {
+        self.card_migrated = Some(card_migrated);
+    }
+
+    pub fn network_token_migrated(&mut self, network_token_migrated: Option<bool>) {
+        self.network_token_migrated = network_token_migrated;
+    }
+
+    pub fn connector_mandate_details_migrated(&mut self, connector_mandate_details_migrated: Option<bool>) {
+        self.connector_mandate_details_migrated = connector_mandate_details_migrated;
+    }
+
+    pub fn network_transaction_id_migrated(&mut self, network_transaction_migrated: Option<bool>) {
+        self.network_transaction_migrated = network_transaction_migrated;
+    }
+
+    pub fn build(self) -> RecordMigrationStatus {
+        RecordMigrationStatus {
+            card_migrated: self.card_migrated,
+            network_token_migrated: self.network_token_migrated,
+            connector_mandate_details_migrated: self.connector_mandate_details_migrated,
+            network_transaction_migrated: self.network_transaction_migrated,
+        }
+    }
+}

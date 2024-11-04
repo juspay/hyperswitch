@@ -4,6 +4,7 @@ use std::{
     str::FromStr,
 };
 
+use super::migration::RecordMigrationStatusBuilder;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -395,12 +396,6 @@ pub async fn get_or_insert_payment_method(
     todo!()
 }
 
-pub struct RecordMigrationStatus {
-    pub card_migrated: Option<bool>,
-    pub network_token_migrated: Option<bool>,
-    pub connector_mandate_details_migrated: Option<bool>,
-    pub network_transaction_migrated: Option<bool>,
-}
 
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -449,12 +444,7 @@ pub async fn migrate_payment_method(
 
     let should_require_connector_mandate_details = req.network_token.is_none();
 
-    let mut migration_status = RecordMigrationStatus {
-        card_migrated: None,
-        network_token_migrated: None,
-        connector_mandate_details_migrated: None,
-        network_transaction_migrated: None,
-    };
+    let mut migration_status = RecordMigrationStatusBuilder::new();
 
     let resp = match card_number_validation_result {
         Ok(card_number) => {
@@ -474,30 +464,19 @@ pub async fn migrate_payment_method(
                 // but will update the payment_method_data with bin details and migrate connector mandate details if present.
                 if validation_result.is_err() {
                     logger::debug!("Skip storing card in locker as skip_card_expiry_validation is {} and card is expired",skip_card_expiry_validation);
-                        skip_locker_call_and_migrate_payment_method(
-                            state.clone(),
-                            &req,
-                            merchant_id.to_owned(),
-                            key_store,
-                            merchant_account,
-                            card_bin_details.clone(),
-                            should_require_connector_mandate_details, //when there is no card and no network token, should_require_connector_mandate_details is set to true and connector mandate details are required
-                            &mut migration_status,
-                        )
-                        .await?
+                    skip_locker_call_and_migrate_payment_method(
+                        state.clone(),
+                        &req,
+                        merchant_id.to_owned(),
+                        key_store,
+                        merchant_account,
+                        card_bin_details.clone(),
+                        should_require_connector_mandate_details, //when there is no card and no network token, should_require_connector_mandate_details is set to true and connector mandate details are required
+                        &mut migration_status,
+                    )
+                    .await?
                 } else {
                     logger::debug!("Storing the card in locker and migrating the payment method");
-                        get_client_secret_or_add_payment_method_for_migrate_api(
-                            &state,
-                            payment_method_create_request,
-                            merchant_account,
-                            key_store,
-                            &mut migration_status,
-                        )
-                        .await?
-                }
-            } else {
-                logger::debug!("Storing the card in locker and migrating the payment method");
                     get_client_secret_or_add_payment_method_for_migrate_api(
                         &state,
                         payment_method_create_request,
@@ -506,21 +485,32 @@ pub async fn migrate_payment_method(
                         &mut migration_status,
                     )
                     .await?
+                }
+            } else {
+                logger::debug!("Storing the card in locker and migrating the payment method");
+                get_client_secret_or_add_payment_method_for_migrate_api(
+                    &state,
+                    payment_method_create_request,
+                    merchant_account,
+                    key_store,
+                    &mut migration_status,
+                )
+                .await?
             }
         }
         Err(card_validation_error) => {
             logger::debug!("Card number to be migrated is invalid, skip saving in locker {card_validation_error}");
-                skip_locker_call_and_migrate_payment_method(
-                    state.clone(),
-                    &req,
-                    merchant_id.to_owned(),
-                    key_store,
-                    merchant_account,
-                    card_bin_details.clone(),
-                    should_require_connector_mandate_details,
-                    &mut migration_status,
-                )
-                .await?
+            skip_locker_call_and_migrate_payment_method(
+                state.clone(),
+                &req,
+                merchant_id.to_owned(),
+                key_store,
+                merchant_account,
+                card_bin_details.clone(),
+                should_require_connector_mandate_details,
+                &mut migration_status,
+            )
+            .await?
         }
     };
     let payment_method_response = match resp {
@@ -538,7 +528,7 @@ pub async fn migrate_payment_method(
             .map_err(|_| false)
     }); // network_token_migrated is true if network_token_number passes the validation and will be migrated to locker
 
-    migration_status.network_token_migrated = match network_token_validation {
+    let network_token_migrated = match network_token_validation {
         Some(Ok(network_token)) => {
             logger::debug!("Network token to be migrated is valid, saving in locker");
             let network_token_details = req
@@ -575,14 +565,16 @@ pub async fn migrate_payment_method(
             None
         }
     };
+    migration_status.network_token_migrated(network_token_migrated);
+    let migrate_status = migration_status.build(); 
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentMethodMigrateResponse {
             payment_method_response,
-            card_migrated: migration_status.card_migrated,
-            network_token_migrated: migration_status.network_token_migrated,
-            connector_mandate_details_migrated: migration_status.connector_mandate_details_migrated,
-            network_transaction_id_migrated: migration_status.network_transaction_migrated,
+            card_migrated: migrate_status.card_migrated,
+            network_token_migrated: migrate_status.network_token_migrated,
+            connector_mandate_details_migrated: migrate_status.connector_mandate_details_migrated,
+            network_transaction_id_migrated: migrate_status.network_transaction_migrated,
         },
     ))
 }
@@ -817,7 +809,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     merchant_account: &domain::MerchantAccount,
     card: api_models::payment_methods::CardDetailFromLocker,
     should_require_connector_mandate_details: bool,
-    migration_status: &mut RecordMigrationStatus,
+    migration_status: &mut RecordMigrationStatusBuilder,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -883,11 +875,14 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    migration_status.network_transaction_migrated = network_transaction_id.clone().map(|_| true);
-    migration_status.connector_mandate_details_migrated = connector_mandate_details
-        .clone()
-        .map(|_| true)
-        .or_else(|| req.connector_mandate_details.clone().map(|_| false));
+    migration_status.network_transaction_id_migrated(network_transaction_id.clone().map(|_| true));
+
+    migration_status.connector_mandate_details_migrated(
+        connector_mandate_details
+            .clone()
+            .map(|_| true)
+            .or_else(|| req.connector_mandate_details.clone().map(|_| false)),
+    );
 
     let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
@@ -1200,7 +1195,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    migration_status: &mut RecordMigrationStatus,
+    migration_status: &mut RecordMigrationStatusBuilder,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let merchant_id = merchant_account.get_id();
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
@@ -1226,8 +1221,6 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        
-
     if condition {
         Box::pin(add_payment_method_for_migrate_api(
             state,
@@ -1239,7 +1232,6 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
         .await
     } else {
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
-        
 
         let res = create_payment_method(
             state,
@@ -1263,12 +1255,14 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
             None,
         )
         .await?;
-        migration_status.connector_mandate_details_migrated = connector_mandate_details
-            .clone()
-            .map(|_| true)
-            .or_else(|| req.connector_mandate_details.clone().map(|_| false));
+        migration_status.connector_mandate_details_migrated(
+            connector_mandate_details
+                .clone()
+                .map(|_| true)
+                .or_else(|| req.connector_mandate_details.clone().map(|_| false)),
+        );
 
-        migration_status.card_migrated = Some(false); //card is not migrated in this case
+        migration_status.card_migrated(false); //card is not migrated in this case
 
         if res.status == enums::PaymentMethodStatus::AwaitingData {
             add_payment_method_status_update_task(
@@ -1794,7 +1788,7 @@ pub async fn add_payment_method_for_migrate_api(
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
-    migration_status: &mut RecordMigrationStatus,
+    migration_status: &mut RecordMigrationStatusBuilder,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
     let db = &*state.store;
@@ -1819,13 +1813,14 @@ pub async fn add_payment_method_for_migrate_api(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    migration_status.network_transaction_migrated = network_transaction_id.clone().map(|_| true);
-    migration_status.connector_mandate_details_migrated = connector_mandate_details
-        .clone()
-        .map(|_| true)
-        .or_else(|| req.connector_mandate_details.clone().map(|_| false));
+    migration_status.network_transaction_id_migrated(network_transaction_id.clone().map(|_| true));
 
-
+    migration_status.connector_mandate_details_migrated(
+        connector_mandate_details
+            .clone()
+            .map(|_| true)
+            .or_else(|| req.connector_mandate_details.clone().map(|_| false)),
+    );
 
     let response = match payment_method {
         #[cfg(feature = "payouts")]
@@ -1886,7 +1881,7 @@ pub async fn add_payment_method_for_migrate_api(
 
     let (mut resp, duplication_check) = response?;
 
-    migration_status.card_migrated = Some(true); //card is saved to locker
+    migration_status.card_migrated(true); //card is saved to locker
     match duplication_check {
         Some(duplication_check) => match duplication_check {
             payment_methods::DataDuplicationCheck::Duplicated => {
