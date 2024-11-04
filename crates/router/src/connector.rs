@@ -45,7 +45,7 @@ pub mod wellsfargopayout;
 pub mod wise;
 
 pub use hyperswitch_connectors::connectors::{
-    airwallex, airwallex::Airwallex, bambora, bambora::Bambora, billwerk, billwerk::Billwerk,
+    airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, bambora, bambora::Bambora, billwerk, billwerk::Billwerk,
     bitpay, bitpay::Bitpay, cashtocode, cashtocode::Cashtocode, coinbase, coinbase::Coinbase,
     cryptopay, cryptopay::Cryptopay, deutschebank, deutschebank::Deutschebank, digitalvirgo,
     digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, elavon, elavon::Elavon, fiserv,

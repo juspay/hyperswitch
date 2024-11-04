@@ -1,4 +1,5 @@
 pub mod airwallex;
+pub mod amazonpay;
 pub mod bambora;
 pub mod billwerk;
 pub mod bitpay;
@@ -37,7 +38,7 @@ pub mod zen;
 pub mod zsl;
 
 pub use self::{
-    airwallex::Airwallex, bambora::Bambora, billwerk::Billwerk, bitpay::Bitpay,
+    airwallex::Airwallex, amazonpay::Amazonpay, bambora::Bambora, billwerk::Billwerk, bitpay::Bitpay,
     cashtocode::Cashtocode, coinbase::Coinbase, cryptopay::Cryptopay, deutschebank::Deutschebank,
     digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon, fiserv::Fiserv,
     fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay, helcim::Helcim,
