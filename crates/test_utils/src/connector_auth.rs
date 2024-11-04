@@ -37,6 +37,7 @@ pub struct ConnectorAuthentication {
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,
     pub ebanx: Option<HeaderKey>,
+    pub elavon: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
     pub fiservemea: Option<HeaderKey>,
     pub fiuu: Option<HeaderKey>,
