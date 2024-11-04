@@ -176,7 +176,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
             }
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let mandate_metadata: DeutschebankMandateMetadata = mandate_data
-                    .mandate_metadata
+                    .get_mandate_metadata()
                     .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
                     .clone()
                     .parse_value("DeutschebankMandateMetadata")
@@ -325,6 +325,7 @@ impl
                                 reference: Secret::from(reference.clone()),
                                 signed_on,
                             })),
+                            connector_mandate_request_reference_id: None,
                         }))
                     } else {
                         Box::new(None)

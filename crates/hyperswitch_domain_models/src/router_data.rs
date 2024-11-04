@@ -84,6 +84,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,
 
     pub header_payload: Option<payments::HeaderPayload>,
+
+    pub connector_mandate_request_reference_id: Option<String>,
 }
 
 // Different patterns of authentication.

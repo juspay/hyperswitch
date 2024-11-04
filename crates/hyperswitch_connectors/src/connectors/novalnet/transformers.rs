@@ -374,7 +374,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 .into()),
             },
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
-                let connector_mandate_id = mandate_data.connector_mandate_id.ok_or(
+                let connector_mandate_id = mandate_data.get_connector_mandate_id().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "connector_mandate_id",
                     },
@@ -597,6 +597,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
                             }
                         })),
                         connector_metadata: None,
@@ -998,6 +999,7 @@ impl<F>
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
                             }
                         })),
                         connector_metadata: None,
