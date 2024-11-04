@@ -541,7 +541,7 @@ impl OpenSearchQueryBuilder {
     pub fn build_case_insensitive_filters(
         &self,
         mut payload: Value,
-        case_insensitive_filters: &Vec<&(String, Vec<String>)>,
+        case_insensitive_filters: &[&(String, Vec<String>)],
         auth_array: Vec<Value>,
         index: &SearchIndex,
     ) -> Value {
