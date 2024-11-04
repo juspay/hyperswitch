@@ -91,6 +91,8 @@ impl MerchantConnectorAccount {
         &self,
     ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
     {
+        use common_utils::ext_traits::ValueExt;
+
         self.connector_account_details
             .get_inner()
             .clone()
