@@ -1,10 +1,11 @@
 use error_stack::ResultExt;
+use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use super::requests::*;
-use crate::core::errors;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayPaymentsResponse {
