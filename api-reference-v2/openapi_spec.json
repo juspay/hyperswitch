@@ -453,6 +453,20 @@
         "summary": "Merchant Account - Create",
         "description": "Create a new account for a *merchant* and the *merchant* could be a seller or retailer or client who likes to receive and send payments.\n\nBefore creating the merchant account, it is mandatory to create an organization.",
         "operationId": "Create a Merchant Account",
+        "parameters": [
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "Organization ID for which the merchant account has to be created.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Organization-Id": "org_abcdefghijklmnop"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -466,8 +480,7 @@
                       "primary_contact_person": "John Doe",
                       "primary_email": "example@company.com"
                     },
-                    "merchant_name": "Cloth Store",
-                    "organization_id": "org_abcdefghijklmnop"
+                    "merchant_name": "Cloth Store"
                   }
                 },
                 "Create a merchant account with metadata": {
@@ -476,14 +489,12 @@
                     "metadata": {
                       "key_1": "John Doe",
                       "key_2": "Trends"
-                    },
-                    "organization_id": "org_abcdefghijklmnop"
+                    }
                   }
                 },
                 "Create a merchant account with minimal fields": {
                   "value": {
-                    "merchant_name": "Cloth Store",
-                    "organization_id": "org_abcdefghijklmnop"
+                    "merchant_name": "Cloth Store"
                   }
                 }
               }
@@ -1832,13 +1843,54 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaymentsCreateIntentResponse"
+                  "$ref": "#/components/schemas/PaymentsIntentResponse"
                 }
               }
             }
           },
           "400": {
             "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payments/{id}/get-intent": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Get Intent",
+        "description": "**Get a payment intent object when id is passed in path**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the call.",
+        "operationId": "Get the Payment Intent details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the Payment Intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Intent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsIntentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payment Intent not found"
           }
         },
         "security": [
@@ -9385,8 +9437,7 @@
       "MerchantAccountCreate": {
         "type": "object",
         "required": [
-          "merchant_name",
-          "organization_id"
+          "merchant_name"
         ],
         "properties": {
           "merchant_name": {
@@ -9407,13 +9458,6 @@
             "type": "object",
             "description": "Metadata is useful for storing additional, unstructured information about the merchant account.",
             "nullable": true
-          },
-          "organization_id": {
-            "type": "string",
-            "description": "The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization",
-            "example": "org_q98uSGAYbjEwqs0mJwnz",
-            "maxLength": 64,
-            "minLength": 1
           }
         },
         "additionalProperties": false
@@ -10974,9 +11018,7 @@
             "minimum": 0
           },
           "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "the amount per quantity of product"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "requires_shipping": {
             "type": "boolean",
@@ -13567,179 +13609,6 @@
         },
         "additionalProperties": false
       },
-      "PaymentsCreateIntentResponse": {
-        "type": "object",
-        "required": [
-          "id",
-          "amount_details",
-          "client_secret",
-          "capture_method",
-          "authentication_type",
-          "customer_present",
-          "setup_future_usage",
-          "apply_mit_exemption",
-          "payment_link_enabled",
-          "request_incremental_authorization",
-          "expires_on",
-          "request_external_three_ds_authentication"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Global Payment Id for the payment"
-          },
-          "amount_details": {
-            "$ref": "#/components/schemas/AmountDetailsResponse"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "It's a token used for client side verification.",
-            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
-          },
-          "merchant_reference_id": {
-            "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
-            "example": "pay_mbabizu24mvu3mela5njyhpit4",
-            "nullable": true,
-            "maxLength": 30,
-            "minLength": 30
-          },
-          "routing_algorithm_id": {
-            "type": "string",
-            "description": "The routing algorithm id to be used for the payment",
-            "nullable": true
-          },
-          "capture_method": {
-            "$ref": "#/components/schemas/CaptureMethod"
-          },
-          "authentication_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AuthenticationType"
-              }
-            ],
-            "default": "no_three_ds"
-          },
-          "billing": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "shipping": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Address"
-              }
-            ],
-            "nullable": true
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "The identifier for the customer",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 64,
-            "minLength": 1
-          },
-          "customer_present": {
-            "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
-          },
-          "description": {
-            "type": "string",
-            "description": "A description for the payment",
-            "example": "It's my first payment request",
-            "nullable": true
-          },
-          "return_url": {
-            "type": "string",
-            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
-            "example": "https://hyperswitch.io",
-            "nullable": true
-          },
-          "setup_future_usage": {
-            "$ref": "#/components/schemas/FutureUsage"
-          },
-          "apply_mit_exemption": {
-            "$ref": "#/components/schemas/MitExemptionRequest"
-          },
-          "statement_descriptor": {
-            "type": "string",
-            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
-            "example": "Hyperswitch Router",
-            "nullable": true,
-            "maxLength": 22
-          },
-          "order_details": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/OrderDetailsWithAmount"
-            },
-            "description": "Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount",
-            "example": "[{\n        \"product_name\": \"Apple iPhone 16\",\n        \"quantity\": 1,\n        \"amount\" : 69000\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
-            "nullable": true
-          },
-          "allowed_payment_method_types": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
-            },
-            "description": "Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent",
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "Metadata is useful for storing additional, unstructured information on an object.",
-            "nullable": true
-          },
-          "connector_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorMetadata"
-              }
-            ],
-            "nullable": true
-          },
-          "feature_metadata": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/FeatureMetadata"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_link_enabled": {
-            "$ref": "#/components/schemas/EnablePaymentLinkRequest"
-          },
-          "payment_link_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentLinkConfigRequest"
-              }
-            ],
-            "nullable": true
-          },
-          "request_incremental_authorization": {
-            "$ref": "#/components/schemas/RequestIncrementalAuthorization"
-          },
-          "expires_on": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds"
-          },
-          "frm_metadata": {
-            "type": "object",
-            "description": "Additional data related to some frm(Fraud Risk Management) connectors",
-            "nullable": true
-          },
-          "request_external_three_ds_authentication": {
-            "$ref": "#/components/schemas/External3dsAuthenticationRequest"
-          }
-        },
-        "additionalProperties": false
-      },
       "PaymentsCreateResponseOpenApi": {
         "type": "object",
         "required": [
@@ -14432,6 +14301,179 @@
             "nullable": true
           }
         }
+      },
+      "PaymentsIntentResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "amount_details",
+          "client_secret",
+          "capture_method",
+          "authentication_type",
+          "customer_present",
+          "setup_future_usage",
+          "apply_mit_exemption",
+          "payment_link_enabled",
+          "request_incremental_authorization",
+          "expires_on",
+          "request_external_three_ds_authentication"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Global Payment Id for the payment"
+          },
+          "amount_details": {
+            "$ref": "#/components/schemas/AmountDetailsResponse"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "It's a token used for client side verification.",
+            "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
+            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "nullable": true,
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "routing_algorithm_id": {
+            "type": "string",
+            "description": "The routing algorithm id to be used for the payment",
+            "nullable": true
+          },
+          "capture_method": {
+            "$ref": "#/components/schemas/CaptureMethod"
+          },
+          "authentication_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationType"
+              }
+            ],
+            "default": "no_three_ds"
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "The identifier for the customer",
+            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
+            "nullable": true,
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "customer_present": {
+            "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+          },
+          "description": {
+            "type": "string",
+            "description": "A description for the payment",
+            "example": "It's my first payment request",
+            "nullable": true
+          },
+          "return_url": {
+            "type": "string",
+            "description": "The URL to which you want the user to be redirected after the completion of the payment operation",
+            "example": "https://hyperswitch.io",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "$ref": "#/components/schemas/FutureUsage"
+          },
+          "apply_mit_exemption": {
+            "$ref": "#/components/schemas/MitExemptionRequest"
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.",
+            "example": "Hyperswitch Router",
+            "nullable": true,
+            "maxLength": 22
+          },
+          "order_details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderDetailsWithAmount"
+            },
+            "description": "Use this object to capture the details about the different products for which the payment is being made. The sum of amount across different products here should be equal to the overall payment amount",
+            "example": "[{\n        \"product_name\": \"Apple iPhone 16\",\n        \"quantity\": 1,\n        \"amount\" : 69000\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
+            "nullable": true
+          },
+          "allowed_payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentMethodType"
+            },
+            "description": "Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "nullable": true
+          },
+          "connector_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "feature_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_link_enabled": {
+            "$ref": "#/components/schemas/EnablePaymentLinkRequest"
+          },
+          "payment_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkConfigRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "request_incremental_authorization": {
+            "$ref": "#/components/schemas/RequestIncrementalAuthorization"
+          },
+          "expires_on": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds"
+          },
+          "frm_metadata": {
+            "type": "object",
+            "description": "Additional data related to some frm(Fraud Risk Management) connectors",
+            "nullable": true
+          },
+          "request_external_three_ds_authentication": {
+            "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+          }
+        },
+        "additionalProperties": false
       },
       "PaymentsResponse": {
         "type": "object",
@@ -16199,7 +16241,9 @@
         "required": [
           "client_id",
           "client_name",
-          "client_profile_id"
+          "client_profile_id",
+          "transaction_currency_code",
+          "transaction_amount"
         ],
         "properties": {
           "client_id": {
@@ -16213,6 +16257,21 @@
           "client_profile_id": {
             "type": "string",
             "description": "Paze Client Profile ID"
+          },
+          "transaction_currency_code": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "transaction_amount": {
+            "type": "string",
+            "description": "The transaction amount",
+            "example": "38.02"
+          },
+          "email_address": {
+            "type": "string",
+            "description": "Email Address",
+            "example": "johntest@test.com",
+            "nullable": true,
+            "maxLength": 255
           }
         }
       },
@@ -19967,7 +20026,8 @@
               }
             }
           }
-        ]
+        ],
+        "description": "Hyperswitch supports SDK integration with Apple Pay and Google Pay wallets. For other wallets, we integrate with their respective connectors, redirecting the customer to the connector for wallet payments. As a result, we don’t receive any payment method data in the confirm call for payments made through other wallets."
       },
       "WeChatPay": {
         "type": "object"

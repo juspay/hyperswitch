@@ -330,10 +330,13 @@ pub async fn migrate_payment_methods(
     MultipartForm(form): MultipartForm<migration::PaymentMethodsMigrateForm>,
 ) -> HttpResponse {
     let flow = Flow::PaymentMethodsMigrate;
-    let (merchant_id, records) = match migration::get_payment_method_records(form) {
-        Ok((merchant_id, records)) => (merchant_id, records),
-        Err(e) => return api::log_and_return_error_response(e.into()),
-    };
+    let (merchant_id, records, merchant_connector_id) =
+        match migration::get_payment_method_records(form) {
+            Ok((merchant_id, records, merchant_connector_id)) => {
+                (merchant_id, records, merchant_connector_id)
+            }
+            Err(e) => return api::log_and_return_error_response(e.into()),
+        };
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -341,6 +344,7 @@ pub async fn migrate_payment_methods(
         records,
         |state, _, req, _| {
             let merchant_id = merchant_id.clone();
+            let merchant_connector_id = merchant_connector_id.clone();
             async move {
                 let (key_store, merchant_account) =
                     get_merchant_account(&state, &merchant_id).await?;
@@ -348,7 +352,7 @@ pub async fn migrate_payment_methods(
                 customers::migrate_customers(
                     state.clone(),
                     req.iter()
-                        .map(|e| CustomerRequest::from(e.clone()))
+                        .map(|e| CustomerRequest::from((e.clone(), merchant_id.clone())))
                         .collect(),
                     merchant_account.clone(),
                     key_store.clone(),
@@ -361,6 +365,7 @@ pub async fn migrate_payment_methods(
                     &merchant_id,
                     &merchant_account,
                     &key_store,
+                    merchant_connector_id,
                 ))
                 .await
             }

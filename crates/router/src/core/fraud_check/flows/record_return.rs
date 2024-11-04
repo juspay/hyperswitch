@@ -128,6 +128,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             integrity_check: Ok(()),
             additional_merchant_data: None,
             header_payload,
+            connector_mandate_request_reference_id: None,
         };
 
         Ok(router_data)
