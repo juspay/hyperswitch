@@ -1927,7 +1927,7 @@ pub async fn terminate_two_factor_auth(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    if !skip_two_factor_auth || state.conf.user.force_two_factor_auth {
+    if state.conf.user.force_two_factor_auth || !skip_two_factor_auth {
         if !tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?
             && !tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?
         {
