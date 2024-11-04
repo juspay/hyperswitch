@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::{
     analytics::search::SearchIndex,
     errors::types::{ApiError, ApiErrorResponse},
@@ -456,7 +458,8 @@ pub struct OpenSearchQueryBuilder {
     pub count: Option<i64>,
     pub filters: Vec<(String, Vec<String>)>,
     pub time_range: Option<OpensearchTimeRange>,
-    pub search_params: Vec<AuthInfo>,
+    search_params: Vec<AuthInfo>,
+    case_sensitive_fields: HashSet<&'static str>,
 }
 
 impl OpenSearchQueryBuilder {
@@ -469,6 +472,12 @@ impl OpenSearchQueryBuilder {
             count: Default::default(),
             filters: Default::default(),
             time_range: Default::default(),
+            case_sensitive_fields: HashSet::from([
+                "customer_email.keyword",
+                "search_tags.keyword",
+                "card_last_4.keyword",
+                "payment_id.keyword",
+            ]),
         }
     }
 
@@ -486,6 +495,87 @@ impl OpenSearchQueryBuilder {
     pub fn add_filter_clause(&mut self, lhs: String, rhs: Vec<String>) -> QueryResult<()> {
         self.filters.push((lhs, rhs));
         Ok(())
+    }
+
+    pub fn build_auth_array(&self) -> Vec<Value> {
+        self.search_params
+            .iter()
+            .map(|user_level| match user_level {
+                AuthInfo::OrgLevel { org_id } => {
+                    let must_clauses = vec![json!({
+                        "term": {
+                            "organization_id.keyword": {
+                                "value": org_id
+                            }
+                        }
+                    })];
+
+                    json!({
+                        "bool": {
+                            "must": must_clauses
+                        }
+                    })
+                }
+                AuthInfo::MerchantLevel {
+                    org_id,
+                    merchant_ids,
+                } => {
+                    let must_clauses = vec![
+                        json!({
+                            "term": {
+                                "organization_id.keyword": {
+                                    "value": org_id
+                                }
+                            }
+                        }),
+                        json!({
+                            "terms": {
+                                "merchant_id.keyword": merchant_ids
+                            }
+                        }),
+                    ];
+
+                    json!({
+                        "bool": {
+                            "must": must_clauses
+                        }
+                    })
+                }
+                AuthInfo::ProfileLevel {
+                    org_id,
+                    merchant_id,
+                    profile_ids,
+                } => {
+                    let must_clauses = vec![
+                        json!({
+                            "term": {
+                                "organization_id.keyword": {
+                                    "value": org_id
+                                }
+                            }
+                        }),
+                        json!({
+                            "term": {
+                                "merchant_id.keyword": {
+                                    "value": merchant_id
+                                }
+                            }
+                        }),
+                        json!({
+                            "terms": {
+                                "profile_id.keyword": profile_ids
+                            }
+                        }),
+                    ];
+
+                    json!({
+                        "bool": {
+                            "must": must_clauses
+                        }
+                    })
+                }
+            })
+            .collect::<Vec<Value>>()
     }
 
     pub fn get_status_field(&self, index: &SearchIndex) -> &str {
@@ -548,6 +638,14 @@ impl OpenSearchQueryBuilder {
             .map(|(k, v)| json!({"terms": {k: v}}))
             .collect::<Vec<Value>>();
 
+        let (case_sensitive_filters, case_insensitive_filters): (Vec<_>, Vec<_>) = self
+            .filters
+            .iter()
+            .partition(|(k, _)| self.case_sensitive_fields.contains(k.as_str()));
+
+        println!("Case sensitive filters: {:?}", case_sensitive_filters);
+        println!("Case insensitive filters: {:?}", case_insensitive_filters);
+
         filter_array.append(&mut filters);
 
         if let Some(ref time_range) = self.time_range {
@@ -559,73 +657,7 @@ impl OpenSearchQueryBuilder {
             }));
         }
 
-        let should_array = self
-            .search_params
-            .iter()
-            .map(|user_level| match user_level {
-                AuthInfo::OrgLevel { org_id } => {
-                    let must_clauses = vec![json!({
-                        "term": {
-                            "organization_id.keyword": {
-                                "value": org_id
-                            }
-                        }
-                    })];
-
-                    json!({
-                        "bool": {
-                            "must": must_clauses
-                        }
-                    })
-                }
-                AuthInfo::MerchantLevel {
-                    org_id: _,
-                    merchant_ids,
-                } => {
-                    let must_clauses = vec![
-                        // TODO: Add org_id field to the filters
-                        json!({
-                            "terms": {
-                                "merchant_id.keyword": merchant_ids
-                            }
-                        }),
-                    ];
-
-                    json!({
-                        "bool": {
-                            "must": must_clauses
-                        }
-                    })
-                }
-                AuthInfo::ProfileLevel {
-                    org_id: _,
-                    merchant_id,
-                    profile_ids,
-                } => {
-                    let must_clauses = vec![
-                        // TODO: Add org_id field to the filters
-                        json!({
-                            "term": {
-                                "merchant_id.keyword": {
-                                    "value": merchant_id
-                                }
-                            }
-                        }),
-                        json!({
-                            "terms": {
-                                "profile_id.keyword": profile_ids
-                            }
-                        }),
-                    ];
-
-                    json!({
-                        "bool": {
-                            "must": must_clauses
-                        }
-                    })
-                }
-            })
-            .collect::<Vec<Value>>();
+        let should_array = self.build_auth_array();
 
         if !filter_array.is_empty() {
             bool_obj.insert("filter".to_string(), Value::Array(filter_array));
@@ -674,6 +706,11 @@ impl OpenSearchQueryBuilder {
                         Value::Object(sort_obj)
                     ]
                 });
+                println!("Index: {:?}", index);
+                println!(
+                    "Payload: {}",
+                    serde_json::to_string_pretty(&payload).unwrap()
+                );
                 payload
             })
             .collect::<Vec<Value>>())
