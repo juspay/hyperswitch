@@ -1922,28 +1922,31 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
-            let success_based_routing_config_params_interpolator = routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
-                payment_attempt.payment_method,
-                payment_attempt.payment_method_type,
-                payment_attempt.authentication_type,
-                payment_attempt.currency,
-                payment_data.address.get_payment_billing()
-                    .unwrap()
-                    .address
-                    .clone()
-                    .unwrap()
-                    .country,
-                payment_attempt
-                    .payment_method_data
-                    .as_ref()
-                    .and_then(|data| data.as_object())
-                    .and_then(|card| card.get("card"))
-                    .and_then(|data| data.as_object())
-                    .and_then(|card| card.get("card_network"))
-                    .and_then(|network| network.as_str())
-                    .map(|network| network.to_string()),
-                None,
-            );
+            let success_based_routing_config_params_interpolator =
+                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                    payment_attempt.payment_method,
+                    payment_attempt.payment_method_type,
+                    payment_attempt.authentication_type,
+                    payment_attempt.currency,
+                    payment_data
+                        .address
+                        .get_payment_billing()
+                        .unwrap()
+                        .address
+                        .clone()
+                        .unwrap()
+                        .country,
+                    payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_network"))
+                        .and_then(|network| network.as_str())
+                        .map(|network| network.to_string()),
+                    None,
+                );
             tokio::spawn(
                 async move {
                     routing_helpers::push_metrics_for_success_based_routing(

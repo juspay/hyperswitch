@@ -112,7 +112,6 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         params: String,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse> {
-
         let labels = label_input
             .into_iter()
             .map(|conn_choice| conn_choice.to_string())
