@@ -522,6 +522,6 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: Option<PaymentAttempt>,
     /// Should the payment status be synced with connector
-    /// This will depend on the payment status
+    /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
 }

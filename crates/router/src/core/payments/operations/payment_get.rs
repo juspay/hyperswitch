@@ -42,21 +42,9 @@ impl ValidateStatusForOperation for PaymentGet {
     /// Validate if the current operation can be performed on the current status of the payment intent
     fn validate_status_for_operation(
         &self,
-        intent_status: common_enums::IntentStatus,
+        _intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse> {
-        match intent_status {
-            common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed
-            | common_enums::IntentStatus::Cancelled
-            | common_enums::IntentStatus::Processing
-            | common_enums::IntentStatus::RequiresCustomerAction
-            | common_enums::IntentStatus::RequiresMerchantAction
-            | common_enums::IntentStatus::RequiresCapture
-            | common_enums::IntentStatus::PartiallyCaptured
-            | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => Ok(()),
-        }
+        Ok(())
     }
 }
 

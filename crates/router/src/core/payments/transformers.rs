@@ -186,15 +186,12 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
 ) -> RouterResult<types::PaymentsAuthorizeRouterData> {
     use masking::ExposeOptionInterface;
 
-    fp_utils::when(merchant_connector_account.disabled.unwrap_or(false), || {
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
     let auth_type = merchant_connector_account
-        .connector_account_details
-        .clone()
-        .into_inner()
-        .parse_value::<types::ConnectorAuthType>("ConnectorAuthType")
+        .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
@@ -392,7 +389,7 @@ pub async fn construct_router_data_for_psync<'a>(
 ) -> RouterResult<types::PaymentsSyncRouterData> {
     use masking::ExposeOptionInterface;
 
-    fp_utils::when(merchant_connector_account.disabled.unwrap_or(false), || {
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
@@ -411,14 +408,10 @@ pub async fn construct_router_data_for_psync<'a>(
     let payment_intent = payment_data.payment_intent;
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
-        .connector_account_details
-        .clone()
-        .into_inner()
-        .parse_value("ConnectorAuthType")
+        .get_connector_account_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
-    let router_base_url = &state.base_url;
     let attempt = &payment_data
         .payment_attempt
         .get_required_value("attempt")

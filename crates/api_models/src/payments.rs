@@ -4635,7 +4635,7 @@ pub struct PaymentsRetrieveResponse {
     )]
     pub id: id_type::GlobalPaymentId,
 
-    #[schema(value_type = IntentStatus, example = "success")]
+    #[schema(value_type = IntentStatus, example = "succeeded")]
     pub status: api_enums::IntentStatus,
 
     /// Amount related information for this payment and attempt

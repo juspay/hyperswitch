@@ -1,3 +1,4 @@
+use actix_web::error;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -13,6 +14,12 @@ use rustc_hash::FxHashMap;
 
 use super::behaviour;
 use crate::type_encryption::{crypto_operation, CryptoOperation};
+
+#[cfg(feature = "v2")]
+use crate::router_data;
+
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::ValueExt;
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
@@ -79,6 +86,20 @@ pub struct MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        self.disabled.unwrap_or(false)
+    }
+
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        self.connector_account_details
+            .get_inner()
+            .clone()
+            .parse_value("ConnectorAuthType")
     }
 }
 
