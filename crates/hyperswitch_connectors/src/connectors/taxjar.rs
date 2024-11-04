@@ -190,11 +190,22 @@ impl ConnectorIntegration<CalculateTax, PaymentsTaxCalculationData, TaxCalculati
 
         let shipping = utils::convert_amount(
             self.amount_converter,
-            req.request.shipping_cost.unwrap_or(MinorUnit::new(0)),
+            req.request.shipping_cost.unwrap_or(MinorUnit::zero()),
             req.request.currency,
         )?;
 
-        let connector_router_data = taxjar::TaxjarRouterData::from((amount, shipping, req));
+        let order_amount = utils::convert_amount(
+            self.amount_converter,
+            req.request
+                .order_details
+                .as_ref()
+                .map(|details| details.iter().map(|item| item.amount).sum())
+                .unwrap_or(MinorUnit::zero()),
+            req.request.currency,
+        )?;
+
+        let connector_router_data =
+            taxjar::TaxjarRouterData::from((amount, order_amount, shipping, req));
         let connector_req = taxjar::TaxjarPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

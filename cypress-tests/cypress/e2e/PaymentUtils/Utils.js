@@ -19,6 +19,7 @@ import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
+import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -39,11 +40,17 @@ const connectorDetails = {
   datatrans: datatransConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   fiuu: fiuuConnectorDetails,
+  worldpay: worldpayConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
   let x = mergeDetails(connectorId);
   return x;
+}
+
+export function getConnectorFlowDetails(connectorData, commonData, key) {
+  let data = connectorData[key] === undefined ? commonData[key] : connectorData[key];
+  return data;
 }
 
 function mergeDetails(connectorId) {

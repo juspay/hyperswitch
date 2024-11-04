@@ -1,32 +1,43 @@
 use cards::CardNumber;
-use common_utils::ext_traits::Encode;
+use common_enums::{enums, AttemptStatus, CaptureMethod, Currency, PaymentMethod};
+use common_utils::{errors::ParsingError, ext_traits::Encode};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::Execute,
+    router_request_types::ResponseId,
+    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        RefundsRouterData,
+    },
+};
+use hyperswitch_interfaces::{api::CurrencyUnit, errors::ConnectorError};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData, RouterData},
-    core::errors,
-    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        get_amount_as_string, get_unimplemented_payment_method_error_message, to_connector_meta,
+        CardData, CardIssuer, RouterData as _,
+    },
 };
+
 #[derive(Debug, Serialize)]
 pub struct PayeezyRouterData<T> {
     pub amount: String,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for PayeezyRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
+impl<T> TryFrom<(&CurrencyUnit, Currency, i64, T)> for PayeezyRouterData<T> {
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        (currency_unit, currency, amount, router_data): (
-            &api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, amount, router_data): (&CurrencyUnit, Currency, i64, T),
     ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        let amount = get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data,
@@ -53,20 +64,20 @@ pub enum PayeezyCardType {
     Discover,
 }
 
-impl TryFrom<utils::CardIssuer> for PayeezyCardType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(issuer: utils::CardIssuer) -> Result<Self, Self::Error> {
+impl TryFrom<CardIssuer> for PayeezyCardType {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(issuer: CardIssuer) -> Result<Self, Self::Error> {
         match issuer {
-            utils::CardIssuer::AmericanExpress => Ok(Self::AmericanExpress),
-            utils::CardIssuer::Master => Ok(Self::Mastercard),
-            utils::CardIssuer::Discover => Ok(Self::Discover),
-            utils::CardIssuer::Visa => Ok(Self::Visa),
+            CardIssuer::AmericanExpress => Ok(Self::AmericanExpress),
+            CardIssuer::Master => Ok(Self::Mastercard),
+            CardIssuer::Discover => Ok(Self::Discover),
+            CardIssuer::Visa => Ok(Self::Visa),
 
-            utils::CardIssuer::Maestro
-            | utils::CardIssuer::DinersClub
-            | utils::CardIssuer::JCB
-            | utils::CardIssuer::CarteBlanche => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Payeezy"),
+            CardIssuer::Maestro
+            | CardIssuer::DinersClub
+            | CardIssuer::JCB
+            | CardIssuer::CarteBlanche => Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Payeezy"),
             ))?,
         }
     }
@@ -118,36 +129,36 @@ pub enum Initiator {
     CardHolder,
 }
 
-impl TryFrom<&PayeezyRouterData<&types::PaymentsAuthorizeRouterData>> for PayeezyPaymentsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+impl TryFrom<&PayeezyRouterData<&PaymentsAuthorizeRouterData>> for PayeezyPaymentsRequest {
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
+        item: &PayeezyRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.payment_method {
-            diesel_models::enums::PaymentMethod::Card => get_card_specific_payment_data(item),
+            PaymentMethod::Card => get_card_specific_payment_data(item),
 
-            diesel_models::enums::PaymentMethod::CardRedirect
-            | diesel_models::enums::PaymentMethod::PayLater
-            | diesel_models::enums::PaymentMethod::Wallet
-            | diesel_models::enums::PaymentMethod::BankRedirect
-            | diesel_models::enums::PaymentMethod::BankTransfer
-            | diesel_models::enums::PaymentMethod::Crypto
-            | diesel_models::enums::PaymentMethod::BankDebit
-            | diesel_models::enums::PaymentMethod::Reward
-            | diesel_models::enums::PaymentMethod::RealTimePayment
-            | diesel_models::enums::PaymentMethod::Upi
-            | diesel_models::enums::PaymentMethod::Voucher
-            | diesel_models::enums::PaymentMethod::OpenBanking
-            | diesel_models::enums::PaymentMethod::GiftCard => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+            PaymentMethod::CardRedirect
+            | PaymentMethod::PayLater
+            | PaymentMethod::Wallet
+            | PaymentMethod::BankRedirect
+            | PaymentMethod::BankTransfer
+            | PaymentMethod::Crypto
+            | PaymentMethod::BankDebit
+            | PaymentMethod::Reward
+            | PaymentMethod::RealTimePayment
+            | PaymentMethod::Upi
+            | PaymentMethod::Voucher
+            | PaymentMethod::OpenBanking
+            | PaymentMethod::GiftCard => {
+                Err(ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
     }
 }
 
 fn get_card_specific_payment_data(
-    item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
-) -> Result<PayeezyPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    item: &PayeezyRouterData<&PaymentsAuthorizeRouterData>,
+) -> Result<PayeezyPaymentsRequest, error_stack::Report<ConnectorError>> {
     let merchant_ref = item.router_data.attempt_id.to_string();
     let method = PayeezyPaymentMethodType::CreditCard;
     let amount = item.amount.clone();
@@ -167,16 +178,14 @@ fn get_card_specific_payment_data(
     })
 }
 fn get_transaction_type_and_stored_creds(
-    item: &types::PaymentsAuthorizeRouterData,
-) -> Result<
-    (PayeezyTransactionType, Option<StoredCredentials>),
-    error_stack::Report<errors::ConnectorError>,
-> {
+    item: &PaymentsAuthorizeRouterData,
+) -> Result<(PayeezyTransactionType, Option<StoredCredentials>), error_stack::Report<ConnectorError>>
+{
     let connector_mandate_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
         match mandate_ids.mandate_reference_id.clone() {
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_ids,
-            )) => connector_mandate_ids.connector_mandate_id,
+            )) => connector_mandate_ids.get_connector_mandate_id(),
             _ => None,
         }
     });
@@ -203,36 +212,32 @@ fn get_transaction_type_and_stored_creds(
             )
         } else {
             match item.request.capture_method {
-                Some(diesel_models::enums::CaptureMethod::Manual) => {
-                    Ok((PayeezyTransactionType::Authorize, None))
-                }
-                Some(diesel_models::enums::CaptureMethod::Automatic) => {
-                    Ok((PayeezyTransactionType::Purchase, None))
-                }
+                Some(CaptureMethod::Manual) => Ok((PayeezyTransactionType::Authorize, None)),
+                Some(CaptureMethod::Automatic) => Ok((PayeezyTransactionType::Purchase, None)),
 
-                Some(diesel_models::enums::CaptureMethod::ManualMultiple)
-                | Some(diesel_models::enums::CaptureMethod::Scheduled)
-                | None => Err(errors::ConnectorError::FlowNotSupported {
-                    flow: item.request.capture_method.unwrap_or_default().to_string(),
-                    connector: "Payeezy".to_string(),
-                }),
+                Some(CaptureMethod::ManualMultiple) | Some(CaptureMethod::Scheduled) | None => {
+                    Err(ConnectorError::FlowNotSupported {
+                        flow: item.request.capture_method.unwrap_or_default().to_string(),
+                        connector: "Payeezy".to_string(),
+                    })
+                }
             }?
         };
     Ok((transaction_type, stored_credentials))
 }
 
 fn is_mandate_payment(
-    item: &types::PaymentsAuthorizeRouterData,
+    item: &PaymentsAuthorizeRouterData,
     connector_mandate_id: Option<&String>,
 ) -> bool {
     item.request.setup_mandate_details.is_some() || connector_mandate_id.is_some()
 }
 
 fn get_payment_method_data(
-    item: &PayeezyRouterData<&types::PaymentsAuthorizeRouterData>,
-) -> Result<PayeezyPaymentMethod, error_stack::Report<errors::ConnectorError>> {
+    item: &PayeezyRouterData<&PaymentsAuthorizeRouterData>,
+) -> Result<PayeezyPaymentMethod, error_stack::Report<ConnectorError>> {
     match item.router_data.request.payment_method_data {
-        domain::PaymentMethodData::Card(ref card) => {
+        PaymentMethodData::Card(ref card) => {
             let card_type = PayeezyCardType::try_from(card.get_card_issuer()?)?;
             let payeezy_card = PayeezyCard {
                 card_type,
@@ -247,25 +252,25 @@ fn get_payment_method_data(
             Ok(PayeezyPaymentMethod::PayeezyCard(payeezy_card))
         }
 
-        domain::PaymentMethodData::CardRedirect(_)
-        | domain::PaymentMethodData::Wallet(_)
-        | domain::PaymentMethodData::PayLater(_)
-        | domain::PaymentMethodData::BankRedirect(_)
-        | domain::PaymentMethodData::BankDebit(_)
-        | domain::PaymentMethodData::BankTransfer(_)
-        | domain::PaymentMethodData::Crypto(_)
-        | domain::PaymentMethodData::MandatePayment
-        | domain::PaymentMethodData::Reward
-        | domain::PaymentMethodData::RealTimePayment(_)
-        | domain::PaymentMethodData::Upi(_)
-        | domain::PaymentMethodData::Voucher(_)
-        | domain::PaymentMethodData::GiftCard(_)
-        | domain::PaymentMethodData::OpenBanking(_)
-        | domain::PaymentMethodData::CardToken(_)
-        | domain::PaymentMethodData::NetworkToken(_)
-        | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Payeezy"),
+        PaymentMethodData::CardRedirect(_)
+        | PaymentMethodData::Wallet(_)
+        | PaymentMethodData::PayLater(_)
+        | PaymentMethodData::BankRedirect(_)
+        | PaymentMethodData::BankDebit(_)
+        | PaymentMethodData::BankTransfer(_)
+        | PaymentMethodData::Crypto(_)
+        | PaymentMethodData::MandatePayment
+        | PaymentMethodData::Reward
+        | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::Upi(_)
+        | PaymentMethodData::Voucher(_)
+        | PaymentMethodData::GiftCard(_)
+        | PaymentMethodData::OpenBanking(_)
+        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::NetworkToken(_)
+        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Payeezy"),
             ))?
         }
     }
@@ -278,10 +283,10 @@ pub struct PayeezyAuthType {
     pub(super) merchant_token: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
+impl TryFrom<&ConnectorAuthType> for PayeezyAuthType {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::SignatureKey {
             api_key,
             key1,
             api_secret,
@@ -293,7 +298,7 @@ impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
                 merchant_token: key1.to_owned(),
             })
         } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+            Err(ConnectorError::FailedToObtainAuthType.into())
         }
     }
 }
@@ -341,16 +346,12 @@ pub struct PayeezyCaptureOrVoidRequest {
     currency_code: String,
 }
 
-impl TryFrom<&PayeezyRouterData<&types::PaymentsCaptureRouterData>>
-    for PayeezyCaptureOrVoidRequest
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PayeezyRouterData<&types::PaymentsCaptureRouterData>,
-    ) -> Result<Self, Self::Error> {
+impl TryFrom<&PayeezyRouterData<&PaymentsCaptureRouterData>> for PayeezyCaptureOrVoidRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &PayeezyRouterData<&PaymentsCaptureRouterData>) -> Result<Self, Self::Error> {
         let metadata: PayeezyPaymentsMetadata =
-            utils::to_connector_meta(item.router_data.request.connector_meta.clone())
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            to_connector_meta(item.router_data.request.connector_meta.clone())
+                .change_context(ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Capture,
             amount: item.amount.clone(),
@@ -360,18 +361,18 @@ impl TryFrom<&PayeezyRouterData<&types::PaymentsCaptureRouterData>>
     }
 }
 
-impl TryFrom<&types::PaymentsCancelRouterData> for PayeezyCaptureOrVoidRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+impl TryFrom<&PaymentsCancelRouterData> for PayeezyCaptureOrVoidRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let metadata: PayeezyPaymentsMetadata =
-            utils::to_connector_meta(item.request.connector_meta.clone())
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            to_connector_meta(item.request.connector_meta.clone())
+                .change_context(ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Void,
             amount: item
                 .request
                 .amount
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .ok_or(ConnectorError::RequestEncodingFailed)?
                 .to_string(),
             currency_code: item.request.currency.unwrap_or_default().to_string(),
             transaction_tag: metadata.transaction_tag,
@@ -397,43 +398,43 @@ pub struct PayeezyPaymentsMetadata {
     transaction_tag: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PayeezyPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let metadata = item
             .response
             .transaction_tag
             .map(|txn_tag| construct_payeezy_payments_metadata(txn_tag).encode_to_value())
             .transpose()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
+            .change_context(ConnectorError::ResponseHandlingFailed)?;
 
         let mandate_reference = item
             .response
             .stored_credentials
             .map(|credentials| credentials.cardbrand_original_transaction_id)
-            .map(|id| types::MandateReference {
+            .map(|id| MandateReference {
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             });
-        let status = enums::AttemptStatus::foreign_from((
+        let status = get_status(
             item.response.transaction_status,
             item.response.transaction_type,
-        ));
+        );
 
         Ok(Self {
             status,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),
                 ),
-                redirection_data: None,
-                mandate_reference,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(
@@ -449,26 +450,28 @@ impl<F, T>
     }
 }
 
-impl ForeignFrom<(PayeezyPaymentStatus, PayeezyTransactionType)> for enums::AttemptStatus {
-    fn foreign_from((status, method): (PayeezyPaymentStatus, PayeezyTransactionType)) -> Self {
-        match status {
-            PayeezyPaymentStatus::Approved => match method {
-                PayeezyTransactionType::Authorize => Self::Authorized,
-                PayeezyTransactionType::Capture
-                | PayeezyTransactionType::Purchase
-                | PayeezyTransactionType::Recurring => Self::Charged,
-                PayeezyTransactionType::Void => Self::Voided,
-                PayeezyTransactionType::Refund | PayeezyTransactionType::Pending => Self::Pending,
-            },
-            PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => match method {
-                PayeezyTransactionType::Capture => Self::CaptureFailed,
-                PayeezyTransactionType::Authorize
-                | PayeezyTransactionType::Purchase
-                | PayeezyTransactionType::Recurring => Self::AuthorizationFailed,
-                PayeezyTransactionType::Void => Self::VoidFailed,
-                PayeezyTransactionType::Refund | PayeezyTransactionType::Pending => Self::Pending,
-            },
-        }
+fn get_status(status: PayeezyPaymentStatus, method: PayeezyTransactionType) -> AttemptStatus {
+    match status {
+        PayeezyPaymentStatus::Approved => match method {
+            PayeezyTransactionType::Authorize => AttemptStatus::Authorized,
+            PayeezyTransactionType::Capture
+            | PayeezyTransactionType::Purchase
+            | PayeezyTransactionType::Recurring => AttemptStatus::Charged,
+            PayeezyTransactionType::Void => AttemptStatus::Voided,
+            PayeezyTransactionType::Refund | PayeezyTransactionType::Pending => {
+                AttemptStatus::Pending
+            }
+        },
+        PayeezyPaymentStatus::Declined | PayeezyPaymentStatus::NotProcessed => match method {
+            PayeezyTransactionType::Capture => AttemptStatus::CaptureFailed,
+            PayeezyTransactionType::Authorize
+            | PayeezyTransactionType::Purchase
+            | PayeezyTransactionType::Recurring => AttemptStatus::AuthorizationFailed,
+            PayeezyTransactionType::Void => AttemptStatus::VoidFailed,
+            PayeezyTransactionType::Refund | PayeezyTransactionType::Pending => {
+                AttemptStatus::Pending
+            }
+        },
     }
 }
 
@@ -482,14 +485,12 @@ pub struct PayeezyRefundRequest {
     currency_code: String,
 }
 
-impl<F> TryFrom<&PayeezyRouterData<&types::RefundsRouterData<F>>> for PayeezyRefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &PayeezyRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+impl<F> TryFrom<&PayeezyRouterData<&RefundsRouterData<F>>> for PayeezyRefundRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &PayeezyRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let metadata: PayeezyPaymentsMetadata =
-            utils::to_connector_meta(item.router_data.request.connector_metadata.clone())
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            to_connector_meta(item.router_data.request.connector_metadata.clone())
+                .change_context(ConnectorError::RequestEncodingFailed)?;
         Ok(Self {
             transaction_type: PayeezyTransactionType::Refund,
             amount: item.amount.clone(),
@@ -538,15 +539,13 @@ pub struct RefundResponse {
     pub gateway_message: String,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
-{
-    type Error = error_stack::Report<errors::ParsingError>;
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
+    type Error = error_stack::Report<ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.transaction_status),
             }),

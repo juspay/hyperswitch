@@ -5,7 +5,7 @@ use base64::Engine;
 use common_utils::{
     ext_traits::ByteSliceExt,
     request::RequestContent,
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::ResultExt;
@@ -484,7 +484,8 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
             req.request.minor_amount,
             req.request.destination_currency,
         )?;
-        let connector_router_data = paypal::PaypalRouterData::try_from((amount, None, None, req))?;
+        let connector_router_data =
+            paypal::PaypalRouterData::try_from((amount, None, None, None, req))?;
         let connector_req = paypal::PaypalFulfillRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -710,7 +711,23 @@ impl
             req.request.amount,
             req.request.currency,
         )?;
-        let connector_router_data = paypal::PaypalRouterData::try_from((amount, None, None, req))?;
+        let shipping_cost = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.shipping_cost.unwrap_or(MinorUnit::zero()),
+            req.request.currency,
+        )?;
+        let order_amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.order_amount,
+            req.request.currency,
+        )?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((
+            amount,
+            Some(shipping_cost),
+            None,
+            Some(order_amount),
+            req,
+        ))?;
         let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -810,12 +827,12 @@ impl
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let order_amount = connector_utils::convert_amount(
             self.amount_converter,
-            req.request.amount,
+            req.request.order_amount,
             req.request.currency,
         )?;
         let amount = connector_utils::convert_amount(
             self.amount_converter,
-            req.request.net_amount,
+            req.request.amount,
             req.request.currency,
         )?;
         let order_tax_amount = connector_utils::convert_amount(
@@ -823,8 +840,14 @@ impl
             req.request.order_tax_amount,
             req.request.currency,
         )?;
+        let shipping_cost = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.shipping_cost.unwrap_or(MinorUnit::zero()),
+            req.request.currency,
+        )?;
         let connector_router_data = paypal::PaypalRouterData::try_from((
             amount,
+            Some(shipping_cost),
             Some(order_tax_amount),
             Some(order_amount),
             req,
@@ -915,7 +938,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.minor_amount,
             req.request.currency,
         )?;
-        let connector_router_data = paypal::PaypalRouterData::try_from((amount, None, None, req))?;
+        let shipping_cost = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.shipping_cost.unwrap_or(MinorUnit::zero()),
+            req.request.currency,
+        )?;
+        let connector_router_data =
+            paypal::PaypalRouterData::try_from((amount, Some(shipping_cost), None, None, req))?;
         let connector_req = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1117,14 +1146,14 @@ impl
                             status: storage_enums::AttemptStatus::AuthenticationSuccessful,
                             response: Ok(types::PaymentsResponseData::TransactionResponse {
                                 resource_id: types::ResponseId::NoResponseId,
-                                redirection_data: None,
-                                mandate_reference: None,
+                                redirection_data: Box::new(None),
+                                mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
-                charge_id: None,
-            }),
+                                charge_id: None,
+                            }),
                             ..data.clone()
                         })
                     }
@@ -1168,8 +1197,8 @@ impl
                     status: storage_enums::AttemptStatus::AuthenticationSuccessful,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::NoResponseId,
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -1432,7 +1461,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             req.request.currency,
         )?;
         let connector_router_data =
-            paypal::PaypalRouterData::try_from((amount_to_capture, None, None, req))?;
+            paypal::PaypalRouterData::try_from((amount_to_capture, None, None, None, req))?;
         let connector_req = paypal::PaypalPaymentsCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -1599,7 +1628,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.minor_refund_amount,
             req.request.currency,
         )?;
-        let connector_router_data = paypal::PaypalRouterData::try_from((amount, None, None, req))?;
+        let connector_router_data =
+            paypal::PaypalRouterData::try_from((amount, None, None, None, req))?;
         let connector_req = paypal::PaypalRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

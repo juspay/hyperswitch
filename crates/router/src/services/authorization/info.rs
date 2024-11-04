@@ -1,8 +1,6 @@
-use api_models::user_role::{GroupInfo, ParentGroup, PermissionInfo};
-use common_enums::PermissionGroup;
+use api_models::user_role::GroupInfo;
+use common_enums::{ParentGroup, PermissionGroup};
 use strum::IntoEnumIterator;
-
-use super::{permission_groups::get_permissions_vec, permissions::Permission};
 
 // TODO: To be deprecated
 pub fn get_group_authorization_info() -> Vec<GroupInfo> {
@@ -12,24 +10,9 @@ pub fn get_group_authorization_info() -> Vec<GroupInfo> {
 }
 
 // TODO: To be deprecated
-pub fn get_permission_info_from_permissions(permissions: &[Permission]) -> Vec<PermissionInfo> {
-    permissions
-        .iter()
-        .map(|&per| PermissionInfo {
-            description: Permission::get_permission_description(&per),
-            enum_name: per.into(),
-        })
-        .collect()
-}
-
-// TODO: To be deprecated
 fn get_group_info_from_permission_group(group: PermissionGroup) -> GroupInfo {
     let description = get_group_description(group);
-    GroupInfo {
-        group,
-        description,
-        permissions: get_permission_info_from_permissions(get_permissions_vec(&group)),
-    }
+    GroupInfo { group, description }
 }
 
 // TODO: To be deprecated
@@ -54,29 +37,10 @@ fn get_group_description(group: PermissionGroup) -> &'static str {
         PermissionGroup::AnalyticsView => "View Analytics",
         PermissionGroup::UsersView => "View Users",
         PermissionGroup::UsersManage => "Manage and invite Users to the Team",
-        PermissionGroup::MerchantDetailsView => "View Merchant Details",
-        PermissionGroup::MerchantDetailsManage => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
+        PermissionGroup::MerchantDetailsView | PermissionGroup::AccountView => "View Merchant Details",
+        PermissionGroup::MerchantDetailsManage | PermissionGroup::AccountManage => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
         PermissionGroup::OrganizationManage => "Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
         PermissionGroup::ReconOps => "View and manage reconciliation reports",
-    }
-}
-
-pub fn get_parent_name(group: PermissionGroup) -> ParentGroup {
-    match group {
-        PermissionGroup::OperationsView | PermissionGroup::OperationsManage => {
-            ParentGroup::Operations
-        }
-        PermissionGroup::ConnectorsView | PermissionGroup::ConnectorsManage => {
-            ParentGroup::Connectors
-        }
-        PermissionGroup::WorkflowsView | PermissionGroup::WorkflowsManage => ParentGroup::Workflows,
-        PermissionGroup::AnalyticsView => ParentGroup::Analytics,
-        PermissionGroup::UsersView | PermissionGroup::UsersManage => ParentGroup::Users,
-        PermissionGroup::MerchantDetailsView | PermissionGroup::MerchantDetailsManage => {
-            ParentGroup::Merchant
-        }
-        PermissionGroup::OrganizationManage => ParentGroup::Organization,
-        PermissionGroup::ReconOps => ParentGroup::Recon,
     }
 }
 
@@ -87,8 +51,7 @@ pub fn get_parent_group_description(group: ParentGroup) -> &'static str {
         ParentGroup::Workflows => "Create, modify and delete Routing, 3DS Decision Manager, Surcharge Decision Manager",
         ParentGroup::Analytics => "View Analytics",
         ParentGroup::Users =>  "Manage and invite Users to the Team",
-        ParentGroup::Merchant => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
-        ParentGroup::Organization =>"Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
+        ParentGroup::Account => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
         ParentGroup::Recon => "View and manage reconciliation reports",
     }
 }

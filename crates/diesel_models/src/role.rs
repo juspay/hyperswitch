@@ -18,7 +18,7 @@ pub struct Role {
     pub created_by: String,
     pub last_modified_at: PrimitiveDateTime,
     pub last_modified_by: String,
-    pub entity_type: Option<enums::EntityType>,
+    pub entity_type: enums::EntityType,
     pub profile_id: Option<id_type::ProfileId>,
 }
 
@@ -36,7 +36,7 @@ pub struct RoleNew {
     pub created_by: String,
     pub last_modified_at: PrimitiveDateTime,
     pub last_modified_by: String,
-    pub entity_type: Option<enums::EntityType>,
+    pub entity_type: enums::EntityType,
     pub profile_id: Option<id_type::ProfileId>,
 }
 

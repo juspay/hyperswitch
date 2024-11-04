@@ -1,6 +1,6 @@
 pub mod authentication;
 pub mod fraud_check;
-use api_models::payments::{Address, RequestSurchargeDetails};
+use api_models::payments::{AdditionalPaymentData, Address, RequestSurchargeDetails};
 use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
@@ -71,17 +71,23 @@ pub struct PaymentsAuthorizeData {
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub additional_payment_method_data: Option<AdditionalPaymentData>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentsPostSessionTokensData {
+    // amount here would include amount, surcharge_amount and shipping_cost
     pub amount: MinorUnit,
+    /// original amount sent by the merchant
+    pub order_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -362,7 +368,7 @@ pub struct PaymentsPostProcessingData {
     pub connector_transaction_id: Option<String>,
     pub country: Option<common_enums::CountryAlpha2>,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
-    pub header_payload: Option<api_models::payments::HeaderPayload>,
+    pub header_payload: Option<payments::HeaderPayload>,
 }
 
 impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
@@ -816,7 +822,7 @@ pub struct PaymentsSessionData {
     pub country: Option<common_enums::CountryAlpha2>,
     pub surcharge_details: Option<SurchargeDetails>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
-
+    pub email: Option<pii::Email>,
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
 }
@@ -833,10 +839,13 @@ pub struct PaymentsTaxCalculationData {
 #[derive(Debug, Clone, Default)]
 pub struct SdkPaymentsSessionUpdateData {
     pub order_tax_amount: MinorUnit,
-    pub net_amount: MinorUnit,
+    // amount here would include amount, surcharge_amount, order_tax_amount and shipping_cost
     pub amount: MinorUnit,
+    /// original amount sent by the merchant
+    pub order_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub session_id: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone)]
@@ -862,4 +871,5 @@ pub struct SetupMandateRequestData {
 
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
 }
