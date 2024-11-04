@@ -435,7 +435,7 @@ impl From<&EventType> for enums::AttemptStatus {
     fn from(value: &EventType) -> Self {
         match value {
             EventType::SentForAuthorization => Self::Authorizing,
-            EventType::SentForSettlement => Self::Authorized,
+            EventType::SentForSettlement => Self::CaptureInitiated,
             EventType::Settled => Self::Charged,
             EventType::Authorized => Self::Authorized,
             EventType::Refused | EventType::SettlementFailed => Self::Failure,
