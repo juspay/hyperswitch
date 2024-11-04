@@ -568,7 +568,7 @@ pub struct StringMajorUnit(String);
 
 impl StringMajorUnit {
     /// forms a new major unit from amount
-    pub fn new(value: String) -> Self {
+    fn new(value: String) -> Self {
         Self(value)
     }
 
