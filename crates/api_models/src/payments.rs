@@ -4619,6 +4619,8 @@ pub struct PaymentStartRedirectionRequest {
 pub struct PaymentStartRedirectionParams {
     /// The identifier for the Merchant Account.
     pub merchant_id: id_type::MerchantId,
+    /// The identifier for business profile
+    pub profile_id: id_type::ProfileId,
 }
 
 /// Fee information to be charged on the payment being collected

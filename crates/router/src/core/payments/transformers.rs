@@ -891,9 +891,10 @@ where
             .clone()
             .map(api_models::payments::ErrorDetails::foreign_from);
 
+        // TODO: Add support for other next actions, currently only supporting redirect to url
         let next_action = payment_attempt.authentication_data.as_ref().map(|_| {
             api_models::payments::NextActionData::RedirectToUrl {
-                redirect_to_url: helpers::create_start_redirection_url(base_url, payment_intent),
+                redirect_to_url: payment_intent.create_start_redirection_url(base_url),
             }
         });
 

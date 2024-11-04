@@ -5947,6 +5947,10 @@ pub async fn payment_start_redirection(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    // validate session expiry
+    helpers::authenticate_client_secret(Some(&payment_intent.client_secret), &payment_intent)?;
+
+    //TODO: send valid html error pages in this case, or atleast redirect to valid html error pages
     utils::when(
         payment_intent.status != storage_enums::IntentStatus::RequiresCustomerAction,
         || {
@@ -5972,7 +5976,8 @@ pub async fn payment_start_redirection(
             storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while fetching payment_attempt")?;
     let redirection_data = payment_attempt
         .authentication_data
         .clone()

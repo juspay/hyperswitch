@@ -2071,6 +2071,7 @@ pub async fn payments_start_redirection(
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
     let merchant_id = &payload.merchant_id;
+    let profile_id = &payload.profile_id;
 
     let payment_start_redirection_request = api_models::payments::PaymentStartRedirectionRequest {
         id: global_payment_id.clone(),
@@ -2088,7 +2089,7 @@ pub async fn payments_start_redirection(
         state,
         &req,
         payment_start_redirection_request.clone(),
-        |state, auth: auth::AuthenticationData, _req, req_state| async {
+        |state, auth: auth::AuthenticationDataV2, _req, req_state| async {
             payments::payment_start_redirection(
                 state,
                 auth.merchant_account,
@@ -2097,7 +2098,10 @@ pub async fn payments_start_redirection(
             )
             .await
         },
-        &auth::MerchantIdAuth(merchant_id.clone()),
+        &auth::MerchantIdAndProfileIdAuth {
+            merchant_id: merchant_id.clone(),
+            profile_id: profile_id.clone(),
+        },
         locking_action,
     ))
     .await

@@ -1152,16 +1152,6 @@ pub fn create_startpay_url(
     )
 }
 
-#[cfg(feature = "v2")]
-pub fn create_start_redirection_url(base_url: &str, payment_intent: &PaymentIntent) -> String {
-    format!(
-        "{}/v2/payments/{}/start_redirection?merchant_id={}",
-        base_url,
-        payment_intent.get_id().get_string_repr(),
-        payment_intent.merchant_id.get_string_repr()
-    )
-}
-
 pub fn create_redirect_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,

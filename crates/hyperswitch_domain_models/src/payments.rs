@@ -98,6 +98,17 @@ impl PaymentIntent {
     pub fn get_id(&self) -> &id_type::GlobalPaymentId {
         &self.id
     }
+
+    #[cfg(feature = "v2")]
+    pub fn create_start_redirection_url(&self, base_url: &str) -> String {
+        format!(
+            "{}/v2/payments/{}/start_redirection?merchant_id={}&profile_id={}",
+            base_url,
+            self.get_id().get_string_repr(),
+            self.merchant_id.get_string_repr(),
+            self.profile_id.get_string_repr()
+        )
+    }
 }
 
 #[cfg(feature = "v2")]

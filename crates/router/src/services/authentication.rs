@@ -124,6 +124,10 @@ pub enum AuthenticationType {
     MerchantId {
         merchant_id: id_type::MerchantId,
     },
+    MerchantIdAndProfileId {
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+    },
     PublishableKey {
         merchant_id: id_type::MerchantId,
     },
@@ -153,6 +157,7 @@ impl AuthenticationType {
             }
             | Self::AdminApiAuthWithMerchantId { merchant_id }
             | Self::MerchantId { merchant_id }
+            | Self::MerchantIdAndProfileId { merchant_id, .. }
             | Self::PublishableKey { merchant_id }
             | Self::MerchantJwt {
                 merchant_id,
@@ -1137,6 +1142,84 @@ where
             auth.clone(),
             AuthenticationType::MerchantId {
                 merchant_id: auth.merchant_account.get_id().clone(),
+            },
+        ))
+    }
+}
+
+#[derive(Debug)]
+#[cfg(feature = "v2")]
+pub struct MerchantIdAndProfileIdAuth {
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: id_type::ProfileId,
+}
+
+#[async_trait]
+#[cfg(feature = "v2")]
+impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for MerchantIdAndProfileIdAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        _request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataV2, AuthenticationType)> {
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &self.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch merchant key store for the merchant id")
+                }
+            })?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(key_manager_state, &self.merchant_id, &key_store)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch merchant account for the merchant id")
+                }
+            })?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(key_manager_state, &key_store, &self.profile_id)
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch business profile for the profile id")
+                }
+            })?;
+
+        let auth = AuthenticationDataV2 {
+            merchant_account: merchant,
+            key_store,
+            profile,
+        };
+
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantIdAndProfileId {
+                merchant_id: auth.merchant_account.get_id().clone(),
+                profile_id: auth.profile.get_id().clone(),
             },
         ))
     }
