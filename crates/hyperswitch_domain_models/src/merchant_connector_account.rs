@@ -1,4 +1,6 @@
 use actix_web::error;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -13,13 +15,9 @@ use masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 
 use super::behaviour;
-use crate::type_encryption::{crypto_operation, CryptoOperation};
-
 #[cfg(feature = "v2")]
 use crate::router_data;
-
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::ValueExt;
+use crate::type_encryption::{crypto_operation, CryptoOperation};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
