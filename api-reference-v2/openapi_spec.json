@@ -5739,7 +5739,6 @@
         "description": "A connector is an integration to fulfill payments",
         "enum": [
           "adyenplatform",
-          "amazonpay",
           "phonypay",
           "fauxpay",
           "pretendpay",
@@ -17757,7 +17756,6 @@
         "description": "Connectors eligible for payments routing",
         "enum": [
           "adyenplatform",
-          "amazonpay",
           "phonypay",
           "fauxpay",
           "pretendpay",
