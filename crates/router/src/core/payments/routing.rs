@@ -40,7 +40,6 @@ use rand::{
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
-use super::{OperationSessionGetters, OperationSessionSetters};
 #[cfg(feature = "v2")]
 use crate::core::admin;
 #[cfg(feature = "payouts")]
@@ -1237,18 +1236,13 @@ pub fn make_dsl_input_for_surcharge(
 
 /// success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn perform_success_based_routing<F, D>(
+pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-    payment_data: &D,
+    success_based_routing_config_params_interpolator: routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    use crate::core::routing::helpers::interpolate_success_based_routing_params;
-
     let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
         business_profile
             .dynamic_routing_algorithm
@@ -1301,8 +1295,7 @@ where
         .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
         .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
-        let success_based_routing_config_params =
-            interpolate_success_based_routing_params(success_based_routing_configs.clone(), payment_data);
+        let success_based_routing_config_params = success_based_routing_config_params_interpolator.get_string_val();
 
         let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
             &state.tenant.redis_key_prefix,

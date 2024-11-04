@@ -29,7 +29,7 @@ use storage_impl::redis::cache;
 #[cfg(feature = "v2")]
 use crate::types::domain::MerchantConnectorAccount;
 use crate::{
-    core::{errors::{self, RouterResult}, payments::{OperationSessionGetters, OperationSessionSetters}},
+    core::errors::{self, RouterResult},
     db::StorageInterface,
     routes::SessionState,
     types::{domain, storage},
@@ -640,17 +640,14 @@ pub async fn fetch_success_based_routing_configs(
 /// metrics for success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn push_metrics_for_success_based_routing<F, D>(
+pub async fn push_metrics_for_success_based_routing(
     state: &SessionState,
-    payment_data: &D,
+    payment_attempt: &storage::PaymentAttempt,
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
+    success_based_routing_config_params_interpolator: SuccessBasedRoutingConfigParamsInterpolator,
 ) -> RouterResult<()> 
-where
-    F: Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Clone,
 {
-    let payment_attempt = payment_data.get_payment_attempt();
     let success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
         business_profile
             .dynamic_routing_algorithm
@@ -702,8 +699,7 @@ where
             business_profile.get_id().get_string_repr(),
         );
 
-        let success_based_routing_config_params =
-            interpolate_success_based_routing_params(success_based_routing_configs.clone(), payment_data);
+        let success_based_routing_config_params = success_based_routing_config_params_interpolator.get_string_val();
 
         let success_based_connectors = client
             .calculate_success_rate(
@@ -734,9 +730,10 @@ where
         let (first_success_based_connector, merchant_connector_id) = first_success_based_connector_label
             .split_once(':')
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "unable to split connector_name and mca_id from the first connector obtained from dynamic routing service",
-            )?;
+            .attach_printable(format!(
+                "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
+                first_success_based_connector_label
+            ))?;
 
         let outcome = get_success_based_metrics_outcome_for_payment(
             &payment_status_attribute,
@@ -966,67 +963,48 @@ pub async fn default_success_based_routing_setup(
     Ok(ApplicationResponse::Json(new_record))
 }
 
-pub fn interpolate_success_based_routing_params<F, D>(
-    success_rate_based_config: routing_types::SuccessBasedRoutingConfig,
-    payment_data: &D,
-) -> String
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
-    let mut res = Vec::new();
-    for param in success_rate_based_config.params.unwrap() {
-        let val: String = match param {
-            routing_types::SuccessBasedRoutingConfigParams::PaymentMethod => payment_data
-                .get_payment_attempt()
-                .payment_method
-                .unwrap()
-                .to_string(),
-            routing_types::SuccessBasedRoutingConfigParams::PaymentMethodType => payment_data
-                .get_payment_attempt()
-                .get_payment_method_type()
-                .unwrap()
-                .to_string(),
-            routing_types::SuccessBasedRoutingConfigParams::AuthenticationType => payment_data
-                .get_payment_attempt()
-                .authentication_type
-                .unwrap()
-                .to_string(),
-            routing_types::SuccessBasedRoutingConfigParams::Currency => {
-                payment_data.get_currency().to_string()
+pub struct SuccessBasedRoutingConfigParamsInterpolator {
+    pub payment_method: Option<common_enums::PaymentMethod>,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub authentication_type: Option<common_enums::AuthenticationType>,
+    pub currency: Option<common_enums::Currency>,
+    pub country: Option<common_enums::CountryAlpha2>,
+    pub card_network: Option<String>,
+    pub card_bin: Option<String>,
+}
+
+impl SuccessBasedRoutingConfigParamsInterpolator {
+    pub fn new(
+            payment_method: Option<common_enums::PaymentMethod>,
+            payment_method_type: Option<common_enums::PaymentMethodType>,
+            authentication_type: Option<common_enums::AuthenticationType>,
+            currency: Option<common_enums::Currency>,
+            country: Option<common_enums::CountryAlpha2>,
+            card_network: Option<String>,
+            card_bin: Option<String>,
+        ) -> Self {
+            SuccessBasedRoutingConfigParamsInterpolator {
+                payment_method,
+                payment_method_type,
+                authentication_type,
+                currency,
+                country,
+                card_network,
+                card_bin,
             }
-            routing_types::SuccessBasedRoutingConfigParams::Country => payment_data
-                .get_billing_address()
-                .unwrap()
-                .address
-                .unwrap()
-                .country
-                .unwrap()
-                .to_string(),
-            routing_types::SuccessBasedRoutingConfigParams::CardNetwork => payment_data
-                .get_payment_attempt()
-                .payment_method_data
-                .as_ref()
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_network"))
-                .and_then(|network| network.as_str())
-                .map(|network| network.to_string())
-                .unwrap(),
-            routing_types::SuccessBasedRoutingConfigParams::CardBin => payment_data
-                .get_payment_attempt()
-                .payment_method_data
-                .as_ref()
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_number"))
-                .and_then(|network| network.as_str())
-                .map(|network| network.to_string())
-                .unwrap(),
-        };
-        res.push(val);
+        }
+
+    pub fn get_string_val(&self) -> String {
+        let parts: Vec<String> = vec![
+            self.payment_method.as_ref().map_or(String::new(), |pm| pm.to_string()),
+            self.payment_method_type.as_ref().map_or(String::new(), |pmt| pmt.to_string()),
+            self.authentication_type.as_ref().map_or(String::new(), |at| at.to_string()),
+            self.currency.as_ref().map_or(String::new(), |cur| cur.to_string()),
+            self.country.as_ref().map_or(String::new(), |cn| cn.to_string()),
+            self.card_network.clone().unwrap_or_default(),
+            self.card_bin.clone().unwrap_or_default(),
+        ];
+
+        parts.join(":")
     }
-    res.join(":")
 }

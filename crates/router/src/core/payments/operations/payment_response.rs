@@ -21,7 +21,7 @@ use tracing_futures::Instrument;
 
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::core::routing::helpers::push_metrics_for_success_based_routing;
+use crate::core::routing::helpers as routing_helpers;
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
@@ -1916,28 +1916,42 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         utils::flatten_join_error(payment_attempt_fut)
     )?;
 
-    payment_data.payment_intent = payment_intent;
-    payment_data.payment_attempt = payment_attempt;
-    router_data.payment_method_status.and_then(|status| {
-        payment_data
-            .payment_method_info
-            .as_mut()
-            .map(|info| info.status = status)
-    });
-
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
         if business_profile.dynamic_routing_algorithm.is_some() {
             let state = state.clone();
             let business_profile = business_profile.clone();
-            let payment_data = payment_data.clone();
+            let payment_attempt = payment_attempt.clone();
+            let success_based_routing_config_params_interpolator = routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                payment_attempt.payment_method,
+                payment_attempt.payment_method_type,
+                payment_attempt.authentication_type,
+                payment_attempt.currency,
+                payment_data.address.get_payment_billing()
+                    .unwrap()
+                    .address
+                    .clone()
+                    .unwrap()
+                    .country,
+                payment_attempt
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|data| data.as_object())
+                    .and_then(|card| card.get("card"))
+                    .and_then(|data| data.as_object())
+                    .and_then(|card| card.get("card_network"))
+                    .and_then(|network| network.as_str())
+                    .map(|network| network.to_string()),
+                None,
+            );
             tokio::spawn(
                 async move {
-                    push_metrics_for_success_based_routing(
+                    routing_helpers::push_metrics_for_success_based_routing(
                         &state,
-                        &payment_data,
+                        &payment_attempt,
                         routable_connectors,
                         &business_profile,
+                        success_based_routing_config_params_interpolator,
                     )
                     .await
                     .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
@@ -1947,6 +1961,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             );
         }
     }
+
+    payment_data.payment_intent = payment_intent;
+    payment_data.payment_attempt = payment_attempt;
+    router_data.payment_method_status.and_then(|status| {
+        payment_data
+            .payment_method_info
+            .as_mut()
+            .map(|info| info.status = status)
+    });
 
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),
