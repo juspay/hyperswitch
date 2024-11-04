@@ -2193,7 +2193,13 @@ pub async fn payment_status(
             ))
             .await
         },
-        &auth::PublishableKeyAuth,
+        auth::auth_type(
+            &auth::PublishableKeyAuth,
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+            },
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
