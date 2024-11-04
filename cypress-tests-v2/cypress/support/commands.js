@@ -71,7 +71,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Organization create call failed with status ${response.status} and message ${response.body.message}`
+          `Organization create call failed with status ${response.status} and message: "${response.body.error.message}"`
         );
       }
     });
@@ -111,7 +111,7 @@ Cypress.Commands.add("organizationRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Organization retrieve call failed with status ${response.status} and message ${response.body.message}`
+        `Organization retrieve call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -152,7 +152,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Organization update call failed with status ${response.status} and message ${response.body.message}`
+          `Organization update call failed with status ${response.status} and message: "${response.body.error.message}"`
         );
       }
     });
@@ -208,7 +208,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Merchant create call failed with status ${response.status} and message ${response.body.message}`
+          `Merchant create call failed with status ${response.status} and message: "${response.body.error.message}"`
         );
       }
     });
@@ -253,7 +253,7 @@ Cypress.Commands.add("merchantAccountRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Merchant account retrieve call failed with status ${response.status} and message ${response.body.message}`
+        `Merchant account retrieve call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -302,7 +302,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Merchant account update call failed with status ${response.status} and message ${response.body.message}`
+          `Merchant account update call failed with status ${response.status} and message: "${response.body.error.message}"`
         );
       }
     });
@@ -349,7 +349,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Business profile create call failed with status ${response.status} and message ${response.body.message}`
+          `Business profile create call failed with status ${response.status} and message: "${response.body.error.message}"`
         );
       }
     });
@@ -390,7 +390,7 @@ Cypress.Commands.add("businessProfileRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Business profile retrieve call failed with status ${response.status} and message ${response.body.message}`
+        `Business profile retrieve call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -436,7 +436,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Business profile update call failed with status ${response.status} and message ${response.body.message}`
+          `Business profile update call failed with status ${response.status} and message: "${response.body.error.message}"`
         );
       }
     });
@@ -525,7 +525,7 @@ Cypress.Commands.add(
           } else {
             // to be updated
             throw new Error(
-              `Merchant connector account create call failed with status ${response.status} and message ${response.body.message}`
+              `Merchant connector account create call failed with status ${response.status} and message: "${response.body.error.message}"`
             );
           }
         });
@@ -573,7 +573,7 @@ Cypress.Commands.add("mcaRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Merchant connector account retrieve call failed with status ${response.status} and message ${response.body.message}`
+        `Merchant connector account retrieve call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -638,7 +638,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Merchant connector account update call failed with status ${response.status} and message ${response.body.message}`
+          `Merchant connector account update call failed with status ${response.status} and message: "${response.body.error.message}"`
         );
       }
     });
@@ -697,7 +697,7 @@ Cypress.Commands.add("apiKeyCreateCall", (apiKeyCreateBody, globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `API Key create call failed with status ${response.status} and message ${response.body.message}`
+        `API Key create call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -745,7 +745,7 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `API Key retrieve call failed with status ${response.status} and message ${response.body.message}`
+        `API Key retrieve call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -801,7 +801,7 @@ Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `API Key update call failed with status ${response.status} and message ${response.body.message}`
+        `API Key update call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -847,7 +847,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Routing algorithm setup call failed with status ${response.status} and message ${response.body.message}`
+          `Routing algorithm setup call failed with status ${response.status} and message: "${response.body.error.message}"`
         );
       }
     });
@@ -886,7 +886,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Routing algorithm activation call failed with status ${response.status} and message ${response.body.message}`
+          `Routing algorithm activation call failed with status ${response.status} and message: "${response.body.error.message}"`
         );
       }
     });
@@ -925,7 +925,7 @@ Cypress.Commands.add("routingActivationRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Routing algorithm activation retrieve call failed with status ${response.status} and message ${response.body.message}`
+        `Routing algorithm activation retrieve call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -960,7 +960,7 @@ Cypress.Commands.add("routingDeactivateCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Routing algorithm deactivation call failed with status ${response.status} and message ${response.body.message}`
+        `Routing algorithm deactivation call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -997,7 +997,7 @@ Cypress.Commands.add("routingRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Routing algorithm activation retrieve call failed with status ${response.status} and message ${response.body.message}`
+        `Routing algorithm activation retrieve call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -1032,7 +1032,7 @@ Cypress.Commands.add(
       } else {
         // to be updated
         throw new Error(
-          `Routing algorithm activation retrieve call failed with status ${response.status} and message ${response.body.message}`
+          `Routing algorithm activation retrieve call failed with status ${response.status} and message: "${response.body.error.message}"`
         );
       }
     });
@@ -1061,7 +1061,7 @@ Cypress.Commands.add("routingFallbackRetrieveCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Routing algorithm activation retrieve call failed with status ${response.status} and message ${response.body.message}`
+        `Routing algorithm activation retrieve call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -1100,7 +1100,7 @@ Cypress.Commands.add("userLogin", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `User login call failed to get totp token with status ${response.status} and message ${response.body.message}`
+        `User login call failed to get totp token with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -1133,7 +1133,7 @@ Cypress.Commands.add("terminate2Fa", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `2FA terminate call failed with status ${response.status} and message ${response.body.message}`
+        `2FA terminate call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -1166,7 +1166,7 @@ Cypress.Commands.add("userInfo", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `User login call failed to fetch user info with status ${response.status} and message ${response.body.message}`
+        `User login call failed to fetch user info with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -1212,7 +1212,7 @@ Cypress.Commands.add("merchantAccountsListCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Merchant accounts list call failed with status ${response.status} and message ${response.body.message}`
+        `Merchant accounts list call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -1253,7 +1253,7 @@ Cypress.Commands.add("businessProfilesListCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `Business profiles list call failed with status ${response.status} and message ${response.body.message}`
+        `Business profiles list call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -1314,7 +1314,7 @@ Cypress.Commands.add("mcaListCall", (globalState, service_type) => {
     } else {
       // to be updated
       throw new Error(
-        `Merchant connector account list call failed with status ${response.status} and message ${response.body.message}`
+        `Merchant connector account list call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
@@ -1356,7 +1356,7 @@ Cypress.Commands.add("apiKeysListCall", (globalState) => {
     } else {
       // to be updated
       throw new Error(
-        `API Keys list call failed with status ${response.status} and message ${response.body.message}`
+        `API Keys list call failed with status ${response.status} and message: "${response.body.error.message}"`
       );
     }
   });
