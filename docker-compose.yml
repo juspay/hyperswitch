@@ -10,8 +10,9 @@ services:
   ### Dependencies
   pg:
     image: postgres:latest
-    ports:
-      - "5432:5432"
+    # Uncomment this if you want postgres to be accessed from the host machine on port 5432
+    # ports:
+    #   - "5432:5432"
     networks:
       - router_net
     volumes:
@@ -29,10 +30,11 @@ services:
 
   redis-standalone:
     image: redis:7
+    # Uncomment this if you want redis to be accessed from the host machine on port 6379
+    # ports:
+    #   - "6379:6379"
     networks:
       - router_net
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
       interval: 5s
