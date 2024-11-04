@@ -830,7 +830,9 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 .and_then(|mandate_ids| match mandate_ids.mandate_reference_id {
                     Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                         connector_mandate_ids,
-                    )) => connector_mandate_ids.connector_mandate_id.map(Secret::new),
+                    )) => connector_mandate_ids
+                        .get_connector_mandate_id()
+                        .map(Secret::new),
                     _ => None,
                 }),
             days_active: Some(30),
@@ -989,6 +991,7 @@ impl<F, T>
                                         connector_mandate_id: Some(id.expose()),
                                         payment_method_id: None,
                                         mandate_metadata: None,
+                                        connector_mandate_request_reference_id: None,
                                     }),
                             ),
                             connector_metadata: None,

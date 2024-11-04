@@ -125,11 +125,11 @@ pub async fn payments_create_intent(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_intent_core::<
-                api_types::CreateIntent,
-                payment_types::PaymentsCreateIntentResponse,
+                api_types::PaymentCreateIntent,
+                payment_types::PaymentsIntentResponse,
                 _,
                 _,
-                PaymentIntentData<api_types::CreateIntent>,
+                PaymentIntentData<api_types::PaymentCreateIntent>,
             >(
                 state,
                 req_state,
@@ -151,6 +151,57 @@ pub async fn payments_create_intent(
                 req.headers(),
             ),
         },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsGetIntent, payment_id))]
+pub async fn payments_get_intent(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    use api_models::payments::PaymentsGetIntentRequest;
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+
+    let flow = Flow::PaymentsGetIntent;
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let payload = PaymentsGetIntentRequest {
+        id: path.into_inner(),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationDataV2, req, req_state| {
+            payments::payments_intent_core::<
+                api_types::PaymentGetIntent,
+                payment_types::PaymentsIntentResponse,
+                _,
+                _,
+                PaymentIntentData<api_types::PaymentGetIntent>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                payments::operations::PaymentGetIntent,
+                req,
+                header_payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
