@@ -1542,6 +1542,8 @@ pub async fn list_customer_payment_method(
     } else {
         Vec::new()
     };
+    let merchant_connector_accounts =
+        domain::MerchantConnectorAccounts::new(merchant_connector_accounts);
 
     let pm_list_futures = filtered_saved_payment_methods_ctx
         .into_iter()
@@ -1550,7 +1552,7 @@ pub async fn list_customer_payment_method(
                 state,
                 &key_store,
                 merchant_account,
-                merchant_connector_accounts.clone(),
+                &merchant_connector_accounts,
                 ctx,
                 &customer,
                 payments_info.as_ref(),
@@ -1589,7 +1591,7 @@ async fn generate_saved_pm_response(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     merchant_account: &domain::MerchantAccount,
-    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
+    merchant_connector_accounts: &domain::MerchantConnectorAccounts,
     (pm_list_context, parent_payment_method_token, pm): (
         PaymentMethodListContext,
         Option<String>,

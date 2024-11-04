@@ -4653,23 +4653,13 @@ pub async fn get_mca_status(
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
-        let mca_ids = mcas
-            .into_iter()
-            .filter(|mca| {
-                mca.disabled.is_some_and(|disabled| !disabled)
-                    && profile_id
-                        .as_ref()
-                        .is_some_and(|profile_id| *profile_id == mca.profile_id)
-            })
-            .map(|mca| mca.get_id())
-            .collect::<HashSet<_>>();
+        let merchant_connector_accounts = domain::MerchantConnectorAccounts::new(mcas);
 
-        if connector_mandate_details
-            .keys()
-            .any(|mca_id| mca_ids.contains(mca_id))
-        {
-            return Ok(true);
-        }
+        return Ok(merchant_connector_accounts
+            .is_merchant_connector_account_id_in_connector_mandate_details(
+                profile_id.as_ref(),
+                &connector_mandate_details,
+            ));
     }
     Ok(false)
 }
@@ -4684,28 +4674,17 @@ pub async fn get_mca_status(
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<&payment_method::PaymentsMandateReference>,
     network_transaction_id: Option<&String>,
-    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
+    merchant_connector_accounts: &domain::MerchantConnectorAccounts,
 ) -> bool {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
         return true;
     }
     match connector_mandate_details {
-        Some(connector_mandate_details) => {
-            let mca_ids = merchant_connector_accounts
-                .into_iter()
-                .filter(|mca| {
-                    mca.disabled.is_some_and(|disabled| !disabled)
-                        && profile_id
-                            .as_ref()
-                            .is_some_and(|profile_id| *profile_id == mca.profile_id)
-                })
-                .map(|mca| mca.get_id())
-                .collect::<HashSet<_>>();
-
-            connector_mandate_details
-                .keys()
-                .any(|mca_id| mca_ids.contains(mca_id))
-        }
+        Some(connector_mandate_details) => merchant_connector_accounts
+            .is_merchant_connector_account_id_in_connector_mandate_details(
+                profile_id.as_ref(),
+                connector_mandate_details,
+            ),
         None => false,
     }
 }
