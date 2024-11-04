@@ -396,6 +396,7 @@ pub trait CallConnector<F, D, RouterDReq: Send>: Send {
 pub trait PostUpdateTracker<F, D, R: Send>: Send {
     /// Update the tracker information with the response from the connector
     /// The response from routerdata is used to update paymentdata and also persist this in the database
+    #[cfg(feature = "v1")]
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
@@ -404,13 +405,25 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
-            RoutableConnectorChoice,
-        >,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        #[cfg(feature = "dynamic_routing")] routable_connector: Vec<RoutableConnectorChoice>,
+        #[cfg(feature = "dynamic_routing")] business_profile: &domain::Profile,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;
+
+    #[cfg(feature = "v2")]
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        payment_data: D,
+        response: types::RouterData<F, R, PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<D>
+    where
+        F: 'b + Send + Sync,
+        types::RouterData<F, R, PaymentsResponseData>:
+            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, R>;
 
     async fn save_pm_and_mandate<'b>(
         &self,

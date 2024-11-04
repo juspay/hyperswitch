@@ -137,6 +137,9 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
 
+    RouterData<F, FData, router_types::PaymentsResponseData>:
+        hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData>,
+
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone,
@@ -222,11 +225,6 @@ where
                     router_data,
                     &key_store,
                     merchant_account.storage_scheme,
-                    &header_payload.locale,
-                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                    routable_connectors,
-                    #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-                    &business_profile,
                 )
                 .await?
         }
@@ -1512,6 +1510,10 @@ where
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
+
+    // To create
+    RouterData<F, FData, router_types::PaymentsResponseData>:
+        hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData>,
 {
     let (payment_data, _req, customer, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(

@@ -1,6 +1,3 @@
-use actix_web::error;
-#[cfg(feature = "v2")]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
