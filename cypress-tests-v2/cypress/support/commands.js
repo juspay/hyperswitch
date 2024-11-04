@@ -28,7 +28,7 @@
 
 import { getValueByKey } from "../e2e/configs/Payment/Utils.js";
 import {
-  getValueByKey,
+  generateOrganizationName,
   isoTimeTomorrow,
   validateEnv,
 } from "../utils/RequestBodyUtils.js";
@@ -49,6 +49,10 @@ Cypress.Commands.add(
     const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
     const url = `${base_url}/v2/organization`;
+
+    // Update request body
+    organizationCreateBody.organization_name +=
+      " " + generateOrganizationName();
 
     cy.request({
       method: "POST",
@@ -126,6 +130,10 @@ Cypress.Commands.add(
     const base_url = globalState.get("baseUrl");
     const organization_id = globalState.get("organizationId");
     const url = `${base_url}/v2/organization/${organization_id}`;
+
+    // Update request body
+    organizationUpdateBody.organization_name +=
+      " " + generateOrganizationName();
 
     cy.request({
       method: "PUT",
