@@ -644,6 +644,7 @@ pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::Token
 ///     ("address.zip", "941222"),
 ///     ("email", "test@example.com"),
 /// ]
+///
 #[proc_macro_derive(FlatStruct)]
 pub fn flat_struct_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
@@ -748,4 +749,19 @@ pub fn flat_struct_derive(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 #[proc_macro]
 pub fn generate_permissions(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     macros::generate_permissions_inner(input)
+}
+
+/// Generates the ToEncryptable trait for a type
+///
+/// This macro generates the temporary structs which has the fields that needs to be encrypted
+///
+/// fn to_encryptable: Convert the temp struct to a hashmap that can be sent over the network
+/// fn from_encryptable: Convert the hashmap back to temp struct
+#[proc_macro_derive(ToEncryption, attributes(encrypt))]
+pub fn derive_to_encryption_attr(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::derive_to_encryption(input)
+        .unwrap_or_else(|err| err.into_compile_error())
+        .into()
 }
