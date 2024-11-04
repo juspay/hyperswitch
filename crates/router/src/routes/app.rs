@@ -528,6 +528,10 @@ impl Payments {
                         .route(web::post().to(payments::payment_confirm_intent)),
                 )
                 .service(
+                    web::resource("/get-intent")
+                        .route(web::get().to(payments::payments_get_intent)),
+                )
+                .service(
                     web::resource("/create-external-sdk-tokens")
                         .route(web::post().to(payments::payments_connector_session)),
                 ),

@@ -1208,7 +1208,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.connector_mandate_id.clone()
+                    connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
                 | None
