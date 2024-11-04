@@ -128,7 +128,7 @@ pub async fn create_role(
             role_id: role.role_id,
             role_name: role.role_name,
             role_scope: role.scope,
-            entity_type: role.entity_type,
+            entity_type: Some(role.entity_type),
         },
     ))
 }
@@ -268,7 +268,7 @@ pub async fn update_role(
             role_id: updated_role.role_id,
             role_name: updated_role.role_name,
             role_scope: updated_role.scope,
-            entity_type: updated_role.entity_type,
+            entity_type: Some(updated_role.entity_type),
         },
     ))
 }

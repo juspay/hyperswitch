@@ -401,69 +401,65 @@ impl RoleInterface for MockDb {
         let limit_usize = limit.unwrap_or(u32::MAX).try_into().unwrap_or(usize::MAX);
         let roles_list: Vec<_> = roles
             .iter()
-            .filter(|role| {
-                let entity_type_of_role = role.entity_type.unwrap_or(EntityType::Merchant);
+            .filter(|role| match &entity_type {
+                storage::ListRolesByEntityPayload::Organization(org_id) => {
+                    let entity_in_vec = if is_lineage_data_required {
+                        vec![
+                            EntityType::Organization,
+                            EntityType::Merchant,
+                            EntityType::Profile,
+                        ]
+                    } else {
+                        vec![EntityType::Organization]
+                    };
 
-                match &entity_type {
-                    storage::ListRolesByEntityPayload::Organization(org_id) => {
-                        let entity_in_vec = if is_lineage_data_required {
-                            vec![
-                                EntityType::Organization,
-                                EntityType::Merchant,
-                                EntityType::Profile,
-                            ]
-                        } else {
-                            vec![EntityType::Organization]
-                        };
+                    let matches_scope = role.scope == RoleScope::Organization
+                        || role.scope == RoleScope::Merchant
+                        || role.scope == RoleScope::Profile;
 
-                        let matches_scope = role.scope == RoleScope::Organization
-                            || role.scope == RoleScope::Merchant
-                            || role.scope == RoleScope::Profile;
+                    role.org_id == *org_id
+                        && (matches_scope)
+                        && entity_in_vec.contains(&role.entity_type)
+                }
+                storage::ListRolesByEntityPayload::Merchant(org_id, merchant_id) => {
+                    let entity_in_vec = if is_lineage_data_required {
+                        vec![EntityType::Merchant, EntityType::Profile]
+                    } else {
+                        vec![EntityType::Merchant]
+                    };
 
-                        role.org_id == *org_id
-                            && (matches_scope)
-                            && entity_in_vec.contains(&entity_type_of_role)
-                    }
-                    storage::ListRolesByEntityPayload::Merchant(org_id, merchant_id) => {
-                        let entity_in_vec = if is_lineage_data_required {
-                            vec![EntityType::Merchant, EntityType::Profile]
-                        } else {
-                            vec![EntityType::Merchant]
-                        };
+                    let matches_merchant =
+                        role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant;
+                    let matches_profile =
+                        role.merchant_id == *merchant_id && role.scope == RoleScope::Profile;
 
-                        let matches_merchant =
-                            role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant;
-                        let matches_profile =
-                            role.merchant_id == *merchant_id && role.scope == RoleScope::Profile;
+                    role.org_id == *org_id
+                        && (role.scope == RoleScope::Organization
+                            || matches_merchant
+                            || matches_profile)
+                        && entity_in_vec.contains(&role.entity_type)
+                }
+                storage::ListRolesByEntityPayload::Profile(org_id, merchant_id, profile_id) => {
+                    let entity_in_vec = vec![EntityType::Profile];
 
-                        role.org_id == *org_id
-                            && (role.scope == RoleScope::Organization
-                                || matches_merchant
-                                || matches_profile)
-                            && entity_in_vec.contains(&entity_type_of_role)
-                    }
-                    storage::ListRolesByEntityPayload::Profile(org_id, merchant_id, profile_id) => {
-                        let entity_in_vec = vec![EntityType::Profile];
+                    let matches_merchant =
+                        role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant;
 
-                        let matches_merchant =
-                            role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant;
+                    let matches_profile = role.merchant_id == *merchant_id
+                        && role
+                            .profile_id
+                            .as_ref()
+                            .map(|profile_id_from_role| {
+                                profile_id_from_role == profile_id
+                                    && role.scope == RoleScope::Profile
+                            })
+                            .unwrap_or(true);
 
-                        let matches_profile = role.merchant_id == *merchant_id
-                            && role
-                                .profile_id
-                                .as_ref()
-                                .map(|profile_id_from_role| {
-                                    profile_id_from_role == profile_id
-                                        && role.scope == RoleScope::Profile
-                                })
-                                .unwrap_or(true);
-
-                        role.org_id == *org_id
-                            && (role.scope == RoleScope::Organization
-                                || matches_merchant
-                                || matches_profile)
-                            && entity_in_vec.contains(&entity_type_of_role)
-                    }
+                    role.org_id == *org_id
+                        && (role.scope == RoleScope::Organization
+                            || matches_merchant
+                            || matches_profile)
+                        && entity_in_vec.contains(&role.entity_type)
                 }
             })
             .take(limit_usize)
