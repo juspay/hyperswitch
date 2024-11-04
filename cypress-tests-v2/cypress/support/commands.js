@@ -26,10 +26,12 @@
 
 //  cy.task can only be used in support files (spec files or commands file)
 
+import { getValueByKey } from "../e2e/configs/Payment/Utils.js";
 import {
   getValueByKey,
   isoTimeTomorrow,
-} from "../e2e/configs/Payment/Utils.js";
+  validateEnv,
+} from "../utils/RequestBodyUtils.js";
 
 function logRequestId(xRequestId) {
   if (xRequestId) {
