@@ -1,8 +1,3 @@
-use crate::{
-    enums::RoleScope, errors, query::generics, role::*, schema::roles::dsl, PgPooledConn,
-    StorageResult,
-};
-
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_enums::EntityType;
 use common_utils::id_type;
@@ -11,6 +6,11 @@ use diesel::{
     BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
+
+use crate::{
+    enums::RoleScope, errors, query::generics, role::*, schema::roles::dsl, PgPooledConn,
+    StorageResult,
+};
 
 impl RoleNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Role> {
