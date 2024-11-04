@@ -1117,12 +1117,16 @@ fn build_bill_to(
     Ok(address_details
         .and_then(|addr| {
             addr.address.as_ref().map(|addr| BillTo {
-                first_name: addr.first_name.clone(),
-                last_name: addr.last_name.clone(),
-                address1: addr.line1.clone(),
-                locality: addr.city.clone(),
-                administrative_area: addr.to_state_code_as_optional().ok().flatten(),
-                postal_code: addr.zip.clone(),
+                first_name: addr.first_name.remove_new_line(),
+                last_name: addr.last_name.remove_new_line(),
+                address1: addr.line1.remove_new_line(),
+                locality: addr.city.remove_new_line(),
+                administrative_area: addr
+                    .to_state_code_as_optional()
+                    .ok()
+                    .flatten()
+                    .remove_new_line(),
+                postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
                 email,
             })
@@ -4050,5 +4054,24 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
         common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
+    }
+}
+
+pub trait RemoveNewLine {
+    fn remove_new_line(&self) -> Self;
+}
+
+impl RemoveNewLine for Option<Secret<String>> {
+    fn remove_new_line(&self) -> Self {
+        self.clone().map(|masked_value| {
+            let new_string = masked_value.expose().replace("\n", "");
+            Secret::new(new_string)
+        })
+    }
+}
+
+impl RemoveNewLine for Option<String> {
+    fn remove_new_line(&self) -> Self {
+        self.clone().map(|value| value.replace("\n", ""))
     }
 }
