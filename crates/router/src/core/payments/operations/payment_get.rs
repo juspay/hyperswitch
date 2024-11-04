@@ -145,6 +145,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveReques
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        // TODO: validate this only in case of client call
         self.validate_status_for_operation(payment_intent.status)?;
         let client_secret = header_payload
             .client_secret

@@ -1296,6 +1296,7 @@ pub enum IntentStatus {
 }
 
 impl IntentStatus {
+    /// Indicates whether the syncing with the connector should be allowed or not
     pub fn should_force_sync_with_connector(&self) -> bool {
         match self {
             // Confirm has not happened yet
