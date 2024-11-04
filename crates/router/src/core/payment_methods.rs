@@ -1397,6 +1397,7 @@ async fn get_pm_list_context(
 pub async fn list_customer_payment_method_util(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     req: Option<api::PaymentMethodListRequest>,
     customer_id: Option<id_type::CustomerId>,
@@ -1428,6 +1429,7 @@ pub async fn list_customer_payment_method_util(
         Box::pin(list_customer_payment_method(
             &state,
             &merchant_account,
+            profile,
             key_store,
             payment_intent,
             &cust,
@@ -1446,6 +1448,7 @@ pub async fn list_customer_payment_method_util(
     Ok(resp)
 }
 
+#[allow(clippy::too_many_arguments)]
 #[cfg(all(
     feature = "v2",
     feature = "payment_methods_v2",
@@ -1454,6 +1457,7 @@ pub async fn list_customer_payment_method_util(
 pub async fn list_customer_payment_method(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
+    profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     payment_intent: Option<PaymentIntent>,
     customer_id: &id_type::CustomerId,
@@ -1462,19 +1466,6 @@ pub async fn list_customer_payment_method(
 ) -> RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let key_manager_state = &(state).into();
-
-    let profile_id = payment_intent
-        .as_ref()
-        .map(|payment_intent| &payment_intent.profile_id);
-
-    let profile = core_utils::validate_and_get_business_profile(
-        db,
-        key_manager_state,
-        &key_store,
-        profile_id,
-        merchant_account.get_id(),
-    )
-    .await?;
 
     let customer = db
         .find_customer_by_merchant_reference_id_merchant_id(
@@ -1584,7 +1575,7 @@ pub async fn list_customer_payment_method(
             state,
             merchant_account,
             key_store,
-            payments_info.and_then(|pi| pi.profile),
+            payments_info.map(|pi| pi.profile),
             &mut response,
         ))
         .await?;
@@ -1636,9 +1627,7 @@ async fn generate_saved_pm_response(
                     pi.is_connector_agnostic_mit_enabled,
                     pi.collect_cvv_during_payment,
                     pi.off_session_payment_flag,
-                    pi.profile
-                        .as_ref()
-                        .map(|profile| profile.get_id().to_owned()),
+                    Some(pi.profile.get_id().to_owned()),
                 )
             })
             .unwrap_or((false, false, false, Default::default()));
@@ -1921,25 +1910,20 @@ impl pm_types::SavedPMLPaymentsInfo {
     pub async fn form_payments_info(
         payment_intent: PaymentIntent,
         merchant_account: &domain::MerchantAccount,
-        profile: Option<domain::Profile>,
+        profile: domain::Profile,
         db: &dyn StorageInterface,
         key_manager_state: &util_types::keymanager::KeyManagerState,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
-        let collect_cvv_during_payment = profile
-            .as_ref()
-            .map(|profile| profile.should_collect_cvv_during_payment)
-            .unwrap_or(true);
+        let collect_cvv_during_payment = profile.should_collect_cvv_during_payment;
 
         let off_session_payment_flag = matches!(
             payment_intent.setup_future_usage,
             common_enums::FutureUsage::OffSession
         );
 
-        let is_connector_agnostic_mit_enabled = profile
-            .as_ref()
-            .and_then(|profile| profile.is_connector_agnostic_mit_enabled)
-            .unwrap_or(false);
+        let is_connector_agnostic_mit_enabled =
+            profile.is_connector_agnostic_mit_enabled.unwrap_or(false);
 
         Ok(Self {
             payment_intent,
@@ -1966,8 +1950,7 @@ impl pm_types::SavedPMLPaymentsInfo {
 
         let intent_fulfillment_time = self
             .profile
-            .as_ref()
-            .and_then(|b_profile| b_profile.get_order_fulfillment_time())
+            .get_order_fulfillment_time()
             .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
         pm_routes::ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method))

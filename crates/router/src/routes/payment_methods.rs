@@ -160,7 +160,7 @@ pub async fn confirm_payment_method_intent_api(
         state,
         &req,
         inner_payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state, auth: auth::AuthenticationDataV2, req, _| {
             let pm_id = pm_id.clone();
             async move {
                 Box::pin(payment_method_intent_confirm(
@@ -415,6 +415,7 @@ pub async fn save_payment_method_api(
     .await
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_method_api(
     state: web::Data<AppState>,
@@ -552,10 +553,11 @@ pub async fn list_customer_payment_method_for_payment(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state, auth: auth::AuthenticationDataV2, req, _| {
             list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
+                auth.profile,
                 auth.key_store,
                 Some(req),
                 None,
@@ -617,10 +619,11 @@ pub async fn list_customer_payment_method_api(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
+        |state, auth: auth::AuthenticationDataV2, req, _| {
             list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
+                auth.profile,
                 auth.key_store,
                 Some(req),
                 Some(customer_id.clone()),
@@ -897,6 +900,7 @@ pub async fn list_countries_currencies_for_connector_payment_method(
     .await
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::DefaultPaymentMethodsSet))]
 pub async fn default_payment_method_set_api(
     state: web::Data<AppState>,
@@ -933,6 +937,7 @@ pub async fn default_payment_method_set_api(
     ))
     .await
 }
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
