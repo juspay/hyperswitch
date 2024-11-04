@@ -664,6 +664,8 @@ Cypress.Commands.add("apiKeyCreateCall", (apiKeyCreateBody, globalState) => {
   // We do not want to keep API Key forever,
   // so we set the expiry to tomorrow as new merchant accounts are created with every run
   const expiry = isoTimeTomorrow();
+  const key_id_type = "key_id";
+  const key_id = validateEnv(base_url, key_id_type);
   const merchant_id = globalState.get("merchantId");
   const url = `${base_url}/v2/api_keys`;
 
@@ -692,13 +694,9 @@ Cypress.Commands.add("apiKeyCreateCall", (apiKeyCreateBody, globalState) => {
       expect(response.body.description).to.equal(apiKeyCreateBody.description);
 
       // API Key assertions are intentionally excluded to avoid being exposed in the logs
-      if (base_url.includes("sandbox") || base_url.includes("integ")) {
-        expect(response.body).to.have.property("key_id").and.to.include("snd_")
-          .and.to.not.be.empty;
-      } else if (base_url.includes("localhost")) {
-        expect(response.body).to.have.property("key_id").and.to.include("dev_")
-          .and.to.not.be.empty;
-      }
+      expect(response.body)
+        .to.have.property(key_id_type)
+        .and.to.include(key_id).and.to.not.be.empty;
 
       globalState.set("apiKeyId", response.body.key_id);
       globalState.set("apiKey", response.body.api_key);
@@ -716,6 +714,8 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
   // Define the necessary variables and constant
   const api_key = globalState.get("adminApiKey");
   const base_url = globalState.get("baseUrl");
+  const key_id_type = "key_id";
+  const key_id = validateEnv(base_url, key_id_type);
   const merchant_id = globalState.get("merchantId");
   const api_key_id = globalState.get("apiKeyId");
   const url = `${base_url}/v2/api_keys/${api_key_id}`;
@@ -740,13 +740,9 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
       expect(response.body.merchant_id).to.equal(merchant_id);
 
       // API Key assertions are intentionally excluded to avoid being exposed in the logs
-      if (base_url.includes("sandbox") || base_url.includes("integ")) {
-        expect(response.body).to.have.property("key_id").and.to.include("snd_")
-          .and.to.not.be.empty;
-      } else if (base_url.includes("localhost")) {
-        expect(response.body).to.have.property("key_id").and.to.include("dev_")
-          .and.to.not.be.empty;
-      }
+      expect(response.body)
+        .to.have.property(key_id_type)
+        .and.to.include(key_id).and.to.not.be.empty;
 
       if (api_key === undefined || api_key === null) {
         globalState.set("apiKey", response.body.api_key);
@@ -768,6 +764,8 @@ Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
   // We do not want to keep API Key forever,
   // so we set the expiry to tomorrow as new merchant accounts are created with every run
   const expiry = isoTimeTomorrow();
+  const key_id_type = "key_id";
+  const key_id = validateEnv(base_url, key_id_type);
   const merchant_id = globalState.get("merchantId");
   const url = `${base_url}/v2/api_keys/${api_key_id}`;
 
@@ -796,13 +794,9 @@ Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
       expect(response.body.description).to.equal(apiKeyUpdateBody.description);
 
       // API Key assertions are intentionally excluded to avoid being exposed in the logs
-      if (base_url.includes("sandbox") || base_url.includes("integ")) {
-        expect(response.body).to.have.property("key_id").and.to.include("snd_")
-          .and.to.not.be.empty;
-      } else if (base_url.includes("localhost")) {
-        expect(response.body).to.have.property("key_id").and.to.include("dev_")
-          .and.to.not.be.empty;
-      }
+      expect(response.body)
+        .to.have.property(key_id_type)
+        .and.to.include(key_id).and.to.not.be.empty;
 
       if (api_key === undefined || api_key === null) {
         globalState.set("apiKey", response.body.api_key);
@@ -1187,6 +1181,8 @@ Cypress.Commands.add("merchantAccountsListCall", (globalState) => {
   // Define the necessary variables and constants
   const api_key = globalState.get("adminApiKey");
   const base_url = globalState.get("baseUrl");
+  const key_id_type = "publishable_key";
+  const key_id = validateEnv(base_url, key_id_type);
   const organization_id = globalState.get("organizationId");
   const url = `${base_url}/v2/organization/${organization_id}/merchant_accounts`;
 
@@ -1208,15 +1204,9 @@ Cypress.Commands.add("merchantAccountsListCall", (globalState) => {
         expect(response.body[key])
           .to.have.property("organization_id")
           .and.to.equal(organization_id);
-        if (base_url.includes("integ") || base_url.includes("sandbox")) {
-          expect(response.body[key])
-            .to.have.property("publishable_key")
-            .and.include("pk_snd_").and.to.not.be.empty;
-        } else if (base_url.includes("localhost")) {
-          expect(response.body[key])
-            .to.have.property("publishable_key")
-            .and.include("pk_dev_").and.to.not.be.empty;
-        }
+        expect(response.body[key])
+          .to.have.property(key_id_type)
+          .and.include(key_id).and.to.not.be.empty;
         expect(response.body[key]).to.have.property("id").and.to.not.be.empty;
       }
     } else {
@@ -1333,6 +1323,8 @@ Cypress.Commands.add("apiKeysListCall", (globalState) => {
   // Define the necessary variables and constants
   const api_key = globalState.get("adminApiKey");
   const base_url = globalState.get("baseUrl");
+  const key_id_type = "key_id";
+  const key_id = validateEnv(base_url, key_id_type);
   const merchant_id = globalState.get("merchantId");
   const url = `${base_url}/v2/api_keys/list`;
 
@@ -1357,8 +1349,8 @@ Cypress.Commands.add("apiKeysListCall", (globalState) => {
       expect(response.body).to.be.an("array").and.to.not.be.empty;
       for (const key in response.body) {
         expect(response.body[key])
-          .to.have.property("key_id")
-          .and.to.include("dev_").and.to.not.be.empty;
+          .to.have.property(key_id_type)
+          .and.to.include(key_id).and.to.not.be.empty;
         expect(response.body[key])
           .to.have.property("merchant_id")
           .and.to.equal(merchant_id).and.to.not.be.empty;
