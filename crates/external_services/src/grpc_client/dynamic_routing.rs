@@ -98,6 +98,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
 }
@@ -111,21 +112,6 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         params: String,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse> {
-        // let params = success_rate_based_config
-        //     .params
-        //     .map(|vec| {
-        //         vec.into_iter().fold(String::new(), |mut acc_str, params| {
-        //             if !acc_str.is_empty() {
-        //                 acc_str.push(':')
-        //             }
-        //             acc_str.push_str(params.to_string().as_str());
-        //             acc_str
-        //         })
-        //     })
-        //     .get_required_value("params")
-        //     .change_context(DynamicRoutingError::MissingRequiredField {
-        //         field: "params".to_string(),
-        //     })?;
 
         let labels = label_input
             .into_iter()
@@ -161,6 +147,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         label_input: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse> {
         let config = success_rate_based_config
@@ -175,22 +162,6 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
                 status: conn_choice.status,
             })
             .collect();
-
-        let params = success_rate_based_config
-            .params
-            .map(|vec| {
-                vec.into_iter().fold(String::new(), |mut acc_str, params| {
-                    if !acc_str.is_empty() {
-                        acc_str.push(':')
-                    }
-                    acc_str.push_str(params.to_string().as_str());
-                    acc_str
-                })
-            })
-            .get_required_value("params")
-            .change_context(DynamicRoutingError::MissingRequiredField {
-                field: "params".to_string(),
-            })?;
 
         let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
             id,

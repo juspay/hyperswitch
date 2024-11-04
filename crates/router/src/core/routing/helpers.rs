@@ -699,13 +699,13 @@ pub async fn push_metrics_for_success_based_routing(
             business_profile.get_id().get_string_repr(),
         );
 
-        let success_based_routing_config_params = success_based_routing_config_params_interpolator.get_string_val();
+        let success_based_routing_config_params = success_based_routing_config_params_interpolator.get_string_val(success_based_routing_configs.params.as_ref());
 
         let success_based_connectors = client
             .calculate_success_rate(
                 tenant_business_profile_id.clone(),
                 success_based_routing_configs.clone(),
-                success_based_routing_config_params,
+                success_based_routing_config_params.clone(),
                 routable_connectors.clone(),
             )
             .await
@@ -808,6 +808,7 @@ pub async fn push_metrics_for_success_based_routing(
             .update_success_rate(
                 tenant_business_profile_id,
                 success_based_routing_configs,
+                success_based_routing_config_params,
                 vec![routing_types::RoutableConnectorChoiceWithStatus::new(
                     routing_types::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
@@ -994,17 +995,31 @@ impl SuccessBasedRoutingConfigParamsInterpolator {
             }
         }
 
-    pub fn get_string_val(&self) -> String {
-        let parts: Vec<String> = vec![
-            self.payment_method.as_ref().map_or(String::new(), |pm| pm.to_string()),
-            self.payment_method_type.as_ref().map_or(String::new(), |pmt| pmt.to_string()),
-            self.authentication_type.as_ref().map_or(String::new(), |at| at.to_string()),
-            self.currency.as_ref().map_or(String::new(), |cur| cur.to_string()),
-            self.country.as_ref().map_or(String::new(), |cn| cn.to_string()),
-            self.card_network.clone().unwrap_or_default(),
-            self.card_bin.clone().unwrap_or_default(),
-        ];
-
+    pub fn get_string_val(&self, params: Option<&Vec<routing_types::SuccessBasedRoutingConfigParams>>) -> String {
+        let mut parts: Vec<String> = Vec::new();
+        if let Some(params) = params {
+            for param in params {
+                let val = match param {
+                    routing_types::SuccessBasedRoutingConfigParams::PaymentMethod => 
+                        self.payment_method.as_ref().map_or(String::new(), |pm| pm.to_string()),
+                    routing_types::SuccessBasedRoutingConfigParams::PaymentMethodType => 
+                        self.payment_method_type.as_ref().map_or(String::new(), |pmt| pmt.to_string()),
+                    routing_types::SuccessBasedRoutingConfigParams::AuthenticationType => 
+                        self.authentication_type.as_ref().map_or(String::new(), |at| at.to_string()),
+                    routing_types::SuccessBasedRoutingConfigParams::Currency => 
+                        self.currency.as_ref().map_or(String::new(), |cur| cur.to_string()),
+                    routing_types::SuccessBasedRoutingConfigParams::Country => 
+                        self.country.as_ref().map_or(String::new(), |cn| cn.to_string()),
+                    routing_types::SuccessBasedRoutingConfigParams::CardNetwork => 
+                        self.card_network.clone().unwrap_or_default(),
+                    routing_types::SuccessBasedRoutingConfigParams::CardBin => 
+                        self.card_bin.clone().unwrap_or_default(),
+                };
+                if !val.is_empty() {
+                    parts.push(val);
+                }
+            }
+        }
         parts.join(":")
     }
 }
