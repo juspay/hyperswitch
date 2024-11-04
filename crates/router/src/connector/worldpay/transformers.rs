@@ -110,7 +110,7 @@ fn fetch_payment_instrument(
                     .mandate_reference_id
                     .and_then(|mandate_id| match mandate_id {
                         MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
-                            connector_mandate_id.connector_mandate_id.map(|href| {
+                            connector_mandate_id.get_connector_mandate_id().map(|href| {
                                 PaymentInstrument::CardToken(CardToken {
                                     payment_type: PaymentType::Token,
                                     href,
@@ -331,7 +331,7 @@ impl
             ),
             _ => (None, None),
         };
-        router_env::logger::debug!("[DEBUGGG]\nreq: {:?}", item.router_data.request);
+
         Ok(Self {
             instruction: Instruction {
                 settlement: match (
@@ -417,7 +417,7 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
     fn from(item: PaymentOutcome) -> Self {
         match item {
             PaymentOutcome::Authorized => Self::Authorized,
-            PaymentOutcome::SentForSettlement => Self::Charged,
+            PaymentOutcome::SentForSettlement => Self::CaptureInitiated,
             PaymentOutcome::ThreeDsDeviceDataRequired => Self::DeviceDataCollectionPending,
             PaymentOutcome::ThreeDsAuthenticationFailed => Self::AuthenticationFailed,
             PaymentOutcome::ThreeDsChallenged => Self::AuthenticationPending,
@@ -495,6 +495,7 @@ impl<F, T>
                         connector_mandate_id: Some(mandate_token.href.clone().expose()),
                         payment_method_id: Some(mandate_token.token_id.clone()),
                         mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     }),
                     None,
                 ),

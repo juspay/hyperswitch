@@ -413,10 +413,6 @@ impl VerifySignature for Sha256 {
             .generate_digest(msg)
             .change_context(errors::CryptoError::SignatureVerificationFailed)?;
         let hashed_digest_into_bytes = hashed_digest.as_slice();
-        println!(
-            "[DEBUGG]\nhash: {:?}\nsign: {:?}\nmsg:  {:?}",
-            hashed_digest_into_bytes, signature, msg
-        );
         Ok(hashed_digest_into_bytes == signature)
     }
 }

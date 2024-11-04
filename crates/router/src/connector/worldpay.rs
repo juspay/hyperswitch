@@ -2,6 +2,7 @@ mod requests;
 mod response;
 pub mod transformers;
 
+use api_models::payments::MandateReferenceId;
 use common_utils::{
     crypto,
     ext_traits::ByteSliceExt,
@@ -10,6 +11,7 @@ use common_utils::{
 };
 use diesel_models::enums;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::router_response_types::MandateReference;
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
@@ -158,13 +160,11 @@ impl ConnectorValidation for Worldpay {
             mandate_supported_pmd,
             self.id(),
         );
-        router_env::logger::info!(
-            "[DEBUGG] pm_data: {:?}\npm_type: {:?}\nres: {:?}",
-            pm_data,
-            pm_type,
-            res
-        );
         res
+    }
+
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
+        true
     }
 }
 
@@ -218,13 +218,6 @@ impl
         ))?;
         let connector_req =
             WorldpayPaymentsRequest::try_from((&connector_router_data, &auth.entity_id))?;
-
-        router_env::logger::info!(
-            "[DEBUGG] connector_req: {:?}\n authorize_req: {:?}\n req: {:?}",
-            connector_req.clone(),
-            authorize_req,
-            req,
-        );
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -516,6 +509,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 enums::AttemptStatus::Authorizing
                 | enums::AttemptStatus::Authorized
                 | enums::AttemptStatus::CaptureInitiated
+                | enums::AttemptStatus::Charged
                 | enums::AttemptStatus::Pending
                 | enums::AttemptStatus::VoidInitiated,
                 EventType::Authorized,
@@ -528,7 +522,29 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: data.request.connector_transaction_id.clone(),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(data.request.mandate_id.as_ref().and_then(
+                    |mandate_ids| {
+                        mandate_ids
+                            .mandate_reference_id
+                            .as_ref()
+                            .and_then(|mandate_ref_id| match mandate_ref_id {
+                                MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
+                                    Some(MandateReference {
+                                        connector_mandate_id: connector_mandate_id
+                                            .get_connector_mandate_id(),
+                                        payment_method_id: connector_mandate_id
+                                            .get_payment_method_id(),
+                                        mandate_metadata: connector_mandate_id
+                                            .get_mandate_metadata(),
+                                        connector_mandate_request_reference_id:
+                                            connector_mandate_id
+                                                .get_connector_mandate_request_reference_id(),
+                                    })
+                                }
+                                _ => None,
+                            })
+                    },
+                )),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: optional_correlation_id,
@@ -709,11 +725,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let connector_req =
             WorldpayPaymentsRequest::try_from((&connector_router_data, &auth.entity_id))?;
-        router_env::logger::info!(
-            "[DEBUGG] connector_req: {:?}\n authorize_req: {:?}",
-            connector_req.clone(),
-            req
-        );
+
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -768,8 +780,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             optional_correlation_id,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        router_env::logger::info!("[DEBUGG] res: {:?}", res.clone());
 
         Ok(res)
     }

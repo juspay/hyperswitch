@@ -360,6 +360,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NexinetsPreAuthOrDebitResponse, T, Paym
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             });
         Ok(Self {
             status: get_status(transaction.status.clone(), item.response.transaction_type),
