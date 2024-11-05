@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.10.28.2-hotfix1
+
+### Bug Fixes
+
+- **connector:** [Cybersource] remove newline in billing address with space ([#6480](https://github.com/juspay/hyperswitch/pull/6480)) ([`ca21d64`](https://github.com/juspay/hyperswitch/commit/ca21d64daf651eddc3698aa020d1dc9848dce48f))
+
+- - -
+
 ## 2024.10.28.2
 
 ### Bug Fixes
