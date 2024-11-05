@@ -183,12 +183,7 @@ impl ConnectorValidation for Worldpay {
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        is_mandate_supported(
-            pm_data.clone(),
-            pm_type,
-            mandate_supported_pmd,
-            self.id(),
-        )
+        is_mandate_supported(pm_data.clone(), pm_type, mandate_supported_pmd, self.id())
     }
 
     fn is_webhook_source_verification_mandatory(&self) -> bool {
