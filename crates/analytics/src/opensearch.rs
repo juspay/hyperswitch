@@ -505,7 +505,7 @@ impl OpenSearchQueryBuilder {
         }
     }
 
-    fn build_filter_array(
+    pub fn build_filter_array(
         &self,
         case_sensitive_filters: Vec<&(String, Vec<String>)>,
     ) -> Vec<Value> {
