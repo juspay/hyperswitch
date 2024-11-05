@@ -843,10 +843,26 @@ impl From<&PaymentMethodNew> for PaymentMethod {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_id: String,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub original_payment_authorized_amount: Option<i64>,
+    pub original_payment_authorized_currency: Option<common_enums::Currency>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
+    pub connector_mandate_request_reference_id: Option<String>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentsMandateReferenceRecord {
+    pub connector_mandate_id: String,
+    pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub mandate_metadata: Option<pii::SecretSerdeValue>,
