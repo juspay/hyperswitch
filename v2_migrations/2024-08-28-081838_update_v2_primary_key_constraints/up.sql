@@ -88,20 +88,11 @@ ADD PRIMARY KEY (id);
 ------------------------ Payment Intent -----------------------
 ALTER TABLE payment_intent DROP CONSTRAINT payment_intent_pkey;
 
--- To work around database constraints
-UPDATE payment_intent
-SET id = payment_id
-WHERE id IS NULL;
-
 ALTER TABLE payment_intent
 ADD PRIMARY KEY (id);
 
 ------------------------ Payment Attempt -----------------------
 ALTER TABLE payment_attempt DROP CONSTRAINT payment_attempt_pkey;
-
-UPDATE payment_attempt
-SET id = attempt_id
-WHERE id IS NULL;
 
 ALTER TABLE payment_attempt
 ADD PRIMARY KEY (id);

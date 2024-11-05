@@ -268,15 +268,18 @@ pub enum PaymentIntentUpdate {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
+    /// PreUpdate tracker of ConfirmIntent
     ConfirmIntent {
         status: storage_enums::IntentStatus,
         active_attempt_id: id_type::GlobalAttemptId,
         updated_by: String,
     },
+    /// PostUpdate tracker of ConfirmIntent
     ConfirmIntentPostUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
     },
+    /// SyncUpdate of ConfirmIntent in PostUpdateTrackers
     SyncUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,

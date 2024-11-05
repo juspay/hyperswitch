@@ -393,17 +393,8 @@ pub async fn construct_router_data_for_psync<'a>(
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
-    // TODO: Take Globalid and convert to connector reference id
-    let customer_id = customer
-        .to_owned()
-        .map(|customer| customer.id.clone())
-        .map(std::borrow::Cow::Owned)
-        .map(common_utils::id_type::CustomerId::try_from)
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Invalid global customer generated, not able to convert to reference id",
-        )?;
+    // TODO: Take Globalid / CustomerReferenceId and convert to connector reference id
+    let customer_id = None;
 
     let payment_intent = payment_data.payment_intent;
 
@@ -426,7 +417,6 @@ pub async fn construct_router_data_for_psync<'a>(
     let request = types::PaymentsSyncData {
         amount: attempt.amount_details.net_amount,
         integrity_object: None,
-        // TODO: How do we provide this in v2
         mandate_id: None,
         connector_transaction_id: match attempt.get_connector_payment_id() {
             Some(connector_txn_id) => {

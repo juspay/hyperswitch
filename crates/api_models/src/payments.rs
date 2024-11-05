@@ -4572,6 +4572,7 @@ pub struct PaymentsConfirmIntentResponse {
     pub error: Option<ErrorDetails>,
 }
 
+// TODO: have a separate response for detailed, summarized
 /// Response for Payment Intent Confirm
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]

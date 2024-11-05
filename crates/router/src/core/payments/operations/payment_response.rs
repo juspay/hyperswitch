@@ -1259,6 +1259,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
 ) -> RouterResult<PaymentData<F>> {
     // Update additional payment data with the payment method response that we received from connector
+    // This is for details like whether 3ds was upgraded and which version of 3ds was used
+    // also some connectors might send card network details in the response, which is captured and stored
 
     let additional_payment_method_data = match payment_data.payment_method_data.clone() {
         Some(payment_method_data) => match payment_method_data {

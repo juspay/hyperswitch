@@ -1511,7 +1511,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 
-    // To create
+    // To create updatable objects in post update tracker
     RouterData<F, FData, router_types::PaymentsResponseData>:
         hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData>,
 {
