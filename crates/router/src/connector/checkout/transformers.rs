@@ -129,6 +129,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -375,6 +376,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -1250,7 +1252,7 @@ pub struct CheckoutDisputeWebhookData {
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
     pub amount: i32,
-    pub currency: String,
+    pub currency: enums::Currency,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub evidence_required_by: Option<PrimitiveDateTime>,
     pub reason_code: Option<String>,

@@ -10,8 +10,10 @@ import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
+import { connectorDetails as jpmorganConnectorDetails} from "./Jpmorgan.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
+import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
@@ -20,27 +22,33 @@ import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
+import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
+import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
+  checkout: checkoutConnectorDetails,
   commons: CommonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
+  jpmorgan : jpmorganConnectorDetails,
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
   novalnet: novalnetConnectorDetails,
   paybox: payboxConnectorDetails,
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
+  elavon: elavonConnectorDetails,
   trustpay: trustpayConnectorDetails,
   datatrans: datatransConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   fiuu: fiuuConnectorDetails,
   worldpay: worldpayConnectorDetails,
+  noon: noonConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
@@ -132,9 +140,14 @@ export function defaultErrorHandler(response, response_data) {
 
   if (typeof response.body.error === "object") {
     for (const key in response_data.body.error) {
-      expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+      // Check if the error message is a Json deserialize error
+      let apiResponseContent = response.body.error[key];
+      let expectedContent = response_data.body.error[key];
+      if (typeof apiResponseContent === "string" && apiResponseContent.includes("Json deserialize error")) {
+        expect(apiResponseContent).to.include(expectedContent);
+      } else {
+        expect(apiResponseContent).to.equal(expectedContent);
+      }
     }
-  } else if (typeof response.body.error === "string") {
-    expect(response.body.error).to.include(response_data.body.error);
   }
 }

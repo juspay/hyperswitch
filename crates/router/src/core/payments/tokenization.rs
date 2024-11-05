@@ -32,7 +32,7 @@ use crate::{
         self,
         api::{self, CardDetailFromLocker, CardDetailsPaymentMethod, PaymentMethodCreateExt},
         domain,
-        storage::{self, enums as storage_enums},
+        storage::enums as storage_enums,
     },
     utils::{generate_id, OptionExt},
 };
@@ -610,7 +610,8 @@ where
                                 Ok(customer_payment_methods) => Ok(customer_payment_methods
                                     .iter()
                                     .find(|payment_method| {
-                                        payment_method.payment_method_type == payment_method_type
+                                        payment_method.get_payment_method_subtype()
+                                            == payment_method_type
                                     })
                                     .cloned()),
                                 Err(error) => {
@@ -972,7 +973,7 @@ pub async fn save_network_token_in_locker(
         {
             Ok((token_response, network_token_requestor_ref_id)) => {
                 // Only proceed if the tokenization was successful
-                let card_data = api::CardDetail {
+                let network_token_data = api::CardDetail {
                     card_number: token_response.token.clone(),
                     card_exp_month: token_response.token_expiry_month.clone(),
                     card_exp_year: token_response.token_expiry_year.clone(),
@@ -987,7 +988,7 @@ pub async fn save_network_token_in_locker(
                 let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
                     state,
                     payment_method_request,
-                    &card_data,
+                    &network_token_data,
                     &customer_id,
                     merchant_account,
                     None,
@@ -1143,15 +1144,16 @@ pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn add_connector_mandate_details_in_payment_method(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
-    mandate_metadata: Option<serde_json::Value>,
+    mandate_metadata: Option<Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
-) -> Option<storage::PaymentsMandateReference> {
+) -> Option<diesel_models::PaymentsMandateReference> {
     let mut mandate_details = HashMap::new();
 
     if let Some((mca_id, connector_mandate_id)) =
@@ -1159,7 +1161,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     {
         mandate_details.insert(
             mca_id,
-            storage::PaymentsMandateReferenceRecord {
+            diesel_models::PaymentsMandateReferenceRecord {
                 connector_mandate_id,
                 payment_method_type,
                 original_payment_authorized_amount: authorized_amount,
@@ -1169,20 +1171,22 @@ pub fn add_connector_mandate_details_in_payment_method(
                 connector_mandate_request_reference_id,
             },
         );
-        Some(storage::PaymentsMandateReference(mandate_details))
+        Some(diesel_models::PaymentsMandateReference(mandate_details))
     } else {
         None
     }
 }
+
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v1")]
 pub fn update_connector_mandate_details(
-    mandate_details: Option<storage::PaymentsMandateReference>,
+    mandate_details: Option<diesel_models::PaymentsMandateReference>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
-    mandate_metadata: Option<serde_json::Value>,
+    mandate_metadata: Option<Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mandate_reference = match mandate_details {
@@ -1190,7 +1194,7 @@ pub fn update_connector_mandate_details(
             if let Some((mca_id, connector_mandate_id)) =
                 merchant_connector_id.clone().zip(connector_mandate_id)
             {
-                let updated_record = storage::PaymentsMandateReferenceRecord {
+                let updated_record = diesel_models::PaymentsMandateReferenceRecord {
                     connector_mandate_id: connector_mandate_id.clone(),
                     payment_method_type,
                     original_payment_authorized_amount: authorized_amount,
@@ -1204,7 +1208,7 @@ pub fn update_connector_mandate_details(
                 payment_mandate_reference
                     .entry(mca_id)
                     .and_modify(|pm| *pm = updated_record)
-                    .or_insert(storage::PaymentsMandateReferenceRecord {
+                    .or_insert(diesel_models::PaymentsMandateReferenceRecord {
                         connector_mandate_id,
                         payment_method_type,
                         original_payment_authorized_amount: authorized_amount,

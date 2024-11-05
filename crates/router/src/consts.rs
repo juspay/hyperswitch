@@ -3,6 +3,8 @@ pub mod opensearch;
 pub mod user;
 pub mod user_role;
 
+use std::collections::HashSet;
+
 use common_utils::consts;
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 // ID generation
@@ -145,6 +147,32 @@ pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
 // Length of the unique reference ID generated for connector mandate requests
 pub const CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH: usize = 18;
 
+/// Default allowed domains for payment links
+pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
+
+/// Default hide card nickname field
+pub const DEFAULT_HIDE_CARD_NICKNAME_FIELD: bool = false;
+
+/// Default bool for Display sdk only
+pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
+
+/// Default bool to enable saved payment method
+pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
+
+/// Default Merchant Logo Link
+pub const DEFAULT_MERCHANT_LOGO: &str =
+    "https://live.hyperswitch.io/payment-link-assets/Merchant_placeholder.png";
+
+/// Default Payment Link Background color
+pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
+
+/// Default product Img Link
+pub const DEFAULT_PRODUCT_IMG: &str =
+    "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png";
+
+/// Default SDK Layout
+pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
+
 /// Vault Add request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
@@ -180,6 +208,3 @@ pub const VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
 /// Vault Fingerprint fetch flow type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
-
-/// Worldpay's unique reference ID for a request TODO: Move to hyperswitch_connectors/constants once Worldpay is moved to connectors crate
-pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";

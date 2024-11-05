@@ -554,8 +554,8 @@ pub async fn get_token_pm_type_mandate_details(
 
                             (
                                 None,
-                                payment_method_info.payment_method,
-                                payment_method_info.payment_method_type,
+                                payment_method_info.get_payment_method_type(),
+                                payment_method_info.get_payment_method_subtype(),
                                 None,
                                 None,
                                 None,
@@ -608,7 +608,7 @@ pub async fn get_token_pm_type_mandate_details(
                                 Ok(customer_payment_methods) => Ok(customer_payment_methods
                                     .iter()
                                     .find(|payment_method| {
-                                        payment_method.payment_method_type
+                                        payment_method.get_payment_method_subtype()
                                             == request.payment_method_type
                                     })
                                     .cloned()),
@@ -808,13 +808,13 @@ pub async fn get_token_for_recurring_mandate(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let token = Uuid::new_v4().to_string();
-    let payment_method_type = payment_method.payment_method_type;
+    let payment_method_type = payment_method.get_payment_method_subtype();
     let mandate_connector_details = payments::MandateConnectorDetails {
         connector: mandate.connector,
         merchant_connector_id: mandate.merchant_connector_id,
     };
 
-    if let Some(enums::PaymentMethod::Card) = payment_method.payment_method {
+    if let Some(enums::PaymentMethod::Card) = payment_method.get_payment_method_type() {
         if state.conf.locker.locker_enabled {
             let _ = cards::get_lookup_key_from_locker(
                 state,
@@ -828,7 +828,7 @@ pub async fn get_token_for_recurring_mandate(
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request;
             if payment_method
-                .payment_method
+                .get_payment_method_type()
                 .is_some_and(|payment_method| payment_method != pm)
             {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -842,14 +842,14 @@ pub async fn get_token_for_recurring_mandate(
 
         Ok(MandateGenericData {
             token: Some(token),
-            payment_method: payment_method.payment_method,
+            payment_method: payment_method.get_payment_method_type(),
             recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
                 mandate_metadata: None,
             }),
-            payment_method_type: payment_method.payment_method_type,
+            payment_method_type: payment_method.get_payment_method_subtype(),
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
             payment_method_info: Some(payment_method),
@@ -857,14 +857,14 @@ pub async fn get_token_for_recurring_mandate(
     } else {
         Ok(MandateGenericData {
             token: None,
-            payment_method: payment_method.payment_method,
+            payment_method: payment_method.get_payment_method_type(),
             recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
                 mandate_metadata: None,
             }),
-            payment_method_type: payment_method.payment_method_type,
+            payment_method_type: payment_method.get_payment_method_subtype(),
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
             payment_method_info: Some(payment_method),
@@ -2340,7 +2340,9 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
 
     if payment_data.token_data.is_none() {
         if let Some(payment_method_info) = &payment_data.payment_method_info {
-            if payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card) {
+            if payment_method_info.get_payment_method_type()
+                == Some(storage_enums::PaymentMethod::Card)
+            {
                 payment_data.token_data =
                     Some(storage::PaymentTokenData::PermanentCard(CardTokenData {
                         payment_method_id: Some(payment_method_info.get_id().clone()),
@@ -2821,6 +2823,10 @@ pub fn validate_payment_method_type_against_payment_method(
             payment_method_type,
             api_enums::PaymentMethodType::OpenBankingPIS
         ),
+        api_enums::PaymentMethod::MobilePayment => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::DirectCarrierBilling
+        ),
     }
 }
 
@@ -2900,6 +2906,7 @@ pub(super) fn validate_payment_list_request_for_joins(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub fn get_handle_response_url(
     payment_id: id_type::PaymentId,
     business_profile: &domain::Profile,
@@ -2922,6 +2929,7 @@ pub fn get_handle_response_url(
     make_url_with_signature(&return_url, business_profile)
 }
 
+#[cfg(feature = "v1")]
 pub fn make_merchant_url_with_response(
     business_profile: &domain::Profile,
     redirection_response: api::PgRedirectResponse,
@@ -3030,6 +3038,7 @@ pub fn make_pg_redirect_response(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn make_url_with_signature(
     redirect_url: &str,
     business_profile: &domain::Profile,
@@ -3464,6 +3473,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3533,6 +3543,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3600,6 +3611,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3922,6 +3934,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
     }
 }
 
@@ -4696,6 +4709,11 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
+        domain::PaymentMethodData::MobilePayment(mobile_payment) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::MobilePayment {
+                details: Some(mobile_payment.to_owned().into()),
+            },
+        )),
         domain::PaymentMethodData::NetworkToken(_) => Ok(None),
     }
 }
@@ -4788,32 +4806,17 @@ pub fn validate_customer_access(
 
 pub fn is_apple_pay_simplified_flow(
     connector_metadata: Option<pii::SecretSerdeValue>,
-    connector_wallets_details: Option<pii::SecretSerdeValue>,
     connector_name: Option<&String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
-    let connector_apple_pay_wallet_details =
-        get_applepay_metadata(connector_wallets_details)
-            .map_err(|error| {
-                logger::debug!(
-                    "Apple pay connector wallets details parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
-                    connector_name,
-                    error
-                )
-            })
-            .ok();
-
-    let option_apple_pay_metadata = match connector_apple_pay_wallet_details {
-        Some(apple_pay_wallet_details) => Some(apple_pay_wallet_details),
-        None => get_applepay_metadata(connector_metadata)
-            .map_err(|error| {
-                logger::debug!(
-                "Apple pay metadata parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
+    let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
+        .map_err(|error| {
+            logger::info!(
+                "Apple pay metadata parsing for {:?} in is_apple_pay_simplified_flow {:?}",
                 connector_name,
                 error
             )
-            })
-            .ok(),
-    };
+        })
+        .ok();
 
     // return true only if the apple flow type is simplified
     Ok(matches!(
@@ -4999,7 +5002,6 @@ where
 
     let connector_data_list = if is_apple_pay_simplified_flow(
         merchant_connector_account_type.get_metadata(),
-        merchant_connector_account_type.get_connector_wallets_details(),
         merchant_connector_account_type
             .get_connector_name()
             .as_ref(),
@@ -5027,10 +5029,6 @@ where
         for merchant_connector_account in profile_specific_merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
                 merchant_connector_account.metadata.clone(),
-                merchant_connector_account
-                    .connector_wallets_details
-                    .as_deref()
-                    .cloned(),
                 Some(&merchant_connector_account.connector_name),
             )? {
                 let connector_data = api::ConnectorData::get_connector_by_name(
@@ -5408,6 +5406,11 @@ pub fn get_key_params_for_surcharge_details(
         domain::PaymentMethodData::OpenBanking(ob_data) => Some((
             common_enums::PaymentMethod::OpenBanking,
             ob_data.get_payment_method_type(),
+            None,
+        )),
+        domain::PaymentMethodData::MobilePayment(mobile_payment) => Some((
+            common_enums::PaymentMethod::MobilePayment,
+            mobile_payment.get_payment_method_type(),
             None,
         )),
         domain::PaymentMethodData::CardToken(_)

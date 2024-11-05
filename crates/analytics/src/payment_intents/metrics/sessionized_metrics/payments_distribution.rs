@@ -59,7 +59,7 @@ where
             .switch()?;
 
         query_builder
-            .add_select_column("attempt_count == 1 as first_attempt")
+            .add_select_column("(attempt_count = 1) as first_attempt")
             .switch()?;
 
         query_builder
@@ -113,6 +113,15 @@ where
                         None,
                         i.currency.as_ref().map(|i| i.0),
                         i.profile_id.clone(),
+                        i.connector.clone(),
+                        i.authentication_type.as_ref().map(|i| i.0),
+                        i.payment_method.clone(),
+                        i.payment_method_type.clone(),
+                        i.card_network.clone(),
+                        i.merchant_id.clone(),
+                        i.card_last_4.clone(),
+                        i.card_issuer.clone(),
+                        i.error_reason.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

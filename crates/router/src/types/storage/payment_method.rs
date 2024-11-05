@@ -1,8 +1,3 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
-
 use api_models::payment_methods;
 use diesel_models::enums;
 pub use diesel_models::payment_method::{
@@ -116,37 +111,6 @@ pub struct PaymentMethodListContext {
     pub hyperswitch_token_data: Option<PaymentTokenData>,
     #[cfg(feature = "payouts")]
     pub bank_transfer_details: Option<api::BankPayout>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReferenceRecord {
-    pub connector_mandate_id: String,
-    pub payment_method_type: Option<common_enums::PaymentMethodType>,
-    pub original_payment_authorized_amount: Option<i64>,
-    pub original_payment_authorized_currency: Option<common_enums::Currency>,
-    pub mandate_metadata: Option<serde_json::Value>,
-    pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
-    pub connector_mandate_request_reference_id: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentsMandateReference(
-    pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
-);
-
-impl Deref for PaymentsMandateReference {
-    type Target =
-        HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for PaymentsMandateReference {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

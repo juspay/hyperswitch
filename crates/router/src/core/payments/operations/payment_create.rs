@@ -42,6 +42,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -818,7 +819,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -923,6 +924,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentCreate))
+            .with(payment_data.to_event())
+            .emit();
 
         // payment_data.mandate_id = response.and_then(|router_data| router_data.request.mandate_id);
         Ok((
@@ -1188,6 +1194,11 @@ impl PaymentCreate {
         } else {
             None
         };
+
+        let payment_method_type = Option::<enums::PaymentMethodType>::foreign_from((
+            payment_method_type,
+            additional_pm_data.as_ref(),
+        ));
 
         Ok((
             storage::PaymentAttemptNew {
@@ -1468,6 +1479,7 @@ impl PaymentCreate {
             shipping_cost: request.shipping_cost,
             tax_details: None,
             skip_external_tax_calculation,
+            psd2_sca_exemption_type: request.psd2_sca_exemption_type,
         })
     }
 

@@ -17,6 +17,7 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(feature = "v1")]
 pub fn get_connector_data_if_separate_authn_supported(
     connector_call_type: &api::ConnectorCallType,
 ) -> Option<api::ConnectorData> {

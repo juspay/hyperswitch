@@ -1394,6 +1394,13 @@ api_key="Client ID"
 key1="Merchant ID"
 api_secret="Client Key"
 
+[digitalvirgo]
+[[digitalvirgo.mobile_payment]]
+  payment_method_type = "direct_carrier_billing"
+[digitalvirgo.connector_auth.BodyKey]
+api_key="Password"
+key1="Username"
+
 [dlocal]
 [[dlocal.credit]]
   payment_method_type = "Mastercard"
@@ -1704,6 +1711,46 @@ key1="Client Id"
 api_key="Client Secret"
 api_secret="Certificates"
 key2="Certificate Key"
+
+[jpmorgan]
+[[jpmorgan.credit]]
+  payment_method_type = "American Express"
+[[jpmorgan.credit]]
+  payment_method_type = "ChaseNet"
+[[jpmorgan.credit]]
+  payment_method_type = "Diners Club"
+[[jpmorgan.credit]]
+  payment_method_type = "Discover"
+[[jpmorgan.credit]]
+  payment_method_type = "JCB"
+[[jpmorgan.credit]]
+  payment_method_type = "Mastercard"
+[[jpmorgan.credit]]
+  payment_method_type = "Discover"
+[[jpmorgan.credit]]
+  payment_method_type = "UnionPay"
+[[jpmorgan.credit]]
+  payment_method_type = "Visa"
+  [[jpmorgan.debit]]
+  payment_method_type = "American Express"
+[[jpmorgan.debit]]
+  payment_method_type = "ChaseNet"
+[[jpmorgan.debit]]
+  payment_method_type = "Diners Club"
+[[jpmorgan.debit]]
+  payment_method_type = "Discover"
+[[jpmorgan.debit]]
+  payment_method_type = "JCB"
+[[jpmorgan.debit]]
+  payment_method_type = "Mastercard"
+[[jpmorgan.debit]]
+  payment_method_type = "Discover"
+[[jpmorgan.debit]]
+  payment_method_type = "UnionPay"
+[[jpmorgan.debit]]
+  payment_method_type = "Visa"
+[jpmorgan.connector_auth.BodyKey]
+api_key="Access Token"
 
 [klarna]
 [[klarna.pay_later]]
@@ -4306,3 +4353,45 @@ options=["Hyperswitch"]
 
 [fiuu.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[elavon]
+[[elavon.credit]]
+  payment_method_type = "Mastercard"
+[[elavon.credit]]
+  payment_method_type = "Visa"
+[[elavon.credit]]
+  payment_method_type = "Interac"
+[[elavon.credit]]
+  payment_method_type = "AmericanExpress"
+[[elavon.credit]]
+  payment_method_type = "JCB"
+[[elavon.credit]]
+  payment_method_type = "DinersClub"
+[[elavon.credit]]
+  payment_method_type = "Discover"
+[[elavon.credit]]
+  payment_method_type = "CartesBancaires"
+[[elavon.credit]]
+  payment_method_type = "UnionPay"
+[[elavon.debit]]
+  payment_method_type = "Mastercard"
+[[elavon.debit]]
+  payment_method_type = "Visa"
+[[elavon.debit]]
+  payment_method_type = "Interac"
+[[elavon.debit]]
+  payment_method_type = "AmericanExpress"
+[[elavon.debit]]
+  payment_method_type = "JCB"
+[[elavon.debit]]
+  payment_method_type = "DinersClub"
+[[elavon.debit]]
+  payment_method_type = "Discover"
+[[elavon.debit]]
+  payment_method_type = "CartesBancaires"
+[[elavon.debit]]
+  payment_method_type = "UnionPay"
+[elavon.connector_auth.SignatureKey]
+api_key="Account Id"
+key1="User ID"
+api_secret="Pin"

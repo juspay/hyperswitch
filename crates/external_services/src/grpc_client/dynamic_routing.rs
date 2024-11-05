@@ -6,14 +6,19 @@ use api_models::routing::{
 };
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
+use http_body_util::combinators::UnsyncBoxBody;
+use hyper::body::Bytes;
+use hyper_util::client::legacy::connect::HttpConnector;
+use router_env::logger;
 use serde;
 use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse,
-    CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
-    UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
+    CurrentBlockThreshold as DynamicCurrentThreshold, InvalidateWindowsRequest,
+    InvalidateWindowsResponse, LabelWithStatus, UpdateSuccessRateWindowConfig,
+    UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
-use tonic::transport::Channel;
+use tonic::Status;
 #[allow(
     missing_docs,
     unused_qualifications,
@@ -40,11 +45,13 @@ pub enum DynamicRoutingError {
     SuccessRateBasedRoutingFailure(String),
 }
 
+type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
+
 /// Type that consists of all the services provided by the client
 #[derive(Debug, Clone)]
 pub struct RoutingStrategy {
     /// success rate service for Dynamic Routing
-    pub success_rate_client: Option<SuccessRateCalculatorClient<Channel>>,
+    pub success_rate_client: Option<SuccessRateCalculatorClient<Client>>,
 }
 
 /// Contains the Dynamic Routing Client Config
@@ -68,11 +75,15 @@ impl DynamicRoutingClientConfig {
     pub async fn get_dynamic_routing_connection(
         self,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
+        let client =
+            hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+                .http2_only(true)
+                .build_http();
         let success_rate_client = match self {
             Self::Enabled { host, port } => {
-                let uri = format!("http://{}:{}", host, port);
-                let channel = tonic::transport::Endpoint::new(uri)?.connect().await?;
-                Some(SuccessRateCalculatorClient::new(channel))
+                let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
+                logger::info!("Connection established with dynamic routing gRPC Server");
+                Some(SuccessRateCalculatorClient::with_origin(client, uri))
             }
             Self::Disabled => None,
         };
@@ -90,6 +101,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse>;
     /// To update the success rate with the given label
@@ -97,34 +109,25 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
+    /// To invalidates the success rate routing keys
+    async fn invalidate_success_rate_routing_keys(
+        &self,
+        id: String,
+    ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
 }
 
 #[async_trait::async_trait]
-impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
+impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
     async fn calculate_success_rate(
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse> {
-        let params = success_rate_based_config
-            .params
-            .map(|vec| {
-                vec.into_iter().fold(String::new(), |mut acc_str, params| {
-                    if !acc_str.is_empty() {
-                        acc_str.push(':')
-                    }
-                    acc_str.push_str(params.to_string().as_str());
-                    acc_str
-                })
-            })
-            .get_required_value("params")
-            .change_context(DynamicRoutingError::MissingRequiredField {
-                field: "params".to_string(),
-            })?;
-
         let labels = label_input
             .into_iter()
             .map(|conn_choice| conn_choice.to_string())
@@ -142,9 +145,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             config,
         });
 
-        let mut client = self.clone();
-
-        let response = client
+        let response = self
+            .clone()
             .fetch_success_rate(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
@@ -159,6 +161,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         label_input: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse> {
         let config = success_rate_based_config
@@ -174,22 +177,6 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             })
             .collect();
 
-        let params = success_rate_based_config
-            .params
-            .map(|vec| {
-                vec.into_iter().fold(String::new(), |mut acc_str, params| {
-                    if !acc_str.is_empty() {
-                        acc_str.push(':')
-                    }
-                    acc_str.push_str(params.to_string().as_str());
-                    acc_str
-                })
-            })
-            .get_required_value("params")
-            .change_context(DynamicRoutingError::MissingRequiredField {
-                field: "params".to_string(),
-            })?;
-
         let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
             id,
             params,
@@ -197,9 +184,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             config,
         });
 
-        let mut client = self.clone();
-
-        let response = client
+        let response = self
+            .clone()
             .update_success_rate_window(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
@@ -207,6 +193,23 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
             ))?
             .into_inner();
 
+        Ok(response)
+    }
+
+    async fn invalidate_success_rate_routing_keys(
+        &self,
+        id: String,
+    ) -> DynamicRoutingResult<InvalidateWindowsResponse> {
+        let request = tonic::Request::new(InvalidateWindowsRequest { id });
+
+        let response = self
+            .clone()
+            .invalidate_windows(request)
+            .await
+            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
+                "Failed to invalidate the success rate routing keys".to_string(),
+            ))?
+            .into_inner();
         Ok(response)
     }
 }

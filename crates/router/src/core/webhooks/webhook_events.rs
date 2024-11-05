@@ -152,6 +152,7 @@ pub async fn list_delivery_attempts(
 }
 
 #[instrument(skip(state))]
+#[cfg(feature = "v1")]
 pub async fn retry_delivery_attempt(
     state: SessionState,
     merchant_id: common_utils::id_type::MerchantId,

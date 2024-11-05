@@ -25,6 +25,7 @@ use crate::{
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -270,6 +271,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .or(payment_intent.feature_metadata);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
+        payment_intent.psd2_sca_exemption_type = request
+            .psd2_sca_exemption_type
+            .or(payment_intent.psd2_sca_exemption_type);
         Self::populate_payment_intent_with_request(&mut payment_intent, request);
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
@@ -694,7 +698,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut _payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -714,7 +718,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -925,6 +929,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let amount = payment_data.amount;
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentUpdate { amount }))
+            .with(payment_data.to_event())
+            .emit();
 
         Ok((
             payments::is_confirm(self, payment_data.confirm),

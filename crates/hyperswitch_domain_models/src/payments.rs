@@ -2,9 +2,7 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::Address;
-#[cfg(feature = "v2")]
-use api_models::payments::OrderDetailsWithAmount;
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -26,13 +24,17 @@ pub mod payment_attempt;
 pub mod payment_intent;
 
 use common_enums as storage_enums;
+#[cfg(feature = "v2")]
+use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
+#[cfg(feature = "v1")]
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
-use crate::{business_profile, merchant_account};
-#[cfg(feature = "v2")]
-use crate::{errors, payment_method_data, ApiModelToDieselModelConvertor};
+use crate::{
+    address::Address, business_profile, errors, merchant_account, payment_method_data,
+    ApiModelToDieselModelConvertor,
+};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -99,6 +101,7 @@ pub struct PaymentIntent {
     pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 impl PaymentIntent {
@@ -110,6 +113,43 @@ impl PaymentIntent {
     #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &id_type::GlobalPaymentId {
         &self.id
+    }
+
+    #[cfg(feature = "v2")]
+    /// This is the url to which the customer will be redirected to, to complete the redirection flow
+    pub fn create_start_redirection_url(
+        &self,
+        base_url: &str,
+        publishable_key: String,
+    ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
+        let start_redirection_url = &format!(
+            "{}/v2/payments/{}/start_redirection?publishable_key={}&profile_id={}",
+            base_url,
+            self.get_id().get_string_repr(),
+            publishable_key,
+            self.profile_id.get_string_repr()
+        );
+        url::Url::parse(start_redirection_url)
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error creating start redirection url")
+    }
+
+    #[cfg(feature = "v2")]
+    /// This is the url to which the customer will be redirected to, after completing the redirection flow
+    pub fn create_finish_redirection_url(
+        &self,
+        base_url: &str,
+        publishable_key: &str,
+    ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
+        let finish_redirection_url = format!(
+            "{base_url}/v2/payments/{}/finish_redirection/{publishable_key}/{}",
+            self.id.get_string_repr(),
+            self.profile_id.get_string_repr()
+        );
+
+        url::Url::parse(&finish_redirection_url)
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error creating finish redirection url")
     }
 }
 
@@ -273,15 +313,15 @@ pub struct PaymentIntent {
     /// The client secret that is generated for the payment. This is used to authenticate the payment from client facing apis.
     pub client_secret: common_utils::types::ClientSecret,
     /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
-    pub active_attempt: Option<RemoteStorageObject<PaymentAttempt>>,
+    pub active_attempt_id: Option<id_type::GlobalAttemptId>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
     /// This field allows the merchant to restrict the payment methods that can be used for the payment intent.
-    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
+    pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
     /// This metadata contains details about
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
     /// Number of attempts that have been made for the order
     pub attempt_count: i16,
     /// The profile id for the payment.
@@ -311,10 +351,10 @@ pub struct PaymentIntent {
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
     /// The billing address for the order in a denormalized form.
     #[encrypt(ty = Value)]
-    pub billing_address: Option<Encryptable<Secret<Address>>>,
+    pub billing_address: Option<Encryptable<Address>>,
     /// The shipping address for the order in a denormalized form.
     #[encrypt(ty = Value)]
-    pub shipping_address: Option<Encryptable<Secret<Address>>>,
+    pub shipping_address: Option<Encryptable<Address>>,
     /// Capture method for the payment
     pub capture_method: storage_enums::CaptureMethod,
     /// Authentication type that is requested by the merchant for this payment.
@@ -378,23 +418,16 @@ impl PaymentIntent {
         merchant_account: &merchant_account::MerchantAccount,
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
-        billing_address: Option<Encryptable<Secret<Address>>>,
-        shipping_address: Option<Encryptable<Secret<Address>>>,
+        decrypted_payment_intent: DecryptedPaymentIntent,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
-        let allowed_payment_method_types = request
-            .get_allowed_payment_method_types_as_value()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting allowed payment method types as value")?;
         let connector_metadata = request
             .get_connector_metadata_as_value()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting connector metadata as value")?;
-        let feature_metadata = request
-            .get_feature_metadata_as_value()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting feature metadata as value")?;
         let request_incremental_authorization =
             Self::get_request_incremental_authorization_value(&request)?;
+        let allowed_payment_method_types = request.allowed_payment_method_types;
+
         let session_expiry =
             common_utils::date_time::now().saturating_add(time::Duration::seconds(
                 request.session_expiry.map(i64::from).unwrap_or(
@@ -404,9 +437,12 @@ impl PaymentIntent {
                 ),
             ));
         let client_secret = payment_id.generate_client_secret();
-        let order_details = request
-            .order_details
-            .map(|order_details| order_details.into_iter().map(Secret::new).collect());
+        let order_details = request.order_details.map(|order_details| {
+            order_details
+                .into_iter()
+                .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
+                .collect()
+        });
         Ok(Self {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),
@@ -424,11 +460,11 @@ impl PaymentIntent {
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
             client_secret,
-            active_attempt: None,
+            active_attempt_id: None,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
-            feature_metadata,
+            feature_metadata: request.feature_metadata.map(FeatureMetadata::convert_from),
             // Attempt count is 0 in create intent as no attempt is made yet
             attempt_count: 0,
             profile_id: profile.get_id().clone(),
@@ -445,8 +481,26 @@ impl PaymentIntent {
             frm_metadata: request.frm_metadata,
             customer_details: None,
             merchant_reference_id: request.merchant_reference_id,
-            billing_address,
-            shipping_address,
+            billing_address: decrypted_payment_intent
+                .billing_address
+                .as_ref()
+                .map(|data| {
+                    data.clone()
+                        .deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode billing address")?,
+            shipping_address: decrypted_payment_intent
+                .shipping_address
+                .as_ref()
+                .map(|data| {
+                    data.clone()
+                        .deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode shipping address")?,
             capture_method: request.capture_method.unwrap_or_default(),
             authentication_type: request.authentication_type.unwrap_or_default(),
             prerouting_algorithm: None,
@@ -525,4 +579,28 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentStatusData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: Option<PaymentAttempt>,
+    /// Should the payment status be synced with connector
+    /// This will depend on the payment status and the force sync flag in the request
+    pub should_sync_with_connector: bool,
+}
+
+#[cfg(feature = "v2")]
+impl<F> PaymentStatusData<F>
+where
+    F: Clone,
+{
+    pub fn get_payment_id(&self) -> &id_type::GlobalPaymentId {
+        &self.payment_intent.id
+    }
 }

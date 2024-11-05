@@ -1,6 +1,6 @@
 use common_utils::types::keymanager::KeyManagerState;
 pub use hyperswitch_domain_models::type_encryption::{
-    crypto_operation, AsyncLift, CryptoOperation, Lift,
+    crypto_operation, AsyncLift, CryptoOperation, Lift, OptionalEncryptableJsonType,
 };
 
 impl From<&crate::SessionState> for KeyManagerState {

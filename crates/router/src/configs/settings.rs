@@ -6,7 +6,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::ext_traits::ConfigExt;
+use common_utils::{ext_traits::ConfigExt, id_type};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -138,17 +138,17 @@ pub struct Multitenancy {
 }
 
 impl Multitenancy {
-    pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
+    pub fn get_tenants(&self) -> &HashMap<id_type::TenantId, Tenant> {
         &self.tenants.0
     }
-    pub fn get_tenant_ids(&self) -> Vec<String> {
+    pub fn get_tenant_ids(&self) -> Vec<id_type::TenantId> {
         self.tenants
             .0
             .values()
             .map(|tenant| tenant.tenant_id.clone())
             .collect()
     }
-    pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
+    pub fn get_tenant(&self, tenant_id: &id_type::TenantId) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
     }
 }
@@ -159,11 +159,11 @@ pub struct DecisionConfig {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct TenantConfig(pub HashMap<String, Tenant>);
+pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Tenant {
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
@@ -556,6 +556,7 @@ pub struct UserSettings {
     pub two_factor_auth_expiry_in_secs: i64,
     pub totp_issuer_name: String,
     pub base_url: String,
+    pub force_two_factor_auth: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -742,8 +743,7 @@ pub struct LockerBasedRecipientConnectorList {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
-    pub merchant_ids_send_payment_id_as_connector_request_id:
-        HashSet<common_utils::id_type::MerchantId>,
+    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<id_type::MerchantId>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -880,6 +880,10 @@ impl Settings<SecuredSecret> {
             .transpose()?;
 
         self.key_manager.get_inner().validate()?;
+        #[cfg(feature = "email")]
+        self.email
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
 
         Ok(())
     }
@@ -965,7 +969,7 @@ pub struct ServerTls {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
-    pub id: common_utils::id_type::CellId,
+    pub id: id_type::CellId,
 }
 
 #[cfg(feature = "v2")]
@@ -976,8 +980,8 @@ impl Default for CellInformation {
         // around the time of deserializing application settings.
         // And a panic at application startup is considered acceptable.
         #[allow(clippy::expect_used)]
-        let cell_id = common_utils::id_type::CellId::from_string("defid")
-            .expect("Failed to create a default for Cell Id");
+        let cell_id =
+            id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
 }
@@ -1115,7 +1119,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
             clickhouse_database: String,
         }
 
-        let hashmap = <HashMap<String, Inner>>::deserialize(deserializer)?;
+        let hashmap = <HashMap<id_type::TenantId, Inner>>::deserialize(deserializer)?;
 
         Ok(Self(
             hashmap

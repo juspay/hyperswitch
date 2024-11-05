@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
+use api_models::payments::{self, Address, AddressDetails, PhoneDetails};
 use base64::Engine;
 use common_enums::{
     enums,
@@ -26,6 +26,7 @@ use hyperswitch_domain_models::{
         PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
     },
+    types::OrderDetailsWithAmount,
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::Luma;
@@ -843,6 +844,7 @@ pub trait CardData {
     fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error>;
 }
 
 impl CardData for Card {
@@ -915,6 +917,14 @@ impl CardData for Card {
     }
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
         self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error> {
+        self.get_expiry_year_4_digit()
             .peek()
             .clone()
             .parse::<i32>()
@@ -1154,6 +1164,9 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
     fn get_customer_name(&self) -> Result<Secret<String>, Error>;
+    fn get_card_holder_name_from_additional_payment_method_data(
+        &self,
+    ) -> Result<Secret<String>, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1315,6 +1328,23 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("customer_name"))
     }
+
+    fn get_card_holder_name_from_additional_payment_method_data(
+        &self,
+    ) -> Result<Secret<String>, Error> {
+        match &self.additional_payment_method_data {
+            Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
+                .card_holder_name
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_holder_name",
+                })?),
+            _ => Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["card_holder_name"],
+            }
+            .into()),
+        }
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
@@ -1433,6 +1463,7 @@ impl RefundsRequestData for RefundsData {
 pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_card(&self) -> bool;
 }
 
@@ -1444,6 +1475,11 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
@@ -1958,6 +1994,7 @@ pub enum PaymentMethodDataType {
     OpenBanking,
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
+    DirectCarrierBilling,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -2144,6 +2181,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::OpenBanking(data) => match data {
                 hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
             },
+            PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
+                hyperswitch_domain_models::payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => Self::DirectCarrierBilling,
+            },
         }
     }
 }
@@ -2209,4 +2249,21 @@ impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
             ),
         }
     }
+}
+
+pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
+    xml_data: &[u8],
+) -> Result<T, errors::ConnectorError> {
+    let response_str = std::str::from_utf8(xml_data)
+        .map_err(|e| {
+            router_env::logger::error!("Error converting response data to UTF-8: {:?}", e);
+            errors::ConnectorError::ResponseDeserializationFailed
+        })?
+        .trim();
+    let result: T = quick_xml::de::from_str(response_str).map_err(|e| {
+        router_env::logger::error!("Error deserializing XML response: {:?}", e);
+        errors::ConnectorError::ResponseDeserializationFailed
+    })?;
+
+    Ok(result)
 }

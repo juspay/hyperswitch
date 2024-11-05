@@ -363,6 +363,16 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
+    utils::trigger_refund_outgoing_webhook(
+        state,
+        merchant_account,
+        &response,
+        payment_attempt.profile_id.clone(),
+        key_store,
+    )
+    .await
+    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+    .ok();
     Ok(response)
 }
 
@@ -467,7 +477,7 @@ pub async fn refund_retrieve_core(
         .transpose()?;
 
     let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
-        sync_refund_with_gateway(
+        Box::pin(sync_refund_with_gateway(
             &state,
             &merchant_account,
             &key_store,
@@ -476,7 +486,7 @@ pub async fn refund_retrieve_core(
             &refund,
             creds_identifier,
             charges_req,
-        )
+        ))
         .await
     } else {
         Ok(refund)
@@ -669,6 +679,16 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
+    utils::trigger_refund_outgoing_webhook(
+        state,
+        merchant_account,
+        &response,
+        payment_attempt.profile_id.clone(),
+        key_store,
+    )
+    .await
+    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+    .ok();
     Ok(response)
 }
 
@@ -782,6 +802,8 @@ pub async fn validate_and_create_refund(
         .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
     })?;
 
+    println!("{:?}", connector_transaction_id);
+    println!("{:?}", merchant_account);
     let all_refunds = db
         .find_refund_by_merchant_id_connector_transaction_id(
             merchant_account.get_id(),
@@ -806,7 +828,8 @@ pub async fn validate_and_create_refund(
     let total_amount_captured = payment_intent
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
-
+    
+    println!("All Refunds {:#?}", all_refunds);
     validator::validate_refund_amount(
         total_amount_captured.get_amount_as_i64(),
         &all_refunds,

@@ -12,6 +12,7 @@ use crate::{
     },
     AppState,
 };
+#[cfg(feature = "v1")]
 pub async fn render_payout_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,

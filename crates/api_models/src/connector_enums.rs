@@ -54,6 +54,7 @@ pub enum Connector {
     Aci,
     Adyen,
     Airwallex,
+    // Amazonpay,
     Authorizedotnet,
     Bambora,
     Bamboraapac,
@@ -70,9 +71,10 @@ pub enum Connector {
     Cybersource,
     Datatrans,
     Deutschebank,
-    // Digitalvirgo, template code for future usage
+    Digitalvirgo,
     Dlocal,
     Ebanx,
+    Elavon,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -82,8 +84,10 @@ pub enum Connector {
     Gocardless,
     Gpayments,
     Helcim,
+    // Inespay,
     Iatapay,
     Itaubank,
+    Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,
@@ -92,6 +96,7 @@ pub enum Connector {
     Nexinets,
     Nexixpay,
     Nmi,
+    // Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -126,6 +131,7 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
+    // Xendit,
     Zen,
     Zsl,
 }
@@ -165,6 +171,7 @@ impl Connector {
             (self, payment_method),
             (Self::Airwallex, _)
                 | (Self::Deutschebank, _)
+                | (Self::Jpmorgan, _)
                 | (Self::Globalpay, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)
@@ -195,6 +202,7 @@ impl Connector {
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
+            // | Self::Amazonpay
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bamboraapac
@@ -208,8 +216,10 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Deutschebank
+            | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
+            | Self::Elavon
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -220,13 +230,16 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
+			// | Self::Inespay
             | Self::Itaubank
+            | Self::Jpmorgan
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
+            // | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -252,6 +265,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
+            // | Self::Xendit
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd
