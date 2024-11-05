@@ -296,11 +296,12 @@ impl
             _ => None,
         };
         let (token_creation, customer_agreement) = match (
-            item.router_data.request.setup_future_usage.clone(),
-            item.router_data.request.off_session.clone(),
+            &item.router_data.request.payment_method_data,
+            item.router_data.request.setup_future_usage,
+            item.router_data.request.off_session,
         ) {
             // CIT
-            (Some(enums::FutureUsage::OffSession), _) => (
+            (PaymentMethodData::Card(_), Some(enums::FutureUsage::OffSession), _) => (
                 Some(TokenCreation {
                     token_type: TokenCreationType::Worldpay,
                 }),
@@ -310,7 +311,7 @@ impl
                 }),
             ),
             // MIT
-            (_, Some(true)) => (
+            (PaymentMethodData::Card(_), _, Some(true)) => (
                 None,
                 Some(CustomerAgreement {
                     agreement_type: CustomerAgreementType::Subscription,

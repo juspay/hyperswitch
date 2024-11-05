@@ -183,14 +183,12 @@ impl ConnectorValidation for Worldpay {
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-
-        let res = is_mandate_supported(
+        is_mandate_supported(
             pm_data.clone(),
-            pm_type.clone(),
+            pm_type,
             mandate_supported_pmd,
             self.id(),
-        );
-        res
+        )
     }
 
     fn is_webhook_source_verification_mandatory(&self) -> bool {
@@ -238,8 +236,8 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let connector_router_data = worldpay::WorldpayRouterData::try_from((
             &self.get_currency_unit(),
-            authorize_req.request.currency.clone(),
-            authorize_req.request.minor_amount.clone(),
+            authorize_req.request.currency,
+            authorize_req.request.minor_amount,
             &authorize_req,
         ))?;
         let connector_req =
