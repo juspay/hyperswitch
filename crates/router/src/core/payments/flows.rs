@@ -25,6 +25,7 @@ use crate::{
     services,
     types::{self, api, domain},
 };
+use hyperswitch_interfaces::api::payouts::Payouts;
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
@@ -966,85 +967,49 @@ default_imp_for_post_processing_steps!(
 macro_rules! default_imp_for_payouts {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::Payouts for $path::$connector {}
+            impl Payouts for $path::$connector {}
     )*
     };
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
+impl<const T: u8> Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
     connector::Aci,
-    connector::Airwallex,
     connector::Authorizedotnet,
-    connector::Bambora,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
-    connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
-    connector::Cashtocode,
     connector::Checkout,
-    connector::Cryptopay,
-    connector::Coinbase,
     connector::Datatrans,
-    connector::Deutschebank,
-    connector::Digitalvirgo,
-    connector::Dlocal,
-    connector::Elavon,
-    connector::Fiserv,
-    connector::Fiservemea,
-    connector::Fiuu,
-    connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
     connector::Itaubank,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
-    connector::Multisafepay,
     connector::Netcetera,
-    connector::Nexinets,
-    connector::Nexixpay,
     connector::Nmi,
     connector::Noon,
-    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Paybox,
-    connector::Payeezy,
     connector::Payme,
-    connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
-    connector::Razorpay,
     connector::Riskified,
-    connector::Shift4,
     connector::Signifyd,
-    connector::Square,
-    connector::Stax,
-    connector::Taxjar,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Tsys,
-    connector::Volt,
     connector::Wellsfargo,
-    connector::Wellsfargopayout,
-    connector::Worldline,
-    connector::Worldpay,
-    connector::Zen,
-    connector::Zsl
+    connector::Wellsfargopayout
 );
 
 #[cfg(feature = "payouts")]

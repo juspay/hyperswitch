@@ -10,6 +10,8 @@ use hyperswitch_domain_models::{
 
 use crate::api::ConnectorIntegration;
 
+use super::ConnectorCommon;
+
 /// trait PayoutCancel
 pub trait PayoutCancel: ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> {}
 
@@ -42,3 +44,22 @@ pub trait PayoutRecipientAccount:
 
 /// trait PayoutSync
 pub trait PayoutSync: ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> {}
+
+#[cfg(feature = "payouts")]
+/// trait Payouts
+pub trait Payouts:
+    ConnectorCommon
+    + PayoutCancel
+    + PayoutCreate
+    + PayoutEligibility
+    + PayoutFulfill
+    + PayoutQuote
+    + PayoutRecipient
+    + PayoutRecipientAccount
+    + PayoutSync
+{
+}
+
+/// Empty trait for when payouts feature is disabled
+#[cfg(not(feature = "payouts"))]
+pub trait Payouts {}
