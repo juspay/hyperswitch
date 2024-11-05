@@ -560,25 +560,6 @@ pub trait FraudCheck {}
 #[cfg(not(feature = "frm"))]
 pub trait FraudCheckV2 {}
 
-#[cfg(feature = "payouts")]
-pub trait Payouts:
-    ConnectorCommon
-    + PayoutCancel
-    + PayoutCreate
-    + PayoutEligibility
-    + PayoutFulfill
-    + PayoutQuote
-    + PayoutRecipient
-    + PayoutRecipientAccount
-    + PayoutSync
-{
-}
-#[cfg(not(feature = "payouts"))]
-pub trait Payouts {}
-
-#[cfg(not(feature = "payouts"))]
-pub trait PayoutsV2 {}
-
 #[cfg(test)]
 mod test {
     #![allow(clippy::unwrap_used)]
