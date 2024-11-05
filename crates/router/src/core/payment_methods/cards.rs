@@ -4,7 +4,6 @@ use std::{
     str::FromStr,
 };
 
-use super::migration::RecordMigrationStatusBuilder;
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
@@ -58,9 +57,12 @@ use masking::Secret;
 use router_env::{instrument, metrics::add_attributes, tracing};
 use strum::IntoEnumIterator;
 
-use super::surcharge_decision_configs::{
-    perform_surcharge_decision_management_for_payment_method_list,
-    perform_surcharge_decision_management_for_saved_cards,
+use super::{
+    migration::RecordMigrationStatusBuilder,
+    surcharge_decision_configs::{
+        perform_surcharge_decision_management_for_payment_method_list,
+        perform_surcharge_decision_management_for_saved_cards,
+    },
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
