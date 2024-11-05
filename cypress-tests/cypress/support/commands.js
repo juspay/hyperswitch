@@ -1115,7 +1115,7 @@ Cypress.Commands.add(
         const recurringEnabledFromConfirm =
           globalState.get("recurring_enabled");
         if (
-          req_data.customer_acceptance === "object" &&
+          typeof req_data.customer_acceptance === "object" &&
           req_data.customer_acceptance !== null
         ) {
           recurringEnabledFromConfirm += 1;
@@ -1567,7 +1567,7 @@ Cypress.Commands.add(
         const recurringEnabledFromConfirm =
           globalState.get("recurring_enabled");
         if (
-          req_data.customer_acceptance === "object" &&
+          typeof req_data.customer_acceptance === "object" &&
           req_data.customer_acceptance !== null
         ) {
           recurringEnabledFromConfirm += 1;
