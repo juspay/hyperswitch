@@ -57,7 +57,7 @@ use time;
 pub use self::operations::{
     PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
     PaymentIncrementalAuthorization, PaymentReject, PaymentSession, PaymentSessionUpdate,
-    PaymentStatus, PaymentUpdate,
+    PaymentStatus, PaymentUpdate
 };
 use self::{
     conditional_configs::perform_decision_management,
@@ -104,6 +104,20 @@ use crate::{
     core::authentication as authentication_core,
     types::{api::authentication, BrowserInformation},
 };
+
+use api_models::payments::KlarnaSessionTokenResponse;
+use api_models::payments::PaypalSessionTokenResponse;
+use api_models::payments::SessionTokenV2;
+use serde::{Deserialize, Serialize};
+
+use crate::types::transformers::ForeignTryFrom;
+#[derive(Deserialize, Serialize, Debug)]
+pub struct KlarnaSessionResponse {
+    pub client_token: Secret<String>,
+    pub session_id: String,
+}
+
+use api_models::payments as payment_types;
 
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
@@ -1243,6 +1257,33 @@ where
         external_latency,
         header_payload.x_hs_latency,
     )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn payments_core_v2<F, Req>(
+    state: SessionState,
+    req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: Req,
+    _auth_flow: services::AuthFlow,
+    _call_connector_action: CallConnectorAction,
+    _eligible_connectors: Option<Vec<enums::Connector>>,
+    _header_payload: HeaderPayload,
+) -> RouterResponse<payment_types::PaymentsSessionResponseV2>
+where
+    F: Send + Clone + Sync,
+    Req: Debug + Authenticate + Clone,
+{
+    let (payment_data, _req, _customer, _connector_http_status_code, _external_latency) =
+        payments_operation_core_v2::<_>(&state, req_state, merchant_account, &key_store, req)
+            .await?;
+
+    Ok(services::ApplicationResponse::Json(
+        payment_types::PaymentsSessionResponseV2 {
+            session_token: payment_data.session_token,
+        },
+    ))
 }
 
 fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
@@ -3495,6 +3536,10 @@ pub struct TaxData {
     pub shipping_details: api_models::payments::Address,
     pub payment_method_type: enums::PaymentMethodType,
 }
+#[derive(Clone)]
+pub struct PaymentDataV2 {
+    pub session_token: Vec<SessionTokenV2>,
+}
 
 #[derive(Clone, serde::Serialize, Debug)]
 pub struct PaymentEvent {
@@ -5716,6 +5761,262 @@ pub async fn payments_manual_update(
             connector_transaction_id: updated_payment_attempt.connector_transaction_id,
         },
     ))
+}
+
+use reqwest::Client;
+#[derive(Debug)]
+pub struct PaymentsSessionResponseV2 {
+    pub session_token: Vec<SessionTokenV2>,
+}
+
+#[derive(Serialize, Debug)]
+struct KlarnaPayload {
+    order_amount: i64,
+    order_lines: Vec<OrderLine>,
+    purchase_country: String,
+    purchase_currency: String,
+}
+
+#[derive(Serialize, Debug)]
+struct OrderLine {
+    name: String,
+    quantity: i32,
+    unit_price: i64,
+    total_amount: i64,
+}
+
+use std::error::Error;
+fn get_client_id(json_str: &str) -> Result<String, Box<dyn Error>> {
+    // Parse the JSON string
+    let json_value: serde_json::Value = serde_json::from_str(json_str)?;
+
+    if let Some(client_id) = json_value
+        .get("paypal_sdk")
+        .and_then(|paypal_sdk| paypal_sdk.get("client_id"))
+        .and_then(|client_id| client_id.as_str())
+    {
+        Ok(client_id.to_string())
+    } else {
+        Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "client_id not found",
+        )))
+    }
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "auth_type")]
+
+pub enum ConnectorAuthType {
+    BodyKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+    },
+    #[default]
+    NoKey,
+}
+
+impl ForeignTryFrom<ConnectorAuthType> for ConnectorAuthType {
+    type Error = errors::ConnectorError;
+    fn foreign_try_from(auth_type: ConnectorAuthType) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorAuthType::BodyKey { api_key, key1 } => {
+                Ok::<Self, errors::ConnectorError>(Self::BodyKey {
+                    api_key: api_key.to_owned(),
+                    key1: key1.to_owned(),
+                })
+            }
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType),
+        }
+    }
+}
+
+pub fn get_connector_auth_type(
+    merchant_connector_account: domain::MerchantConnectorAccount,
+) -> CustomResult<ConnectorAuthType, errors::ApiErrorResponse> {
+    let auth_type: ConnectorAuthType = merchant_connector_account
+        .connector_account_details
+        .clone()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: "ConnectorAuthType".to_string(),
+        })?;
+
+    ConnectorAuthType::foreign_try_from(auth_type)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while converting ConnectorAuthType")
+}
+
+pub async fn create_klarna_session(
+    payload: KlarnaPayload,
+    username: &str,
+    password: &str,
+) -> Result<KlarnaSessionTokenResponse, Box<dyn Error>> {
+    let client = Client::new();
+    let response = client
+        .post("https://api-na.playground.klarna.com/payments/v1/sessions")
+        .basic_auth(username, Some(password))
+        .json(&payload)
+        .send()
+        .await?;
+
+    if response.status().is_success() {
+        logger::info!("<<>>Successfully created Klarna session");
+        let klarna_response: KlarnaSessionResponse = response.json().await?;
+        let resp = {
+            KlarnaSessionTokenResponse {
+                session_token: klarna_response.client_token.clone().expose(),
+                session_id: klarna_response.session_id.clone(),
+            }
+        };
+        Ok(resp)
+    } else {
+        logger::info!("<<>>Failed to create Klarna session");
+
+        let error_message = format!(
+            "Failed to create Klarna session: {:?}",
+            response.text().await?
+        );
+        Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            error_message,
+        )))
+    }
+}
+
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[instrument(skip_all, fields(payment_id, merchant_id))]
+pub async fn payments_operation_core_v2<Req>(
+    state: &SessionState,
+    _req_state: ReqState,
+    merchant_account: domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    req: Req,
+) -> RouterResult<(
+    PaymentDataV2,
+    Req,
+    Option<domain::Customer>,
+    Option<u16>,
+    Option<u128>,
+)>
+where
+    Req: Authenticate + Clone,
+{
+    let db = &*state.store;
+    let key_manager_state = &state.into();
+
+    let all_mcas = db
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            key_manager_state,
+            merchant_account.get_id(),
+            false,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // let filtered_mcas = merchant_account
+    //     .default_profile
+    //     .as_ref()
+    //     .map(|profile_id| {
+    //         helpers::filter_mca_based_on_business_profile(
+    //             all_mcas.clone(),
+    //             Some(profile_id.clone()),
+    //         )
+    //     })
+    //     .map(|filtered_mca_on_profile| {
+    //         helpers::filter_mca_based_on_connector_type(
+    //             filtered_mca_on_profile,
+    //             common_enums::ConnectorType::PaymentProcessor,
+    //         )
+    //     });
+
+    // let merchant_connector_account_for_paypal = filtered_mcas.clone().and_then(|filtered_mcas| {
+    //     filtered_mcas
+    //         .iter()
+    //         .find(|item| item.connector_name == "paypal")
+    //         .cloned()
+    // });
+
+    let merchant_connector_account_for_paypal = all_mcas.clone()
+            .iter()
+            .find(|item| item.connector_name == "paypal")
+            .cloned();
+
+    // let merchant_connector_account_for_klarna = filtered_mcas.clone().and_then(|filtered_mcas| {
+    //     filtered_mcas
+    //         .iter()
+    //         .find(|item| item.connector_name == "klarna")
+    //         .cloned()
+    // });
+
+    let merchant_connector_account_for_klarna = all_mcas.clone()
+    .iter()
+    .find(|item| item.connector_name == "klarna")
+    .cloned();
+
+    let connector_metadata = merchant_connector_account_for_paypal
+        .clone()
+        .map(|mca| mca.metadata.clone())
+        .flatten();
+    // println!("<<>>here {:?}",connector_metadata.map(|m| m.expose()));
+    let paypal_sdk_data = connector_metadata
+        .clone()
+        .parse_value::<payment_types::PaypalSdkSessionTokenData>("PaypalSdkSessionTokenData")
+        .change_context(errors::ConnectorError::NoConnectorMetaData)
+        .attach_printable(format!(
+            "cannot parse paypal_sdk metadata from the given value {connector_metadata:?}"
+        ))
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "connector_metadata".to_string(),
+            expected_format: "paypal_sdk_metadata_format".to_string(),
+        })?;
+
+    let paypal_response = PaypalSessionTokenResponse {
+        connector: "paypal".to_string(),
+        session_token: paypal_sdk_data.data.client_id,
+        sdk_next_action: payment_types::SdkNextAction {
+            next_action: payment_types::NextActionCall::Confirm,
+        },
+    };
+
+    let payload = KlarnaPayload {
+        purchase_country: "US".to_string(),
+        purchase_currency: "USD".to_string(),
+        order_amount: 2999,
+        order_lines: vec![OrderLine {
+            name: "Apple iPhone 15".to_string(),
+            quantity: 1,
+            unit_price: 2999,
+            total_amount: 2999,
+        }],
+    };
+
+    let auth_type = match merchant_connector_account_for_klarna.clone() {
+        Some(merchant_connector_account) => {
+            get_connector_auth_type(merchant_connector_account)?.clone()
+        }
+        None => return Err(errors::ApiErrorResponse::InternalServerError.into()),
+    };
+
+    let klarna_response = match auth_type {
+        ConnectorAuthType::BodyKey { api_key, key1 } => {
+            match create_klarna_session(payload, key1.peek(), api_key.peek()).await {
+                Ok(response) => response,
+                Err(_) => return Err(errors::ApiErrorResponse::InternalServerError.into()),
+            }
+        }
+        _ => return Err(errors::ApiErrorResponse::InternalServerError.into()),
+    };
+
+    let payments_session_response = PaymentDataV2 {
+        session_token: vec![
+            SessionTokenV2::Klarna(Box::new(klarna_response)),
+            SessionTokenV2::Paypal(Box::new(paypal_response)),
+        ],
+    };
+
+    Ok((payments_session_response, req, None, None, None))
 }
 
 pub trait OperationSessionGetters<F> {

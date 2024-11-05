@@ -4556,7 +4556,13 @@ impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
         }
     }
 }
-
+impl From<PaymentsSessionRequestV2> for PaymentsSessionResponseV2 {
+    fn from(_item: PaymentsSessionRequestV2) -> Self {
+        Self {
+            session_token: vec![],
+        }
+    }
+}
 impl From<PaymentsStartRequest> for PaymentsRequest {
     fn from(item: PaymentsStartRequest) -> Self {
         Self {
@@ -4855,6 +4861,11 @@ pub struct DisplayAmountOnSdk {
     /// shipping cost for the order
     #[schema(value_type = String)]
     pub shipping_cost: Option<StringMajorUnit>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsSessionRequestV2 {
+    pub dummy: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -5312,6 +5323,7 @@ pub struct GpayShippingAddressParameters {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
+#[derive(Deserialize)]
 pub struct KlarnaSessionTokenResponse {
     /// The session token for Klarna
     pub session_token: String,
@@ -5496,6 +5508,21 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize)]
+#[serde(tag = "wallet_name")]
+#[serde(rename_all = "snake_case")]
+pub enum SessionTokenV2 {
+    /// The session response structure for Klarna
+    Klarna(Box<KlarnaSessionTokenResponse>),
+    /// The session response structure for PayPal (if needed)
+    Paypal(Box<PaypalSessionTokenResponse>),
+}
+
+#[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsSessionResponseV2 {
+    pub session_token: Vec<SessionTokenV2>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

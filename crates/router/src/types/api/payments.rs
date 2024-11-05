@@ -13,7 +13,7 @@ pub use api_models::payments::{
     PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
     PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
     PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    UrlDetails, VerifyRequest, VerifyResponse, WalletData,PaymentsSessionRequestV2,PaymentsSessionResponseV2
 };
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{

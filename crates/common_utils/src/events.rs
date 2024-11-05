@@ -77,6 +77,8 @@ pub enum ApiEventsType {
         poll_id: String,
     },
     Analytics,
+    PaymentsSessionV2API,
+    PaymentMethodListV2API,
 }
 
 impl ApiEventMetric for serde_json::Value {}

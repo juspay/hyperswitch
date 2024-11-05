@@ -569,6 +569,7 @@ impl Payments {
         {
             route = route
                 .service(web::resource("").route(web::post().to(payments_create)))
+                .service(web::resource("/session_tokens_v2").route(web::post().to(payments_connector_session_v2)))
                 .service(
                     web::resource("/session_tokens")
                         .route(web::post().to(payments_connector_session)),
@@ -1340,6 +1341,9 @@ impl MerchantConnectorAccount {
         {
             route = route.service(
                 web::resource("/payment_methods").route(web::get().to(list_payment_method_api)),
+            ).service(
+                web::resource("/payment_methods_v2")
+                    .route(web::get().to(list_payment_method_api_v2)),
             );
         }
         route

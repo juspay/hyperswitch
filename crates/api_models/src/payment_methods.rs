@@ -19,7 +19,7 @@ use crate::customers;
 use crate::payouts;
 use crate::{
     admin, enums as api_enums,
-    payments::{self, BankCodeResponse},
+    payments::{self, Amount, BankCodeResponse},
 };
 
 #[cfg(all(
@@ -1513,6 +1513,136 @@ impl<'de> serde::Deserialize<'de> for PaymentMethodListRequest {
         deserializer.deserialize_identifier(FieldVisitor)
     }
 }
+
+#[derive(Debug, Clone, serde::Serialize, Default, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentMethodListRequestV2 {
+    #[schema(example = 1)]
+    pub limit: Option<i64>,
+    pub customer_id: Option<id_type::CustomerId>,
+    pub mandate_id: Option<String>,
+    pub request_external_three_ds_authentication: Option<bool>,
+    pub currency: Option<api_enums::Currency>,
+    pub business_country: Option<api_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
+    pub profile_id: Option<String>,
+    pub amount: Option<Amount>,
+    pub recurring_enabled: Option<bool>,
+    pub card_networks: Option<Vec<api_enums::CardNetwork>>,
+    pub installment_payment_enabled: Option<bool>,
+}
+
+impl<'de> serde::Deserialize<'de> for PaymentMethodListRequestV2 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct FieldVisitor;
+
+        impl<'de> de::Visitor<'de> for FieldVisitor {
+            type Value = PaymentMethodListRequestV2;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("Failed while deserializing as map")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                let mut output = PaymentMethodListRequestV2::default();
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        "customer_id" => {
+                            set_or_reject_duplicate(
+                                &mut output.customer_id,
+                                "customer_id",
+                                map.next_value()?,
+                            )?;
+                        },
+                        "mandate_id" => {
+                            set_or_reject_duplicate(
+                                &mut output.mandate_id,
+                                "mandate_id",
+                                map.next_value()?,
+                            )?;
+                        },
+                        "request_external_three_ds_authentication" => {
+                            set_or_reject_duplicate(
+                                &mut output.request_external_three_ds_authentication,
+                                "request_external_three_ds_authentication",
+                                map.next_value()?,
+                            )?;
+                        },
+                        "currency" => {
+                            set_or_reject_duplicate(
+                                &mut output.currency,
+                                "currency",
+                                map.next_value()?,
+                            )?;
+                        },
+                        "business_country" => {
+                            set_or_reject_duplicate(
+                                &mut output.business_country,
+                                "business_country",
+                                map.next_value()?,
+                            )?;
+                        },
+                        "business_label" => {
+                            set_or_reject_duplicate(
+                                &mut output.business_label,
+                                "business_label",
+                                map.next_value()?,
+                            )?;
+                        },
+                        "profile_id" => {
+                            set_or_reject_duplicate(
+                                &mut output.profile_id,
+                                "profile_id",
+                                map.next_value()?,
+                            )?;
+                        },
+                        "limit" => {
+                            set_or_reject_duplicate(&mut output.limit, "limit", map.next_value()?)?;
+                        },
+                        "amount" => {
+                            set_or_reject_duplicate(
+                                &mut output.amount,
+                                "amount",
+                                map.next_value()?,
+                            )?;
+                        }
+                        "recurring_enabled" => {
+                            set_or_reject_duplicate(
+                                &mut output.recurring_enabled,
+                                "recurring_enabled",
+                                map.next_value()?,
+                            )?;
+                        }
+                        "card_network" => match output.card_networks.as_mut() {
+                            Some(inner) => inner.push(map.next_value()?),
+                            None => output.card_networks = Some(vec![map.next_value()?]),
+                        },
+                        "installment_payment_enabled" => {
+                            set_or_reject_duplicate(
+                                &mut output.installment_payment_enabled,
+                                "installment_payment_enabled",
+                                map.next_value()?,
+                            )?;
+                        }
+                        _ => {}
+                    }
+                }
+
+                Ok(output)
+            }
+        }
+
+        deserializer.deserialize_identifier(FieldVisitor)
+    }
+}
+
 
 // Try to set the provided value to the data otherwise throw an error
 fn set_or_reject_duplicate<T, E: de::Error>(

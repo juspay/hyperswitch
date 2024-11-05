@@ -1248,7 +1248,7 @@ impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest
         Some(self.client_secret.peek())
     }
 }
-
+impl Authenticate for api_models::payments::PaymentsSessionRequestV2 {}
 impl Authenticate for api_models::payments::PaymentsRetrieveRequest {}
 impl Authenticate for api_models::payments::PaymentsCancelRequest {}
 impl Authenticate for api_models::payments::PaymentsCaptureRequest {}
