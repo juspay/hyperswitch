@@ -205,7 +205,8 @@ pub async fn get_metrics(
                         | PaymentIntentMetrics::SessionizedPaymentsSuccessRate => metrics_builder
                             .payments_success_rate
                             .add_metrics_bucket(&value),
-                        PaymentIntentMetrics::SessionizedPaymentProcessedAmount => metrics_builder
+                        PaymentIntentMetrics::SessionizedPaymentProcessedAmount
+                        | PaymentIntentMetrics::PaymentProcessedAmount => metrics_builder
                             .payment_processed_amount
                             .add_metrics_bucket(&value),
                         PaymentIntentMetrics::SessionizedPaymentsDistribution => metrics_builder

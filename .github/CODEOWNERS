@@ -45,6 +45,10 @@ crates/test_utils/tests/connectors/ @juspay/hyperswitch-connector
 crates/test_utils/tests/sample_auth.toml @juspay/hyperswitch-connector
 crates/connector_configs/ @juspay/hyperswitch-connector
 crates/hyperswitch_connectors/ @juspay/hyperswitch-connector
+crates/api_models/src/connector_enums.rs @juspay/hyperswitch-connector
+crates/common_enums/src/connector_enums.rs @juspay/hyperswitch-connector
+crates/router/src/configs/defaults/payment_connector_required_fields.rs @juspay/hyperswitch-connector
+crates/hyperswitch_interfaces/src/configs.rs @juspay/hyperswitch-connector
 
 crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 
