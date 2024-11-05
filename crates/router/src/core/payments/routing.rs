@@ -1295,7 +1295,7 @@ pub async fn perform_success_based_routing(
         .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
         let success_based_routing_config_params = success_based_routing_config_params_interpolator
-            .get_string_val(success_based_routing_configs.params.as_ref());
+            .get_string_val(success_based_routing_configs. params.as_ref());
 
         let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
             &state.tenant.redis_key_prefix,
