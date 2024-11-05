@@ -2609,6 +2609,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             .payment_intent
             .merchant_order_reference_id
             .clone();
+        let router_base_url = &additional_data.router_base_url;
+        let connector_name = &additional_data.connector_name;
+        let attempt = &payment_data.payment_attempt;
+        let router_return_url = Some(helpers::create_redirect_url(
+            router_base_url,
+            attempt,
+            connector_name,
+            payment_data.creds_identifier.as_deref(),
+        ));
         Ok(Self {
             amount, //need to change after we move to connector module
             order_amount: payment_data.payment_intent.amount,
@@ -2616,6 +2625,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             merchant_order_reference_id,
             capture_method: payment_data.payment_attempt.capture_method,
             shipping_cost: payment_data.payment_intent.shipping_cost,
+            setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            router_return_url,
         })
     }
 }
