@@ -1931,11 +1931,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     payment_data
                         .address
                         .get_payment_billing()
-                        .unwrap()
-                        .address
-                        .clone()
-                        .unwrap()
-                        .country,
+                        .and_then(|address| address.clone().address)
+                        .and_then(|address| address.country),
                     payment_attempt
                         .payment_method_data
                         .as_ref()

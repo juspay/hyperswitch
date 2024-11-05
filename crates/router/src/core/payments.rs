@@ -5597,10 +5597,8 @@ where
                     payment_data.get_payment_attempt().currency,
                     payment_data
                         .get_billing_address()
-                        .unwrap()
-                        .address
-                        .unwrap()
-                        .country,
+                        .and_then(|address| address.address)
+                        .and_then(|address| address.country),
                     payment_data
                         .get_payment_attempt()
                         .payment_method_data

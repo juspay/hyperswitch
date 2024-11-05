@@ -1319,7 +1319,7 @@ pub async fn list_user_roles_details(
     ))
     .await
     .change_context(UserErrors::InternalServerError)
-    .attach_printable("Failed to construct proifle map")?
+    .attach_printable("Failed to construct profile map")?
     .into_iter()
     .map(|profile| (profile.get_id().to_owned(), profile.profile_name))
     .collect::<HashMap<_, _>>();
