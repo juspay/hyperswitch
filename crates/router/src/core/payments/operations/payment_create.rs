@@ -21,8 +21,8 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::{
-        payment_attempt::PaymentAttempt,
-        payment_intent::{CustomerData, PaymentAddressFromRequest},
+        payment_attempt::PaymentAttempt, payment_intent::CustomerData,
+        FromRequestEncryptablePaymentIntent,
     },
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -1390,11 +1390,13 @@ impl PaymentCreate {
             &key_manager_state,
             type_name!(storage::PaymentIntent),
             domain::types::CryptoOperation::BatchEncrypt(
-                PaymentAddressFromRequest::to_encryptable(PaymentAddressFromRequest {
-                    shipping: shipping_details_encoded,
-                    billing: billing_details_encoded,
-                    customer_details: customer_details_encoded,
-                }),
+                FromRequestEncryptablePaymentIntent::to_encryptable(
+                    FromRequestEncryptablePaymentIntent {
+                        shipping_details: shipping_details_encoded,
+                        billing_details: billing_details_encoded,
+                        customer_details: customer_details_encoded,
+                    },
+                ),
             ),
             identifier.clone(),
             key,
@@ -1404,7 +1406,7 @@ impl PaymentCreate {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt data")?;
 
-        let encrypted_data = PaymentAddressFromRequest::from_encryptable(encrypted_data)
+        let encrypted_data = FromRequestEncryptablePaymentIntent::from_encryptable(encrypted_data)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt the payment intent data")?;
 
@@ -1457,10 +1459,10 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
-            billing_details: encrypted_data.billing,
+            billing_details: encrypted_data.billing_details,
             customer_details: encrypted_data.customer_details,
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
-            shipping_details: encrypted_data.shipping,
+            shipping_details: encrypted_data.shipping_details,
             is_payment_processor_token_flow,
             organization_id: merchant_account.organization_id.clone(),
             shipping_cost: request.shipping_cost,
