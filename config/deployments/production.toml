@@ -148,6 +148,7 @@ password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Production"
 base_url = "https://live.hyperswitch.io"
+force_two_factor_auth = false
 
 [frm]
 enabled = false
