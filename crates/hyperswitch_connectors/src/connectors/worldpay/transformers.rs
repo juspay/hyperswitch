@@ -2,22 +2,27 @@ use std::collections::HashMap;
 
 use api_models::payments::Address;
 use base64::Engine;
-use common_utils::{errors::CustomResult, ext_traits::OptionExt, pii, types::MinorUnit};
-use diesel_models::enums;
+use common_enums::enums;
+use common_utils::{
+    consts::BASE64_ENGINE, errors::CustomResult, ext_traits::OptionExt, pii, types::MinorUnit,
+};
 use error_stack::ResultExt;
-use hyperswitch_connectors::utils::{PaymentsAuthorizeRequestData, RouterData};
+use hyperswitch_domain_models::{
+    payment_method_data::{PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::Authorize,
+    router_request_types::{PaymentsAuthorizeData, ResponseId},
+    router_response_types::{PaymentsResponseData, RedirectForm},
+    types,
+};
+use hyperswitch_interfaces::{api, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests::*, response::*};
 use crate::{
-    connector::utils::{self, AddressData},
-    consts,
-    core::errors,
-    services,
-    types::{
-        self, domain, transformers::ForeignTryFrom, PaymentsAuthorizeData, PaymentsResponseData,
-    },
+    types::ResponseRouterData,
+    utils::{self, AddressData, ForeignTryFrom, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 #[derive(Debug, Serialize)]
@@ -25,19 +30,12 @@ pub struct WorldpayRouterData<T> {
     amount: i64,
     router_data: T,
 }
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        MinorUnit,
-        T,
-    )> for WorldpayRouterData<T>
-{
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, MinorUnit, T)> for WorldpayRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (_currency_unit, _currency, minor_amount, item): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
+            &api::CurrencyUnit,
+            enums::Currency,
             MinorUnit,
             T,
         ),
@@ -48,6 +46,9 @@ impl<T>
         })
     }
 }
+
+/// Worldpay's unique reference ID for a request
+pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorldpayConnectorMetadataObject {
@@ -66,11 +67,11 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject
 }
 
 fn fetch_payment_instrument(
-    payment_method: domain::PaymentMethodData,
+    payment_method: PaymentMethodData,
     billing_address: Option<&Address>,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
-        domain::PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
+        PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             payment_type: PaymentType::Plain,
             expiry_date: ExpiryDate {
                 month: utils::CardData::get_expiry_month_as_i8(&card)?,
@@ -102,65 +103,63 @@ fn fetch_payment_instrument(
                 None
             },
         })),
-        domain::PaymentMethodData::Wallet(wallet) => match wallet {
-            domain::WalletData::GooglePay(data) => {
-                Ok(PaymentInstrument::Googlepay(WalletPayment {
-                    payment_type: PaymentType::Encrypted,
-                    wallet_token: Secret::new(data.tokenization_data.token),
-                    ..WalletPayment::default()
-                }))
-            }
-            domain::WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
+        PaymentMethodData::Wallet(wallet) => match wallet {
+            WalletData::GooglePay(data) => Ok(PaymentInstrument::Googlepay(WalletPayment {
+                payment_type: PaymentType::Encrypted,
+                wallet_token: Secret::new(data.tokenization_data.token),
+                ..WalletPayment::default()
+            })),
+            WalletData::ApplePay(data) => Ok(PaymentInstrument::Applepay(WalletPayment {
                 payment_type: PaymentType::Encrypted,
                 wallet_token: Secret::new(data.payment_data),
                 ..WalletPayment::default()
             })),
-            domain::WalletData::AliPayQr(_)
-            | domain::WalletData::AliPayRedirect(_)
-            | domain::WalletData::AliPayHkRedirect(_)
-            | domain::WalletData::MomoRedirect(_)
-            | domain::WalletData::KakaoPayRedirect(_)
-            | domain::WalletData::GoPayRedirect(_)
-            | domain::WalletData::GcashRedirect(_)
-            | domain::WalletData::ApplePayRedirect(_)
-            | domain::WalletData::ApplePayThirdPartySdk(_)
-            | domain::WalletData::DanaRedirect {}
-            | domain::WalletData::GooglePayRedirect(_)
-            | domain::WalletData::GooglePayThirdPartySdk(_)
-            | domain::WalletData::MbWayRedirect(_)
-            | domain::WalletData::MobilePayRedirect(_)
-            | domain::WalletData::PaypalRedirect(_)
-            | domain::WalletData::PaypalSdk(_)
-            | domain::WalletData::Paze(_)
-            | domain::WalletData::SamsungPay(_)
-            | domain::WalletData::TwintRedirect {}
-            | domain::WalletData::VippsRedirect {}
-            | domain::WalletData::TouchNGoRedirect(_)
-            | domain::WalletData::WeChatPayRedirect(_)
-            | domain::WalletData::CashappQr(_)
-            | domain::WalletData::SwishQr(_)
-            | domain::WalletData::WeChatPayQr(_)
-            | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+            WalletData::AliPayQr(_)
+            | WalletData::AliPayRedirect(_)
+            | WalletData::AliPayHkRedirect(_)
+            | WalletData::MomoRedirect(_)
+            | WalletData::KakaoPayRedirect(_)
+            | WalletData::GoPayRedirect(_)
+            | WalletData::GcashRedirect(_)
+            | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayThirdPartySdk(_)
+            | WalletData::DanaRedirect {}
+            | WalletData::GooglePayRedirect(_)
+            | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::MbWayRedirect(_)
+            | WalletData::MobilePayRedirect(_)
+            | WalletData::PaypalRedirect(_)
+            | WalletData::PaypalSdk(_)
+            | WalletData::Paze(_)
+            | WalletData::SamsungPay(_)
+            | WalletData::TwintRedirect {}
+            | WalletData::VippsRedirect {}
+            | WalletData::TouchNGoRedirect(_)
+            | WalletData::WeChatPayRedirect(_)
+            | WalletData::CashappQr(_)
+            | WalletData::SwishQr(_)
+            | WalletData::WeChatPayQr(_)
+            | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )
             .into()),
         },
-        domain::PaymentMethodData::PayLater(_)
-        | domain::PaymentMethodData::BankRedirect(_)
-        | domain::PaymentMethodData::BankDebit(_)
-        | domain::PaymentMethodData::BankTransfer(_)
-        | domain::PaymentMethodData::Crypto(_)
-        | domain::PaymentMethodData::MandatePayment
-        | domain::PaymentMethodData::Reward
-        | domain::PaymentMethodData::RealTimePayment(_)
-        | domain::PaymentMethodData::Upi(_)
-        | domain::PaymentMethodData::Voucher(_)
-        | domain::PaymentMethodData::CardRedirect(_)
-        | domain::PaymentMethodData::GiftCard(_)
-        | domain::PaymentMethodData::OpenBanking(_)
-        | domain::PaymentMethodData::CardToken(_)
-        | domain::PaymentMethodData::NetworkToken(_)
-        | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+        PaymentMethodData::PayLater(_)
+        | PaymentMethodData::BankRedirect(_)
+        | PaymentMethodData::BankDebit(_)
+        | PaymentMethodData::BankTransfer(_)
+        | PaymentMethodData::Crypto(_)
+        | PaymentMethodData::MandatePayment
+        | PaymentMethodData::Reward
+        | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::Upi(_)
+        | PaymentMethodData::Voucher(_)
+        | PaymentMethodData::CardRedirect(_)
+        | PaymentMethodData::GiftCard(_)
+        | PaymentMethodData::OpenBanking(_)
+        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::NetworkToken(_)
+        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),
             )
@@ -199,13 +198,7 @@ impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for Payme
 
 impl
     TryFrom<(
-        &WorldpayRouterData<
-            &types::RouterData<
-                types::api::payments::Authorize,
-                PaymentsAuthorizeData,
-                PaymentsResponseData,
-            >,
-        >,
+        &WorldpayRouterData<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>>,
         &Secret<String>,
     )> for WorldpayPaymentsRequest
 {
@@ -214,11 +207,7 @@ impl
     fn try_from(
         req: (
             &WorldpayRouterData<
-                &types::RouterData<
-                    types::api::payments::Authorize,
-                    PaymentsAuthorizeData,
-                    PaymentsResponseData,
-                >,
+                &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
             >,
             &Secret<String>,
         ),
@@ -320,26 +309,26 @@ pub struct WorldpayAuthType {
     pub(super) entity_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for WorldpayAuthType {
+impl TryFrom<&ConnectorAuthType> for WorldpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             // TODO: Remove this later, kept purely for backwards compatibility
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => {
+            ConnectorAuthType::BodyKey { api_key, key1 } => {
                 let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
-                let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
+                let auth_header = format!("Basic {}", BASE64_ENGINE.encode(auth_key));
                 Ok(Self {
                     api_key: Secret::new(auth_header),
                     entity_id: Secret::new("default".to_string()),
                 })
             }
-            types::ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
             } => {
                 let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
-                let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
+                let auth_header = format!("Basic {}", BASE64_ENGINE.encode(auth_key));
                 Ok(Self {
                     api_key: Secret::new(auth_header),
                     entity_id: api_secret.clone(),
@@ -408,14 +397,14 @@ impl From<EventType> for enums::RefundStatus {
 
 impl<F, T>
     ForeignTryFrom<(
-        types::ResponseRouterData<F, WorldpayPaymentsResponse, T, PaymentsResponseData>,
+        ResponseRouterData<F, WorldpayPaymentsResponse, T, PaymentsResponseData>,
         Option<String>,
-    )> for types::RouterData<F, T, PaymentsResponseData>
+    )> for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
         item: (
-            types::ResponseRouterData<F, WorldpayPaymentsResponse, T, PaymentsResponseData>,
+            ResponseRouterData<F, WorldpayPaymentsResponse, T, PaymentsResponseData>,
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
@@ -430,7 +419,7 @@ impl<F, T>
                 }
                 WorldpayPaymentResponseFields::DDCResponse(res) => (
                     None,
-                    Some(services::RedirectForm::WorldpayDDCForm {
+                    Some(RedirectForm::WorldpayDDCForm {
                         endpoint: res.device_data_collection.url.clone(),
                         method: common_utils::request::Method::Post,
                         collection_id: Some("SessionId".to_string()),
@@ -449,7 +438,7 @@ impl<F, T>
                 ),
                 WorldpayPaymentResponseFields::ThreeDsChallenged(res) => (
                     None,
-                    Some(services::RedirectForm::Form {
+                    Some(RedirectForm::Form {
                         endpoint: res.challenge.url.to_string(),
                         method: common_utils::request::Method::Post,
                         form_fields: HashMap::from([(
@@ -481,7 +470,7 @@ impl<F, T>
         let status = enums::AttemptStatus::from(worldpay_status.clone());
         let response = match (optional_error_message, error) {
             (None, None) => Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::foreign_try_from((
+                resource_id: ResponseId::foreign_try_from((
                     router_data.response,
                     optional_correlation_id.clone(),
                 ))?,
@@ -493,7 +482,7 @@ impl<F, T>
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
-            (Some(reason), _) => Err(types::ErrorResponse {
+            (Some(reason), _) => Err(ErrorResponse {
                 code: worldpay_status.to_string(),
                 message: reason.clone(),
                 reason: Some(reason),
@@ -501,7 +490,7 @@ impl<F, T>
                 attempt_status: Some(status),
                 connector_transaction_id: optional_correlation_id,
             }),
-            (_, Some((code, message))) => Err(types::ErrorResponse {
+            (_, Some((code, message))) => Err(ErrorResponse {
                 code,
                 message: message.clone(),
                 reason: Some(message),
@@ -566,7 +555,7 @@ impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>)> for ResponseIdSt
     }
 }
 
-impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>)> for types::ResponseId {
+impl ForeignTryFrom<(WorldpayPaymentsResponse, Option<String>)> for ResponseId {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn foreign_try_from(
         item: (WorldpayPaymentsResponse, Option<String>),

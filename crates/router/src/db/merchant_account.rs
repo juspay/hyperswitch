@@ -477,92 +477,222 @@ impl MerchantAccountInterface for MockDb {
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let accounts = self.merchant_accounts.lock().await;
-        let account: Option<domain::MerchantAccount> = accounts
+        accounts
             .iter()
             .find(|account| account.get_id() == merchant_id)
             .cloned()
-            .async_map(|a| async {
-                a.convert(
-                    state,
-                    merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)
-            })
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "Merchant ID: {:?} not found",
+                merchant_id
+            )))?
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
             .await
-            .transpose()?;
-
-        match account {
-            Some(account) => Ok(account),
-            // [#172]: Implement function for `MockDb`
-            None => Err(errors::StorageError::MockDbError)?,
-        }
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn update_merchant(
         &self,
-        _state: &KeyManagerState,
-        _this: domain::MerchantAccount,
-        _merchant_account: storage::MerchantAccountUpdate,
-        _merchant_key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+        merchant_account: domain::MerchantAccount,
+        merchant_account_update: storage::MerchantAccountUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let merchant_id = merchant_account.get_id().to_owned();
+        let mut accounts = self.merchant_accounts.lock().await;
+        accounts
+            .iter_mut()
+            .find(|account| account.get_id() == merchant_account.get_id())
+            .async_map(|account| async {
+                let update = MerchantAccountUpdateInternal::from(merchant_account_update)
+                    .apply_changeset(
+                        Conversion::convert(merchant_account)
+                            .await
+                            .change_context(errors::StorageError::EncryptionError)?,
+                    );
+                *account = update.clone();
+                update
+                    .convert(
+                        state,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()?
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "Merchant ID: {:?} not found",
+                    merchant_id
+                ))
+                .into(),
+            )
     }
 
     async fn update_specific_fields_in_merchant(
         &self,
-        _state: &KeyManagerState,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _merchant_account: storage::MerchantAccountUpdate,
-        _merchant_key_store: &domain::MerchantKeyStore,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_account_update: storage::MerchantAccountUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
-        // [#TODO]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let mut accounts = self.merchant_accounts.lock().await;
+        accounts
+            .iter_mut()
+            .find(|account| account.get_id() == merchant_id)
+            .async_map(|account| async {
+                let update = MerchantAccountUpdateInternal::from(merchant_account_update)
+                    .apply_changeset(account.clone());
+                *account = update.clone();
+                update
+                    .convert(
+                        state,
+                        merchant_key_store.key.get_inner(),
+                        merchant_key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()?
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "Merchant ID: {:?} not found",
+                    merchant_id
+                ))
+                .into(),
+            )
     }
 
     async fn find_merchant_account_by_publishable_key(
         &self,
-        _state: &KeyManagerState,
-        _publishable_key: &str,
+        state: &KeyManagerState,
+        publishable_key: &str,
     ) -> CustomResult<(domain::MerchantAccount, domain::MerchantKeyStore), errors::StorageError>
     {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let accounts = self.merchant_accounts.lock().await;
+        let account = accounts
+            .iter()
+            .find(|account| {
+                account
+                    .publishable_key
+                    .as_ref()
+                    .is_some_and(|key| key == publishable_key)
+            })
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "Publishable Key: {} not found",
+                publishable_key
+            )))?;
+        let key_store = self
+            .get_merchant_key_store_by_merchant_id(
+                state,
+                account.get_id(),
+                &self.get_master_key().to_vec().into(),
+            )
+            .await?;
+        let merchant_account = account
+            .clone()
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)?;
+        Ok((merchant_account, key_store))
     }
 
     async fn update_all_merchant_account(
         &self,
-        _merchant_account_update: storage::MerchantAccountUpdate,
+        merchant_account_update: storage::MerchantAccountUpdate,
     ) -> CustomResult<usize, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
+        let mut accounts = self.merchant_accounts.lock().await;
+        Ok(accounts.iter_mut().fold(0, |acc, account| {
+            let update = MerchantAccountUpdateInternal::from(merchant_account_update.clone())
+                .apply_changeset(account.clone());
+            *account = update;
+            acc + 1
+        }))
     }
 
     async fn delete_merchant_account_by_merchant_id(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
-        // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        let mut accounts = self.merchant_accounts.lock().await;
+        accounts.retain(|x| x.get_id() != merchant_id);
+        Ok(true)
     }
 
     #[cfg(feature = "olap")]
     async fn list_merchant_accounts_by_organization_id(
         &self,
-        _state: &KeyManagerState,
-        _organization_id: &common_utils::id_type::OrganizationId,
+        state: &KeyManagerState,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
+        let accounts = self.merchant_accounts.lock().await;
+        let futures = accounts
+            .iter()
+            .filter(|account| account.organization_id == *organization_id)
+            .map(|account| async {
+                let key_store = self
+                    .get_merchant_key_store_by_merchant_id(
+                        state,
+                        account.get_id(),
+                        &self.get_master_key().to_vec().into(),
+                    )
+                    .await;
+                match key_store {
+                    Ok(key) => account
+                        .clone()
+                        .convert(state, key.key.get_inner(), key.merchant_id.clone().into())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError),
+                    Err(err) => Err(err),
+                }
+            });
+        futures::future::join_all(futures)
+            .await
+            .into_iter()
+            .collect()
     }
 
     #[cfg(feature = "olap")]
     async fn list_multiple_merchant_accounts(
         &self,
-        _state: &KeyManagerState,
-        _merchant_ids: Vec<common_utils::id_type::MerchantId>,
+        state: &KeyManagerState,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
+        let accounts = self.merchant_accounts.lock().await;
+        let futures = accounts
+            .iter()
+            .filter(|account| merchant_ids.contains(account.get_id()))
+            .map(|account| async {
+                let key_store = self
+                    .get_merchant_key_store_by_merchant_id(
+                        state,
+                        account.get_id(),
+                        &self.get_master_key().to_vec().into(),
+                    )
+                    .await;
+                match key_store {
+                    Ok(key) => account
+                        .clone()
+                        .convert(state, key.key.get_inner(), key.merchant_id.clone().into())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError),
+                    Err(err) => Err(err),
+                }
+            });
+        futures::future::join_all(futures)
+            .await
+            .into_iter()
+            .collect()
     }
 }
 
