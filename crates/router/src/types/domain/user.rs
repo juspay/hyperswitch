@@ -1,6 +1,6 @@
 use std::{
     collections::HashSet,
-    ops::{self, Not},
+    ops::{Deref, Not},
     str::FromStr,
 };
 
@@ -157,7 +157,7 @@ impl TryFrom<pii::Email> for UserEmail {
     }
 }
 
-impl ops::Deref for UserEmail {
+impl Deref for UserEmail {
     type Target = Secret<String, pii::EmailStrategy>;
 
     fn deref(&self) -> &Self::Target {
@@ -579,6 +579,14 @@ pub struct NewUserPassword {
     is_temporary: bool,
 }
 
+impl Deref for NewUserPassword {
+    type Target = UserPassword;
+
+    fn deref(&self) -> &Self::Target {
+        &self.password
+    }
+}
+
 impl NewUser {
     pub fn get_user_id(&self) -> String {
         self.user_id.clone()
@@ -599,7 +607,7 @@ impl NewUser {
     pub fn get_password(&self) -> Option<UserPassword> {
         self.password
             .as_ref()
-            .map(|password_inner| password_inner.password.clone())
+            .map(|password| password.deref().clone())
     }
 
     pub async fn insert_user_in_db(
@@ -694,9 +702,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
         let hashed_password = value
             .password
             .as_ref()
-            .map(|password_inner| {
-                password::generate_password_hash(password_inner.password.get_secret())
-            })
+            .map(|password| password::generate_password_hash(password.get_secret()))
             .transpose()?;
 
         let now = common_utils::date_time::now();
@@ -713,7 +719,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             totp_recovery_codes: None,
             last_password_modified_at: value
                 .password
-                .and_then(|password_inner| password_inner.is_temporary.not().then(|| now)),
+                .and_then(|password_inner| password_inner.is_temporary.not().then_some(now)),
         })
     }
 }
@@ -817,14 +823,12 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
         let password = user
             .0
             .password
-            .map(|password| {
-                let password = UserPassword::new_password_without_validation(password)?;
-                Ok::<_, error_stack::Report<UserErrors>>(NewUserPassword {
-                    password,
-                    is_temporary: false,
-                })
-            })
-            .transpose()?;
+            .map(UserPassword::new_password_without_validation)
+            .transpose()?
+            .map(|password| NewUserPassword {
+                password,
+                is_temporary: false,
+            });
 
         Ok(Self {
             user_id: user.0.user_id,
