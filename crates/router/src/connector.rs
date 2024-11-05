@@ -50,7 +50,7 @@ pub use hyperswitch_connectors::connectors::{
     cryptopay, cryptopay::Cryptopay, deutschebank, deutschebank::Deutschebank, digitalvirgo,
     digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, elavon, elavon::Elavon, fiserv,
     fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, forte, forte::Forte,
-    globepay, globepay::Globepay, helcim, helcim::Helcim, mollie, mollie::Mollie, multisafepay,
+    globepay, globepay::Globepay, helcim, helcim::Helcim, jpmorgan, jpmorgan::Jpmorgan, mollie, mollie::Mollie, multisafepay,
     multisafepay::Multisafepay, nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay,
     novalnet, novalnet::Novalnet, payeezy, payeezy::Payeezy, payu, payu::Payu, powertranz,
     powertranz::Powertranz, razorpay, razorpay::Razorpay, shift4, shift4::Shift4, square,
