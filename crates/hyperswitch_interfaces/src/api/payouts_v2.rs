@@ -9,7 +9,6 @@ use hyperswitch_domain_models::{
 };
 
 use super::ConnectorCommon;
-
 use crate::api::ConnectorIntegrationV2;
 
 /// trait PayoutCancelV2

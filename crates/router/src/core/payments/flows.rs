@@ -12,6 +12,7 @@ pub mod session_update_flow;
 pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
+use hyperswitch_interfaces::api::payouts::Payouts;
 
 #[cfg(feature = "frm")]
 use crate::types::fraud_check as frm_types;
@@ -25,7 +26,6 @@ use crate::{
     services,
     types::{self, api, domain},
 };
-use hyperswitch_interfaces::api::payouts::Payouts;
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]

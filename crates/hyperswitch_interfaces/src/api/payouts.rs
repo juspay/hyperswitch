@@ -8,9 +8,8 @@ use hyperswitch_domain_models::{
     router_request_types::PayoutsData, router_response_types::PayoutsResponseData,
 };
 
-use crate::api::ConnectorIntegration;
-
 use super::ConnectorCommon;
+use crate::api::ConnectorIntegration;
 
 /// trait PayoutCancel
 pub trait PayoutCancel: ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> {}
