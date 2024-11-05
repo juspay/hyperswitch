@@ -779,7 +779,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 .map(|id| id.to_string())
         });
 
-        let res = RouterData::foreign_try_from((
+        RouterData::foreign_try_from((
             ResponseRouterData {
                 response,
                 data: data.clone(),
@@ -787,9 +787,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             },
             optional_correlation_id,
         ))
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-
-        Ok(res)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
