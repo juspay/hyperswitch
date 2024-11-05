@@ -1701,6 +1701,7 @@ impl<F, T>
                     },
                     payment_method_id: None,
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 })),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
