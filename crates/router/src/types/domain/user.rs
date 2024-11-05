@@ -1,4 +1,8 @@
-use std::{collections::HashSet, ops, str::FromStr};
+use std::{
+    collections::HashSet,
+    ops::{self, Not},
+    str::FromStr,
+};
 
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
@@ -565,8 +569,14 @@ pub struct NewUser {
     user_id: String,
     name: UserName,
     email: UserEmail,
-    password: Option<UserPassword>,
+    password: Option<NewUserPassword>,
     new_merchant: NewUserMerchant,
+}
+
+#[derive(Clone)]
+pub struct NewUserPassword {
+    password: UserPassword,
+    is_temporary: bool,
 }
 
 impl NewUser {
@@ -587,7 +597,9 @@ impl NewUser {
     }
 
     pub fn get_password(&self) -> Option<UserPassword> {
-        self.password.clone()
+        self.password
+            .as_ref()
+            .map(|password_inner| password_inner.password.clone())
     }
 
     pub async fn insert_user_in_db(
@@ -682,7 +694,9 @@ impl TryFrom<NewUser> for storage_user::UserNew {
         let hashed_password = value
             .password
             .as_ref()
-            .map(|password| password::generate_password_hash(password.get_secret()))
+            .map(|password_inner| {
+                password::generate_password_hash(password_inner.password.get_secret())
+            })
             .transpose()?;
 
         let now = common_utils::date_time::now();
@@ -697,7 +711,9 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
-            last_password_modified_at: value.password.is_some().then_some(now),
+            last_password_modified_at: value
+                .password
+                .and_then(|password_inner| password_inner.is_temporary.not().then(|| now)),
         })
     }
 }
@@ -708,7 +724,10 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let user_id = uuid::Uuid::new_v4().to_string();
         let new_merchant = NewUserMerchant::try_from(value)?;
 
@@ -729,7 +748,10 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -770,7 +792,10 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let new_merchant = NewUserMerchant::try_from((value, org_id))?;
 
         Ok(Self {
@@ -789,16 +814,23 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
     fn try_from(value: UserMerchantCreateRequestWithToken) -> Result<Self, Self::Error> {
         let user = value.0.clone();
         let new_merchant = NewUserMerchant::try_from(value)?;
+        let password = user
+            .0
+            .password
+            .map(|password| {
+                let password = UserPassword::new_password_without_validation(password)?;
+                Ok::<_, error_stack::Report<UserErrors>>(NewUserPassword {
+                    password,
+                    is_temporary: false,
+                })
+            })
+            .transpose()?;
 
         Ok(Self {
             user_id: user.0.user_id,
             name: UserName::new(user.0.name)?,
             email: user.0.email.clone().try_into()?,
-            password: user
-                .0
-                .password
-                .map(UserPassword::new_password_without_validation)
-                .transpose()?,
+            password,
             new_merchant,
         })
     }
@@ -810,8 +842,10 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = cfg!(not(feature = "email"))
-            .then_some(UserPassword::new(password::get_temp_password())?);
+        let password = cfg!(not(feature = "email")).then_some(NewUserPassword {
+            password: UserPassword::new(password::get_temp_password())?,
+            is_temporary: true,
+        });
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
