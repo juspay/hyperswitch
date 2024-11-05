@@ -984,7 +984,7 @@ impl SuccessBasedRoutingConfigParamsInterpolator {
         card_network: Option<String>,
         card_bin: Option<String>,
     ) -> Self {
-        SuccessBasedRoutingConfigParamsInterpolator {
+        Self {
             payment_method,
             payment_method_type,
             authentication_type,
