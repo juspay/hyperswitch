@@ -117,8 +117,7 @@ impl PaymentIntent {
         &self,
         base_url: &str,
         publishable_key: String,
-    ) -> common_utils::errors::CustomResult<url::Url, errors::api_error_response::ApiErrorResponse>
-    {
+    ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
         let start_redirection_url = &format!(
             "{}/v2/payments/{}/start_redirection?publishable_key={}&profile_id={}",
             base_url,

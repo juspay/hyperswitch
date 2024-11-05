@@ -3880,6 +3880,7 @@ pub enum NextActionData {
     /// Contains the url for redirection flow
     #[cfg(feature = "v2")]
     RedirectToUrl {
+        #[schema(value_type = String)]
         redirect_to_url: Url,
     },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
