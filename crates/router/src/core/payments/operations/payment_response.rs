@@ -1942,7 +1942,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         .and_then(|card| card.get("card_network"))
                         .and_then(|network| network.as_str())
                         .map(|network| network.to_string()),
-                    None,
+                    payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_isin"))
+                        .and_then(|card_isin| card_isin.as_str())
+                        .map(|card_isin| card_isin.to_string()),
                 );
             tokio::spawn(
                 async move {
