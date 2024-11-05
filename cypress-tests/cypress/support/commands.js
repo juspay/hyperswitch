@@ -1034,6 +1034,22 @@ Cypress.Commands.add(
         expect(response.body.payment_method_id, "payment_method_id").to.equal(
           response.body.payment_method_id
         );
+        expect(response.body.merchant_id, "merchant_id").to.equal(
+          response.body.merchant_id
+        );
+        expect(response.body.payment_method, "payment_method").to.equal(
+          response.body.payment_method
+        );
+        expect(
+          response.body.payment_method_type,
+          "payment_method_type"
+        ).to.equal(response.body.payment_method_type);
+        expect(response.body.last_used_at, "last_used_at").to.equal(
+          response.body.last_used_at
+        );
+        expect(response.body.customer_id, "customer_id").to.equal(
+          response.body.customer_id
+        );
         globalState.set("paymentMethodId", response.body.payment_method_id);
       } else {
         defaultErrorHandler(response);
