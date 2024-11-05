@@ -4066,7 +4066,7 @@ pub trait RemoveNewLine {
 impl RemoveNewLine for Option<Secret<String>> {
     fn remove_new_line(&self) -> Self {
         self.clone().map(|masked_value| {
-            let new_string = masked_value.expose().replace("\n", "");
+            let new_string = masked_value.expose().replace("\n", " ");
             Secret::new(new_string)
         })
     }
@@ -4074,6 +4074,6 @@ impl RemoveNewLine for Option<Secret<String>> {
 
 impl RemoveNewLine for Option<String> {
     fn remove_new_line(&self) -> Self {
-        self.clone().map(|value| value.replace("\n", ""))
+        self.clone().map(|value| value.replace("\n", " "))
     }
 }
