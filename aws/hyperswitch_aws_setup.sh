@@ -38,12 +38,12 @@ echo "Creating Security Group for Application..."
 
 export EC2_SG="application-sg"
 
-echo `(aws ec2 create-security-group \
+echo $(aws ec2 create-security-group \
 --region $REGION \
 --group-name $EC2_SG \
 --description "Security Group for Hyperswitch EC2 instance" \
 --tag-specifications "ResourceType=security-group,Tags=[{Key=ManagedBy,Value=hyperswitch}]" \
-)`
+)
 
 export APP_SG_ID=$(aws ec2 describe-security-groups --group-names $EC2_SG --region $REGION --output text --query 'SecurityGroups[0].GroupId')
 
@@ -51,24 +51,24 @@ echo "Security Group for Application CREATED.\n"
 
 echo "Creating Security Group ingress for port 80..."
 
-echo `aws ec2 authorize-security-group-ingress \
+echo $(aws ec2 authorize-security-group-ingress \
 --group-id $APP_SG_ID \
 --protocol tcp \
 --port 80 \
 --cidr 0.0.0.0/0 \
---region $REGION`
+--region $REGION)
 
 echo "Security Group ingress for port 80 CREATED.\n"
 
 
 echo "Creating Security Group ingress for port 22..."
 
-echo `aws ec2 authorize-security-group-ingress \
+echo $(aws ec2 authorize-security-group-ingress \
 --group-id $APP_SG_ID \
 --protocol tcp \
 --port 22 \
 --cidr 0.0.0.0/0 \
---region $REGION`
+--region $REGION)
 
 echo "Security Group ingress for port 22 CREATED.\n"
 
@@ -78,11 +78,11 @@ echo "Security Group ingress for port 22 CREATED.\n"
 echo "Creating Security Group for Elasticache..."
 
 export REDIS_GROUP_NAME=redis-sg
-echo `aws ec2 create-security-group \
+echo $(aws ec2 create-security-group \
 --group-name $REDIS_GROUP_NAME \
 --description "SG attached to elasticache" \
 --tag-specifications "ResourceType=security-group,Tags=[{Key=ManagedBy,Value=hyperswitch}]" \
---region $REGION`
+--region $REGION)
 
 echo "Security Group for Elasticache CREATED.\n"
 
@@ -91,12 +91,12 @@ echo "Creating Inbound rules for Redis..."
 export REDIS_SG_ID=$(aws ec2 describe-security-groups --group-names $REDIS_GROUP_NAME --region $REGION --output text --query 'SecurityGroups[0].GroupId')
 
 # CREATE INBOUND RULES
-echo `aws ec2 authorize-security-group-ingress \
+echo $(aws ec2 authorize-security-group-ingress \
 --group-id $REDIS_SG_ID \
 --protocol tcp \
 --port 6379 \
 --source-group $EC2_SG \
---region $REGION`
+--region $REGION)
 
 echo "Inbound rules for Redis CREATED.\n"
 
@@ -105,11 +105,11 @@ echo "Inbound rules for Redis CREATED.\n"
 echo "Creating Security Group for RDS..."
 
 export RDS_GROUP_NAME=rds-sg
-echo `aws ec2 create-security-group \
+echo $(aws ec2 create-security-group \
 --group-name $RDS_GROUP_NAME \
 --description "SG attached to RDS" \
 --tag-specifications "ResourceType=security-group,Tags=[{Key=ManagedBy,Value=hyperswitch}]" \
---region $REGION`
+--region $REGION)
 
 echo "Security Group for RDS CREATED.\n"
 
@@ -118,21 +118,21 @@ echo "Creating Inbound rules for RDS..."
 export RDS_SG_ID=$(aws ec2 describe-security-groups --group-names $RDS_GROUP_NAME --region $REGION --output text --query 'SecurityGroups[0].GroupId')
 
 # CREATE INBOUND RULES
-echo `aws ec2 authorize-security-group-ingress \
+echo $(aws ec2 authorize-security-group-ingress \
 --group-id $RDS_SG_ID \
 --protocol tcp \
 --port 5432 \
 --source-group $EC2_SG \
---region $REGION`
+--region $REGION)
 
 echo "Inbound rules for RDS CREATED.\n"
 
-echo `aws ec2 authorize-security-group-ingress \
+echo $(aws ec2 authorize-security-group-ingress \
     --group-id $RDS_SG_ID \
     --protocol tcp \
     --port 5432 \
     --cidr 0.0.0.0/0 \
-    --region $REGION`
+    --region $REGION)
 
 echo "Inbound rules for RDS (from any IP) CREATED.\n"
 
@@ -140,7 +140,7 @@ echo "Creating Elasticache with Redis engine..."
 
 export CACHE_CLUSTER_ID=hyperswitch-cluster
 
-echo `aws elasticache create-cache-cluster \
+echo $(aws elasticache create-cache-cluster \
 --cache-cluster-id $CACHE_CLUSTER_ID \
 --cache-node-type cache.t3.medium \
 --engine redis \
@@ -148,14 +148,14 @@ echo `aws elasticache create-cache-cluster \
 --security-group-ids $REDIS_SG_ID \
 --engine-version 7.0 \
 --tags "Key=ManagedBy,Value=hyperswitch" \
---region $REGION`
+--region $REGION)
 
 echo "Elasticache with Redis engine CREATED.\n"
 
 echo "Creating RDS with PSQL..."
 
 export DB_INSTANCE_ID=hyperswitch-db
-echo `aws rds create-db-instance  \
+echo $(aws rds create-db-instance  \
     --db-instance-identifier $DB_INSTANCE_ID\
     --db-instance-class db.t3.micro \
     --engine postgres \
@@ -166,7 +166,7 @@ echo `aws rds create-db-instance  \
     --region $REGION \
     --db-name hyperswitch_db \
     --tags "Key=ManagedBy,Value=hyperswitch" \
-    --vpc-security-group-ids $RDS_SG_ID`
+    --vpc-security-group-ids $RDS_SG_ID)
 
 echo "RDS with PSQL CREATED.\n"
 
@@ -308,17 +308,17 @@ echo "EC2 instance launched.\n"
 
 echo "Add Tags to EC2 instance..."
 
-echo `aws ec2 create-tags \
+echo $(aws ec2 create-tags \
 --resources $HYPERSWITCH_INSTANCE_ID \
 --tags "Key=Name,Value=hyperswitch-router" \
---region $REGION`
+--region $REGION)
 
 echo "Tag added to EC2 instance.\n"
 
-echo `aws ec2 create-tags \
+echo $(aws ec2 create-tags \
 --resources $HYPERSWITCH_INSTANCE_ID \
 --tags "Key=ManagedBy,Value=hyperswitch" \
---region $REGION`
+--region $REGION)
 
 echo "ManagedBy tag added to EC2 instance.\n"
 
