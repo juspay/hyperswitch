@@ -55,6 +55,7 @@ use response::{
     EventType, ResponseIdStr, WorldpayErrorResponse, WorldpayEventResponse,
     WorldpayPaymentsResponse, WorldpayWebhookEventType, WorldpayWebhookTransactionId,
 };
+use ring::hmac;
 use transformers::{self as worldpay, WP_CORRELATION_ID};
 
 use crate::{
@@ -1142,17 +1143,45 @@ impl IncomingWebhook for Worldpay {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         _merchant_id: &common_utils::id_type::MerchantId,
-        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let secret_str = std::str::from_utf8(&connector_webhook_secrets.secret)
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let to_sign = format!(
-            "{}{}",
-            secret_str,
-            std::str::from_utf8(request.body)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
-        );
-        Ok(to_sign.into_bytes())
+        Ok(request.body.to_vec())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let message = self
+            .get_webhook_source_verification_message(
+                request,
+                merchant_id,
+                &connector_webhook_secrets,
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let secret_key = hex::decode(connector_webhook_secrets.secret)
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)?;
+
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &secret_key);
+        let signed_message = hmac::sign(&signing_key, &message);
+        let computed_signature = hex::encode(signed_message.as_ref());
+
+        Ok(computed_signature.as_bytes() == hex::encode(signature).as_bytes())
     }
 
     fn get_webhook_object_reference_id(
