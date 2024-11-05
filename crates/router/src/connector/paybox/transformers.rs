@@ -1224,14 +1224,12 @@ fn get_card_expiry_month_year_2_digit(
     card_exp_month: Secret<String>,
     card_exp_year: Secret<String>,
 ) -> Result<Secret<String>, errors::ConnectorError> {
-    let year_2_digit = card_exp_year
-        .peek()
-        .get(..2)
-        .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        .to_string();
     Ok(Secret::new(format!(
         "{}{}",
         card_exp_month.peek(),
-        year_2_digit
+        card_exp_year
+            .peek()
+            .get(card_exp_year.peek().len() - 2..)
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
     )))
 }
