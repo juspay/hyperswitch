@@ -1,6 +1,6 @@
 pub mod transformers;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use common_enums::{CaptureMethod, PaymentMethodType};
 use common_utils::{
@@ -12,6 +12,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -43,7 +44,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use transformers::{self as fiuu, FiuuWebhooksResponse};
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, PaymentMethodDataType},
+};
 
 fn parse_response<T>(data: &[u8]) -> Result<T, errors::ConnectorError>
 where
@@ -210,6 +215,15 @@ impl ConnectorValidation for Fiuu {
             ),
         }
     }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd: HashSet<PaymentMethodDataType> =
+            HashSet::from([PaymentMethodDataType::Card]);
+        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Fiuu {
@@ -231,13 +245,21 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}RMS/API/Direct/1.4.0/index.php",
-            self.base_url(connectors)
-        ))
+        let url = if req.request.off_session == Some(true) {
+            format!(
+                "{}/RMS/API/Recurring/input_v7.php",
+                self.base_url(connectors)
+            )
+        } else {
+            format!(
+                "{}RMS/API/Direct/1.4.0/index.php",
+                self.base_url(connectors)
+            )
+        };
+        Ok(url)
     }
 
     fn get_request_body(
@@ -252,9 +274,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data = fiuu::FiuuRouterData::from((amount, req));
-        let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
-        let connector_req = build_form_from_struct(payment_request)
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+        let connector_req = if req.request.off_session == Some(true) {
+            let recurring_request = fiuu::FiuuMandateRequest::try_from(&connector_router_data)?;
+            build_form_from_struct(recurring_request)
+                .change_context(errors::ConnectorError::ParsingFailed)?
+        } else {
+            let payment_request = fiuu::FiuuPaymentRequest::try_from(&connector_router_data)?;
+            build_form_from_struct(payment_request)
+                .change_context(errors::ConnectorError::ParsingFailed)?
+        };
         Ok(RequestContent::FormData(connector_req))
     }
 

@@ -331,7 +331,7 @@ describe("Corner cases", () => {
     });
 
     it("Capture call", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "CaptureCapturedAmount"
       ];
 
@@ -396,7 +396,7 @@ describe("Corner cases", () => {
     });
 
     it("Confirm call", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "ConfirmSuccessfulPayment"
       ];
       let req_data = data["Request"];
@@ -460,12 +460,12 @@ describe("Corner cases", () => {
     });
 
     it("Void call", () => {
-      // `commons` here is intentionally used as we need to pass `ResponseCustom`
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "Void"
       ];
+      let commonData = getConnectorDetails(globalState.get("commons"))["card_pm"]["Void"];
       let req_data = data["Request"];
-      let res_data = data["ResponseCustom"];
+      let res_data = utils.getConnectorFlowDetails(data, commonData, "ResponseCustom");
       cy.voidCallTest(fixtures.voidBody, req_data, res_data, globalState);
 
       if (should_continue)
@@ -592,12 +592,12 @@ describe("Corner cases", () => {
     });
 
     it("Refund call", () => {
-      // `commons` here is intentionally used as we need to pass `ResponseCustom`
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "Refund"
       ];
+      let commonData = getConnectorDetails(globalState.get("commons"))["card_pm"]["Refund"];
       let req_data = data["Request"];
-      let res_data = data["ResponseCustom"];
+      let res_data = utils.getConnectorFlowDetails(data, commonData, "ResponseCustom");
       cy.refundCallTest(
         fixtures.refundBody,
         req_data,
@@ -655,12 +655,12 @@ describe("Corner cases", () => {
     });
 
     it("Refund call", () => {
-      // `commons` here is intentionally used as we need to pass `ResponseCustom`
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "Refund"
       ];
+      let commonData = getConnectorDetails(globalState.get("commons"))["card_pm"]["Refund"];
       let req_data = data["Request"];
-      let res_data = data["ResponseCustom"];
+      let res_data = utils.getConnectorFlowDetails(data, commonData, "ResponseCustom");
       cy.refundCallTest(
         fixtures.refundBody,
         req_data,

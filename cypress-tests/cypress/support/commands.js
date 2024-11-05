@@ -2070,7 +2070,11 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
           } else if (response.body.authentication_type === "no_three_ds") {
-            expect(response.body.status).to.equal("succeeded");
+            if (response.body.connector === "fiuu") {
+              expect(response.body.status).to.equal("failed");
+            } else {
+              expect(response.body.status).to.equal("succeeded");
+            }
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`

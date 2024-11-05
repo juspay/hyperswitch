@@ -101,6 +101,7 @@ digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.stagin
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
+elavon.base_url = "https://api.demo.convergepay.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
 fiuu.base_url = "https://sandbox.merchant.razer.com/"
@@ -197,6 +198,7 @@ cards = [
     "dlocal",
     "dummyconnector",
     "ebanx",
+    "elavon",
     "fiserv",
     "fiservemea",
     "fiuu",
@@ -369,7 +371,7 @@ enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "" }
 
 [multitenancy.tenants]
-public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+public = { base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
 [email]
 sender_email = "example@example.com"

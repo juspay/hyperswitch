@@ -135,6 +135,7 @@ digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.stagin
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
+elavon.base_url = "https://api.demo.convergepay.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
 fiuu.base_url = "https://sandbox.merchant.razer.com/"
@@ -231,6 +232,7 @@ cards = [
     "dlocal",
     "dummyconnector",
     "ebanx",
+    "elavon",
     "fiserv",
     "fiservemea",
     "fiuu",
@@ -348,34 +350,68 @@ discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 payout_eligibility = true
 
 [pm_filters.adyen]
-online_banking_fpx = { country = "MY", currency = "MYR" }
-online_banking_thailand = { country = "TH", currency = "THB" }
-touch_n_go = { country = "MY", currency = "MYR" }
+ach = { country = "US", currency = "USD" }
+affirm = { country = "US", currency = "USD" }
+afterpay_clearpay = { country = "US,CA,GB,AU,NZ", currency = "GBP,AUD,NZD,CAD,USD" }
+alfamart = { country = "ID", currency = "IDR" }
+ali_pay = { country = "AU,JP,HK,SG,MY,TH,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK,FI,RO,MT,SI,GR,PT,IE,IT,CA,US", currency = "USD,EUR,GBP,JPY,AUD,SGD,CHF,SEK,NOK,NZD,THB,HKD,CAD" }
+ali_pay_hk = { country = "HK", currency = "HKD" }
+alma = { country = "FR", currency = "EUR" }
+apple_pay = { country = "AU,NZ,CN,JP,HK,SG,MY,BH,AE,KW,BR,ES,GB,SE,NO,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,LI,UA,MT,SI,GR,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD,MYR" }
 atome = { country = "MY,SG", currency = "MYR,SGD" }
-swish = { country = "SE", currency = "SEK" }
-permata_bank_transfer = { country = "ID", currency = "IDR" }
+bacs = { country = "GB", currency = "GBP" }
+bancontact_card = { country = "BE", currency = "EUR" }
 bca_bank_transfer = { country = "ID", currency = "IDR" }
+bizum = { country = "ES", currency = "EUR" }
+blik = { country = "PL", currency = "PLN" }
 bni_va = { country = "ID", currency = "IDR" }
+boleto = { country = "BR", currency = "BRL" }
 bri_va = { country = "ID", currency = "IDR" }
 cimb_va = { country = "ID", currency = "IDR" }
+dana = { country = "ID", currency = "IDR" }
 danamon_va = { country = "ID", currency = "IDR" }
-mandiri_va = { country = "ID", currency = "IDR" }
-alfamart = { country = "ID", currency = "IDR" }
+eps = { country = "AT", currency = "EUR" }
+family_mart = { country = "JP", currency = "JPY" }
+gcash = { country = "PH", currency = "PHP" }
+giropay = { country = "DE", currency = "EUR" }
+go_pay = { country = "ID", currency = "IDR" }
+google_pay = { country = "AU,NZ,JP,HK,SG,MY,TH,VN,BH,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,RO,HR,LI,MT,SI,GR,PT,IE,CZ,EE,LT,LV,IT,PL,TR,IS,CA,US", currency = "AED,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BMD,BND,BOB,BRL,BSD,BWP,BYN,BZD,CAD,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HTG,HUF,IDR,ILS,INR,IQD,JMD,JOD,JPY,KES,KGS,KHR,KMF,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LYD,MAD,MDL,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SEK,SGD,SHP,SLE,SOS,SRD,STN,SVC,SZL,THB,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW" }
+ideal = { country = "NL", currency = "EUR" }
 indomaret = { country = "ID", currency = "IDR" }
+kakao_pay = { country = "KR", currency = "KRW" }
+klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD"}
+lawson = { country = "JP", currency = "JPY" }
+mandiri_va = { country = "ID", currency = "IDR" }
+mb_way = { country = "PT", currency = "EUR" }
+mini_stop = { country = "JP", currency = "JPY" }
+mobile_pay = { country = "DK,FI", currency = "DKK,SEK,NOK,EUR" }
+momo = { country = "VN", currency = "VND" }
+momo_atm = { country = "VN", currency = "VND" }
+online_banking_czech_republic = { country = "CZ", currency = "EUR,CZK" }
+online_banking_finland = { country = "FI", currency = "EUR" }
+online_banking_fpx = { country = "MY", currency = "MYR" }
+online_banking_poland = { country = "PL", currency = "PLN" }
+online_banking_slovakia = { country = "SK", currency = "EUR,CZK" }
+online_banking_thailand = { country = "TH", currency = "THB" }
 open_banking_uk = { country = "GB", currency = "GBP" }
 oxxo = { country = "MX", currency = "MXN" }
-pay_safe_card = { country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,AE,GB,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU" }
-seven_eleven = { country = "JP", currency = "JPY" }
-lawson = { country = "JP", currency = "JPY" }
-mini_stop = { country = "JP", currency = "JPY" }
-family_mart = { country = "JP", currency = "JPY" }
-seicomart = { country = "JP", currency = "JPY" }
+pay_bright = { country = "CA", currency = "CAD" }
 pay_easy = { country = "JP", currency = "JPY" }
-boleto = { country = "BR", currency = "BRL" }
-ideal = { country = "NL", currency = "EUR" }
-klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,NL,GB,US", currency = "AUD,EUR,CAD,CZK,DKK,NOK,PLN,RON,SEK,CHF,GBP,USD" }
+pay_safe_card = { country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,AE,GB,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU" }
+permata_bank_transfer = { country = "ID", currency = "IDR" }
+seicomart = { country = "JP", currency = "JPY" }
+sepa = { country = "ES,SK,AT,NL,DE,BE,FR,FI,PT,IE,EE,LT,LV,IT", currency = "EUR" }
+seven_eleven = { country = "JP", currency = "JPY" }
+sofort = { country =  "AT,BE,DE,ES,CH,NL", currency =  "CHF,EUR"}
 paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
-sofort = { country = "AT,BE,DE,ES,CH,NL", currency = "CHF,EUR" }
+
+swish = { country = "SE", currency = "SEK" }
+touch_n_go = { country = "MY", currency = "MYR" }
+trustly = { country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
+twint = { country = "CH", currency = "CHF" }
+vipps = { country = "NO", currency = "NOK" }
+walley = { country = "SE,NO,DK,FI", currency = "DKK,EUR,NOK,SEK" }
+we_chat_pay = { country = "AU,NZ,CN,JP,HK,SG,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK,LI,MT,SI,GR,PT,IT,CA,US", currency = "AUD,CAD,CNY,EUR,GBP,HKD,JPY,NZD,SGD,USD,CNY" }
 
 
 [pm_filters.volt]
@@ -575,7 +611,7 @@ enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
 
 [multitenancy.tenants]
-public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
+public = { base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default" }
 
 [user_auth_methods]
 encryption_key = "A8EF32E029BC3342E54BF2E172A4D7AA43E8EF9D2C3A624A9F04E2EF79DC698F"
