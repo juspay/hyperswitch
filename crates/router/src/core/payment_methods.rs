@@ -1241,8 +1241,8 @@ pub async fn create_pm_additional_data_update(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     vault_id: Option<String>,
-    payment_method: Option<api_enums::PaymentMethod>,
-    payment_method_type: Option<api_enums::PaymentMethodType>,
+    payment_method_type: Option<api_enums::PaymentMethod>,
+    payment_method_subtype: Option<api_enums::PaymentMethodType>,
 ) -> RouterResult<storage::PaymentMethodUpdate> {
     let card = match pmd {
         pm_types::PaymentMethodVaultingData::Card(card) => {
@@ -1259,8 +1259,8 @@ pub async fn create_pm_additional_data_update(
     let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
         status: Some(enums::PaymentMethodStatus::Active),
         locker_id: vault_id,
-        payment_method,
-        payment_method_type,
+        payment_method_type_v2: payment_method_type,
+        payment_method_subtype,
         payment_method_data: Some(pmd.into()),
         network_token_requestor_reference_id: None,
         network_token_locker_id: None,

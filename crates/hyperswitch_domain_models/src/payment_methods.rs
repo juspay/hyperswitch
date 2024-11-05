@@ -311,8 +311,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             id: self.id,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            payment_method: self.payment_method,
-            payment_method_type: self.payment_method_type,
+            payment_method_type_v2: self.payment_method,
+            payment_method_subtype: self.payment_method_type,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
             locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
@@ -351,8 +351,8 @@ impl super::behaviour::Conversion for PaymentMethod {
                 id: item.id,
                 created_at: item.created_at,
                 last_modified: item.last_modified,
-                payment_method: item.payment_method,
-                payment_method_type: item.payment_method_type,
+                payment_method: item.payment_method_type_v2,
+                payment_method_type: item.payment_method_subtype,
                 payment_method_data: item
                     .payment_method_data
                     .async_lift(|inner| async {
@@ -422,8 +422,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             id: self.id,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            payment_method: self.payment_method,
-            payment_method_type: self.payment_method_type,
+            payment_method_type_v2: self.payment_method,
+            payment_method_subtype: self.payment_method_type,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
             locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
