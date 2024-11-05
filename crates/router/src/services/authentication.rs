@@ -311,9 +311,6 @@ where
 #[derive(Debug)]
 pub struct ApiKeyAuth;
 
-#[derive(Debug)]
-pub struct ApiKeyAuthV2;
-
 pub struct NoAuth;
 
 #[cfg(feature = "partial-auth")]
