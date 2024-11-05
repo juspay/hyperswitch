@@ -1463,7 +1463,7 @@ where
     let (payment_data, _req, customer) = payments_intent_operation_core::<_, _, _, _>(
         &state,
         req_state,
-        merchant_account,
+        merchant_account.clone(),
         profile,
         key_store,
         operation.clone(),
@@ -1481,6 +1481,7 @@ where
         None,
         None,
         header_payload.x_hs_latency,
+        &merchant_account,
     )
 }
 
@@ -1521,7 +1522,7 @@ where
         payments_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
-            merchant_account,
+            merchant_account.clone(),
             key_store,
             profile,
             operation.clone(),
@@ -1541,6 +1542,7 @@ where
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
+        &merchant_account,
     )
 }
 
@@ -5947,9 +5949,6 @@ pub async fn payment_start_redirection(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    // validate session expiry
-    helpers::authenticate_client_secret(Some(&payment_intent.client_secret), &payment_intent)?;
-
     //TODO: send valid html error pages in this case, or atleast redirect to valid html error pages
     utils::when(
         payment_intent.status != storage_enums::IntentStatus::RequiresCustomerAction,
@@ -5993,7 +5992,7 @@ pub async fn payment_start_redirection(
         services::RedirectionFormData {
             redirect_form: form,
             payment_method_data: None,
-            amount: payment_intent.amount_details.order_amount.to_string(),
+            amount: payment_attempt.amount_details.net_amount.to_string(),
             currency: payment_intent.amount_details.currency.to_string(),
         },
     )))

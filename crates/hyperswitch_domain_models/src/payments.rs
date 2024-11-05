@@ -100,14 +100,22 @@ impl PaymentIntent {
     }
 
     #[cfg(feature = "v2")]
-    pub fn create_start_redirection_url(&self, base_url: &str) -> String {
-        format!(
-            "{}/v2/payments/{}/start_redirection?merchant_id={}&profile_id={}",
+    pub fn create_start_redirection_url(
+        &self,
+        base_url: &str,
+        publishable_key: String,
+    ) -> common_utils::errors::CustomResult<url::Url, errors::api_error_response::ApiErrorResponse>
+    {
+        let start_redirection_url = &format!(
+            "{}/v2/payments/{}/start_redirection?publishable_key={}&profile_id={}",
             base_url,
             self.get_id().get_string_repr(),
-            self.merchant_id.get_string_repr(),
+            publishable_key,
             self.profile_id.get_string_repr()
-        )
+        );
+        url::Url::parse(start_redirection_url)
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error creating start redirection url")
     }
 }
 

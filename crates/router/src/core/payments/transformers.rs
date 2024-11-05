@@ -626,6 +626,7 @@ where
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self>;
 }
 
@@ -791,6 +792,7 @@ where
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
+        _merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -863,6 +865,7 @@ where
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         let payment_attempt = payment_data.get_payment_attempt();
@@ -892,11 +895,12 @@ where
             .map(api_models::payments::ErrorDetails::foreign_from);
 
         // TODO: Add support for other next actions, currently only supporting redirect to url
-        let next_action = payment_attempt.authentication_data.as_ref().map(|_| {
-            api_models::payments::NextActionData::RedirectToUrl {
-                redirect_to_url: payment_intent.create_start_redirection_url(base_url),
-            }
-        });
+        let redirect_to_url = payment_intent
+            .create_start_redirection_url(base_url, merchant_account.publishable_key.clone())?;
+        let next_action = payment_attempt
+            .authentication_data
+            .as_ref()
+            .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url });
 
         let response = Self {
             id: payment_intent.id.clone(),

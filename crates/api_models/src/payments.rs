@@ -3922,8 +3922,14 @@ pub enum NextActionType {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NextActionData {
     /// Contains the url for redirection flow
+    #[cfg(feature = "v1")]
     RedirectToUrl {
         redirect_to_url: String,
+    },
+    /// Contains the url for redirection flow
+    #[cfg(feature = "v2")]
+    RedirectToUrl {
+        redirect_to_url: Url,
     },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
     DisplayBankTransferInformation {
@@ -4618,7 +4624,7 @@ pub struct PaymentStartRedirectionRequest {
 #[cfg(feature = "v2")]
 pub struct PaymentStartRedirectionParams {
     /// The identifier for the Merchant Account.
-    pub merchant_id: id_type::MerchantId,
+    pub publishable_key: String,
     /// The identifier for business profile
     pub profile_id: id_type::ProfileId,
 }

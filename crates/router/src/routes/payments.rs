@@ -2070,7 +2070,7 @@ pub async fn payments_start_redirection(
     let global_payment_id = path.into_inner();
     tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
 
-    let merchant_id = &payload.merchant_id;
+    let publishable_key = &payload.publishable_key;
     let profile_id = &payload.profile_id;
 
     let payment_start_redirection_request = api_models::payments::PaymentStartRedirectionRequest {
@@ -2098,8 +2098,8 @@ pub async fn payments_start_redirection(
             )
             .await
         },
-        &auth::MerchantIdAndProfileIdAuth {
-            merchant_id: merchant_id.clone(),
+        &auth::PublishableKeyAndProfileIdAuth {
+            publishable_key: publishable_key.clone(),
             profile_id: profile_id.clone(),
         },
         locking_action,

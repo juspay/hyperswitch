@@ -124,10 +124,6 @@ pub enum AuthenticationType {
     MerchantId {
         merchant_id: id_type::MerchantId,
     },
-    MerchantIdAndProfileId {
-        merchant_id: id_type::MerchantId,
-        profile_id: id_type::ProfileId,
-    },
     PublishableKey {
         merchant_id: id_type::MerchantId,
     },
@@ -157,7 +153,6 @@ impl AuthenticationType {
             }
             | Self::AdminApiAuthWithMerchantId { merchant_id }
             | Self::MerchantId { merchant_id }
-            | Self::MerchantIdAndProfileId { merchant_id, .. }
             | Self::PublishableKey { merchant_id }
             | Self::MerchantJwt {
                 merchant_id,
@@ -1149,14 +1144,14 @@ where
 
 #[derive(Debug)]
 #[cfg(feature = "v2")]
-pub struct MerchantIdAndProfileIdAuth {
-    pub merchant_id: id_type::MerchantId,
+pub struct PublishableKeyAndProfileIdAuth {
+    pub publishable_key: String,
     pub profile_id: id_type::ProfileId,
 }
 
 #[async_trait]
 #[cfg(feature = "v2")]
-impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for MerchantIdAndProfileIdAuth
+impl<A> AuthenticateAndFetch<AuthenticationDataV2, A> for PublishableKeyAndProfileIdAuth
 where
     A: SessionStateInfo + Sync,
 {
@@ -1166,12 +1161,11 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationDataV2, AuthenticationType)> {
         let key_manager_state = &(&state.session_state()).into();
-        let key_store = state
+        let authentication_data = state
             .store()
-            .get_merchant_key_store_by_merchant_id(
+            .find_merchant_account_by_publishable_key(
                 key_manager_state,
-                &self.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
+                self.publishable_key.as_str(),
             )
             .await
             .map_err(|e| {
@@ -1179,48 +1173,30 @@ where
                     e.change_context(errors::ApiErrorResponse::Unauthorized)
                 } else {
                     e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch merchant key store for the merchant id")
-                }
-            })?;
-
-        let merchant = state
-            .store()
-            .find_merchant_account_by_merchant_id(key_manager_state, &self.merchant_id, &key_store)
-            .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch merchant account for the merchant id")
                 }
             })?;
 
         let profile = state
             .store()
-            .find_business_profile_by_profile_id(key_manager_state, &key_store, &self.profile_id)
+            .find_business_profile_by_profile_id(
+                key_manager_state,
+                &authentication_data.key_store,
+                &self.profile_id,
+            )
             .await
-            .map_err(|e| {
-                if e.current_context().is_db_not_found() {
-                    e.change_context(errors::ApiErrorResponse::Unauthorized)
-                } else {
-                    e.change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch business profile for the profile id")
-                }
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: self.profile_id.get_string_repr().to_owned(),
             })?;
 
-        let auth = AuthenticationDataV2 {
-            merchant_account: merchant,
-            key_store,
-            profile,
-        };
+        let merchant_id = authentication_data.merchant_account.get_id().clone();
 
         Ok((
-            auth.clone(),
-            AuthenticationType::MerchantIdAndProfileId {
-                merchant_id: auth.merchant_account.get_id().clone(),
-                profile_id: auth.profile.get_id().clone(),
+            AuthenticationDataV2 {
+                merchant_account: authentication_data.merchant_account,
+                key_store: authentication_data.key_store,
+                profile,
             },
+            AuthenticationType::PublishableKey { merchant_id },
         ))
     }
 }
