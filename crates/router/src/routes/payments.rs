@@ -183,7 +183,7 @@ pub async fn payments_get_intent(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationDataV2, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_intent_core::<
                 api_types::PaymentGetIntent,
                 payment_types::PaymentsIntentResponse,
