@@ -2149,3 +2149,9 @@ impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
         }
     }
 }
+
+/// Trait for converting from one foreign type to another
+pub trait ForeignFrom<F> {
+    /// Convert from a foreign type to the current type
+    fn foreign_from(from: F) -> Self;
+}
