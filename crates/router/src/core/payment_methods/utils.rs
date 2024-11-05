@@ -9,6 +9,7 @@ use common_enums::enums;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
+use masking::ExposeInterface;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
 use crate::{configs::settings, routes::SessionState};
@@ -16,14 +17,15 @@ use crate::{configs::settings, routes::SessionState};
 pub fn make_pm_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     domain_id: cgraph::DomainId,
-    payment_methods: &[serde_json::value::Value],
+    payment_methods: &[masking::Secret<serde_json::value::Value>],
     connector: String,
     pm_config_mapping: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
     supported_payment_methods_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
 ) -> Result<(), KgraphError> {
     for payment_method in payment_methods.iter() {
-        let pm_enabled = serde_json::from_value::<PaymentMethodsEnabled>(payment_method.clone());
+        let pm_enabled =
+            serde_json::from_value::<PaymentMethodsEnabled>(payment_method.clone().expose());
         if let Ok(payment_methods_enabled) = pm_enabled {
             compile_pm_graph(
                 builder,
@@ -311,11 +313,7 @@ fn construct_supported_connectors_for_update_mandate_node(
                                 .ok()
                                 .map(|connector| {
                                     dir::DirValue::Connector(Box::new(
-                                        api_models::routing::ast::ConnectorChoice {
-                                            connector,
-                                            #[cfg(not(feature = "connector_choice_mca_id"))]
-                                            sub_label: None,
-                                        },
+                                        api_models::routing::ast::ConnectorChoice { connector },
                                     ))
                                 })
                         }),
@@ -336,11 +334,7 @@ fn construct_supported_connectors_for_update_mandate_node(
                                 .ok()
                                 .map(|connector| {
                                     dir::DirValue::Connector(Box::new(
-                                        api_models::routing::ast::ConnectorChoice {
-                                            connector,
-                                            #[cfg(not(feature = "connector_choice_mca_id"))]
-                                            sub_label: None,
-                                        },
+                                        api_models::routing::ast::ConnectorChoice { connector },
                                     ))
                                 })
                         }),
@@ -393,11 +387,7 @@ fn construct_supported_connectors_for_update_mandate_node(
                             .ok()
                             .map(|connector| {
                                 dir::DirValue::Connector(Box::new(
-                                    api_models::routing::ast::ConnectorChoice {
-                                        connector,
-                                        #[cfg(not(feature = "connector_choice_mca_id"))]
-                                        sub_label: None,
-                                    },
+                                    api_models::routing::ast::ConnectorChoice { connector },
                                 ))
                             })
                     }),
@@ -468,11 +458,7 @@ fn construct_supported_connectors_for_mandate_node(
         .filter_map(|connector| {
             match api_enums::RoutableConnectors::from_str(connector.to_string().as_str()) {
                 Ok(connector) => Some(dir::DirValue::Connector(Box::new(
-                    api_models::routing::ast::ConnectorChoice {
-                        connector,
-                        #[cfg(not(feature = "connector_choice_mca_id"))]
-                        sub_label: None,
-                    },
+                    api_models::routing::ast::ConnectorChoice { connector },
                 ))),
                 Err(_) => None,
             }
@@ -604,7 +590,7 @@ fn compile_accepted_countries_for_mca(
                     .map_err(KgraphError::GraphConstructionError)?;
                 agg_nodes.push((
                     pm_object_country_value_node,
-                    cgraph::Relation::Positive,
+                    cgraph::Relation::Negative,
                     cgraph::Strength::Weak,
                 ));
             }
@@ -726,7 +712,7 @@ fn compile_accepted_currency_for_mca(
                     .map_err(KgraphError::GraphConstructionError)?;
                 agg_nodes.push((
                     pm_object_currency_value_node,
-                    cgraph::Relation::Positive,
+                    cgraph::Relation::Negative,
                     cgraph::Strength::Weak,
                 ));
             }

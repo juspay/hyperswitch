@@ -114,7 +114,8 @@ export const bank_redirect_ideal_and_credit_enabled = [
 
 export const create_payment_body_with_currency_country = (
   currency,
-  billingCountry
+  billingCountry,
+  shippingCountry
 ) => ({
   currency: currency,
   amount: 6500,
@@ -141,7 +142,25 @@ export const create_payment_body_with_currency_country = (
       last_name: "Doe",
     },
     phone: {
-      number: "8056594427",
+      number: "9123456789",
+      country_code: "+91",
+    },
+    email: "example@example.com",
+  },
+  shipping: {
+    address: {
+      line1: "130",
+      line2: "Koramangala",
+      line3: "Ramnagar",
+      city: "Bengaluru",
+      state: "Karnataka",
+      zip: "560011",
+      country: shippingCountry, // Shipping country from parameter
+      first_name: "John",
+      last_name: "Joseph",
+    },
+    phone: {
+      number: "9123456789",
       country_code: "+91",
     },
     email: "example@example.com",
@@ -162,18 +181,3 @@ export const create_payment_body_with_currency = (currency) => ({
   },
   business_label: "default",
 });
-
-export const create_payment_body_in_USD = {
-  currency: "USD",
-  amount: 6500,
-  authentication_type: "three_ds",
-  description: "Joseph First Crypto",
-  email: "hyperswitch_sdk_demo_id@gmail.com",
-  setup_future_usage: "",
-  metadata: {
-    udf1: "value1",
-    new_customer: "true",
-    login_date: "2019-09-10T10:11:12Z",
-  },
-  business_label: "default",
-};

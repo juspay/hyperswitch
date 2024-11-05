@@ -1,18 +1,19 @@
 use common_enums::MerchantStorageScheme;
-use common_utils::{id_type, pii};
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::pii;
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::mandate};
 
-#[derive(Clone, Debug, Identifiable, Queryable, serde::Serialize, serde::Deserialize)]
-#[diesel(table_name = mandate)]
+#[derive(
+    Clone, Debug, Identifiable, Queryable, Selectable, serde::Serialize, serde::Deserialize,
+)]
+#[diesel(table_name = mandate, primary_key(mandate_id), check_for_backend(diesel::pg::Pg))]
 pub struct Mandate {
-    pub id: i32,
     pub mandate_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_method_id: String,
     pub mandate_status: storage_enums::MandateStatus,
     pub mandate_type: storage_enums::MandateType,
@@ -31,8 +32,8 @@ pub struct Mandate {
     pub end_date: Option<PrimitiveDateTime>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_ids: Option<pii::SecretSerdeValue>,
-    pub original_payment_id: Option<String>,
-    pub merchant_connector_id: Option<String>,
+    pub original_payment_id: Option<common_utils::id_type::PaymentId>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub updated_by: Option<String>,
 }
 
@@ -49,8 +50,8 @@ pub struct Mandate {
 #[diesel(table_name = mandate)]
 pub struct MandateNew {
     pub mandate_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_method_id: String,
     pub mandate_status: storage_enums::MandateStatus,
     pub mandate_type: storage_enums::MandateType,
@@ -69,8 +70,8 @@ pub struct MandateNew {
     pub end_date: Option<PrimitiveDateTime>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_ids: Option<pii::SecretSerdeValue>,
-    pub original_payment_id: Option<String>,
-    pub merchant_connector_id: Option<String>,
+    pub original_payment_id: Option<common_utils::id_type::PaymentId>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub updated_by: Option<String>,
 }
 
@@ -95,7 +96,7 @@ pub enum MandateUpdate {
         connector_mandate_id: Option<String>,
         connector_mandate_ids: Option<pii::SecretSerdeValue>,
         payment_method_id: String,
-        original_payment_id: Option<String>,
+        original_payment_id: Option<common_utils::id_type::PaymentId>,
     },
 }
 
@@ -132,7 +133,7 @@ pub struct MandateUpdateInternal {
     connector_mandate_ids: Option<pii::SecretSerdeValue>,
     connector_mandate_id: Option<String>,
     payment_method_id: Option<String>,
-    original_payment_id: Option<String>,
+    original_payment_id: Option<common_utils::id_type::PaymentId>,
     updated_by: Option<String>,
 }
 
@@ -207,7 +208,6 @@ impl MandateUpdateInternal {
 impl From<&MandateNew> for Mandate {
     fn from(mandate_new: &MandateNew) -> Self {
         Self {
-            id: 0i32,
             mandate_id: mandate_new.mandate_id.clone(),
             customer_id: mandate_new.customer_id.clone(),
             merchant_id: mandate_new.merchant_id.clone(),

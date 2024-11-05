@@ -11,7 +11,7 @@ impl utils::Connector for DatatransTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Adyen;
         utils::construct_connector_data_old(
-            Box::new(&Adyen),
+            Box::new(Adyen::new()),
             types::Connector::Adyen,
             api::GetToken::Connector,
             None,

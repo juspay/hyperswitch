@@ -90,8 +90,22 @@ body {
 .content-details-wrap {
   display: flex;
   flex-flow: row;
-  margin: 20px 20px 30px 20px;
+  margin: 20px 20px 10px 20px;
   justify-content: space-between;
+}
+
+#hyper-checkout-payment-merchant-dynamic-details {
+  margin: 20px 20px 10px 20px;
+  overflow-y: scroll;
+  max-width: 35vw;
+  max-height: 10vh;
+}
+
+.hyper-checkout-payment-horizontal-line {
+  margin: 0px 20px;
+  height: 2px;  
+  background-color: #e5e5e5;  
+  border: none; 
 }
 
 .hyper-checkout-payment-price {
@@ -109,6 +123,11 @@ body {
 .hyper-checkout-payment-merchant-name {
   font-weight: 600;
   font-size: 19px;
+}
+
+.hyper-checkout-payment-merchant-dynamic-data {
+  font-size: 12px;
+  margin-top: 5px;
 }
 
 .hyper-checkout-payment-ref {
@@ -692,6 +711,21 @@ body {
     flex-flow: column;
     flex-direction: column-reverse;
     margin: 0;
+  }
+
+  #hyper-checkout-payment-merchant-dynamic-details {
+    flex-flow: column;
+    flex-direction: column-reverse;
+    margin: 0;
+    max-width: 100%;
+    overflow-y: scroll;
+    max-height: 10vh;
+  }
+  
+  .hyper-checkout-payment-horizontal-line {
+    margin: 10px 0px;
+    height: 2px;  
+    border: none; 
   }
 
   #hyper-checkout-merchant-image {

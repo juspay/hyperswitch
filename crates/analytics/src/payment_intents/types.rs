@@ -25,6 +25,16 @@ where
                 .add_filter_in_range_clause(PaymentIntentDimensions::Currency, &self.currency)
                 .attach_printable("Error adding currency filter")?;
         }
+        if !self.profile_id.is_empty() {
+            builder
+                .add_filter_in_range_clause(PaymentIntentDimensions::ProfileId, &self.profile_id)
+                .attach_printable("Error adding profile id filter")?;
+        }
+        if !self.customer_id.is_empty() {
+            builder
+                .add_filter_in_range_clause("customer_id", &self.customer_id)
+                .attach_printable("Error adding customer id filter")?;
+        }
         Ok(())
     }
 }

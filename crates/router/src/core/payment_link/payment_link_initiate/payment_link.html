@@ -93,7 +93,7 @@
       }
     </style>
   </head>
-  <body class="hide-scrollbar">
+  <body id="payment-link" class="hide-scrollbar">
     <div id="payment-details-shimmer">
       <div class = "wrap">
         <box class="shine"></box>
@@ -225,6 +225,8 @@
                 </div>
               </div>
             </div>
+            <div id="hyper-checkout-payment-horizontal-line-container"></div>
+            <div id="hyper-checkout-payment-merchant-dynamic-details" class="hidden"></div>
             <div id="hyper-checkout-payment-footer"></div>
           </div>
         </div>
@@ -249,7 +251,7 @@
                 height="16"
               ></use>
             </svg>
-            <span>Your Cart</span>
+            <span id="your-cart-text"></span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 50 50"
@@ -304,7 +306,7 @@
             <div id="unified-checkout"></div>
             <button id="submit" class="hidden">
               <span id="submit-spinner" class="hidden"></span>
-              <span id="submit-button-text">Pay now</span>
+              <span id="submit-button-text"></span>
             </button>
             <div id="payment-message" class="hidden"></div>
           </form>
@@ -323,8 +325,10 @@
       </svg>
     </div>
     <script>
-      {{rendered_js}}
       {{logging_template}}
+      {{locale_template}}
+      {{rendered_js}}
+      {{payment_link_initiator}}
     </script>
     {{ hyperloader_sdk_link }}
   </body>

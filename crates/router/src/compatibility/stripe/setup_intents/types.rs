@@ -189,13 +189,9 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
             .map(|connector| {
                 api_models::routing::RoutingAlgorithm::Single(Box::new(
                     api_models::routing::RoutableConnectorChoice {
-                        #[cfg(feature = "backwards_compatibility")]
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
                         connector,
-                        #[cfg(feature = "connector_choice_mca_id")]
                         merchant_connector_id: None,
-                        #[cfg(not(feature = "connector_choice_mca_id"))]
-                        sub_label: None,
                     },
                 ))
             })
@@ -418,6 +414,7 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
+
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
@@ -454,7 +451,7 @@ pub(crate) fn into_stripe_next_action(
 
 #[derive(Default, Eq, PartialEq, Serialize)]
 pub struct StripeSetupIntentResponse {
-    pub id: Option<String>,
+    pub id: id_type::PaymentId,
     pub object: String,
     pub status: StripeSetupStatus,
     pub client_secret: Option<masking::Secret<String>>,
@@ -539,8 +536,8 @@ impl From<payments::PaymentsResponse> for StripeSetupIntentResponse {
 #[serde(deny_unknown_fields)]
 pub struct StripePaymentListConstraints {
     pub customer: Option<id_type::CustomerId>,
-    pub starting_after: Option<String>,
-    pub ending_before: Option<String>,
+    pub starting_after: Option<id_type::PaymentId>,
+    pub ending_before: Option<id_type::PaymentId>,
     #[serde(default = "default_limit")]
     pub limit: u32,
     pub created: Option<i64>,

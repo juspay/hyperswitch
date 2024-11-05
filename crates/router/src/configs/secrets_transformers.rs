@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use hyperswitch_interfaces::secrets_interface::{
     secret_handler::SecretsHandler,
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
@@ -114,16 +114,41 @@ impl SecretsHandler for settings::ApiKeys {
         #[cfg(feature = "email")]
         let expiry_reminder_days = api_keys.expiry_reminder_days.clone();
 
+        #[cfg(feature = "partial-auth")]
+        let enable_partial_auth = api_keys.enable_partial_auth;
+
+        #[cfg(feature = "partial-auth")]
+        let (checksum_auth_context, checksum_auth_key) = {
+            if enable_partial_auth {
+                let checksum_auth_context = secret_management_client
+                    .get_secret(api_keys.checksum_auth_context.clone())
+                    .await?;
+                let checksum_auth_key = secret_management_client
+                    .get_secret(api_keys.checksum_auth_key.clone())
+                    .await?;
+                (checksum_auth_context, checksum_auth_key)
+            } else {
+                (String::new().into(), String::new().into())
+            }
+        };
+
         Ok(value.transition_state(|_| Self {
             hash_key,
             #[cfg(feature = "email")]
             expiry_reminder_days,
+
+            #[cfg(feature = "partial-auth")]
+            checksum_auth_key,
+            #[cfg(feature = "partial-auth")]
+            checksum_auth_context,
+            #[cfg(feature = "partial-auth")]
+            enable_partial_auth,
         }))
     }
 }
 
 #[async_trait::async_trait]
-impl SecretsHandler for settings::ApplePayDecryptConifg {
+impl SecretsHandler for settings::ApplePayDecryptConfig {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
@@ -149,6 +174,27 @@ impl SecretsHandler for settings::ApplePayDecryptConifg {
             apple_pay_ppc_key,
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
+        }))
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for settings::PazeDecryptConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let paze_decrypt_keys = value.get_inner();
+
+        let (paze_private_key, paze_private_key_passphrase) = tokio::try_join!(
+            secret_management_client.get_secret(paze_decrypt_keys.paze_private_key.clone()),
+            secret_management_client
+                .get_secret(paze_decrypt_keys.paze_private_key_passphrase.clone()),
+        )?;
+
+        Ok(value.transition_state(|_| Self {
+            paze_private_key,
+            paze_private_key_passphrase,
         }))
     }
 }
@@ -198,23 +244,58 @@ impl SecretsHandler for settings::PaymentMethodAuth {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::KeyManagerConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        _secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        #[cfg(feature = "keymanager_mtls")]
+        let keyconfig = value.get_inner();
+
+        #[cfg(feature = "keymanager_mtls")]
+        let ca = if keyconfig.enabled {
+            _secret_management_client
+                .get_secret(keyconfig.ca.clone())
+                .await?
+        } else {
+            keyconfig.ca.clone()
+        };
+
+        #[cfg(feature = "keymanager_mtls")]
+        let cert = if keyconfig.enabled {
+            _secret_management_client
+                .get_secret(keyconfig.cert.clone())
+                .await?
+        } else {
+            keyconfig.ca.clone()
+        };
+
+        Ok(value.transition_state(|keyconfig| Self {
+            #[cfg(feature = "keymanager_mtls")]
+            ca,
+            #[cfg(feature = "keymanager_mtls")]
+            cert,
+            ..keyconfig
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::Secrets {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let secrets = value.get_inner();
-        let (jwt_secret, admin_api_key, recon_admin_api_key, master_enc_key) = tokio::try_join!(
+        let (jwt_secret, admin_api_key, master_enc_key) = tokio::try_join!(
             secret_management_client.get_secret(secrets.jwt_secret.clone()),
             secret_management_client.get_secret(secrets.admin_api_key.clone()),
-            secret_management_client.get_secret(secrets.recon_admin_api_key.clone()),
             secret_management_client.get_secret(secrets.master_enc_key.clone())
         )?;
 
         Ok(value.transition_state(|_| Self {
             jwt_secret,
             admin_api_key,
-            recon_admin_api_key,
             master_enc_key,
         }))
     }
@@ -233,6 +314,32 @@ impl SecretsHandler for settings::UserAuthMethodSettings {
             .await?;
 
         Ok(value.transition_state(|_| Self { encryption_key }))
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for settings::NetworkTokenizationService {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let network_tokenization = value.get_inner();
+        let token_service_api_key = secret_management_client
+            .get_secret(network_tokenization.token_service_api_key.clone())
+            .await?;
+        let public_key = secret_management_client
+            .get_secret(network_tokenization.public_key.clone())
+            .await?;
+        let private_key = secret_management_client
+            .get_secret(network_tokenization.private_key.clone())
+            .await?;
+
+        Ok(value.transition_state(|network_tokenization| Self {
+            public_key,
+            private_key,
+            token_service_api_key,
+            ..network_tokenization
+        }))
     }
 }
 
@@ -295,12 +402,23 @@ pub(crate) async fn fetch_raw_secrets(
     .expect("Failed to decrypt connector_onboarding configs");
 
     #[allow(clippy::expect_used)]
-    let applepay_decrypt_keys = settings::ApplePayDecryptConifg::convert_to_raw_secret(
+    let applepay_decrypt_keys = settings::ApplePayDecryptConfig::convert_to_raw_secret(
         conf.applepay_decrypt_keys,
         secret_management_client,
     )
     .await
     .expect("Failed to decrypt applepay decrypt configs");
+
+    #[allow(clippy::expect_used)]
+    let paze_decrypt_keys = if let Some(paze_keys) = conf.paze_decrypt_keys {
+        Some(
+            settings::PazeDecryptConfig::convert_to_raw_secret(paze_keys, secret_management_client)
+                .await
+                .expect("Failed to decrypt paze decrypt configs"),
+        )
+    } else {
+        None
+    };
 
     #[allow(clippy::expect_used)]
     let applepay_merchant_configs = settings::ApplepayMerchantConfigs::convert_to_raw_secret(
@@ -319,12 +437,33 @@ pub(crate) async fn fetch_raw_secrets(
     .expect("Failed to decrypt payment method auth configs");
 
     #[allow(clippy::expect_used)]
+    let key_manager = settings::KeyManagerConfig::convert_to_raw_secret(
+        conf.key_manager,
+        secret_management_client,
+    )
+    .await
+    .expect("Failed to decrypt keymanager configs");
+
+    #[allow(clippy::expect_used)]
     let user_auth_methods = settings::UserAuthMethodSettings::convert_to_raw_secret(
         conf.user_auth_methods,
         secret_management_client,
     )
     .await
     .expect("Failed to decrypt user_auth_methods configs");
+
+    #[allow(clippy::expect_used)]
+    let network_tokenization_service = conf
+        .network_tokenization_service
+        .async_map(|network_tokenization_service| async {
+            settings::NetworkTokenizationService::convert_to_raw_secret(
+                network_tokenization_service,
+                secret_management_client,
+            )
+            .await
+            .expect("Failed to decrypt network tokenization service configs")
+        })
+        .await;
 
     Settings {
         server: conf.server,
@@ -337,6 +476,7 @@ pub(crate) async fn fetch_raw_secrets(
         secrets_management: conf.secrets_management,
         proxy: conf.proxy,
         env: conf.env,
+        key_manager,
         #[cfg(feature = "olap")]
         replica_database,
         secrets,
@@ -349,6 +489,7 @@ pub(crate) async fn fetch_raw_secrets(
         jwekey,
         webhooks: conf.webhooks,
         pm_filters: conf.pm_filters,
+        payout_method_filters: conf.payout_method_filters,
         bank_config: conf.bank_config,
         api_keys,
         file_storage: conf.file_storage,
@@ -370,6 +511,7 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "payouts")]
         payouts: conf.payouts,
         applepay_decrypt_keys,
+        paze_decrypt_keys,
         multiple_api_version_supported_connectors: conf.multiple_api_version_supported_connectors,
         applepay_merchant_configs,
         lock_settings: conf.lock_settings,
@@ -395,5 +537,13 @@ pub(crate) async fn fetch_raw_secrets(
         multitenancy: conf.multitenancy,
         user_auth_methods,
         decision: conf.decision,
+        locker_based_open_banking_connectors: conf.locker_based_open_banking_connectors,
+        grpc_client: conf.grpc_client,
+        #[cfg(feature = "v2")]
+        cell_information: conf.cell_information,
+        network_tokenization_supported_card_networks: conf
+            .network_tokenization_supported_card_networks,
+        network_tokenization_service,
+        network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
     }
 }

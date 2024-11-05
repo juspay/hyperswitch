@@ -326,6 +326,7 @@ impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPayme
                         | domain::WalletData::MbWayRedirect(_)
                         | domain::WalletData::MobilePayRedirect(_)
                         | domain::WalletData::PaypalSdk(_)
+                        | domain::WalletData::Paze(_)
                         | domain::WalletData::SamsungPay(_)
                         | domain::WalletData::TwintRedirect {}
                         | domain::WalletData::VippsRedirect {}
@@ -352,7 +353,10 @@ impl TryFrom<&NoonRouterData<&types::PaymentsAuthorizeRouterData>> for NoonPayme
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
-                    | domain::PaymentMethodData::CardToken(_) => {
+                    | domain::PaymentMethodData::OpenBanking(_)
+                    | domain::PaymentMethodData::CardToken(_)
+                    | domain::PaymentMethodData::NetworkToken(_)
+                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             conn_utils::get_unimplemented_payment_method_error_message("Noon"),
                         ))
@@ -572,6 +576,8 @@ impl<F, T>
                 .map(|subscription_data| types::MandateReference {
                     connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 });
         Ok(Self {
             status,
@@ -591,8 +597,8 @@ impl<F, T>
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             order.id.to_string(),
                         ),
-                        redirection_data,
-                        mandate_reference,
+                        redirection_data: Box::new(redirection_data),
+                        mandate_reference: Box::new(mandate_reference),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,

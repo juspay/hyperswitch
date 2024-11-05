@@ -4,7 +4,7 @@ pub mod request;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
-    fmt::{Debug, Display},
+    fmt::Debug,
     future::Future,
     str,
     sync::Arc,
@@ -13,11 +13,12 @@ use std::{
 
 use actix_http::header::HeaderMap;
 use actix_web::{
-    body, http::header::HeaderValue, web, FromRequest, HttpRequest, HttpResponse, Responder,
-    ResponseError,
+    body,
+    http::header::{HeaderName, HeaderValue},
+    web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError,
 };
-use api_models::enums::{CaptureMethod, PaymentMethodType};
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
+pub use common_enums::enums::PaymentAction;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use common_utils::{
     consts::{DEFAULT_TENANT, TENANT_HEADER, X_HS_LATENCY},
@@ -26,10 +27,19 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types;
-pub use hyperswitch_domain_models::router_response_types::RedirectForm;
+pub use hyperswitch_domain_models::{
+    api::{
+        ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
+        GenericLinks, PaymentLinkAction, PaymentLinkFormData, PaymentLinkStatusData,
+        RedirectionFormData,
+    },
+    payment_method_data::PaymentMethodData,
+    router_response_types::RedirectForm,
+};
 pub use hyperswitch_interfaces::{
     api::{
-        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration, ConnectorIntegrationAny,
+        BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
+        ConnectorIntegrationAny, ConnectorRedirectResponse, ConnectorValidation,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
@@ -39,7 +49,7 @@ use masking::{Maskable, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
-use tera::{Context, Tera};
+use tera::{Context, Error as TeraError, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
 use super::{
@@ -67,11 +77,7 @@ use crate::{
         connector_integration_interface::RouterDataConversion,
         generic_link_response::build_generic_link_html,
     },
-    types::{
-        self,
-        api::{self, ConnectorCommon},
-        ErrorResponse,
-    },
+    types::{self, api, ErrorResponse},
 };
 
 pub type BoxedPaymentConnectorIntegrationInterface<T, Req, Resp> =
@@ -96,61 +102,6 @@ pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::AccessTokenFlowData, Req, Resp>;
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
-
-pub trait ConnectorValidation: ConnectorCommon {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<CaptureMethod>,
-        _pmt: Option<PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic => Ok(()),
-            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: capture_method.to_string(),
-                    connector: self.id(),
-                }
-                .into())
-            }
-        }
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        _pm_data: types::domain::payments::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{} mandate payment", pm_type),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        data: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        data.request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
-            .map(|_| ())
-    }
-
-    fn is_webhook_source_verification_mandatory(&self) -> bool {
-        false
-    }
-}
 
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
@@ -177,7 +128,7 @@ where
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
     tracing::Span::current().record("connector_name", &req.connector);
-    tracing::Span::current().record("payment_method", &req.payment_method.to_string());
+    tracing::Span::current().record("payment_method", req.payment_method.to_string());
     logger::debug!(connector_request=?connector_request);
     let mut router_data = req.clone();
     match call_connector_action {
@@ -232,7 +183,7 @@ where
                 Some(connector_request) => Some(connector_request),
                 None => connector_integration
                     .build_request(req, &state.conf.connectors)
-                    .map_err(|error| {
+                    .inspect_err(|error| {
                         if matches!(
                             error.current_context(),
                             &errors::ConnectorError::RequestEncodingFailed
@@ -244,7 +195,6 @@ where
                                 &add_attributes([("connector", req.connector.to_string())]),
                             )
                         }
-                        error
                     })?,
             };
 
@@ -299,7 +249,7 @@ where
                                     let connector_http_status_code = Some(body.status_code);
                                     let handle_response_result = connector_integration
                                         .handle_response(req, Some(&mut connector_event), body)
-                                        .map_err(|error| {
+                                        .inspect_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
                                         {
@@ -312,7 +262,6 @@ where
                                                 )]),
                                             )
                                         }
-                                            error
                                         });
                                     match handle_response_result {
                                         Ok(mut data) => {
@@ -434,11 +383,11 @@ pub async fn call_connector_api(
             let status_code = resp.status().as_u16();
             let elapsed_time = current_time.elapsed();
             logger::info!(
-                headers=?headers,
-                url=?url,
-                status_code=?status_code,
+                ?headers,
+                url,
+                status_code,
                 flow=?flow_name,
-                elapsed_time=?elapsed_time
+                ?elapsed_time
             );
         }
         Err(err) => {
@@ -466,9 +415,19 @@ pub async fn send_request(
     let should_bypass_proxy = url
         .as_str()
         .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+        || proxy_bypass_urls(
+            state.conf.key_manager.get_inner(),
+            &state.conf.locker,
+            &state.conf.proxy.bypass_proxy_urls,
+        )
+        .contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy = proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+    let should_bypass_proxy = proxy_bypass_urls(
+        &state.conf.key_manager.get_inner(),
+        &state.conf.locker,
+        &state.conf.proxy.bypass_proxy_urls,
+    )
+    .contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
@@ -537,7 +496,7 @@ pub async fn send_request(
         ))
     };
 
-    // We cannot clone the request type, because it has Form trait which is not clonable. So we are cloning the request builder here.
+    // We cannot clone the request type, because it has Form trait which is not cloneable. So we are cloning the request builder here.
     let cloned_send_request = request.try_clone().map(|cloned_request| async {
         cloned_request
             .send()
@@ -611,7 +570,7 @@ pub async fn send_request(
                     .await
                 }
                 None => {
-                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not clonable");
+                    logger::info!("Retrying request due to connection closed before message could complete failed as request is not cloneable");
                     Err(error)
                 }
             }
@@ -713,100 +672,6 @@ async fn handle_response(
         .await
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum ApplicationResponse<R> {
-    Json(R),
-    StatusOk,
-    TextPlain(String),
-    JsonForRedirection(api::RedirectionResponse),
-    Form(Box<RedirectionFormData>),
-    PaymentLinkForm(Box<PaymentLinkAction>),
-    FileData((Vec<u8>, mime::Mime)),
-    JsonWithHeaders((R, Vec<(String, Maskable<String>)>)),
-    GenericLinkForm(Box<GenericLinks>),
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum GenericLinks {
-    ExpiredLink(GenericExpiredLinkData),
-    PaymentMethodCollect(GenericLinkFormData),
-    PayoutLink(GenericLinkFormData),
-    PayoutLinkStatus(GenericLinkStatusData),
-    PaymentMethodCollectStatus(GenericLinkStatusData),
-}
-
-impl Display for Box<GenericLinks> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match **self {
-                GenericLinks::ExpiredLink(_) => "ExpiredLink",
-                GenericLinks::PaymentMethodCollect(_) => "PaymentMethodCollect",
-                GenericLinks::PayoutLink(_) => "PayoutLink",
-                GenericLinks::PayoutLinkStatus(_) => "PayoutLinkStatus",
-                GenericLinks::PaymentMethodCollectStatus(_) => "PaymentMethodCollectStatus",
-            }
-        )
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GenericLinkFormData {
-    pub js_data: String,
-    pub css_data: String,
-    pub sdk_url: String,
-    pub html_meta_tags: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GenericExpiredLinkData {
-    pub title: String,
-    pub message: String,
-    pub theme: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GenericLinkStatusData {
-    pub js_data: String,
-    pub css_data: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum PaymentLinkAction {
-    PaymentLinkFormData(PaymentLinkFormData),
-    PaymentLinkStatus(PaymentLinkStatusData),
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkFormData {
-    pub js_script: String,
-    pub css_script: String,
-    pub sdk_url: String,
-    pub html_meta_tags: String,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkStatusData {
-    pub js_script: String,
-    pub css_script: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct RedirectionFormData {
-    pub redirect_form: RedirectForm,
-    pub payment_method_data: Option<api::PaymentMethodData>,
-    pub amount: String,
-    pub currency: String,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum PaymentAction {
-    PSync,
-    CompleteAuthorize,
-    PaymentAuthenticateCompleteAuthorize,
-}
-
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ApplicationRedirectResponse {
     pub url: String,
@@ -820,14 +685,13 @@ pub enum AuthFlow {
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(
-    skip(request, payload, state, func, api_auth, request_state),
+    skip(request, payload, state, func, api_auth, incoming_request_header),
     fields(merchant_id)
 )]
 pub async fn server_wrap_util<'a, 'b, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: web::Data<AppState>,
     incoming_request_header: &HeaderMap,
-    mut request_state: ReqState,
     request: &'a HttpRequest,
     payload: T,
     func: F,
@@ -849,12 +713,6 @@ where
         .attach_printable("Unable to extract request id from request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
-    request_state.event_context.record_info(request_id);
-    request_state
-        .event_context
-        .record_info(("flow".to_string(), flow.to_string()));
-    // request_state.event_context.record_info(request.clone());
-
     let mut app_state = state.get_ref().clone();
 
     let start_instant = Instant::now();
@@ -863,34 +721,27 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut event_type = payload.get_api_event_type();
-    let tenants: HashSet<_> = state
-        .conf
-        .multitenancy
-        .get_tenant_names()
-        .into_iter()
-        .collect();
     let tenant_id = if !state.conf.multitenancy.enabled {
         DEFAULT_TENANT.to_string()
     } else {
-        incoming_request_header
+        let request_tenant_id = incoming_request_header
             .get(TENANT_HEADER)
             .and_then(|value| value.to_str().ok())
-            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
-            .map(|req_tenant_id| {
-                if !tenants.contains(req_tenant_id) {
-                    Err(errors::ApiErrorResponse::InvalidTenant {
-                        tenant_id: req_tenant_id.to_string(),
-                    }
-                    .switch())
-                } else {
-                    Ok(req_tenant_id.to_string())
+            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())?;
+
+        state
+            .conf
+            .multitenancy
+            .get_tenant(request_tenant_id)
+            .map(|tenant| tenant.tenant_id.clone())
+            .ok_or(
+                errors::ApiErrorResponse::InvalidTenant {
+                    tenant_id: request_tenant_id.to_string(),
                 }
-            })??
+                .switch(),
+            )?
     };
-    request_state
-        .event_context
-        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
-    // let tenant_id = "public".to_string();
+
     let mut session_state =
         Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
             errors::ApiErrorResponse::InvalidTenant {
@@ -899,6 +750,16 @@ where
             .switch()
         })?;
     session_state.add_request_id(request_id);
+    let mut request_state = session_state.get_req_state();
+
+    request_state.event_context.record_info(request_id);
+    request_state
+        .event_context
+        .record_info(("flow".to_string(), flow.to_string()));
+
+    request_state
+        .event_context
+        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth
@@ -910,14 +771,12 @@ where
 
     let merchant_id = auth_type
         .get_merchant_id()
-        .unwrap_or("MERCHANT_ID_NOT_FOUND")
-        .to_string();
-
-    app_state.add_merchant_id(Some(merchant_id.clone()));
+        .cloned()
+        .unwrap_or(common_utils::id_type::MerchantId::get_merchant_id_not_found());
 
     app_state.add_flow_name(flow.to_string());
 
-    tracing::Span::current().record("merchant_id", &merchant_id);
+    tracing::Span::current().record("merchant_id", merchant_id.get_string_repr().to_owned());
 
     let output = {
         lock_action
@@ -999,7 +858,7 @@ where
     metrics::request::status_code_metrics(
         status_code.to_string(),
         flow.to_string(),
-        merchant_id.to_string(),
+        merchant_id.to_owned(),
     );
 
     output
@@ -1026,7 +885,6 @@ where
     ApplicationResponse<Q>: Debug,
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
-    let req_state = state.get_req_state();
     let request_method = request.method().as_str();
     let url_path = request.path();
 
@@ -1061,7 +919,6 @@ where
             &flow,
             state.clone(),
             incoming_request_header,
-            req_state,
             request,
             payload,
             func,
@@ -1118,9 +975,25 @@ where
         }
 
         Ok(ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
-            let link_type = (boxed_generic_link_data).to_string();
-            match build_generic_link_html(*boxed_generic_link_data) {
-                Ok(rendered_html) => http_response_html_data(rendered_html),
+            let link_type = boxed_generic_link_data.data.to_string();
+            match build_generic_link_html(
+                boxed_generic_link_data.data,
+                boxed_generic_link_data.locale,
+            ) {
+                Ok(rendered_html) => {
+                    let headers = if !boxed_generic_link_data.allowed_domains.is_empty() {
+                        let domains_str = boxed_generic_link_data
+                            .allowed_domains
+                            .into_iter()
+                            .collect::<Vec<String>>()
+                            .join(" ");
+                        let csp_header = format!("frame-ancestors 'self' {};", domains_str);
+                        Some(HashSet::from([("content-security-policy", csp_header)]))
+                    } else {
+                        None
+                    };
+                    http_response_html_data(rendered_html, headers)
+                }
                 Err(_) => {
                     http_response_err(format!("Error while rendering {} HTML page", link_type))
                 }
@@ -1131,7 +1004,7 @@ where
             match *boxed_payment_link_data {
                 PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match build_payment_link_html(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1143,7 +1016,7 @@ where
                 }
                 PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
                     match get_payment_link_status(payment_link_data) {
-                        Ok(rendered_html) => http_response_html_data(rendered_html),
+                        Ok(rendered_html) => http_response_html_data(rendered_html, None),
                         Err(_) => http_response_err(
                             r#"{
                                 "error": {
@@ -1272,8 +1145,8 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
         }
         let mut header_value = match HeaderValue::from_str(header_value.as_str()) {
             Ok(header_value) => header_value,
-            Err(e) => {
-                logger::error!(?e);
+            Err(error) => {
+                logger::error!(?error);
                 return http_server_error_json_response("Something Went Wrong");
             }
         };
@@ -1300,8 +1173,22 @@ pub fn http_response_file_data<T: body::MessageBody + 'static>(
     HttpResponse::Ok().content_type(content_type).body(res)
 }
 
-pub fn http_response_html_data<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
-    HttpResponse::Ok().content_type(mime::TEXT_HTML).body(res)
+pub fn http_response_html_data<T: body::MessageBody + 'static>(
+    res: T,
+    optional_headers: Option<HashSet<(&'static str, String)>>,
+) -> HttpResponse {
+    let mut res_builder = HttpResponse::Ok();
+    res_builder.content_type(mime::TEXT_HTML);
+
+    if let Some(headers) = optional_headers {
+        for (key, value) in headers {
+            if let Ok(header_val) = HeaderValue::try_from(value) {
+                res_builder.insert_header((HeaderName::from_static(key), header_val));
+            }
+        }
+    }
+
+    res_builder.body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
@@ -1328,23 +1215,13 @@ pub fn http_response_err<T: body::MessageBody + 'static>(response: T) -> HttpRes
         .body(response)
 }
 
-pub trait ConnectorRedirectResponse {
-    fn get_flow_type(
-        &self,
-        _query_params: &str,
-        _json_payload: Option<serde_json::Value>,
-        _action: PaymentAction,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Avoid)
-    }
-}
-
 pub trait Authenticate {
     fn get_client_secret(&self) -> Option<&String> {
         None
     }
 }
 
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -1357,9 +1234,21 @@ impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsSessionRequest {
     fn get_client_secret(&self) -> Option<&String> {
         Some(&self.client_secret)
+    }
+}
+impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(self.client_secret.peek())
+    }
+}
+
+impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(self.client_secret.peek())
     }
 }
 
@@ -1370,10 +1259,12 @@ impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequ
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
 // impl Authenticate for api_models::payments::PaymentsApproveRequest {}
 impl Authenticate for api_models::payments::PaymentsRejectRequest {}
+// #[cfg(feature = "v2")]
+// impl Authenticate for api_models::payments::PaymentsIntentResponse {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,
-    payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    payment_method_data: Option<PaymentMethodData>,
     amount: String,
     currency: String,
     config: Settings,
@@ -1435,8 +1326,22 @@ pub fn build_redirection_form(
                         input type="hidden" name=(field) value=(value);
                     }
                 }
+                (PreEscaped(format!(r#"
+                    <script type="text/javascript"> {logging_template}
+                    var frm = document.getElementById("payment_form");
+                    var formFields = frm.querySelectorAll("input");
 
-                (PreEscaped(format!("<script type=\"text/javascript\"> {logging_template} var frm = document.getElementById(\"payment_form\"); window.setTimeout(function () {{ frm.submit(); }}, 300); </script>")))
+                    if (frm.method.toUpperCase() === "GET" && formFields.length === 0) {{
+                        window.setTimeout(function () {{
+                            window.location.href = frm.action;
+                        }}, 300);
+                    }} else {{
+                        window.setTimeout(function () {{
+                            frm.submit();
+                        }}, 300);
+                    }}
+                    </script>
+                    "#)))
 
             }
         }
@@ -1448,17 +1353,16 @@ pub fn build_redirection_form(
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
-            let card_details =
-                if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
-                    format!(
-                        "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
-                        ccard.card_cvc.peek(),
-                        amount,
-                        currency
-                    )
-                } else {
-                    "".to_string()
-                };
+            let card_details = if let Some(PaymentMethodData::Card(ccard)) = payment_method_data {
+                format!(
+                    "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
+                    ccard.card_cvc.peek(),
+                    amount,
+                    currency
+                )
+            } else {
+                "".to_string()
+            };
             let bluesnap_sdk_url = config.connectors.bluesnap.secondary_base_url;
             maud::html! {
             (maud::DOCTYPE)
@@ -1877,10 +1781,11 @@ pub fn build_redirection_form(
         RedirectForm::Mifinity {
             initialization_token,
         } => {
+            let mifinity_base_url = config.connectors.mifinity.base_url;
             maud::html! {
                         (maud::DOCTYPE)
                         head {
-                            (PreEscaped(r#"<script src='https://demo.mifinity.com/widgets/sgpg.js?58190a411dc3'></script>"#))
+                            (PreEscaped(format!(r#"<script src='{mifinity_base_url}widgets/sgpg.js?58190a411dc3'></script>"#)))
                         }
 
                         (PreEscaped(format!("<div id='widget-container'></div>
@@ -1888,21 +1793,152 @@ pub fn build_redirection_form(
 		  var widget = showPaymentIframe('widget-container', {{
 			  token: '{initialization_token}',
 			  complete: function() {{
-				  setTimeout(function() {{
-					widget.close();
-				  }}, 5000);
+                var f = document.createElement('form');
+                f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/mifinity\");
+                f.method='GET';
+                document.body.appendChild(f);
+                f.submit();
 			  }}
 		   }});
 	   </script>")))
 
             }
         }
+        RedirectForm::WorldpayDDCForm {
+            endpoint,
+            method,
+            form_fields,
+            collection_id,
+        } => maud::html! {
+            (maud::DOCTYPE)
+            html {
+                meta name="viewport" content="width=device-width, initial-scale=1";
+                head {
+                    (PreEscaped(r##"
+                            <style>
+                                #loader1 {
+                                    width: 500px;
+                                }
+                                @media max-width: 600px {
+                                    #loader1 {
+                                        width: 200px;
+                                    }
+                                }
+                            </style>
+                        "##))
+                }
+
+                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
+                    (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+                    (PreEscaped(r#"
+                        <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                        </script>
+                    "#))
+                    h3 style="text-align: center;" { "Please wait while we process your payment..." }
+
+                    script {
+                        (PreEscaped(format!(
+                            r#"
+                                function submitCollectionReference(collectionReference) {{
+                                    var redirectPathname = window.location.pathname.replace(/payments\/redirect\/(\w+)\/(\w+)\/\w+/, "payments/$1/$2/redirect/complete/worldpay");
+                                    var redirectUrl = window.location.origin + redirectPathname;
+                                    try {{
+                                        if (typeof collectionReference === "string" && collectionReference.length > 0) {{
+                                            var form = document.createElement("form");
+                                            form.action = redirectPathname;
+                                            form.method = "GET";
+                                            var input = document.createElement("input");
+                                            input.type = "hidden";
+                                            input.name = "collectionReference";
+                                            input.value = collectionReference;
+                                            form.appendChild(input);
+                                            document.body.appendChild(form);
+                                            form.submit();;
+                                        }} else {{
+                                            window.location.replace(redirectUrl);
+                                        }}
+                                    }} catch (error) {{
+                                        window.location.replace(redirectUrl);
+                                    }}
+                                }}
+                                var allowedHost = "{}";
+                                var collectionField = "{}";
+                                window.addEventListener("message", function(event) {{
+                                    if (event.origin === allowedHost) {{
+                                        try {{
+                                            var data = JSON.parse(event.data);
+                                            if (collectionField.length > 0) {{
+                                                var collectionReference = data[collectionField];
+                                                return submitCollectionReference(collectionReference);
+                                            }} else {{
+                                                console.error("Collection field not found in event data (" + collectionField + ")"); 
+                                            }}
+                                        }} catch (error) {{
+                                            console.error("Error parsing event data: ", error);
+                                        }}
+                                    }} else {{
+                                        console.error("Invalid origin: " + event.origin, "Expected origin: " + allowedHost);
+                                    }}
+
+                                    submitCollectionReference("");
+                                }});
+
+                                // Redirect within 8 seconds if no collection reference is received
+                                window.setTimeout(submitCollectionReference, 8000);
+                            "#,
+                            endpoint.host_str().map_or(endpoint.as_ref().split('/').take(3).collect::<Vec<&str>>().join("/"), |host| format!("{}://{}", endpoint.scheme(), host)),
+                            collection_id.clone().unwrap_or("".to_string())))
+                        )
+                    }
+
+                    iframe
+                        style="display: none;"
+                        srcdoc=(
+                            maud::html! {
+                                (maud::DOCTYPE)
+                                html {
+                                    body {
+                                        form action=(PreEscaped(endpoint.to_string())) method=(method.to_string()) #payment_form {
+                                            @for (field, value) in form_fields {
+                                                input type="hidden" name=(field) value=(value);
+                                            }
+                                        }
+                                        (PreEscaped(format!(r#"
+                                            <script type="text/javascript"> {logging_template}
+                                                var form = document.getElementById("payment_form"); 
+                                                var formFields = form.querySelectorAll("input");
+                                                window.setTimeout(function () {{
+                                                    if (form.method.toUpperCase() === "GET" && formFields.length === 0) {{
+                                                        window.location.href = form.action;
+                                                    }} else {{
+                                                        form.submit();
+                                                    }}
+                                                }}, 300);
+                                            </script>
+                                        "#)))
+                                    }
+                                }
+                            }.into_string()
+                        )
+                        {}
+                }
+            }
+        },
     }
 }
 
-pub fn build_payment_link_html(
+fn build_payment_link_template(
     payment_link_data: PaymentLinkFormData,
-) -> CustomResult<String, errors::ApiErrorResponse> {
+) -> CustomResult<(Tera, Context), errors::ApiErrorResponse> {
     let mut tera = Tera::default();
 
     // Add modification to css template with dynamic data
@@ -1939,6 +1975,8 @@ pub fn build_payment_link_html(
     // Logging template
     let logging_template =
         include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+    //Locale template
+    let locale_template = include_str!("../core/payment_link/locale.js").to_string();
 
     // Modify Html template with rendered js and rendered css files
     let html_template =
@@ -1954,26 +1992,52 @@ pub fn build_payment_link_html(
     );
 
     context.insert(
-        "preload_link_tags",
-        &get_preload_link_html_template(&payment_link_data.sdk_url),
-    );
-
-    context.insert(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
+    context.insert("locale_template", &locale_template);
     context.insert("rendered_css", &rendered_css);
     context.insert("rendered_js", &rendered_js);
 
     context.insert("logging_template", &logging_template);
 
-    match tera.render("payment_link", &context) {
-        Ok(rendered_html) => Ok(rendered_html),
-        Err(tera_error) => {
+    Ok((tera, context))
+}
+
+pub fn build_payment_link_html(
+    payment_link_data: PaymentLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let (tera, mut context) = build_payment_link_template(payment_link_data)
+        .attach_printable("Failed to build payment link's HTML template")?;
+    let payment_link_initiator =
+        include_str!("../core/payment_link/payment_link_initiate/payment_link_initiator.js")
+            .to_string();
+    context.insert("payment_link_initiator", &payment_link_initiator);
+
+    tera.render("payment_link", &context)
+        .map_err(|tera_error: TeraError| {
             crate::logger::warn!("{tera_error}");
-            Err(errors::ApiErrorResponse::InternalServerError)?
-        }
-    }
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Error while rendering open payment link's HTML template")
+}
+
+pub fn build_secure_payment_link_html(
+    payment_link_data: PaymentLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let (tera, mut context) = build_payment_link_template(payment_link_data)
+        .attach_printable("Failed to build payment link's HTML template")?;
+    let payment_link_initiator =
+        include_str!("../core/payment_link/payment_link_initiate/secure_payment_link_initiator.js")
+            .to_string();
+    context.insert("payment_link_initiator", &payment_link_initiator);
+
+    tera.render("payment_link", &context)
+        .map_err(|tera_error: TeraError| {
+            crate::logger::warn!("{tera_error}");
+            report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Error while rendering secure payment link's HTML template")
 }
 
 fn get_hyper_loader_sdk(sdk_url: &str) -> String {
@@ -2008,6 +2072,9 @@ pub fn get_payment_link_status(
         }
     };
 
+    //Locale template
+    let locale_template = include_str!("../core/payment_link/locale.js");
+
     // Logging template
     let logging_template =
         include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
@@ -2032,6 +2099,7 @@ pub fn get_payment_link_status(
     let _ = tera.add_raw_template("payment_link_status", &html_template);
 
     context.insert("rendered_css", &rendered_css);
+    context.insert("locale_template", &locale_template);
 
     context.insert("rendered_js", &rendered_js);
     context.insert("logging_template", &logging_template);

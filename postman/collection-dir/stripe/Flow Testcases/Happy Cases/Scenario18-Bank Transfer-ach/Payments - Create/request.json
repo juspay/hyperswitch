@@ -52,10 +52,6 @@
           "last_name": "Kumari"
         },
         "email": "guest@example.com"
-      },
-      "routing": {
-        "type": "single",
-        "data": "stripe"
       }
     }
   },

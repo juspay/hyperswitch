@@ -25,14 +25,18 @@ where
     result
 }
 
-pub fn status_code_metrics(status_code: String, flow: String, merchant_id: String) {
+pub fn status_code_metrics(
+    status_code: String,
+    flow: String,
+    merchant_id: common_utils::id_type::MerchantId,
+) {
     super::REQUEST_STATUS.add(
         &super::CONTEXT,
         1,
         &add_attributes([
             ("status_code", status_code),
             ("flow", flow),
-            ("merchant_id", merchant_id),
+            ("merchant_id", merchant_id.get_string_repr().to_owned()),
         ]),
     )
 }

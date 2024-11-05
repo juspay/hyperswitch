@@ -88,6 +88,12 @@ pub enum UserErrors {
     AuthConfigParsingError,
     #[error("Invalid SSO request")]
     SSOFailed,
+    #[error("profile_id missing in JWT")]
+    JwtProfileIdMissing,
+    #[error("Maximum attempts reached for TOTP")]
+    MaxTotpAttemptsReached,
+    #[error("Maximum attempts reached for Recovery Code")]
+    MaxRecoveryCodeAttemptsReached,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -224,6 +230,15 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::SSOFailed => {
                 AER::BadRequest(ApiError::new(sub_code, 46, self.get_error_message(), None))
             }
+            Self::JwtProfileIdMissing => {
+                AER::Unauthorized(ApiError::new(sub_code, 47, self.get_error_message(), None))
+            }
+            Self::MaxTotpAttemptsReached => {
+                AER::BadRequest(ApiError::new(sub_code, 48, self.get_error_message(), None))
+            }
+            Self::MaxRecoveryCodeAttemptsReached => {
+                AER::BadRequest(ApiError::new(sub_code, 49, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -264,6 +279,8 @@ impl UserErrors {
             Self::InvalidTotp => "Invalid TOTP",
             Self::TotpRequired => "TOTP required",
             Self::InvalidRecoveryCode => "Invalid Recovery Code",
+            Self::MaxTotpAttemptsReached => "Maximum attempts reached for TOTP",
+            Self::MaxRecoveryCodeAttemptsReached => "Maximum attempts reached for Recovery Code",
             Self::TwoFactorAuthRequired => "Two factor auth required",
             Self::TwoFactorAuthNotSetup => "Two factor auth not setup",
             Self::TotpSecretNotFound => "TOTP secret not found",
@@ -271,6 +288,7 @@ impl UserErrors {
             Self::InvalidUserAuthMethodOperation => "Invalid user auth method operation",
             Self::AuthConfigParsingError => "Auth config parsing error",
             Self::SSOFailed => "Invalid SSO request",
+            Self::JwtProfileIdMissing => "profile_id missing in JWT",
         }
     }
 }

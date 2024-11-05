@@ -1,4 +1,4 @@
-import createConnectorBody from "../../fixtures/create-connector-body.json";
+import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
 import { payment_methods_enabled } from "../PaymentUtils/Commons";
 
@@ -16,7 +16,8 @@ describe("Connector Account Create flow test", () => {
 
   it("connector-create-call-test", () => {
     cy.createConnectorCallTest(
-      createConnectorBody,
+      "payment_processor",
+      fixtures.createConnectorBody,
       payment_methods_enabled,
       globalState
     );

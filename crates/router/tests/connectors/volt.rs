@@ -11,7 +11,7 @@ impl utils::Connector for VoltTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Volt;
         utils::construct_connector_data_old(
-            Box::new(&Volt),
+            Box::new(Volt::new()),
             types::Connector::Volt,
             types::api::GetToken::Connector,
             None,

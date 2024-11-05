@@ -57,7 +57,7 @@ body {
   font-size: 25px;
 }
 #merchant-header > img {
-  height: 30px;
+  height: 48px;
 }
 
 #status-image {
@@ -78,17 +78,18 @@ body {
 }
 
 #resource-info-container {
-  width: calc(100% - 80px);
+  width: 100%;
   border-top: 1px solid rgb(231, 234, 241);
-  padding: 20px 40px;
+  padding: 20px 0;
 }
 #resource-info {
   display: flex;
   align-items: center;
+  margin: 0 2.5rem;
 }
 #info-key {
   text-align: right;
-  font-size: 15px;
+  font-size: 14px;
   min-width: 10ch;
 }
 #info-val {
@@ -101,13 +102,33 @@ body {
   margin-top: 40px;
 }
 
-@media only screen and (max-width: 1199px) {
+@media only screen and (max-width: 420px) {
   body {
     overflow-y: scroll;
   }
 
+  body {
+    justify-content: start;
+  }
+
   .main {
-    width: auto;
+    width: 100%;
     min-width: 300px;
+  }
+
+  #status-card {
+    box-shadow: none;
+  }
+
+  #info-key {
+    min-width: 12ch;
+  }
+
+  #info-val {
+    font-size: 11px;
+  }
+
+  #resource-info {
+    margin: 0 10px;
   }
 }

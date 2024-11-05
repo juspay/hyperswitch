@@ -1,33 +1,32 @@
-#![forbid(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
 use masking::{PeekInterface, Secret};
 
-use crate::{
-    consts::ID_LENGTH,
-    id_type::{CustomerId, MerchantReferenceId},
-};
-
 pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
+#[allow(missing_docs)] // Todo: add docs
+pub mod encryption;
 pub mod errors;
 #[allow(missing_docs)] // Todo: add docs
 pub mod events;
 pub mod ext_traits;
 pub mod fp_utils;
 pub mod id_type;
+#[cfg(feature = "keymanager")]
+pub mod keymanager;
 pub mod link_utils;
 pub mod macros;
+pub mod new_type;
+pub mod payout_method_utils;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
 #[cfg(feature = "signals")]
 pub mod signals;
-#[allow(missing_docs)] // Todo: add docs
-pub mod static_cache;
+pub mod transformers;
 pub mod types;
 pub mod validation;
 
@@ -60,6 +59,8 @@ pub mod date_time {
         YYYYMMDD,
         /// Format the date in 201911050811 format
         YYYYMMDDHHmm,
+        /// Format the date in 05112019081132 format
+        DDMMYYYYHHmmss,
     }
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
@@ -113,6 +114,7 @@ pub mod date_time {
                 DateFormat::YYYYMMDDHHmmss => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
                 DateFormat::YYYYMMDD => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero]"),
                 DateFormat::YYYYMMDDHHmm => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero]"),
+                DateFormat::DDMMYYYYHHmmss => time::macros::format_description!("[day padding:zero][month padding:zero repr:numerical][year repr:full][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
             }
         }
     }
@@ -207,22 +209,52 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &consts::ALPHABETS))
 }
 
-/// Generate a MerchantRefId with the default length
-fn generate_merchant_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
+/// Generate a ReferenceId with the default length with the given prefix
+fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
     prefix: &str,
-) -> MerchantReferenceId<MAX_LENGTH, MIN_LENGTH> {
-    MerchantReferenceId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
+) -> id_type::LengthId<MAX_LENGTH, MIN_LENGTH> {
+    id_type::LengthId::<MAX_LENGTH, MIN_LENGTH>::new(prefix)
 }
 
-/// Generate a customer id with default length
-pub fn generate_customer_id_of_default_length() -> CustomerId {
-    CustomerId::new(generate_merchant_ref_id_with_default_length("cus"))
+/// Generate a customer id with default length, with prefix as `cus`
+pub fn generate_customer_id_of_default_length() -> id_type::CustomerId {
+    use id_type::GenerateId;
+
+    id_type::CustomerId::generate()
+}
+
+/// Generate a organization id with default length, with prefix as `org`
+pub fn generate_organization_id_of_default_length() -> id_type::OrganizationId {
+    use id_type::GenerateId;
+
+    id_type::OrganizationId::generate()
+}
+
+/// Generate a profile id with default length, with prefix as `pro`
+pub fn generate_profile_id_of_default_length() -> id_type::ProfileId {
+    use id_type::GenerateId;
+
+    id_type::ProfileId::generate()
+}
+
+/// Generate a routing id with default length, with prefix as `routing`
+pub fn generate_routing_id_of_default_length() -> id_type::RoutingId {
+    use id_type::GenerateId;
+
+    id_type::RoutingId::generate()
+}
+/// Generate a merchant_connector_account id with default length, with prefix as `mca`
+pub fn generate_merchant_connector_account_id_of_default_length(
+) -> id_type::MerchantConnectorAccountId {
+    use id_type::GenerateId;
+
+    id_type::MerchantConnectorAccountId::generate()
 }
 
 /// Generate a nanoid with the given prefix and a default length
 #[inline]
 pub fn generate_id_with_default_len(prefix: &str) -> String {
-    let len = ID_LENGTH;
+    let len: usize = consts::ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
 }
 
@@ -232,6 +264,17 @@ pub fn generate_time_ordered_id(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
 }
 
+/// Generate a time-ordered (time-sortable) unique identifier using the current time without prefix
+#[inline]
+pub fn generate_time_ordered_id_without_prefix() -> String {
+    uuid::Uuid::now_v7().as_simple().to_string()
+}
+
+/// Generate a nanoid with the specified length
+#[inline]
+pub fn generate_id_with_len(length: usize) -> String {
+    nanoid::nanoid!(length, &consts::ALPHABETS)
+}
 #[allow(missing_docs)]
 pub trait DbConnectionParams {
     fn get_username(&self) -> &str;
@@ -272,7 +315,7 @@ mod nanoid_tests {
 
     #[test]
     fn test_generate_merchant_ref_id_with_default_length() {
-        let ref_id = MerchantReferenceId::<
+        let ref_id = id_type::LengthId::<
             MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH,
             MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH,
         >::from(generate_id_with_default_len("def").into());

@@ -5,6 +5,8 @@ body {
 }
 
 body {
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   display: flex;
   flex-flow: column;
   align-items: center;
@@ -26,7 +28,8 @@ body {
   scrollbar-width: none;
 }
 
-.main, #payout-link {
+.main,
+#payout-link {
   height: 100vh;
   width: 100%;
 }

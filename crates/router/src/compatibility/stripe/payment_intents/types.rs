@@ -244,7 +244,7 @@ pub struct OnlineMandate {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct StripePaymentIntentRequest {
-    pub id: Option<String>,
+    pub id: Option<id_type::PaymentId>,
     pub amount: Option<i64>, // amount in cents, hence passed as integer
     pub connector: Option<Vec<api_enums::RoutableConnectors>>,
     pub currency: Option<String>,
@@ -293,13 +293,9 @@ impl TryFrom<StripePaymentIntentRequest> for payments::PaymentsRequest {
             .map(|connector| {
                 api_models::routing::RoutingAlgorithm::Single(Box::new(
                     api_models::routing::RoutableConnectorChoice {
-                        #[cfg(feature = "backwards_compatibility")]
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
                         connector,
-                        #[cfg(feature = "connector_choice_mca_id")]
                         merchant_connector_id: None,
-                        #[cfg(not(feature = "connector_choice_mca_id"))]
-                        sub_label: None,
                     },
                 ))
             })
@@ -466,11 +462,11 @@ impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
 
 #[derive(Default, Eq, PartialEq, Serialize, Debug)]
 pub struct StripePaymentIntentResponse {
-    pub id: Option<String>,
+    pub id: id_type::PaymentId,
     pub object: &'static str,
     pub amount: i64,
     pub amount_received: Option<i64>,
-    pub amount_capturable: Option<i64>,
+    pub amount_capturable: i64,
     pub currency: String,
     pub status: StripePaymentStatus,
     pub client_secret: Option<masking::Secret<String>>,
@@ -524,7 +520,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
             id: resp.payment_id,
             status: StripePaymentStatus::from(resp.status),
             amount: resp.amount.get_amount_as_i64(),
-            amount_capturable: resp.amount_capturable.map(|amt| amt.get_amount_as_i64()),
+            amount_capturable: resp.amount_capturable.get_amount_as_i64(),
             amount_received: resp.amount_received.map(|amt| amt.get_amount_as_i64()),
             connector: resp.connector,
             client_secret: resp.client_secret,
@@ -619,8 +615,8 @@ impl Charges {
 #[serde(deny_unknown_fields)]
 pub struct StripePaymentListConstraints {
     pub customer: Option<id_type::CustomerId>,
-    pub starting_after: Option<String>,
-    pub ending_before: Option<String>,
+    pub starting_after: Option<id_type::PaymentId>,
+    pub ending_before: Option<id_type::PaymentId>,
     #[serde(default = "default_limit")]
     pub limit: u32,
     pub created: Option<i64>,
@@ -864,6 +860,7 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
+
         payments::NextActionData::QrCodeInformation {
             image_data_url,
             display_to_timestamp,

@@ -58,8 +58,8 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct OutgoingWebhookTrackingData {
-    pub(crate) merchant_id: String,
-    pub(crate) business_profile_id: String,
+    pub(crate) merchant_id: common_utils::id_type::MerchantId,
+    pub(crate) business_profile_id: common_utils::id_type::ProfileId,
     pub(crate) event_type: enums::EventType,
     pub(crate) event_class: enums::EventClass,
     pub(crate) primary_object_id: String,

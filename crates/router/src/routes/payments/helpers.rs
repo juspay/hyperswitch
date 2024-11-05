@@ -7,6 +7,7 @@ use crate::{
     utils::{Encode, ValueExt},
 };
 
+#[cfg(feature = "v1")]
 pub fn populate_ip_into_browser_info(
     req: &actix_web::HttpRequest,
     payload: &mut api::PaymentsRequest,
@@ -46,8 +47,11 @@ pub fn populate_ip_into_browser_info(
             .as_ref()
             .map(|ip| ip.parse())
             .transpose()
-            .unwrap_or_else(|e| {
-                logger::error!(error=?e, message="failed to parse ip address which is extracted from the request");
+            .unwrap_or_else(|error| {
+                logger::error!(
+                    ?error,
+                    "failed to parse ip address which is extracted from the request"
+                );
                 None
             })
     });

@@ -12,8 +12,6 @@ use crate::types::{DataType, Metadata};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ConnectorChoice {
     pub connector: RoutableConnectors,
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    pub sub_label: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, ToSchema)]
@@ -163,18 +161,16 @@ pub struct Program<O> {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct RoutableConnectorChoice {
-    #[cfg(feature = "connector_choice_bcompat")]
     #[serde(skip)]
     pub choice_kind: RoutableChoiceKind,
-    #[cfg(feature = "connector_choice_mca_id")]
-    pub merchant_connector_id: Option<String>,
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    pub sub_label: Option<String>,
+    pub connector: RoutableConnectors,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize, ToSchema)]
 pub enum RoutableChoiceKind {
     OnlyConnector,
+    #[default]
     FullStruct,
 }
 

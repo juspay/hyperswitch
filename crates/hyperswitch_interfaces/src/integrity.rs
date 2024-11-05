@@ -140,11 +140,19 @@ impl FlowIntegrity for RefundIntegrityObject {
         let mut mismatched_fields = Vec::new();
 
         if req_integrity_object.currency != res_integrity_object.currency {
-            mismatched_fields.push("currency".to_string());
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
         }
 
         if req_integrity_object.refund_amount != res_integrity_object.refund_amount {
-            mismatched_fields.push("refund_amount".to_string());
+            mismatched_fields.push(format_mismatch(
+                "refund_amount",
+                &req_integrity_object.refund_amount.to_string(),
+                &res_integrity_object.refund_amount.to_string(),
+            ));
         }
 
         if mismatched_fields.is_empty() {
@@ -170,11 +178,19 @@ impl FlowIntegrity for AuthoriseIntegrityObject {
         let mut mismatched_fields = Vec::new();
 
         if req_integrity_object.amount != res_integrity_object.amount {
-            mismatched_fields.push("amount".to_string());
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
         }
 
         if req_integrity_object.currency != res_integrity_object.currency {
-            mismatched_fields.push("currency".to_string());
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
         }
 
         if mismatched_fields.is_empty() {
@@ -200,29 +216,28 @@ impl FlowIntegrity for SyncIntegrityObject {
         let mut mismatched_fields = Vec::new();
 
         res_integrity_object
-            .captured_amount
-            .zip(req_integrity_object.captured_amount)
-            .map(|tup| {
-                if tup.0 != tup.1 {
-                    mismatched_fields.push("captured_amount".to_string());
-                }
-            });
-
-        res_integrity_object
             .amount
             .zip(req_integrity_object.amount)
-            .map(|tup| {
-                if tup.0 != tup.1 {
-                    mismatched_fields.push("amount".to_string());
+            .map(|(res_amount, req_amount)| {
+                if res_amount != req_amount {
+                    mismatched_fields.push(format_mismatch(
+                        "amount",
+                        &req_amount.to_string(),
+                        &res_amount.to_string(),
+                    ));
                 }
             });
 
         res_integrity_object
             .currency
             .zip(req_integrity_object.currency)
-            .map(|tup| {
-                if tup.0 != tup.1 {
-                    mismatched_fields.push("currency".to_string());
+            .map(|(res_currency, req_currency)| {
+                if res_currency != req_currency {
+                    mismatched_fields.push(format_mismatch(
+                        "currency",
+                        &req_currency.to_string(),
+                        &res_currency.to_string(),
+                    ));
                 }
             });
 
@@ -251,14 +266,22 @@ impl FlowIntegrity for CaptureIntegrityObject {
         res_integrity_object
             .capture_amount
             .zip(req_integrity_object.capture_amount)
-            .map(|tup| {
-                if tup.0 != tup.1 {
-                    mismatched_fields.push("capture_amount".to_string());
+            .map(|(res_amount, req_amount)| {
+                if res_amount != req_amount {
+                    mismatched_fields.push(format_mismatch(
+                        "capture_amount",
+                        &req_amount.to_string(),
+                        &res_amount.to_string(),
+                    ));
                 }
             });
 
         if req_integrity_object.currency != res_integrity_object.currency {
-            mismatched_fields.push("currency".to_string());
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
+            ));
         }
 
         if mismatched_fields.is_empty() {
@@ -322,7 +345,11 @@ impl GetIntegrityObject<SyncIntegrityObject> for PaymentsSyncData {
         SyncIntegrityObject {
             amount: Some(self.amount),
             currency: Some(self.currency),
-            captured_amount: self.captured_amount,
         }
     }
+}
+
+#[inline]
+fn format_mismatch(field: &str, expected: &str, found: &str) -> String {
+    format!("{} expected {} but found {}", field, expected, found)
 }

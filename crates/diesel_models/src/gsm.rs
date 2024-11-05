@@ -4,7 +4,7 @@ use common_utils::{
     custom_serde,
     events::{ApiEventMetric, ApiEventsType},
 };
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
 use crate::schema::gateway_status_map;
@@ -19,9 +19,10 @@ use crate::schema::gateway_status_map;
     router_derive::DebugAsDisplay,
     Identifiable,
     Queryable,
+    Selectable,
     serde::Serialize,
 )]
-#[diesel(table_name = gateway_status_map, primary_key(connector, flow, sub_flow, code, message))]
+#[diesel(table_name = gateway_status_map, primary_key(connector, flow, sub_flow, code, message), check_for_backend(diesel::pg::Pg))]
 pub struct GatewayStatusMap {
     pub connector: String,
     pub flow: String,

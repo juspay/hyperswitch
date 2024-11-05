@@ -1,4 +1,5 @@
-use common_utils::hashing::HashedString;
+use common_utils::{hashing::HashedString, types::TimeRange};
+use masking::WithType;
 use serde_json::Value;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -7,6 +8,26 @@ pub struct SearchFilters {
     pub currency: Option<Vec<String>>,
     pub status: Option<Vec<String>>,
     pub customer_email: Option<Vec<HashedString<common_utils::pii::EmailStrategy>>>,
+    pub search_tags: Option<Vec<HashedString<WithType>>>,
+    pub connector: Option<Vec<String>>,
+    pub payment_method_type: Option<Vec<String>>,
+    pub card_network: Option<Vec<String>>,
+    pub card_last_4: Option<Vec<String>>,
+    pub payment_id: Option<Vec<String>>,
+}
+impl SearchFilters {
+    pub fn is_all_none(&self) -> bool {
+        self.payment_method.is_none()
+            && self.currency.is_none()
+            && self.status.is_none()
+            && self.customer_email.is_none()
+            && self.search_tags.is_none()
+            && self.connector.is_none()
+            && self.payment_method_type.is_none()
+            && self.card_network.is_none()
+            && self.card_last_4.is_none()
+            && self.payment_id.is_none()
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -15,6 +36,8 @@ pub struct GetGlobalSearchRequest {
     pub query: String,
     #[serde(default)]
     pub filters: Option<SearchFilters>,
+    #[serde(default)]
+    pub time_range: Option<TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -25,6 +48,8 @@ pub struct GetSearchRequest {
     pub query: String,
     #[serde(default)]
     pub filters: Option<SearchFilters>,
+    #[serde(default)]
+    pub time_range: Option<TimeRange>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -43,6 +68,10 @@ pub enum SearchIndex {
     PaymentIntents,
     Refunds,
     Disputes,
+    SessionizerPaymentAttempts,
+    SessionizerPaymentIntents,
+    SessionizerRefunds,
+    SessionizerDisputes,
 }
 
 #[derive(Debug, strum::EnumIter, Clone, serde::Deserialize, serde::Serialize, Copy)]

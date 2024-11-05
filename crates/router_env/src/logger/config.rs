@@ -151,6 +151,8 @@ impl Config {
             .add_source(config::Environment::with_prefix("ROUTER").separator("__"))
             .build()?;
 
+        // The logger may not yet be initialized when constructing the application configuration
+        #[allow(clippy::print_stderr)]
         serde_path_to_error::deserialize(config).map_err(|error| {
             crate::error!(%error, "Unable to deserialize configuration");
             eprintln!("Unable to deserialize application configuration: {error}");

@@ -6,25 +6,33 @@ use common_utils::errors::{CustomResult, ReportSwitchExt};
 use error_stack::ResultExt;
 use router_env::tracing;
 
-use crate::opensearch::{
-    OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder,
+use crate::{
+    enums::AuthInfo,
+    opensearch::{OpenSearchClient, OpenSearchError, OpenSearchQuery, OpenSearchQueryBuilder},
 };
 
 pub async fn msearch_results(
     client: &OpenSearchClient,
     req: GetGlobalSearchRequest,
-    merchant_id: &String,
+    search_params: Vec<AuthInfo>,
     indexes: Vec<SearchIndex>,
 ) -> CustomResult<Vec<GetSearchResponse>, OpenSearchError> {
-    let mut query_builder =
-        OpenSearchQueryBuilder::new(OpenSearchQuery::Msearch(indexes.clone()), req.query);
-
-    query_builder
-        .add_filter_clause(
-            "merchant_id.keyword".to_string(),
-            vec![merchant_id.to_string()],
+    if req.query.trim().is_empty()
+        && req
+            .filters
+            .as_ref()
+            .map_or(true, |filters| filters.is_all_none())
+    {
+        return Err(OpenSearchError::BadRequestError(
+            "Both query and filters are empty".to_string(),
         )
-        .switch()?;
+        .into());
+    }
+    let mut query_builder = OpenSearchQueryBuilder::new(
+        OpenSearchQuery::Msearch(indexes.clone()),
+        req.query,
+        search_params,
+    );
 
     if let Some(filters) = req.filters {
         if let Some(currency) = filters.currency {
@@ -66,6 +74,66 @@ pub async fn msearch_results(
                     .switch()?;
             }
         };
+        if let Some(search_tags) = filters.search_tags {
+            if !search_tags.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "feature_metadata.search_tags.keyword".to_string(),
+                        search_tags
+                            .iter()
+                            .filter_map(|search_tag| {
+                                // TODO: Add trait based inputs instead of converting this to strings
+                                serde_json::to_value(search_tag)
+                                    .ok()
+                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
+                            })
+                            .collect(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(connector) = filters.connector {
+            if !connector.is_empty() {
+                query_builder
+                    .add_filter_clause("connector.keyword".to_string(), connector.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method_type) = filters.payment_method_type {
+            if !payment_method_type.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_method_type.keyword".to_string(),
+                        payment_method_type.clone(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_network) = filters.card_network {
+            if !card_network.is_empty() {
+                query_builder
+                    .add_filter_clause("card_network.keyword".to_string(), card_network.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(card_last_4) = filters.card_last_4 {
+            if !card_last_4.is_empty() {
+                query_builder
+                    .add_filter_clause("card_last_4.keyword".to_string(), card_last_4.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_id) = filters.payment_id {
+            if !payment_id.is_empty() {
+                query_builder
+                    .add_filter_clause("payment_id.keyword".to_string(), payment_id.clone())
+                    .switch()?;
+            }
+        };
+    };
+
+    if let Some(time_range) = req.time_range {
+        query_builder.set_time_range(time_range.into()).switch()?;
     };
 
     let response_text: OpenMsearchOutput = client
@@ -119,19 +187,15 @@ pub async fn msearch_results(
 pub async fn search_results(
     client: &OpenSearchClient,
     req: GetSearchRequestWithIndex,
-    merchant_id: &String,
+    search_params: Vec<AuthInfo>,
 ) -> CustomResult<GetSearchResponse, OpenSearchError> {
     let search_req = req.search_req;
 
-    let mut query_builder =
-        OpenSearchQueryBuilder::new(OpenSearchQuery::Search(req.index), search_req.query);
-
-    query_builder
-        .add_filter_clause(
-            "merchant_id.keyword".to_string(),
-            vec![merchant_id.to_string()],
-        )
-        .switch()?;
+    let mut query_builder = OpenSearchQueryBuilder::new(
+        OpenSearchQuery::Search(req.index),
+        search_req.query,
+        search_params,
+    );
 
     if let Some(filters) = search_req.filters {
         if let Some(currency) = filters.currency {
@@ -173,7 +237,68 @@ pub async fn search_results(
                     .switch()?;
             }
         };
+        if let Some(search_tags) = filters.search_tags {
+            if !search_tags.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "feature_metadata.search_tags.keyword".to_string(),
+                        search_tags
+                            .iter()
+                            .filter_map(|search_tag| {
+                                // TODO: Add trait based inputs instead of converting this to strings
+                                serde_json::to_value(search_tag)
+                                    .ok()
+                                    .and_then(|a| a.as_str().map(|a| a.to_string()))
+                            })
+                            .collect(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(connector) = filters.connector {
+            if !connector.is_empty() {
+                query_builder
+                    .add_filter_clause("connector.keyword".to_string(), connector.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_method_type) = filters.payment_method_type {
+            if !payment_method_type.is_empty() {
+                query_builder
+                    .add_filter_clause(
+                        "payment_method_type.keyword".to_string(),
+                        payment_method_type.clone(),
+                    )
+                    .switch()?;
+            }
+        };
+        if let Some(card_network) = filters.card_network {
+            if !card_network.is_empty() {
+                query_builder
+                    .add_filter_clause("card_network.keyword".to_string(), card_network.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(card_last_4) = filters.card_last_4 {
+            if !card_last_4.is_empty() {
+                query_builder
+                    .add_filter_clause("card_last_4.keyword".to_string(), card_last_4.clone())
+                    .switch()?;
+            }
+        };
+        if let Some(payment_id) = filters.payment_id {
+            if !payment_id.is_empty() {
+                query_builder
+                    .add_filter_clause("payment_id.keyword".to_string(), payment_id.clone())
+                    .switch()?;
+            }
+        };
     };
+
+    if let Some(time_range) = search_req.time_range {
+        query_builder.set_time_range(time_range.into()).switch()?;
+    };
+
     query_builder
         .set_offset_n_count(search_req.offset, search_req.count)
         .switch()?;

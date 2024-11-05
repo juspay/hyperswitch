@@ -2,7 +2,7 @@ use std::{any::Any, borrow::Cow, fmt::Debug, sync::Arc};
 
 use common_utils::{
     errors::{self, CustomResult},
-    ext_traits::AsyncExt,
+    ext_traits::{AsyncExt, ByteSliceExt},
 };
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
@@ -22,30 +22,6 @@ use crate::{
 
 /// Redis channel name used for publishing invalidation messages
 pub const IMC_INVALIDATION_CHANNEL: &str = "hyperswitch_invalidate";
-
-/// Prefix for config cache key
-const CONFIG_CACHE_PREFIX: &str = "config";
-
-/// Prefix for accounts cache key
-const ACCOUNTS_CACHE_PREFIX: &str = "accounts";
-
-/// Prefix for routing cache key
-const ROUTING_CACHE_PREFIX: &str = "routing";
-
-/// Prefix for three ds decision manager cache key
-const DECISION_MANAGER_CACHE_PREFIX: &str = "decision_manager";
-
-/// Prefix for surcharge cache key
-const SURCHARGE_CACHE_PREFIX: &str = "surcharge";
-
-/// Prefix for cgraph cache key
-const CGRAPH_CACHE_PREFIX: &str = "cgraph";
-
-/// Prefix for all kinds of cache key
-const ALL_CACHE_PREFIX: &str = "all_cache_kind";
-
-/// Prefix for PM Filter cgraph cache key
-const PM_FILTERS_CGRAPH_CACHE_PREFIX: &str = "pm_filters_cgraph";
 
 /// Time to live 30 mins
 const CACHE_TTL: u64 = 30 * 60;
@@ -96,11 +72,28 @@ pub static PM_FILTERS_CGRAPH_CACHE: Lazy<Cache> = Lazy::new(|| {
     )
 });
 
+/// Dynamic Algorithm Cache
+pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+    Cache::new(
+        "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
+        CACHE_TTL,
+        CACHE_TTI,
+        Some(MAX_CAPACITY),
+    )
+});
+
 /// Trait which defines the behaviour of types that's gonna be stored in Cache
 pub trait Cacheable: Any + Send + Sync + DynClone {
     fn as_any(&self) -> &dyn Any;
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct CacheRedact<'a> {
+    pub tenant: String,
+    pub kind: CacheKind<'a>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum CacheKind<'a> {
     Config(Cow<'a, str>),
     Accounts(Cow<'a, str>),
@@ -108,49 +101,35 @@ pub enum CacheKind<'a> {
     DecisionManager(Cow<'a, str>),
     Surcharge(Cow<'a, str>),
     CGraph(Cow<'a, str>),
+    SuccessBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
 }
 
-impl<'a> From<CacheKind<'a>> for RedisValue {
-    fn from(kind: CacheKind<'a>) -> Self {
-        let value = match kind {
-            CacheKind::Config(s) => format!("{CONFIG_CACHE_PREFIX},{s}"),
-            CacheKind::Accounts(s) => format!("{ACCOUNTS_CACHE_PREFIX},{s}"),
-            CacheKind::Routing(s) => format!("{ROUTING_CACHE_PREFIX},{s}"),
-            CacheKind::DecisionManager(s) => format!("{DECISION_MANAGER_CACHE_PREFIX},{s}"),
-            CacheKind::Surcharge(s) => format!("{SURCHARGE_CACHE_PREFIX},{s}"),
-            CacheKind::CGraph(s) => format!("{CGRAPH_CACHE_PREFIX},{s}"),
-            CacheKind::PmFiltersCGraph(s) => format!("{PM_FILTERS_CGRAPH_CACHE_PREFIX},{s}"),
-            CacheKind::All(s) => format!("{ALL_CACHE_PREFIX},{s}"),
-        };
-        Self::from_string(value)
+impl<'a> TryFrom<CacheRedact<'a>> for RedisValue {
+    type Error = Report<errors::ValidationError>;
+    fn try_from(v: CacheRedact<'a>) -> Result<Self, Self::Error> {
+        Ok(Self::from_bytes(serde_json::to_vec(&v).change_context(
+            errors::ValidationError::InvalidValue {
+                message: "Invalid publish key provided in pubsub".into(),
+            },
+        )?))
     }
 }
 
-impl<'a> TryFrom<RedisValue> for CacheKind<'a> {
+impl<'a> TryFrom<RedisValue> for CacheRedact<'a> {
     type Error = Report<errors::ValidationError>;
-    fn try_from(kind: RedisValue) -> Result<Self, Self::Error> {
-        let validation_err = errors::ValidationError::InvalidValue {
-            message: "Invalid publish key provided in pubsub".into(),
-        };
-        let kind = kind.as_string().ok_or(validation_err.clone())?;
-        let split = kind.split_once(',').ok_or(validation_err.clone())?;
-        match split.0 {
-            ACCOUNTS_CACHE_PREFIX => Ok(Self::Accounts(Cow::Owned(split.1.to_string()))),
-            CONFIG_CACHE_PREFIX => Ok(Self::Config(Cow::Owned(split.1.to_string()))),
-            ROUTING_CACHE_PREFIX => Ok(Self::Routing(Cow::Owned(split.1.to_string()))),
-            DECISION_MANAGER_CACHE_PREFIX => {
-                Ok(Self::DecisionManager(Cow::Owned(split.1.to_string())))
-            }
-            SURCHARGE_CACHE_PREFIX => Ok(Self::Surcharge(Cow::Owned(split.1.to_string()))),
-            CGRAPH_CACHE_PREFIX => Ok(Self::CGraph(Cow::Owned(split.1.to_string()))),
-            PM_FILTERS_CGRAPH_CACHE_PREFIX => {
-                Ok(Self::PmFiltersCGraph(Cow::Owned(split.1.to_string())))
-            }
-            ALL_CACHE_PREFIX => Ok(Self::All(Cow::Owned(split.1.to_string()))),
-            _ => Err(validation_err.into()),
-        }
+
+    fn try_from(v: RedisValue) -> Result<Self, Self::Error> {
+        let bytes = v.as_bytes().ok_or(errors::ValidationError::InvalidValue {
+            message: "InvalidValue received in pubsub".to_string(),
+        })?;
+
+        bytes
+            .parse_struct("CacheRedact")
+            .change_context(errors::ValidationError::InvalidValue {
+                message: "Unable to deserialize the value from pubsub".to_string(),
+            })
     }
 }
 

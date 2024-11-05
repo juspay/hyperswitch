@@ -264,6 +264,8 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
 
         dir::DirKeyKind::UpiType => lower_enum!(UpiType, value),
 
+        dir::DirKeyKind::OpenBankingType => lower_enum!(OpenBankingType, value),
+
         dir::DirKeyKind::VoucherType => lower_enum!(VoucherType, value),
 
         dir::DirKeyKind::GiftCardType => lower_enum!(GiftCardType, value),

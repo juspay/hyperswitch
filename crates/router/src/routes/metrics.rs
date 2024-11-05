@@ -21,6 +21,8 @@ counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);
 
 counter_metric!(PAYMENT_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_PAYMENT, GLOBAL_METER);
+//TODO: This can be removed, added for payment list debugging
+histogram_metric!(PAYMENT_LIST_LATENCY, GLOBAL_METER);
 
 counter_metric!(REFUND_COUNT, GLOBAL_METER);
 counter_metric!(SUCCESSFUL_REFUND, GLOBAL_METER);
@@ -134,3 +136,9 @@ counter_metric!(ACCESS_TOKEN_CACHE_MISS, GLOBAL_METER);
 
 // A counter to indicate the integrity check failures
 counter_metric!(INTEGRITY_CHECK_FAILED, GLOBAL_METER);
+
+// Network Tokenization metrics
+histogram_metric!(GENERATE_NETWORK_TOKEN_TIME, GLOBAL_METER);
+histogram_metric!(FETCH_NETWORK_TOKEN_TIME, GLOBAL_METER);
+histogram_metric!(DELETE_NETWORK_TOKEN_TIME, GLOBAL_METER);
+histogram_metric!(CHECK_NETWORK_TOKEN_STATUS_TIME, GLOBAL_METER);

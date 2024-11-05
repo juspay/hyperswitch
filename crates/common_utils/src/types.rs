@@ -1,7 +1,14 @@
 //! Types that can be used in other crates
+pub mod keymanager;
+
+/// Enum for Authentication Level
+pub mod authentication;
+
 use std::{
+    borrow::Cow,
     fmt::Display,
-    ops::{Add, Sub},
+    iter::Sum,
+    ops::{Add, Mul, Sub},
     primitive::i64,
     str::FromStr,
 };
@@ -23,12 +30,16 @@ use rust_decimal::{
 };
 use semver::Version;
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
+use thiserror::Error;
+use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{
-    consts,
-    errors::{CustomResult, ParsingError, PercentageError},
+    consts::{self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH},
+    errors::{CustomResult, ParsingError, PercentageError, ValidationError},
+    fp_utils::when,
 };
+
 /// Represents Percentage Value between 0 and 100 both inclusive
 #[derive(Clone, Default, Debug, PartialEq, Serialize)]
 pub struct Percentage<const PRECISION: u8> {
@@ -473,6 +484,20 @@ impl Sub for MinorUnit {
     }
 }
 
+impl Mul<u16> for MinorUnit {
+    type Output = Self;
+
+    fn mul(self, a2: u16) -> Self::Output {
+        Self(self.0 * i64::from(a2))
+    }
+}
+
+impl Sum for MinorUnit {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self(0), |a, b| a + b)
+    }
+}
+
 /// Connector specific types to send
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
@@ -570,11 +595,331 @@ impl StringMajorUnit {
             .ok_or(ParsingError::DecimalToI64ConversionFailure)?;
         Ok(MinorUnit::new(amount_i64))
     }
+    /// forms a new StringMajorUnit default unit i.e zero
+    pub fn zero() -> Self {
+        Self("0".to_string())
+    }
 
     /// Get string amount from struct to be removed in future
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
     }
+}
+
+#[derive(
+    Debug,
+    serde::Deserialize,
+    AsExpression,
+    serde::Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    ToSchema,
+    PartialOrd,
+)]
+#[diesel(sql_type = sql_types::Text)]
+/// This domain type can be used for any url
+pub struct Url(url::Url);
+
+impl Url {
+    /// Get string representation of the url
+    pub fn get_string_repr(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for Url
+where
+    DB: Backend,
+    str: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        let url_string = self.0.as_str();
+        url_string.to_sql(out)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for Url
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(value)?;
+        let url = url::Url::parse(&val)?;
+        Ok(Self(url))
+    }
+}
+
+#[cfg(feature = "v2")]
+pub use client_secret_type::ClientSecret;
+#[cfg(feature = "v2")]
+mod client_secret_type {
+    use std::fmt;
+
+    use masking::PeekInterface;
+    use router_env::logger;
+
+    use super::*;
+    use crate::id_type;
+
+    /// A domain type that can be used to represent a client secret
+    /// Client secret is generated for a payment and is used to authenticate the client side api calls
+    #[derive(Debug, PartialEq, Clone, AsExpression)]
+    #[diesel(sql_type = sql_types::Text)]
+    pub struct ClientSecret {
+        /// The payment id of the payment
+        pub payment_id: id_type::GlobalPaymentId,
+        /// The secret string
+        pub secret: masking::Secret<String>,
+    }
+
+    impl ClientSecret {
+        pub(crate) fn get_string_repr(&self) -> String {
+            format!(
+                "{}_secret_{}",
+                self.payment_id.get_string_repr(),
+                self.secret.peek()
+            )
+        }
+
+        /// Create a new client secret
+        pub(crate) fn new(payment_id: id_type::GlobalPaymentId, secret: String) -> Self {
+            Self {
+                payment_id,
+                secret: masking::Secret::new(secret),
+            }
+        }
+    }
+
+    impl FromStr for ClientSecret {
+        type Err = ParsingError;
+
+        fn from_str(str_value: &str) -> Result<Self, Self::Err> {
+            let (payment_id, secret) =
+                str_value
+                    .rsplit_once("_secret_")
+                    .ok_or(ParsingError::EncodeError(
+                        "Expected a string in the format '{payment_id}_secret_{secret}'",
+                    ))?;
+
+            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                .map_err(|err| {
+                    logger::error!(global_payment_id_error=?err);
+                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
+                })?;
+
+            Ok(Self {
+                payment_id,
+                secret: masking::Secret::new(secret.to_owned()),
+            })
+        }
+    }
+
+    impl<'de> Deserialize<'de> for ClientSecret {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            struct ClientSecretVisitor;
+
+            impl<'de> Visitor<'de> for ClientSecretVisitor {
+                type Value = ClientSecret;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    formatter.write_str("a string in the format '{payment_id}_secret_{secret}'")
+                }
+
+                fn visit_str<E>(self, value: &str) -> Result<ClientSecret, E>
+                where
+                    E: serde::de::Error,
+                {
+                    let (payment_id, secret) = value.rsplit_once("_secret_").ok_or_else(|| {
+                        E::invalid_value(
+                            serde::de::Unexpected::Str(value),
+                            &"a string with '_secret_'",
+                        )
+                    })?;
+
+                    let payment_id =
+                        id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                            .map_err(serde::de::Error::custom)?;
+
+                    Ok(ClientSecret {
+                        payment_id,
+                        secret: masking::Secret::new(secret.to_owned()),
+                    })
+                }
+            }
+
+            deserializer.deserialize_str(ClientSecretVisitor)
+        }
+    }
+
+    impl Serialize for ClientSecret {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::ser::Serializer,
+        {
+            serializer.serialize_str(self.get_string_repr().as_str())
+        }
+    }
+
+    impl ToSql<sql_types::Text, diesel::pg::Pg> for ClientSecret
+    where
+        String: ToSql<sql_types::Text, diesel::pg::Pg>,
+    {
+        fn to_sql<'b>(
+            &'b self,
+            out: &mut Output<'b, '_, diesel::pg::Pg>,
+        ) -> diesel::serialize::Result {
+            let string_repr = self.get_string_repr();
+            <String as ToSql<sql_types::Text, diesel::pg::Pg>>::to_sql(
+                &string_repr,
+                &mut out.reborrow(),
+            )
+        }
+    }
+
+    impl<DB> FromSql<sql_types::Text, DB> for ClientSecret
+    where
+        DB: Backend,
+        String: FromSql<sql_types::Text, DB>,
+    {
+        fn from_sql(value: DB::RawValue<'_>) -> deserialize::Result<Self> {
+            let string_repr = String::from_sql(value)?;
+            let (payment_id, secret) =
+                string_repr
+                    .rsplit_once("_secret_")
+                    .ok_or(ParsingError::EncodeError(
+                        "Expected a string in the format '{payment_id}_secret_{secret}'",
+                    ))?;
+
+            let payment_id = id_type::GlobalPaymentId::try_from(Cow::Owned(payment_id.to_owned()))
+                .map_err(|err| {
+                    logger::error!(global_payment_id_error=?err);
+                    ParsingError::EncodeError("Error while constructing GlobalPaymentId")
+                })?;
+
+            Ok(Self {
+                payment_id,
+                secret: masking::Secret::new(secret.to_owned()),
+            })
+        }
+    }
+
+    impl<DB> Queryable<sql_types::Text, DB> for ClientSecret
+    where
+        DB: Backend,
+        Self: FromSql<sql_types::Text, DB>,
+    {
+        type Row = Self;
+
+        fn build(row: Self::Row) -> deserialize::Result<Self> {
+            Ok(row)
+        }
+    }
+
+    #[cfg(test)]
+    mod client_secret_tests {
+        #![allow(clippy::expect_used)]
+        #![allow(clippy::unwrap_used)]
+
+        use serde_json;
+
+        use super::*;
+        use crate::id_type::GlobalPaymentId;
+
+        #[test]
+        fn test_serialize_client_secret() {
+            let global_payment_id = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
+            let secret = "fc34taHLw1ekPgNh92qr".to_string();
+
+            let expected_client_secret_string = format!("\"{global_payment_id}_secret_{secret}\"");
+
+            let client_secret1 = ClientSecret {
+                payment_id: GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id)).unwrap(),
+                secret: masking::Secret::new(secret),
+            };
+
+            let parsed_client_secret =
+                serde_json::to_string(&client_secret1).expect("Failed to serialize client_secret1");
+
+            assert_eq!(expected_client_secret_string, parsed_client_secret);
+        }
+
+        #[test]
+        fn test_deserialize_client_secret() {
+            // This is a valid global id
+            let global_payment_id_str = "12345_pay_1a961ed9093c48b09781bf8ab17ba6bd";
+            let secret = "fc34taHLw1ekPgNh92qr".to_string();
+
+            let valid_payment_global_id =
+                GlobalPaymentId::try_from(Cow::Borrowed(global_payment_id_str))
+                    .expect("Failed to create valid global payment id");
+
+            // This is an invalid global id because of the cell id being in invalid length
+            let invalid_global_payment_id = "123_pay_1a961ed9093c48b09781bf8ab17ba6bd";
+
+            // Create a client secret string which is valid
+            let valid_client_secret = format!(r#""{global_payment_id_str}_secret_{secret}""#);
+
+            dbg!(&valid_client_secret);
+
+            // Create a client secret string which is invalid
+            let invalid_client_secret_because_of_invalid_payment_id =
+                format!(r#""{invalid_global_payment_id}_secret_{secret}""#);
+
+            // Create a client secret string which is invalid because of invalid secret
+            let invalid_client_secret_because_of_invalid_secret =
+                format!(r#""{invalid_global_payment_id}""#);
+
+            let valid_client_secret = serde_json::from_str::<ClientSecret>(&valid_client_secret)
+                .expect("Failed to deserialize client_secret_str1");
+
+            let invalid_deser1 = serde_json::from_str::<ClientSecret>(
+                &invalid_client_secret_because_of_invalid_payment_id,
+            );
+
+            dbg!(&invalid_deser1);
+
+            let invalid_deser2 = serde_json::from_str::<ClientSecret>(
+                &invalid_client_secret_because_of_invalid_secret,
+            );
+
+            dbg!(&invalid_deser2);
+
+            assert_eq!(valid_client_secret.payment_id, valid_payment_global_id);
+
+            assert_eq!(valid_client_secret.secret.peek(), &secret);
+
+            assert_eq!(
+                invalid_deser1.err().unwrap().to_string(),
+                "Incorrect value provided for field: payment_id at line 1 column 70"
+            );
+
+            assert_eq!(
+                invalid_deser2.err().unwrap().to_string(),
+                "invalid value: string \"123_pay_1a961ed9093c48b09781bf8ab17ba6bd\", expected a string with '_secret_' at line 1 column 42"
+            );
+        }
+    }
+}
+
+/// A type representing a range of time for filtering, including a mandatory start time and an optional end time.
+#[derive(
+    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, ToSchema,
+)]
+pub struct TimeRange {
+    /// The start time to filter payments list or to get list of filters. To get list of filters start time is needed to be passed
+    #[serde(with = "crate::custom_serde::iso8601")]
+    #[serde(alias = "startTime")]
+    pub start_time: PrimitiveDateTime,
+    /// The end time to filter payments list or to get list of filters. If not passed the default time is now
+    #[serde(default, with = "crate::custom_serde::iso8601::option")]
+    #[serde(alias = "endTime")]
+    pub end_time: Option<PrimitiveDateTime>,
 }
 
 #[cfg(test)]
@@ -688,7 +1033,7 @@ mod amount_conversion_tests {
     Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-/// Charge object for refunds
+/// Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details.
 pub struct ChargeRefunds {
     /// Identifier for charge created for the payment
     pub charge_id: String,
@@ -703,3 +1048,461 @@ pub struct ChargeRefunds {
 }
 
 crate::impl_to_sql_from_sql_json!(ChargeRefunds);
+
+/// A common type of domain type that can be used for fields that contain a string with restriction of length
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub(crate) struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u8>(String);
+
+/// Error generated from violation of constraints for MerchantReferenceId
+#[derive(Debug, Error, PartialEq, Eq)]
+pub(crate) enum LengthStringError {
+    #[error("the maximum allowed length for this field is {0}")]
+    /// Maximum length of string violated
+    MaxLengthViolated(u16),
+
+    #[error("the minimum required length for this field is {0}")]
+    /// Minimum length of string violated
+    MinLengthViolated(u8),
+}
+
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u8> LengthString<MAX_LENGTH, MIN_LENGTH> {
+    /// Generates new [MerchantReferenceId] from the given input string
+    pub fn from(input_string: Cow<'static, str>) -> Result<Self, LengthStringError> {
+        let trimmed_input_string = input_string.trim().to_string();
+        let length_of_input_string = u16::try_from(trimmed_input_string.len())
+            .map_err(|_| LengthStringError::MaxLengthViolated(MAX_LENGTH))?;
+
+        when(length_of_input_string > MAX_LENGTH, || {
+            Err(LengthStringError::MaxLengthViolated(MAX_LENGTH))
+        })?;
+
+        when(length_of_input_string < u16::from(MIN_LENGTH), || {
+            Err(LengthStringError::MinLengthViolated(MIN_LENGTH))
+        })?;
+
+        Ok(Self(trimmed_input_string))
+    }
+
+    pub(crate) fn new_unchecked(input_string: String) -> Self {
+        Self(input_string)
+    }
+}
+
+impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Deserialize<'de>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let deserialized_string = String::deserialize(deserializer)?;
+        Self::from(deserialized_string.into()).map_err(serde::de::Error::custom)
+    }
+}
+
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> FromSql<sql_types::Text, DB>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> ToSql<sql_types::Text, DB>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Queryable<sql_types::Text, DB>
+    for LengthString<MAX_LENGTH, MIN_LENGTH>
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+/// Domain type for description
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct Description(LengthString<MAX_DESCRIPTION_LENGTH, 1>);
+
+impl Description {
+    /// Create a new Description Domain type without any length check from a static str
+    pub fn from_str_unchecked(input_str: &'static str) -> Self {
+        Self(LengthString::new_unchecked(input_str.to_owned()))
+    }
+
+    // TODO: Remove this function in future once description in router data is updated to domain type
+    /// Get the string representation of the description
+    pub fn get_string_repr(&self) -> &str {
+        &self.0 .0
+    }
+}
+
+/// Domain type for Statement Descriptor
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct StatementDescriptor(LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>);
+
+impl<DB> Queryable<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    LengthString<MAX_DESCRIPTION_LENGTH, 1>: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = LengthString::<MAX_DESCRIPTION_LENGTH, 1>::from_sql(bytes)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for Description
+where
+    DB: Backend,
+    LengthString<MAX_DESCRIPTION_LENGTH, 1>: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for StatementDescriptor
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for StatementDescriptor
+where
+    DB: Backend,
+    LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = LengthString::<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>::from_sql(bytes)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for StatementDescriptor
+where
+    DB: Backend,
+    LengthString<MAX_STATEMENT_DESCRIPTOR_LENGTH, 1>: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+/// Domain type for unified code
+#[derive(
+    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
+)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct UnifiedCode(pub String);
+
+impl TryFrom<String> for UnifiedCode {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(src: String) -> Result<Self, Self::Error> {
+        if src.len() > 255 {
+            Err(report!(ValidationError::InvalidValue {
+                message: "unified_code's length should not exceed 255 characters".to_string()
+            }))
+        } else {
+            Ok(Self(src))
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+impl<DB> FromSql<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::try_from(val)?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for UnifiedCode
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+/// Domain type for unified messages
+#[derive(
+    Debug, Clone, PartialEq, Eq, Queryable, serde::Deserialize, serde::Serialize, AsExpression,
+)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct UnifiedMessage(pub String);
+
+impl TryFrom<String> for UnifiedMessage {
+    type Error = error_stack::Report<ValidationError>;
+    fn try_from(src: String) -> Result<Self, Self::Error> {
+        if src.len() > 1024 {
+            Err(report!(ValidationError::InvalidValue {
+                message: "unified_message's length should not exceed 1024 characters".to_string()
+            }))
+        } else {
+            Ok(Self(src))
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+impl<DB> FromSql<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::try_from(val)?)
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for UnifiedMessage
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+#[cfg(feature = "v2")]
+/// Browser information to be used for 3DS 2.0
+// If any of the field is PII, then we can make them as secret
+#[derive(
+    ToSchema,
+    Debug,
+    Clone,
+    serde::Deserialize,
+    serde::Serialize,
+    Eq,
+    PartialEq,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct BrowserInformation {
+    /// Color depth supported by the browser
+    pub color_depth: Option<u8>,
+
+    /// Whether java is enabled in the browser
+    pub java_enabled: Option<bool>,
+
+    /// Whether javascript is enabled in the browser
+    pub java_script_enabled: Option<bool>,
+
+    /// Language supported
+    pub language: Option<String>,
+
+    /// The screen height in pixels
+    pub screen_height: Option<u32>,
+
+    /// The screen width in pixels
+    pub screen_width: Option<u32>,
+
+    /// Time zone of the client
+    pub time_zone: Option<i32>,
+
+    /// Ip address of the client
+    #[schema(value_type = Option<String>)]
+    pub ip_address: Option<std::net::IpAddr>,
+
+    /// List of headers that are accepted
+    #[schema(
+        example = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
+    )]
+    pub accept_header: Option<String>,
+
+    /// User-agent of the browser
+    pub user_agent: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+crate::impl_to_sql_from_sql_json!(BrowserInformation);
+/// Domain type for connector_transaction_id
+/// Maximum length for connector's transaction_id can be 128 characters in HS DB.
+/// In case connector's use an identifier whose length exceeds 128 characters,
+/// the hash value of such identifiers will be stored as connector_transaction_id.
+/// The actual connector's identifier will be stored in a separate column -
+/// connector_transaction_data or something with a similar name.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub enum ConnectorTransactionId {
+    /// Actual transaction identifier
+    TxnId(String),
+    /// Hashed value of the transaction identifier
+    HashedData(String),
+}
+
+impl ConnectorTransactionId {
+    /// Implementation for retrieving the inner identifier
+    pub fn get_id(&self) -> &String {
+        match self {
+            Self::TxnId(id) | Self::HashedData(id) => id,
+        }
+    }
+
+    /// Implementation for forming ConnectorTransactionId and an optional string to be used for connector_transaction_id and connector_transaction_data
+    pub fn form_id_and_data(src: String) -> (Self, Option<String>) {
+        let txn_id = Self::from(src.clone());
+        match txn_id {
+            Self::TxnId(_) => (txn_id, None),
+            Self::HashedData(_) => (txn_id, Some(src)),
+        }
+    }
+
+    /// Implementation for retrieving
+    pub fn get_txn_id<'a>(
+        &'a self,
+        txn_data: Option<&'a String>,
+    ) -> Result<&'a String, error_stack::Report<ValidationError>> {
+        match (self, txn_data) {
+            (Self::TxnId(id), _) => Ok(id),
+            (Self::HashedData(_), Some(id)) => Ok(id),
+            (Self::HashedData(id), None) => Err(report!(ValidationError::InvalidValue {
+                message: "connector_transaction_data is empty for HashedData variant".to_string(),
+            })
+            .attach_printable(format!(
+                "connector_transaction_data is empty for connector_transaction_id {}",
+                id
+            ))),
+        }
+    }
+}
+
+impl From<String> for ConnectorTransactionId {
+    fn from(src: String) -> Self {
+        // ID already hashed
+        if src.starts_with("hs_hash_") {
+            Self::HashedData(src)
+        // Hash connector's transaction ID
+        } else if src.len() > 128 {
+            let mut hasher = blake3::Hasher::new();
+            let mut output = [0u8; consts::CONNECTOR_TRANSACTION_ID_HASH_BYTES];
+            hasher.update(src.as_bytes());
+            hasher.finalize_xof().fill(&mut output);
+            let hash = hex::encode(output);
+            Self::HashedData(format!("hs_hash_{}", hash))
+        // Default
+        } else {
+            Self::TxnId(src)
+        }
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for ConnectorTransactionId
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for ConnectorTransactionId
+where
+    DB: Backend,
+    String: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = String::from_sql(bytes)?;
+        Ok(Self::from(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for ConnectorTransactionId
+where
+    DB: Backend,
+    String: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        match self {
+            Self::HashedData(id) | Self::TxnId(id) => id.to_sql(out),
+        }
+    }
+}
+
+/// Trait for fetching actual or hashed transaction IDs
+pub trait ConnectorTransactionIdTrait {
+    /// Returns an optional connector transaction ID
+    fn get_optional_connector_transaction_id(&self) -> Option<&String> {
+        None
+    }
+    /// Returns a connector transaction ID
+    fn get_connector_transaction_id(&self) -> &String {
+        self.get_optional_connector_transaction_id()
+            .unwrap_or_else(|| {
+                static EMPTY_STRING: String = String::new();
+                &EMPTY_STRING
+            })
+    }
+    /// Returns an optional connector refund ID
+    fn get_optional_connector_refund_id(&self) -> Option<&String> {
+        self.get_optional_connector_transaction_id()
+    }
+}

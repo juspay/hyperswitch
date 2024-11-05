@@ -19,6 +19,10 @@
     {
       "key": "Content-Type",
       "value": "application/json"
+    },
+    {
+      "key": "x-merchant-id",
+      "value": "{{merchant_id}}"
     }
   ],
   "url": {

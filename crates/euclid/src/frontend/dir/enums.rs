@@ -91,6 +91,7 @@ pub enum WalletType {
     Cashapp,
     Venmo,
     Mifinity,
+    Paze,
 }
 
 #[derive(
@@ -160,6 +161,26 @@ pub enum BankRedirectType {
     Przelewy24,
     Trustly,
 }
+
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum OpenBankingType {
+    OpenBankingPIS,
+}
+
 #[derive(
     Clone,
     Debug,
@@ -350,3 +371,4 @@ collect_variants!(VoucherType);
 collect_variants!(GiftCardType);
 collect_variants!(BankTransferType);
 collect_variants!(CardRedirectType);
+collect_variants!(OpenBankingType);

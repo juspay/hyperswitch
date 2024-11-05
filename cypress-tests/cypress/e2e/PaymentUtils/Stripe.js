@@ -50,13 +50,50 @@ const multiUseMandateData = {
   },
 };
 
+const payment_method_data_3ds = {
+  card: {
+    last4: "3155",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuing_country: "UNITEDSTATES",
+    card_isin: "400000",
+    card_extended_bin: null,
+    card_exp_month: "10",
+    card_exp_year: "25",
+    card_holder_name: null,
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
+const payment_method_data_no3ds = {
+  card: {
+    last4: "4242",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
+    card_extended_bin: null,
+    card_exp_month: "10",
+    card_exp_year: "25",
+    card_holder_name: null,
+    payment_checks: {
+      cvc_check: "pass",
+      address_line1_check: "pass",
+      address_postal_code_check: "pass",
+    },
+    authentication_data: null,
+  },
+  billing: null,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -65,11 +102,27 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "on_session",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
         },
       },
     },
     "3DSManualCapture": {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -80,12 +133,16 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
+
     "3DSAutoCapture": {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -96,12 +153,15 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
     No3DSManualCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -113,11 +173,15 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
     No3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -129,11 +193,15 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
     Capture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -173,6 +241,7 @@ export const connectorDetails = {
     },
     Refund: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -188,6 +257,7 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -203,6 +273,7 @@ export const connectorDetails = {
     },
     SyncRefund: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -218,6 +289,7 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -233,6 +305,7 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSManualCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -248,6 +321,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -263,6 +337,7 @@ export const connectorDetails = {
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -278,6 +353,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -293,6 +369,7 @@ export const connectorDetails = {
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -308,6 +385,7 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -323,6 +401,7 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSManualCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -338,6 +417,7 @@ export const connectorDetails = {
     },
     ZeroAuthMandate: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -353,6 +433,7 @@ export const connectorDetails = {
     },
     SaveCardUseNo3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -376,6 +457,7 @@ export const connectorDetails = {
     },
     SaveCardUseNo3DSManualCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -399,6 +481,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -420,8 +503,81 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUseNo3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardUseNo3DSManualCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          error_code: "No error code",
+          error_message:
+            "You cannot confirm with `off_session=true` when `setup_future_usage` is also set on the PaymentIntent. The customer needs to be on-session to perform the steps which may be required to set up the PaymentMethod for future usage. Please confirm this PaymentIntent with your customer on-session.",
+        },
+      },
+    },
+    SaveCardConfirmManualCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          error_code: "No error code",
+          error_message:
+            "You cannot confirm with `off_session=true` when `setup_future_usage` is also set on the PaymentIntent. The customer needs to be on-session to perform the steps which may be required to set up the PaymentMethod for future usage. Please confirm this PaymentIntent with your customer on-session.",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -445,6 +601,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -469,6 +626,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
+        payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -503,7 +661,7 @@ export const connectorDetails = {
         },
       },
     }),
-    ideal: {
+    Ideal: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -539,7 +697,7 @@ export const connectorDetails = {
         },
       },
     },
-    giropay: {
+    Giropay: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -576,7 +734,7 @@ export const connectorDetails = {
         },
       },
     },
-    sofort: {
+    Sofort: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "sofort",
@@ -610,7 +768,7 @@ export const connectorDetails = {
         },
       },
     },
-    eps: {
+    Eps: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -646,7 +804,7 @@ export const connectorDetails = {
         },
       },
     },
-    blik: {
+    Blik: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "blik",
@@ -666,7 +824,7 @@ export const connectorDetails = {
         },
       },
     },
-    przelewy24: {
+    Przelewy24: {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "przelewy24",

@@ -9,6 +9,9 @@ traces_enabled = true
 metrics_enabled = true
 ignore_errors = false
 
+[key_manager]
+url = "http://localhost:5000"
+
 [master_database]
 username = "postgres"
 password = "postgres"
@@ -72,12 +75,13 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
-adyen.secondary_base_url = "https://pal-test.adyen.com/"
+adyen.payout_base_url = "https://pal-test.adyen.com/"
+adyen.dispute_base_url = "https://ca-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
-bamboraapac.base_url = "https://demo.bambora.co.nz/interface/api/dts.asmx"
+bamboraapac.base_url = "https://demo.ippayments.com.au/interface/api"
 bankofamerica.base_url = "https://apitest.merchant-services.bankofamerica.com/"
 billwerk.base_url = "https://api.reepay.com/"
 billwerk.secondary_base_url = "https://card.reepay.com/"
@@ -85,18 +89,23 @@ bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://country-api4-stage.boku.com"
-braintree.base_url = "https://api.sandbox.braintreegateway.com/"
-braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
+braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 cryptopay.base_url = "https://business-sandbox.cryptopay.me"
 cybersource.base_url = "https://apitest.cybersource.com/"
 datatrans.base_url = "https://api.sandbox.datatrans.com/"
+deutschebank.base_url = "https://testmerch.directpos.de/rest-api"
+digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.staging.digitalvirgo.pl"
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
+fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
+fiuu.base_url = "https://sandbox.merchant.razer.com/"
+fiuu.secondary_base_url="https://sandbox.merchant.razer.com/"
+fiuu.third_base_url="https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
@@ -104,6 +113,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
+itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -111,18 +121,23 @@ mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 nexinets.base_url = "https://apitest.payengine.de/v1"
+nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
 noon.key_mode = "Test"
+novalnet.base_url = "https://payport.novalnet.de/v2"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
+paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
+paybox.secondary_base_url="https://preprod-tpeweb.paybox.com/"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
 payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 placetopay.base_url = "https://test.placetopay.com/rest/gateway"
+plaid.base_url = "https://sandbox.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
@@ -134,12 +149,16 @@ square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
+taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
+thunes.base_url = "https://api.limonetikqualif.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
+wellsfargo.base_url = "https://apitest.cybersource.com/"
+wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
@@ -173,10 +192,14 @@ cards = [
     "cryptopay",
     "cybersource",
     "datatrans",
+    "deutschebank",
+    "digitalvirgo",
     "dlocal",
     "dummyconnector",
     "ebanx",
     "fiserv",
+    "fiservemea",
+    "fiuu",
     "forte",
     "globalpay",
     "globepay",
@@ -184,31 +207,40 @@ cards = [
     "gpayments",
     "helcim",
     "iatapay",
+    "itaubank",
     "mollie",
     "multisafepay",
     "netcetera",
     "nexinets",
+    "nexixpay",
     "nmi",
     "noon",
+    "novalnet",
     "nuvei",
     "opayo",
     "opennode",
+    "paybox",
     "payeezy",
     "payme",
     "payone",
     "paypal",
     "payu",
     "placetopay",
+    "plaid",
     "powertranz",
     "prophetpay",
     "shift4",
     "square",
     "stax",
     "stripe",
+    "taxjar",
     "threedsecureio",
+    "thunes",
     "trustpay",
     "tsys",
     "volt",
+    "wellsfargo",
+    "wellsfargopayout",
     "wise",
     "worldline",
     "worldpay",
@@ -277,9 +309,6 @@ discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 [payouts]
 payout_eligibility = true
 
-[multiple_api_version_supported_connectors]
-supported_connectors = "braintree"
-
 [mandates.supported_payment_methods]
 pay_later.klarna = {connector_list = "adyen"}
 wallet.google_pay = {connector_list = "stripe,adyen,bankofamerica"}
@@ -287,9 +316,10 @@ wallet.apple_pay = {connector_list = "stripe,adyen,bankofamerica"}
 wallet.paypal = {connector_list = "adyen"}
 card.credit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree"}
 card.debit = {connector_list = "stripe,adyen,authorizedotnet,cybersource,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree"}
-bank_debit.ach = { connector_list = "gocardless"}
-bank_debit.becs = { connector_list = "gocardless"}
-bank_debit.sepa = { connector_list = "gocardless"}
+bank_debit.ach = { connector_list = "gocardless,adyen" }
+bank_debit.becs = { connector_list = "gocardless" }
+bank_debit.bacs = { connector_list = "adyen" }
+bank_debit.sepa = { connector_list = "gocardless,adyen" }
 bank_redirect.ideal = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.sofort = {connector_list = "stripe,adyen,globalpay"}
 bank_redirect.giropay = {connector_list = "adyen,globalpay"}
@@ -332,11 +362,26 @@ client_secret = ""
 partner_id = ""
 
 [unmasked_headers]
-keys = "user-agent"
+keys = "accept-language,user-agent"
 
 [multitenancy]
 enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "" }
 
 [multitenancy.tenants]
-public = { name = "hyperswitch", base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+public = { base_url = "http://localhost:8080", schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
+
+[email]
+sender_email = "example@example.com"
+aws_region = ""
+allowed_unverified_days = 1
+active_email_client = "SES"
+recon_recipient_email = "recon@example.com"
+prod_intent_recipient_email = "business@example.com"
+
+[email.aws_ses]
+email_role_arn = ""
+sts_role_session_name = ""
+
+[temp_locker_enable_config]
+paybox = { payment_method = "card" }

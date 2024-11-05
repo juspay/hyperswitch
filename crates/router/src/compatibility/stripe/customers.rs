@@ -1,9 +1,14 @@
 pub mod types;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use actix_web::{web, HttpRequest, HttpResponse};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::id_type;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::report;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use router_env::{instrument, tracing, Flow};
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{api_locking, customers, payment_methods::cards},
@@ -12,6 +17,11 @@ use crate::{
     types::api::{customers as customer_types, payment_methods},
 };
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customer_create(
     state: web::Data<routes::AppState>,
@@ -44,23 +54,27 @@ pub async fn customer_create(
         state.into_inner(),
         &req,
         create_cust_req,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             customers::create_customer(state, auth.merchant_account, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customer_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
-    let payload = customer_types::CustomerId {
-        customer_id: path.into_inner(),
-    };
+    let payload = customer_types::CustomerId::new_customer_id_struct(path.into_inner());
 
     let flow = Flow::CustomersRetrieve;
 
@@ -78,14 +92,20 @@ pub async fn customer_retrieve(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, _| {
-            customers::retrieve_customer(state, auth.merchant_account, auth.key_store, req)
+        |state, auth: auth::AuthenticationData, req, _| {
+            customers::retrieve_customer(state, auth.merchant_account, None, auth.key_store, req)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customer_update(
     state: web::Data<routes::AppState>,
@@ -102,8 +122,9 @@ pub async fn customer_update(
     };
 
     let customer_id = path.into_inner();
-    let mut cust_update_req: customer_types::CustomerRequest = payload.into();
+    let mut cust_update_req: customer_types::CustomerUpdateRequest = payload.into();
     cust_update_req.customer_id = Some(customer_id);
+    let customer_update_id = customer_types::UpdateCustomerId::new("temp_global_id".to_string());
 
     let flow = Flow::CustomersUpdate;
 
@@ -121,23 +142,33 @@ pub async fn customer_update(
         state.into_inner(),
         &req,
         cust_update_req,
-        |state, auth, req, _| {
-            customers::update_customer(state, auth.merchant_account, req, auth.key_store)
+        |state, auth: auth::AuthenticationData, req, _| {
+            customers::update_customer(
+                state,
+                auth.merchant_account,
+                req,
+                auth.key_store,
+                customer_update_id.clone(),
+            )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customer_delete(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
     path: web::Path<id_type::CustomerId>,
 ) -> HttpResponse {
-    let payload = customer_types::CustomerId {
-        customer_id: path.into_inner(),
-    };
+    let payload = customer_types::CustomerId::new_customer_id_struct(path.into_inner());
 
     let flow = Flow::CustomersDelete;
 
@@ -158,11 +189,17 @@ pub async fn customer_delete(
         |state, auth: auth::AuthenticationData, req, _| {
             customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
+
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "customer_v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<routes::AppState>,
@@ -188,7 +225,7 @@ pub async fn list_customer_payment_method_api(
         state.into_inner(),
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             cards::do_list_customer_pm_fetch_customer_if_not_passed(
                 state,
                 auth.merchant_account,
@@ -198,7 +235,7 @@ pub async fn list_customer_payment_method_api(
                 None,
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

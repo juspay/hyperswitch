@@ -3,6 +3,8 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+use common_utils::id_type;
+
 use super::{NameDescription, TimeRange};
 use crate::enums::{Currency, IntentStatus};
 
@@ -10,7 +12,12 @@ use crate::enums::{Currency, IntentStatus};
 pub struct PaymentIntentFilters {
     #[serde(default)]
     pub status: Vec<IntentStatus>,
+    #[serde(default)]
     pub currency: Vec<Currency>,
+    #[serde(default)]
+    pub profile_id: Vec<id_type::ProfileId>,
+    #[serde(default)]
+    pub customer_id: Vec<id_type::CustomerId>,
 }
 
 #[derive(
@@ -34,6 +41,7 @@ pub enum PaymentIntentDimensions {
     #[serde(rename = "status")]
     PaymentIntentStatus,
     Currency,
+    ProfileId,
 }
 
 #[derive(
@@ -55,6 +63,15 @@ pub enum PaymentIntentMetrics {
     TotalSmartRetries,
     SmartRetriedAmount,
     PaymentIntentCount,
+    PaymentsSuccessRate,
+    PaymentProcessedAmount,
+    SessionizedSuccessfulSmartRetries,
+    SessionizedTotalSmartRetries,
+    SessionizedSmartRetriedAmount,
+    SessionizedPaymentIntentCount,
+    SessionizedPaymentsSuccessRate,
+    SessionizedPaymentProcessedAmount,
+    SessionizedPaymentsDistribution,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -69,6 +86,7 @@ pub mod metric_behaviour {
     pub struct TotalSmartRetries;
     pub struct SmartRetriedAmount;
     pub struct PaymentIntentCount;
+    pub struct PaymentsSuccessRate;
 }
 
 impl From<PaymentIntentMetrics> for NameDescription {
@@ -93,6 +111,7 @@ impl From<PaymentIntentDimensions> for NameDescription {
 pub struct PaymentIntentMetricsBucketIdentifier {
     pub status: Option<IntentStatus>,
     pub currency: Option<Currency>,
+    pub profile_id: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -105,11 +124,13 @@ impl PaymentIntentMetricsBucketIdentifier {
     pub fn new(
         status: Option<IntentStatus>,
         currency: Option<Currency>,
+        profile_id: Option<String>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
             status,
             currency,
+            profile_id,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -120,6 +141,7 @@ impl Hash for PaymentIntentMetricsBucketIdentifier {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.status.map(|i| i.to_string()).hash(state);
         self.currency.hash(state);
+        self.profile_id.hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -139,7 +161,19 @@ pub struct PaymentIntentMetricsBucketValue {
     pub successful_smart_retries: Option<u64>,
     pub total_smart_retries: Option<u64>,
     pub smart_retried_amount: Option<u64>,
+    pub smart_retried_amount_without_smart_retries: Option<u64>,
     pub payment_intent_count: Option<u64>,
+    pub successful_payments: Option<u32>,
+    pub successful_payments_without_smart_retries: Option<u32>,
+    pub total_payments: Option<u32>,
+    pub payments_success_rate: Option<f64>,
+    pub payments_success_rate_without_smart_retries: Option<f64>,
+    pub payment_processed_amount: Option<u64>,
+    pub payment_processed_count: Option<u64>,
+    pub payment_processed_amount_without_smart_retries: Option<u64>,
+    pub payment_processed_count_without_smart_retries: Option<u64>,
+    pub payments_success_rate_distribution_without_smart_retries: Option<f64>,
+    pub payments_failure_rate_distribution_without_smart_retries: Option<f64>,
 }
 
 #[derive(Debug, serde::Serialize)]

@@ -46,3 +46,21 @@ pub struct PreProcessing;
 
 #[derive(Debug, Clone)]
 pub struct IncrementalAuthorization;
+
+#[derive(Debug, Clone)]
+pub struct PostProcessing;
+
+#[derive(Debug, Clone)]
+pub struct CalculateTax;
+
+#[derive(Debug, Clone)]
+pub struct SdkSessionUpdate;
+
+#[derive(Debug, Clone)]
+pub struct PaymentCreateIntent;
+
+#[derive(Debug, Clone)]
+pub struct PaymentGetIntent;
+
+#[derive(Debug, Clone)]
+pub struct PostSessionTokens;

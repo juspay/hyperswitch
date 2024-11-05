@@ -1,4 +1,3 @@
-use common_utils::id_type;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 use error_stack::report;
 
@@ -14,7 +13,7 @@ impl MandateNew {
 impl Mandate {
     pub async fn find_by_merchant_id_mandate_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         mandate_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -28,7 +27,7 @@ impl Mandate {
 
     pub async fn find_by_merchant_id_connector_mandate_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_mandate_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -42,8 +41,8 @@ impl Mandate {
 
     pub async fn find_by_merchant_id_customer_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
-        customer_id: &id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        customer_id: &common_utils::id_type::CustomerId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -62,9 +61,15 @@ impl Mandate {
         .await
     }
 
+    //Fix this function once V2 mandate is schema is being built
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    pub async fn find_by_global_id(_conn: &PgPooledConn, _id: &str) -> StorageResult<Vec<Self>> {
+        todo!()
+    }
+
     pub async fn update_by_merchant_id_mandate_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         mandate_id: &str,
         mandate: MandateUpdateInternal,
     ) -> StorageResult<Self> {

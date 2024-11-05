@@ -1,3 +1,4 @@
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -6,10 +7,24 @@ use crate::{
     core::errors,
     types::{self, api, domain, storage::enums},
 };
+#[derive(Debug, Serialize)]
+pub struct OpayoRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(MinorUnit, T)> for OpayoRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct OpayoPaymentsRequest {
-    amount: i64,
+    amount: MinorUnit,
     card: OpayoCard,
 }
 
@@ -23,9 +38,12 @@ pub struct OpayoCard {
     complete: bool,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
+impl TryFrom<&OpayoRouterData<&types::PaymentsAuthorizeRouterData>> for OpayoPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &OpayoRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data.clone();
         match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(req_card) => {
                 let card = OpayoCard {
@@ -39,7 +57,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
                     complete: item.request.is_auto_capture()?,
                 };
                 Ok(Self {
-                    amount: item.request.amount,
+                    amount: item_data.amount,
                     card,
                 })
             }
@@ -56,7 +74,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Opayo"),
                 )
@@ -123,8 +144,8 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.clone(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
@@ -140,14 +161,14 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct OpayoRefundRequest {
-    pub amount: i64,
+    pub amount: MinorUnit,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for OpayoRefundRequest {
+impl<F> TryFrom<&OpayoRouterData<&types::RefundsRouterData<F>>> for OpayoRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &OpayoRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount: item.amount,
         })
     }
 }

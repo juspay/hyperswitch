@@ -1,6 +1,8 @@
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "v2")]
+use crate::payment_attempt::PaymentAttemptUpdateInternal;
 use crate::{
     address::{Address, AddressNew, AddressUpdateInternal},
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
@@ -18,8 +20,8 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "db_op", content = "data")]
 pub enum DBOperation {
-    Insert { insertable: Insertable },
-    Update { updatable: Updateable },
+    Insert { insertable: Box<Insertable> },
+    Update { updatable: Box<Updateable> },
 }
 
 impl DBOperation {
@@ -31,7 +33,7 @@ impl DBOperation {
     }
     pub fn table<'a>(&self) -> &'a str {
         match self {
-            Self::Insert { insertable } => match insertable {
+            Self::Insert { insertable } => match **insertable {
                 Insertable::PaymentIntent(_) => "payment_intent",
                 Insertable::PaymentAttempt(_) => "payment_attempt",
                 Insertable::Refund(_) => "refund",
@@ -43,7 +45,7 @@ impl DBOperation {
                 Insertable::PaymentMethod(_) => "payment_method",
                 Insertable::Mandate(_) => "mandate",
             },
-            Self::Update { updatable } => match updatable {
+            Self::Update { updatable } => match **updatable {
                 Updateable::PaymentIntentUpdate(_) => "payment_intent",
                 Updateable::PaymentAttemptUpdate(_) => "payment_attempt",
                 Updateable::RefundUpdate(_) => "refund",
@@ -81,7 +83,7 @@ pub struct TypedSql {
 impl DBOperation {
     pub async fn execute(self, conn: &PgPooledConn) -> crate::StorageResult<DBResult> {
         Ok(match self {
-            Self::Insert { insertable } => match insertable {
+            Self::Insert { insertable } => match *insertable {
                 Insertable::PaymentIntent(a) => {
                     DBResult::PaymentIntent(Box::new(a.insert(conn).await?))
                 }
@@ -105,12 +107,22 @@ impl DBOperation {
                 }
                 Insertable::Mandate(m) => DBResult::Mandate(Box::new(m.insert(conn).await?)),
             },
-            Self::Update { updatable } => match updatable {
+            Self::Update { updatable } => match *updatable {
                 Updateable::PaymentIntentUpdate(a) => {
                     DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
                 }
+                #[cfg(feature = "v1")]
                 Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
+                )),
+                #[cfg(feature = "v2")]
+                Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
+                    a.orig
+                        .update_with_attempt_id(
+                            conn,
+                            PaymentAttemptUpdateInternal::from(a.update_data),
+                        )
+                        .await?,
                 )),
                 Updateable::RefundUpdate(a) => {
                     DBResult::Refund(Box::new(a.orig.update(conn, a.update_data).await?))
@@ -124,10 +136,18 @@ impl DBOperation {
                 Updateable::PayoutAttemptUpdate(a) => DBResult::PayoutAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
                 )),
+                #[cfg(all(
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
                 Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
                     v.orig
                         .update_with_payment_method_id(conn, v.update_data)
                         .await?,
+                )),
+                #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                Updateable::PaymentMethodUpdate(v) => DBResult::PaymentMethod(Box::new(
+                    v.orig.update_with_id(conn, v.update_data).await?,
                 )),
                 Updateable::MandateUpdate(m) => DBResult::Mandate(Box::new(
                     Mandate::update_by_merchant_id_mandate_id(
@@ -138,6 +158,7 @@ impl DBOperation {
                     )
                     .await?,
                 )),
+                #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
                 Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
                     Customer::update_by_customer_id_merchant_id(
                         conn,
@@ -146,6 +167,10 @@ impl DBOperation {
                         cust.update_data,
                     )
                     .await?,
+                )),
+                #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                Updateable::CustomerUpdate(cust) => DBResult::Customer(Box::new(
+                    Customer::update_by_id(conn, cust.orig.id.clone(), cust.update_data).await?,
                 )),
             },
         })
@@ -176,8 +201,8 @@ impl TypedSql {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "table", content = "data")]
 pub enum Insertable {
-    PaymentIntent(PaymentIntentNew),
-    PaymentAttempt(PaymentAttemptNew),
+    PaymentIntent(Box<PaymentIntentNew>),
+    PaymentAttempt(Box<PaymentAttemptNew>),
     Refund(RefundNew),
     Address(Box<AddressNew>),
     Customer(CustomerNew),
@@ -191,14 +216,14 @@ pub enum Insertable {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "table", content = "data")]
 pub enum Updateable {
-    PaymentIntentUpdate(PaymentIntentUpdateMems),
-    PaymentAttemptUpdate(PaymentAttemptUpdateMems),
+    PaymentIntentUpdate(Box<PaymentIntentUpdateMems>),
+    PaymentAttemptUpdate(Box<PaymentAttemptUpdateMems>),
     RefundUpdate(RefundUpdateMems),
     CustomerUpdate(CustomerUpdateMems),
     AddressUpdate(Box<AddressUpdateMems>),
     PayoutsUpdate(PayoutsUpdateMems),
     PayoutAttemptUpdate(PayoutAttemptUpdateMems),
-    PaymentMethodUpdate(PaymentMethodUpdateMems),
+    PaymentMethodUpdate(Box<PaymentMethodUpdateMems>),
     MandateUpdate(MandateUpdateMems),
 }
 

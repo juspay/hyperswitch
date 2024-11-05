@@ -1,4 +1,7 @@
 use async_trait::async_trait;
+use common_enums as enums;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentConfirmData;
 use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;
@@ -15,9 +18,81 @@ use crate::{
     routes::{metrics, SessionState},
     services,
     services::api::ConnectorValidation,
-    types::{self, api, domain, storage, transformers::ForeignFrom},
+    types::{self, api, domain, transformers::ForeignFrom},
+    utils::OptionExt,
 };
 
+#[cfg(feature = "v2")]
+#[async_trait]
+impl
+    ConstructFlowSpecificData<
+        api::Authorize,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    > for PaymentConfirmData<api::Authorize>
+{
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<
+        types::RouterData<
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > {
+        Box::pin(transformers::construct_payment_router_data_for_authorize(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+            key_store,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+        ))
+        .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        let payment_method = &self
+            .payment_attempt
+            .get_payment_method()
+            .get_required_value("PaymentMethod")?;
+
+        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
+            payments::get_merchant_bank_data_for_open_banking_connectors(
+                merchant_connector_account,
+                key_store,
+                connector,
+                state,
+                merchant_account,
+            )
+            .await?
+        } else {
+            None
+        };
+
+        Ok(data)
+    }
+}
+
+#[cfg(feature = "v1")]
 #[async_trait]
 impl
     ConstructFlowSpecificData<
@@ -34,6 +109,8 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -52,10 +129,42 @@ impl
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
         ))
         .await
     }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        state: &SessionState,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        let payment_method = &self
+            .payment_attempt
+            .get_payment_method()
+            .get_required_value("PaymentMethod")?;
+
+        let data = if *payment_method == enums::PaymentMethod::OpenBanking {
+            payments::get_merchant_bank_data_for_open_banking_connectors(
+                merchant_connector_account,
+                key_store,
+                connector,
+                state,
+                merchant_account,
+            )
+            .await?
+        } else {
+            None
+        };
+
+        Ok(data)
+    }
 }
+
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
     async fn decide_flows<'a>(
@@ -64,8 +173,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &storage::business_profile::BusinessProfile,
-        _header_payload: api_models::payments::HeaderPayload,
+        _business_profile: &domain::Profile,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::Authorize,
@@ -106,7 +215,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
-        creds_identifier: Option<&String>,
+        creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
             .await
@@ -168,6 +277,14 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         connector: &api::ConnectorData,
     ) -> RouterResult<Self> {
         authorize_preprocessing_steps(state, &self, true, connector).await
+    }
+
+    async fn postprocessing_steps<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+    ) -> RouterResult<Self> {
+        authorize_postprocessing_steps(state, &self, true, connector).await
     }
 
     async fn create_connector_customer<'a>(
@@ -394,6 +511,56 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
                 authorize_router_data.request.enrolled_for_3ds = false;
             }
         }
+        Ok(authorize_router_data)
+    } else {
+        Ok(router_data.clone())
+    }
+}
+
+pub async fn authorize_postprocessing_steps<F: Clone>(
+    state: &SessionState,
+    router_data: &types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    confirm: bool,
+    connector: &api::ConnectorData,
+) -> RouterResult<types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>> {
+    if confirm {
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+            api::PostProcessing,
+            types::PaymentsPostProcessingData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        let postprocessing_request_data =
+            types::PaymentsPostProcessingData::try_from(router_data.to_owned())?;
+
+        let postprocessing_response_data: Result<
+            types::PaymentsResponseData,
+            types::ErrorResponse,
+        > = Err(types::ErrorResponse::default());
+
+        let postprocessing_router_data =
+            helpers::router_data_type_conversion::<_, api::PostProcessing, _, _, _, _>(
+                router_data.clone(),
+                postprocessing_request_data,
+                postprocessing_response_data,
+            );
+
+        let resp = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &postprocessing_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await
+        .to_payment_failed_response()?;
+
+        let authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
+            resp.clone(),
+            router_data.request.to_owned(),
+            resp.response,
+        );
+
         Ok(authorize_router_data)
     } else {
         Ok(router_data.clone())

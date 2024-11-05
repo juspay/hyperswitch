@@ -484,7 +484,7 @@ async fn insert_metadata(
                             state.conf.proxy.https_url.as_ref(),
                         )
                         .await;
-                    logger::info!(?send_email_result);
+                    logger::info!(prod_intent_email=?send_email_result);
                 }
             }
 
@@ -613,6 +613,7 @@ pub async fn backfill_metadata(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
+            &state.into(),
             &user.merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
@@ -652,7 +653,7 @@ pub async fn backfill_metadata(
                     user.to_owned(),
                     DBEnum::StripeConnected,
                     types::MetaData::StripeConnected(api::ProcessorConnected {
-                        processor_id: mca.merchant_connector_id,
+                        processor_id: mca.get_id(),
                         processor_name: mca.connector_name,
                     }),
                 )
@@ -692,7 +693,7 @@ pub async fn backfill_metadata(
                     user.to_owned(),
                     DBEnum::PaypalConnected,
                     types::MetaData::PaypalConnected(api::ProcessorConnected {
-                        processor_id: mca.merchant_connector_id,
+                        processor_id: mca.get_id(),
                         processor_name: mca.connector_name,
                     }),
                 )
@@ -706,21 +707,33 @@ pub async fn backfill_metadata(
 
 pub async fn get_merchant_connector_account_by_name(
     state: &SessionState,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     connector_name: &str,
     key_store: &MerchantKeyStore,
 ) -> UserResult<Option<domain::MerchantConnectorAccount>> {
-    state
-        .store
-        .find_merchant_connector_account_by_merchant_id_connector_name(
-            merchant_id,
-            connector_name,
-            key_store,
-        )
-        .await
-        .map_err(|e| {
-            e.change_context(UserErrors::InternalServerError)
-                .attach_printable("DB Error Fetching DashboardMetaData")
-        })
-        .map(|data| data.first().cloned())
+    #[cfg(feature = "v1")]
+    {
+        state
+            .store
+            .find_merchant_connector_account_by_merchant_id_connector_name(
+                &state.into(),
+                merchant_id,
+                connector_name,
+                key_store,
+            )
+            .await
+            .map_err(|e| {
+                e.change_context(UserErrors::InternalServerError)
+                    .attach_printable("DB Error Fetching DashboardMetaData")
+            })
+            .map(|data| data.first().cloned())
+    }
+    #[cfg(feature = "v2")]
+    {
+        let _ = state;
+        let _ = merchant_id;
+        let _ = connector_name;
+        let _ = key_store;
+        todo!()
+    }
 }

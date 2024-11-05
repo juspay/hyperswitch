@@ -13,8 +13,6 @@ use crate::{
     types::{self, api, domain, PaymentAddress},
 };
 
-const IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
-    "irrelevant_payment_id_in_source_verification_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
     "irrelevant_attempt_id_in_source_verification_flow";
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
@@ -26,10 +24,10 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &st
 pub async fn is_webhook_event_disabled(
     db: &dyn StorageInterface,
     connector_id: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let redis_key = format!("whconf_disabled_events_{merchant_id}_{connector_id}");
+    let redis_key = merchant_id.get_webhook_config_disabled_events_key(connector_id);
     let merchant_webhook_disable_config_result: CustomResult<
         api::MerchantWebhookConfig,
         redis_interface::errors::RedisError,
@@ -66,17 +64,19 @@ pub async fn construct_webhook_router_data<'a>(
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
     let auth_type: types::ConnectorAuthType =
-        helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account.clone())
+        helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account.clone()))
             .get_connector_account_details()
             .parse_value("ConnectorAuthType")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         connector: connector_name.to_string(),
         customer_id: None,
-        payment_id: IRRELEVANT_PAYMENT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("source_verification_flow")
+            .get_string_repr()
+            .to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW.to_string(),
         status: diesel_models::enums::AttemptStatus::default(),
         payment_method: diesel_models::enums::PaymentMethod::default(),
@@ -120,6 +120,9 @@ pub async fn construct_webhook_router_data<'a>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
     Ok(router_data)
 }

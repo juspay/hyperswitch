@@ -1,10 +1,10 @@
 pub mod transformers;
 
-use std::fmt::Debug;
-
 use base64::Engine;
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
+#[cfg(feature = "payouts")]
+use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
@@ -12,6 +12,8 @@ use ring::hmac;
 use router_env::{instrument, tracing};
 
 use self::transformers as payone;
+#[cfg(feature = "payouts")]
+use crate::connector::utils::convert_amount;
 #[cfg(feature = "payouts")]
 use crate::get_formatted_date_time;
 #[cfg(feature = "payouts")]
@@ -37,10 +39,19 @@ use crate::{
     },
     utils::BytesExt,
 };
-#[derive(Debug, Clone)]
-pub struct Payone;
+#[derive(Clone)]
+pub struct Payone {
+    #[cfg(feature = "payouts")]
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
 
 impl Payone {
+    pub fn new() -> &'static Self {
+        &Self {
+            #[cfg(feature = "payouts")]
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
     pub fn generate_signature(
         &self,
         auth: payone::PayoneAuthType,
@@ -102,7 +113,7 @@ where
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = payone::PayoneAuthType::try_from(&req.connector_auth_type)?;
-        let http_method = Self.get_http_method().to_string();
+        let http_method = self.get_http_method().to_string();
         let content_type = Self::get_content_type(self);
         let base_url = self.base_url(connectors);
         let url = Self::get_url(self, req, connectors)?;
@@ -173,7 +184,7 @@ impl ConnectorCommon for Payone {
         let errors_list = response.errors.clone().unwrap_or_default();
         let option_error_code_message =
             connector_utils::get_error_code_error_message_based_on_priority(
-                Self.clone(),
+                self.clone(),
                 errors_list
                     .into_iter()
                     .map(|errors| errors.into())
@@ -291,12 +302,12 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = payone::PayoneRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.destination_currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = payone::PayoneRouterData::from((amount, req));
         let connector_req = payone::PayonePayoutFulfillRequest::try_from(connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

@@ -206,7 +206,9 @@ pub enum StripeErrorCode {
     PaymentIntentMandateInvalid { message: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id already exists in our records.")]
-    DuplicatePayment { payment_id: String },
+    DuplicatePayment {
+        payment_id: common_utils::id_type::PaymentId,
+    },
 
     #[error(error_type = StripeErrorType::ConnectorError, code = "", message = "{code}: {message}")]
     ExternalConnectorError {
@@ -264,6 +266,8 @@ pub enum StripeErrorCode {
     PaymentMethodDeleteFailed,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "Extended card info does not exist")]
     ExtendedCardInfoNotFound,
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "not_configured", message = "{message}")]
+    LinkConfigurationError { message: String },
     #[error(error_type = StripeErrorType::ConnectorError, code = "CE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
         reason: String,
@@ -607,7 +611,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "authentication".to_owned(),
                 id,
             },
-            errors::ApiErrorResponse::BusinessProfileNotFound { id } => Self::ResourceMissing {
+            errors::ApiErrorResponse::ProfileNotFound { id } => Self::ResourceMissing {
                 object: "business_profile".to_owned(),
                 id,
             },
@@ -656,6 +660,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::InvalidWalletToken { wallet_name }
             }
             errors::ApiErrorResponse::ExtendedCardInfoNotFound => Self::ExtendedCardInfoNotFound,
+            errors::ApiErrorResponse::LinkConfigurationError { message } => {
+                Self::LinkConfigurationError { message }
+            }
             errors::ApiErrorResponse::IntegrityCheckFailed {
                 reason,
                 field_names,
@@ -742,7 +749,8 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::InvalidConnectorConfiguration { .. }
             | Self::CurrencyConversionFailed
             | Self::PaymentMethodDeleteFailed
-            | Self::ExtendedCardInfoNotFound => StatusCode::BAD_REQUEST,
+            | Self::ExtendedCardInfoNotFound
+            | Self::LinkConfigurationError { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
             | Self::PaymentLinkNotFound

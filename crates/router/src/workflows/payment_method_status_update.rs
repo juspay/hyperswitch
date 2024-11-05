@@ -14,6 +14,10 @@ pub struct PaymentMethodStatusUpdateWorkflow;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow {
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,
@@ -30,21 +34,27 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
         let prev_pm_status = tracking_data.prev_status;
         let curr_pm_status = tracking_data.curr_status;
         let merchant_id = tracking_data.merchant_id;
-
+        let key_manager_state = &state.into();
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                merchant_id.as_str(),
+                key_manager_state,
+                &merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await?;
 
         let payment_method = db
-            .find_payment_method(&pm_id, merchant_account.storage_scheme)
+            .find_payment_method(
+                &(state.into()),
+                &key_store,
+                &pm_id,
+                merchant_account.storage_scheme,
+            )
             .await?;
 
         if payment_method.status != prev_pm_status {
@@ -60,7 +70,13 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
         };
 
         let res = db
-            .update_payment_method(payment_method, pm_update, merchant_account.storage_scheme)
+            .update_payment_method(
+                &(state.into()),
+                &key_store,
+                payment_method,
+                pm_update,
+                merchant_account.storage_scheme,
+            )
             .await
             .map_err(errors::ProcessTrackerError::EStorageError);
 

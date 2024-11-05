@@ -1,4 +1,7 @@
-use common_utils::types::MinorUnit;
+use common_utils::{
+    id_type,
+    types::{ConnectorTransactionIdTrait, MinorUnit},
+};
 use diesel_models::{enums as storage_enums, refund::Refund};
 use time::OffsetDateTime;
 
@@ -7,8 +10,8 @@ use time::OffsetDateTime;
 pub struct KafkaRefundEvent<'a> {
     pub internal_reference_id: &'a String,
     pub refund_id: &'a String, //merchant_reference id
-    pub payment_id: &'a String,
-    pub merchant_id: &'a String,
+    pub payment_id: &'a id_type::PaymentId,
+    pub merchant_id: &'a id_type::MerchantId,
     pub connector_transaction_id: &'a String,
     pub connector: &'a String,
     pub connector_refund_id: Option<&'a String>,
@@ -29,6 +32,8 @@ pub struct KafkaRefundEvent<'a> {
     pub attempt_id: &'a String,
     pub refund_reason: Option<&'a String>,
     pub refund_error_code: Option<&'a String>,
+    pub profile_id: Option<&'a id_type::ProfileId>,
+    pub organization_id: &'a id_type::OrganizationId,
 }
 
 impl<'a> KafkaRefundEvent<'a> {
@@ -38,9 +43,9 @@ impl<'a> KafkaRefundEvent<'a> {
             refund_id: &refund.refund_id,
             payment_id: &refund.payment_id,
             merchant_id: &refund.merchant_id,
-            connector_transaction_id: &refund.connector_transaction_id,
+            connector_transaction_id: refund.get_connector_transaction_id(),
             connector: &refund.connector,
-            connector_refund_id: refund.connector_refund_id.as_ref(),
+            connector_refund_id: refund.get_optional_connector_refund_id(),
             external_reference_id: refund.external_reference_id.as_ref(),
             refund_type: &refund.refund_type,
             total_amount: &refund.total_amount,
@@ -51,11 +56,13 @@ impl<'a> KafkaRefundEvent<'a> {
             refund_error_message: refund.refund_error_message.as_ref(),
             refund_arn: refund.refund_arn.as_ref(),
             created_at: refund.created_at.assume_utc(),
-            modified_at: refund.updated_at.assume_utc(),
+            modified_at: refund.modified_at.assume_utc(),
             description: refund.description.as_ref(),
             attempt_id: &refund.attempt_id,
             refund_reason: refund.refund_reason.as_ref(),
             refund_error_code: refund.refund_error_code.as_ref(),
+            profile_id: refund.profile_id.as_ref(),
+            organization_id: &refund.organization_id,
         }
     }
 }
@@ -64,7 +71,10 @@ impl<'a> super::KafkaMessage for KafkaRefundEvent<'a> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}_{}",
-            self.merchant_id, self.payment_id, self.attempt_id, self.refund_id
+            self.merchant_id.get_string_repr(),
+            self.payment_id.get_string_repr(),
+            self.attempt_id,
+            self.refund_id
         )
     }
 

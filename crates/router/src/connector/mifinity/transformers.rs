@@ -1,4 +1,7 @@
-use common_utils::pii::{self, Email};
+use common_utils::{
+    pii::{self, Email},
+    types::StringMajorUnit,
+};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -8,27 +11,22 @@ use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData},
     core::errors,
     services,
-    types::{self, api, domain, storage::enums},
+    types::{self, domain, storage::enums},
 };
 
 pub struct MifinityRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for MifinityRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for MifinityRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data: item,
-        })
+            router_data,
+        }
     }
 }
-
 pub mod auth_headers {
     pub const API_VERSION: &str = "api-version";
 }
@@ -63,11 +61,13 @@ pub struct MifinityPaymentsRequest {
     destination_account_number: Secret<String>,
     brand_id: Secret<String>,
     return_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language_preference: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct Money {
-    amount: String,
+    amount: StringMajorUnit,
     currency: String,
 }
 
@@ -125,7 +125,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     };
                     let validation_key = format!(
                         "payment_validation_key_{}_{}",
-                        item.router_data.merchant_id,
+                        item.router_data.merchant_id.get_string_repr(),
                         item.router_data.connector_request_reference_id.clone()
                     );
                     let client_reference = item.router_data.customer_id.clone().ok_or(
@@ -136,6 +136,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     let destination_account_number = metadata.destination_account_number;
                     let trace_id = item.router_data.connector_request_reference_id.clone();
                     let brand_id = metadata.brand_id;
+                    let language_preference = data.language_preference;
                     Ok(Self {
                         money,
                         client,
@@ -147,6 +148,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                         destination_account_number,
                         brand_id,
                         return_url: item.router_data.request.get_router_return_url()?,
+                        language_preference,
                     })
                 }
                 domain::WalletData::AliPayQr(_)
@@ -167,6 +169,7 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -192,7 +195,10 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Mifinity"),
                 )
@@ -253,10 +259,10 @@ impl<F, T>
                     status: enums::AttemptStatus::AuthenticationPending,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(trace_id.clone()),
-                        redirection_data: Some(services::RedirectForm::Mifinity {
+                        redirection_data: Box::new(Some(services::RedirectForm::Mifinity {
                             initialization_token,
-                        }),
-                        mandate_reference: None,
+                        })),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(trace_id),
@@ -270,8 +276,8 @@ impl<F, T>
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -339,8 +345,8 @@ impl<F, T>
                                 resource_id: types::ResponseId::ConnectorTransactionId(
                                     transaction_reference,
                                 ),
-                                redirection_data: None,
-                                mandate_reference: None,
+                                redirection_data: Box::new(None),
+                                mandate_reference: Box::new(None),
                                 connector_metadata: None,
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
@@ -354,8 +360,8 @@ impl<F, T>
                         status: enums::AttemptStatus::from(status),
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::NoResponseId,
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: None,
@@ -370,8 +376,8 @@ impl<F, T>
                 status: item.data.status,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,

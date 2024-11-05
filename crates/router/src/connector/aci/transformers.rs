@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use common_utils::{id_type, pii::Email};
+use common_utils::{id_type, pii::Email, types::StringMajorUnit};
 use error_stack::report;
 use masking::{ExposeInterface, Secret};
 use reqwest::Url;
@@ -18,26 +18,16 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize)]
 pub struct AciRouterData<T> {
-    amount: String,
+    amount: StringMajorUnit,
     router_data: T,
 }
 
-impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for AciRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (currency_unit, currency, amount, item): (
-            &types::api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for AciRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -76,7 +66,7 @@ pub struct AciPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct TransactionDetails {
     pub entity_id: Secret<String>,
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
     pub payment_type: AciPaymentType,
 }
@@ -130,6 +120,7 @@ impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)> for Pay
             | domain::WalletData::MobilePayRedirect(_)
             | domain::WalletData::PaypalRedirect(_)
             | domain::WalletData::PaypalSdk(_)
+            | domain::WalletData::Paze(_)
             | domain::WalletData::SamsungPay(_)
             | domain::WalletData::TwintRedirect { .. }
             | domain::WalletData::VippsRedirect { .. }
@@ -235,7 +226,7 @@ impl
                     customer_email: Some(item.router_data.get_billing_email()?),
                 }))
             }
-            domain::BankRedirectData::Interac {} => {
+            domain::BankRedirectData::Interac { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::InteracOnline,
                     bank_account_country: Some(item.router_data.get_billing_country()?),
@@ -248,7 +239,7 @@ impl
                     customer_email: Some(item.router_data.get_billing_email()?),
                 }))
             }
-            domain::BankRedirectData::Trustly {} => {
+            domain::BankRedirectData::Trustly { .. } => {
                 Self::BankRedirect(Box::new(BankRedirectionPMData {
                     payment_brand: PaymentBrand::Trustly,
                     bank_account_country: None,
@@ -447,7 +438,10 @@ impl TryFrom<&AciRouterData<&types::PaymentsAuthorizeRouterData>> for AciPayment
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
                 ))?
@@ -754,6 +748,8 @@ impl<F, T>
             .map(|id| types::MandateReference {
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             });
 
         Ok(Self {
@@ -768,8 +764,8 @@ impl<F, T>
             },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data,
-                mandate_reference,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
@@ -784,7 +780,7 @@ impl<F, T>
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciRefundRequest {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub currency: String,
     pub payment_type: AciPaymentType,
     pub entity_id: Secret<String>,

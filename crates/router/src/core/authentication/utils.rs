@@ -1,4 +1,3 @@
-use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data_v2::ExternalAuthenticationFlowData;
 
@@ -176,12 +175,12 @@ impl ForeignFrom<common_enums::AuthenticationStatus> for common_enums::AttemptSt
 
 pub async fn create_new_authentication(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     token: String,
-    profile_id: String,
-    payment_id: Option<String>,
-    merchant_connector_id: String,
+    profile_id: common_utils::id_type::ProfileId,
+    payment_id: Option<common_utils::id_type::PaymentId>,
+    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> RouterResult<storage::Authentication> {
     let authentication_id =
         common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
@@ -267,40 +266,33 @@ where
 pub async fn get_authentication_connector_data(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: &storage::BusinessProfile,
+    business_profile: &domain::Profile,
 ) -> RouterResult<(
-    api_models::enums::AuthenticationConnectors,
+    common_enums::AuthenticationConnectors,
     payments::helpers::MerchantConnectorAccountType,
 )> {
-    let authentication_details: api_models::admin::AuthenticationConnectorDetails =
-        business_profile
-            .authentication_connector_details
-            .clone()
-            .get_required_value("authentication_details")
-            .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "authentication_connector_details is not available in business profile"
-                    .into(),
-            })
-            .attach_printable("authentication_connector_details not configured by the merchant")?
-            .parse_value("AuthenticationConnectorDetails")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Error while parsing authentication_connector_details from business_profile",
-            )?;
+    let authentication_details = business_profile
+        .authentication_connector_details
+        .clone()
+        .get_required_value("authentication_details")
+        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "authentication_connector_details is not available in business profile".into(),
+        })
+        .attach_printable("authentication_connector_details not configured by the merchant")?;
     let authentication_connector = authentication_details
         .authentication_connectors
         .first()
         .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
             message: format!(
-                "No authentication_connector found for profile_id {}",
-                business_profile.profile_id
+                "No authentication_connector found for profile_id {:?}",
+                business_profile.get_id()
             ),
         })
         .attach_printable(
             "No authentication_connector found from merchant_account.authentication_details",
         )?
         .to_owned();
-    let profile_id = &business_profile.profile_id;
+    let profile_id = business_profile.get_id();
     let authentication_connector_mca = payments::helpers::get_merchant_connector_account(
         state,
         &business_profile.merchant_id,

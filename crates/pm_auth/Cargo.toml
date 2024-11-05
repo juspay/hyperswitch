@@ -7,14 +7,15 @@ rust-version.workspace = true
 readme = "README.md"
 license.workspace = true
 
+[features]
+v1 = ["api_models/v1", "common_utils/v1"]
+
 [dependencies]
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 masking = { version = "0.1.0", path = "../masking" }
-router_derive = { version = "0.1.0", path = "../router_derive" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 # Third party crates
 async-trait = "0.1.79"
@@ -26,3 +27,6 @@ serde = "1.0.197"
 serde_json = "1.0.115"
 strum = { version = "0.26.2", features = ["derive"] }
 thiserror = "1.0.58"
+
+[lints]
+workspace = true

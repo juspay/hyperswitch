@@ -1,4 +1,7 @@
-use common_utils::ext_traits::{OptionExt, ValueExt};
+use common_utils::{
+    consts::DEFAULT_LOCALE,
+    ext_traits::{OptionExt, ValueExt},
+};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     errors,
@@ -31,22 +34,30 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             .merchant_id
             .clone()
             .get_required_value("merchant_id")?;
-
+        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                merchant_id.as_ref(),
+                key_manager_state,
+                &merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
             .await?;
 
         let request = api::payouts::PayoutRequest::PayoutRetrieveRequest(tracking_data);
 
-        let mut payout_data =
-            payouts::make_payout_data(state, &merchant_account, &key_store, &request).await?;
+        let mut payout_data = payouts::make_payout_data(
+            state,
+            &merchant_account,
+            None,
+            &key_store,
+            &request,
+            DEFAULT_LOCALE,
+        )
+        .await?;
 
         payouts::payouts_core(
             state,

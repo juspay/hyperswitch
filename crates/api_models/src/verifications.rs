@@ -1,3 +1,5 @@
+use common_utils::id_type;
+
 /// The request body for verification of merchant (everything except domain_names are prefilled)
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -13,7 +15,7 @@ pub struct ApplepayMerchantVerificationConfigs {
 #[serde(rename_all = "snake_case")]
 pub struct ApplepayMerchantVerificationRequest {
     pub domain_names: Vec<String>,
-    pub merchant_connector_account_id: String,
+    pub merchant_connector_account_id: id_type::MerchantConnectorAccountId,
 }
 
 /// Response to be sent for the verify/applepay api
@@ -27,8 +29,8 @@ pub struct ApplepayMerchantResponse {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ApplepayGetVerifiedDomainsParam {
-    pub merchant_id: String,
-    pub merchant_connector_account_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_connector_account_id: id_type::MerchantConnectorAccountId,
 }
 /// Response to be sent for derivation of the already verified domains
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

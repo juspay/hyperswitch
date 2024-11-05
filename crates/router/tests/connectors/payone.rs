@@ -11,7 +11,7 @@ impl utils::Connector for PayoneTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Payone;
         utils::construct_connector_data_old(
-            Box::new(&Payone),
+            Box::new(Payone::new()),
             types::Connector::Payone,
             types::api::GetToken::Connector,
             None,

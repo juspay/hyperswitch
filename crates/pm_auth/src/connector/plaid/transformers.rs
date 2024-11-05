@@ -15,6 +15,8 @@ pub struct PlaidLinkTokenRequest {
     language: String,
     products: Vec<String>,
     user: User,
+    android_package_name: Option<String>,
+    redirect_uri: Option<String>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -41,6 +43,22 @@ impl TryFrom<&types::LinkTokenRouterData> for PlaidLinkTokenRequest {
                         field_name: "country_codes",
                     },
                 )?,
+            },
+            android_package_name: match item.request.client_platform {
+                Some(api_models::enums::ClientPlatform::Android) => {
+                    item.request.android_package_name.clone()
+                }
+                Some(api_models::enums::ClientPlatform::Ios)
+                | Some(api_models::enums::ClientPlatform::Web)
+                | Some(api_models::enums::ClientPlatform::Unknown)
+                | None => None,
+            },
+            redirect_uri: match item.request.client_platform {
+                Some(api_models::enums::ClientPlatform::Ios) => item.request.redirect_uri.clone(),
+                Some(api_models::enums::ClientPlatform::Android)
+                | Some(api_models::enums::ClientPlatform::Web)
+                | Some(api_models::enums::ClientPlatform::Unknown)
+                | None => None,
             },
         })
     }
@@ -113,6 +131,103 @@ impl TryFrom<&types::ExchangeTokenRouterData> for PlaidExchangeTokenRequest {
     }
 }
 
+#[derive(Debug, Serialize, Eq, PartialEq)]
+pub struct PlaidRecipientCreateRequest {
+    pub name: String,
+    #[serde(flatten)]
+    pub account_data: PlaidRecipientAccountData,
+    pub address: Option<PlaidRecipientCreateAddress>,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct PlaidRecipientCreateResponse {
+    pub recipient_id: String,
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PlaidRecipientAccountData {
+    Iban(Secret<String>),
+    Bacs {
+        sort_code: Secret<String>,
+        account: Secret<String>,
+    },
+}
+
+impl From<&types::RecipientAccountData> for PlaidRecipientAccountData {
+    fn from(item: &types::RecipientAccountData) -> Self {
+        match item {
+            types::RecipientAccountData::Iban(iban) => Self::Iban(iban.clone()),
+            types::RecipientAccountData::Bacs {
+                sort_code,
+                account_number,
+            } => Self::Bacs {
+                sort_code: sort_code.clone(),
+                account: account_number.clone(),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Eq, PartialEq)]
+pub struct PlaidRecipientCreateAddress {
+    pub street: String,
+    pub city: String,
+    pub postal_code: String,
+    pub country: String,
+}
+
+impl From<&types::RecipientCreateAddress> for PlaidRecipientCreateAddress {
+    fn from(item: &types::RecipientCreateAddress) -> Self {
+        Self {
+            street: item.street.clone(),
+            city: item.city.clone(),
+            postal_code: item.postal_code.clone(),
+            country: common_enums::CountryAlpha2::to_string(&item.country),
+        }
+    }
+}
+
+impl From<&types::RecipientCreateRouterData> for PlaidRecipientCreateRequest {
+    fn from(item: &types::RecipientCreateRouterData) -> Self {
+        Self {
+            name: item.request.name.clone(),
+            account_data: PlaidRecipientAccountData::from(&item.request.account_data),
+            address: item
+                .request
+                .address
+                .as_ref()
+                .map(PlaidRecipientCreateAddress::from),
+        }
+    }
+}
+
+impl<F, T>
+    From<
+        types::ResponseRouterData<
+            F,
+            PlaidRecipientCreateResponse,
+            T,
+            types::RecipientCreateResponse,
+        >,
+    > for types::PaymentAuthRouterData<F, T, types::RecipientCreateResponse>
+{
+    fn from(
+        item: types::ResponseRouterData<
+            F,
+            PlaidRecipientCreateResponse,
+            T,
+            types::RecipientCreateResponse,
+        >,
+    ) -> Self {
+        Self {
+            response: Ok(types::RecipientCreateResponse {
+                recipient_id: item.response.recipient_id,
+            }),
+            ..item.data
+        }
+    }
+}
 #[derive(Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct PlaidBankAccountCredentialsRequest {

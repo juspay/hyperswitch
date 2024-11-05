@@ -1,8 +1,9 @@
 use std::time::Duration;
 
+use base64::Engine;
 use error_stack::ResultExt;
 use http::{HeaderValue, Method};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use once_cell::sync::OnceCell;
 use reqwest::multipart::Form;
 use router_env::tracing_actix_web::RequestId;
@@ -10,12 +11,9 @@ use router_env::tracing_actix_web::RequestId;
 use super::{request::Maskable, Request};
 use crate::{
     configs::settings::{Locker, Proxy},
-    consts::LOCKER_HEALTH_CALL_PATH,
-    core::{
-        errors::{ApiClientError, CustomResult},
-        payments,
-    },
-    routes::SessionState,
+    consts::{BASE64_ENGINE, LOCKER_HEALTH_CALL_PATH},
+    core::errors::{ApiClientError, CustomResult},
+    routes::{app::settings::KeyManagerConfig, SessionState},
 };
 
 static NON_PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -90,11 +88,11 @@ pub fn create_client(
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
             let client_builder = get_client_builder(proxy_config, should_bypass_proxy)?;
 
-            let identity = payments::helpers::create_identity_from_certificate_and_key(
+            let identity = create_identity_from_certificate_and_key(
                 encoded_certificate.clone(),
                 encoded_certificate_key,
             )?;
-            let certificate_list = payments::helpers::create_certificate(encoded_certificate)?;
+            let certificate_list = create_certificate(encoded_certificate)?;
             let client_builder = certificate_list
                 .into_iter()
                 .fold(client_builder, |client_builder, certificate| {
@@ -102,6 +100,7 @@ pub fn create_client(
                 });
             client_builder
                 .identity(identity)
+                .use_rustls_tls()
                 .build()
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
@@ -110,10 +109,52 @@ pub fn create_client(
     }
 }
 
-pub fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
+pub fn create_identity_from_certificate_and_key(
+    encoded_certificate: masking::Secret<String>,
+    encoded_certificate_key: masking::Secret<String>,
+) -> Result<reqwest::Identity, error_stack::Report<ApiClientError>> {
+    let decoded_certificate = BASE64_ENGINE
+        .decode(encoded_certificate.expose())
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
+
+    let decoded_certificate_key = BASE64_ENGINE
+        .decode(encoded_certificate_key.expose())
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
+
+    let certificate = String::from_utf8(decoded_certificate)
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
+
+    let certificate_key = String::from_utf8(decoded_certificate_key)
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
+
+    let key_chain = format!("{}{}", certificate_key, certificate);
+    reqwest::Identity::from_pem(key_chain.as_bytes())
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
+
+pub fn create_certificate(
+    encoded_certificate: masking::Secret<String>,
+) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
+    let decoded_certificate = BASE64_ENGINE
+        .decode(encoded_certificate.expose())
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
+
+    let certificate = String::from_utf8(decoded_certificate)
+        .change_context(ApiClientError::CertificateDecodeFailed)?;
+    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
+
+pub fn proxy_bypass_urls(
+    key_manager: &KeyManagerConfig,
+    locker: &Locker,
+    config_whitelist: &[String],
+) -> Vec<String> {
+    let key_manager_host = key_manager.url.to_owned();
     let locker_host = locker.host.to_owned();
     let locker_host_rs = locker.host_rs.to_owned();
-    vec![
+
+    let proxy_list = [
         format!("{locker_host}/cards/add"),
         format!("{locker_host}/cards/fingerprint"),
         format!("{locker_host}/cards/retrieve"),
@@ -125,7 +166,12 @@ pub fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
         format!("{locker_host}/card/addCard"),
         format!("{locker_host}/card/getCard"),
         format!("{locker_host}/card/deleteCard"),
-    ]
+        format!("{key_manager_host}/data/encrypt"),
+        format!("{key_manager_host}/data/decrypt"),
+        format!("{key_manager_host}/key/create"),
+        format!("{key_manager_host}/key/rotate"),
+    ];
+    [&proxy_list, config_whitelist].concat().to_vec()
 }
 
 pub trait RequestBuilder: Send + Sync {
@@ -173,7 +219,6 @@ where
 
     fn add_request_id(&mut self, request_id: RequestId);
     fn get_request_id(&self) -> Option<String>;
-    fn add_merchant_id(&mut self, _merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
 }
 
@@ -235,10 +280,8 @@ impl ProxyClient {
             (Some(certificate), Some(certificate_key)) => {
                 let client_builder =
                     reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
-                let identity = payments::helpers::create_identity_from_certificate_and_key(
-                    certificate,
-                    certificate_key,
-                )?;
+                let identity =
+                    create_identity_from_certificate_and_key(certificate, certificate_key)?;
                 Ok(client_builder
                     .identity(identity)
                     .build()
@@ -357,8 +400,6 @@ impl ApiClient for ProxyClient {
         self.request_id.clone()
     }
 
-    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {}
-
     fn add_flow_name(&mut self, _flow_name: String) {}
 }
 
@@ -409,8 +450,6 @@ impl ApiClient for MockApiClient {
         // [#2066]: Add Mock implementation for ApiClient
         None
     }
-
-    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {}
 
     fn add_flow_name(&mut self, _flow_name: String) {}
 }

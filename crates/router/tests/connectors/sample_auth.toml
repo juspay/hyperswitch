@@ -30,6 +30,7 @@ api_key = "Bearer MyApiKey"
 [worldpay]
 api_key = "api_key"
 key1 = "key1"
+api_secret = "Merchant Identifier"
 
 [payu]
 api_key = "Bearer MyApiKey"
@@ -195,6 +196,10 @@ api_key= "Login"
 key1= "Trankey"
 
 
+[plaid]
+api_key="Client Id"
+key1= "Secret"
+
 [threedsecureio]
 api_key="API Key"
 
@@ -210,10 +215,6 @@ api_key="API Key"
 [netcetera]
 certificate="Certificate"
 private_key="Private Key"
-
-
-[ebanx]
-api_key="API Key"
 
 [zsl]
 api_key= "Key"
@@ -246,3 +247,39 @@ api_key="API Key"
 key1 = "Merchant id"
 api_secret = "Razorpay Id"
 key2 = "Razorpay Secret"
+
+[itaubank]
+api_key="API Key"
+
+[wellsfargo]
+api_key = "MyApiKey"
+key1 = "Merchant id"
+api_secret = "Secret key"
+
+[paybox]
+api_key="API Key"
+
+[fiservemea]
+api_key="API Key"
+
+[nexixpay]
+api_key="API Key"
+
+[wellsfargopayout]
+api_key = "Consumer Key"
+key1 = "Gateway Entity Id"
+api_secret = "Consumer Secret"
+
+[taxjar]
+api_key = "API Key"
+
+[novalnet]
+api_key="API Key"
+
+[deutschebank]
+api_key = "Client ID"
+key1 = "Merchant ID"
+api_secret = "Client Key"
+
+[thunes]
+api_key="API Key"

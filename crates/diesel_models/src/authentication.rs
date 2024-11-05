@@ -1,14 +1,16 @@
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
 
 use crate::schema::authentication;
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = authentication,  primary_key(authentication_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = authentication,  primary_key(authentication_id), check_for_backend(diesel::pg::Pg))]
 pub struct Authentication {
     pub authentication_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub authentication_connector: String,
     pub connector_authentication_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
@@ -39,9 +41,9 @@ pub struct Authentication {
     pub acs_reference_number: Option<String>,
     pub acs_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
-    pub profile_id: String,
-    pub payment_id: Option<String>,
-    pub merchant_connector_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
+    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub ds_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
     pub acquirer_country_code: Option<String>,
@@ -59,7 +61,7 @@ impl Authentication {
 #[diesel(table_name = authentication)]
 pub struct AuthenticationNew {
     pub authentication_id: String,
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub authentication_connector: String,
     pub connector_authentication_id: Option<String>,
     // pub authentication_data: Option<serde_json::Value>,
@@ -86,9 +88,9 @@ pub struct AuthenticationNew {
     pub acs_reference_number: Option<String>,
     pub acs_trans_id: Option<String>,
     pub acs_signed_content: Option<String>,
-    pub profile_id: String,
-    pub payment_id: Option<String>,
-    pub merchant_connector_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
+    pub merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     pub ds_trans_id: Option<String>,
     pub directory_server_id: Option<String>,
     pub acquirer_country_code: Option<String>,

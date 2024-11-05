@@ -3,6 +3,8 @@ use std::str::FromStr;
 pub use common_enums::*;
 use utoipa::ToSchema;
 
+pub use super::connector_enums::Connector;
+
 #[derive(
     Clone,
     Copy,
@@ -23,279 +25,6 @@ pub enum RoutingAlgorithm {
     MaxConversion,
     MinCost,
     Custom,
-}
-
-/// A connector is an integration to fulfill payments
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::Display,
-    strum::EnumString,
-    Hash,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum Connector {
-    Adyenplatform,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "phonypay")]
-    #[strum(serialize = "phonypay")]
-    DummyConnector1,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "fauxpay")]
-    #[strum(serialize = "fauxpay")]
-    DummyConnector2,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "pretendpay")]
-    #[strum(serialize = "pretendpay")]
-    DummyConnector3,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "stripe_test")]
-    #[strum(serialize = "stripe_test")]
-    DummyConnector4,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "adyen_test")]
-    #[strum(serialize = "adyen_test")]
-    DummyConnector5,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "checkout_test")]
-    #[strum(serialize = "checkout_test")]
-    DummyConnector6,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "paypal_test")]
-    #[strum(serialize = "paypal_test")]
-    DummyConnector7,
-    Aci,
-    Adyen,
-    Airwallex,
-    Authorizedotnet,
-    Bambora,
-    // Bamboraapac, commented for template
-    Bankofamerica,
-    Billwerk,
-    Bitpay,
-    Bluesnap,
-    Boku,
-    Braintree,
-    Cashtocode,
-    Checkout,
-    Coinbase,
-    Cryptopay,
-    Cybersource,
-    // Datatrans,
-    Dlocal,
-    Ebanx,
-    Fiserv,
-    Forte,
-    Globalpay,
-    Globepay,
-    Gocardless,
-    Gpayments,
-    Helcim,
-    Iatapay,
-    Klarna,
-    Mifinity,
-    Mollie,
-    Multisafepay,
-    Netcetera,
-    Nexinets,
-    Nmi,
-    Noon,
-    Nuvei,
-    // Opayo, added as template code for future usage
-    Opennode,
-    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    Payme,
-    Payone,
-    Paypal,
-    Payu,
-    Placetopay,
-    Powertranz,
-    Prophetpay,
-    Rapyd,
-    Razorpay,
-    Shift4,
-    Square,
-    Stax,
-    Stripe,
-    Threedsecureio,
-    Trustpay,
-    // Tsys,
-    Tsys,
-    Volt,
-    Wise,
-    Worldline,
-    Worldpay,
-    Signifyd,
-    Plaid,
-    Riskified,
-    Zen,
-    Zsl,
-}
-
-impl Connector {
-    #[cfg(feature = "payouts")]
-    pub fn supports_instant_payout(&self, payout_method: Option<PayoutType>) -> bool {
-        matches!(
-            (self, payout_method),
-            (Self::Paypal, Some(PayoutType::Wallet))
-                | (_, Some(PayoutType::Card))
-                | (Self::Adyenplatform, _)
-        )
-    }
-    #[cfg(feature = "payouts")]
-    pub fn supports_create_recipient(&self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (_, Some(PayoutType::Bank)))
-    }
-    #[cfg(feature = "payouts")]
-    pub fn supports_payout_eligibility(&self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (_, Some(PayoutType::Card)))
-    }
-    #[cfg(feature = "payouts")]
-    pub fn is_payout_quote_call_required(&self) -> bool {
-        matches!(self, Self::Wise)
-    }
-    #[cfg(feature = "payouts")]
-    pub fn supports_access_token_for_payout(&self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (Self::Paypal, _))
-    }
-    #[cfg(feature = "payouts")]
-    pub fn supports_vendor_disburse_account_create_for_payout(&self) -> bool {
-        matches!(self, Self::Stripe)
-    }
-    pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
-        matches!(
-            (self, payment_method),
-            (Self::Airwallex, _)
-                | (Self::Globalpay, _)
-                | (Self::Paypal, _)
-                | (Self::Payu, _)
-                | (Self::Trustpay, PaymentMethod::BankRedirect)
-                | (Self::Iatapay, _)
-                | (Self::Volt, _)
-        )
-    }
-    pub fn supports_file_storage_module(&self) -> bool {
-        matches!(self, Self::Stripe | Self::Checkout)
-    }
-    pub fn requires_defend_dispute(&self) -> bool {
-        matches!(self, Self::Checkout)
-    }
-    pub fn is_separate_authentication_supported(&self) -> bool {
-        match self {
-            #[cfg(feature = "dummy_connector")]
-            Self::DummyConnector1
-            | Self::DummyConnector2
-            | Self::DummyConnector3
-            | Self::DummyConnector4
-            | Self::DummyConnector5
-            | Self::DummyConnector6
-            | Self::DummyConnector7 => false,
-            Self::Aci
-            // Add Separate authentication support for connectors
-            | Self::Adyen
-            | Self::Adyenplatform
-            | Self::Airwallex
-            | Self::Authorizedotnet
-            | Self::Bambora
-            | Self::Bankofamerica
-            | Self::Billwerk
-            | Self::Bitpay
-            | Self::Bluesnap
-            | Self::Boku
-            | Self::Braintree
-            | Self::Cashtocode
-            | Self::Coinbase
-            | Self::Cryptopay
-            | Self::Dlocal
-            | Self::Ebanx
-            | Self::Fiserv
-            | Self::Forte
-            | Self::Globalpay
-            | Self::Globepay
-            | Self::Gocardless
-            | Self::Gpayments
-            | Self::Helcim
-            | Self::Iatapay
-            | Self::Klarna
-            | Self::Mifinity
-            | Self::Mollie
-            | Self::Multisafepay
-            | Self::Nexinets
-            | Self::Nuvei
-            | Self::Opennode
-            | Self::Payme
-            | Self::Payone
-            | Self::Paypal
-            | Self::Payu
-            | Self::Placetopay
-            | Self::Powertranz
-            | Self::Prophetpay
-            | Self::Rapyd
-            | Self::Shift4
-            | Self::Square
-            | Self::Stax
-            | Self::Trustpay
-            | Self::Tsys
-            | Self::Volt
-            | Self::Wise
-            | Self::Worldline
-            | Self::Worldpay
-            | Self::Zen
-            | Self::Zsl
-            | Self::Signifyd
-            | Self::Plaid
-            | Self::Razorpay
-            | Self::Riskified
-            | Self::Threedsecureio
-            // | Self::Datatrans
-            | Self::Netcetera
-            | Self::Noon
-            | Self::Stripe => false,
-            Self::Checkout | Self::Nmi | Self::Cybersource => true,
-        }
-    }
-    pub fn is_pre_processing_required_before_authorize(&self) -> bool {
-        matches!(self, Self::Airwallex)
-    }
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum AuthenticationConnectors {
-    Threedsecureio,
-    Netcetera,
-    Gpayments,
-}
-
-impl AuthenticationConnectors {
-    pub fn is_separate_version_call_required(&self) -> bool {
-        match self {
-            Self::Threedsecureio | Self::Netcetera => false,
-            Self::Gpayments => true,
-        }
-    }
 }
 
 #[cfg(feature = "payouts")]
@@ -398,6 +127,26 @@ pub enum FrmConnectors {
 }
 
 #[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+
+pub enum TaxConnectors {
+    Taxjar,
+}
+
+#[derive(
     Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString, ToSchema,
 )]
 #[strum(serialize_all = "snake_case")]
@@ -465,10 +214,18 @@ pub enum FieldType {
     UserShippingAddressCountry { options: Vec<String> },
     UserBlikCode,
     UserBank,
+    UserBankAccountNumber,
     Text,
     DropDown { options: Vec<String> },
     UserDateOfBirth,
     UserVpaId,
+    LanguagePreference { options: Vec<String> },
+    UserPixKey,
+    UserCpf,
+    UserCnpj,
+    UserIban,
+    BrowserLanguage,
+    BrowserIp,
 }
 
 impl FieldType {
@@ -555,6 +312,10 @@ impl PartialEq for FieldType {
             ) => options_self.eq(options_other),
             (Self::UserDateOfBirth, Self::UserDateOfBirth) => true,
             (Self::UserVpaId, Self::UserVpaId) => true,
+            (Self::UserPixKey, Self::UserPixKey) => true,
+            (Self::UserCpf, Self::UserCpf) => true,
+            (Self::UserCnpj, Self::UserCnpj) => true,
+            (Self::LanguagePreference { .. }, Self::LanguagePreference { .. }) => true,
             _unused => false,
         }
     }
@@ -614,7 +375,6 @@ pub enum LockerChoice {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
     ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
@@ -629,6 +389,10 @@ pub fn convert_pm_auth_connector(connector_name: &str) -> Option<PmAuthConnector
 
 pub fn convert_authentication_connector(connector_name: &str) -> Option<AuthenticationConnectors> {
     AuthenticationConnectors::from_str(connector_name).ok()
+}
+
+pub fn convert_tax_connector(connector_name: &str) -> Option<TaxConnectors> {
+    TaxConnectors::from_str(connector_name).ok()
 }
 
 #[derive(

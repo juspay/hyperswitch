@@ -1843,6 +1843,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::OnlineBankingThailand => Self::BankRedirect,
             PaymentMethodType::OnlineBankingPoland => Self::BankRedirect,
             PaymentMethodType::OnlineBankingSlovakia => Self::BankRedirect,
+            PaymentMethodType::Paze => Self::Wallet,
             PaymentMethodType::PermataBankTransfer => Self::BankTransfer,
             PaymentMethodType::Pix => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
@@ -1882,6 +1883,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::FamilyMart => Self::Voucher,
             PaymentMethodType::Seicomart => Self::Voucher,
             PaymentMethodType::PayEasy => Self::Voucher,
+            PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
         }
     }
 }
@@ -1986,6 +1988,79 @@ mod custom_serde {
         {
             u32::deserialize(deserializer)
                 .and_then(|value| Country::from_numeric(value).map_err(serde::de::Error::custom))
+        }
+    }
+}
+
+impl From<Option<bool>> for super::External3dsAuthenticationRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Enable,
+            _ => Self::Skip,
+        }
+    }
+}
+
+/// Get the boolean value of the `External3dsAuthenticationRequest`.
+impl super::External3dsAuthenticationRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Enable => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl super::EnablePaymentLinkRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Enable => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl From<Option<bool>> for super::EnablePaymentLinkRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Enable,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl From<Option<bool>> for super::MitExemptionRequest {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Apply,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl super::MitExemptionRequest {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Apply => true,
+            Self::Skip => false,
+        }
+    }
+}
+
+impl From<Option<bool>> for super::PresenceOfCustomerDuringPayment {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(false) => Self::Absent,
+            _ => Self::Present,
+        }
+    }
+}
+
+impl super::PresenceOfCustomerDuringPayment {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Present => true,
+            Self::Absent => false,
         }
     }
 }

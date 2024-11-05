@@ -28,13 +28,9 @@
       "payment_method": "card_redirect",
       "payment_method_type": "card_redirect",
       "payment_method_data": {
-          "card_redirect": {
-              "card_redirect": {}
-          }
-      },
-      "routing": {
-          "type": "single",
-          "data": "prophetpay"
+        "card_redirect": {
+          "card_redirect": {}
+        }
       }
     }
   },

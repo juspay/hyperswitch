@@ -13,10 +13,18 @@ development = []
 sandbox = []
 dummy_connector = ["api_models/dummy_connector", "development"]
 payouts = ["api_models/payouts"]
+v1 = ["api_models/v1", "common_utils/v1"]
 
 [dependencies]
+# First party crates
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+common_utils = { version = "0.1.0", path = "../common_utils" }
+
+# Third party crates
 serde = { version = "1.0.197", features = ["derive"] }
 serde_with = "3.7.0"
 toml = "0.8.12"
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
+
+[lints]
+workspace = true

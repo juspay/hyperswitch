@@ -52,7 +52,8 @@
         "api-reference/payments/payments-link--retrieve",
         "api-reference/payments/payments--list",
         "api-reference/payments/payments--external-3ds-authentication",
-        "api-reference/payments/payments--complete-authorize"
+        "api-reference/payments/payments--complete-authorize",
+        "api-reference/payments/post-session-tokens"
       ]
     },
     {
@@ -104,6 +105,14 @@
       ]
     },
     {
+      "group": "Organization",
+      "pages": [
+        "api-reference/organization/organization--create",
+        "api-reference/organization/organization--retrieve",
+        "api-reference/organization/organization--update"
+      ]
+    },
+    {
       "group": "Merchant Account",
       "pages": [
         "api-reference/merchant-account/merchant-account--create",
@@ -129,7 +138,8 @@
         "api-reference/api-key/api-key--create",
         "api-reference/api-key/api-key--retrieve",
         "api-reference/api-key/api-key--update",
-        "api-reference/api-key/api-key--revoke"
+        "api-reference/api-key/api-key--revoke",
+        "api-reference/api-key/api-key--list"
       ]
     },
     {
@@ -146,11 +156,13 @@
       "group": "Payouts",
       "pages": [
         "api-reference/payouts/payouts--create",
-        "api-reference/payouts/payouts--retrieve",
         "api-reference/payouts/payouts--update",
         "api-reference/payouts/payouts--cancel",
         "api-reference/payouts/payouts--fulfill",
+        "api-reference/payouts/payouts--confirm",
+        "api-reference/payouts/payouts--retrieve",
         "api-reference/payouts/payouts--list",
+        "api-reference/payouts/payouts--list-filters",
         "api-reference/payouts/payouts--filter"
       ]
     },

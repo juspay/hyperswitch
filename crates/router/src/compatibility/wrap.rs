@@ -43,14 +43,12 @@ where
 
     let start_instant = Instant::now();
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
-    let req_state = state.get_req_state();
 
     let server_wrap_util_res = metrics::request::record_request_time_metric(
         api::server_wrap_util(
             &flow,
             state.clone().into(),
             request.headers(),
-            req_state,
             request,
             payload,
             func,
@@ -141,10 +139,12 @@ where
         }
 
         Ok(api::ApplicationResponse::GenericLinkForm(boxed_generic_link_data)) => {
-            let link_type = (boxed_generic_link_data).to_string();
-            match services::generic_link_response::build_generic_link_html(*boxed_generic_link_data)
-            {
-                Ok(rendered_html) => api::http_response_html_data(rendered_html),
+            let link_type = (boxed_generic_link_data).data.to_string();
+            match services::generic_link_response::build_generic_link_html(
+                boxed_generic_link_data.data,
+                boxed_generic_link_data.locale,
+            ) {
+                Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                 Err(_) => {
                     api::http_response_err(format!("Error while rendering {} HTML page", link_type))
                 }
@@ -155,7 +155,7 @@ where
             match *boxed_payment_link_data {
                 api::PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
                     match api::build_payment_link_html(payment_link_data) {
-                        Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                        Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                         Err(_) => api::http_response_err(
                             r#"{
                                 "error": {
@@ -167,7 +167,7 @@ where
                 }
                 api::PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
                     match api::get_payment_link_status(payment_link_data) {
-                        Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                        Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                         Err(_) => api::http_response_err(
                             r#"{
                                 "error": {

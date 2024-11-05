@@ -32,7 +32,7 @@ use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiErrorResponse>;
 
-pub type ApplicationResult<T> = Result<T, ApplicationError>;
+pub type ApplicationResult<T> = error_stack::Result<T, ApplicationError>;
 pub type ApplicationResponse<T> = ApplicationResult<services::ApplicationResponse<T>>;
 
 pub type CustomerResponse<T> =
@@ -124,6 +124,8 @@ pub enum VaultError {
     SaveCardFailed,
     #[error("Failed to fetch card details from card vault")]
     FetchCardFailed,
+    #[error("Failed to delete card in card vault")]
+    DeleteCardFailed,
     #[error("Failed to encode card vault request")]
     RequestEncodingFailed,
     #[error("Failed to deserialize card vault response")]
@@ -146,6 +148,14 @@ pub enum VaultError {
     SavePaymentMethodFailed,
     #[error("Failed to generate fingerprint")]
     GenerateFingerprintFailed,
+    #[error("Failed to encrypt vault request")]
+    RequestEncryptionFailed,
+    #[error("Failed to decrypt vault response")]
+    ResponseDecryptionFailed,
+    #[error("Failed to call vault")]
+    VaultAPIError,
+    #[error("Failed while calling locker API")]
+    ApiError,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -222,6 +232,16 @@ pub enum ApplePayDecryptionError {
     KeyDeserializationFailed,
     #[error("Failed to Derive a shared secret key")]
     DerivingSharedSecretKeyFailed,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PazeDecryptionError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to decrypt input data")]
+    DecryptionFailed,
+    #[error("Certificate parsing failed")]
+    CertificateParsingFailed,
 }
 
 #[cfg(feature = "detailed_errors")]
@@ -308,6 +328,20 @@ pub enum RoutingError {
     VolumeSplitFailed,
     #[error("Unable to parse metadata")]
     MetadataParsingError,
+    #[error("Unable to retrieve success based routing config")]
+    SuccessBasedRoutingConfigError,
+    #[error("Unable to calculate success based routing config from dynamic routing service")]
+    SuccessRateCalculationError,
+    #[error("Success rate client from dynamic routing gRPC service not initialized")]
+    SuccessRateClientInitializationError,
+    #[error("Unable to convert from '{from}' to '{to}'")]
+    GenericConversionError { from: String, to: String },
+    #[error("Invalid success based connector label received from dynamic routing service: '{0}'")]
+    InvalidSuccessBasedConnectorLabel(String),
+    #[error("unable to find '{field}'")]
+    GenericNotFoundError { field: String },
+    #[error("Unable to deserialize from '{from}' to '{to}'")]
+    DeserializationError { from: String, to: String },
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
@@ -328,4 +362,20 @@ pub enum ConditionalConfigError {
     DslExecutionError,
     #[error("Error constructing the Input")]
     InputConstructionError,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum NetworkTokenizationError {
+    #[error("Failed to save network token in vault")]
+    SaveNetworkTokenFailed,
+    #[error("Failed to fetch network token details from vault")]
+    FetchNetworkTokenFailed,
+    #[error("Failed to encode network token vault request")]
+    RequestEncodingFailed,
+    #[error("Failed to deserialize network token service response")]
+    ResponseDeserializationFailed,
+    #[error("Failed to delete network token")]
+    DeleteNetworkTokenFailed,
+    #[error("Network token service not configured")]
+    NetworkTokenizationServiceNotConfigured,
 }

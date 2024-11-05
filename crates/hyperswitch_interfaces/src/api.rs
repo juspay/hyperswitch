@@ -1,16 +1,47 @@
 //! API interface
 
+pub mod disputes;
+pub mod disputes_v2;
+pub mod files;
+pub mod files_v2;
+#[cfg(feature = "frm")]
+pub mod fraud_check;
+#[cfg(feature = "frm")]
+pub mod fraud_check_v2;
+pub mod payments;
+pub mod payments_v2;
+#[cfg(feature = "payouts")]
+pub mod payouts;
+#[cfg(feature = "payouts")]
+pub mod payouts_v2;
+pub mod refunds;
+pub mod refunds_v2;
+use common_enums::enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},
 };
-use hyperswitch_domain_models::router_data::{ConnectorAuthType, ErrorResponse, RouterData};
+use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data_v2::{
+        flow_common_types::WebhookSourceVerifyData, AccessTokenFlowData, MandateRevokeFlowData,
+    },
+    router_flow_types::{mandate_revoke::MandateRevoke, AccessTokenAuth, VerifyWebhookSource},
+    router_request_types::{
+        AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
+    },
+    router_response_types::{MandateRevokeResponseData, VerifyWebhookSourceResponseData},
+};
 use masking::Maskable;
 use router_env::metrics::add_attributes;
 use serde_json::json;
 
+pub use self::{payments::*, refunds::*};
 use crate::{
-    configs::Connectors, consts, errors, events::connector_api_logs::ConnectorEvent, metrics, types,
+    configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, consts, errors,
+    events::connector_api_logs::ConnectorEvent, metrics, types,
 };
 
 /// type BoxedConnectorIntegration
@@ -252,5 +283,130 @@ pub trait ConnectorCommonExt<Flow, Req, Resp>:
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         Ok(Vec::new())
+    }
+}
+
+/// trait ConnectorMandateRevoke
+pub trait ConnectorMandateRevoke:
+    ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>
+{
+}
+
+/// trait ConnectorMandateRevokeV2
+pub trait ConnectorMandateRevokeV2:
+    ConnectorIntegrationV2<
+    MandateRevoke,
+    MandateRevokeFlowData,
+    MandateRevokeRequestData,
+    MandateRevokeResponseData,
+>
+{
+}
+
+/// trait ConnectorAccessToken
+pub trait ConnectorAccessToken:
+    ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
+{
+}
+
+/// trait ConnectorAccessTokenV2
+pub trait ConnectorAccessTokenV2:
+    ConnectorIntegrationV2<AccessTokenAuth, AccessTokenFlowData, AccessTokenRequestData, AccessToken>
+{
+}
+
+/// trait ConnectorVerifyWebhookSource
+pub trait ConnectorVerifyWebhookSource:
+    ConnectorIntegration<
+    VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>
+{
+}
+
+/// trait ConnectorVerifyWebhookSourceV2
+pub trait ConnectorVerifyWebhookSourceV2:
+    ConnectorIntegrationV2<
+    VerifyWebhookSource,
+    WebhookSourceVerifyData,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>
+{
+}
+
+/// trait ConnectorValidation
+pub trait ConnectorValidation: ConnectorCommon {
+    /// fn validate_capture_method
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<CaptureMethod>,
+        _pmt: Option<PaymentMethodType>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            CaptureMethod::Automatic => Ok(()),
+            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: capture_method.to_string(),
+                    connector: self.id(),
+                }
+                .into())
+            }
+        }
+    }
+
+    /// fn validate_mandate_payment
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<PaymentMethodType>,
+        _pm_data: PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let connector = self.id();
+        match pm_type {
+            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{} mandate payment", pm_type),
+                connector,
+            }
+            .into()),
+            None => Err(errors::ConnectorError::NotSupported {
+                message: " mandate payment".to_string(),
+                connector,
+            }
+            .into()),
+        }
+    }
+
+    /// fn validate_psync_reference_id
+    fn validate_psync_reference_id(
+        &self,
+        data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: common_enums::enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        data.connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
+            .map(|_| ())
+    }
+
+    /// fn is_webhook_source_verification_mandatory
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
+        false
+    }
+}
+
+/// trait ConnectorRedirectResponse
+pub trait ConnectorRedirectResponse {
+    /// fn get_flow_type
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: PaymentAction,
+    ) -> CustomResult<CallConnectorAction, errors::ConnectorError> {
+        Ok(CallConnectorAction::Avoid)
     }
 }

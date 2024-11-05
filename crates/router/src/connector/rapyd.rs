@@ -1,15 +1,15 @@
 pub mod transformers;
-use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{
     date_time,
     ext_traits::{Encode, StringExt},
     request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::{Report, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as rapyd;
@@ -17,6 +17,7 @@ use transformers as rapyd;
 use super::utils as connector_utils;
 use crate::{
     configs::settings,
+    connector::utils::convert_amount,
     consts,
     core::errors::{self, CustomResult},
     events::connector_api_logs::ConnectorEvent,
@@ -29,14 +30,22 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
-        domain, ErrorResponse,
+        ErrorResponse,
     },
     utils::{self, crypto, ByteSliceExt, BytesExt},
 };
 
-#[derive(Debug, Clone)]
-pub struct Rapyd;
-
+#[derive(Clone)]
+pub struct Rapyd {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+impl Rapyd {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 impl Rapyd {
     pub fn generate_signature(
         &self,
@@ -198,12 +207,12 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = rapyd::RapydRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = rapyd::RapydRouterData::from((amount, req));
         let connector_req = rapyd::RapydPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -528,12 +537,12 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = rapyd::RapydRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = rapyd::RapydRouterData::from((amount, req));
         let connector_req = rapyd::CaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -668,12 +677,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = rapyd::RapydRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = rapyd::RapydRouterData::from((amount, req));
         let connector_req = rapyd::RapydRefundRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -788,12 +797,15 @@ impl api::IncomingWebhook for Rapyd {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let host = connector_utils::get_header_key_value("host", request.headers)?;
         let connector = self.id();
-        let url_path = format!("https://{host}/webhooks/{merchant_id}/{connector}");
+        let url_path = format!(
+            "https://{host}/webhooks/{}/{connector}",
+            merchant_id.get_string_repr()
+        );
         let salt = connector_utils::get_header_key_value("salt", request.headers)?;
         let timestamp = connector_utils::get_header_key_value("timestamp", request.headers)?;
         let stringify_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
@@ -819,15 +831,16 @@ impl api::IncomingWebhook for Rapyd {
     async fn verify_webhook_source(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                merchant_account,
+                merchant_id,
                 connector_label,
-                merchant_connector_account,
+                connector_webhook_details,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -837,7 +850,7 @@ impl api::IncomingWebhook for Rapyd {
         let message = self
             .get_webhook_source_verification_message(
                 request,
-                &merchant_account.merchant_id,
+                merchant_id,
                 &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;

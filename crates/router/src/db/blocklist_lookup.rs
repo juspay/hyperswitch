@@ -19,13 +19,13 @@ pub trait BlocklistLookupInterface {
 
     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError>;
 
     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError>;
 }
@@ -47,7 +47,7 @@ impl BlocklistLookupInterface for Store {
     #[instrument(skip_all)]
     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -59,7 +59,7 @@ impl BlocklistLookupInterface for Store {
     #[instrument(skip_all)]
     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -81,7 +81,7 @@ impl BlocklistLookupInterface for MockDb {
 
     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -89,7 +89,7 @@ impl BlocklistLookupInterface for MockDb {
 
     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -111,7 +111,7 @@ impl BlocklistLookupInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn find_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         self.diesel_store
@@ -122,7 +122,7 @@ impl BlocklistLookupInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
         self.diesel_store

@@ -21,6 +21,8 @@ CREATE TABLE refund_queue (
     `refund_error_code` Nullable(String),
     `created_at` DateTime,
     `modified_at` DateTime,
+    `organization_id` String,
+    `profile_id` String,
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-refund-events',
@@ -52,6 +54,8 @@ CREATE TABLE refunds (
     `created_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `modified_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `organization_id` String,
+    `profile_id` String,
     `sign_flag` Int8,
     INDEX connectorIndex connector TYPE bloom_filter GRANULARITY 1,
     INDEX refundTypeIndex refund_type TYPE bloom_filter GRANULARITY 1,
@@ -85,6 +89,8 @@ CREATE MATERIALIZED VIEW refund_mv TO refunds (
     `created_at` DateTime64(3),
     `modified_at` DateTime64(3),
     `inserted_at` DateTime64(3),
+    `organization_id` String,
+    `profile_id` String,
     `sign_flag` Int8
 ) AS
 SELECT
@@ -111,6 +117,8 @@ SELECT
     created_at,
     modified_at,
     now() AS inserted_at,
+    organization_id,
+    profile_id,
     sign_flag
 FROM
     refund_queue

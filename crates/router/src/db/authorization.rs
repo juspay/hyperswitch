@@ -18,13 +18,13 @@ pub trait AuthorizationInterface {
 
     async fn find_all_authorizations_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError>;
 
     async fn update_authorization_by_merchant_id_authorization_id(
         &self,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError>;
@@ -47,8 +47,8 @@ impl AuthorizationInterface for Store {
     #[instrument(skip_all)]
     async fn find_all_authorizations_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Authorization::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
@@ -59,7 +59,7 @@ impl AuthorizationInterface for Store {
     #[instrument(skip_all)]
     async fn update_authorization_by_merchant_id_authorization_id(
         &self,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
@@ -109,13 +109,13 @@ impl AuthorizationInterface for MockDb {
 
     async fn find_all_authorizations_by_merchant_id_payment_id(
         &self,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
         let authorizations = self.authorizations.lock().await;
         let authorizations_found: Vec<storage::Authorization> = authorizations
             .iter()
-            .filter(|a| a.merchant_id == merchant_id && a.payment_id == payment_id)
+            .filter(|a| a.merchant_id == *merchant_id && a.payment_id == *payment_id)
             .cloned()
             .collect();
 
@@ -124,7 +124,7 @@ impl AuthorizationInterface for MockDb {
 
     async fn update_authorization_by_merchant_id_authorization_id(
         &self,
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization_update: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
@@ -141,7 +141,7 @@ impl AuthorizationInterface for MockDb {
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "cannot find authorization for authorization_id = {authorization_id} and merchant_id = {merchant_id}"
+                    "cannot find authorization for authorization_id = {authorization_id} and merchant_id = {merchant_id:?}"
                 ))
                 .into(),
             )

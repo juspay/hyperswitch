@@ -38,7 +38,7 @@
       }
     },
     "raw_json_formatted": {
-      "connector_type": "fiz_operations",
+      "connector_type": "payment_processor",
       "connector_name": "stripe",
       "business_country": "US",
       "business_label": "default",
@@ -259,10 +259,7 @@
             {
               "type": "CARD",
               "parameters": {
-                "allowed_auth_methods": [
-                  "PAN_ONLY",
-                  "CRYPTOGRAM_3DS"
-                ],
+                "allowed_auth_methods": ["PAN_ONLY", "CRYPTOGRAM_3DS"],
                 "allowed_card_networks": [
                   "AMEX",
                   "DISCOVER",
@@ -296,15 +293,8 @@
           },
           "payment_request_data": {
             "label": "applepay pvt.ltd",
-            "supported_networks": [
-              "visa",
-              "masterCard",
-              "amex",
-              "discover"
-            ],
-            "merchant_capabilities": [
-              "supports3DS"
-            ]
+            "supported_networks": ["visa", "masterCard", "amex", "discover"],
+            "merchant_capabilities": ["supports3DS"]
           }
         }
       }
@@ -312,14 +302,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "account",
-      ":account_id",
-      "connectors"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["account", ":account_id", "connectors"],
     "variable": [
       {
         "key": "account_id",

@@ -84,7 +84,7 @@ clippy :
 # 	make euclid-wasm
 
 euclid-wasm:
-	wasm-pack build --target web --out-dir $(ROOT_DIR)/wasm --out-name euclid $(ROOT_DIR)/crates/euclid_wasm  -- --features dummy_connector
+	wasm-pack build --target web --out-dir $(ROOT_DIR)/wasm --out-name euclid $(ROOT_DIR)/crates/euclid_wasm  -- --features dummy_connector,v1
 
 # Run Rust tests of project.
 #
@@ -112,38 +112,4 @@ precommit : fmt clippy test
 
 
 hack:
-	cargo hack check --workspace --each-feature --all-targets
-
-# Run database migrations using `diesel_cli`.
-# Assumes `diesel_cli` is already installed.
-#
-# Usage :
-#	make migrate [database-url=<PSQL connection string>] [locked-schema=<yes|no>]
-
-# This proceeds as follows:
-# 	Creates a temporary migrations directory, cleans it up if it already exists
-# 	Copies all migrations to the temporary migrations directory and runs migrations
-# 	Cleans up migrations, removing tmp directory if empty, ignoring otherwise
-migrate:
-	mkdir -p $(ROOT_DIR)/tmp/migrations
-	find $(ROOT_DIR)/tmp/migrations/ -mindepth 1 -delete
-
-	cp -r $(ROOT_DIR)/migrations/. $(ROOT_DIR)/v2_migrations/. $(ROOT_DIR)/tmp/migrations/
-	diesel migration run --migration-dir=$(ROOT_DIR)/tmp/migrations \
-		$(if $(strip $(database-url)),--database-url="$(database-url)",) \
-		$(if $(strip $(call eq,$(locked-schema),yes)),--locked-schema,)
-
-	rm -r $(ROOT_DIR)/tmp/migrations
-	rmdir $(ROOT_DIR)/tmp 2>/dev/null || true
-
-redo_migrate: 
-	mkdir -p $(ROOT_DIR)/tmp/migrations
-	find $(ROOT_DIR)/tmp/migrations/ -mindepth 1 -delete
-
-	cp -r $(ROOT_DIR)/migrations/. $(ROOT_DIR)/v2_migrations/. $(ROOT_DIR)/tmp/migrations/
-	diesel migration redo --all --migration-dir=$(ROOT_DIR)/tmp/migrations \
-		$(if $(strip $(database-url)),--database-url="$(database-url)",) \
-		$(if $(strip $(call eq,$(locked-schema),yes)),--locked-schema,)
-
-	rm -r $(ROOT_DIR)/tmp/migrations
-	rmdir $(ROOT_DIR)/tmp 2>/dev/null || true
+	cargo hack check --workspace --each-feature --all-targets --exclude-features 'v2 payment_v2'

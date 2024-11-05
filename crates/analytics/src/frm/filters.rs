@@ -18,7 +18,7 @@ pub trait FrmFilterAnalytics: LoadRow<FrmFilterRow> {}
 
 pub async fn get_frm_filter_for_dimension<T>(
     dimension: FrmDimensions,
-    merchant: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<FrmFilterRow>>
@@ -39,7 +39,7 @@ where
         .switch()?;
 
     query_builder
-        .add_filter_clause("merchant_id", merchant)
+        .add_filter_clause("merchant_id", merchant_id)
         .switch()?;
 
     query_builder.set_distinct();

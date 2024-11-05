@@ -1,5 +1,4 @@
 {
-  "connector_type": "fiz_operations",
   "connector_name": "stripe",
   "business_country": "US",
   "business_label": "default",
@@ -14,6 +13,7 @@
   "metadata": {
     "city": "NY",
     "unit": "245",
-    "endpoint_prefix": "AD"
+    "endpoint_prefix": "AD",
+    "merchant_name": "Cypress Test"
   }
 }

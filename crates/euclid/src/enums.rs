@@ -81,6 +81,7 @@ pub enum PaymentType {
     NonMandate,
     NewMandate,
     UpdateMandate,
+    PptMandate,
 }
 
 #[derive(

@@ -137,6 +137,12 @@ pub struct EmailSettings {
 
     /// The active email client to use
     pub active_email_client: AvailableEmailClients,
+
+    /// Recipient email for recon emails
+    pub recon_recipient_email: pii::Email,
+
+    /// Recipient email for recon emails
+    pub prod_intent_recipient_email: pii::Email,
 }
 
 /// Errors that could occur from EmailClient.

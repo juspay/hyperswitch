@@ -28,6 +28,16 @@ pub struct PaymentsSyncWorkflow;
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
+    #[cfg(feature = "v2")]
+    async fn execute_workflow<'a>(
+        &'a self,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a SessionState,
@@ -38,9 +48,10 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             .tracking_data
             .clone()
             .parse_value("PaymentsRetrieveRequest")?;
-
+        let key_manager_state = &state.into();
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -51,6 +62,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
         let merchant_account = db
             .find_merchant_account_by_merchant_id(
+                key_manager_state,
                 tracking_data
                     .merchant_id
                     .as_ref()
@@ -60,21 +72,27 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             .await?;
 
         // TODO: Add support for ReqState in PT flows
-        let (mut payment_data, _, customer, _, _) = Box::pin(
-            payment_flows::payments_operation_core::<api::PSync, _, _, _>(
+        let (mut payment_data, _, customer, _, _) =
+            Box::pin(payment_flows::payments_operation_core::<
+                api::PSync,
+                _,
+                _,
+                _,
+                payment_flows::PaymentData<api::PSync>,
+            >(
                 state,
                 state.get_req_state(),
                 merchant_account.clone(),
+                None,
                 key_store.clone(),
                 operations::PaymentStatus,
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
                 services::AuthFlow::Client,
                 None,
-                api::HeaderPayload::default(),
-            ),
-        )
-        .await?;
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
+            ))
+            .await?;
 
         let terminal_status = [
             enums::AttemptStatus::RouterDeclined,
@@ -148,6 +166,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
                     payment_data.payment_intent = db
                         .update_payment_intent(
+                            &state.into(),
                             payment_data.payment_intent,
                             payment_intent_update,
                             &key_store,
@@ -165,13 +184,15 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .attach_printable("Could not find profile_id in payment intent")?;
 
                     let business_profile = db
-                        .find_business_profile_by_profile_id(profile_id)
+                        .find_business_profile_by_profile_id(
+                            key_manager_state,
+                            &key_store,
+                            profile_id,
+                        )
                         .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::BusinessProfileNotFound {
-                                id: profile_id.to_string(),
-                            },
-                        )?;
+                        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                            id: profile_id.get_string_repr().to_owned(),
+                        })?;
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
@@ -226,7 +247,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
-    merchant_id: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping: common_utils::errors::CustomResult<
@@ -259,7 +280,7 @@ pub async fn get_sync_process_schedule_time(
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
     connector: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time =
@@ -286,12 +307,20 @@ mod tests {
 
     #[test]
     fn test_get_default_schedule_time() {
-        let schedule_time_delta =
-            scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 0)
-                .unwrap();
-        let first_retry_time_delta =
-            scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 1)
-                .unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("-")).unwrap();
+        let schedule_time_delta = scheduler_utils::get_schedule_time(
+            process_data::ConnectorPTMapping::default(),
+            &merchant_id,
+            0,
+        )
+        .unwrap();
+        let first_retry_time_delta = scheduler_utils::get_schedule_time(
+            process_data::ConnectorPTMapping::default(),
+            &merchant_id,
+            1,
+        )
+        .unwrap();
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],

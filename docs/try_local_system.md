@@ -56,7 +56,7 @@ Check the Table Of Contents to jump to the relevant section.
    and running migrations (approximately 2 minutes), and for the
    `hyperswitch-web` container to finish compiling before proceeding further.
    You can also choose to
-   [run the scheduler and monitoring services](#run-the-scheduler-and-monitoring-services)
+   [run the scheduler and monitoring services](#running-additional-services)
    in addition to the app server, web client and control center.
 
 5. Verify that the server is up and running by hitting the health endpoint:
@@ -154,7 +154,7 @@ Once the services have been confirmed to be up and running, you can proceed with
    around 15 minutes.
 
 5. (Optional) You can also choose to
-   [start the scheduler and/or monitoring services](#run-the-scheduler-and-monitoring-services)
+   [start the scheduler and/or monitoring services](#running-additional-services)
    in addition to the payments router.
 
 6. Verify that the server is up and running by hitting the health endpoint:
@@ -228,10 +228,10 @@ for your distribution and follow along.
    cargo install diesel_cli --no-default-features --features postgres
    ```
 
-5. Make sure your system has the `pkg-config` package, OpenSSL and make installed:
+5. Make sure your system has the `pkg-config` package and OpenSSL installed
 
    ```shell
-   sudo apt install pkg-config libssl-dev make
+   sudo apt install pkg-config libssl-dev
    ```
 
 Once you're done with setting up the dependencies, proceed with
@@ -378,12 +378,9 @@ You can opt to use your favorite package manager instead.
 1. Install the stable Rust toolchain using `rustup`:
 
    ```shell
-   brew install rustup-init
-   rustup-init
+   brew install rustup
+   rustup default stable
    ```
-
-   When prompted, proceed with the `default` profile, which installs the stable
-   toolchain.
 
    Optionally, verify that the Rust compiler and `cargo` are successfully
    installed:
@@ -437,6 +434,14 @@ You can opt to use your favorite package manager instead.
    echo 'PQ_LIB_DIR="$(brew --prefix libpq)/lib"' >> ~/.zshrc
    ```
 
+5. Install a command runner called `just`:
+
+   In order to make running migrations easier, you can use a command runner called just
+
+   ```shell
+   cargo install just
+   ```
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
@@ -480,8 +485,24 @@ Once you're done with setting up the dependencies, proceed with
 
 3. Run database migrations:
 
+   Export the `DATABASE_URL` env variable
+
    ```shell
-   make migrate database-url=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+   export DATABASE_URL=postgres://$DB_USER:$DB_PASS@localhost:5432/$DB_NAME
+   ```
+
+   Run the migrations
+
+   - If you have just installed
+
+   ```shell
+   just migrate
+   ```
+
+   - Using the diesel-cli command
+
+   ```shell
+   diesel migration run
    ```
 
 Once you're done with setting up the database, proceed with

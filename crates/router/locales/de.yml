@@ -1,0 +1,42 @@
+_version: 1
+
+payout_link:
+  initiate:
+    not_allowed: "Sie dürfen diesen Inhalt nicht anzeigen"
+    title: "Auszahlungslinks"
+  status:
+    title: "Auszahlungsstatus"
+    info:
+      ref_id: "Referenz-ID"
+      error_code: "Fehlercode"
+      error_message: "Fehlermeldung"
+    message:
+      failed: "Die Auszahlung konnte nicht verarbeitet werden. Bitte überprüfen Sie weitere Details bei Ihrem Anbieter."
+      processing: "Ihre Auszahlung sollte innerhalb von 2-3 Werktagen verarbeitet werden."
+      success: "Ihre Auszahlung wurde auf die ausgewählte Zahlungsmethode vorgenommen."
+    redirection_text:
+      redirecting: "Weiterleitung..."
+      redirecting_in: "Weiterleitung in"
+      seconds: "Sekunden..."
+    text:
+      failed: "Auszahlung fehlgeschlagen"
+      processing: "Auszahlung wird bearbeitet"
+      success: "Auszahlung erfolgreich"
+
+time:
+  am: "AM"
+  pm: "PM"
+
+months:
+  january: "Januar"
+  february: "Februar"
+  march: "März"
+  april: "April"
+  may: "Mai"
+  june: "Juni"
+  july: "Juli"
+  august: "August"
+  september: "September"
+  october: "Oktober"
+  november: "November"
+  december: "Dezember"

@@ -24,6 +24,10 @@
     {
       "key": "Accept",
       "value": "application/json"
+    },
+    {
+      "key": "x-merchant-id",
+      "value": "{{merchant_id}}"
     }
   ],
   "url": {

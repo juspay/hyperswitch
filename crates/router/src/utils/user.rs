@@ -1,9 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use api_models::user as user_api;
 use common_enums::UserAuthType;
-use common_utils::errors::CustomResult;
-use diesel_models::{encryption::Encryption, enums::UserStatus, user_role::UserRole};
+use common_utils::{
+    encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
+};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
@@ -33,9 +34,11 @@ impl UserFromToken {
         &self,
         state: SessionState,
     ) -> UserResult<MerchantAccount> {
+        let key_manager_state = &(&state).into();
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
                 &self.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
@@ -49,7 +52,7 @@ impl UserFromToken {
             })?;
         let merchant_account = state
             .store
-            .find_merchant_account_by_merchant_id(&self.merchant_id, &key_store)
+            .find_merchant_account_by_merchant_id(key_manager_state, &self.merchant_id, &key_store)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -71,63 +74,35 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &SessionState) -> UserResult<RoleInfo> {
-        RoleInfo::from_role_id(state, &self.role_id, &self.merchant_id, &self.org_id)
-            .await
-            .change_context(UserErrors::InternalServerError)
+        RoleInfo::from_role_id_in_merchant_scope(
+            state,
+            &self.role_id,
+            &self.merchant_id,
+            &self.org_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
     }
 }
 
-pub async fn generate_jwt_auth_token(
+pub async fn generate_jwt_auth_token_with_attributes(
     state: &SessionState,
-    user: &UserFromStorage,
-    user_role: &UserRole,
-) -> UserResult<Secret<String>> {
-    let token = AuthToken::new_token(
-        user.get_user_id().to_string(),
-        user_role.merchant_id.clone(),
-        user_role.role_id.clone(),
-        &state.conf,
-        user_role.org_id.clone(),
-    )
-    .await?;
-    Ok(Secret::new(token))
-}
-
-pub async fn generate_jwt_auth_token_with_custom_role_attributes(
-    state: &SessionState,
-    user: &UserFromStorage,
-    merchant_id: String,
-    org_id: String,
+    user_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     role_id: String,
+    profile_id: id_type::ProfileId,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
-        user.get_user_id().to_string(),
+        user_id,
         merchant_id,
         role_id,
         &state.conf,
         org_id,
+        Some(profile_id),
     )
     .await?;
     Ok(Secret::new(token))
-}
-
-pub fn get_dashboard_entry_response(
-    state: &SessionState,
-    user: UserFromStorage,
-    user_role: UserRole,
-    token: Secret<String>,
-) -> UserResult<user_api::DashboardEntryResponse> {
-    let verification_days_left = get_verification_days_left(state, &user)?;
-
-    Ok(user_api::DashboardEntryResponse {
-        merchant_id: user_role.merchant_id,
-        token,
-        name: user.get_name(),
-        email: user.get_email(),
-        user_id: user.get_user_id().to_string(),
-        verification_days_left,
-        user_role: user_role.role_id,
-    })
 }
 
 #[allow(unused_variables)]
@@ -141,46 +116,6 @@ pub fn get_verification_days_left(
     return Ok(None);
 }
 
-pub fn get_multiple_merchant_details_with_status(
-    user_roles: Vec<UserRole>,
-    merchant_accounts: Vec<MerchantAccount>,
-    roles: Vec<RoleInfo>,
-) -> UserResult<Vec<user_api::UserMerchantAccount>> {
-    let merchant_account_map = merchant_accounts
-        .into_iter()
-        .map(|merchant_account| (merchant_account.merchant_id.clone(), merchant_account))
-        .collect::<HashMap<_, _>>();
-
-    let role_map = roles
-        .into_iter()
-        .map(|role_info| (role_info.get_role_id().to_string(), role_info))
-        .collect::<HashMap<_, _>>();
-
-    user_roles
-        .into_iter()
-        .map(|user_role| {
-            let merchant_account = merchant_account_map
-                .get(&user_role.merchant_id)
-                .ok_or(UserErrors::InternalServerError)
-                .attach_printable("Merchant account for user role doesn't exist")?;
-
-            let role_info = role_map
-                .get(&user_role.role_id)
-                .ok_or(UserErrors::InternalServerError)
-                .attach_printable("Role info for user role doesn't exist")?;
-
-            Ok(user_api::UserMerchantAccount {
-                merchant_id: user_role.merchant_id,
-                merchant_name: merchant_account.merchant_name.clone(),
-                is_active: user_role.status == UserStatus::Active,
-                role_id: user_role.role_id,
-                role_name: role_info.get_role_name().to_string(),
-                org_id: user_role.org_id,
-            })
-        })
-        .collect()
-}
-
 pub async fn get_user_from_db_by_email(
     state: &SessionState,
     email: domain::UserEmail,
@@ -190,13 +125,6 @@ pub async fn get_user_from_db_by_email(
         .find_user_by_email(&email.into_inner())
         .await
         .map(UserFromStorage::from)
-}
-
-pub fn get_token_from_signin_response(resp: &user_api::SignInResponse) -> Secret<String> {
-    match resp {
-        user_api::SignInResponse::DashboardEntry(data) => data.token.clone(),
-        user_api::SignInResponse::MerchantSelect(data) => data.token.clone(),
-    }
 }
 
 pub fn get_redis_connection(state: &SessionState) -> UserResult<Arc<RedisConnectionPool>> {
@@ -218,8 +146,10 @@ impl ForeignFrom<&user_api::AuthConfig> for UserAuthType {
 }
 
 pub async fn construct_public_and_private_db_configs(
+    state: &SessionState,
     auth_config: &user_api::AuthConfig,
     encryption_key: &[u8],
+    id: String,
 ) -> UserResult<(Option<Encryption>, Option<serde_json::Value>)> {
     match auth_config {
         user_api::AuthConfig::OpenIdConnect {
@@ -230,13 +160,18 @@ pub async fn construct_public_and_private_db_configs(
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to convert auth config to json")?;
 
-            let encrypted_config = domain::types::encrypt::<serde_json::Value, masking::WithType>(
-                private_config_value.into(),
-                encryption_key,
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to encrypt auth config")?;
+            let encrypted_config =
+                domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+                    &state.into(),
+                    type_name!(diesel_models::user::User),
+                    domain::types::CryptoOperation::Encrypt(private_config_value.into()),
+                    Identifier::UserAuth(id),
+                    encryption_key,
+                )
+                .await
+                .and_then(|val| val.try_into_operation())
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to encrypt auth config")?;
 
             Ok((
                 Some(encrypted_config.into()),
@@ -263,6 +198,7 @@ where
 pub async fn decrypt_oidc_private_config(
     state: &SessionState,
     encrypted_config: Option<Encryption>,
+    id: String,
 ) -> UserResult<user_api::OpenIdConnectPrivateConfig> {
     let user_auth_key = hex::decode(
         state
@@ -276,11 +212,15 @@ pub async fn decrypt_oidc_private_config(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let private_config = domain::types::decrypt::<serde_json::Value, masking::WithType>(
-        encrypted_config,
+    let private_config = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+        &state.into(),
+        type_name!(diesel_models::user::User),
+        domain::types::CryptoOperation::DecryptOptional(encrypted_config),
+        Identifier::UserAuth(id),
         &user_auth_key,
     )
     .await
+    .and_then(|val| val.try_into_optionaloperation())
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decrypt private config")?
     .ok_or(UserErrors::InternalServerError)

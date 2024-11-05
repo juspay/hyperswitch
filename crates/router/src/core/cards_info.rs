@@ -30,7 +30,7 @@ pub async fn retrieve_card_info(
 
     verify_iin_length(&request.card_iin)?;
     helpers::verify_payment_intent_time_and_client_secret(
-        db,
+        &state,
         &merchant_account,
         &key_store,
         request.client_secret,

@@ -241,9 +241,8 @@ where
     let res = workflow_selector
         .trigger_workflow(&state.clone(), process.clone())
         .await
-        .map_err(|error| {
+        .inspect_err(|error| {
             logger::error!(?error, "Failed to trigger workflow");
-            error
         });
     metrics::TASK_PROCESSED.add(&metrics::CONTEXT, 1, &[]);
     res

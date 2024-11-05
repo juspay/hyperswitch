@@ -27,10 +27,22 @@ impl RedisValue {
     pub fn into_inner(self) -> FredRedisValue {
         self.inner
     }
+
+    pub fn from_bytes(val: Vec<u8>) -> Self {
+        Self {
+            inner: FredRedisValue::Bytes(val.into()),
+        }
+    }
     pub fn from_string(value: String) -> Self {
         Self {
             inner: FredRedisValue::String(value.into()),
         }
+    }
+}
+
+impl From<RedisValue> for FredRedisValue {
+    fn from(v: RedisValue) -> Self {
+        v.inner
     }
 }
 

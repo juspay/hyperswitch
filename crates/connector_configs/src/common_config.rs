@@ -161,7 +161,7 @@ pub struct Provider {
 #[serde(rename_all = "snake_case")]
 pub struct ConnectorApiIntegrationPayload {
     pub connector_type: String,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub connector_name: api_models::enums::Connector,
     #[serde(skip_deserializing)]
     #[schema(example = "stripe_US_travel")]
@@ -189,34 +189,28 @@ pub struct DashboardPaymentMethodPayload {
 pub struct DashboardRequestPayload {
     pub connector: api_models::enums::Connector,
     pub payment_methods_enabled: Option<Vec<DashboardPaymentMethodPayload>>,
-    pub metadata: Option<DashboardMetaData>,
+    pub metadata: Option<ApiModelMetaData>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, serde::Serialize, Clone)]
+#[serde(tag = "type", content = "options")]
+pub enum InputType {
+    Text,
+    Toggle,
+    Radio(Vec<String>),
+    Select(Vec<String>),
+    MultiSelect(Vec<String>),
 }
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
-pub struct DashboardMetaData {
-    pub merchant_config_currency: Option<api_models::enums::Currency>,
-    pub merchant_account_id: Option<String>,
-    pub account_name: Option<String>,
-    pub terminal_id: Option<String>,
-    pub merchant_id: Option<String>,
-    pub google_pay: Option<GooglePayData>,
-    pub paypal_sdk: Option<PaypalSdkData>,
-    pub apple_pay: Option<ApplePayData>,
-    pub apple_pay_combined: Option<ApplePayData>,
-    pub endpoint_prefix: Option<String>,
-    pub mcc: Option<String>,
-    pub merchant_country_code: Option<String>,
-    pub merchant_name: Option<String>,
-    pub acquirer_bin: Option<String>,
-    pub acquirer_merchant_id: Option<String>,
-    pub acquirer_country_code: Option<String>,
-    pub three_ds_requestor_name: Option<String>,
-    pub three_ds_requestor_id: Option<String>,
-    pub pull_mechanism_for_external_3ds_enabled: Option<bool>,
-    pub klarna_region: Option<KlarnaEndpoint>,
-    pub source_balance_account: Option<String>,
-    pub brand_id: Option<String>,
-    pub destination_account_number: Option<String>,
+pub struct InputData {
+    pub name: String,
+    pub label: String,
+    pub placeholder: String,
+    pub required: bool,
+    #[serde(flatten)]
+    pub input_type: InputType,
 }

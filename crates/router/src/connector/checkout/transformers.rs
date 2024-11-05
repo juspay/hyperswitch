@@ -1,4 +1,8 @@
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
+use common_utils::{
+    errors::{CustomResult, ParsingError},
+    ext_traits::ByteSliceExt,
+    types::MinorUnit,
+};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -19,19 +23,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct CheckoutRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CheckoutRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for CheckoutRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -105,6 +106,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -131,7 +133,10 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 )
@@ -222,7 +227,7 @@ pub struct ReturnUrl {
 #[derive(Debug, Serialize)]
 pub struct PaymentsRequest {
     pub source: PaymentSource,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub processing_channel_id: Secret<String>,
     #[serde(rename = "3ds")]
@@ -298,6 +303,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                         types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                             unimplemented_payment_method!("Apple Pay", "Simplified", "Checkout"),
                         )?,
+                        types::PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                        }
                     },
                 })),
                 domain::WalletData::ApplePay(_) => {
@@ -324,6 +332,9 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                                 },
                             )))
                         }
+                        types::PaymentMethodToken::PazeDecrypt(_) => {
+                            Err(unimplemented_payment_method!("Paze", "Checkout"))?
+                        }
                     }
                 }
                 domain::WalletData::AliPayQr(_)
@@ -342,6 +353,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -367,7 +379,10 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                 ))
@@ -591,7 +606,7 @@ pub struct Links {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentsResponse {
     id: String,
-    amount: Option<i32>,
+    amount: Option<MinorUnit>,
     currency: Option<String>,
     action_id: Option<String>,
     status: CheckoutPaymentStatus,
@@ -673,8 +688,8 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
         };
         let payments_response_data = types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-            redirection_data,
-            mandate_reference: None,
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(None),
             connector_metadata: Some(connector_meta),
             network_txn_id: None,
             connector_response_reference_id: Some(
@@ -726,8 +741,8 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         };
         let payments_response_data = types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-            redirection_data,
-            mandate_reference: None,
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(
@@ -755,11 +770,11 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponseEnum>>
         let capture_sync_response_list = match item.response {
             PaymentsResponseEnum::PaymentResponse(payments_response) => {
                 // for webhook consumption flow
-                utils::construct_captures_response_hashmap(vec![payments_response])
+                utils::construct_captures_response_hashmap(vec![payments_response])?
             }
             PaymentsResponseEnum::ActionResponse(action_list) => {
                 // for captures sync
-                utils::construct_captures_response_hashmap(action_list)
+                utils::construct_captures_response_hashmap(action_list)?
             }
         };
         Ok(Self {
@@ -804,8 +819,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -835,7 +850,7 @@ pub enum CaptureType {
 
 #[derive(Debug, Serialize)]
 pub struct PaymentCaptureRequest {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub capture_type: Option<CaptureType>,
     pub processing_channel_id: Secret<String>,
     pub reference: Option<String>,
@@ -905,8 +920,8 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
@@ -922,7 +937,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RefundRequest {
-    amount: Option<i64>,
+    amount: Option<MinorUnit>,
     reference: String,
 }
 
@@ -1020,7 +1035,7 @@ pub enum ActionType {
 pub struct ActionResponse {
     #[serde(rename = "id")]
     pub action_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     #[serde(rename = "type")]
     pub action_type: ActionType,
     pub approved: Option<bool>,
@@ -1058,8 +1073,8 @@ impl utils::MultipleCaptureSyncResponse for ActionResponse {
         self.action_type == ActionType::Capture
     }
 
-    fn get_amount_captured(&self) -> Option<i64> {
-        Some(self.amount)
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(Some(self.amount))
     }
 }
 
@@ -1079,8 +1094,8 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
     fn is_capture_response(&self) -> bool {
         self.status == CheckoutPaymentStatus::Captured
     }
-    fn get_amount_captured(&self) -> Option<i64> {
-        self.amount.map(Into::into)
+    fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
+        Ok(self.amount)
     }
 }
 
@@ -1211,7 +1226,7 @@ pub struct CheckoutWebhookData {
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
     pub reference: Option<String>,
-    pub amount: i32,
+    pub amount: MinorUnit,
     pub balances: Option<Balances>,
     pub response_code: Option<String>,
     pub response_summary: Option<String>,

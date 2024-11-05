@@ -8,7 +8,7 @@ use crate::{
     },
     routes::SessionState,
     services,
-    types::{self, api, domain, storage},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -27,6 +27,8 @@ impl
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsIncrementalAuthorizationRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::IncrementalAuthorization,
@@ -39,8 +41,21 @@ impl
             key_store,
             customer,
             merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
         ))
         .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
     }
 }
 
@@ -58,8 +73,8 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
         connector_request: Option<services::Request>,
-        _business_profile: &storage::business_profile::BusinessProfile,
-        _header_payload: api_models::payments::HeaderPayload,
+        _business_profile: &domain::Profile,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::IncrementalAuthorization,
@@ -85,7 +100,7 @@ impl Feature<api::IncrementalAuthorization, types::PaymentsIncrementalAuthorizat
         state: &SessionState,
         connector: &api::ConnectorData,
         merchant_account: &domain::MerchantAccount,
-        creds_identifier: Option<&String>,
+        creds_identifier: Option<&str>,
     ) -> RouterResult<types::AddAccessTokenResult> {
         access_token::add_access_token(state, connector, merchant_account, self, creds_identifier)
             .await

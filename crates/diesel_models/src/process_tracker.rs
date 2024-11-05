@@ -1,5 +1,5 @@
 use common_utils::ext_traits::Encode;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -14,10 +14,11 @@ use crate::{enums as storage_enums, errors, schema::process_tracker, StorageResu
     Deserialize,
     Identifiable,
     Queryable,
+    Selectable,
     Serialize,
     router_derive::DebugAsDisplay,
 )]
-#[diesel(table_name = process_tracker)]
+#[diesel(table_name = process_tracker, check_for_backend(diesel::pg::Pg))]
 pub struct ProcessTracker {
     pub id: String,
     pub name: Option<String>,

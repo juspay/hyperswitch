@@ -1,7 +1,6 @@
-import confirmBody from "../../fixtures/confirm-body.json";
-import createPaymentBody from "../../fixtures/create-payment-body.json";
+import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import getConnectorDetails, * as utils from "../PaymentUtils/utils";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 
@@ -32,7 +31,7 @@ describe("Bank Transfers", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.createPaymentIntentTest(
-        createPaymentBody,
+        fixtures.createPaymentBody,
         req_data,
         res_data,
         "three_ds",
@@ -54,7 +53,7 @@ describe("Bank Transfers", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
       cy.confirmBankTransferCallTest(
-        confirmBody,
+        fixtures.confirmBody,
         req_data,
         res_data,
         true,
@@ -65,7 +64,7 @@ describe("Bank Transfers", () => {
     });
 
     it("Handle bank transfer redirection", () => {
-      let expected_redirection = confirmBody["return_url"];
+      let expected_redirection = fixtures.confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankTransferRedirection(
         globalState,

@@ -1,8 +1,8 @@
-import apiKeyCreateBody from "../../fixtures/create-api-key-body.json";
-import merchantCreateBody from "../../fixtures/merchant-create-body.json";
+import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
 
 let globalState;
+
 describe("Account Create flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -14,10 +14,10 @@ describe("Account Create flow test", () => {
   });
 
   it("merchant-create-call-test", () => {
-    cy.merchantCreateCallTest(merchantCreateBody, globalState);
+    cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
   });
 
   it("api-key-create-call-test", () => {
-    cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+    cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
   });
 });

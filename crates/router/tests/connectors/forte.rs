@@ -17,7 +17,7 @@ impl utils::Connector for ForteTest {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Forte;
         utils::construct_connector_data_old(
-            Box::new(&Forte),
+            Box::new(Forte::new()),
             types::Connector::Forte,
             api::GetToken::Connector,
             None,
@@ -163,7 +163,7 @@ async fn should_sync_authorized_payment() {
                 payment_experience: None,
                 integrity_object: None,
                 amount: MinorUnit::new(100),
-                captured_amount: None,
+                ..Default::default()
             }),
             get_default_payment_info(),
         )

@@ -38,7 +38,7 @@
       }
     },
     "raw_json_formatted": {
-      "connector_type": "fiz_operations",
+      "connector_type": "payment_processor",
       "connector_account_details": {
         "auth_type": "HeaderKey",
         "api_key": "wrongAPIKey"

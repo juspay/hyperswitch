@@ -47,7 +47,7 @@ services:
 
   migration_runner:
     image: rust:latest
-    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && make migrate'"
+    command: "bash -c 'cargo install diesel_cli --no-default-features --features postgres && cargo install just && just migrate'"
     working_dir: /app
     networks:
       - router_net
@@ -59,7 +59,11 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: rust:latest
+    build:
+      dockerfile_inline: |
+        FROM rust:latest
+        RUN apt-get update && \
+            apt-get install -y protobuf-compiler
     command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:

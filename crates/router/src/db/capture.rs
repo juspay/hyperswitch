@@ -16,8 +16,8 @@ pub trait CaptureInterface {
 
     async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
         &self,
-        merchant_id: &str,
-        payment_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::PaymentId,
         authorized_attempt_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::Capture>, errors::StorageError>;
@@ -80,8 +80,8 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
             &self,
-            merchant_id: &str,
-            payment_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
+            payment_id: &common_utils::id_type::PaymentId,
             authorized_attempt_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
@@ -151,8 +151,8 @@ mod storage {
         #[instrument(skip_all)]
         async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
             &self,
-            merchant_id: &str,
-            payment_id: &str,
+            merchant_id: &common_utils::id_type::MerchantId,
+            payment_id: &common_utils::id_type::PaymentId,
             authorized_attempt_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<Capture>, errors::StorageError> {
@@ -198,6 +198,7 @@ impl CaptureInterface for MockDb {
             capture_sequence: capture.capture_sequence,
             connector_capture_id: capture.connector_capture_id,
             connector_response_reference_id: capture.connector_response_reference_id,
+            connector_capture_data: capture.connector_capture_data,
         };
         captures.push(capture.clone());
         Ok(capture)
@@ -215,8 +216,8 @@ impl CaptureInterface for MockDb {
     }
     async fn find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
         &self,
-        _merchant_id: &str,
-        _payment_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _payment_id: &common_utils::id_type::PaymentId,
         _authorized_attempt_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::Capture>, errors::StorageError> {

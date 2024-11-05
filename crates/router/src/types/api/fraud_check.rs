@@ -6,46 +6,17 @@ use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::fraud_check::{
     Checkout, Fulfillment, RecordReturn, Sale, Transaction,
 };
+pub use hyperswitch_interfaces::api::fraud_check::{
+    FraudCheckCheckout, FraudCheckFulfillment, FraudCheckRecordReturn, FraudCheckSale,
+    FraudCheckTransaction,
+};
 
 pub use super::fraud_check_v2::{
     FraudCheckCheckoutV2, FraudCheckFulfillmentV2, FraudCheckRecordReturnV2, FraudCheckSaleV2,
     FraudCheckTransactionV2, FraudCheckV2,
 };
 use super::{ConnectorData, SessionConnectorData};
-use crate::{
-    connector,
-    core::errors,
-    services::{api, connector_integration_interface::ConnectorEnum},
-    types::fraud_check::{
-        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-        FraudCheckResponseData, FraudCheckSaleData, FraudCheckTransactionData,
-    },
-};
-
-pub trait FraudCheckSale:
-    api::ConnectorIntegration<Sale, FraudCheckSaleData, FraudCheckResponseData>
-{
-}
-
-pub trait FraudCheckCheckout:
-    api::ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseData>
-{
-}
-
-pub trait FraudCheckTransaction:
-    api::ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResponseData>
-{
-}
-
-pub trait FraudCheckFulfillment:
-    api::ConnectorIntegration<Fulfillment, FraudCheckFulfillmentData, FraudCheckResponseData>
-{
-}
-
-pub trait FraudCheckRecordReturn:
-    api::ConnectorIntegration<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>
-{
-}
+use crate::{connector, core::errors, services::connector_integration_interface::ConnectorEnum};
 
 #[derive(Clone)]
 pub struct FraudCheckConnectorData {

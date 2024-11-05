@@ -35,6 +35,7 @@ pub mod refund;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
 pub mod user_role;
@@ -45,9 +46,11 @@ pub use diesel_models::{
     process_tracker::business_status, ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner,
     ProcessTrackerUpdate,
 };
+#[cfg(feature = "v1")]
+pub use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
 pub use hyperswitch_domain_models::payments::{
-    payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
-    payment_intent::{PaymentIntentNew, PaymentIntentUpdate, PaymentIntentUpdateFields},
+    payment_attempt::{PaymentAttempt, PaymentAttemptUpdate},
+    payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
     PaymentIntent,
 };
 #[cfg(feature = "payouts")]
@@ -64,17 +67,17 @@ pub use self::{
     file::*, fraud_check::*, generic_link::*, gsm::*, locker_mock_up::*, mandate::*,
     merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
     payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
-    routing_algorithm::*, user::*, user_authentication_method::*, user_role::*,
+    routing_algorithm::*, unified_translations::*, user::*, user_authentication_method::*,
+    user_role::*,
 };
 use crate::types::api::routing;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingData {
     pub routed_through: Option<String>,
-    #[cfg(feature = "connector_choice_mca_id")]
-    pub merchant_connector_id: Option<String>,
-    #[cfg(not(feature = "connector_choice_mca_id"))]
-    pub business_sub_label: Option<String>,
+
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+
     pub routing_info: PaymentRoutingInfo,
     pub algorithm: Option<api_models::routing::StraightThroughAlgorithm>,
 }

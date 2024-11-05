@@ -157,6 +157,8 @@ impl ConnectorValidation for Stripe {
             PaymentMethodDataType::ApplePay,
             PaymentMethodDataType::GooglePay,
             PaymentMethodDataType::AchBankDebit,
+            PaymentMethodDataType::BacsBankDebit,
+            PaymentMethodDataType::BecsBankDebit,
             PaymentMethodDataType::SepaBankDebit,
             PaymentMethodDataType::Sofort,
             PaymentMethodDataType::Ideal,
@@ -759,6 +761,13 @@ impl
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
+        req.request.charges.as_ref().map(|charges| {
+            transformers::transform_headers_for_connect_platform(
+                charges.charge_type.clone(),
+                charges.transfer_account_id.clone(),
+                &mut header,
+            )
+        });
         Ok(header)
     }
 
@@ -842,7 +851,6 @@ impl
                     self.amount_converter,
                     response.amount,
                     response.currency.clone(),
-                    response.amount_received,
                 )?;
 
                 event_builder.map(|i| i.set_response_body(&response));
@@ -1617,6 +1625,13 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
+        req.request.charges.as_ref().map(|charges| {
+            transformers::transform_headers_for_connect_platform(
+                charges.charge_type.clone(),
+                charges.transfer_account_id.clone(),
+                &mut header,
+            )
+        });
         Ok(header)
     }
 
@@ -2176,7 +2191,7 @@ impl api::IncomingWebhook for Stripe {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let mut security_header_kvs = get_signature_elements_from_header(request.headers)?;

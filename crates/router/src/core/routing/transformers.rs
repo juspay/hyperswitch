@@ -17,7 +17,7 @@ impl ForeignFrom<RoutingProfileMetadata> for RoutingDictionaryRecord {
     fn foreign_from(value: RoutingProfileMetadata) -> Self {
         Self {
             id: value.algorithm_id,
-            #[cfg(feature = "business_profile_routing")]
+
             profile_id: value.profile_id,
             name: value.name,
             kind: value.kind.foreign_into(),
@@ -33,7 +33,7 @@ impl ForeignFrom<RoutingAlgorithm> for RoutingDictionaryRecord {
     fn foreign_from(value: RoutingAlgorithm) -> Self {
         Self {
             id: value.algorithm_id,
-            #[cfg(feature = "business_profile_routing")]
+
             profile_id: value.profile_id,
             name: value.name,
             kind: value.kind.foreign_into(),
@@ -52,7 +52,7 @@ impl ForeignTryFrom<RoutingAlgorithm> for MerchantRoutingAlgorithm {
         Ok(Self {
             id: value.algorithm_id,
             name: value.name,
-            #[cfg(feature = "business_profile_routing")]
+
             profile_id: value.profile_id,
             description: value.description.unwrap_or_default(),
             algorithm: value
@@ -72,6 +72,7 @@ impl ForeignFrom<storage_enums::RoutingAlgorithmKind> for RoutingAlgorithmKind {
             storage_enums::RoutingAlgorithmKind::Priority => Self::Priority,
             storage_enums::RoutingAlgorithmKind::VolumeSplit => Self::VolumeSplit,
             storage_enums::RoutingAlgorithmKind::Advanced => Self::Advanced,
+            storage_enums::RoutingAlgorithmKind::Dynamic => Self::Dynamic,
         }
     }
 }
@@ -83,12 +84,13 @@ impl ForeignFrom<RoutingAlgorithmKind> for storage_enums::RoutingAlgorithmKind {
             RoutingAlgorithmKind::Priority => Self::Priority,
             RoutingAlgorithmKind::VolumeSplit => Self::VolumeSplit,
             RoutingAlgorithmKind::Advanced => Self::Advanced,
+            RoutingAlgorithmKind::Dynamic => Self::Dynamic,
         }
     }
 }
 
-impl<F: Clone> From<&routing::TransactionData<'_, F>> for storage_enums::TransactionType {
-    fn from(value: &routing::TransactionData<'_, F>) -> Self {
+impl From<&routing::TransactionData<'_>> for storage_enums::TransactionType {
+    fn from(value: &routing::TransactionData<'_>) -> Self {
         match value {
             routing::TransactionData::Payment(_) => Self::Payment,
             #[cfg(feature = "payouts")]

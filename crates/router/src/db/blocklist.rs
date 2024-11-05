@@ -19,24 +19,24 @@ pub trait BlocklistInterface {
 
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError>;
 
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError>;
 
     async fn list_blocklist_entries_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError>;
 
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
@@ -60,7 +60,7 @@ impl BlocklistInterface for Store {
     #[instrument(skip_all)]
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -72,7 +72,7 @@ impl BlocklistInterface for Store {
     #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Blocklist::list_by_merchant_id(&conn, merchant_id)
@@ -83,7 +83,7 @@ impl BlocklistInterface for Store {
     #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
@@ -103,7 +103,7 @@ impl BlocklistInterface for Store {
     #[instrument(skip_all)]
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -125,7 +125,7 @@ impl BlocklistInterface for MockDb {
 
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -133,14 +133,14 @@ impl BlocklistInterface for MockDb {
 
     async fn list_blocklist_entries_by_merchant_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _data_kind: common_enums::BlocklistDataKind,
         _limit: i64,
         _offset: i64,
@@ -150,7 +150,7 @@ impl BlocklistInterface for MockDb {
 
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -170,7 +170,7 @@ impl BlocklistInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn find_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         self.diesel_store
@@ -181,7 +181,7 @@ impl BlocklistInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn delete_blocklist_entry_by_merchant_id_fingerprint_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         self.diesel_store
@@ -192,7 +192,7 @@ impl BlocklistInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id_data_kind(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
         limit: i64,
         offset: i64,
@@ -205,7 +205,7 @@ impl BlocklistInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn list_blocklist_entries_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         self.diesel_store
             .list_blocklist_entries_by_merchant_id(merchant_id)

@@ -196,10 +196,13 @@ impl ConnectorValidation for Bluesnap {
 
     fn validate_psync_reference_id(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &hyperswitch_domain_models::router_request_types::PaymentsSyncData,
+        is_three_ds: bool,
+        status: enums::AttemptStatus,
+        connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         // If 3DS payment was triggered, connector will have context about payment in CompleteAuthorizeFlow and thus can't make force_sync
-        if data.is_three_ds() && data.status == enums::AttemptStatus::AuthenticationPending {
+        if is_three_ds && status == enums::AttemptStatus::AuthenticationPending {
             return Err(
                 errors::ConnectorError::MissingConnectorRelatedTransactionID {
                     id: "connector_transaction_id".to_string(),
@@ -209,7 +212,6 @@ impl ConnectorValidation for Bluesnap {
         }
         // if connector_transaction_id is present, psync can be made
         if data
-            .request
             .connector_transaction_id
             .get_connector_transaction_id()
             .is_ok()
@@ -218,7 +220,7 @@ impl ConnectorValidation for Bluesnap {
         }
         // if merchant_id is present, psync can be made along with attempt_id
         let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
-            connector_utils::to_connector_meta_from_secret(data.connector_meta_data.clone());
+            connector_utils::to_connector_meta_from_secret(connector_meta_data.clone());
 
         meta_data.map(|_| ())
     }
@@ -739,10 +741,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     status: enums::AttemptStatus::AuthenticationPending,
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::NoResponseId,
-                        redirection_data: Some(services::RedirectForm::BlueSnap {
+                        redirection_data: Box::new(Some(services::RedirectForm::BlueSnap {
                             payment_fields_token,
-                        }),
-                        mandate_reference: None,
+                        })),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -1075,7 +1077,7 @@ impl api::IncomingWebhook for Bluesnap {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let timestamp =
@@ -1343,12 +1345,15 @@ impl ConnectorErrorTypeMapping for Bluesnap {
 
 fn get_url_with_merchant_transaction_id(
     base_url: String,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     merchant_transaction_id: String,
 ) -> CustomResult<String, errors::ConnectorError> {
     Ok(format!(
         "{}{}{},{}",
-        base_url, "services/2/transactions/", merchant_transaction_id, merchant_id
+        base_url,
+        "services/2/transactions/",
+        merchant_transaction_id,
+        merchant_id.get_string_repr()
     ))
 }
 

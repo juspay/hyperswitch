@@ -1,90 +1,170 @@
-use common_enums::PermissionGroup;
+use std::collections::HashMap;
 
-use super::permissions::Permission;
+use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
+use strum::IntoEnumIterator;
 
-pub fn get_permissions_vec(permission_group: &PermissionGroup) -> &[Permission] {
-    match permission_group {
-        PermissionGroup::OperationsView => &OPERATIONS_VIEW,
-        PermissionGroup::OperationsManage => &OPERATIONS_MANAGE,
-        PermissionGroup::ConnectorsView => &CONNECTORS_VIEW,
-        PermissionGroup::ConnectorsManage => &CONNECTORS_MANAGE,
-        PermissionGroup::WorkflowsView => &WORKFLOWS_VIEW,
-        PermissionGroup::WorkflowsManage => &WORKFLOWS_MANAGE,
-        PermissionGroup::AnalyticsView => &ANALYTICS_VIEW,
-        PermissionGroup::UsersView => &USERS_VIEW,
-        PermissionGroup::UsersManage => &USERS_MANAGE,
-        PermissionGroup::MerchantDetailsView => &MERCHANT_DETAILS_VIEW,
-        PermissionGroup::MerchantDetailsManage => &MERCHANT_DETAILS_MANAGE,
-        PermissionGroup::OrganizationManage => &ORGANIZATION_MANAGE,
+use super::permissions::{self, ResourceExt};
+
+pub trait PermissionGroupExt {
+    fn scope(&self) -> PermissionScope;
+    fn parent(&self) -> ParentGroup;
+    fn resources(&self) -> Vec<Resource>;
+    fn accessible_groups(&self) -> Vec<PermissionGroup>;
+}
+
+impl PermissionGroupExt for PermissionGroup {
+    fn scope(&self) -> PermissionScope {
+        match self {
+            Self::OperationsView
+            | Self::ConnectorsView
+            | Self::WorkflowsView
+            | Self::AnalyticsView
+            | Self::UsersView
+            | Self::MerchantDetailsView
+            | Self::AccountView => PermissionScope::Read,
+
+            Self::OperationsManage
+            | Self::ConnectorsManage
+            | Self::WorkflowsManage
+            | Self::UsersManage
+            | Self::MerchantDetailsManage
+            | Self::OrganizationManage
+            | Self::ReconOps
+            | Self::AccountManage => PermissionScope::Write,
+        }
+    }
+
+    fn parent(&self) -> ParentGroup {
+        match self {
+            Self::OperationsView | Self::OperationsManage => ParentGroup::Operations,
+            Self::ConnectorsView | Self::ConnectorsManage => ParentGroup::Connectors,
+            Self::WorkflowsView | Self::WorkflowsManage => ParentGroup::Workflows,
+            Self::AnalyticsView => ParentGroup::Analytics,
+            Self::UsersView | Self::UsersManage => ParentGroup::Users,
+            Self::ReconOps => ParentGroup::Recon,
+            Self::MerchantDetailsView
+            | Self::OrganizationManage
+            | Self::MerchantDetailsManage
+            | Self::AccountView
+            | Self::AccountManage => ParentGroup::Account,
+        }
+    }
+
+    fn resources(&self) -> Vec<Resource> {
+        self.parent().resources()
+    }
+
+    fn accessible_groups(&self) -> Vec<Self> {
+        match self {
+            Self::OperationsView => vec![Self::OperationsView],
+            Self::OperationsManage => vec![Self::OperationsView, Self::OperationsManage],
+
+            Self::ConnectorsView => vec![Self::ConnectorsView],
+            Self::ConnectorsManage => vec![Self::ConnectorsView, Self::ConnectorsManage],
+
+            Self::WorkflowsView => vec![Self::WorkflowsView, Self::ConnectorsView],
+            Self::WorkflowsManage => vec![
+                Self::WorkflowsView,
+                Self::WorkflowsManage,
+                Self::ConnectorsView,
+            ],
+
+            Self::AnalyticsView => vec![Self::AnalyticsView, Self::OperationsView],
+
+            Self::UsersView => vec![Self::UsersView],
+            Self::UsersManage => {
+                vec![Self::UsersView, Self::UsersManage]
+            }
+
+            Self::ReconOps => vec![Self::ReconOps],
+
+            Self::MerchantDetailsView => vec![Self::MerchantDetailsView],
+            Self::MerchantDetailsManage => {
+                vec![Self::MerchantDetailsView, Self::MerchantDetailsManage]
+            }
+
+            Self::OrganizationManage => vec![Self::OrganizationManage],
+
+            Self::AccountView => vec![Self::AccountView],
+            Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
+        }
     }
 }
 
-pub static OPERATIONS_VIEW: [Permission; 7] = [
-    Permission::PaymentRead,
-    Permission::RefundRead,
-    Permission::MandateRead,
-    Permission::DisputeRead,
-    Permission::CustomerRead,
-    Permission::MerchantAccountRead,
-    Permission::PayoutRead,
+pub trait ParentGroupExt {
+    fn resources(&self) -> Vec<Resource>;
+    fn get_descriptions_for_groups(
+        entity_type: EntityType,
+        groups: Vec<PermissionGroup>,
+    ) -> HashMap<ParentGroup, String>;
+}
+
+impl ParentGroupExt for ParentGroup {
+    fn resources(&self) -> Vec<Resource> {
+        match self {
+            Self::Operations => OPERATIONS.to_vec(),
+            Self::Connectors => CONNECTORS.to_vec(),
+            Self::Workflows => WORKFLOWS.to_vec(),
+            Self::Analytics => ANALYTICS.to_vec(),
+            Self::Users => USERS.to_vec(),
+            Self::Account => ACCOUNT.to_vec(),
+            Self::Recon => RECON.to_vec(),
+        }
+    }
+
+    fn get_descriptions_for_groups(
+        entity_type: EntityType,
+        groups: Vec<PermissionGroup>,
+    ) -> HashMap<Self, String> {
+        Self::iter()
+            .filter_map(|parent| {
+                let scopes = groups
+                    .iter()
+                    .filter(|group| group.parent() == parent)
+                    .map(|group| group.scope())
+                    .max()?;
+
+                let resources = parent
+                    .resources()
+                    .iter()
+                    .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
+                    .map(|res| permissions::get_resource_name(res, &entity_type))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                Some((
+                    parent,
+                    format!("{} {}", permissions::get_scope_name(&scopes), resources),
+                ))
+            })
+            .collect()
+    }
+}
+
+pub static OPERATIONS: [Resource; 8] = [
+    Resource::Payment,
+    Resource::Refund,
+    Resource::Mandate,
+    Resource::Dispute,
+    Resource::Customer,
+    Resource::Payout,
+    Resource::Report,
+    Resource::Account,
 ];
 
-pub static OPERATIONS_MANAGE: [Permission; 7] = [
-    Permission::PaymentWrite,
-    Permission::RefundWrite,
-    Permission::MandateWrite,
-    Permission::DisputeWrite,
-    Permission::CustomerWrite,
-    Permission::MerchantAccountRead,
-    Permission::PayoutWrite,
+pub static CONNECTORS: [Resource; 2] = [Resource::Connector, Resource::Account];
+
+pub static WORKFLOWS: [Resource; 4] = [
+    Resource::Routing,
+    Resource::ThreeDsDecisionManager,
+    Resource::SurchargeDecisionManager,
+    Resource::Account,
 ];
 
-pub static CONNECTORS_VIEW: [Permission; 2] = [
-    Permission::MerchantConnectorAccountRead,
-    Permission::MerchantAccountRead,
-];
+pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Resource::Account];
 
-pub static CONNECTORS_MANAGE: [Permission; 2] = [
-    Permission::MerchantConnectorAccountWrite,
-    Permission::MerchantAccountRead,
-];
+pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
-pub static WORKFLOWS_VIEW: [Permission; 5] = [
-    Permission::RoutingRead,
-    Permission::ThreeDsDecisionManagerRead,
-    Permission::SurchargeDecisionManagerRead,
-    Permission::MerchantConnectorAccountRead,
-    Permission::MerchantAccountRead,
-];
+pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
 
-pub static WORKFLOWS_MANAGE: [Permission; 5] = [
-    Permission::RoutingWrite,
-    Permission::ThreeDsDecisionManagerWrite,
-    Permission::SurchargeDecisionManagerWrite,
-    Permission::MerchantConnectorAccountRead,
-    Permission::MerchantAccountRead,
-];
-
-pub static ANALYTICS_VIEW: [Permission; 2] =
-    [Permission::Analytics, Permission::MerchantAccountRead];
-
-pub static USERS_VIEW: [Permission; 2] = [Permission::UsersRead, Permission::MerchantAccountRead];
-
-pub static USERS_MANAGE: [Permission; 2] =
-    [Permission::UsersWrite, Permission::MerchantAccountRead];
-
-pub static MERCHANT_DETAILS_VIEW: [Permission; 1] = [Permission::MerchantAccountRead];
-
-pub static MERCHANT_DETAILS_MANAGE: [Permission; 6] = [
-    Permission::MerchantAccountWrite,
-    Permission::ApiKeyRead,
-    Permission::ApiKeyWrite,
-    Permission::MerchantAccountRead,
-    Permission::WebhookEventRead,
-    Permission::WebhookEventWrite,
-];
-
-pub static ORGANIZATION_MANAGE: [Permission; 2] = [
-    Permission::MerchantAccountCreate,
-    Permission::MerchantAccountRead,
-];
+pub static RECON: [Resource; 1] = [Resource::Recon];

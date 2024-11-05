@@ -1,16 +1,9 @@
-use std::fmt::Display;
-
-use actix_web::ResponseError;
+pub use common_enums::{ApiClientError, ApplicationError, ApplicationResult};
 use common_utils::errors::ErrorSwitch;
-use config::ConfigError;
-use http::StatusCode;
 use hyperswitch_domain_models::errors::StorageError as DataStorageError;
 pub use redis_interface::errors::RedisError;
-use router_env::opentelemetry::metrics::MetricsError;
 
 use crate::store::errors::DatabaseError;
-
-pub type ApplicationResult<T> = Result<T, ApplicationError>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
@@ -151,115 +144,6 @@ impl RedisErrorExt for error_stack::Report<RedisError> {
             }
             _ => self.change_context(DataStorageError::KVError),
         }
-    }
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum ApplicationError {
-    // Display's impl can be overridden by the attribute error marco.
-    // Don't use Debug here, Debug gives error stack in response.
-    #[error("Application configuration error: {0}")]
-    ConfigurationError(ConfigError),
-
-    #[error("Invalid configuration value provided: {0}")]
-    InvalidConfigurationValueError(String),
-
-    #[error("Metrics error: {0}")]
-    MetricsError(MetricsError),
-
-    #[error("I/O: {0}")]
-    IoError(std::io::Error),
-
-    #[error("Error while constructing api client: {0}")]
-    ApiClientError(ApiClientError),
-}
-
-impl From<MetricsError> for ApplicationError {
-    fn from(err: MetricsError) -> Self {
-        Self::MetricsError(err)
-    }
-}
-
-impl From<std::io::Error> for ApplicationError {
-    fn from(err: std::io::Error) -> Self {
-        Self::IoError(err)
-    }
-}
-
-impl From<ConfigError> for ApplicationError {
-    fn from(err: ConfigError) -> Self {
-        Self::ConfigurationError(err)
-    }
-}
-
-fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
-    actix_web::HttpResponse::BadRequest()
-        .content_type(mime::APPLICATION_JSON)
-        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
-}
-
-impl ResponseError for ApplicationError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            Self::MetricsError(_)
-            | Self::IoError(_)
-            | Self::ConfigurationError(_)
-            | Self::InvalidConfigurationValueError(_)
-            | Self::ApiClientError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-
-    fn error_response(&self) -> actix_web::HttpResponse {
-        error_response(self)
-    }
-}
-
-#[derive(Debug, thiserror::Error, PartialEq, Clone)]
-pub enum ApiClientError {
-    #[error("Header map construction failed")]
-    HeaderMapConstructionFailed,
-    #[error("Invalid proxy configuration")]
-    InvalidProxyConfiguration,
-    #[error("Client construction failed")]
-    ClientConstructionFailed,
-    #[error("Certificate decode failed")]
-    CertificateDecodeFailed,
-    #[error("Request body serialization failed")]
-    BodySerializationFailed,
-    #[error("Unexpected state reached/Invariants conflicted")]
-    UnexpectedState,
-
-    #[error("URL encoding of request payload failed")]
-    UrlEncodingFailed,
-    #[error("Failed to send request to connector {0}")]
-    RequestNotSent(String),
-    #[error("Failed to decode response")]
-    ResponseDecodingFailed,
-
-    #[error("Server responded with Request Timeout")]
-    RequestTimeoutReceived,
-
-    #[error("connection closed before a message could complete")]
-    ConnectionClosedIncompleteMessage,
-
-    #[error("Server responded with Internal Server Error")]
-    InternalServerErrorReceived,
-    #[error("Server responded with Bad Gateway")]
-    BadGatewayReceived,
-    #[error("Server responded with Service Unavailable")]
-    ServiceUnavailableReceived,
-    #[error("Server responded with Gateway Timeout")]
-    GatewayTimeoutReceived,
-    #[error("Server responded with unexpected response")]
-    UnexpectedServerResponse,
-}
-
-impl ApiClientError {
-    pub fn is_upstream_timeout(&self) -> bool {
-        self == &Self::RequestTimeoutReceived
-    }
-    pub fn is_connection_closed_before_message_could_complete(&self) -> bool {
-        self == &Self::ConnectionClosedIncompleteMessage
     }
 }
 

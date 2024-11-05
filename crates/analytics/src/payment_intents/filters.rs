@@ -16,7 +16,7 @@ pub trait PaymentIntentFilterAnalytics: LoadRow<PaymentIntentFilterRow> {}
 
 pub async fn get_payment_intent_filter_for_dimension<T>(
     dimension: PaymentIntentDimensions,
-    merchant: &String,
+    merchant_id: &common_utils::id_type::MerchantId,
     time_range: &TimeRange,
     pool: &T,
 ) -> FiltersResult<Vec<PaymentIntentFilterRow>>
@@ -37,7 +37,7 @@ where
         .switch()?;
 
     query_builder
-        .add_filter_clause("merchant_id", merchant)
+        .add_filter_clause("merchant_id", merchant_id)
         .switch()?;
 
     query_builder.set_distinct();
@@ -53,4 +53,6 @@ where
 pub struct PaymentIntentFilterRow {
     pub status: Option<DBEnumWrapper<IntentStatus>>,
     pub currency: Option<DBEnumWrapper<Currency>>,
+    pub profile_id: Option<String>,
+    pub customer_id: Option<String>,
 }

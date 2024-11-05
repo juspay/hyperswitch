@@ -28,7 +28,7 @@ where
 {
     async fn load_metrics(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
         time_range: &TimeRange,
         pool: &T,
@@ -51,7 +51,7 @@ where
         query_builder
             .add_custom_filter_clause(
                 "merchant_id",
-                format!("'{}','{}'", merchant_id, publishable_key),
+                format!("'{}','{}'", merchant_id.get_string_repr(), publishable_key),
                 FilterTypes::In,
             )
             .switch()?;

@@ -82,7 +82,9 @@ pub async fn sync_onboarding_status(
                 let auth_details = oss_types::ConnectorAuthType::SignatureKey {
                     api_key: connector_onboarding_conf.paypal.client_secret.clone(),
                     key1: connector_onboarding_conf.paypal.client_id.clone(),
-                    api_secret: Secret::new(paypal_onboarding_data.payer_id.clone()),
+                    api_secret: Secret::new(
+                        paypal_onboarding_data.payer_id.get_string_repr().to_owned(),
+                    ),
                 };
                 let update_mca_data = paypal::update_mca(
                     &state,
@@ -93,7 +95,7 @@ pub async fn sync_onboarding_status(
                 .await?;
 
                 return Ok(ApplicationResponse::Json(api::OnboardingStatus::PayPal(
-                    api::PayPalOnboardingStatus::ConnectorIntegrated(update_mca_data),
+                    api::PayPalOnboardingStatus::ConnectorIntegrated(Box::new(update_mca_data)),
                 )));
             }
             Ok(ApplicationResponse::Json(status))

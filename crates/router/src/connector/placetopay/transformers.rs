@@ -1,4 +1,4 @@
-use common_utils::date_time;
+use common_utils::{date_time, types::MinorUnit};
 use diesel_models::enums;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -16,26 +16,16 @@ use crate::{
 };
 
 pub struct PlacetopayRouterData<T> {
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, types::storage::enums::Currency, i64, T)>
-    for PlacetopayRouterData<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, _currency, amount, item): (
-            &api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+impl<T> From<(MinorUnit, T)> for PlacetopayRouterData<T> {
+    fn from((amount, item): (MinorUnit, T)) -> Self {
+        Self {
             amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -83,7 +73,7 @@ pub struct PlacetopayPayment {
 #[serde(rename_all = "camelCase")]
 pub struct PlacetopayAmount {
     currency: storage_enums::Currency,
-    total: i64,
+    total: MinorUnit,
 }
 
 #[derive(Debug, Serialize)]
@@ -151,7 +141,10 @@ impl TryFrom<&PlacetopayRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Placetopay"),
                 )
@@ -270,8 +263,8 @@ impl<F, T>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.internal_reference.to_string(),
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: item
                     .response
                     .authorization
@@ -301,7 +294,7 @@ pub struct PlacetopayRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PlacetopayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        if item.request.refund_amount == item.request.payment_amount {
+        if item.request.minor_refund_amount == item.request.minor_payment_amount {
             let auth = PlacetopayAuth::try_from(&item.connector_auth_type)?;
 
             let internal_reference = item

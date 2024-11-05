@@ -1,3 +1,5 @@
+use common_utils::pii;
+use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing};
 
 use crate::{
@@ -79,7 +81,7 @@ pub fn get_connector_customer_details_if_present<'a>(
     customer
         .connector_customer
         .as_ref()
-        .and_then(|connector_customer_value| connector_customer_value.get(connector_name))
+        .and_then(|connector_customer_value| connector_customer_value.peek().get(connector_name))
         .and_then(|connector_customer| connector_customer.as_str())
 }
 
@@ -114,9 +116,8 @@ pub async fn update_connector_customer_in_customers(
     connector_customer_id: &Option<String>,
 ) -> Option<storage::CustomerUpdate> {
     let connector_customer_map = customer
-        .and_then(|customer| customer.connector_customer.as_ref())
-        .and_then(|connector_customer| connector_customer.as_object())
-        .map(ToOwned::to_owned)
+        .and_then(|customer| customer.connector_customer.clone().expose_option())
+        .and_then(|connector_customer| connector_customer.as_object().cloned())
         .unwrap_or_default();
 
     let updated_connector_customer_map =
@@ -132,7 +133,7 @@ pub async fn update_connector_customer_in_customers(
         .map(serde_json::Value::Object)
         .map(
             |connector_customer_value| storage::CustomerUpdate::ConnectorCustomer {
-                connector_customer: Some(connector_customer_value),
+                connector_customer: Some(pii::SecretSerdeValue::new(connector_customer_value)),
             },
         )
 }

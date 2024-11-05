@@ -7,10 +7,10 @@ use time::OffsetDateTime;
 pub struct KafkaPayout<'a> {
     pub payout_id: &'a String,
     pub payout_attempt_id: &'a String,
-    pub merchant_id: &'a String,
-    pub customer_id: &'a id_type::CustomerId,
-    pub address_id: &'a String,
-    pub profile_id: &'a String,
+    pub merchant_id: &'a id_type::MerchantId,
+    pub customer_id: Option<&'a id_type::CustomerId>,
+    pub address_id: Option<&'a String>,
+    pub profile_id: &'a id_type::ProfileId,
     pub payout_method_id: Option<&'a String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub amount: MinorUnit,
@@ -37,7 +37,7 @@ pub struct KafkaPayout<'a> {
     pub error_code: Option<&'a String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<&'a String>,
-    pub merchant_connector_id: Option<&'a String>,
+    pub merchant_connector_id: Option<&'a id_type::MerchantConnectorAccountId>,
 }
 
 impl<'a> KafkaPayout<'a> {
@@ -46,8 +46,8 @@ impl<'a> KafkaPayout<'a> {
             payout_id: &payouts.payout_id,
             payout_attempt_id: &payout_attempt.payout_attempt_id,
             merchant_id: &payouts.merchant_id,
-            customer_id: &payouts.customer_id,
-            address_id: &payouts.address_id,
+            customer_id: payouts.customer_id.as_ref(),
+            address_id: payouts.address_id.as_ref(),
             profile_id: &payouts.profile_id,
             payout_method_id: payouts.payout_method_id.as_ref(),
             payout_type: payouts.payout_type,
@@ -79,7 +79,11 @@ impl<'a> KafkaPayout<'a> {
 
 impl<'a> super::KafkaMessage for KafkaPayout<'a> {
     fn key(&self) -> String {
-        format!("{}_{}", self.merchant_id, self.payout_attempt_id)
+        format!(
+            "{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.payout_attempt_id
+        )
     }
 
     fn event_type(&self) -> crate::events::EventType {

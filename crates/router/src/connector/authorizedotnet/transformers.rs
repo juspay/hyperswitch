@@ -314,7 +314,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
                     create_customer_profile_request: AuthorizedotnetZeroMandateRequest {
                         merchant_authentication,
                         profile: Profile {
-                            //The payment ID is included in the description because the connector requires unique description when creating a mandate.
+                            // The payment ID is included in the description because the connector requires unique description when creating a mandate.
                             description: item.payment_id.clone(),
                             payment_profiles: PaymentProfiles {
                                 customer_type: CustomerType::Individual,
@@ -342,7 +342,10 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                 ))?
@@ -385,19 +388,20 @@ impl<F, T>
                 status: enums::AttemptStatus::Charged,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: None,
-                    mandate_reference: item.response.customer_profile_id.map(
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(item.response.customer_profile_id.map(
                         |customer_profile_id| types::MandateReference {
-                            connector_mandate_id: item
-                                .response
-                                .customer_payment_profile_id_list
-                                .first()
-                                .map(|payment_profile_id| {
-                                    format!("{customer_profile_id}-{payment_profile_id}")
-                                }),
+                            connector_mandate_id:
+                                item.response.customer_payment_profile_id_list.first().map(
+                                    |payment_profile_id| {
+                                        format!("{customer_profile_id}-{payment_profile_id}")
+                                    },
+                                ),
                             payment_method_id: None,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
                         },
-                    ),
+                    )),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -500,6 +504,11 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_id,
             )) => TransactionRequest::try_from((item, connector_mandate_id))?,
+            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_)) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
+                ))?
+            }
             None => {
                 match &item.router_data.request.payment_method_data {
                     domain::PaymentMethodData::Card(ccard) => {
@@ -520,7 +529,10 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
-                    | domain::PaymentMethodData::CardToken(_) => {
+                    | domain::PaymentMethodData::OpenBanking(_)
+                    | domain::PaymentMethodData::CardToken(_)
+                    | domain::PaymentMethodData::NetworkToken(_)
+                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
                                 "authorizedotnet",
@@ -578,7 +590,10 @@ impl
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
-                | domain::PaymentMethodData::CardToken(_) => {
+                | domain::PaymentMethodData::OpenBanking(_)
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::NetworkToken(_)
+                | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
                     ))?
@@ -633,7 +648,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let mandate_id = connector_mandate_id
-            .connector_mandate_id
+            .get_connector_mandate_id()
             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
@@ -1061,7 +1076,7 @@ impl<F, T>
                     errors.iter().next().map(|error| types::ErrorResponse {
                         code: error.error_code.clone(),
                         message: error.error_text.clone(),
-                        reason: None,
+                        reason: Some(error.error_text.clone()),
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
@@ -1098,6 +1113,8 @@ impl<F, T>
                             },
                         ),
                         payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     }
                 });
 
@@ -1109,8 +1126,8 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
-                            redirection_data,
-                            mandate_reference,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(mandate_reference),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -1158,7 +1175,7 @@ impl<F, T>
                     errors.iter().next().map(|error| types::ErrorResponse {
                         code: error.error_code.clone(),
                         message: error.error_text.clone(),
-                        reason: None,
+                        reason: Some(error.error_text.clone()),
                         status_code: item.http_code,
                         attempt_status: None,
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
@@ -1182,8 +1199,8 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -1305,7 +1322,7 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AuthorizedotnetRefundRespons
             errors.first().map(|error| types::ErrorResponse {
                 code: error.error_code.clone(),
                 message: error.error_text.clone(),
-                reason: None,
+                reason: Some(error.error_text.clone()),
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
@@ -1512,8 +1529,8 @@ impl<F, Req>
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             transaction.transaction_id.clone(),
                         ),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
@@ -1587,7 +1604,7 @@ fn get_err_response(
     Ok(types::ErrorResponse {
         code: response_message.code.clone(),
         message: response_message.text.clone(),
-        reason: None,
+        reason: Some(response_message.text.clone()),
         status_code,
         attempt_status: None,
         connector_transaction_id: None,
@@ -1734,6 +1751,7 @@ fn get_wallet_data(
         | domain::WalletData::MbWayRedirect(_)
         | domain::WalletData::MobilePayRedirect(_)
         | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::Paze(_)
         | domain::WalletData::SamsungPay(_)
         | domain::WalletData::TwintRedirect {}
         | domain::WalletData::VippsRedirect {}

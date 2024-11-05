@@ -15,6 +15,7 @@ use time::PrimitiveDateTime;
 
 use super::PaymentIntentMetricRow;
 use crate::{
+    enums::AuthInfo,
     query::{
         Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
         Window,
@@ -38,7 +39,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[PaymentIntentDimensions],
-        merchant_id: &str,
+        auth: &AuthInfo,
         filters: &PaymentIntentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -57,6 +58,11 @@ where
                 alias: Some("total"),
             })
             .switch()?;
+
+        query_builder
+            .add_select_column("attempt_count == 1 as first_attempt")
+            .switch()?;
+
         query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
@@ -72,9 +78,8 @@ where
 
         filters.set_filter_clause(&mut query_builder).switch()?;
 
-        query_builder
-            .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
+        auth.set_filter_clause(&mut query_builder).switch()?;
+
         query_builder
             .add_custom_filter_clause("attempt_count", "1", FilterTypes::Gt)
             .switch()?;
@@ -92,6 +97,11 @@ where
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
+
+        query_builder
+            .add_group_by_clause("first_attempt")
+            .attach_printable("Error grouping by first_attempt")
+            .switch()?;
 
         if let Some(granularity) = granularity.as_ref() {
             granularity
@@ -111,6 +121,7 @@ where
                     PaymentIntentMetricsBucketIdentifier::new(
                         i.status.as_ref().map(|i| i.0),
                         i.currency.as_ref().map(|i| i.0),
+                        i.profile_id.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

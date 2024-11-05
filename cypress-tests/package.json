@@ -7,14 +7,16 @@
     "cypress": "npx cypress open",
     "cypress-e2e": "npx cypress run --e2e",
     "cypress:ci": "npx cypress run --headless",
-    "cypress:payments": "cypress run --spec 'cypress/e2e/PaymentTest/**/*'",
-    "cypress:payouts": "cypress run --spec 'cypress/e2e/PayoutTest/**/*'",
-    "cypress:routing": "cypress run --spec 'cypress/e2e/RoutingTest/**/*'"
+    "cypress:payments": "cypress run --headless --spec 'cypress/e2e/PaymentTest/**/*'",
+    "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/PayoutTest/**/*'",
+    "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/PaymentMethodListTest/**/*'",
+    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "cypress": "^13.10.0",
+    "cypress": "^13.14.1",
+    "cypress-mochawesome-reporter": "^3.8.2",
     "jsqr": "^1.4.0"
   },
   "dependencies": {

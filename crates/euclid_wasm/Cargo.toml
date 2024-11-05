@@ -6,29 +6,27 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["cdylib"]
 
 [features]
-default = ["connector_choice_bcompat", "payouts", "connector_choice_mca_id"]
-release = ["connector_choice_bcompat", "connector_choice_mca_id", "payouts"]
-connector_choice_bcompat = ["api_models/connector_choice_bcompat"]
-connector_choice_mca_id = ["api_models/connector_choice_mca_id", "euclid/connector_choice_mca_id", "kgraph_utils/connector_choice_mca_id"]
+default = ["payouts"]
+release = ["payouts"]
 dummy_connector = ["kgraph_utils/dummy_connector", "connector_configs/dummy_connector"]
 production = ["connector_configs/production"]
 development = ["connector_configs/development"]
 sandbox = ["connector_configs/sandbox"]
 payouts = ["api_models/payouts", "euclid/payouts"]
+v1 = ["api_models/v1"]
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
-hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
-currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
-connector_configs = { version = "0.1.0", path = "../connector_configs" }
-euclid = { version = "0.1.0", path = "../euclid", features = [] }
-kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
+connector_configs = { version = "0.1.0", path = "../connector_configs" }
+currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
+euclid = { version = "0.1.0", path = "../euclid", features = [] }
+hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
+kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 
 # Third party crates
 getrandom = { version = "0.2.12", features = ["js"] }
@@ -38,3 +36,6 @@ serde = { version = "1.0", features = [] }
 serde-wasm-bindgen = "0.6.5"
 strum = { version = "0.26", features = ["derive"] }
 wasm-bindgen = { version = "0.2.92" }
+
+[lints]
+workspace = true

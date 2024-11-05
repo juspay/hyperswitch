@@ -1,5 +1,7 @@
 //! Commonly used constants
 
+use std::collections::HashSet;
+
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;
 
@@ -75,11 +77,17 @@ pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 /// Payment intent fulfillment time (in seconds)
 pub const DEFAULT_INTENT_FULFILLMENT_TIME: i64 = 15 * 60;
 
+/// Payment order fulfillment time (in seconds)
+pub const DEFAULT_ORDER_FULFILLMENT_TIME: i64 = 15 * 60;
+
 /// Default bool for Display sdk only
 pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 
 /// Default bool to enable saved payment method
 pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
+
+/// Default allowed domains for payment links
+pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
 
 /// Default ttl for Extended card info  in redis (in seconds)
 pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
@@ -96,5 +104,61 @@ pub const TENANT_HEADER: &str = "x-tenant-id";
 /// Max Length for MerchantReferenceId
 pub const MAX_ALLOWED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 64;
 
+/// Maximum length allowed for a global id
+pub const MIN_GLOBAL_ID_LENGTH: u8 = 32;
+
+/// Minimum length required for a global id
+pub const MAX_GLOBAL_ID_LENGTH: u8 = 64;
+
 /// Minimum allowed length for MerchantReferenceId
 pub const MIN_REQUIRED_MERCHANT_REFERENCE_ID_LENGTH: u8 = 1;
+
+/// Length of a cell identifier in a distributed system
+pub const CELL_IDENTIFIER_LENGTH: u8 = 5;
+
+/// General purpose base64 engine
+pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+
+/// URL Safe base64 engine
+pub const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::URL_SAFE;
+/// Regex for matching a domain
+/// Eg -
+/// http://www.example.com
+/// https://www.example.com
+/// www.example.com
+/// example.io
+pub const STRICT_DOMAIN_REGEX: &str = r"^(https?://)?(([A-Za-z0-9][-A-Za-z0-9]\.)*[A-Za-z0-9][-A-Za-z0-9]*|(\d{1,3}\.){3}\d{1,3})+(:[0-9]{2,4})?$";
+
+/// Regex for matching a wildcard domain
+/// Eg -
+/// *.example.com
+/// *.subdomain.domain.com
+/// *://example.com
+/// *example.com
+pub const WILDCARD_DOMAIN_REGEX: &str = r"^((\*|https?)?://)?((\*\.|[A-Za-z0-9][-A-Za-z0-9]*\.)*[A-Za-z0-9][-A-Za-z0-9]*|((\d{1,3}|\*)\.){3}(\d{1,3}|\*)|\*)(:\*|:[0-9]{2,4})?(/\*)?$";
+
+/// Maximum allowed length for MerchantName
+pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
+
+/// Default locale
+pub const DEFAULT_LOCALE: &str = "en";
+
+/// Role ID for Org Admin
+pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
+/// Role ID for Internal View Only
+pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
+/// Role ID for Internal Admin
+pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
+
+/// Max length allowed for Description
+pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
+
+/// Max length allowed for Statement Descriptor
+pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 22;
+/// Payout flow identifier used for performing GSM operations
+pub const PAYOUT_FLOW_STR: &str = "payout_flow";
+
+/// The number of bytes allocated for the hashed connector transaction ID.
+/// Total number of characters equals CONNECTOR_TRANSACTION_ID_HASH_BYTES times 2.
+pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;

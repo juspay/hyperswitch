@@ -1,14 +1,16 @@
-use diesel::{AsChangeset, AsExpression, Identifiable, Insertable, Queryable};
+use diesel::{AsChangeset, AsExpression, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::schema::api_keys;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Identifiable, Queryable)]
-#[diesel(table_name = api_keys, primary_key(key_id))]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, Identifiable, Queryable, Selectable,
+)]
+#[diesel(table_name = api_keys, primary_key(key_id), check_for_backend(diesel::pg::Pg))]
 pub struct ApiKey {
-    pub key_id: String,
-    pub merchant_id: String,
+    pub key_id: common_utils::id_type::ApiKeyId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub name: String,
     pub description: Option<String>,
     pub hashed_api_key: HashedApiKey,
@@ -21,8 +23,8 @@ pub struct ApiKey {
 #[derive(Debug, Insertable)]
 #[diesel(table_name = api_keys)]
 pub struct ApiKeyNew {
-    pub key_id: String,
-    pub merchant_id: String,
+    pub key_id: common_utils::id_type::ApiKeyId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub name: String,
     pub description: Option<String>,
     pub hashed_api_key: HashedApiKey,
@@ -139,8 +141,8 @@ mod diesel_impl {
 // Tracking data by process_tracker
 #[derive(Default, Debug, Deserialize, Serialize, Clone)]
 pub struct ApiKeyExpiryTrackingData {
-    pub key_id: String,
-    pub merchant_id: String,
+    pub key_id: common_utils::id_type::ApiKeyId,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub api_key_name: String,
     pub prefix: String,
     pub api_key_expiry: Option<PrimitiveDateTime>,

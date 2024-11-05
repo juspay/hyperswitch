@@ -199,6 +199,47 @@ mod test {
     }
 
     #[test]
+    fn test_ppt_flow() {
+        let program_str = r#"
+        default: ["stripe", "adyen"]
+        rule_1: ["stripe"]
+        {
+           payment_type = ppt_mandate
+        }
+        "#;
+
+        let (_, program) = ast::parser::program::<DummyOutput>(program_str).expect("Program");
+        let inp = inputs::BackendInput {
+            metadata: None,
+            payment: inputs::PaymentInput {
+                amount: MinorUnit::new(32),
+                currency: enums::Currency::USD,
+                card_bin: Some("123456".to_string()),
+                authentication_type: Some(enums::AuthenticationType::NoThreeDs),
+                capture_method: Some(enums::CaptureMethod::Automatic),
+                business_country: Some(enums::Country::UnitedStatesOfAmerica),
+                billing_country: Some(enums::Country::France),
+                business_label: None,
+                setup_future_usage: None,
+            },
+            payment_method: inputs::PaymentMethodInput {
+                payment_method: Some(enums::PaymentMethod::PayLater),
+                payment_method_type: Some(enums::PaymentMethodType::Affirm),
+                card_network: None,
+            },
+            mandate: inputs::MandateData {
+                mandate_acceptance_type: None,
+                mandate_type: None,
+                payment_type: Some(enums::PaymentType::PptMandate),
+            },
+        };
+
+        let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
+        let result = backend.execute(inp).expect("Execution");
+        assert_eq!(result.rule_name.expect("Rule Name").as_str(), "rule_1");
+    }
+
+    #[test]
     fn test_mandate_type() {
         let program_str = r#"
         default: ["stripe", "adyen"]

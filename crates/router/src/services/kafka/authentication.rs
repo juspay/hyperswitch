@@ -4,7 +4,7 @@ use time::OffsetDateTime;
 #[derive(serde::Serialize, Debug)]
 pub struct KafkaAuthentication<'a> {
     pub authentication_id: &'a String,
-    pub merchant_id: &'a String,
+    pub merchant_id: &'a common_utils::id_type::MerchantId,
     pub authentication_connector: &'a String,
     pub connector_authentication_id: Option<&'a String>,
     pub authentication_data: Option<serde_json::Value>,
@@ -35,9 +35,9 @@ pub struct KafkaAuthentication<'a> {
     pub acs_reference_number: Option<&'a String>,
     pub acs_trans_id: Option<&'a String>,
     pub acs_signed_content: Option<&'a String>,
-    pub profile_id: &'a String,
-    pub payment_id: Option<&'a String>,
-    pub merchant_connector_id: &'a String,
+    pub profile_id: &'a common_utils::id_type::ProfileId,
+    pub payment_id: Option<&'a common_utils::id_type::PaymentId>,
+    pub merchant_connector_id: &'a common_utils::id_type::MerchantConnectorAccountId,
     pub ds_trans_id: Option<&'a String>,
     pub directory_server_id: Option<&'a String>,
     pub acquirer_country_code: Option<&'a String>,
@@ -88,7 +88,11 @@ impl<'a> KafkaAuthentication<'a> {
 
 impl<'a> super::KafkaMessage for KafkaAuthentication<'a> {
     fn key(&self) -> String {
-        format!("{}_{}", self.merchant_id, self.authentication_id)
+        format!(
+            "{}_{}",
+            self.merchant_id.get_string_repr(),
+            self.authentication_id
+        )
     }
 
     fn event_type(&self) -> crate::events::EventType {

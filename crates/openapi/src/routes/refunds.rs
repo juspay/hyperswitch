@@ -44,6 +44,7 @@
     operation_id = "Create a Refund",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn refunds_create() {}
 
 /// Refunds - Retrieve
@@ -128,6 +129,22 @@ pub async fn refunds_update() {}
 )]
 pub fn refunds_list() {}
 
+/// Refunds - List For the Given profiles
+///
+/// Lists all the refunds associated with the merchant or a payment_id if payment_id is not provided
+#[utoipa::path(
+    post,
+    path = "/refunds/profile/list",
+    request_body=RefundListRequest,
+    responses(
+        (status = 200, description = "List of refunds", body = RefundListResponse),
+    ),
+    tag = "Refunds",
+    operation_id = "List all Refunds for the given Profiles",
+    security(("api_key" = []))
+)]
+pub fn refunds_list_profile() {}
+
 /// Refunds - Filter
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
@@ -143,3 +160,55 @@ pub fn refunds_list() {}
     security(("api_key" = []))
 )]
 pub async fn refunds_filter_list() {}
+
+/// Refunds - Create
+///
+/// Creates a refund against an already processed payment. In case of some processors, you can even opt to refund only a partial amount multiple times until the original charge amount has been refunded
+#[utoipa::path(
+    post,
+    path = "/v2/refunds",
+    request_body(
+        content = RefundsCreateRequest,
+        examples(
+            (
+                "Create an instant refund to refund the whole amount" = (
+                    value = json!({
+                        "payment_id": "{{payment_id}}",
+                        "merchant_reference_id": "ref_123",
+                        "refund_type": "instant"
+                      })
+                )
+            ),
+            (
+                "Create an instant refund to refund partial amount" = (
+                    value = json!({
+                        "payment_id": "{{payment_id}}",
+                        "merchant_reference_id": "ref_123",
+                        "refund_type": "instant",
+                        "amount": 654
+                      })
+                )
+            ),
+            (
+                "Create an instant refund with reason" = (
+                    value = json!({
+                        "payment_id": "{{payment_id}}",
+                        "merchant_reference_id": "ref_123",
+                        "refund_type": "instant",
+                        "amount": 6540,
+                        "reason": "Customer returned product"
+                      })
+                )
+            ),
+        )
+    ),
+    responses(
+        (status = 200, description = "Refund created", body = RefundResponse),
+        (status = 400, description = "Missing Mandatory fields")
+    ),
+    tag = "Refunds",
+    operation_id = "Create a Refund",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn refunds_create() {}

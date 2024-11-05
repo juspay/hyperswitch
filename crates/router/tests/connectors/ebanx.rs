@@ -11,7 +11,7 @@ impl utils::Connector for EbanxTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Ebanx;
         utils::construct_connector_data_old(
-            Box::new(&Ebanx),
+            Box::new(Ebanx::new()),
             types::Connector::Ebanx,
             types::api::GetToken::Connector,
             None,

@@ -53,6 +53,7 @@ impl PaymentAddress {
     }
 
     /// Unify the billing details from `payment_method_data.[payment_method_data].billing details`.
+    /// Here the fields passed in payment_method_data_billing takes precedence
     pub fn unify_with_payment_method_data_billing(
         self,
         payment_method_data_billing: Option<Address>,
@@ -63,6 +64,29 @@ impl PaymentAddress {
                 payment_method_data_billing.unify_address(self.get_payment_method_billing())
             })
             .or(self.get_payment_method_billing().cloned());
+
+        Self {
+            shipping: self.shipping,
+            billing: self.billing,
+            unified_payment_method_billing,
+            payment_method_billing: self.payment_method_billing,
+        }
+    }
+
+    /// Unify the billing details from `payment_method_data.[payment_method_data].billing details`.
+    /// Here the `self` takes precedence
+    pub fn unify_with_payment_data_billing(
+        self,
+        other_payment_method_billing: Option<Address>,
+    ) -> Self {
+        let unified_payment_method_billing = self
+            .get_payment_method_billing()
+            .map(|payment_method_billing| {
+                payment_method_billing
+                    .clone()
+                    .unify_address(other_payment_method_billing.as_ref())
+            })
+            .or(other_payment_method_billing);
 
         Self {
             shipping: self.shipping,

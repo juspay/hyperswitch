@@ -23,7 +23,7 @@ use crate::types::{
 
 #[derive(Clone, Default, Debug)]
 pub struct PaymentIntentCore {
-    pub payment_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
 }
 
 #[derive(Clone, Debug)]
@@ -43,7 +43,7 @@ pub struct PaymentDetails {
 }
 #[derive(Clone, Default, Debug)]
 pub struct FrmMerchantAccount {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(Clone, Debug)]
@@ -60,8 +60,8 @@ pub struct FrmData {
 }
 
 #[derive(Debug)]
-pub struct FrmInfo<F> {
-    pub fraud_check_operation: BoxedFraudCheckOperation<F>,
+pub struct FrmInfo<F, D> {
+    pub fraud_check_operation: BoxedFraudCheckOperation<F, D>,
     pub frm_data: Option<FrmData>,
     pub suggested_action: Option<FrmSuggestion>,
 }
@@ -69,7 +69,7 @@ pub struct FrmInfo<F> {
 #[derive(Clone, Debug)]
 pub struct ConnectorDetailsCore {
     pub connector_name: String,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
 }
 #[derive(Clone)]
 pub struct PaymentToFrmData {

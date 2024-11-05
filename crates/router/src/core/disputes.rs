@@ -1,7 +1,12 @@
-use api_models::{disputes as dispute_models, files as files_api_models};
+use std::collections::HashMap;
+
+use api_models::{
+    admin::MerchantConnectorInfo, disputes as dispute_models, files as files_api_models,
+};
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
+use strum::IntoEnumIterator;
 pub mod transformers;
 
 use super::{
@@ -26,15 +31,17 @@ use crate::{
 pub async fn retrieve_dispute(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     req: disputes::DisputeId,
 ) -> RouterResponse<api_models::disputes::DisputeResponse> {
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &req.dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &req.dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
         })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_response = api_models::disputes::DisputeResponse::foreign_from(dispute);
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
@@ -43,11 +50,13 @@ pub async fn retrieve_dispute(
 pub async fn retrieve_disputes_list(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
-    constraints: api_models::disputes::DisputeListConstraints,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    constraints: api_models::disputes::DisputeListGetConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
+    let dispute_list_constraints = &(constraints.clone(), profile_id_list.clone()).try_into()?;
     let disputes = state
         .store
-        .find_disputes_by_merchant_id(&merchant_account.merchant_id, constraints)
+        .find_disputes_by_constraints(merchant_account.get_id(), dispute_list_constraints)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve disputes")?;
@@ -58,21 +67,89 @@ pub async fn retrieve_disputes_list(
     Ok(services::ApplicationResponse::Json(disputes_list))
 }
 
+#[cfg(feature = "v2")]
 #[instrument(skip(state))]
 pub async fn accept_dispute(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    req: disputes::DisputeId,
+) -> RouterResponse<dispute_models::DisputeResponse> {
+    todo!()
+}
+
+#[instrument(skip(state))]
+pub async fn get_filters_for_disputes(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+) -> RouterResponse<api_models::disputes::DisputeListFilters> {
+    let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
+        super::admin::list_payment_connectors(
+            state,
+            merchant_account.get_id().to_owned(),
+            profile_id_list,
+        )
+        .await?
+    {
+        data
+    } else {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::InternalServerError
+        ))
+        .attach_printable(
+            "Failed to retrieve merchant connector accounts while fetching dispute list filters.",
+        );
+    };
+
+    let connector_map = merchant_connector_accounts
+        .into_iter()
+        .filter_map(|merchant_connector_account| {
+            merchant_connector_account
+                .connector_label
+                .clone()
+                .map(|label| {
+                    let info = merchant_connector_account.to_merchant_connector_info(&label);
+                    (merchant_connector_account.connector_name, info)
+                })
+        })
+        .fold(
+            HashMap::new(),
+            |mut map: HashMap<String, Vec<MerchantConnectorInfo>>, (connector_name, info)| {
+                map.entry(connector_name).or_default().push(info);
+                map
+            },
+        );
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::disputes::DisputeListFilters {
+            connector: connector_map,
+            currency: storage_enums::Currency::iter().collect(),
+            dispute_status: storage_enums::DisputeStatus::iter().collect(),
+            dispute_stage: storage_enums::DisputeStage::iter().collect(),
+        },
+    ))
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip(state))]
+pub async fn accept_dispute(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &req.dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &req.dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
         })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_id = dispute.dispute_id.clone();
     common_utils::fp_utils::when(
         !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
@@ -87,19 +164,22 @@ pub async fn accept_dispute(
         })
         },
     )?;
+
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &dispute.payment_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             merchant_account.storage_scheme,
         )
         .await
@@ -159,21 +239,36 @@ pub async fn accept_dispute(
     Ok(services::ApplicationResponse::Json(dispute_response))
 }
 
+#[cfg(feature = "v2")]
 #[instrument(skip(state))]
 pub async fn submit_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    key_store: domain::MerchantKeyStore,
+    req: dispute_models::SubmitEvidenceRequest,
+) -> RouterResponse<dispute_models::DisputeResponse> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip(state))]
+pub async fn submit_evidence(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     req: dispute_models::SubmitEvidenceRequest,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &req.dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &req.dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id.clone(),
         })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_id = dispute.dispute_id.clone();
     common_utils::fp_utils::when(
         !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
@@ -200,19 +295,22 @@ pub async fn submit_evidence(
         &dispute,
     )
     .await?;
+
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
+            &(&state).into(),
             &dispute.payment_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_merchant_id(
             &dispute.attempt_id,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             merchant_account.storage_scheme,
         )
         .await
@@ -327,6 +425,7 @@ pub async fn submit_evidence(
 pub async fn attach_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     key_store: domain::MerchantKeyStore,
     attach_evidence_request: api::AttachEvidenceRequest,
 ) -> RouterResponse<files_api_models::CreateFileResponse> {
@@ -337,11 +436,12 @@ pub async fn attach_evidence(
         .clone()
         .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
     let dispute = db
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.clone(),
         })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     common_utils::fp_utils::when(
         !(dispute.dispute_stage == storage_enums::DisputeStage::Dispute
             && dispute.dispute_status == storage_enums::DisputeStatus::DisputeOpened),
@@ -404,15 +504,17 @@ pub async fn attach_evidence(
 pub async fn retrieve_dispute_evidence(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     req: disputes::DisputeId,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeEvidenceBlock>> {
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &req.dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &req.dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: req.dispute_id,
         })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &dispute)?;
     let dispute_evidence: api::DisputeEvidence = dispute
         .evidence
         .clone()
@@ -432,7 +534,7 @@ pub async fn delete_evidence(
     let dispute_id = delete_evidence_request.dispute_id.clone();
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(&merchant_account.merchant_id, &dispute_id)
+        .find_dispute_by_merchant_id_dispute_id(merchant_account.get_id(), &dispute_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
             dispute_id: dispute_id.clone(),
@@ -463,4 +565,32 @@ pub async fn delete_evidence(
             format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
     Ok(services::ApplicationResponse::StatusOk)
+}
+
+#[instrument(skip(state))]
+pub async fn get_aggregates_for_disputes(
+    state: SessionState,
+    merchant: domain::MerchantAccount,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    time_range: common_utils::types::TimeRange,
+) -> RouterResponse<dispute_models::DisputesAggregateResponse> {
+    let db = state.store.as_ref();
+    let dispute_status_with_count = db
+        .get_dispute_status_with_count(merchant.get_id(), profile_id_list, &time_range)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to retrieve disputes aggregate")?;
+
+    let mut status_map: HashMap<storage_enums::DisputeStatus, i64> =
+        dispute_status_with_count.into_iter().collect();
+
+    for status in storage_enums::DisputeStatus::iter() {
+        status_map.entry(status).or_default();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        dispute_models::DisputesAggregateResponse {
+            status_with_count: status_map,
+        },
+    ))
 }

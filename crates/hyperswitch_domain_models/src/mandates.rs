@@ -15,6 +15,22 @@ pub struct MandateDetails {
     pub update_mandate_id: Option<String>,
 }
 
+impl From<MandateDetails> for diesel_models::enums::MandateDetails {
+    fn from(value: MandateDetails) -> Self {
+        Self {
+            update_mandate_id: value.update_mandate_id,
+        }
+    }
+}
+
+impl From<diesel_models::enums::MandateDetails> for MandateDetails {
+    fn from(value: diesel_models::enums::MandateDetails) -> Self {
+        Self {
+            update_mandate_id: value.update_mandate_id,
+        }
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum MandateDataType {
@@ -43,7 +59,7 @@ pub struct MandateData {
     pub mandate_type: Option<MandateDataType>,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct CustomerAcceptance {
     /// Type of acceptance provided by the
     pub acceptance_type: AcceptanceType,
@@ -54,7 +70,7 @@ pub struct CustomerAcceptance {
     pub online: Option<OnlineMandate>,
 }
 
-#[derive(Default, Debug, PartialEq, Eq, Clone, serde::Deserialize)]
+#[derive(Default, Debug, PartialEq, Eq, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AcceptanceType {
     Online,
@@ -62,7 +78,7 @@ pub enum AcceptanceType {
     Offline,
 }
 
-#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
     #[serde(skip_deserializing)]
@@ -84,8 +100,54 @@ impl From<MandateType> for MandateDataType {
     }
 }
 
+impl From<MandateDataType> for diesel_models::enums::MandateDataType {
+    fn from(value: MandateDataType) -> Self {
+        match value {
+            MandateDataType::SingleUse(data) => Self::SingleUse(data.into()),
+            MandateDataType::MultiUse(None) => Self::MultiUse(None),
+            MandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.into())),
+        }
+    }
+}
+
+impl From<diesel_models::enums::MandateDataType> for MandateDataType {
+    fn from(value: diesel_models::enums::MandateDataType) -> Self {
+        use diesel_models::enums::MandateDataType as DieselMandateDataType;
+
+        match value {
+            DieselMandateDataType::SingleUse(data) => Self::SingleUse(data.into()),
+            DieselMandateDataType::MultiUse(None) => Self::MultiUse(None),
+            DieselMandateDataType::MultiUse(Some(data)) => Self::MultiUse(Some(data.into())),
+        }
+    }
+}
+
 impl From<ApiMandateAmountData> for MandateAmountData {
     fn from(value: ApiMandateAmountData) -> Self {
+        Self {
+            amount: value.amount,
+            currency: value.currency,
+            start_date: value.start_date,
+            end_date: value.end_date,
+            metadata: value.metadata,
+        }
+    }
+}
+
+impl From<MandateAmountData> for diesel_models::enums::MandateAmountData {
+    fn from(value: MandateAmountData) -> Self {
+        Self {
+            amount: value.amount,
+            currency: value.currency,
+            start_date: value.start_date,
+            end_date: value.end_date,
+            metadata: value.metadata,
+        }
+    }
+}
+
+impl From<diesel_models::enums::MandateAmountData> for MandateAmountData {
+    fn from(value: diesel_models::enums::MandateAmountData) -> Self {
         Self {
             amount: value.amount,
             currency: value.currency,

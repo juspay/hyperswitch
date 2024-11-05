@@ -38,6 +38,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::RealTimePayment
                 | global_enums::PaymentMethod::Upi
                 | global_enums::PaymentMethod::Voucher
+                | global_enums::PaymentMethod::OpenBanking
                 | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
             },
             global_enums::PaymentMethodType::Bacs => match self.1 {
@@ -53,6 +54,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::RealTimePayment
                 | global_enums::PaymentMethod::Upi
                 | global_enums::PaymentMethod::Voucher
+                | global_enums::PaymentMethod::OpenBanking
                 | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
             },
             global_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
@@ -69,6 +71,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
                 | global_enums::PaymentMethod::RealTimePayment
                 | global_enums::PaymentMethod::Upi
                 | global_enums::PaymentMethod::Voucher
+                | global_enums::PaymentMethod::OpenBanking
                 | global_enums::PaymentMethod::GiftCard => Err(AnalysisErrorType::NotSupported),
             },
             global_enums::PaymentMethodType::AliPay => Ok(dirval!(WalletType = AliPay)),
@@ -182,6 +185,10 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             }
             global_enums::PaymentMethodType::Venmo => Ok(dirval!(WalletType = Venmo)),
             global_enums::PaymentMethodType::Mifinity => Ok(dirval!(WalletType = Mifinity)),
+            global_enums::PaymentMethodType::OpenBankingPIS => {
+                Ok(dirval!(OpenBankingType = OpenBankingPIS))
+            }
+            global_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
         }
     }
 }

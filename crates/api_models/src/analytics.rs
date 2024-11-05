@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
-use common_utils::{events::ApiEventMetric, pii::EmailStrategy};
+pub use common_utils::types::TimeRange;
+use common_utils::{events::ApiEventMetric, pii::EmailStrategy, types::authentication::AuthInfo};
 use masking::Secret;
 
 use self::{
@@ -14,8 +15,6 @@ use self::{
     refunds::{RefundDimensions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
 };
-pub use crate::payments::TimeRange;
-
 pub mod active_payments;
 pub mod api_event;
 pub mod auth_events;
@@ -114,7 +113,8 @@ pub struct ReportRequest {
 #[serde(rename_all = "camelCase")]
 pub struct GenerateReportRequest {
     pub request: ReportRequest,
-    pub merchant_id: String,
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub auth: AuthInfo,
     pub email: Secret<String, EmailStrategy>,
 }
 
@@ -198,6 +198,28 @@ pub struct GetActivePaymentsMetricRequest {
 #[derive(Debug, serde::Serialize)]
 pub struct AnalyticsMetadata {
     pub current_time_range: TimeRange,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentsAnalyticsMetadata {
+    pub total_payment_processed_amount: Option<u64>,
+    pub total_payment_processed_amount_without_smart_retries: Option<u64>,
+    pub total_payment_processed_count: Option<u64>,
+    pub total_payment_processed_count_without_smart_retries: Option<u64>,
+    pub total_failure_reasons_count: Option<u64>,
+    pub total_failure_reasons_count_without_smart_retries: Option<u64>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentIntentsAnalyticsMetadata {
+    pub total_success_rate: Option<f64>,
+    pub total_success_rate_without_smart_retries: Option<f64>,
+    pub total_smart_retried_amount: Option<u64>,
+    pub total_smart_retried_amount_without_smart_retries: Option<u64>,
+    pub total_payment_processed_amount: Option<u64>,
+    pub total_payment_processed_amount_without_smart_retries: Option<u64>,
+    pub total_payment_processed_count: Option<u64>,
+    pub total_payment_processed_count_without_smart_retries: Option<u64>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -320,6 +342,20 @@ pub struct MetricsResponse<T> {
     pub meta_data: [AnalyticsMetadata; 1],
 }
 
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentsMetricsResponse<T> {
+    pub query_data: Vec<T>,
+    pub meta_data: [PaymentsAnalyticsMetadata; 1],
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentIntentsMetricsResponse<T> {
+    pub query_data: Vec<T>,
+    pub meta_data: [PaymentIntentsAnalyticsMetadata; 1],
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetApiEventFiltersRequest {
@@ -389,4 +425,22 @@ pub struct GetDisputeMetricRequest {
     pub metrics: HashSet<DisputeMetrics>,
     #[serde(default)]
     pub delta: bool,
+}
+
+#[derive(Clone, Debug, Default, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub struct SankeyResponse {
+    pub normal_success: i64,
+    pub normal_failure: i64,
+    pub cancelled: i64,
+    pub smart_retried_success: i64,
+    pub smart_retried_failure: i64,
+    pub pending: i64,
+    pub partial_refunded: i64,
+    pub refunded: i64,
+    pub disputed: i64,
+    pub pm_awaited: i64,
+    pub customer_awaited: i64,
+    pub merchant_awaited: i64,
+    pub confirmation_awaited: i64,
 }

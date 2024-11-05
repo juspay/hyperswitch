@@ -11,14 +11,12 @@ use crate::{
         payments::helpers as payments_helpers,
     },
     types::{
-        self, storage,
+        self, domain, storage,
         transformers::{ForeignFrom, ForeignTryFrom},
     },
     utils::ext_traits::OptionExt,
 };
 
-const IRRELEVANT_PAYMENT_ID_IN_AUTHENTICATION_FLOW: &str =
-    "irrelevant_payment_id_in_AUTHENTICATION_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW: &str =
     "irrelevant_attempt_id_in_AUTHENTICATION_flow";
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
@@ -26,9 +24,9 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
 
 #[allow(clippy::too_many_arguments)]
 pub fn construct_authentication_router_data(
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
-    payment_method_data: payments::PaymentMethodData,
+    payment_method_data: domain::PaymentMethodData,
     payment_method: PaymentMethod,
     billing_address: payments::Address,
     shipping_address: Option<payments::Address>,
@@ -47,7 +45,7 @@ pub fn construct_authentication_router_data(
     three_ds_requestor_url: String,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
     let router_request = types::authentication::ConnectorAuthenticationRequestData {
-        payment_method_data: From::from(payment_method_data),
+        payment_method_data,
         billing_address,
         shipping_address,
         browser_details,
@@ -77,7 +75,7 @@ pub fn construct_authentication_router_data(
 
 pub fn construct_post_authentication_router_data(
     authentication_connector: String,
-    business_profile: storage::BusinessProfile,
+    business_profile: domain::Profile,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: &storage::Authentication,
 ) -> RouterResult<types::authentication::ConnectorPostAuthenticationRouterData> {
@@ -103,7 +101,7 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
     authentication_connector: String,
     card_holder_account_number: cards::CardNumber,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
 ) -> RouterResult<
     types::RouterData<
         F,
@@ -127,7 +125,7 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
 pub fn construct_router_data<F: Clone, Req, Res>(
     authentication_connector_name: String,
     payment_method: PaymentMethod,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     address: types::PaymentAddress,
     request_data: Req,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
@@ -143,7 +141,9 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         customer_id: None,
         connector_customer: None,
         connector: authentication_connector_name,
-        payment_id: IRRELEVANT_PAYMENT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
+        payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("authentication")
+            .get_string_repr()
+            .to_owned(),
         attempt_id: IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW.to_owned(),
         status: common_enums::AttemptStatus::default(),
         payment_method,
@@ -182,6 +182,9 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
     })
 }
 

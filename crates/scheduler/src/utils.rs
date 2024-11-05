@@ -34,7 +34,7 @@ where
         let result = update_status_and_append(state, flow, batch).await;
         match result {
             Ok(_) => (),
-            Err(error) => logger::error!(error=%error.current_context()),
+            Err(error) => logger::error!(?error),
         }
     }
     Ok(())
@@ -54,23 +54,25 @@ where
         .map(|process| process.id.to_owned())
         .collect();
     match flow {
-        SchedulerFlow::Producer => {
-                state
-                .process_tracker_update_process_status_by_ids(
-                    process_ids,
-                    storage::ProcessTrackerUpdate::StatusUpdate {
-                        status: ProcessTrackerStatus::Processing,
-                        business_status: None,
-                    },
-                )
-                .await.map_or_else(|error| {
-                    logger::error!(error=%error.current_context(),"Error while updating process status");
+        SchedulerFlow::Producer => state
+            .process_tracker_update_process_status_by_ids(
+                process_ids,
+                storage::ProcessTrackerUpdate::StatusUpdate {
+                    status: ProcessTrackerStatus::Processing,
+                    business_status: None,
+                },
+            )
+            .await
+            .map_or_else(
+                |error| {
+                    logger::error!(?error, "Error while updating process status");
                     Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
-                }, |count| {
+                },
+                |count| {
                     logger::debug!("Updated status of {count} processes");
                     Ok(())
-                })
-        }
+                },
+            ),
         SchedulerFlow::Cleaner => {
             let res = state
                 .reinitialize_limbo_processes(process_ids, common_utils::date_time::now())
@@ -81,15 +83,15 @@ where
                     Ok(())
                 }
                 Err(error) => {
-                    logger::error!(error=%error.current_context(),"Error while reinitializing processes");
+                    logger::error!(?error, "Error while reinitializing processes");
                     Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
                 }
             }
         }
         _ => {
-            let error_msg = format!("Unexpected scheduler flow {flow:?}");
-            logger::error!(error = %error_msg);
-            Err(report!(errors::ProcessTrackerError::UnexpectedFlow).attach_printable(error_msg))
+            let error = format!("Unexpected scheduler flow {flow:?}");
+            logger::error!(%error);
+            Err(report!(errors::ProcessTrackerError::UnexpectedFlow).attach_printable(error))
         }
     }?;
 
@@ -108,19 +110,27 @@ where
         Err(mut err) => {
             let update_res = state
                 .process_tracker_update_process_status_by_ids(
-                    pt_batch.trackers.iter().map(|process| process.id.clone()).collect(),
+                    pt_batch
+                        .trackers
+                        .iter()
+                        .map(|process| process.id.clone())
+                        .collect(),
                     storage::ProcessTrackerUpdate::StatusUpdate {
                         status: ProcessTrackerStatus::Processing,
                         business_status: None,
                     },
                 )
-                .await.map_or_else(|error| {
-                    logger::error!(error=%error.current_context(),"Error while updating process status");
-                    Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
-                }, |count| {
-                    logger::debug!("Updated status of {count} processes");
-                    Ok(())
-                });
+                .await
+                .map_or_else(
+                    |error| {
+                        logger::error!(?error, "Error while updating process status");
+                        Err(error.change_context(errors::ProcessTrackerError::ProcessUpdateFailed))
+                    },
+                    |count| {
+                        logger::debug!("Updated status of {count} processes");
+                        Ok(())
+                    },
+                );
 
             match update_res {
                 Ok(_) => (),
@@ -241,9 +251,12 @@ pub fn get_process_tracker_id<'a>(
     runner: storage::ProcessTrackerRunner,
     task_name: &'a str,
     txn_id: &'a str,
-    merchant_id: &'a str,
+    merchant_id: &'a common_utils::id_type::MerchantId,
 ) -> String {
-    format!("{runner}_{task_name}_{txn_id}_{merchant_id}")
+    format!(
+        "{runner}_{task_name}_{txn_id}_{}",
+        merchant_id.get_string_repr()
+    )
 }
 
 pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime> {
@@ -275,7 +288,7 @@ pub fn add_histogram_metrics(
     #[warn(clippy::option_map_unit_fn)]
     if let Some((schedule_time, runner)) = task.schedule_time.as_ref().zip(task.runner.as_ref()) {
         let pickup_schedule_delta = (*pickup_time - *schedule_time).as_seconds_f64();
-        logger::error!(%pickup_schedule_delta, "<- Time delta for scheduled tasks");
+        logger::error!("Time delta for scheduled tasks: {pickup_schedule_delta} seconds");
         let runner_name = runner.clone();
         metrics::CONSUMER_STATS.record(
             &metrics::CONTEXT,
@@ -290,10 +303,10 @@ pub fn add_histogram_metrics(
 
 pub fn get_schedule_time(
     mapping: process_data::ConnectorPTMapping,
-    merchant_name: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Option<i32> {
-    let mapping = match mapping.custom_merchant_mapping.get(merchant_name) {
+    let mapping = match mapping.custom_merchant_mapping.get(merchant_id) {
         Some(map) => map.clone(),
         None => mapping.default_mapping,
     };
@@ -325,10 +338,10 @@ pub fn get_pm_schedule_time(
 
 pub fn get_outgoing_webhook_retry_schedule_time(
     mapping: process_data::OutgoingWebhookRetryProcessTrackerMapping,
-    merchant_name: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Option<i32> {
-    let retry_mapping = match mapping.custom_merchant_mapping.get(merchant_name) {
+    let retry_mapping = match mapping.custom_merchant_mapping.get(merchant_id) {
         Some(map) => map.clone(),
         None => mapping.default_mapping,
     };

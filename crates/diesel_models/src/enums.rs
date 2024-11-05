@@ -1,17 +1,19 @@
 #[doc(hidden)]
 pub mod diesel_exports {
     pub use super::{
-        DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbBlocklistDataKind as BlocklistDataKind, DbCaptureMethod as CaptureMethod,
-        DbCaptureStatus as CaptureStatus, DbConnectorStatus as ConnectorStatus,
-        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
-        DbDashboardMetadata as DashboardMetadata, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
-        DbEventObjectType as EventObjectType, DbEventType as EventType,
+        DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
+        DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorStatus as ConnectorStatus, DbConnectorType as ConnectorType,
+        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDashboardMetadata as DashboardMetadata, DbDeleteStatus as DeleteStatus,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus,
+        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
         DbFutureUsage as FutureUsage, DbGenericLinkType as GenericLinkType,
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
         DbMandateType as MandateType, DbMerchantStorageScheme as MerchantStorageScheme,
+        DbOrderFulfillmentTimeOrigin as OrderFulfillmentTimeOrigin,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
         DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
         DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
@@ -19,7 +21,8 @@ pub mod diesel_exports {
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
         DbRoleScope as RoleScope, DbRoutingAlgorithmKind as RoutingAlgorithmKind,
         DbTotpStatus as TotpStatus, DbTransactionType as TransactionType,
-        DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbUserRoleVersion as UserRoleVersion, DbUserStatus as UserStatus,
+        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 pub use common_enums::*;
@@ -47,6 +50,7 @@ pub enum RoutingAlgorithmKind {
     Priority,
     VolumeSplit,
     Advanced,
+    Dynamic,
 }
 
 #[derive(
@@ -168,7 +172,7 @@ common_utils::impl_to_sql_from_sql_json!(MandateDataType);
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
-    pub amount: i64,
+    pub amount: common_utils::types::MinorUnit,
     pub currency: Currency,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,
@@ -205,7 +209,6 @@ pub enum FraudCheckType {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[diesel_enum(storage_type = "text")]
 #[strum(serialize_all = "snake_case")]
@@ -228,7 +231,6 @@ pub enum FraudCheckLastStep {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -249,7 +251,6 @@ pub enum UserStatus {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -291,7 +292,6 @@ pub enum DashboardMetadata {
     serde::Deserialize,
     strum::Display,
     strum::EnumString,
-    frunk::LabelledGeneric,
 )]
 #[diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -301,4 +301,25 @@ pub enum TotpStatus {
     InProgress,
     #[default]
     NotSet,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    strum::Display,
+)]
+#[diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum UserRoleVersion {
+    #[default]
+    V1,
+    V2,
 }

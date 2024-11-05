@@ -4,15 +4,11 @@ mod total_dispute_lost_amount;
 
 use std::collections::HashSet;
 
-use api_models::{
-    analytics::{
-        disputes::{
-            DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier,
-        },
-        Granularity,
-    },
-    payments::TimeRange,
+use api_models::analytics::{
+    disputes::{DisputeDimensions, DisputeFilters, DisputeMetrics, DisputeMetricsBucketIdentifier},
+    Granularity,
 };
+use common_utils::types::TimeRange;
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
 
@@ -21,6 +17,7 @@ use self::{
     total_dispute_lost_amount::TotalDisputeLostAmount,
 };
 use crate::{
+    enums::AuthInfo,
     query::{Aggregate, GroupByClause, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
@@ -52,7 +49,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[DisputeDimensions],
-        merchant_id: &str,
+        auth: &AuthInfo,
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -73,7 +70,7 @@ where
     async fn load_metrics(
         &self,
         dimensions: &[DisputeDimensions],
-        merchant_id: &str,
+        auth: &AuthInfo,
         filters: &DisputeFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -82,38 +79,17 @@ where
         match self {
             Self::TotalAmountDisputed => {
                 TotalAmountDisputed::default()
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::DisputeStatusMetric => {
                 DisputeStatusMetric::default()
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::TotalDisputeLostAmount => {
                 TotalDisputeLostAmount::default()
-                    .load_metrics(
-                        dimensions,
-                        merchant_id,
-                        filters,
-                        granularity,
-                        time_range,
-                        pool,
-                    )
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
         }

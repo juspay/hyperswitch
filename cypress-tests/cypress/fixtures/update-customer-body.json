@@ -1,0 +1,11 @@
+{
+  "email": "JohnTest@test.com",
+  "name": "John Test",
+  "phone_country_code": "+65",
+  "phone": "888888888",
+  "description": "First customer",
+  "metadata": {
+    "city": "NY",
+    "unit": "245"
+  }
+}

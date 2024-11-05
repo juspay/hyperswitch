@@ -1,39 +1,34 @@
 #[cfg(feature = "payouts")]
+use api_models::enums::Currency;
+#[cfg(feature = "payouts")]
 use api_models::payouts::{Bank, PayoutMethodData};
-use common_enums::Currency;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
+use common_utils::types::FloatMajorUnit;
 #[cfg(feature = "payouts")]
 use masking::ExposeInterface;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    connector::utils,
-    core::errors,
-    types::{self, api::CurrencyUnit},
-};
 #[cfg(feature = "payouts")]
 use crate::{
     connector::utils::{AddressDetailsData, RouterData},
     connector::utils::{CustomerDetails, PayoutsData},
     types::{api, storage::enums as storage_enums},
 };
+use crate::{core::errors, types};
 
 pub struct EbanxRouterData<T> {
-    pub amount: f64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&CurrencyUnit, Currency, i64, T)> for EbanxRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (_currency_unit, currency, amount, item): (&CurrencyUnit, Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount: utils::to_currency_base_unit_asf64(amount, currency)?,
+impl<T> From<(FloatMajorUnit, T)> for EbanxRouterData<T> {
+    fn from((amount, item): (FloatMajorUnit, T)) -> Self {
+        Self {
+            amount,
             router_data: item,
-        })
+        }
     }
 }
 
@@ -43,7 +38,7 @@ pub struct EbanxPayoutCreateRequest {
     integration_key: Secret<String>,
     external_reference: String,
     country: String,
-    amount: f64,
+    amount: FloatMajorUnit,
     currency: Currency,
     target: EbanxPayoutType,
     target_account: Secret<String>,
@@ -221,6 +216,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxPayoutResponse>>
                 connector_payout_id: Some(item.response.payout.uid),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -305,6 +302,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxFulfillResponse>>
                 connector_payout_id: Some(item.data.request.get_transfer_id()?),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })
@@ -396,6 +395,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, EbanxCancelResponse>>
                 connector_payout_id: item.data.request.connector_payout_id.clone(),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
             }),
             ..item.data
         })

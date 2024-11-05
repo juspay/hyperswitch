@@ -1,7 +1,7 @@
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use diesel_models::MerchantAccountUpdateInternal;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -31,13 +31,15 @@ where
 {
     async fn insert_merchant(
         &self,
+        state: &KeyManagerState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn find_merchant_account_by_merchant_id(
         &self,
-        merchant_id: &str,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
@@ -48,6 +50,7 @@ where
 
     async fn update_merchant(
         &self,
+        state: &KeyManagerState,
         this: domain::MerchantAccount,
         merchant_account: storage::MerchantAccountUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -55,31 +58,35 @@ where
 
     async fn update_specific_fields_in_merchant(
         &self,
-        merchant_id: &str,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_account: storage::MerchantAccountUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn find_merchant_account_by_publishable_key(
         &self,
+        state: &KeyManagerState,
         publishable_key: &str,
     ) -> CustomResult<authentication::AuthenticationData, errors::StorageError>;
 
     #[cfg(feature = "olap")]
     async fn list_merchant_accounts_by_organization_id(
         &self,
-        organization_id: &str,
+        state: &KeyManagerState,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
 
     async fn delete_merchant_account_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError>;
 
     #[cfg(feature = "olap")]
     async fn list_multiple_merchant_accounts(
         &self,
-        merchant_ids: Vec<String>,
+        state: &KeyManagerState,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
 }
 
@@ -88,6 +95,7 @@ impl MerchantAccountInterface for Store {
     #[instrument(skip_all)]
     async fn insert_merchant(
         &self,
+        state: &KeyManagerState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
@@ -99,7 +107,11 @@ impl MerchantAccountInterface for Store {
             .insert(&conn)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?
-            .convert(merchant_key_store.key.get_inner())
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -107,7 +119,8 @@ impl MerchantAccountInterface for Store {
     #[instrument(skip_all)]
     async fn find_merchant_account_by_merchant_id(
         &self,
-        merchant_id: &str,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let fetch_func = || async {
@@ -121,24 +134,38 @@ impl MerchantAccountInterface for Store {
         {
             fetch_func()
                 .await?
-                .convert(merchant_key_store.key.get_inner())
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_id.to_owned().into(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
 
         #[cfg(feature = "accounts_cache")]
         {
-            cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &ACCOUNTS_CACHE)
-                .await?
-                .convert(merchant_key_store.key.get_inner())
-                .await
-                .change_context(errors::StorageError::DecryptionError)
+            cache::get_or_populate_in_memory(
+                self,
+                merchant_id.get_string_repr(),
+                fetch_func,
+                &ACCOUNTS_CACHE,
+            )
+            .await?
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
         }
     }
 
     #[instrument(skip_all)]
     async fn update_merchant(
         &self,
+        state: &KeyManagerState,
         this: domain::MerchantAccount,
         merchant_account: storage::MerchantAccountUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -157,7 +184,11 @@ impl MerchantAccountInterface for Store {
             publish_and_redact_merchant_account_cache(self, &updated_merchant_account).await?;
         }
         updated_merchant_account
-            .convert(merchant_key_store.key.get_inner())
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -165,7 +196,8 @@ impl MerchantAccountInterface for Store {
     #[instrument(skip_all)]
     async fn update_specific_fields_in_merchant(
         &self,
-        merchant_id: &str,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_account: storage::MerchantAccountUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
@@ -183,7 +215,11 @@ impl MerchantAccountInterface for Store {
             publish_and_redact_merchant_account_cache(self, &updated_merchant_account).await?;
         }
         updated_merchant_account
-            .convert(merchant_key_store.key.get_inner())
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -191,6 +227,7 @@ impl MerchantAccountInterface for Store {
     #[instrument(skip_all)]
     async fn find_merchant_account_by_publishable_key(
         &self,
+        state: &KeyManagerState,
         publishable_key: &str,
     ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
         let fetch_by_pub_key_func = || async {
@@ -219,18 +256,24 @@ impl MerchantAccountInterface for Store {
         }
         let key_store = self
             .get_merchant_key_store_by_merchant_id(
-                &merchant_account.merchant_id,
+                state,
+                merchant_account.get_id(),
                 &self.get_master_key().to_vec().into(),
             )
             .await?;
 
         Ok(authentication::AuthenticationData {
             merchant_account: merchant_account
-                .convert(key_store.key.get_inner())
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
                 .await
                 .change_context(errors::StorageError::DecryptionError)?,
 
             key_store,
+            profile_id: None,
         })
     }
 
@@ -238,7 +281,8 @@ impl MerchantAccountInterface for Store {
     #[instrument(skip_all)]
     async fn list_merchant_accounts_by_organization_id(
         &self,
-        organization_id: &str,
+        state: &KeyManagerState,
+        organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         use futures::future::try_join_all;
         let conn = connection::pg_connection_read(self).await?;
@@ -253,7 +297,8 @@ impl MerchantAccountInterface for Store {
         let merchant_key_stores =
             try_join_all(encrypted_merchant_accounts.iter().map(|merchant_account| {
                 self.get_merchant_key_store_by_merchant_id(
-                    &merchant_account.merchant_id,
+                    state,
+                    merchant_account.get_id(),
                     &db_master_key,
                 )
             }))
@@ -265,7 +310,11 @@ impl MerchantAccountInterface for Store {
                 .zip(merchant_key_stores.iter())
                 .map(|(merchant_account, key_store)| async {
                     merchant_account
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone().into(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 }),
@@ -278,7 +327,7 @@ impl MerchantAccountInterface for Store {
     #[instrument(skip_all)]
     async fn delete_merchant_account_by_merchant_id(
         &self,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
@@ -314,7 +363,8 @@ impl MerchantAccountInterface for Store {
     #[instrument(skip_all)]
     async fn list_multiple_merchant_accounts(
         &self,
-        merchant_ids: Vec<String>,
+        state: &KeyManagerState,
+        merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
 
@@ -327,9 +377,10 @@ impl MerchantAccountInterface for Store {
 
         let merchant_key_stores = self
             .list_multiple_key_stores(
+                state,
                 encrypted_merchant_accounts
                     .iter()
-                    .map(|merchant_account| &merchant_account.merchant_id)
+                    .map(|merchant_account| merchant_account.get_id())
                     .cloned()
                     .collect(),
                 &db_master_key,
@@ -344,14 +395,18 @@ impl MerchantAccountInterface for Store {
         let merchant_accounts =
             futures::future::try_join_all(encrypted_merchant_accounts.into_iter().map(
                 |merchant_account| async {
-                    let key_store = key_stores_by_id.get(&merchant_account.merchant_id).ok_or(
+                    let key_store = key_stores_by_id.get(merchant_account.get_id()).ok_or(
                         errors::StorageError::ValueNotFound(format!(
-                            "merchant_key_store with merchant_id = {}",
-                            merchant_account.merchant_id
+                            "merchant_key_store with merchant_id = {:?}",
+                            merchant_account.get_id()
                         )),
                     )?;
                     merchant_account
-                        .convert(key_store.key.get_inner())
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone().into(),
+                        )
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 },
@@ -399,20 +454,22 @@ impl MerchantAccountInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_merchant(
         &self,
-        mut merchant_account: domain::MerchantAccount,
+        state: &KeyManagerState,
+        merchant_account: domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
-        merchant_account.id.get_or_insert(
-            i32::try_from(accounts.len()).change_context(errors::StorageError::MockDbError)?,
-        );
         let account = Conversion::convert(merchant_account)
             .await
             .change_context(errors::StorageError::EncryptionError)?;
         accounts.push(account.clone());
 
         account
-            .convert(merchant_key_store.key.get_inner())
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -420,18 +477,23 @@ impl MerchantAccountInterface for MockDb {
     #[allow(clippy::panic)]
     async fn find_merchant_account_by_merchant_id(
         &self,
-        merchant_id: &str,
+        state: &KeyManagerState,
+        merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let accounts = self.merchant_accounts.lock().await;
         let account: Option<domain::MerchantAccount> = accounts
             .iter()
-            .find(|account| account.merchant_id == merchant_id)
+            .find(|account| account.get_id() == merchant_id)
             .cloned()
             .async_map(|a| async {
-                a.convert(merchant_key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
+                a.convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(errors::StorageError::DecryptionError)
             })
             .await
             .transpose()?;
@@ -445,6 +507,7 @@ impl MerchantAccountInterface for MockDb {
 
     async fn update_merchant(
         &self,
+        _state: &KeyManagerState,
         _this: domain::MerchantAccount,
         _merchant_account: storage::MerchantAccountUpdate,
         _merchant_key_store: &domain::MerchantKeyStore,
@@ -455,7 +518,8 @@ impl MerchantAccountInterface for MockDb {
 
     async fn update_specific_fields_in_merchant(
         &self,
-        _merchant_id: &str,
+        _state: &KeyManagerState,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _merchant_account: storage::MerchantAccountUpdate,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
@@ -465,6 +529,7 @@ impl MerchantAccountInterface for MockDb {
 
     async fn find_merchant_account_by_publishable_key(
         &self,
+        _state: &KeyManagerState,
         _publishable_key: &str,
     ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -480,7 +545,7 @@ impl MerchantAccountInterface for MockDb {
 
     async fn delete_merchant_account_by_merchant_id(
         &self,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
@@ -489,7 +554,8 @@ impl MerchantAccountInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn list_merchant_accounts_by_organization_id(
         &self,
-        _organization_id: &str,
+        _state: &KeyManagerState,
+        _organization_id: &common_utils::id_type::OrganizationId,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -497,7 +563,8 @@ impl MerchantAccountInterface for MockDb {
     #[cfg(feature = "olap")]
     async fn list_multiple_merchant_accounts(
         &self,
-        _merchant_ids: Vec<String>,
+        _state: &KeyManagerState,
+        _merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
@@ -513,25 +580,24 @@ async fn publish_and_redact_merchant_account_cache(
         .as_ref()
         .map(|publishable_key| CacheKind::Accounts(publishable_key.into()));
 
-    #[cfg(feature = "business_profile_routing")]
+    #[cfg(feature = "v1")]
     let cgraph_key = merchant_account.default_profile.as_ref().map(|profile_id| {
         CacheKind::CGraph(
             format!(
                 "cgraph_{}_{}",
-                merchant_account.merchant_id.clone(),
-                profile_id,
+                merchant_account.get_id().get_string_repr(),
+                profile_id.get_string_repr(),
             )
             .into(),
         )
     });
 
-    #[cfg(not(feature = "business_profile_routing"))]
-    let cgraph_key = Some(CacheKind::CGraph(
-        format!("cgraph_{}", merchant_account.merchant_id.clone()).into(),
-    ));
+    // TODO: we will not have default profile in v2
+    #[cfg(feature = "v2")]
+    let cgraph_key = None;
 
     let mut cache_keys = vec![CacheKind::Accounts(
-        merchant_account.merchant_id.as_str().into(),
+        merchant_account.get_id().get_string_repr().into(),
     )];
 
     cache_keys.extend(publishable_key.into_iter());
@@ -546,7 +612,9 @@ async fn publish_and_redact_all_merchant_account_cache(
     store: &dyn super::StorageInterface,
     merchant_accounts: &[storage::MerchantAccount],
 ) -> CustomResult<(), errors::StorageError> {
-    let merchant_ids = merchant_accounts.iter().map(|m| m.merchant_id.clone());
+    let merchant_ids = merchant_accounts
+        .iter()
+        .map(|merchant_account| merchant_account.get_id().get_string_repr().to_string());
     let publishable_keys = merchant_accounts
         .iter()
         .filter_map(|m| m.publishable_key.clone());

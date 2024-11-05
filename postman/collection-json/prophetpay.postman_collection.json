@@ -398,7 +398,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"prophetpay\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\",\"key1\":\"{{connector_key1}}\"},\"business_country\":\"US\",\"business_label\":\"default\",\"test_mode\":false,\"disabled\":false,\"payment_methods_enabled\":[{\"payment_method\":\"card_redirect\",\"payment_method_types\":[{\"payment_method_type\":\"card_redirect\",\"payment_experience\":\"redirect_to_url\",\"card_networks\":null,\"accepted_currencies\":null,\"accepted_countries\":null,\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
+                  "raw": "{\"connector_type\":\"payment_processor\",\"connector_name\":\"prophetpay\",\"connector_account_details\":{\"auth_type\":\"SignatureKey\",\"api_key\":\"{{connector_api_key}}\",\"api_secret\":\"{{connector_api_secret}}\",\"key1\":\"{{connector_key1}}\"},\"business_country\":\"US\",\"business_label\":\"default\",\"test_mode\":false,\"disabled\":false,\"payment_methods_enabled\":[{\"payment_method\":\"card_redirect\",\"payment_method_types\":[{\"payment_method_type\":\"card_redirect\",\"payment_experience\":\"redirect_to_url\",\"card_networks\":null,\"accepted_currencies\":null,\"accepted_countries\":null,\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}],\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/account/:account_id/connectors",
@@ -515,7 +515,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\"amount\":10000,\"currency\":\"USD\",\"confirm\":true,\"amount_to_capture\":10000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\",\"payment_method\":\"card_redirect\",\"payment_method_type\":\"card_redirect\",\"payment_method_data\":{\"card_redirect\":{\"card_redirect\":{}}},\"routing\":{\"type\":\"single\",\"data\":\"prophetpay\"}}"
+                  "raw": "{\"amount\":10000,\"currency\":\"USD\",\"confirm\":true,\"amount_to_capture\":10000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\",\"payment_method\":\"card_redirect\",\"payment_method_type\":\"card_redirect\",\"payment_method_data\":{\"card_redirect\":{\"card_redirect\":{}}}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/payments",
@@ -743,7 +743,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":8000,\"currency\":\"USD\",\"confirm\":true,\"amount_to_capture\":8000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\",\"payment_method\":\"card_redirect\",\"payment_method_type\":\"card_redirect\",\"payment_method_data\":{\"card_redirect\":{\"card_redirect\":{}}},\"routing\":{\"type\":\"single\",\"data\":\"prophetpay\"}}"
+                      "raw": "{\"amount\":8000,\"currency\":\"USD\",\"confirm\":true,\"amount_to_capture\":8000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\",\"payment_method\":\"card_redirect\",\"payment_method_type\":\"card_redirect\",\"payment_method_data\":{\"card_redirect\":{\"card_redirect\":{}}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -994,7 +994,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\"amount\":8000,\"currency\":\"USD\",\"confirm\":false,\"amount_to_capture\":8000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\",\"routing\":{\"type\":\"single\",\"data\":\"prophetpay\"}}"
+                      "raw": "{\"amount\":8000,\"currency\":\"USD\",\"confirm\":false,\"amount_to_capture\":8000,\"business_country\":\"US\",\"customer_id\":\"not_a_rick_roll\",\"return_url\":\"https://www.google.com\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",

@@ -8,23 +8,23 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = []
-business_profile_routing = []
-connector_choice_bcompat = []
 errors = ["dep:actix-web", "dep:reqwest"]
-backwards_compatibility = ["connector_choice_bcompat"]
-connector_choice_mca_id = ["euclid/connector_choice_mca_id"]
 dummy_connector = ["euclid/dummy_connector", "common_enums/dummy_connector"]
 detailed_errors = []
-payouts = []
+payouts = ["common_enums/payouts"]
 frm = []
 olap = []
-openapi = ["common_enums/openapi", "olap", "backwards_compatibility", "business_profile_routing", "connector_choice_mca_id", "recon", "dummy_connector", "olap"]
+openapi = ["common_enums/openapi", "olap", "recon", "dummy_connector", "olap"]
 recon = []
+v1 = ["common_utils/v1"]
+v2 = ["common_utils/v2", "customer_v2"]
+customer_v2 = ["common_utils/customer_v2"]
+payment_methods_v2 = ["common_utils/payment_methods_v2"]
 
 [dependencies]
 actix-web = { version = "4.5.1", optional = true }
 error-stack = "0.4.1"
+indexmap = "2.3.0"
 mime = "0.3.17"
 reqwest = { version = "0.11.27", optional = true }
 serde = { version = "1.0.197", features = ["derive"] }
@@ -33,8 +33,9 @@ strum = { version = "0.26", features = ["derive"] }
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.5.0", features = ["serde"] }
 utoipa = { version = "4.2.0", features = ["preserve_order", "preserve_path_order"] }
-frunk = "0.4.2"
-frunk_core = "0.4.2"
+rustc-hash = "1.1.0"
+nutype = { version = "0.4.2", features = ["serde"] }
+
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
@@ -42,3 +43,6 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }
 router_derive = { version = "0.1.0", path = "../router_derive" }
+
+[lints]
+workspace = true

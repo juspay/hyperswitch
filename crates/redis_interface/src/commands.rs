@@ -15,11 +15,12 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use fred::{
-    interfaces::{HashesInterface, KeysInterface, SetsInterface, StreamsInterface},
+    interfaces::{HashesInterface, KeysInterface, ListInterface, SetsInterface, StreamsInterface},
     prelude::RedisErrorKind,
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        MultipleValues, RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
+        MultipleValues, RedisKey, RedisMap, RedisValue, ScanType, Scanner, SetOptions, XCap,
+        XReadResponse,
     },
 };
 use futures::StreamExt;
@@ -210,6 +211,25 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn delete_multiple_keys(
+        &self,
+        keys: Vec<String>,
+    ) -> CustomResult<Vec<DelReply>, errors::RedisError> {
+        let mut del_result = Vec::with_capacity(keys.len());
+
+        for key in keys {
+            del_result.push(
+                self.pool
+                    .del(self.add_prefix(&key))
+                    .await
+                    .change_context(errors::RedisError::DeleteFailed)?,
+            );
+        }
+
+        Ok(del_result)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_with_expiry<V>(
         &self,
         key: &str,
@@ -372,6 +392,28 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn increment_fields_in_hash<T>(
+        &self,
+        key: &str,
+        fields_to_increment: &[(T, i64)],
+    ) -> CustomResult<Vec<usize>, errors::RedisError>
+    where
+        T: Debug + ToString,
+    {
+        let mut values_after_increment = Vec::with_capacity(fields_to_increment.len());
+        for (field, increment) in fields_to_increment.iter() {
+            values_after_increment.push(
+                self.pool
+                    .hincrby(self.add_prefix(key), field.to_string(), *increment)
+                    .await
+                    .change_context(errors::RedisError::IncrementHashFieldFailed)?,
+            )
+        }
+
+        Ok(values_after_increment)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn hscan(
         &self,
         key: &str,
@@ -392,7 +434,38 @@ impl super::RedisConnectionPool {
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
-                        tracing::error!(?err);
+                        tracing::error!(redis_err=?err, "Redis error while executing hscan command");
+                        None
+                    }
+                }
+            })
+            .flatten()
+            .collect::<Vec<_>>()
+            .await)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn scan(
+        &self,
+        pattern: &str,
+        count: Option<u32>,
+        scan_type: Option<ScanType>,
+    ) -> CustomResult<Vec<String>, errors::RedisError> {
+        Ok(self
+            .pool
+            .next()
+            .scan(&self.add_prefix(pattern), count, scan_type)
+            .filter_map(|value| async move {
+                match value {
+                    Ok(mut v) => {
+                        let v = v.take_results()?;
+
+                        let v: Vec<String> =
+                            v.into_iter().filter_map(|val| val.into_string()).collect();
+                        Some(futures::stream::iter(v))
+                    }
+                    Err(err) => {
+                        tracing::error!(redis_err=?err, "Redis error while executing scan command");
                         None
                     }
                 }
@@ -433,6 +506,17 @@ impl super::RedisConnectionPool {
     {
         self.pool
             .hget(self.add_prefix(key), field)
+            .await
+            .change_context(errors::RedisError::GetHashFieldFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_hash_fields<V>(&self, key: &str) -> CustomResult<V, errors::RedisError>
+    where
+        V: FromRedis + Unpin + Send + 'static,
+    {
+        self.pool
+            .hgetall(self.add_prefix(key))
             .await
             .change_context(errors::RedisError::GetHashFieldFailed)
     }
@@ -628,6 +712,55 @@ impl super::RedisConnectionPool {
             }
             _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
         })
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn append_elements_to_list<V>(
+        &self,
+        key: &str,
+        elements: V,
+    ) -> CustomResult<(), errors::RedisError>
+    where
+        V: TryInto<MultipleValues> + Debug + Send,
+        V::Error: Into<fred::error::RedisError> + Send,
+    {
+        self.pool
+            .rpush(self.add_prefix(key), elements)
+            .await
+            .change_context(errors::RedisError::AppendElementsToListFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_list_elements(
+        &self,
+        key: &str,
+        start: i64,
+        stop: i64,
+    ) -> CustomResult<Vec<String>, errors::RedisError> {
+        self.pool
+            .lrange(self.add_prefix(key), start, stop)
+            .await
+            .change_context(errors::RedisError::GetListElementsFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_list_length(&self, key: &str) -> CustomResult<usize, errors::RedisError> {
+        self.pool
+            .llen(self.add_prefix(key))
+            .await
+            .change_context(errors::RedisError::GetListLengthFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn lpop_list_elements(
+        &self,
+        key: &str,
+        count: Option<usize>,
+    ) -> CustomResult<Vec<String>, errors::RedisError> {
+        self.pool
+            .lpop(self.add_prefix(key), count)
+            .await
+            .change_context(errors::RedisError::PopListElementsFailed)
     }
 
     //                                              Consumer Group API

@@ -15,3 +15,6 @@ quote = "1.0.35"
 rustc-hash = "1.1.0"
 strum = { version = "0.26", features = ["derive"] }
 syn = "2.0.57"
+
+[lints]
+workspace = true

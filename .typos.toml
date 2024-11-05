@@ -1,8 +1,12 @@
 [default]
 check-filename = true
+extend-ignore-identifiers-re = [
+    "UE_[0-9]{3,4}", # Unified error codes
+]
 
 [default.extend-identifiers]
-"ABD" = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
+ABD = "ABD"  # Aberdeenshire, UK ISO 3166-2 code
+ACTIVITE = "ACTIVITE" # French translation of activity
 AER = "AER" # An alias to Api Error Response
 ANG = "ANG" # Netherlands Antillean guilder currency code
 BA = "BA"  # Bosnia and Herzegovina country code
@@ -62,4 +66,6 @@ extend-exclude = [
     "openapi/open_api_spec.yaml", # no longer updated
     "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
     "CHANGELOG.md", # This file contains all the commits
+    "crates/router/locales/*.yml", # locales
+    "crates/router/src/core/payment_link/locale.js", # this file contains conversion of static strings in various languages
 ]

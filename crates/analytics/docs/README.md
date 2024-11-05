@@ -108,11 +108,11 @@ global_search=true
 
 To view the data on the OpenSearch dashboard perform the following steps:
 
-- Go to the OpenSearch Dashboard home and click on `Stack Management` under the Management tab
+- Go to the OpenSearch Dashboard home and click on `Dashboards Management` under the Management tab
 - Select `Index Patterns`
 - Click on `Create index pattern`
 - Define an index pattern with the same name that matches your indices and click on `Next Step`
 - Select a time field that will be used for time-based queries
 - Save the index pattern
 
-Now, head on to the `Discover` tab, to select the newly created index pattern and query the data
+Now, head on to `Discover` under the `OpenSearch Dashboards` tab, to select the newly created index pattern and query the data

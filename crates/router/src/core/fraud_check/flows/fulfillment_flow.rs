@@ -1,4 +1,4 @@
-use common_utils::ext_traits::ValueExt;
+use common_utils::ext_traits::{OptionExt, ValueExt};
 use error_stack::ResultExt;
 use router_env::tracing::{self, instrument};
 
@@ -16,6 +16,20 @@ use crate::{
     utils, SessionState,
 };
 
+#[cfg(feature = "v2")]
+pub async fn construct_fulfillment_router_data<'a>(
+    _state: &'a SessionState,
+    _payment_intent: &'a storage::PaymentIntent,
+    _payment_attempt: &storage::PaymentAttempt,
+    _merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    _connector: String,
+    _fulfillment_request: FrmFulfillmentRequest,
+) -> RouterResult<FrmFulfillmentRouterData> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn construct_fulfillment_router_data<'a>(
     state: &'a SessionState,
@@ -26,21 +40,17 @@ pub async fn construct_fulfillment_router_data<'a>(
     connector: String,
     fulfillment_request: FrmFulfillmentRequest,
 ) -> RouterResult<FrmFulfillmentRouterData> {
-    let profile_id = core_utils::get_profile_id_from_business_details(
-        payment_intent.business_country,
-        payment_intent.business_label.as_ref(),
-        merchant_account,
-        payment_intent.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .get_required_value("profile_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?
+        .clone();
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        merchant_account.merchant_id.as_str(),
+        merchant_account.get_id(),
         None,
         key_store,
         &profile_id,
@@ -60,9 +70,9 @@ pub async fn construct_fulfillment_router_data<'a>(
     )?;
     let router_data = RouterData {
         flow: std::marker::PhantomData,
-        merchant_id: merchant_account.merchant_id.clone(),
+        merchant_id: merchant_account.get_id().clone(),
         connector,
-        payment_id: payment_attempt.payment_id.clone(),
+        payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
         payment_method,
@@ -79,7 +89,10 @@ pub async fn construct_fulfillment_router_data<'a>(
         minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: FraudCheckFulfillmentData {
-            amount: payment_attempt.amount.get_amount_as_i64(),
+            amount: payment_attempt
+                .net_amount
+                .get_total_amount()
+                .get_amount_as_i64(),
             order_details: payment_intent.order_details.clone(),
             fulfillment_req: fulfillment_request,
         },
@@ -95,7 +108,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
-            &merchant_account.merchant_id,
+            merchant_account.get_id(),
             payment_attempt,
         ),
         #[cfg(feature = "payouts")]
@@ -112,6 +125,9 @@ pub async fn construct_fulfillment_router_data<'a>(
         dispute_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
     Ok(router_data)
 }

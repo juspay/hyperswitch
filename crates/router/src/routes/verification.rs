@@ -13,7 +13,7 @@ pub async fn apple_pay_merchant_registration(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<verifications::ApplepayMerchantVerificationRequest>,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::MerchantId>,
 ) -> impl Responder {
     let flow = Flow::Verification;
     let merchant_id = path.into_inner();
@@ -22,16 +22,19 @@ pub async fn apple_pay_merchant_registration(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, body, _| {
+        |state, auth: auth::AuthenticationData, body, _| {
             verification::verify_merchant_creds_for_applepay(
                 state.clone(),
                 body,
                 merchant_id.clone(),
+                auth.profile_id,
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountWrite),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfileAccountWrite,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,
@@ -54,16 +57,18 @@ pub async fn retrieve_apple_pay_verified_domains(
         state,
         &req,
         merchant_id.clone(),
-        |state, _, _, _| {
+        |state, _: auth::AuthenticationData, _, _| {
             verification::get_verified_apple_domains_with_mid_mca_id(
                 state,
-                merchant_id.to_string(),
-                mca_id.to_string(),
+                merchant_id.to_owned(),
+                mca_id.clone(),
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuth,
-            &auth::JWTAuth(Permission::MerchantAccountRead),
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountRead,
+            },
             req.headers(),
         ),
         api_locking::LockAction::NotApplicable,

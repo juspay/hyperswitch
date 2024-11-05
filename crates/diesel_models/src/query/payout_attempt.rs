@@ -55,7 +55,7 @@ impl PayoutAttempt {
 
     pub async fn find_by_merchant_id_payout_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -69,7 +69,7 @@ impl PayoutAttempt {
 
     pub async fn find_by_merchant_id_payout_attempt_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_attempt_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -83,7 +83,7 @@ impl PayoutAttempt {
 
     pub async fn find_by_merchant_id_connector_payout_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         connector_payout_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -97,7 +97,7 @@ impl PayoutAttempt {
 
     pub async fn update_by_merchant_id_payout_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &str,
         payout: PayoutAttemptUpdate,
     ) -> StorageResult<Self> {
@@ -118,7 +118,7 @@ impl PayoutAttempt {
 
     pub async fn update_by_merchant_id_payout_attempt_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
         payout_attempt_id: &str,
         payout: PayoutAttemptUpdate,
     ) -> StorageResult<Self> {
@@ -140,14 +140,14 @@ impl PayoutAttempt {
     pub async fn get_filters_for_payouts(
         conn: &PgPooledConn,
         payouts: &[Payouts],
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<(
         Vec<String>,
         Vec<enums::Currency>,
         Vec<enums::PayoutStatus>,
         Vec<enums::PayoutType>,
     )> {
-        let active_attempts: Vec<String> = payouts
+        let active_attempt_ids = payouts
             .iter()
             .map(|payout| {
                 format!(
@@ -156,11 +156,20 @@ impl PayoutAttempt {
                     payout.attempt_count.clone()
                 )
             })
-            .collect();
+            .collect::<Vec<String>>();
+
+        let active_payout_ids = payouts
+            .iter()
+            .map(|payout| payout.payout_id.clone())
+            .collect::<Vec<String>>();
 
         let filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .filter(dsl::payout_attempt_id.eq_any(active_attempts));
+            .filter(dsl::payout_attempt_id.eq_any(active_attempt_ids));
+
+        let payouts_filter = <Payouts as HasTable>::table()
+            .filter(payout_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(payout_dsl::payout_id.eq_any(active_payout_ids));
 
         let payout_status: Vec<enums::PayoutStatus> = payouts
             .iter()
@@ -181,7 +190,8 @@ impl PayoutAttempt {
             .flatten()
             .collect::<Vec<String>>();
 
-        let filter_currency = <Payouts as HasTable>::table()
+        let filter_currency = payouts_filter
+            .clone()
             .select(payout_dsl::destination_currency)
             .distinct()
             .get_results_async::<enums::Currency>(conn)
@@ -191,7 +201,8 @@ impl PayoutAttempt {
             .into_iter()
             .collect::<Vec<enums::Currency>>();
 
-        let filter_payout_method = Payouts::table()
+        let filter_payout_method = payouts_filter
+            .clone()
             .select(payout_dsl::payout_type)
             .distinct()
             .get_results_async::<Option<enums::PayoutType>>(conn)

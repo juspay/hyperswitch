@@ -11,7 +11,7 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct PaymentFlowData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub connector_customer: Option<String>,
     pub payment_id: String,
@@ -53,7 +53,7 @@ pub struct PaymentFlowData {
 
 #[derive(Debug, Clone)]
 pub struct RefundFlowData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub payment_id: String,
     pub attempt_id: String,
@@ -72,7 +72,7 @@ pub struct RefundFlowData {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
 pub struct PayoutFlowData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub connector_customer: Option<String>,
     pub return_url: Option<String>,
@@ -88,7 +88,7 @@ pub struct PayoutFlowData {
 #[cfg(feature = "frm")]
 #[derive(Debug, Clone)]
 pub struct FrmFlowData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: String,
     pub attempt_id: String,
     pub payment_method: common_enums::enums::PaymentMethod,
@@ -104,14 +104,14 @@ pub struct FrmFlowData {
 
 #[derive(Debug, Clone)]
 pub struct ExternalAuthenticationFlowData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
     pub address: PaymentAddress,
 }
 
 #[derive(Debug, Clone)]
 pub struct DisputesFlowData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: String,
     pub attempt_id: String,
     pub payment_method: common_enums::enums::PaymentMethod,
@@ -127,14 +127,14 @@ pub struct DisputesFlowData {
 
 #[derive(Debug, Clone)]
 pub struct MandateRevokeFlowData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub customer_id: common_utils::id_type::CustomerId,
     pub payment_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct WebhookSourceVerifyData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
 }
 
 #[derive(Debug, Clone)]
@@ -142,7 +142,7 @@ pub struct AccessTokenFlowData {}
 
 #[derive(Debug, Clone)]
 pub struct FilesFlowData {
-    pub merchant_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
     pub payment_id: String,
     pub attempt_id: String,
     pub return_url: Option<String>,

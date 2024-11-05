@@ -1,9 +1,14 @@
 pub mod types;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use actix_web::{web, HttpRequest, HttpResponse};
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use api_models::payments as payment_types;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use error_stack::report;
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use router_env::{instrument, tracing, Flow};
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use crate::{
     compatibility::{
         stripe::{errors, payment_intents::types as stripe_payment_types},
@@ -15,6 +20,7 @@ use crate::{
     types::api as api_types,
 };
 
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
 pub async fn setup_intents_create(
     state: web::Data<routes::AppState>,
@@ -52,40 +58,44 @@ pub async fn setup_intents_create(
         state.into_inner(),
         &req,
         create_payment_req,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
                 _,
                 _,
-                _
+                _,
+                payments::PaymentData<api_types::SetupMandate>,
             >(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentCreate,
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
-                api_types::HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
-        &auth::ApiKeyAuth,
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
     query_payload: web::Query<stripe_payment_types::StripePaymentRetrieveBody>,
 ) -> HttpResponse {
     let payload = payment_types::PaymentsRetrieveRequest {
-        resource_id: api_types::PaymentIdType::PaymentIntentId(path.to_string()),
+        resource_id: api_types::PaymentIdType::PaymentIntentId(path.into_inner()),
         merchant_id: None,
         force_sync: true,
         connector: None,
@@ -119,17 +129,25 @@ pub async fn setup_intents_retrieve(
         &req,
         payload,
         |state, auth, payload, req_state| {
-            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::PSync,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::PSync>,
+            >(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentStatus,
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
-                api_types::HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
         &*auth_type,
@@ -137,13 +155,15 @@ pub async fn setup_intents_retrieve(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn setup_intents_update(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
 ) -> HttpResponse {
     let setup_id = path.into_inner();
     let stripe_payload: types::StripeSetupIntentRequest = match qs_config
@@ -190,18 +210,20 @@ pub async fn setup_intents_update(
                 api_types::PaymentsResponse,
                 _,
                 _,
-                _
+                _,
+                payments::PaymentData<api_types::SetupMandate>,
             >(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentUpdate,
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
-                api_types::HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
         &*auth_type,
@@ -209,13 +231,15 @@ pub async fn setup_intents_update(
     ))
     .await
 }
+
+#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 pub async fn setup_intents_confirm(
     state: web::Data<routes::AppState>,
     qs_config: web::Data<serde_qs::Config>,
     req: HttpRequest,
     form_payload: web::Bytes,
-    path: web::Path<String>,
+    path: web::Path<common_utils::id_type::PaymentId>,
 ) -> HttpResponse {
     let setup_id = path.into_inner();
     let stripe_payload: types::StripeSetupIntentRequest = match qs_config
@@ -263,18 +287,20 @@ pub async fn setup_intents_confirm(
                 api_types::PaymentsResponse,
                 _,
                 _,
-                _
+                _,
+                payments::PaymentData<api_types::SetupMandate>,
             >(
                 state,
                 req_state,
                 auth.merchant_account,
+                None,
                 auth.key_store,
                 payments::PaymentConfirm,
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
-                api_types::HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
         &*auth_type,

@@ -69,8 +69,8 @@ function renderStatusDetails(payoutDetails) {
   var statusInfo = {
     statusImageSrc:
       "https://live.hyperswitch.io/payment-link-assets/success.png",
-    statusText: "Payout Successful",
-    statusMessage: "Your payout was made to selected payment method.",
+    statusText: "{{i18n_success_text}}",
+    statusMessage: "{{i18n_success_message}}",
   };
   switch (status) {
     case "success":
@@ -80,9 +80,8 @@ function renderStatusDetails(payoutDetails) {
     case "pending":
       statusInfo.statusImageSrc =
         "https://live.hyperswitch.io/payment-link-assets/pending.png";
-      statusInfo.statusText = "Payout Processing";
-      statusInfo.statusMessage =
-        "Your payout should be processed within 2-3 business days.";
+      statusInfo.statusText = "{{i18n_pending_text}}";
+      statusInfo.statusMessage = "{{i18n_pending_message}}";
       break;
     case "failed":
     case "cancelled":
@@ -96,9 +95,8 @@ function renderStatusDetails(payoutDetails) {
     default:
       statusInfo.statusImageSrc =
         "https://live.hyperswitch.io/payment-link-assets/failed.png";
-      statusInfo.statusText = "Payout Failed";
-      statusInfo.statusMessage =
-        "Failed to process your payout. Please check with your provider for more details.";
+      statusInfo.statusText = "{{i18n_failed_text}}";
+      statusInfo.statusMessage = "{{i18n_failed_message}}";
       break;
   }
 
@@ -120,13 +118,13 @@ function renderStatusDetails(payoutDetails) {
   }
 
   var resourceInfo = {
-    "Ref Id": payoutDetails.payout_id,
+    "{{i18n_ref_id_text}}": payoutDetails.payout_id,
   };
   if (typeof payoutDetails.error_code === "string") {
-    resourceInfo["Error Code"] = payoutDetails.error_code;
+    resourceInfo["{{i18n_error_code_text}}"] = payoutDetails.error_code;
   }
   if (typeof payoutDetails.error_message === "string") {
-    resourceInfo["Error Message"] = payoutDetails.error_message;
+    resourceInfo["{{i18n_error_message}}"] = payoutDetails.error_message;
   }
   var resourceNode = document.createElement("div");
   resourceNode.id = "resource-info-container";
@@ -166,14 +164,26 @@ function redirectToEndUrl(returnUrl) {
       var secondsLeft = timeout - j++;
       var innerText =
         secondsLeft === 0
-          ? "Redirecting ..."
-          : "Redirecting in " + secondsLeft + " seconds ...";
+          ? "{{i18n_redirecting_text}}"
+          : "{{i18n_redirecting_in_text}} " +
+            secondsLeft +
+            " {{i18n_seconds_text}}";
       if (statusRedirectTextNode instanceof HTMLDivElement) {
         statusRedirectTextNode.innerText = innerText;
       }
       if (secondsLeft === 0) {
         setTimeout(function () {
-          window.location.href = returnUrl.toString();
+          try {
+            window.top.location.href = returnUrl.toString();
+          } catch (error) {
+            console.error(
+              "CRITICAL ERROR",
+              "Failed to redirect top document. Error - ",
+              error
+            );
+            console.info("Redirecting in current document");
+            window.location.href = returnUrl.toString();
+          }
         }, 1000);
       }
     }, i * 1000);

@@ -1,4 +1,5 @@
 use api_models::{enums::EventType as OutgoingWebhookEventType, webhooks::OutgoingWebhookContent};
+use common_enums::WebhookDeliveryAttempt;
 use serde::Serialize;
 use serde_json::Value;
 use time::OffsetDateTime;
@@ -9,7 +10,7 @@ use crate::services::kafka::KafkaMessage;
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct OutgoingWebhookEvent {
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     event_id: String,
     event_type: OutgoingWebhookEventType,
     #[serde(flatten)]
@@ -18,26 +19,35 @@ pub struct OutgoingWebhookEvent {
     error: Option<Value>,
     created_at_timestamp: i128,
     initial_attempt_id: Option<String>,
+    status_code: Option<u16>,
+    delivery_attempt: Option<WebhookDeliveryAttempt>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "outgoing_webhook_event_type", rename_all = "snake_case")]
 pub enum OutgoingWebhookEventContent {
     Payment {
-        payment_id: Option<String>,
+        payment_id: common_utils::id_type::PaymentId,
         content: Value,
     },
     Payout {
         payout_id: String,
         content: Value,
     },
+    #[cfg(feature = "v1")]
     Refund {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
+        refund_id: String,
+        content: Value,
+    },
+    #[cfg(feature = "v2")]
+    Refund {
+        payment_id: common_utils::id_type::GlobalPaymentId,
         refund_id: String,
         content: Value,
     },
     Dispute {
-        payment_id: String,
+        payment_id: common_utils::id_type::PaymentId,
         attempt_id: String,
         dispute_id: String,
         content: Value,
@@ -61,7 +71,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
             }),
             Self::RefundDetails(refund_payload) => Some(OutgoingWebhookEventContent::Refund {
                 payment_id: refund_payload.payment_id.clone(),
-                refund_id: refund_payload.refund_id.clone(),
+                refund_id: refund_payload.get_refund_id_as_string(),
                 content: masking::masked_serialize(&refund_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
@@ -89,13 +99,16 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
 }
 
 impl OutgoingWebhookEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        merchant_id: String,
+        merchant_id: common_utils::id_type::MerchantId,
         event_id: String,
         event_type: OutgoingWebhookEventType,
         content: Option<OutgoingWebhookEventContent>,
         error: Option<Value>,
         initial_attempt_id: Option<String>,
+        status_code: Option<u16>,
+        delivery_attempt: Option<WebhookDeliveryAttempt>,
     ) -> Self {
         Self {
             merchant_id,
@@ -106,6 +119,8 @@ impl OutgoingWebhookEvent {
             error,
             created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
             initial_attempt_id,
+            status_code,
+            delivery_attempt,
         }
     }
 }

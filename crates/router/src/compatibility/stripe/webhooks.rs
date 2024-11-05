@@ -5,10 +5,7 @@ use api_models::{
     webhooks::{self as api},
 };
 #[cfg(feature = "payouts")]
-use common_utils::{
-    crypto::Encryptable,
-    pii::{self, Email},
-};
+use common_utils::pii::{self, Email};
 use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
 use error_stack::ResultExt;
 use router_env::logger;
@@ -84,7 +81,7 @@ impl OutgoingWebhookType for StripeOutgoingWebhook {
 #[derive(Serialize, Debug)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
 pub enum StripeWebhookObject {
-    PaymentIntent(StripePaymentIntentResponse),
+    PaymentIntent(Box<StripePaymentIntentResponse>),
     Refund(StripeRefundResponse),
     Dispute(StripeDisputeResponse),
     Mandate(StripeMandateResponse),
@@ -97,7 +94,7 @@ pub struct StripeDisputeResponse {
     pub id: String,
     pub amount: String,
     pub currency: String,
-    pub payment_intent: String,
+    pub payment_intent: common_utils::id_type::PaymentId,
     pub reason: Option<String>,
     pub status: StripeDisputeStatus,
 }
@@ -167,16 +164,25 @@ impl From<common_enums::PayoutStatus> for StripePayoutStatus {
 #[cfg(feature = "payouts")]
 impl From<payout_models::PayoutCreateResponse> for StripePayoutResponse {
     fn from(res: payout_models::PayoutCreateResponse) -> Self {
+        let (name, email, phone, phone_country_code) = match res.customer {
+            Some(customer) => (
+                customer.name,
+                customer.email,
+                customer.phone,
+                customer.phone_country_code,
+            ),
+            None => (None, None, None, None),
+        };
         Self {
             id: res.payout_id,
             amount: res.amount.get_amount_as_i64(),
             currency: res.currency.to_string(),
             payout_type: res.payout_type,
             status: StripePayoutStatus::from(res.status),
-            name: res.name.map(Encryptable::into_inner),
-            email: res.email.map(|inner| inner.into()),
-            phone: res.phone.map(Encryptable::into_inner),
-            phone_country_code: res.phone_country_code,
+            name,
+            email,
+            phone,
+            phone_country_code,
             created: res.created.map(|t| t.assume_utc().unix_timestamp()),
             metadata: res.metadata,
             entity_type: res.entity_type,
@@ -321,9 +327,9 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
     fn from(value: api::OutgoingWebhookContent) -> Self {
         match value {
             api::OutgoingWebhookContent::PaymentDetails(payment) => {
-                Self::PaymentIntent(payment.into())
+                Self::PaymentIntent(Box::new((*payment).into()))
             }
-            api::OutgoingWebhookContent::RefundDetails(refund) => Self::Refund(refund.into()),
+            api::OutgoingWebhookContent::RefundDetails(refund) => Self::Refund((*refund).into()),
             api::OutgoingWebhookContent::DisputeDetails(dispute) => {
                 Self::Dispute((*dispute).into())
             }
@@ -331,7 +337,7 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
                 Self::Mandate((*mandate).into())
             }
             #[cfg(feature = "payouts")]
-            api::OutgoingWebhookContent::PayoutDetails(payout) => Self::Payout(payout.into()),
+            api::OutgoingWebhookContent::PayoutDetails(payout) => Self::Payout((*payout).into()),
         }
     }
 }

@@ -20,9 +20,9 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
     state: &SessionState,
-    merchant_id: String,
+    merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
-    payment_method_data: payments::PaymentMethodData,
+    payment_method_data: domain::PaymentMethodData,
     payment_method: common_enums::PaymentMethod,
     billing_address: payments::Address,
     shipping_address: Option<payments::Address>,
@@ -61,8 +61,12 @@ pub async fn perform_authentication(
         webhook_url,
         three_ds_requestor_url,
     )?;
-    let response =
-        utils::do_auth_connector_call(state, authentication_connector.clone(), router_data).await?;
+    let response = Box::pin(utils::do_auth_connector_call(
+        state,
+        authentication_connector.clone(),
+        router_data,
+    ))
+    .await?;
     let authentication =
         utils::update_trackers(state, response.clone(), authentication_data, None).await?;
     response
@@ -80,7 +84,7 @@ pub async fn perform_authentication(
 pub async fn perform_post_authentication(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    business_profile: storage::BusinessProfile,
+    business_profile: domain::Profile,
     authentication_id: String,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
@@ -94,7 +98,7 @@ pub async fn perform_post_authentication(
     let authentication = state
         .store
         .find_authentication_by_merchant_id_authentication_id(
-            business_profile.merchant_id.clone(),
+            &business_profile.merchant_id,
             authentication_id.clone(),
         )
         .await
@@ -121,9 +125,9 @@ pub async fn perform_pre_authentication(
     key_store: &domain::MerchantKeyStore,
     card_number: cards::CardNumber,
     token: String,
-    business_profile: &storage::BusinessProfile,
+    business_profile: &domain::Profile,
     acquirer_details: Option<types::AcquirerDetails>,
-    payment_id: Option<String>,
+    payment_id: Option<common_utils::id_type::PaymentId>,
 ) -> CustomResult<storage::Authentication, ApiErrorResponse> {
     let (authentication_connector, three_ds_connector_account) =
         utils::get_authentication_connector_data(state, key_store, business_profile).await?;
@@ -133,7 +137,7 @@ pub async fn perform_pre_authentication(
         business_profile.merchant_id.clone(),
         authentication_connector_name.clone(),
         token,
-        business_profile.profile_id.clone(),
+        business_profile.get_id().to_owned(),
         payment_id,
         three_ds_connector_account
             .get_mca_id()

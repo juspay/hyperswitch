@@ -12,7 +12,7 @@ impl utils::Connector for CheckoutTest {
     fn get_data(&self) -> types::api::ConnectorData {
         use router::connector::Checkout;
         utils::construct_connector_data_old(
-            Box::new(&Checkout),
+            Box::new(Checkout::new()),
             types::Connector::Checkout,
             types::api::GetToken::Connector,
             None,

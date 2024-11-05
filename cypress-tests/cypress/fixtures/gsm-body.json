@@ -1,0 +1,12 @@
+{
+  "gsm_update": {
+    "connector": "stripe",
+    "flow": "Authorize",
+    "sub_flow": "sub_flow",
+    "code": "card_declined",
+    "message": "card_declined",
+    "status": "failure",
+    "decision": "retry",
+    "step_up_possible": ""
+  }
+}

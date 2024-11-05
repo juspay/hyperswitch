@@ -1,31 +1,31 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
 
 use super::generics;
+#[cfg(feature = "v1")]
+use crate::schema::business_profile::dsl::{self, profile_id as dsl_identifier};
+#[cfg(feature = "v2")]
+use crate::schema_v2::business_profile::dsl::{self, id as dsl_identifier};
 use crate::{
-    business_profile::{
-        BusinessProfile, BusinessProfileNew, BusinessProfileUpdate, BusinessProfileUpdateInternal,
-    },
-    errors,
-    schema::business_profile::dsl,
-    PgPooledConn, StorageResult,
+    business_profile::{Profile, ProfileNew, ProfileUpdateInternal},
+    errors, PgPooledConn, StorageResult,
 };
 
-impl BusinessProfileNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<BusinessProfile> {
+impl ProfileNew {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Profile> {
         generics::generic_insert(conn, self).await
     }
 }
 
-impl BusinessProfile {
+impl Profile {
     pub async fn update_by_profile_id(
         self,
         conn: &PgPooledConn,
-        business_profile: BusinessProfileUpdate,
+        business_profile: ProfileUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            self.profile_id.clone(),
-            BusinessProfileUpdateInternal::from(business_profile),
+            self.get_id().to_owned(),
+            business_profile,
         )
         .await
         {
@@ -37,10 +37,27 @@ impl BusinessProfile {
         }
     }
 
-    pub async fn find_by_profile_id(conn: &PgPooledConn, profile_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_profile_id(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::profile_id.eq(profile_id.to_owned()),
+            dsl_identifier.eq(profile_id.to_owned()),
+        )
+        .await
+    }
+
+    pub async fn find_by_merchant_id_profile_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl_identifier.eq(profile_id.to_owned())),
         )
         .await
     }
@@ -48,7 +65,7 @@ impl BusinessProfile {
     pub async fn find_by_profile_name_merchant_id(
         conn: &PgPooledConn,
         profile_name: &str,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
@@ -59,9 +76,9 @@ impl BusinessProfile {
         .await
     }
 
-    pub async fn list_business_profile_by_merchant_id(
+    pub async fn list_profile_by_merchant_id(
         conn: &PgPooledConn,
-        merchant_id: &str,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -70,7 +87,7 @@ impl BusinessProfile {
             _,
         >(
             conn,
-            dsl::merchant_id.eq(merchant_id.to_string()),
+            dsl::merchant_id.eq(merchant_id.to_owned()),
             None,
             None,
             None,
@@ -80,14 +97,14 @@ impl BusinessProfile {
 
     pub async fn delete_by_profile_id_merchant_id(
         conn: &PgPooledConn,
-        profile_id: &str,
-        merchant_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
+        merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
             conn,
-            dsl::profile_id
+            dsl_identifier
                 .eq(profile_id.to_owned())
-                .and(dsl::merchant_id.eq(merchant_id.to_string())),
+                .and(dsl::merchant_id.eq(merchant_id.to_owned())),
         )
         .await
     }

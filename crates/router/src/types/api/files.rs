@@ -1,13 +1,12 @@
 use api_models::enums::FileUploadProvider;
 pub use hyperswitch_domain_models::router_flow_types::files::{Retrieve, Upload};
+pub use hyperswitch_interfaces::api::files::{FilePurpose, FileUpload, RetrieveFile, UploadFile};
 use masking::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 pub use super::files_v2::{FileUploadV2, RetrieveFileV2, UploadFileV2};
-use super::ConnectorCommon;
 use crate::{
     core::errors,
-    services,
     types::{self, transformers::ForeignTryFrom},
 };
 
@@ -60,39 +59,4 @@ pub struct CreateFileRequest {
     pub file_type: mime::Mime,
     pub purpose: FilePurpose,
     pub dispute_id: Option<String>,
-}
-
-#[derive(Debug, serde::Deserialize, strum::Display, Clone, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum FilePurpose {
-    DisputeEvidence,
-}
-
-pub trait UploadFile:
-    services::ConnectorIntegration<Upload, types::UploadFileRequestData, types::UploadFileResponse>
-{
-}
-
-pub trait RetrieveFile:
-    services::ConnectorIntegration<
-    Retrieve,
-    types::RetrieveFileRequestData,
-    types::RetrieveFileResponse,
->
-{
-}
-
-pub trait FileUpload: ConnectorCommon + Sync + UploadFile + RetrieveFile {
-    fn validate_file_upload(
-        &self,
-        _purpose: FilePurpose,
-        _file_size: i32,
-        _file_type: mime::Mime,
-    ) -> common_utils::errors::CustomResult<(), errors::ConnectorError> {
-        Err(errors::ConnectorError::FileValidationFailed {
-            reason: "".to_owned(),
-        }
-        .into())
-    }
 }

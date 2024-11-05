@@ -1,6 +1,9 @@
 //! Custom validations for some shared types.
 
+use std::collections::HashSet;
+
 use error_stack::report;
+use globset::Glob;
 use once_cell::sync::Lazy;
 use regex::Regex;
 #[cfg(feature = "logs")]
@@ -55,6 +58,27 @@ pub fn validate_email(email: &str) -> CustomResult<(), ValidationError> {
     }
 
     Ok(())
+}
+
+/// Checks whether a given domain matches against a list of valid domain glob patterns
+pub fn validate_domain_against_allowed_domains(
+    domain: &str,
+    allowed_domains: HashSet<String>,
+) -> bool {
+    allowed_domains.iter().any(|allowed_domain| {
+        Glob::new(allowed_domain)
+            .map(|glob| glob.compile_matcher().is_match(domain))
+            .map_err(|err| {
+                let err_msg = format!(
+                    "Invalid glob pattern for configured allowed_domain [{:?}]! - {:?}",
+                    allowed_domain, err
+                );
+                #[cfg(feature = "logs")]
+                logger::error!(err_msg);
+                err_msg
+            })
+            .unwrap_or(false)
+    })
 }
 
 #[cfg(test)]

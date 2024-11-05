@@ -38,7 +38,7 @@
       }
     },
     "raw_json_formatted": {
-      "connector_type": "fiz_operations",
+      "connector_type": "payment_processor",
       "connector_name": "bluesnap",
       "connector_account_details": {
         "auth_type": "BodyKey",
@@ -53,12 +53,17 @@
           "payment_method_types": [
             {
               "payment_method_type": "credit",
-              "card_networks": ["AmericanExpress",
-              "Discover",
-              "Interac",
-              "JCB",
-              "Mastercard",
-              "Visa", "DinersClub","UnionPay","RuPay"],
+              "card_networks": [
+                "AmericanExpress",
+                "Discover",
+                "Interac",
+                "JCB",
+                "Mastercard",
+                "Visa",
+                "DinersClub",
+                "UnionPay",
+                "RuPay"
+              ],
               "minimum_amount": 1,
               "maximum_amount": 68607706,
               "recurring_enabled": true,
@@ -66,12 +71,17 @@
             },
             {
               "payment_method_type": "debit",
-              "card_networks": ["AmericanExpress",
-              "Discover",
-              "Interac",
-              "JCB",
-              "Mastercard",
-              "Visa", "DinersClub","UnionPay","RuPay"],
+              "card_networks": [
+                "AmericanExpress",
+                "Discover",
+                "Interac",
+                "JCB",
+                "Mastercard",
+                "Visa",
+                "DinersClub",
+                "UnionPay",
+                "RuPay"
+              ],
               "minimum_amount": 1,
               "maximum_amount": 68607706,
               "recurring_enabled": true,

@@ -13,6 +13,7 @@ use time::PrimitiveDateTime;
 
 use super::PaymentMetricRow;
 use crate::{
+    enums::AuthInfo,
     query::{
         Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql,
         Window,
@@ -36,7 +37,7 @@ where
     async fn load_metrics(
         &self,
         _dimensions: &[PaymentDimensions],
-        merchant_id: &str,
+        auth: &AuthInfo,
         _filters: &PaymentFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
@@ -68,9 +69,8 @@ where
                 alias: Some("end_bucket"),
             })
             .switch()?;
-        query_builder
-            .add_filter_clause("merchant_id", merchant_id)
-            .switch()?;
+        auth.set_filter_clause(&mut query_builder).switch()?;
+
         query_builder
             .add_custom_filter_clause("attempt_count", "1", FilterTypes::Gt)
             .switch()?;
@@ -106,6 +106,12 @@ where
                         i.payment_method_type.clone(),
                         i.client_source.clone(),
                         i.client_version.clone(),
+                        i.profile_id.clone(),
+                        i.card_network.clone(),
+                        i.merchant_id.clone(),
+                        i.card_last_4.clone(),
+                        i.card_issuer.clone(),
+                        i.error_reason.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

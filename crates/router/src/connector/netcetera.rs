@@ -5,6 +5,7 @@ use std::fmt::Debug;
 
 use common_utils::{ext_traits::ByteSliceExt, request::RequestContent};
 use error_stack::ResultExt;
+use hyperswitch_interfaces::authentication::ExternalAuthenticationPayload;
 use transformers as netcetera;
 
 use crate::{
@@ -203,12 +204,12 @@ impl api::IncomingWebhook for Netcetera {
     fn get_external_authentication_details(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::ExternalAuthenticationPayload, errors::ConnectorError> {
+    ) -> CustomResult<ExternalAuthenticationPayload, errors::ConnectorError> {
         let webhook_body: netcetera::ResultsResponseData = request
             .body
             .parse_struct("netcetera ResultsResponseData")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        Ok(api::ExternalAuthenticationPayload {
+        Ok(ExternalAuthenticationPayload {
             trans_status: webhook_body
                 .trans_status
                 .unwrap_or(common_enums::TransactionStatus::InformationOnly),

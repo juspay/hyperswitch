@@ -1,15 +1,17 @@
-use std::{net::IpAddr, str::FromStr};
+use std::{net::IpAddr, ops::Not, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 use api_models::user::dashboard_metadata::{
     GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent, SetMetaDataRequest,
 };
+use common_utils::id_type;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
 };
 use error_stack::{report, ResultExt};
 use masking::Secret;
+use router_env::logger;
 
 use crate::{
     core::errors::{UserErrors, UserResult},
@@ -19,8 +21,8 @@ use crate::{
 pub async fn insert_merchant_scoped_metadata_to_db(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
@@ -52,8 +54,8 @@ pub async fn insert_merchant_scoped_metadata_to_db(
 pub async fn insert_user_scoped_metadata_to_db(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
@@ -85,8 +87,8 @@ pub async fn insert_user_scoped_metadata_to_db(
 
 pub async fn get_merchant_scoped_metadata_from_db(
     state: &SessionState,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     state
@@ -99,8 +101,8 @@ pub async fn get_merchant_scoped_metadata_from_db(
 pub async fn get_user_scoped_metadata_from_db(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     match state
@@ -123,8 +125,8 @@ pub async fn get_user_scoped_metadata_from_db(
 pub async fn update_merchant_scoped_metadata(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
@@ -151,8 +153,8 @@ pub async fn update_merchant_scoped_metadata(
 pub async fn update_user_scoped_metadata(
     state: &SessionState,
     user_id: String,
-    merchant_id: String,
-    org_id: String,
+    merchant_id: id_type::MerchantId,
+    org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     metadata_value: impl serde::Serialize,
 ) -> UserResult<DashboardMetadata> {
@@ -283,8 +285,16 @@ fn not_contains_string(value: &Option<String>, value_to_be_checked: &str) -> boo
 }
 
 pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
-    not_contains_string(&data.poc_email, "juspay")
-        && not_contains_string(&data.business_website, "juspay")
-        && not_contains_string(&data.business_website, "hyperswitch")
-        && not_contains_string(&Some(user_email), "juspay")
+    let poc_email_check = not_contains_string(&data.poc_email, "juspay");
+    let business_website_check = not_contains_string(&data.business_website, "juspay")
+        && not_contains_string(&data.business_website, "hyperswitch");
+    let user_email_check = not_contains_string(&Some(user_email), "juspay");
+
+    if (poc_email_check && business_website_check && user_email_check).not() {
+        logger::info!(prod_intent_email = poc_email_check);
+        logger::info!(prod_intent_email = business_website_check);
+        logger::info!(prod_intent_email = user_email_check);
+    }
+
+    poc_email_check && business_website_check && user_email_check
 }

@@ -1,10 +1,7 @@
-import createPaymentBody from "../../fixtures/create-payment-body.json";
-import createConfirmPaymentBody from "../../fixtures/create-confirm-body.json";
-import confirmBody from "../../fixtures/confirm-body.json";
-import getConnectorDetails from "../PaymentUtils/utils";
-import State from "../../utils/State";
 import captureBody from "../../fixtures/capture-flow-body.json";
-import * as utils from "../PaymentUtils/utils";
+import * as fixtures from "../../fixtures/imports";
+import State from "../../utils/State";
+import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 
@@ -36,7 +33,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createPaymentIntentTest(
-          createPaymentBody,
+          fixtures.createPaymentBody,
           req_data,
           res_data,
           "three_ds",
@@ -57,13 +54,19 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         ]["3DSManualCapture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        cy.confirmCallTest(confirmBody, req_data, res_data, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          req_data,
+          res_data,
+          true,
+          globalState
+        );
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
 
       it("Handle redirection", () => {
-        let expected_redirection = confirmBody["return_url"];
+        let expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
 
@@ -103,7 +106,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.createConfirmPaymentTest(
-          createConfirmPaymentBody,
+          fixtures.createConfirmPaymentBody,
           req_data,
           res_data,
           "three_ds",
@@ -115,7 +118,8 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       it("Handle redirection", () => {
-        let expected_redirection = createConfirmPaymentBody["return_url"];
+        let expected_redirection =
+          fixtures.createConfirmPaymentBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
 
@@ -159,7 +163,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           let req_data = data["Request"];
           let res_data = data["Response"];
           cy.createPaymentIntentTest(
-            createPaymentBody,
+            fixtures.createPaymentBody,
             req_data,
             res_data,
             "three_ds",
@@ -181,7 +185,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           let req_data = data["Request"];
           let res_data = data["Response"];
           cy.confirmCallTest(
-            confirmBody,
+            fixtures.confirmBody,
             req_data,
             res_data,
             true,
@@ -192,7 +196,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("Handle redirection", () => {
-          let expected_redirection = confirmBody["return_url"];
+          let expected_redirection = fixtures.confirmBody["return_url"];
           cy.handleRedirection(globalState, expected_redirection);
         });
 
@@ -232,7 +236,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           let req_data = data["Request"];
           let res_data = data["Response"];
           cy.createConfirmPaymentTest(
-            createConfirmPaymentBody,
+            fixtures.createConfirmPaymentBody,
             req_data,
             res_data,
             "three_ds",
@@ -244,7 +248,8 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("Handle redirection", () => {
-          let expected_redirection = createConfirmPaymentBody["return_url"];
+          let expected_redirection =
+            fixtures.createConfirmPaymentBody["return_url"];
           cy.handleRedirection(globalState, expected_redirection);
         });
 

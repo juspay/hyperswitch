@@ -6,7 +6,7 @@ use router_env::{logger, metrics::add_attributes};
 use scheduler::{workflows::ProcessTrackerWorkflow, SchedulerSessionState};
 
 use crate::{
-    errors,
+    consts, errors,
     logger::error,
     routes::{metrics, SessionState},
     services::email::types::ApiKeyExpiryReminder,
@@ -28,17 +28,22 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             .tracking_data
             .clone()
             .parse_value("ApiKeyExpiryTrackingData")?;
-
+        let key_manager_satte = &state.into();
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                tracking_data.merchant_id.as_str(),
+                key_manager_satte,
+                &tracking_data.merchant_id,
                 &state.store.get_master_key().to_vec().into(),
             )
             .await?;
 
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(tracking_data.merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(
+                key_manager_satte,
+                &tracking_data.merchant_id,
+                &key_store,
+            )
             .await?;
 
         let email_id = merchant_account
@@ -69,15 +74,17 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
         let email_contents = ApiKeyExpiryReminder {
-            recipient_email: UserEmail::from_pii_email(email_id).map_err(|err| {
-                logger::error!(%err,"Failed to convert recipient's email to UserEmail from pii::Email");
+            recipient_email: UserEmail::from_pii_email(email_id).map_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to convert recipient's email to UserEmail from pii::Email"
+                );
                 errors::ProcessTrackerError::EApiErrorResponse
             })?,
-            subject: "API Key Expiry Notice",
+            subject: consts::EMAIL_SUBJECT_API_KEY_EXPIRY,
             expires_in: *expires_in,
             api_key_name,
             prefix,
-
         };
 
         state

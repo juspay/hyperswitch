@@ -1,19 +1,20 @@
-use common_utils::{id_type, pii, types::MinorUnit};
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::{pii, types::MinorUnit};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::payouts};
 
 // Payouts
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payouts)]
-#[diesel(primary_key(payout_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = payouts, primary_key(payout_id), check_for_backend(diesel::pg::Pg))]
 pub struct Payouts {
     pub payout_id: String,
-    pub merchant_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub address_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub address_id: Option<String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
     pub amount: MinorUnit,
@@ -30,7 +31,7 @@ pub struct Payouts {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: i16,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
     pub payout_link_id: Option<String>,
@@ -52,9 +53,9 @@ pub struct Payouts {
 #[diesel(table_name = payouts)]
 pub struct PayoutsNew {
     pub payout_id: String,
-    pub merchant_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub address_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub address_id: Option<String>,
     pub payout_type: Option<storage_enums::PayoutType>,
     pub payout_method_id: Option<String>,
     pub amount: MinorUnit,
@@ -66,12 +67,12 @@ pub struct PayoutsNew {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub last_modified_at: Option<PrimitiveDateTime>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: i16,
-    pub profile_id: String,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub status: storage_enums::PayoutStatus,
     pub confirm: Option<bool>,
     pub payout_link_id: Option<String>,
@@ -91,10 +92,12 @@ pub enum PayoutsUpdate {
         return_url: Option<String>,
         entity_type: storage_enums::PayoutEntityType,
         metadata: Option<pii::SecretSerdeValue>,
-        profile_id: Option<String>,
+        profile_id: Option<common_utils::id_type::ProfileId>,
         status: Option<storage_enums::PayoutStatus>,
         confirm: Option<bool>,
         payout_type: Option<storage_enums::PayoutType>,
+        address_id: Option<String>,
+        customer_id: Option<common_utils::id_type::CustomerId>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -123,12 +126,14 @@ pub struct PayoutsUpdateInternal {
     pub entity_type: Option<storage_enums::PayoutEntityType>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub payout_method_id: Option<String>,
-    pub profile_id: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub status: Option<storage_enums::PayoutStatus>,
     pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: Option<i16>,
     pub confirm: Option<bool>,
     pub payout_type: Option<common_enums::PayoutType>,
+    pub address_id: Option<String>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
 }
 
 impl Default for PayoutsUpdateInternal {
@@ -150,6 +155,8 @@ impl Default for PayoutsUpdateInternal {
             attempt_count: None,
             confirm: None,
             payout_type: None,
+            address_id: None,
+            customer_id: None,
         }
     }
 }
@@ -171,6 +178,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -185,6 +194,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 status,
                 confirm,
                 payout_type,
+                address_id,
+                customer_id,
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
@@ -226,6 +237,8 @@ impl PayoutsUpdate {
             attempt_count,
             confirm,
             payout_type,
+            address_id,
+            customer_id,
         } = self.into();
         Payouts {
             amount: amount.unwrap_or(source.amount),
@@ -244,6 +257,8 @@ impl PayoutsUpdate {
             attempt_count: attempt_count.unwrap_or(source.attempt_count),
             confirm: confirm.or(source.confirm),
             payout_type: payout_type.or(source.payout_type),
+            address_id: address_id.or(source.address_id),
+            customer_id: customer_id.or(source.customer_id),
             ..source
         }
     }

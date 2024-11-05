@@ -149,7 +149,9 @@ impl ConnectorCommon for Iatapay {
             ErrorResponse {
                 status_code: res.status_code,
                 code: response.error,
-                message: response.message,
+                message: response
+                    .message
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
                 reason: response.reason,
                 attempt_status: None,
                 connector_transaction_id: None,
@@ -675,7 +677,7 @@ impl api::IncomingWebhook for Iatapay {
     fn get_webhook_source_verification_message(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &str,
+        _merchant_id: &common_utils::id_type::MerchantId,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)

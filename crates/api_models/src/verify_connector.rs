@@ -8,4 +8,4 @@ pub struct VerifyConnectorRequest {
     pub connector_account_details: admin::ConnectorAuthType,
 }
 
-common_utils::impl_misc_api_event_type!(VerifyConnectorRequest);
+common_utils::impl_api_event_type!(Miscellaneous, (VerifyConnectorRequest));

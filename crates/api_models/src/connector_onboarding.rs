@@ -1,9 +1,11 @@
+use common_utils::id_type;
+
 use super::{admin, enums};
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct ActionUrlRequest {
     pub connector: enums::Connector,
-    pub connector_id: String,
+    pub connector_id: id_type::MerchantConnectorAccountId,
     pub return_url: String,
 }
 
@@ -15,8 +17,8 @@ pub enum ActionUrlResponse {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct OnboardingSyncRequest {
-    pub profile_id: String,
-    pub connector_id: String,
+    pub profile_id: id_type::ProfileId,
+    pub connector_id: id_type::MerchantConnectorAccountId,
     pub connector: enums::Connector,
 }
 
@@ -40,12 +42,12 @@ pub enum PayPalOnboardingStatus {
     MorePermissionsNeeded,
     EmailNotVerified,
     Success(PayPalOnboardingDone),
-    ConnectorIntegrated(admin::MerchantConnectorResponse),
+    ConnectorIntegrated(Box<admin::MerchantConnectorResponse>),
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
 pub struct PayPalOnboardingDone {
-    pub payer_id: String,
+    pub payer_id: id_type::MerchantId,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -55,6 +57,6 @@ pub struct PayPalIntegrationDone {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct ResetTrackingIdRequest {
-    pub connector_id: String,
+    pub connector_id: id_type::MerchantConnectorAccountId,
     pub connector: enums::Connector,
 }

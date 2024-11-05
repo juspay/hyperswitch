@@ -1,5 +1,5 @@
 use diesel_models::user as storage;
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -71,7 +71,7 @@ impl UserInterface for Store {
         &self,
         user_email: &pii::Email,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::User::find_by_user_email(&conn, user_email)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -82,7 +82,7 @@ impl UserInterface for Store {
         &self,
         user_id: &str,
     ) -> CustomResult<storage::User, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::User::find_by_user_id(&conn, user_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -127,7 +127,7 @@ impl UserInterface for Store {
         &self,
         user_ids: Vec<String>,
     ) -> CustomResult<Vec<storage::User>, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::User::find_users_by_user_ids(&conn, user_ids)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
@@ -152,7 +152,6 @@ impl UserInterface for MockDb {
         }
         let time_now = common_utils::date_time::now();
         let user = storage::User {
-            id: i32::try_from(users.len()).change_context(errors::StorageError::MockDbError)?,
             user_id: user_data.user_id,
             email: user_data.email,
             name: user_data.name,
@@ -160,7 +159,6 @@ impl UserInterface for MockDb {
             is_verified: user_data.is_verified,
             created_at: user_data.created_at.unwrap_or(time_now),
             last_modified_at: user_data.created_at.unwrap_or(time_now),
-            preferred_merchant_id: user_data.preferred_merchant_id,
             totp_status: user_data.totp_status,
             totp_secret: user_data.totp_secret,
             totp_recovery_codes: user_data.totp_recovery_codes,
@@ -219,16 +217,9 @@ impl UserInterface for MockDb {
                         is_verified: true,
                         ..user.to_owned()
                     },
-                    storage::UserUpdate::AccountUpdate {
-                        name,
-                        is_verified,
-                        preferred_merchant_id,
-                    } => storage::User {
+                    storage::UserUpdate::AccountUpdate { name, is_verified } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
-                        preferred_merchant_id: preferred_merchant_id
-                            .clone()
-                            .or(user.preferred_merchant_id.clone()),
                         ..user.to_owned()
                     },
                     storage::UserUpdate::TotpUpdate {
@@ -274,16 +265,9 @@ impl UserInterface for MockDb {
                         is_verified: true,
                         ..user.to_owned()
                     },
-                    storage::UserUpdate::AccountUpdate {
-                        name,
-                        is_verified,
-                        preferred_merchant_id,
-                    } => storage::User {
+                    storage::UserUpdate::AccountUpdate { name, is_verified } => storage::User {
                         name: name.clone().map(Secret::new).unwrap_or(user.name.clone()),
                         is_verified: is_verified.unwrap_or(user.is_verified),
-                        preferred_merchant_id: preferred_merchant_id
-                            .clone()
-                            .or(user.preferred_merchant_id.clone()),
                         ..user.to_owned()
                     },
                     storage::UserUpdate::TotpUpdate {

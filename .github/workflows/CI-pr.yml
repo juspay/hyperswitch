@@ -33,8 +33,6 @@ env:
   RUSTUP_MAX_RETRIES: 10
   # Don't emit giant backtraces in the CI logs.
   RUST_BACKTRACE: short
-  # Use `sccache` for caching compilation artifacts
-  RUSTC_WRAPPER: sccache
 
 jobs:
   formatting:
@@ -90,6 +88,11 @@ jobs:
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
 
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
+      RUSTFLAGS: "-D warnings"
+
     strategy:
       fail-fast: false
       matrix:
@@ -100,10 +103,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: "Fetch base branch"
-        shell: bash
-        run: git fetch origin $GITHUB_BASE_REF --depth 1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -122,6 +121,11 @@ jobs:
         with:
           toolchain: "${{ env.rust_version }}"
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install sccache
         uses: taiki-e/install-action@v2.33.28
         with:
@@ -134,61 +138,21 @@ jobs:
           tool: cargo-hack
           checksum: true
 
-      - name: Deny warnings
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install jq
         shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+        run: .github/scripts/install-jq.sh
 
-      - name: Check modified crates
+      - name: Cargo hack
         shell: bash
-        run: |
-          # Obtain a list of workspace members
-          workspace_members="$(
-            cargo metadata --format-version 1 --no-deps \
-              | jq \
-                --compact-output \
-                --monochrome-output \
-                --raw-output \
-                '(.workspace_members | sort) as $package_ids | .packages[] | select(IN(.id; $package_ids[])) | .name'
-          )"
-
-          PACKAGES_CHECKED=()
-          PACKAGES_SKIPPED=()
-
-          while IFS= read -r package_name; do
-            # Obtain comma-separated list of transitive workspace dependencies for each workspace member
-            change_paths="$(cargo tree --all-features --no-dedupe --prefix none --package "${package_name}" \
-              | grep 'crates/' \
-              | sort --unique \
-              | awk --field-separator ' ' '{ printf "crates/%s\n", $1 }' | paste -d ',' -s -)"
-
-            # Store change paths in an array by splitting `change_paths` by comma
-            IFS=',' read -ra change_paths <<< "${change_paths}"
-
-            # A package must be checked if any of its transitive dependencies (or itself) has been modified
-            if git diff --exit-code --quiet "origin/${GITHUB_BASE_REF}" -- "${change_paths[@]}"; then
-              printf '::debug::Skipping `%s` since none of these paths were modified: %s\n' "${package_name}" "${change_paths[*]}"
-              PACKAGES_SKIPPED+=("${package_name}")
-            else
-              printf '::debug::Checking `%s` since at least one of these paths was modified: %s\n' "${package_name}" "${change_paths[*]}"
-              PACKAGES_CHECKED+=("${package_name}")
-            fi
-          done <<< "${workspace_members}"
-
-          printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
-          echo "PACKAGES_CHECKED=${PACKAGES_CHECKED[*]}" >> ${GITHUB_ENV}
-          echo "PACKAGES_SKIPPED=${PACKAGES_SKIPPED[*]}" >> ${GITHUB_ENV}
-
-      - name: Run `cargo hack` on modified crates
-        shell: bash
-        run: |
-          # Store packages to check in an array by splitting `PACKAGES_CHECKED` by space
-          IFS=' ' read -ra PACKAGES_CHECKED <<< "${PACKAGES_CHECKED}"
-
-          for package in "${PACKAGES_CHECKED[@]}"; do
-            printf '::group::Running `cargo hack` on package `%s`\n' "${package}"
-            cargo hack check --each-feature --all-targets --package "${package}"
-            echo '::endgroup::'
-          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: just ci_hack
 
   # cargo-deny:
   #   name: Run cargo-deny
@@ -214,6 +178,11 @@ jobs:
   test:
     name: Run tests on stable toolchain
     runs-on: ${{ matrix.runner }}
+
+    env:
+      # Use `sccache` for caching compilation artifacts
+      RUSTC_WRAPPER: sccache
+      RUSTFLAGS: "-D warnings"
 
     strategy:
       fail-fast: false
@@ -243,10 +212,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.generate_token.outputs.token }}
 
-      - name: "Fetch base branch"
-        shell: bash
-        run: git fetch origin $GITHUB_BASE_REF --depth 1
-
       - name: Install mold linker
         uses: rui314/setup-mold@v1
         if: ${{ runner.os == 'Linux' }}
@@ -258,6 +223,11 @@ jobs:
         with:
           toolchain: stable 2 weeks ago
           components: clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install sccache
         uses: taiki-e/install-action@v2.33.28
@@ -271,25 +241,25 @@ jobs:
           tool: cargo-hack
           checksum: true
 
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: just
+          checksum: true
+
+      - name: Install jq
+        shell: bash
+        run: .github/scripts/install-jq.sh
+
       # - name: Install cargo-nextest
       #   uses: taiki-e/install-action@v2.33.28
       #   with:
       #     tool: cargo-nextest
       #     checksum: true
 
-      # - name: Setup Embark Studios lint rules
-      #   shell: bash
-      #   run: |
-      #     mkdir -p .cargo
-      #     curl -sL https://raw.githubusercontent.com/EmbarkStudios/rust-ecosystem/main/lints.toml >> .cargo/config.toml
-
-      - name: Deny warnings
-        shell: bash
-        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
-
       - name: Run clippy
         shell: bash
-        run: cargo clippy --all-features --all-targets
+        run: just clippy
 
       - name: Check Cargo.lock changed
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
@@ -303,57 +273,11 @@ jobs:
             git push
           fi
 
-      - name: Check modified crates
+      - name: Run cargo check
         shell: bash
-        run: |
-          # Obtain a list of workspace members
-          workspace_members="$(
-            cargo metadata --format-version 1 --no-deps \
-              | jq \
-                --compact-output \
-                --monochrome-output \
-                --raw-output \
-                '(.workspace_members | sort) as $package_ids | .packages[] | select(IN(.id; $package_ids[])) | .name'
-          )"
-
-          PACKAGES_CHECKED=()
-          PACKAGES_SKIPPED=()
-
-          while IFS= read -r package_name; do
-            # Obtain comma-separated list of transitive workspace dependencies for each workspace member
-            change_paths="$(cargo tree --all-features --no-dedupe --prefix none --package "${package_name}" \
-              | grep 'crates/' \
-              | sort --unique \
-              | awk --field-separator ' ' '{ printf "crates/%s\n", $1 }' | paste -d ',' -s -)"
-
-            # Store change paths in an array by splitting `change_paths` by comma
-            IFS=',' read -ra change_paths <<< "${change_paths}"
-
-            # A package must be checked if any of its transitive dependencies (or itself) has been modified
-            if git diff --exit-code --quiet "origin/${GITHUB_BASE_REF}" -- "${change_paths[@]}"; then
-              printf '::debug::Skipping `%s` since none of these paths were modified: %s\n' "${package_name}" "${change_paths[*]}"
-              PACKAGES_SKIPPED+=("${package_name}")
-            else
-              printf '::debug::Checking `%s` since at least one of these paths was modified: %s\n' "${package_name}" "${change_paths[*]}"
-              PACKAGES_CHECKED+=("${package_name}")
-            fi
-          done <<< "${workspace_members}"
-
-          printf '::notice::Packages checked: %s; Packages skipped: %s\n' "${PACKAGES_CHECKED[*]}" "${PACKAGES_SKIPPED[*]}"
-          echo "PACKAGES_CHECKED=${PACKAGES_CHECKED[*]}" >> ${GITHUB_ENV}
-          echo "PACKAGES_SKIPPED=${PACKAGES_SKIPPED[*]}" >> ${GITHUB_ENV}
-
-      - name: Run `cargo hack` on modified crates
-        shell: bash
-        run: |
-          # Store packages to check in an array by splitting `PACKAGES_CHECKED` by space
-          IFS=' ' read -ra PACKAGES_CHECKED <<< "${PACKAGES_CHECKED}"
-
-          for package in "${PACKAGES_CHECKED[@]}"; do
-            printf '::group::Running `cargo hack` on package `%s`\n' "${package}"
-            cargo hack check --each-feature --all-targets --package "${package}"
-            echo '::endgroup::'
-          done
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: just ci_hack
 
   typos:
     name: Spell check
@@ -364,3 +288,47 @@ jobs:
 
       - name: Spell check
         uses: crate-ci/typos@master
+
+  check-v2:
+    name: Check compilation for V2 features
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+          components: clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.0
+
+      - name: Install just
+        uses: taiki-e/install-action@v2.41.10
+        with:
+          tool: just
+          checksum: true
+
+      - name: Run cargo clippy with v2 features enabled
+        shell: bash
+        run: just clippy_v2
+
+      - name: Run cargo check enabling only the release and v2 features
+        shell: bash
+        env:
+          RUSTFLAGS: "-A warnings"
+        run: cargo check --no-default-features --features "release,v2"

@@ -32,10 +32,12 @@ pub mod refund;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
+use common_utils::id_type;
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckUpdate},
     organization::{Organization, OrganizationNew, OrganizationUpdate},
@@ -116,10 +118,11 @@ pub trait StorageInterface:
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + RequestIdStore
-    + business_profile::BusinessProfileInterface
+    + business_profile::ProfileInterface
     + OrganizationInterface
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
+    + unified_translations::UnifiedTranslationsInterface
     + user_role::UserRoleInterface
     + authorization::AuthorizationInterface
     + user::sample_data::BatchSampleDataInterface
@@ -297,8 +300,8 @@ impl FraudCheckInterface for KafkaStore {
     }
     async fn find_fraud_check_by_payment_id(
         &self,
-        payment_id: String,
-        merchant_id: String,
+        payment_id: id_type::PaymentId,
+        merchant_id: id_type::MerchantId,
     ) -> CustomResult<FraudCheck, StorageError> {
         let frm = self
             .diesel_store
@@ -315,8 +318,8 @@ impl FraudCheckInterface for KafkaStore {
     }
     async fn find_fraud_check_by_payment_id_if_present(
         &self,
-        payment_id: String,
-        merchant_id: String,
+        payment_id: id_type::PaymentId,
+        merchant_id: id_type::MerchantId,
     ) -> CustomResult<Option<FraudCheck>, StorageError> {
         let frm = self
             .diesel_store
@@ -346,14 +349,14 @@ impl OrganizationInterface for KafkaStore {
     }
     async fn find_organization_by_org_id(
         &self,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
     ) -> CustomResult<Organization, StorageError> {
         self.diesel_store.find_organization_by_org_id(org_id).await
     }
 
     async fn update_organization_by_org_id(
         &self,
-        org_id: &str,
+        org_id: &id_type::OrganizationId,
         update: OrganizationUpdate,
     ) -> CustomResult<Organization, StorageError> {
         self.diesel_store

@@ -85,7 +85,7 @@ pub struct PayerInfo {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum PreferredCheckoutMethod {
-    Vpa,
+    Vpa, //Passing this in UPI_COLLECT will trigger an S2S payment call which is not required.
     Qr,
 }
 
@@ -102,6 +102,7 @@ pub struct IatapayPaymentsRequest {
     notification_url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     payer_info: Option<PayerInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     preferred_checkout_method: Option<PreferredCheckoutMethod>,
 }
 
@@ -137,7 +138,7 @@ impl
                         upi_data.vpa_id.map(|id| PayerInfo {
                             token_id: id.switch_strategy(),
                         }),
-                        Some(PreferredCheckoutMethod::Vpa),
+                        None,
                     ),
                     domain::UpiData::UpiIntent(_) => (
                         common_enums::CountryAlpha2::IN,
@@ -160,7 +161,7 @@ impl
                         | domain::BankRedirectData::Giropay { .. }
                         | domain::BankRedirectData::Interac { .. }
                         | domain::BankRedirectData::OnlineBankingCzechRepublic { .. }
-                        | domain::BankRedirectData::OnlineBankingFinland {}
+                        | domain::BankRedirectData::OnlineBankingFinland { .. }
                         | domain::BankRedirectData::OnlineBankingPoland { .. }
                         | domain::BankRedirectData::OnlineBankingSlovakia { .. }
                         | domain::BankRedirectData::OpenBankingUk { .. }
@@ -204,7 +205,10 @@ impl
                 | domain::PaymentMethodData::Reward
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
-                | domain::PaymentMethodData::CardToken(_) => {
+                | domain::PaymentMethodData::CardToken(_)
+                | domain::PaymentMethodData::OpenBanking(_)
+                | domain::PaymentMethodData::NetworkToken(_)
+                | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         connector_util::get_unimplemented_payment_method_error_message("iatapay"),
                     ))?
@@ -378,8 +382,8 @@ fn get_iatpay_response(
 
             types::PaymentsResponseData::TransactionResponse {
                 resource_id: id,
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: connector_response_reference_id.clone(),
@@ -389,8 +393,8 @@ fn get_iatpay_response(
         }
         None => types::PaymentsResponseData::TransactionResponse {
             resource_id: id.clone(),
-            redirection_data: None,
-            mandate_reference: None,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: connector_response_reference_id.clone(),
@@ -580,9 +584,9 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct IatapayErrorResponse {
-    pub status: u16,
+    pub status: Option<u16>,
     pub error: String,
-    pub message: String,
+    pub message: Option<String>,
     pub reason: Option<String>,
 }
 

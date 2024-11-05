@@ -1,19 +1,23 @@
-use common_utils::id_type;
-use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use common_utils::{
+    payout_method_utils,
+    types::{UnifiedCode, UnifiedMessage},
+};
+use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::payout_attempt};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
-#[diesel(table_name = payout_attempt)]
-#[diesel(primary_key(payout_attempt_id))]
+#[derive(
+    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
+)]
+#[diesel(table_name = payout_attempt, primary_key(payout_attempt_id), check_for_backend(diesel::pg::Pg))]
 pub struct PayoutAttempt {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
-    pub address_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub address_id: Option<String>,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -27,9 +31,12 @@ pub struct PayoutAttempt {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
-    pub profile_id: String,
-    pub merchant_connector_id: Option<String>,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub unified_code: Option<UnifiedCode>,
+    pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(
@@ -47,9 +54,9 @@ pub struct PayoutAttempt {
 pub struct PayoutAttemptNew {
     pub payout_attempt_id: String,
     pub payout_id: String,
-    pub customer_id: id_type::CustomerId,
-    pub merchant_id: String,
-    pub address_id: String,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub address_id: Option<String>,
     pub connector: Option<String>,
     pub connector_payout_id: Option<String>,
     pub payout_token: Option<String>,
@@ -59,13 +66,16 @@ pub struct PayoutAttemptNew {
     pub error_code: Option<String>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub last_modified_at: Option<PrimitiveDateTime>,
-    pub profile_id: String,
-    pub merchant_connector_id: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: PrimitiveDateTime,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_info: Option<serde_json::Value>,
+    pub unified_code: Option<UnifiedCode>,
+    pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,6 +86,8 @@ pub enum PayoutAttemptUpdate {
         error_message: Option<String>,
         error_code: Option<String>,
         is_eligible: Option<bool>,
+        unified_code: Option<UnifiedCode>,
+        unified_message: Option<UnifiedMessage>,
     },
     PayoutTokenUpdate {
         payout_token: String,
@@ -83,10 +95,16 @@ pub enum PayoutAttemptUpdate {
     BusinessUpdate {
         business_country: Option<storage_enums::CountryAlpha2>,
         business_label: Option<String>,
+        address_id: Option<String>,
+        customer_id: Option<common_utils::id_type::CustomerId>,
     },
     UpdateRouting {
         connector: String,
         routing_info: Option<serde_json::Value>,
+        merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    },
+    AdditionalPayoutMethodDataUpdate {
+        additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     },
 }
 
@@ -104,6 +122,12 @@ pub struct PayoutAttemptUpdateInternal {
     pub connector: Option<String>,
     pub routing_info: Option<serde_json::Value>,
     pub last_modified_at: PrimitiveDateTime,
+    pub address_id: Option<String>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub unified_code: Option<UnifiedCode>,
+    pub unified_message: Option<UnifiedMessage>,
+    pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -119,7 +143,13 @@ impl Default for PayoutAttemptUpdateInternal {
             business_label: None,
             connector: None,
             routing_info: None,
+            merchant_connector_id: None,
             last_modified_at: common_utils::date_time::now(),
+            address_id: None,
+            customer_id: None,
+            unified_code: None,
+            unified_message: None,
+            additional_payout_method_data: None,
         }
     }
 }
@@ -137,28 +167,44 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 error_message,
                 error_code,
                 is_eligible,
+                unified_code,
+                unified_message,
             } => Self {
                 connector_payout_id,
                 status: Some(status),
                 error_message,
                 error_code,
                 is_eligible,
+                unified_code,
+                unified_message,
                 ..Default::default()
             },
             PayoutAttemptUpdate::BusinessUpdate {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
             } => Self {
                 business_country,
                 business_label,
+                address_id,
+                customer_id,
                 ..Default::default()
             },
             PayoutAttemptUpdate::UpdateRouting {
                 connector,
                 routing_info,
+                merchant_connector_id,
             } => Self {
                 connector: Some(connector),
                 routing_info,
+                merchant_connector_id,
+                ..Default::default()
+            },
+            PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_payout_method_data,
+            } => Self {
+                additional_payout_method_data,
                 ..Default::default()
             },
         }
@@ -179,6 +225,12 @@ impl PayoutAttemptUpdate {
             connector,
             routing_info,
             last_modified_at,
+            address_id,
+            customer_id,
+            merchant_connector_id,
+            unified_code,
+            unified_message,
+            additional_payout_method_data,
         } = self.into();
         PayoutAttempt {
             payout_token: payout_token.or(source.payout_token),
@@ -192,6 +244,13 @@ impl PayoutAttemptUpdate {
             connector: connector.or(source.connector),
             routing_info: routing_info.or(source.routing_info),
             last_modified_at,
+            address_id: address_id.or(source.address_id),
+            customer_id: customer_id.or(source.customer_id),
+            merchant_connector_id: merchant_connector_id.or(source.merchant_connector_id),
+            unified_code: unified_code.or(source.unified_code),
+            unified_message: unified_message.or(source.unified_message),
+            additional_payout_method_data: additional_payout_method_data
+                .or(source.additional_payout_method_data),
             ..source
         }
     }

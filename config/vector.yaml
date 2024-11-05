@@ -18,6 +18,15 @@ sources:
     decoding:
       codec: json
 
+  sessionized_kafka_tx_events:
+    type: kafka
+    bootstrap_servers: kafka0:29092
+    group_id: sessionizer
+    topics:
+      - ^sessionizer
+    decoding:
+      codec: json
+
   app_logs:
     type: docker_logs
     include_labels:
@@ -35,10 +44,19 @@ sources:
     encoding: json
 
 transforms:
+  events_create_ts:
+    inputs:
+    - kafka_tx_events
+    source: |-
+      .timestamp = from_unix_timestamp(.created_at, unit: "seconds") ?? now()
+      ."@timestamp" = from_unix_timestamp(.created_at, unit: "seconds") ?? now()
+    type: remap
+
   plus_1_events:
     type: filter
     inputs:
-      - kafka_tx_events
+      - events_create_ts
+      - sessionized_events_create_ts
     condition: ".sign_flag == 1"
 
   hs_server_logs:
@@ -54,12 +72,13 @@ transforms:
     source: |-
       .message = parse_json!(.message)
 
-  events:
+  sessionized_events_create_ts:
     type: remap
     inputs:
-      - plus_1_events
+    - sessionized_kafka_tx_events
     source: |-
-      .timestamp = from_unix_timestamp!(.created_at, unit: "seconds")
+      .timestamp = from_unix_timestamp(.created_at, unit: "milliseconds") ?? now()
+      ."@timestamp" = from_unix_timestamp(.created_at, unit: "milliseconds") ?? now()
 
   sdk_transformed:
     type: throttle
@@ -70,10 +89,10 @@ transforms:
     window_secs: 60
 
 sinks:
-  opensearch_events:
+  opensearch_events_1:
     type: elasticsearch
     inputs:
-      - events
+      - plus_1_events
     endpoints:
       - "https://opensearch:9200"
     id_key: message_key
@@ -92,8 +111,58 @@ sinks:
         - partition
         - topic
     bulk:
-      # Add a date prefixed index for better grouping
-      # index: "vector-{{ .topic }}-%Y-%m-%d"
+      index: "vector-{{ .topic }}"
+
+  opensearch_events_2:
+    type: elasticsearch
+    inputs:
+      - plus_1_events
+    endpoints:
+      - "https://opensearch:9200"
+    id_key: message_key
+    api_version: v7
+    tls:
+      verify_certificate: false
+      verify_hostname: false
+    auth:
+      strategy: basic
+      user: admin
+      password: 0penS3arc#
+    encoding:
+      except_fields:
+        - message_key
+        - offset
+        - partition
+        - topic
+    bulk:
+      # Add a date suffixed index for better grouping
+      index: "vector-{{ .topic }}-%Y-%m-%d"
+
+  opensearch_events_3:
+    type: elasticsearch
+    inputs:
+      - plus_1_events
+    endpoints:
+      - "https://opensearch:9200"
+    id_key: message_key
+    api_version: v7
+    tls:
+      verify_certificate: false
+      verify_hostname: false
+    auth:
+      strategy: basic
+      user: admin
+      password: 0penS3arc#
+    encoding:
+      except_fields:
+        - message_key
+        - offset
+        - partition
+        - topic
+        - clickhouse_database
+        - last_synced
+        - sign_flag
+    bulk:
       index: "{{ .topic }}"
 
   opensearch_logs:
@@ -111,7 +180,7 @@ sinks:
       user: admin
       password: 0penS3arc#
     bulk:
-      # Add a date prefixed index for better grouping
+      # Add a date suffixed index for better grouping
       # index: "vector-{{ .topic }}-%Y-%m-%d"
       index: "logs-{{ .container_name }}-%Y-%m-%d"
 
@@ -119,6 +188,7 @@ sinks:
     type: loki
     inputs:
       - kafka_tx_events
+      - sessionized_kafka_tx_events
     endpoint: http://loki:3100
     labels:
       source: vector

@@ -1,7 +1,7 @@
 use common_enums::{PaymentMethod, PaymentMethodType};
 use serde::Serialize;
 
-use crate::id_type;
+use crate::{id_type, types::TimeRange};
 
 pub trait ApiEventMetric {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -15,20 +15,44 @@ pub enum ApiEventsType {
     Payout {
         payout_id: String,
     },
+    #[cfg(feature = "v1")]
     Payment {
-        payment_id: String,
+        payment_id: id_type::PaymentId,
     },
+    #[cfg(feature = "v2")]
+    Payment {
+        payment_id: id_type::GlobalPaymentId,
+    },
+    #[cfg(feature = "v1")]
     Refund {
-        payment_id: Option<String>,
+        payment_id: Option<id_type::PaymentId>,
         refund_id: String,
+    },
+    #[cfg(feature = "v2")]
+    Refund {
+        payment_id: id_type::GlobalPaymentId,
+        refund_id: id_type::GlobalRefundId,
     },
     PaymentMethod {
         payment_method_id: String,
         payment_method: Option<PaymentMethod>,
         payment_method_type: Option<PaymentMethodType>,
     },
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    PaymentMethodCreate,
+    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+    Customer {
+        id: String,
+    },
+    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
     Customer {
         customer_id: id_type::CustomerId,
+    },
+    BusinessProfile {
+        profile_id: id_type::ProfileId,
+    },
+    ApiKey {
+        key_id: id_type::ApiKeyId,
     },
     User {
         user_id: String,
@@ -38,17 +62,18 @@ pub enum ApiEventsType {
     },
     Webhooks {
         connector: String,
-        payment_id: Option<String>,
+        payment_id: Option<id_type::PaymentId>,
     },
     Routing,
     ResourceListAPI,
     PaymentRedirectionResponse {
         connector: Option<String>,
-        payment_id: Option<String>,
+        payment_id: Option<id_type::PaymentId>,
     },
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
     Miscellaneous,
+    Keymanager,
     RustLocker,
     ApplePayCertificatesMigration,
     FraudCheck,
@@ -57,7 +82,7 @@ pub enum ApiEventsType {
         dispute_id: String,
     },
     Events {
-        merchant_id_or_profile_id: String,
+        merchant_id: id_type::MerchantId,
     },
     PaymentMethodCollectLink {
         link_id: String,
@@ -70,6 +95,24 @@ pub enum ApiEventsType {
 
 impl ApiEventMetric for serde_json::Value {}
 impl ApiEventMetric for () {}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for id_type::PaymentId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for id_type::GlobalPaymentId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.clone(),
+        })
+    }
+}
 
 impl<Q: ApiEventMetric, E> ApiEventMetric for Result<Q, E> {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -88,23 +131,27 @@ impl<T> ApiEventMetric for Vec<T> {
 }
 
 #[macro_export]
-macro_rules! impl_misc_api_event_type {
-    ($($type:ty),+) => {
+macro_rules! impl_api_event_type {
+    ($event: ident, ($($type:ty),+))=> {
         $(
             impl ApiEventMetric for $type {
                 fn get_api_event_type(&self) -> Option<ApiEventsType> {
-                    Some(ApiEventsType::Miscellaneous)
+                    Some(ApiEventsType::$event)
                 }
             }
         )+
      };
 }
 
-impl_misc_api_event_type!(
-    String,
-    (&String, &String),
-    (Option<i64>, Option<i64>, String),
-    bool
+impl_api_event_type!(
+    Miscellaneous,
+    (
+        String,
+        id_type::MerchantId,
+        (Option<i64>, Option<i64>, String),
+        (Option<i64>, Option<i64>, id_type::MerchantId),
+        bool
+    )
 );
 
 impl<T: ApiEventMetric> ApiEventMetric for &T {
@@ -112,3 +159,5 @@ impl<T: ApiEventMetric> ApiEventMetric for &T {
         T::get_api_event_type(self)
     }
 }
+
+impl ApiEventMetric for TimeRange {}
