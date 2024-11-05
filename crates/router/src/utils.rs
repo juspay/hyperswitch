@@ -13,8 +13,6 @@ pub mod user_role;
 pub mod verify_connector;
 use std::fmt::Debug;
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use api_models::payments::AddressDetailsWithPhone;
 use api_models::{
     enums,
     payments::{self},
@@ -22,10 +20,10 @@ use api_models::{
 };
 use common_utils::types::keymanager::KeyManagerState;
 pub use common_utils::{
-    crypto,
+    crypto::{self, Encryptable},
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
     fp_utils::when,
-    id_type,
+    id_type, pii,
     validation::validate_email,
 };
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -38,6 +36,7 @@ pub use hyperswitch_connectors::utils::QrImage;
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
+use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
 use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
@@ -779,20 +778,32 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         let encrypted_data = crypto_operation(
             &state.into(),
             type_name!(storage::Address),
-            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
-                AddressDetailsWithPhone {
-                    address: Some(address_details.clone()),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableAddress::to_encryptable(
+                domain::FromRequestEncryptableAddress {
+                    line1: address_details.line1.clone(),
+                    line2: address_details.line2.clone(),
+                    line3: address_details.line3.clone(),
+                    state: address_details.state.clone(),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
+                    zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
-                    email: self.email.clone(),
+                    email: self
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
                 },
             )),
-            Identifier::Merchant(merchant_id),
+            Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
         .await
         .and_then(|val| val.try_into_batchoperation())?;
-        let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
-            .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+
+        let encryptable_address =
+            domain::FromRequestEncryptableAddress::from_encryptable(encrypted_data)
+                .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+
         Ok(storage::AddressUpdate::Update {
             city: address_details.city,
             country: address_details.country,
@@ -806,7 +817,14 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
             phone_number: encryptable_address.phone_number,
             country_code: self.phone_country_code.clone(),
             updated_by: storage_scheme.to_string(),
-            email: encryptable_address.email,
+            email: encryptable_address.email.map(|email| {
+                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
+                    Encryptable::new(
+                        email.clone().into_inner().switch_strategy(),
+                        email.into_encrypted(),
+                    );
+                encryptable
+            }),
         })
     }
 
@@ -822,11 +840,20 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         let encrypted_data = crypto_operation(
             &state.into(),
             type_name!(storage::Address),
-            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
-                AddressDetailsWithPhone {
-                    address: Some(address_details.clone()),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableAddress::to_encryptable(
+                domain::FromRequestEncryptableAddress {
+                    line1: address_details.line1.clone(),
+                    line2: address_details.line2.clone(),
+                    line3: address_details.line3.clone(),
+                    state: address_details.state.clone(),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
+                    zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
-                    email: self.email.clone(),
+                    email: self
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -834,8 +861,11 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())?;
-        let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
-            .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+
+        let encryptable_address =
+            domain::FromRequestEncryptableAddress::from_encryptable(encrypted_data)
+                .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+
         let address = domain::Address {
             city: address_details.city,
             country: address_details.country,
@@ -853,7 +883,14 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             updated_by: storage_scheme.to_string(),
-            email: encryptable_address.email,
+            email: encryptable_address.email.map(|email| {
+                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
+                    Encryptable::new(
+                        email.clone().into_inner().switch_strategy(),
+                        email.into_encrypted(),
+                    );
+                encryptable
+            }),
         };
 
         Ok(domain::CustomerAddress {
@@ -877,20 +914,31 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
         let encrypted_data = crypto_operation(
             &state.into(),
             type_name!(storage::Address),
-            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
-                AddressDetailsWithPhone {
-                    address: Some(address_details.clone()),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableAddress::to_encryptable(
+                domain::FromRequestEncryptableAddress {
+                    line1: address_details.line1.clone(),
+                    line2: address_details.line2.clone(),
+                    line3: address_details.line3.clone(),
+                    state: address_details.state.clone(),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
+                    zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
-                    email: self.email.clone(),
+                    email: self
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
                 },
             )),
-            Identifier::Merchant(merchant_id),
+            Identifier::Merchant(merchant_id.to_owned()),
             key,
         )
         .await
         .and_then(|val| val.try_into_batchoperation())?;
-        let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
-            .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+
+        let encryptable_address =
+            domain::FromRequestEncryptableAddress::from_encryptable(encrypted_data)
+                .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         Ok(storage::AddressUpdate::Update {
             city: address_details.city,
             country: address_details.country,
@@ -904,7 +952,14 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
             phone_number: encryptable_address.phone_number,
             country_code: self.phone_country_code.clone(),
             updated_by: storage_scheme.to_string(),
-            email: encryptable_address.email,
+            email: encryptable_address.email.map(|email| {
+                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
+                    Encryptable::new(
+                        email.clone().into_inner().switch_strategy(),
+                        email.into_encrypted(),
+                    );
+                encryptable
+            }),
         })
     }
 
@@ -920,11 +975,20 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
         let encrypted_data = crypto_operation(
             &state.into(),
             type_name!(storage::Address),
-            CryptoOperation::BatchEncrypt(AddressDetailsWithPhone::to_encryptable(
-                AddressDetailsWithPhone {
-                    address: Some(address_details.clone()),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableAddress::to_encryptable(
+                domain::FromRequestEncryptableAddress {
+                    line1: address_details.line1.clone(),
+                    line2: address_details.line2.clone(),
+                    line3: address_details.line3.clone(),
+                    state: address_details.state.clone(),
+                    first_name: address_details.first_name.clone(),
+                    last_name: address_details.last_name.clone(),
+                    zip: address_details.zip.clone(),
                     phone_number: self.phone.clone(),
-                    email: self.email.clone(),
+                    email: self
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
                 },
             )),
             Identifier::Merchant(merchant_id.to_owned()),
@@ -932,8 +996,10 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
         )
         .await
         .and_then(|val| val.try_into_batchoperation())?;
-        let encryptable_address = AddressDetailsWithPhone::from_encryptable(encrypted_data)
-            .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
+
+        let encryptable_address =
+            domain::FromRequestEncryptableAddress::from_encryptable(encrypted_data)
+                .change_context(common_utils::errors::CryptoError::EncodingFailed)?;
         let address = domain::Address {
             city: address_details.city,
             country: address_details.country,
@@ -951,7 +1017,14 @@ impl CustomerAddress for api_models::customers::CustomerUpdateRequest {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             updated_by: storage_scheme.to_string(),
-            email: encryptable_address.email,
+            email: encryptable_address.email.map(|email| {
+                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
+                    Encryptable::new(
+                        email.clone().into_inner().switch_strategy(),
+                        email.into_encrypted(),
+                    );
+                encryptable
+            }),
         };
 
         Ok(domain::CustomerAddress {
@@ -1166,9 +1239,9 @@ where
                             diesel_models::enums::EventClass::Payments,
                             payment_id.get_string_repr().to_owned(),
                             diesel_models::enums::EventObjectType::PaymentDetails,
-                            webhooks::OutgoingWebhookContent::PaymentDetails(
+                            webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                                 payments_response_json,
-                            ),
+                            )),
                             primary_object_created_at,
                         ))
                         .await

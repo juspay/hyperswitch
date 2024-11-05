@@ -169,6 +169,10 @@ pub enum Flow {
     PaymentsFilters,
     /// Payments aggregates flow
     PaymentsAggregate,
+    /// Payments Create Intent flow
+    PaymentsCreateIntent,
+    /// Payments Get Intent flow
+    PaymentsGetIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -372,6 +376,8 @@ pub enum Flow {
     GetAuthorizationInfo,
     /// Get Roles info
     GetRolesInfo,
+    /// Get Parent Group Info
+    GetParentGroupInfo,
     /// List roles v2
     ListRolesV2,
     /// List invitable roles at entity level
@@ -380,8 +386,12 @@ pub enum Flow {
     ListUpdatableRolesAtEntityLevel,
     /// Get role
     GetRole,
+    /// Get parent info for role
+    GetRoleV2,
     /// Get role from token
     GetRoleFromToken,
+    /// Get resources and groups for role from token
+    GetRoleFromTokenV2,
     /// Update user role
     UpdateUserRole,
     /// Create merchant account for user in a org
@@ -498,6 +508,10 @@ pub enum Flow {
     PaymentsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
+    /// Payments confirm intent
+    PaymentsConfirmIntent,
+    /// Payments post session tokens flow
+    PaymentsPostSessionTokens,
 }
 
 ///

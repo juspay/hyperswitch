@@ -20,8 +20,14 @@ pub async fn migrate_payment_methods(
 ) -> errors::RouterResponse<Vec<PaymentMethodMigrationResponse>> {
     let mut result = Vec::new();
     for record in payment_methods {
-        let req = api::PaymentMethodMigrate::try_from((record.clone(), merchant_id.clone(), mca_id.clone()))
-        .map_err(|err| errors::ApiErrorResponse::InvalidRequestData{ message: format!("error: {:?}", err) })
+        let req = api::PaymentMethodMigrate::try_from((
+            record.clone(),
+            merchant_id.clone(),
+            mca_id.clone(),
+        ))
+        .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("error: {:?}", err),
+        })
         .attach_printable("record deserialization failed");
         match req {
             Ok(_) => (),
@@ -57,8 +63,10 @@ pub async fn migrate_payment_methods(
 pub struct PaymentMethodsMigrateForm {
     #[multipart(limit = "1MB")]
     pub file: Bytes,
+
     pub merchant_id: Text<common_utils::id_type::MerchantId>,
-    pub mca_id: Text<Option<common_utils::id_type::MerchantConnectorAccountId>>,
+
+    pub merchant_connector_id: Text<Option<common_utils::id_type::MerchantConnectorAccountId>>,
 }
 
 fn parse_csv(data: &[u8]) -> csv::Result<Vec<PaymentMethodRecord>> {
@@ -75,13 +83,19 @@ fn parse_csv(data: &[u8]) -> csv::Result<Vec<PaymentMethodRecord>> {
 }
 pub fn get_payment_method_records(
     form: PaymentMethodsMigrateForm,
-) -> Result<(common_utils::id_type::MerchantId, Vec<PaymentMethodRecord>, Option<common_utils::id_type::MerchantConnectorAccountId>), errors::ApiErrorResponse>
-{
+) -> Result<
+    (
+        common_utils::id_type::MerchantId,
+        Vec<PaymentMethodRecord>,
+        Option<common_utils::id_type::MerchantConnectorAccountId>,
+    ),
+    errors::ApiErrorResponse,
+> {
     match parse_csv(form.file.data.to_bytes()) {
         Ok(records) => {
             let merchant_id = form.merchant_id.clone();
-                let mca_id = form.mca_id.clone();
-                Ok((merchant_id.clone(), records, mca_id))
+            let mca_id = form.merchant_connector_id.clone();
+            Ok((merchant_id.clone(), records, mca_id))
         }
         Err(e) => Err(errors::ApiErrorResponse::PreconditionFailed {
             message: e.to_string(),
@@ -105,7 +119,7 @@ pub struct RecordMigrationStatusBuilder {
     pub network_transaction_migrated: Option<bool>,
 }
 
-impl RecordMigrationStatusBuilder{
+impl RecordMigrationStatusBuilder {
     pub fn new() -> Self {
         Self {
             card_migrated: None,
@@ -123,7 +137,10 @@ impl RecordMigrationStatusBuilder{
         self.network_token_migrated = network_token_migrated;
     }
 
-    pub fn connector_mandate_details_migrated(&mut self, connector_mandate_details_migrated: Option<bool>) {
+    pub fn connector_mandate_details_migrated(
+        &mut self,
+        connector_mandate_details_migrated: Option<bool>,
+    ) {
         self.connector_mandate_details_migrated = connector_mandate_details_migrated;
     }
 
@@ -138,5 +155,11 @@ impl RecordMigrationStatusBuilder{
             connector_mandate_details_migrated: self.connector_mandate_details_migrated,
             network_transaction_migrated: self.network_transaction_migrated,
         }
+    }
+}
+
+impl Default for RecordMigrationStatusBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

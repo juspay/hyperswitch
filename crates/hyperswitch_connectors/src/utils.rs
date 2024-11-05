@@ -32,6 +32,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
 
+use crate::types::RefreshTokenRouterData;
+
 type Error = error_stack::Report<errors::ConnectorError>;
 
 pub(crate) fn construct_not_supported_error_report(
@@ -43,6 +45,15 @@ pub(crate) fn construct_not_supported_error_report(
         connector: connector_name,
     }
     .into()
+}
+
+pub(crate) fn to_currency_base_unit_with_zero_decimal_check(
+    amount: i64,
+    currency: enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    currency
+        .to_currency_base_unit_with_zero_decimal_check(amount)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
 pub(crate) fn get_amount_as_string(
@@ -193,6 +204,16 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
     }
 }
 
+pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
+    match status {
+        common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure => {
+            true
+        }
+        common_enums::RefundStatus::ManualReview
+        | common_enums::RefundStatus::Pending
+        | common_enums::RefundStatus::Success => false,
+    }
+}
 // TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
 pub trait RouterData {
     fn get_billing(&self) -> Result<&Address, Error>;
@@ -892,6 +913,19 @@ static CARD_REGEX: Lazy<HashMap<CardIssuer, Result<Regex, regex::Error>>> = Lazy
     map
 });
 
+pub trait AccessTokenRequestInfo {
+    fn get_request_id(&self) -> Result<Secret<String>, Error>;
+}
+
+impl AccessTokenRequestInfo for RefreshTokenRouterData {
+    fn get_request_id(&self) -> Result<Secret<String>, Error> {
+        self.request
+            .id
+            .clone()
+            .ok_or_else(missing_field_err("request.id"))
+    }
+}
+
 pub trait AddressDetailsData {
     fn get_first_name(&self) -> Result<&Secret<String>, Error>;
     fn get_last_name(&self) -> Result<&Secret<String>, Error>;
@@ -1083,6 +1117,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_total_surcharge_amount(&self) -> Option<i64>;
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
+    fn get_customer_name(&self) -> Result<Secret<String>, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1136,7 +1171,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.connector_mandate_id.clone()
+                    connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
                 | None
@@ -1236,6 +1271,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.authentication_data
             .clone()
             .ok_or_else(missing_field_err("authentication_data"))
+    }
+
+    fn get_customer_name(&self) -> Result<Secret<String>, Error> {
+        self.customer_name
+            .clone()
+            .ok_or_else(missing_field_err("customer_name"))
     }
 }
 
@@ -1781,6 +1822,7 @@ pub enum PaymentMethodDataType {
     MobilePayRedirect,
     PaypalRedirect,
     PaypalSdk,
+    Paze,
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
@@ -1860,6 +1902,7 @@ pub enum PaymentMethodDataType {
     VietQr,
     OpenBanking,
     NetworkToken,
+    NetworkTransactionIdAndCardDetails,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -1867,6 +1910,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
+            PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::NetworkTransactionIdAndCardDetails,
             PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                    hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => Self::Knet,
@@ -1898,6 +1942,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                  hyperswitch_domain_models::payment_method_data::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                 hyperswitch_domain_models::payment_method_data::WalletData::Paze(_) => Self::Paze,
                  hyperswitch_domain_models::payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                  hyperswitch_domain_models::payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
@@ -2044,6 +2089,70 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::OpenBanking(data) => match data {
                 hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
             },
+        }
+    }
+}
+pub trait ApplePay {
+    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
+}
+
+impl ApplePay for hyperswitch_domain_models::payment_method_data::ApplePayWalletData {
+    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
+        let token = Secret::new(
+            String::from_utf8(BASE64_ENGINE.decode(&self.payment_data).change_context(
+                errors::ConnectorError::InvalidWalletToken {
+                    wallet_name: "Apple Pay".to_string(),
+                },
+            )?)
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Apple Pay".to_string(),
+            })?,
+        );
+        Ok(token)
+    }
+}
+
+pub trait WalletData {
+    fn get_wallet_token(&self) -> Result<Secret<String>, Error>;
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned;
+    fn get_encoded_wallet_token(&self) -> Result<String, Error>;
+}
+
+impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
+    fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
+        match self {
+            Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
+            Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
+            Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
+            _ => Err(errors::ConnectorError::InvalidWallet.into()),
+        }
+    }
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_str::<T>(self.get_wallet_token()?.peek())
+            .change_context(errors::ConnectorError::InvalidWalletToken { wallet_name })
+    }
+
+    fn get_encoded_wallet_token(&self) -> Result<String, Error> {
+        match self {
+            Self::GooglePay(_) => {
+                let json_token: serde_json::Value =
+                    self.get_wallet_token_as_json("Google Pay".to_owned())?;
+                let token_as_vec = serde_json::to_vec(&json_token).change_context(
+                    errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Google Pay".to_string(),
+                    },
+                )?;
+                let encoded_token = BASE64_ENGINE.encode(token_as_vec);
+                Ok(encoded_token)
+            }
+            _ => Err(
+                errors::ConnectorError::NotImplemented("SELECTED PAYMENT METHOD".to_owned()).into(),
+            ),
         }
     }
 }

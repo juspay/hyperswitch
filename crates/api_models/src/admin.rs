@@ -178,7 +178,8 @@ impl MerchantAccountCreate {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct MerchantAccountCreate {
+#[schema(as = MerchantAccountCreate)]
+pub struct MerchantAccountCreateWithoutOrgId {
     /// Name of the Merchant Account, This will be used as a prefix to generate the id
     #[schema(value_type= String, max_length = 64, example = "NewAge Retailer")]
     pub merchant_name: Secret<common_utils::new_type::MerchantName>,
@@ -189,9 +190,17 @@ pub struct MerchantAccountCreate {
     /// Metadata is useful for storing additional, unstructured information about the merchant account.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+}
 
-    /// The id of the organization to which the merchant belongs to. Please use the organization endpoint to create an organization
-    #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
+// In v2 the struct used in the API is MerchantAccountCreateWithoutOrgId
+// The following struct is only used internally, so we can reuse the common
+// part of `create_merchant_account` without duplicating its code for v2
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Serialize)]
+pub struct MerchantAccountCreate {
+    pub merchant_name: Secret<common_utils::new_type::MerchantName>,
+    pub merchant_details: Option<MerchantDetails>,
+    pub metadata: Option<pii::SecretSerdeValue>,
     pub organization_id: id_type::OrganizationId,
 }
 
@@ -1558,6 +1567,10 @@ pub struct ConnectorWalletDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Option<Object>)]
     pub samsung_pay: Option<pii::SecretSerdeValue>,
+    /// This field contains the Paze certificates and credentials
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub paze: Option<pii::SecretSerdeValue>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."

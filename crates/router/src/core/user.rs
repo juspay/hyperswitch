@@ -74,7 +74,7 @@ pub async fn signup_with_merchant_id(
         recipient_email: user_from_db.get_email().try_into()?,
         user_name: domain::UserName::new(user_from_db.get_name())?,
         settings: state.conf.clone(),
-        subject: "Get back to Hyperswitch - Reset Your Password Now",
+        subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
     };
 
@@ -202,7 +202,7 @@ pub async fn connect_account(
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             user_name: domain::UserName::new(user_from_db.get_name())?,
-            subject: "Unlock Hyperswitch: Use Your Magic Link to Sign In",
+            subject: consts::user::EMAIL_SUBJECT_MAGIC_LINK,
             auth_id,
         };
 
@@ -251,7 +251,7 @@ pub async fn connect_account(
         let email_contents = email_types::VerifyEmail {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
-            subject: "Welcome to the Hyperswitch community!",
+            subject: consts::user::EMAIL_SUBJECT_SIGNUP,
             auth_id,
         };
 
@@ -371,7 +371,7 @@ pub async fn forgot_password(
         recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
         settings: state.conf.clone(),
         user_name: domain::UserName::new(user_from_db.get_name())?,
-        subject: "Get back to Hyperswitch - Reset Your Password Now",
+        subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
     };
 
@@ -647,7 +647,14 @@ async fn handle_existing_user_invitation(
     };
 
     let _user_role = match role_info.get_entity_type() {
-        EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
+        EntityType::Organization => {
+            user_role
+                .add_entity(domain::OrganizationLevel {
+                    org_id: user_from_token.org_id.clone(),
+                })
+                .insert_in_v2(state)
+                .await?
+        }
         EntityType::Merchant => {
             user_role
                 .add_entity(domain::MerchantLevel {
@@ -678,7 +685,10 @@ async fn handle_existing_user_invitation(
     {
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let entity = match role_info.get_entity_type() {
-            EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
+            EntityType::Organization => email_types::Entity {
+                entity_id: user_from_token.org_id.get_string_repr().to_owned(),
+                entity_type: EntityType::Organization,
+            },
             EntityType::Merchant => email_types::Entity {
                 entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
                 entity_type: EntityType::Merchant,
@@ -699,7 +709,7 @@ async fn handle_existing_user_invitation(
             recipient_email: invitee_email,
             user_name: domain::UserName::new(invitee_user_from_db.get_name())?,
             settings: state.conf.clone(),
-            subject: "You have been invited to join Hyperswitch Community!",
+            subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
         };
@@ -806,7 +816,10 @@ async fn handle_new_user_invitation(
         let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let entity = match role_info.get_entity_type() {
-            EntityType::Organization => return Err(UserErrors::InvalidRoleId.into()),
+            EntityType::Organization => email_types::Entity {
+                entity_id: user_from_token.org_id.get_string_repr().to_owned(),
+                entity_type: EntityType::Organization,
+            },
             EntityType::Merchant => email_types::Entity {
                 entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
                 entity_type: EntityType::Merchant,
@@ -827,7 +840,7 @@ async fn handle_new_user_invitation(
             recipient_email: invitee_email,
             user_name: domain::UserName::new(new_user.get_name())?,
             settings: state.conf.clone(),
-            subject: "You have been invited to join Hyperswitch Community!",
+            subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
         };
@@ -946,7 +959,7 @@ pub async fn resend_invite(
         recipient_email: invitee_email,
         user_name: domain::UserName::new(user.get_name())?,
         settings: state.conf.clone(),
-        subject: "You have been invited to join Hyperswitch Community!",
+        subject: consts::user::EMAIL_SUBJECT_INVITATION,
         entity: email_types::Entity {
             entity_id,
             entity_type,
@@ -1012,7 +1025,7 @@ pub async fn accept_invite_from_email_token_only_flow(
         &state,
         user_from_db.get_user_id(),
         &org_id,
-        &merchant_id,
+        merchant_id.as_ref(),
         profile_id.as_ref(),
         UserRoleUpdate::UpdateStatus {
             status: UserStatus::Active,
@@ -1485,7 +1498,7 @@ pub async fn send_verification_mail(
     let email_contents = email_types::VerifyEmail {
         recipient_email: domain::UserEmail::from_pii_email(user.email)?,
         settings: state.conf.clone(),
-        subject: "Welcome to the Hyperswitch community!",
+        subject: consts::user::EMAIL_SUBJECT_SIGNUP,
         auth_id,
     };
 
@@ -1673,6 +1686,13 @@ pub async fn verify_totp(
         return Err(UserErrors::TotpNotSetup.into());
     }
 
+    let user_totp_attempts =
+        tfa_utils::get_totp_attempts_from_redis(&state, &user_token.user_id).await?;
+
+    if user_totp_attempts >= consts::user::TOTP_MAX_ATTEMPTS {
+        return Err(UserErrors::MaxTotpAttemptsReached.into());
+    }
+
     let user_totp_secret = user_from_db
         .decrypt_and_get_totp_secret(&state)
         .await?
@@ -1689,6 +1709,13 @@ pub async fn verify_totp(
         .change_context(UserErrors::InternalServerError)?
         != req.totp.expose()
     {
+        let _ = tfa_utils::insert_totp_attempts_in_redis(
+            &state,
+            &user_token.user_id,
+            user_totp_attempts + 1,
+        )
+        .await
+        .inspect_err(|error| logger::error!(?error));
         return Err(UserErrors::InvalidTotp.into());
     }
 
@@ -1843,15 +1870,31 @@ pub async fn verify_recovery_code(
         return Err(UserErrors::TwoFactorAuthNotSetup.into());
     }
 
+    let user_recovery_code_attempts =
+        tfa_utils::get_recovery_code_attempts_from_redis(&state, &user_token.user_id).await?;
+
+    if user_recovery_code_attempts >= consts::user::RECOVERY_CODE_MAX_ATTEMPTS {
+        return Err(UserErrors::MaxRecoveryCodeAttemptsReached.into());
+    }
+
     let mut recovery_codes = user_from_db
         .get_recovery_codes()
         .ok_or(UserErrors::InternalServerError)?;
 
-    let matching_index = utils::user::password::get_index_for_correct_recovery_code(
+    let Some(matching_index) = utils::user::password::get_index_for_correct_recovery_code(
         &req.recovery_code,
         &recovery_codes,
     )?
-    .ok_or(UserErrors::InvalidRecoveryCode)?;
+    else {
+        let _ = tfa_utils::insert_recovery_code_attempts_in_redis(
+            &state,
+            &user_token.user_id,
+            user_recovery_code_attempts + 1,
+        )
+        .await
+        .inspect_err(|error| logger::error!(?error));
+        return Err(UserErrors::InvalidRecoveryCode.into());
+    };
 
     tfa_utils::insert_recovery_code_in_redis(&state, user_from_db.get_user_id()).await?;
     let _ = recovery_codes.remove(matching_index);
@@ -1911,9 +1954,16 @@ pub async fn terminate_two_factor_auth(
         }
     }
 
-    let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::TOTP.into())?;
+    let current_flow = domain::CurrentFlow::new(user_token.clone(), domain::SPTFlow::TOTP.into())?;
     let next_flow = current_flow.next(user_from_db, &state).await?;
     let token = next_flow.get_token(&state).await?;
+
+    let _ = tfa_utils::delete_totp_attempts_from_redis(&state, &user_token.user_id)
+        .await
+        .inspect_err(|error| logger::error!(?error));
+    let _ = tfa_utils::delete_recovery_code_attempts_from_redis(&state, &user_token.user_id)
+        .await
+        .inspect_err(|error| logger::error!(?error));
 
     auth::cookies::set_cookie_response(
         user_api::TokenResponse {
@@ -1935,6 +1985,40 @@ pub async fn check_two_factor_auth_status(
                 .await?,
         },
     ))
+}
+
+pub async fn check_two_factor_auth_status_with_attempts(
+    state: SessionState,
+    user_token: auth::UserIdFromAuth,
+) -> UserResponse<user_api::TwoFactorStatus> {
+    let user_from_db: domain::UserFromStorage = state
+        .global_store
+        .find_user_by_id(&user_token.user_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into();
+    if user_from_db.get_totp_status() == TotpStatus::NotSet {
+        return Ok(ApplicationResponse::Json(user_api::TwoFactorStatus {
+            status: None,
+        }));
+    };
+
+    let totp = user_api::TwoFactorAuthAttempts {
+        is_completed: tfa_utils::check_totp_in_redis(&state, &user_token.user_id).await?,
+        remaining_attempts: consts::user::TOTP_MAX_ATTEMPTS
+            - tfa_utils::get_totp_attempts_from_redis(&state, &user_token.user_id).await?,
+    };
+    let recovery_code = user_api::TwoFactorAuthAttempts {
+        is_completed: tfa_utils::check_recovery_code_in_redis(&state, &user_token.user_id).await?,
+        remaining_attempts: consts::user::RECOVERY_CODE_MAX_ATTEMPTS
+            - tfa_utils::get_recovery_code_attempts_from_redis(&state, &user_token.user_id).await?,
+    };
+    Ok(ApplicationResponse::Json(user_api::TwoFactorStatus {
+        status: Some(user_api::TwoFactorAuthStatusResponseWithAttempts {
+            totp,
+            recovery_code,
+        }),
+    }))
 }
 
 pub async fn create_user_authentication_method(

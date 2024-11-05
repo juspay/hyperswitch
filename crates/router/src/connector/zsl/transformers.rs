@@ -183,6 +183,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::CardToken(_)
             | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | domain::PaymentMethodData::OpenBanking(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     connector_utils::get_unimplemented_payment_method_error_message(
@@ -327,12 +328,12 @@ impl<F, T>
                     status: enums::AttemptStatus::AuthenticationPending, // Redirect is always expected after success response
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::NoResponseId,
-                        redirection_data: Some(services::RedirectForm::Form {
+                        redirection_data: Box::new(Some(services::RedirectForm::Form {
                             endpoint: redirect_url,
                             method: services::Method::Get,
                             form_fields: HashMap::new(),
-                        }),
-                        mandate_reference: None,
+                        })),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(item.response.mer_ref.clone()),
@@ -450,8 +451,8 @@ impl<F>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.txn_id.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.mer_ref.clone()),

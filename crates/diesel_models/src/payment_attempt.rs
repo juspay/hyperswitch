@@ -1,4 +1,7 @@
-use common_utils::{id_type, pii, types::MinorUnit};
+use common_utils::{
+    id_type, pii,
+    types::{ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -8,6 +11,24 @@ use crate::enums::{self as storage_enums};
 use crate::schema::payment_attempt;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_attempt;
+
+common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
+#[derive(
+    Clone, Debug, serde::Deserialize, serde::Serialize, Eq, PartialEq, diesel::AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct ConnectorMandateReferenceId {
+    pub connector_mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
+    pub mandate_metadata: Option<serde_json::Value>,
+    pub connector_mandate_request_reference_id: Option<String>,
+}
+
+impl ConnectorMandateReferenceId {
+    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.connector_mandate_request_reference_id.clone()
+    }
+}
 
 #[cfg(feature = "v2")]
 #[derive(
@@ -21,9 +42,8 @@ pub struct PaymentAttempt {
     pub connector: Option<String>,
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
-    pub payment_method_id: Option<String>,
-    pub confirm: bool,
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    pub authentication_type: storage_enums::AuthenticationType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -32,12 +52,12 @@ pub struct PaymentAttempt {
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<MinorUnit>,
-    pub browser_info: Option<serde_json::Value>,
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
     pub error_code: Option<String>,
     pub payment_token: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_data: Option<serde_json::Value>,
+    pub payment_method_data: Option<pii::SecretSerdeValue>,
     pub preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
     pub multiple_capture_count: Option<i16>,
@@ -45,16 +65,15 @@ pub struct PaymentAttempt {
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
+    pub encoded_data: Option<masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: Option<MinorUnit>,
+    pub net_amount: MinorUnit,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -62,16 +81,19 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
-    pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
-    pub connector_payment_id: Option<String>,
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_type_v2: storage_enums::PaymentMethod,
+    pub connector_payment_id: Option<ConnectorTransactionId>,
+    pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub routing_result: Option<serde_json::Value>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub id: String,
+    pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
+    pub connector_payment_data: Option<String>,
+    pub id: id_type::GlobalAttemptId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -94,7 +116,7 @@ pub struct PaymentAttempt {
     pub tax_amount: Option<MinorUnit>,
     pub payment_method_id: Option<String>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
-    pub connector_transaction_id: Option<String>,
+    pub connector_transaction_id: Option<ConnectorTransactionId>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_on: Option<PrimitiveDateTime>,
@@ -148,18 +170,47 @@ pub struct PaymentAttempt {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub connector_transaction_data: Option<String>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
-impl PaymentAttempt {
-    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
-        self.net_amount.unwrap_or(
-            self.amount
-                + self.surcharge_amount.unwrap_or(MinorUnit::new(0))
-                + self.tax_amount.unwrap_or(MinorUnit::new(0))
-                + self.shipping_cost.unwrap_or(MinorUnit::new(0))
-                + self.order_tax_amount.unwrap_or(MinorUnit::new(0)),
-        )
+impl ConnectorTransactionIdTrait for PaymentAttempt {
+    fn get_optional_connector_transaction_id(&self) -> Option<&String> {
+        match self
+            .connector_transaction_id
+            .as_ref()
+            .map(|txn_id| txn_id.get_txn_id(self.connector_transaction_data.as_ref()))
+            .transpose()
+        {
+            Ok(txn_id) => txn_id,
+
+            // In case hashed data is missing from DB, use the hashed ID as connector transaction ID
+            Err(_) => self
+                .connector_transaction_id
+                .as_ref()
+                .map(|txn_id| txn_id.get_id()),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ConnectorTransactionIdTrait for PaymentAttempt {
+    fn get_optional_connector_transaction_id(&self) -> Option<&String> {
+        match self
+            .connector_payment_id
+            .as_ref()
+            .map(|txn_id| txn_id.get_txn_id(self.connector_payment_data.as_ref()))
+            .transpose()
+        {
+            Ok(txn_id) => txn_id,
+
+            // In case hashed data is missing from DB, use the hashed ID as connector payment ID
+            Err(_) => self
+                .connector_payment_id
+                .as_ref()
+                .map(|txn_id| txn_id.get_id()),
+        }
     }
 }
 
@@ -181,9 +232,8 @@ pub struct PaymentAttemptNew {
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub payment_method_id: Option<String>,
-    pub confirm: bool,
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    pub authentication_type: storage_enums::AuthenticationType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -192,12 +242,12 @@ pub struct PaymentAttemptNew {
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<MinorUnit>,
-    pub browser_info: Option<serde_json::Value>,
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
     pub payment_token: Option<String>,
     pub error_code: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_data: Option<serde_json::Value>,
+    pub payment_method_data: Option<pii::SecretSerdeValue>,
     pub preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
@@ -205,16 +255,16 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
+    pub encoded_data: Option<masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: Option<MinorUnit>,
+    pub net_amount: MinorUnit,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
+    pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -224,6 +274,10 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub payment_method_type_v2: storage_enums::PaymentMethod,
+    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub id: id_type::GlobalAttemptId,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -296,47 +350,7 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-}
-
-#[cfg(feature = "v1")]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount (surcharge) + shipping_cost + order_tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        self.amount
-            + self.surcharge_amount.unwrap_or(MinorUnit::new(0))
-            + self.tax_amount.unwrap_or(MinorUnit::new(0))
-            + self.shipping_cost.unwrap_or(MinorUnit::new(0))
-    }
-
-    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
-        self.net_amount
-            .unwrap_or_else(|| self.calculate_net_amount())
-    }
-
-    pub fn populate_derived_fields(self) -> Self {
-        let mut payment_attempt_new = self;
-        payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
-        payment_attempt_new
-    }
-}
-
-#[cfg(feature = "v2")]
-impl PaymentAttemptNew {
-    /// returns amount + surcharge_amount + tax_amount
-    pub fn calculate_net_amount(&self) -> MinorUnit {
-        todo!();
-    }
-
-    pub fn get_or_calculate_net_amount(&self) -> MinorUnit {
-        self.net_amount
-            .unwrap_or_else(|| self.calculate_net_amount())
-    }
-
-    pub fn populate_derived_fields(self) -> Self {
-        let mut payment_attempt_new = self;
-        payment_attempt_new.net_amount = Some(payment_attempt_new.calculate_net_amount());
-        payment_attempt_new
-    }
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -408,6 +422,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -451,6 +466,7 @@ pub enum PaymentAttemptUpdate {
         unified_message: Option<Option<String>>,
         payment_method_data: Option<serde_json::Value>,
         charge_id: Option<String>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -528,6 +544,10 @@ pub enum PaymentAttemptUpdate {
         unified_code: Option<String>,
         unified_message: Option<String>,
         connector_transaction_id: Option<String>,
+    },
+    PostSessionTokensUpdate {
+        updated_by: String,
+        connector_metadata: Option<serde_json::Value>,
     },
 }
 
@@ -721,46 +741,48 @@ pub enum PaymentAttemptUpdate {
     // },
 }
 
+// TODO: uncomment fields as and when required
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptUpdateInternal {
-    net_amount: Option<i64>,
-    status: Option<storage_enums::AttemptStatus>,
-    authentication_type: Option<storage_enums::AuthenticationType>,
-    error_message: Option<Option<String>>,
-    payment_method_id: Option<String>,
-    cancellation_reason: Option<String>,
-    modified_at: PrimitiveDateTime,
-    browser_info: Option<serde_json::Value>,
-    payment_token: Option<String>,
-    error_code: Option<Option<String>>,
-    connector_metadata: Option<serde_json::Value>,
-    payment_method_data: Option<serde_json::Value>,
-    payment_experience: Option<storage_enums::PaymentExperience>,
-    preprocessing_step_id: Option<String>,
-    error_reason: Option<Option<String>>,
-    connector_response_reference_id: Option<String>,
-    multiple_capture_count: Option<i16>,
-    surcharge_amount: Option<i64>,
-    tax_on_surcharge: Option<i64>,
-    amount_capturable: Option<i64>,
-    updated_by: String,
-    merchant_connector_id: Option<Option<id_type::MerchantConnectorAccountId>>,
-    authentication_data: Option<serde_json::Value>,
-    encoded_data: Option<String>,
-    unified_code: Option<Option<String>>,
-    unified_message: Option<Option<String>>,
-    external_three_ds_authentication_attempted: Option<bool>,
-    authentication_connector: Option<String>,
-    authentication_id: Option<String>,
-    fingerprint_id: Option<String>,
-    payment_method_billing_address_id: Option<String>,
-    charge_id: Option<String>,
-    client_source: Option<String>,
-    client_version: Option<String>,
-    customer_acceptance: Option<pii::SecretSerdeValue>,
-    card_network: Option<String>,
+    // net_amount: Option<MinorUnit>,
+    pub status: Option<storage_enums::AttemptStatus>,
+    // authentication_type: Option<storage_enums::AuthenticationType>,
+    pub error_message: Option<String>,
+    pub connector_payment_id: Option<String>,
+    // payment_method_id: Option<String>,
+    // cancellation_reason: Option<String>,
+    pub modified_at: PrimitiveDateTime,
+    pub browser_info: Option<serde_json::Value>,
+    // payment_token: Option<String>,
+    pub error_code: Option<String>,
+    // connector_metadata: Option<serde_json::Value>,
+    // payment_method_data: Option<serde_json::Value>,
+    // payment_experience: Option<storage_enums::PaymentExperience>,
+    // preprocessing_step_id: Option<String>,
+    pub error_reason: Option<String>,
+    // connector_response_reference_id: Option<String>,
+    // multiple_capture_count: Option<i16>,
+    // pub surcharge_amount: Option<MinorUnit>,
+    // tax_on_surcharge: Option<MinorUnit>,
+    // amount_capturable: Option<MinorUnit>,
+    pub updated_by: String,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub connector: Option<String>,
+    // authentication_data: Option<serde_json::Value>,
+    // encoded_data: Option<String>,
+    pub unified_code: Option<Option<String>>,
+    pub unified_message: Option<Option<String>>,
+    // external_three_ds_authentication_attempted: Option<bool>,
+    // authentication_connector: Option<String>,
+    // authentication_id: Option<String>,
+    // fingerprint_id: Option<String>,
+    // charge_id: Option<String>,
+    // client_source: Option<String>,
+    // client_version: Option<String>,
+    // customer_acceptance: Option<pii::SecretSerdeValue>,
+    // card_network: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -771,7 +793,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub net_amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::AttemptStatus>,
-    pub connector_transaction_id: Option<String>,
+    pub connector_transaction_id: Option<ConnectorTransactionId>,
     pub amount_to_capture: Option<MinorUnit>,
     pub connector: Option<Option<String>>,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
@@ -816,13 +838,8 @@ pub struct PaymentAttemptUpdateInternal {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
-}
-
-#[cfg(feature = "v2")]
-impl PaymentAttemptUpdateInternal {
-    pub fn populate_derived_fields(self, source: &PaymentAttempt) -> Self {
-        todo!();
-    }
+    pub connector_transaction_data: Option<String>,
+    pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
 #[cfg(feature = "v1")]
@@ -1004,6 +1021,8 @@ impl PaymentAttemptUpdate {
             card_network,
             shipping_cost,
             order_tax_amount,
+            connector_transaction_data,
+            connector_mandate_detail,
         } = PaymentAttemptUpdateInternal::from(self).populate_derived_fields(&source);
         PaymentAttempt {
             amount: amount.unwrap_or(source.amount),
@@ -1059,6 +1078,9 @@ impl PaymentAttemptUpdate {
             card_network: card_network.or(source.card_network),
             shipping_cost: shipping_cost.or(source.shipping_cost),
             order_tax_amount: order_tax_amount.or(source.order_tax_amount),
+            connector_transaction_data: connector_transaction_data
+                .or(source.connector_transaction_data),
+            connector_mandate_detail: connector_mandate_detail.or(source.connector_mandate_detail),
             ..source
         }
     }
@@ -2053,6 +2075,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -2107,6 +2131,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -2141,6 +2167,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 customer_acceptance,
                 shipping_cost,
                 order_tax_amount,
+                connector_mandate_detail,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2191,6 +2218,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost,
                 order_tax_amount,
+                connector_transaction_data: None,
+                connector_mandate_detail,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -2246,6 +2275,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
@@ -2302,6 +2333,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::BlocklistUpdate {
                 status,
@@ -2358,6 +2391,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
                 payment_method_id,
@@ -2412,6 +2447,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
@@ -2434,57 +2471,67 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_message,
                 payment_method_data,
                 charge_id,
-            } => Self {
-                status: Some(status),
-                connector: connector.map(Some),
-                connector_transaction_id,
-                authentication_type,
-                payment_method_id,
-                modified_at: common_utils::date_time::now(),
-                mandate_id,
-                connector_metadata,
-                error_code,
-                error_message,
-                payment_token,
-                error_reason,
-                connector_response_reference_id,
-                amount_capturable,
-                updated_by,
-                authentication_data,
-                encoded_data,
-                unified_code,
-                unified_message,
-                payment_method_data,
-                charge_id,
-                amount: None,
-                net_amount: None,
-                currency: None,
-                amount_to_capture: None,
-                payment_method: None,
-                cancellation_reason: None,
-                browser_info: None,
-                payment_method_type: None,
-                payment_experience: None,
-                business_sub_label: None,
-                straight_through_algorithm: None,
-                preprocessing_step_id: None,
-                capture_method: None,
-                multiple_capture_count: None,
-                surcharge_amount: None,
-                tax_amount: None,
-                merchant_connector_id: None,
-                external_three_ds_authentication_attempted: None,
-                authentication_connector: None,
-                authentication_id: None,
-                fingerprint_id: None,
-                payment_method_billing_address_id: None,
-                client_source: None,
-                client_version: None,
-                customer_acceptance: None,
-                card_network: None,
-                shipping_cost: None,
-                order_tax_amount: None,
-            },
+                connector_mandate_detail,
+            } => {
+                let (connector_transaction_id, connector_transaction_data) =
+                    connector_transaction_id
+                        .map(ConnectorTransactionId::form_id_and_data)
+                        .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                        .unwrap_or((None, None));
+                Self {
+                    status: Some(status),
+                    connector: connector.map(Some),
+                    connector_transaction_id,
+                    authentication_type,
+                    payment_method_id,
+                    modified_at: common_utils::date_time::now(),
+                    mandate_id,
+                    connector_metadata,
+                    error_code,
+                    error_message,
+                    payment_token,
+                    error_reason,
+                    connector_response_reference_id,
+                    amount_capturable,
+                    updated_by,
+                    authentication_data,
+                    encoded_data,
+                    unified_code,
+                    unified_message,
+                    payment_method_data,
+                    charge_id,
+                    connector_transaction_data,
+                    amount: None,
+                    net_amount: None,
+                    currency: None,
+                    amount_to_capture: None,
+                    payment_method: None,
+                    cancellation_reason: None,
+                    browser_info: None,
+                    payment_method_type: None,
+                    payment_experience: None,
+                    business_sub_label: None,
+                    straight_through_algorithm: None,
+                    preprocessing_step_id: None,
+                    capture_method: None,
+                    multiple_capture_count: None,
+                    surcharge_amount: None,
+                    tax_amount: None,
+                    merchant_connector_id: None,
+                    external_three_ds_authentication_attempted: None,
+                    authentication_connector: None,
+                    authentication_id: None,
+                    fingerprint_id: None,
+                    payment_method_billing_address_id: None,
+                    client_source: None,
+                    client_version: None,
+                    customer_acceptance: None,
+                    card_network: None,
+                    shipping_cost: None,
+                    order_tax_amount: None,
+                    connector_mandate_detail,
+                }
+            }
             PaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
@@ -2498,57 +2545,66 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 payment_method_data,
                 authentication_type,
-            } => Self {
-                connector: connector.map(Some),
-                status: Some(status),
-                error_message,
-                error_code,
-                modified_at: common_utils::date_time::now(),
-                error_reason,
-                amount_capturable,
-                updated_by,
-                unified_code,
-                unified_message,
-                connector_transaction_id,
-                payment_method_data,
-                authentication_type,
-                amount: None,
-                net_amount: None,
-                currency: None,
-                amount_to_capture: None,
-                payment_method: None,
-                payment_method_id: None,
-                cancellation_reason: None,
-                mandate_id: None,
-                browser_info: None,
-                payment_token: None,
-                connector_metadata: None,
-                payment_method_type: None,
-                payment_experience: None,
-                business_sub_label: None,
-                straight_through_algorithm: None,
-                preprocessing_step_id: None,
-                capture_method: None,
-                connector_response_reference_id: None,
-                multiple_capture_count: None,
-                surcharge_amount: None,
-                tax_amount: None,
-                merchant_connector_id: None,
-                authentication_data: None,
-                encoded_data: None,
-                external_three_ds_authentication_attempted: None,
-                authentication_connector: None,
-                authentication_id: None,
-                fingerprint_id: None,
-                payment_method_billing_address_id: None,
-                charge_id: None,
-                client_source: None,
-                client_version: None,
-                customer_acceptance: None,
-                card_network: None,
-                shipping_cost: None,
-                order_tax_amount: None,
-            },
+            } => {
+                let (connector_transaction_id, connector_transaction_data) =
+                    connector_transaction_id
+                        .map(ConnectorTransactionId::form_id_and_data)
+                        .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                        .unwrap_or((None, None));
+                Self {
+                    connector: connector.map(Some),
+                    status: Some(status),
+                    error_message,
+                    error_code,
+                    modified_at: common_utils::date_time::now(),
+                    error_reason,
+                    amount_capturable,
+                    updated_by,
+                    unified_code,
+                    unified_message,
+                    connector_transaction_id,
+                    payment_method_data,
+                    authentication_type,
+                    connector_transaction_data,
+                    amount: None,
+                    net_amount: None,
+                    currency: None,
+                    amount_to_capture: None,
+                    payment_method: None,
+                    payment_method_id: None,
+                    cancellation_reason: None,
+                    mandate_id: None,
+                    browser_info: None,
+                    payment_token: None,
+                    connector_metadata: None,
+                    payment_method_type: None,
+                    payment_experience: None,
+                    business_sub_label: None,
+                    straight_through_algorithm: None,
+                    preprocessing_step_id: None,
+                    capture_method: None,
+                    connector_response_reference_id: None,
+                    multiple_capture_count: None,
+                    surcharge_amount: None,
+                    tax_amount: None,
+                    merchant_connector_id: None,
+                    authentication_data: None,
+                    encoded_data: None,
+                    external_three_ds_authentication_attempted: None,
+                    authentication_connector: None,
+                    authentication_id: None,
+                    fingerprint_id: None,
+                    payment_method_billing_address_id: None,
+                    charge_id: None,
+                    client_source: None,
+                    client_version: None,
+                    customer_acceptance: None,
+                    card_network: None,
+                    shipping_cost: None,
+                    order_tax_amount: None,
+                    connector_mandate_detail: None,
+                }
+            }
             PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
                 status: Some(status),
                 modified_at: common_utils::date_time::now(),
@@ -2599,6 +2655,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
@@ -2659,6 +2717,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -2670,57 +2730,66 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_reason,
                 connector_response_reference_id,
                 updated_by,
-            } => Self {
-                status: Some(status),
-                connector: connector.map(Some),
-                connector_transaction_id,
-                payment_method_id,
-                modified_at: common_utils::date_time::now(),
-                error_code,
-                error_message,
-                error_reason,
-                connector_response_reference_id,
-                updated_by,
-                amount: None,
-                net_amount: None,
-                currency: None,
-                amount_to_capture: None,
-                authentication_type: None,
-                payment_method: None,
-                cancellation_reason: None,
-                mandate_id: None,
-                browser_info: None,
-                payment_token: None,
-                connector_metadata: None,
-                payment_method_data: None,
-                payment_method_type: None,
-                payment_experience: None,
-                business_sub_label: None,
-                straight_through_algorithm: None,
-                preprocessing_step_id: None,
-                capture_method: None,
-                multiple_capture_count: None,
-                surcharge_amount: None,
-                tax_amount: None,
-                amount_capturable: None,
-                merchant_connector_id: None,
-                authentication_data: None,
-                encoded_data: None,
-                unified_code: None,
-                unified_message: None,
-                external_three_ds_authentication_attempted: None,
-                authentication_connector: None,
-                authentication_id: None,
-                fingerprint_id: None,
-                payment_method_billing_address_id: None,
-                charge_id: None,
-                client_source: None,
-                client_version: None,
-                customer_acceptance: None,
-                card_network: None,
-                shipping_cost: None,
-                order_tax_amount: None,
-            },
+            } => {
+                let (connector_transaction_id, connector_transaction_data) =
+                    connector_transaction_id
+                        .map(ConnectorTransactionId::form_id_and_data)
+                        .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                        .unwrap_or((None, None));
+                Self {
+                    status: Some(status),
+                    connector: connector.map(Some),
+                    connector_transaction_id,
+                    payment_method_id,
+                    modified_at: common_utils::date_time::now(),
+                    error_code,
+                    error_message,
+                    error_reason,
+                    connector_response_reference_id,
+                    updated_by,
+                    connector_transaction_data,
+                    amount: None,
+                    net_amount: None,
+                    currency: None,
+                    amount_to_capture: None,
+                    authentication_type: None,
+                    payment_method: None,
+                    cancellation_reason: None,
+                    mandate_id: None,
+                    browser_info: None,
+                    payment_token: None,
+                    connector_metadata: None,
+                    payment_method_data: None,
+                    payment_method_type: None,
+                    payment_experience: None,
+                    business_sub_label: None,
+                    straight_through_algorithm: None,
+                    preprocessing_step_id: None,
+                    capture_method: None,
+                    multiple_capture_count: None,
+                    surcharge_amount: None,
+                    tax_amount: None,
+                    amount_capturable: None,
+                    merchant_connector_id: None,
+                    authentication_data: None,
+                    encoded_data: None,
+                    unified_code: None,
+                    unified_message: None,
+                    external_three_ds_authentication_attempted: None,
+                    authentication_connector: None,
+                    authentication_id: None,
+                    fingerprint_id: None,
+                    payment_method_billing_address_id: None,
+                    charge_id: None,
+                    client_source: None,
+                    client_version: None,
+                    customer_acceptance: None,
+                    card_network: None,
+                    shipping_cost: None,
+                    order_tax_amount: None,
+                    connector_mandate_detail: None,
+                }
+            }
             PaymentAttemptUpdate::PreprocessingUpdate {
                 status,
                 payment_method_id,
@@ -2729,57 +2798,66 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id,
                 connector_response_reference_id,
                 updated_by,
-            } => Self {
-                status: Some(status),
-                payment_method_id,
-                modified_at: common_utils::date_time::now(),
-                connector_metadata,
-                preprocessing_step_id,
-                connector_transaction_id,
-                connector_response_reference_id,
-                updated_by,
-                amount: None,
-                net_amount: None,
-                currency: None,
-                amount_to_capture: None,
-                connector: None,
-                authentication_type: None,
-                payment_method: None,
-                error_message: None,
-                cancellation_reason: None,
-                mandate_id: None,
-                browser_info: None,
-                payment_token: None,
-                error_code: None,
-                payment_method_data: None,
-                payment_method_type: None,
-                payment_experience: None,
-                business_sub_label: None,
-                straight_through_algorithm: None,
-                error_reason: None,
-                capture_method: None,
-                multiple_capture_count: None,
-                surcharge_amount: None,
-                tax_amount: None,
-                amount_capturable: None,
-                merchant_connector_id: None,
-                authentication_data: None,
-                encoded_data: None,
-                unified_code: None,
-                unified_message: None,
-                external_three_ds_authentication_attempted: None,
-                authentication_connector: None,
-                authentication_id: None,
-                fingerprint_id: None,
-                payment_method_billing_address_id: None,
-                charge_id: None,
-                client_source: None,
-                client_version: None,
-                customer_acceptance: None,
-                card_network: None,
-                shipping_cost: None,
-                order_tax_amount: None,
-            },
+            } => {
+                let (connector_transaction_id, connector_transaction_data) =
+                    connector_transaction_id
+                        .map(ConnectorTransactionId::form_id_and_data)
+                        .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                        .unwrap_or((None, None));
+                Self {
+                    status: Some(status),
+                    payment_method_id,
+                    modified_at: common_utils::date_time::now(),
+                    connector_metadata,
+                    preprocessing_step_id,
+                    connector_transaction_id,
+                    connector_response_reference_id,
+                    updated_by,
+                    connector_transaction_data,
+                    amount: None,
+                    net_amount: None,
+                    currency: None,
+                    amount_to_capture: None,
+                    connector: None,
+                    authentication_type: None,
+                    payment_method: None,
+                    error_message: None,
+                    cancellation_reason: None,
+                    mandate_id: None,
+                    browser_info: None,
+                    payment_token: None,
+                    error_code: None,
+                    payment_method_data: None,
+                    payment_method_type: None,
+                    payment_experience: None,
+                    business_sub_label: None,
+                    straight_through_algorithm: None,
+                    error_reason: None,
+                    capture_method: None,
+                    multiple_capture_count: None,
+                    surcharge_amount: None,
+                    tax_amount: None,
+                    amount_capturable: None,
+                    merchant_connector_id: None,
+                    authentication_data: None,
+                    encoded_data: None,
+                    unified_code: None,
+                    unified_message: None,
+                    external_three_ds_authentication_attempted: None,
+                    authentication_connector: None,
+                    authentication_id: None,
+                    fingerprint_id: None,
+                    payment_method_billing_address_id: None,
+                    charge_id: None,
+                    client_source: None,
+                    client_version: None,
+                    customer_acceptance: None,
+                    card_network: None,
+                    shipping_cost: None,
+                    order_tax_amount: None,
+                    connector_mandate_detail: None,
+                }
+            }
             PaymentAttemptUpdate::CaptureUpdate {
                 multiple_capture_count,
                 updated_by,
@@ -2834,6 +2912,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
@@ -2889,6 +2969,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::ConnectorResponse {
                 authentication_data,
@@ -2897,57 +2979,66 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector,
                 updated_by,
                 charge_id,
-            } => Self {
-                authentication_data,
-                encoded_data,
-                connector_transaction_id,
-                connector: connector.map(Some),
-                modified_at: common_utils::date_time::now(),
-                updated_by,
-                charge_id,
-                amount: None,
-                net_amount: None,
-                currency: None,
-                status: None,
-                amount_to_capture: None,
-                authentication_type: None,
-                payment_method: None,
-                error_message: None,
-                payment_method_id: None,
-                cancellation_reason: None,
-                mandate_id: None,
-                browser_info: None,
-                payment_token: None,
-                error_code: None,
-                connector_metadata: None,
-                payment_method_data: None,
-                payment_method_type: None,
-                payment_experience: None,
-                business_sub_label: None,
-                straight_through_algorithm: None,
-                preprocessing_step_id: None,
-                error_reason: None,
-                capture_method: None,
-                connector_response_reference_id: None,
-                multiple_capture_count: None,
-                surcharge_amount: None,
-                tax_amount: None,
-                amount_capturable: None,
-                merchant_connector_id: None,
-                unified_code: None,
-                unified_message: None,
-                external_three_ds_authentication_attempted: None,
-                authentication_connector: None,
-                authentication_id: None,
-                fingerprint_id: None,
-                payment_method_billing_address_id: None,
-                client_source: None,
-                client_version: None,
-                customer_acceptance: None,
-                card_network: None,
-                shipping_cost: None,
-                order_tax_amount: None,
-            },
+            } => {
+                let (connector_transaction_id, connector_transaction_data) =
+                    connector_transaction_id
+                        .map(ConnectorTransactionId::form_id_and_data)
+                        .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                        .unwrap_or((None, None));
+                Self {
+                    authentication_data,
+                    encoded_data,
+                    connector_transaction_id,
+                    connector: connector.map(Some),
+                    modified_at: common_utils::date_time::now(),
+                    updated_by,
+                    charge_id,
+                    connector_transaction_data,
+                    amount: None,
+                    net_amount: None,
+                    currency: None,
+                    status: None,
+                    amount_to_capture: None,
+                    authentication_type: None,
+                    payment_method: None,
+                    error_message: None,
+                    payment_method_id: None,
+                    cancellation_reason: None,
+                    mandate_id: None,
+                    browser_info: None,
+                    payment_token: None,
+                    error_code: None,
+                    connector_metadata: None,
+                    payment_method_data: None,
+                    payment_method_type: None,
+                    payment_experience: None,
+                    business_sub_label: None,
+                    straight_through_algorithm: None,
+                    preprocessing_step_id: None,
+                    error_reason: None,
+                    capture_method: None,
+                    connector_response_reference_id: None,
+                    multiple_capture_count: None,
+                    surcharge_amount: None,
+                    tax_amount: None,
+                    amount_capturable: None,
+                    merchant_connector_id: None,
+                    unified_code: None,
+                    unified_message: None,
+                    external_three_ds_authentication_attempted: None,
+                    authentication_connector: None,
+                    authentication_id: None,
+                    fingerprint_id: None,
+                    payment_method_billing_address_id: None,
+                    client_source: None,
+                    client_version: None,
+                    customer_acceptance: None,
+                    card_network: None,
+                    shipping_cost: None,
+                    order_tax_amount: None,
+                    connector_mandate_detail: None,
+                }
+            }
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                 amount,
                 amount_capturable,
@@ -3001,6 +3092,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -3058,6 +3151,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
             PaymentAttemptUpdate::ManualUpdate {
                 status,
@@ -3068,19 +3163,82 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 connector_transaction_id,
-            } => Self {
-                status,
-                error_code: error_code.map(Some),
-                modified_at: common_utils::date_time::now(),
-                error_message: error_message.map(Some),
-                error_reason: error_reason.map(Some),
+            } => {
+                let (connector_transaction_id, connector_transaction_data) =
+                    connector_transaction_id
+                        .map(ConnectorTransactionId::form_id_and_data)
+                        .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
+                        .unwrap_or((None, None));
+                Self {
+                    status,
+                    error_code: error_code.map(Some),
+                    modified_at: common_utils::date_time::now(),
+                    error_message: error_message.map(Some),
+                    error_reason: error_reason.map(Some),
+                    updated_by,
+                    unified_code: unified_code.map(Some),
+                    unified_message: unified_message.map(Some),
+                    connector_transaction_id,
+                    connector_transaction_data,
+                    amount: None,
+                    net_amount: None,
+                    currency: None,
+                    amount_to_capture: None,
+                    connector: None,
+                    authentication_type: None,
+                    payment_method: None,
+                    payment_method_id: None,
+                    cancellation_reason: None,
+                    mandate_id: None,
+                    browser_info: None,
+                    payment_token: None,
+                    connector_metadata: None,
+                    payment_method_data: None,
+                    payment_method_type: None,
+                    payment_experience: None,
+                    business_sub_label: None,
+                    straight_through_algorithm: None,
+                    preprocessing_step_id: None,
+                    capture_method: None,
+                    connector_response_reference_id: None,
+                    multiple_capture_count: None,
+                    surcharge_amount: None,
+                    tax_amount: None,
+                    amount_capturable: None,
+                    merchant_connector_id: None,
+                    authentication_data: None,
+                    encoded_data: None,
+                    external_three_ds_authentication_attempted: None,
+                    authentication_connector: None,
+                    authentication_id: None,
+                    fingerprint_id: None,
+                    payment_method_billing_address_id: None,
+                    charge_id: None,
+                    client_source: None,
+                    client_version: None,
+                    customer_acceptance: None,
+                    card_network: None,
+                    shipping_cost: None,
+                    order_tax_amount: None,
+                    connector_mandate_detail: None,
+                }
+            }
+            PaymentAttemptUpdate::PostSessionTokensUpdate {
                 updated_by,
-                unified_code: unified_code.map(Some),
-                unified_message: unified_message.map(Some),
+                connector_metadata,
+            } => Self {
+                status: None,
+                error_code: None,
+                modified_at: common_utils::date_time::now(),
+                error_message: None,
+                error_reason: None,
+                updated_by,
+                unified_code: None,
+                unified_message: None,
                 amount: None,
                 net_amount: None,
                 currency: None,
-                connector_transaction_id,
+                connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
                 authentication_type: None,
@@ -3090,7 +3248,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 mandate_id: None,
                 browser_info: None,
                 payment_token: None,
-                connector_metadata: None,
+                connector_metadata,
                 payment_method_data: None,
                 payment_method_type: None,
                 payment_experience: None,
@@ -3118,6 +3276,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 card_network: None,
                 shipping_cost: None,
                 order_tax_amount: None,
+                connector_transaction_data: None,
+                connector_mandate_detail: None,
             },
         }
     }
@@ -3203,7 +3363,6 @@ mod tests {
             "user_agent": "amet irure esse"
         }
     },
-    "mandate_type": {
         "single_use": {
             "amount": 6540,
             "currency": "USD"

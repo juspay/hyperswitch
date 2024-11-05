@@ -15,7 +15,7 @@ use diesel_models::configs;
 use diesel_models::organization::OrganizationBridge;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::merchant_connector_account::{
-    McaFromRequest, McaFromRequestfromUpdate,
+    FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{connector::plaid::transformers::PlaidAuthType, types as pm_auth_types};
@@ -2095,18 +2095,20 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         let encrypted_data = domain_types::crypto_operation(
             key_manager_state,
             type_name!(domain::MerchantConnectorAccount),
-            domain_types::CryptoOperation::BatchEncrypt(McaFromRequestfromUpdate::to_encryptable(
-                McaFromRequestfromUpdate {
-                    connector_account_details: self.connector_account_details,
-                    connector_wallets_details:
-                        helpers::get_connector_wallets_details_with_apple_pay_certificates(
-                            &self.metadata,
-                            &self.connector_wallets_details,
-                        )
-                        .await?,
-                    additional_merchant_data: merchant_recipient_data.map(Secret::new),
-                },
-            )),
+            domain_types::CryptoOperation::BatchEncrypt(
+                UpdateEncryptableMerchantConnectorAccount::to_encryptable(
+                    UpdateEncryptableMerchantConnectorAccount {
+                        connector_account_details: self.connector_account_details,
+                        connector_wallets_details:
+                            helpers::get_connector_wallets_details_with_apple_pay_certificates(
+                                &self.metadata,
+                                &self.connector_wallets_details,
+                            )
+                            .await?,
+                        additional_merchant_data: merchant_recipient_data.map(Secret::new),
+                    },
+                ),
+            ),
             km_types::Identifier::Merchant(key_store.merchant_id.clone()),
             key_store.key.peek(),
         )
@@ -2115,14 +2117,15 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while decrypting connector account details".to_string())?;
 
-        let encrypted_data = McaFromRequestfromUpdate::from_encryptable(encrypted_data)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while decrypting connector account details")?;
+        let encrypted_data =
+            UpdateEncryptableMerchantConnectorAccount::from_encryptable(encrypted_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while decrypting connector account details")?;
 
         Ok(storage::MerchantConnectorAccountUpdate::Update {
             connector_type: Some(self.connector_type),
             connector_label: self.connector_label.clone(),
-            connector_account_details: encrypted_data.connector_account_details,
+            connector_account_details: Box::new(encrypted_data.connector_account_details),
             disabled,
             payment_methods_enabled,
             metadata: self.metadata,
@@ -2136,10 +2139,10 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
                 None => None,
             },
             applepay_verified_domains: None,
-            pm_auth_config: self.pm_auth_config,
+            pm_auth_config: Box::new(self.pm_auth_config),
             status: Some(connector_status),
-            additional_merchant_data: encrypted_data.additional_merchant_data,
-            connector_wallets_details: encrypted_data.connector_wallets_details,
+            additional_merchant_data: Box::new(encrypted_data.additional_merchant_data),
+            connector_wallets_details: Box::new(encrypted_data.connector_wallets_details),
         })
     }
 }
@@ -2262,18 +2265,20 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         let encrypted_data = domain_types::crypto_operation(
             key_manager_state,
             type_name!(domain::MerchantConnectorAccount),
-            domain_types::CryptoOperation::BatchEncrypt(McaFromRequestfromUpdate::to_encryptable(
-                McaFromRequestfromUpdate {
-                    connector_account_details: self.connector_account_details,
-                    connector_wallets_details:
-                        helpers::get_connector_wallets_details_with_apple_pay_certificates(
-                            &self.metadata,
-                            &self.connector_wallets_details,
-                        )
-                        .await?,
-                    additional_merchant_data: merchant_recipient_data.map(Secret::new),
-                },
-            )),
+            domain_types::CryptoOperation::BatchEncrypt(
+                UpdateEncryptableMerchantConnectorAccount::to_encryptable(
+                    UpdateEncryptableMerchantConnectorAccount {
+                        connector_account_details: self.connector_account_details,
+                        connector_wallets_details:
+                            helpers::get_connector_wallets_details_with_apple_pay_certificates(
+                                &self.metadata,
+                                &self.connector_wallets_details,
+                            )
+                            .await?,
+                        additional_merchant_data: merchant_recipient_data.map(Secret::new),
+                    },
+                ),
+            ),
             km_types::Identifier::Merchant(key_store.merchant_id.clone()),
             key_store.key.peek(),
         )
@@ -2282,34 +2287,37 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while decrypting connector account details".to_string())?;
 
-        let encrypted_data = McaFromRequestfromUpdate::from_encryptable(encrypted_data)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while decrypting connector account details")?;
+        let encrypted_data =
+            UpdateEncryptableMerchantConnectorAccount::from_encryptable(encrypted_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while decrypting connector account details")?;
 
         Ok(storage::MerchantConnectorAccountUpdate::Update {
             connector_type: Some(self.connector_type),
             connector_name: None,
             merchant_connector_id: None,
             connector_label: self.connector_label.clone(),
-            connector_account_details: encrypted_data.connector_account_details,
+            connector_account_details: Box::new(encrypted_data.connector_account_details),
             test_mode: self.test_mode,
             disabled,
             payment_methods_enabled,
             metadata: self.metadata,
             frm_configs,
             connector_webhook_details: match &self.connector_webhook_details {
-                Some(connector_webhook_details) => connector_webhook_details
-                    .encode_to_value()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .map(Some)?
-                    .map(Secret::new),
-                None => None,
+                Some(connector_webhook_details) => Box::new(
+                    connector_webhook_details
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .map(Some)?
+                        .map(Secret::new),
+                ),
+                None => Box::new(None),
             },
             applepay_verified_domains: None,
-            pm_auth_config: self.pm_auth_config,
+            pm_auth_config: Box::new(self.pm_auth_config),
             status: Some(connector_status),
-            additional_merchant_data: encrypted_data.additional_merchant_data,
-            connector_wallets_details: encrypted_data.connector_wallets_details,
+            additional_merchant_data: Box::new(encrypted_data.additional_merchant_data),
+            connector_wallets_details: Box::new(encrypted_data.connector_wallets_details),
         })
     }
 }
@@ -2402,22 +2410,24 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         let encrypted_data = domain_types::crypto_operation(
             key_manager_state,
             type_name!(domain::MerchantConnectorAccount),
-            domain_types::CryptoOperation::BatchEncrypt(McaFromRequest::to_encryptable(
-                McaFromRequest {
-                    connector_account_details: self.connector_account_details.ok_or(
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "connector_account_details",
-                        },
-                    )?,
-                    connector_wallets_details:
-                        helpers::get_connector_wallets_details_with_apple_pay_certificates(
-                            &self.metadata,
-                            &self.connector_wallets_details,
-                        )
-                        .await?,
-                    additional_merchant_data: merchant_recipient_data.map(Secret::new),
-                },
-            )),
+            domain_types::CryptoOperation::BatchEncrypt(
+                FromRequestEncryptableMerchantConnectorAccount::to_encryptable(
+                    FromRequestEncryptableMerchantConnectorAccount {
+                        connector_account_details: self.connector_account_details.ok_or(
+                            errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "connector_account_details",
+                            },
+                        )?,
+                        connector_wallets_details:
+                            helpers::get_connector_wallets_details_with_apple_pay_certificates(
+                                &self.metadata,
+                                &self.connector_wallets_details,
+                            )
+                            .await?,
+                        additional_merchant_data: merchant_recipient_data.map(Secret::new),
+                    },
+                ),
+            ),
             identifier.clone(),
             key_store.key.peek(),
         )
@@ -2426,9 +2436,10 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while decrypting connector account details".to_string())?;
 
-        let encrypted_data = McaFromRequest::from_encryptable(encrypted_data)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while decrypting connector account details")?;
+        let encrypted_data =
+            FromRequestEncryptableMerchantConnectorAccount::from_encryptable(encrypted_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while decrypting connector account details")?;
 
         Ok(domain::MerchantConnectorAccount {
             merchant_id: business_profile.merchant_id.clone(),
@@ -2571,22 +2582,24 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         let encrypted_data = domain_types::crypto_operation(
             key_manager_state,
             type_name!(domain::MerchantConnectorAccount),
-            domain_types::CryptoOperation::BatchEncrypt(McaFromRequest::to_encryptable(
-                McaFromRequest {
-                    connector_account_details: self.connector_account_details.ok_or(
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "connector_account_details",
-                        },
-                    )?,
-                    connector_wallets_details:
-                        helpers::get_connector_wallets_details_with_apple_pay_certificates(
-                            &self.metadata,
-                            &self.connector_wallets_details,
-                        )
-                        .await?,
-                    additional_merchant_data: merchant_recipient_data.map(Secret::new),
-                },
-            )),
+            domain_types::CryptoOperation::BatchEncrypt(
+                FromRequestEncryptableMerchantConnectorAccount::to_encryptable(
+                    FromRequestEncryptableMerchantConnectorAccount {
+                        connector_account_details: self.connector_account_details.ok_or(
+                            errors::ApiErrorResponse::MissingRequiredField {
+                                field_name: "connector_account_details",
+                            },
+                        )?,
+                        connector_wallets_details:
+                            helpers::get_connector_wallets_details_with_apple_pay_certificates(
+                                &self.metadata,
+                                &self.connector_wallets_details,
+                            )
+                            .await?,
+                        additional_merchant_data: merchant_recipient_data.map(Secret::new),
+                    },
+                ),
+            ),
             identifier.clone(),
             key_store.key.peek(),
         )
@@ -2595,9 +2608,10 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while decrypting connector account details".to_string())?;
 
-        let encrypted_data = McaFromRequest::from_encryptable(encrypted_data)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed while decrypting connector account details")?;
+        let encrypted_data =
+            FromRequestEncryptableMerchantConnectorAccount::from_encryptable(encrypted_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while decrypting connector account details")?;
 
         Ok(domain::MerchantConnectorAccount {
             merchant_id: business_profile.merchant_id.clone(),
@@ -3450,9 +3464,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
         let payment_link_config = self.payment_link_config.map(ForeignInto::foreign_into);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3567,9 +3584,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .unwrap_or(common_utils::crypto::generate_cryptographically_secure_random_string(64));
 
         let payment_link_config = self.payment_link_config.map(ForeignInto::foreign_into);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3828,9 +3848,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?
             .map(Secret::new);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3929,9 +3952,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             })
             .transpose()?
             .map(Secret::new);
+        let key_manager_state = state.into();
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
-            .async_map(|headers| cards::create_encrypted_data(state, key_store, headers))
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)

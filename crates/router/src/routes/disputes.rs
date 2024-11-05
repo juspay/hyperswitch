@@ -1,7 +1,6 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::disputes as dispute_models;
-use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{core::api_locking, services::authorization::permissions::Permission};
@@ -44,14 +43,13 @@ pub async fn retrieve_dispute(
         state,
         &req,
         dispute_id,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             disputes::retrieve_dispute(state, auth.merchant_account, auth.profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeRead,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileDisputeRead,
             },
             req.headers(),
         ),
@@ -96,14 +94,13 @@ pub async fn retrieve_disputes_list(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             disputes::retrieve_disputes_list(state, auth.merchant_account, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeRead,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantDisputeRead,
             },
             req.headers(),
         ),
@@ -149,7 +146,7 @@ pub async fn retrieve_disputes_list_profile(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             disputes::retrieve_disputes_list(
                 state,
                 auth.merchant_account,
@@ -160,8 +157,7 @@ pub async fn retrieve_disputes_list_profile(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeRead,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileDisputeRead,
             },
             req.headers(),
         ),
@@ -189,12 +185,13 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
         state,
         &req,
         (),
-        |state, auth, _, _| disputes::get_filters_for_disputes(state, auth.merchant_account, None),
+        |state, auth: auth::AuthenticationData, _, _| {
+            disputes::get_filters_for_disputes(state, auth.merchant_account, None)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeRead,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantDisputeRead,
             },
             req.headers(),
         ),
@@ -225,7 +222,7 @@ pub async fn get_disputes_filters_profile(
         state,
         &req,
         (),
-        |state, auth, _, _| {
+        |state, auth: auth::AuthenticationData, _, _| {
             disputes::get_filters_for_disputes(
                 state,
                 auth.merchant_account,
@@ -235,8 +232,7 @@ pub async fn get_disputes_filters_profile(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeRead,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileDisputeRead,
             },
             req.headers(),
         ),
@@ -275,7 +271,7 @@ pub async fn accept_dispute(
         state,
         &req,
         dispute_id,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             disputes::accept_dispute(
                 state,
                 auth.merchant_account,
@@ -287,8 +283,7 @@ pub async fn accept_dispute(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeWrite,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileDisputeWrite,
             },
             req.headers(),
         ),
@@ -321,7 +316,7 @@ pub async fn submit_dispute_evidence(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             disputes::submit_evidence(
                 state,
                 auth.merchant_account,
@@ -333,8 +328,7 @@ pub async fn submit_dispute_evidence(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeWrite,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileDisputeWrite,
             },
             req.headers(),
         ),
@@ -375,7 +369,7 @@ pub async fn attach_dispute_evidence(
         state,
         &req,
         attach_evidence_request,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             disputes::attach_evidence(
                 state,
                 auth.merchant_account,
@@ -387,8 +381,7 @@ pub async fn attach_dispute_evidence(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeWrite,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileDisputeWrite,
             },
             req.headers(),
         ),
@@ -427,14 +420,13 @@ pub async fn retrieve_dispute_evidence(
         state,
         &req,
         dispute_id,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             disputes::retrieve_dispute_evidence(state, auth.merchant_account, auth.profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeRead,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileDisputeRead,
             },
             req.headers(),
         ),
@@ -470,12 +462,13 @@ pub async fn delete_dispute_evidence(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| disputes::delete_evidence(state, auth.merchant_account, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            disputes::delete_evidence(state, auth.merchant_account, req)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeWrite,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileDisputeWrite,
             },
             req.headers(),
         ),
@@ -498,14 +491,13 @@ pub async fn get_disputes_aggregate(
         state,
         &req,
         query_param,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             disputes::get_aggregates_for_disputes(state, auth.merchant_account, None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeRead,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantDisputeRead,
             },
             req.headers(),
         ),
@@ -528,7 +520,7 @@ pub async fn get_disputes_aggregate_profile(
         state,
         &req,
         query_param,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             disputes::get_aggregates_for_disputes(
                 state,
                 auth.merchant_account,
@@ -539,8 +531,7 @@ pub async fn get_disputes_aggregate_profile(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::DisputeRead,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileDisputeRead,
             },
             req.headers(),
         ),

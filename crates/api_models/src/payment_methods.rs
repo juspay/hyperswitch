@@ -245,11 +245,6 @@ pub struct PaymentMethodMigrate {
     /// Card Details
     pub card: Option<MigrateCardDetail>,
 
-    //to skip card expiry validation
-    //if it is set to true, card expiry validation will be skipped
-    #[serde(default)]
-    pub skip_card_expiry_validation: Option<bool>,
-
     /// Network token details
     pub network_token: Option<MigrateNetworkTokenDetail>,
 
@@ -1219,8 +1214,6 @@ pub struct SurchargeDetailsResponse {
     pub display_tax_on_surcharge_amount: f64,
     /// sum of display_surcharge_amount and display_tax_on_surcharge_amount
     pub display_total_surcharge_amount: f64,
-    /// sum of original amount,
-    pub display_final_amount: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -1294,12 +1287,14 @@ pub struct ResponsePaymentMethodIntermediate {
     pub card_networks: Option<Vec<api_enums::CardNetwork>>,
     pub payment_method: api_enums::PaymentMethod,
     pub connector: String,
+    pub merchant_connector_id: String,
 }
 
 impl ResponsePaymentMethodIntermediate {
     pub fn new(
         pm_type: RequestPaymentMethodTypes,
         connector: String,
+        merchant_connector_id: String,
         pm: api_enums::PaymentMethod,
     ) -> Self {
         Self {
@@ -1308,6 +1303,7 @@ impl ResponsePaymentMethodIntermediate {
             card_networks: pm_type.card_networks,
             payment_method: pm,
             connector,
+            merchant_connector_id,
         }
     }
 }
@@ -2167,7 +2163,6 @@ pub struct PaymentMethodRecord {
     pub network_token_expiry_month: Option<masking::Secret<String>>,
     pub network_token_expiry_year: Option<masking::Secret<String>>,
     pub network_token_requestor_ref_id: Option<String>,
-    pub skip_card_expiry_validation: Option<bool>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -2315,7 +2310,7 @@ impl
                     network_token_exp_month: record.network_token_expiry_month.unwrap_or_default(),
                     network_token_exp_year: record.network_token_expiry_year.unwrap_or_default(),
                     card_holder_name: record.name,
-                    nick_name: Some(record.nick_name),
+                    nick_name: Some(record.nick_name.clone()),
                     card_issuing_country: None,
                     card_network: None,
                     card_issuer: None,
@@ -2356,7 +2351,6 @@ impl
             wallet: None,
             payment_method_data: None,
             network_transaction_id: record.original_transaction_id,
-            skip_card_expiry_validation: record.skip_card_expiry_validation,
         })
     }
 }
