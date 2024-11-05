@@ -1318,7 +1318,7 @@ pub struct ConnectorMandateReferenceId {
     connector_mandate_id: Option<String>,
     payment_method_id: Option<String>,
     update_history: Option<Vec<UpdateHistory>>,
-    mandate_metadata: Option<serde_json::Value>,
+    mandate_metadata: Option<pii::SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
 }
 
@@ -1327,7 +1327,7 @@ impl ConnectorMandateReferenceId {
         connector_mandate_id: Option<String>,
         payment_method_id: Option<String>,
         update_history: Option<Vec<UpdateHistory>>,
-        mandate_metadata: Option<serde_json::Value>,
+        mandate_metadata: Option<pii::SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
     ) -> Self {
         Self {
@@ -1345,7 +1345,7 @@ impl ConnectorMandateReferenceId {
     pub fn get_payment_method_id(&self) -> Option<String> {
         self.payment_method_id.clone()
     }
-    pub fn get_mandate_metadata(&self) -> Option<serde_json::Value> {
+    pub fn get_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
         self.mandate_metadata.clone()
     }
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
@@ -1357,7 +1357,7 @@ impl ConnectorMandateReferenceId {
         connector_mandate_id: Option<String>,
         payment_method_id: Option<String>,
         update_history: Option<Vec<UpdateHistory>>,
-        mandate_metadata: Option<serde_json::Value>,
+        mandate_metadata: Option<pii::SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
     ) {
         self.connector_mandate_id = connector_mandate_id.or(self.connector_mandate_id.clone());

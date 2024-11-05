@@ -849,7 +849,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_status: Option<common_enums::ConnectorMandateStatus>,
     pub connector_mandate_request_reference_id: Option<String>,
 }
