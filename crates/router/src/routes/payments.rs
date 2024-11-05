@@ -2194,7 +2194,7 @@ pub async fn payment_status(
             .await
         },
         auth::auth_type(
-            &auth::PublishableKeyAuth,
+            &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
             },
