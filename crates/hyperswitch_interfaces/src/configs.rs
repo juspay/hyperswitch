@@ -47,6 +47,7 @@ pub struct Connectors {
     pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub itaubank: ConnectorParams,
+    pub jpmorgan: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mifinity: ConnectorParams,
     pub mollie: ConnectorParams,
