@@ -60,7 +60,7 @@ use transformers::{self as worldpay, WP_CORRELATION_ID};
 
 use crate::{
     constants::headers,
-    types::{transformers::ForeignFrom, ResponseRouterData},
+    types::ResponseRouterData,
     utils::{
         construct_not_implemented_error_report, convert_amount, get_header_key_value,
         is_mandate_supported, ForeignTryFrom, PaymentMethodDataType, RefundsRequestData,
@@ -222,18 +222,13 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         req: &SetupMandateRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let authorize_req = PaymentsAuthorizeRouterData::foreign_from((
-            req,
-            PaymentsAuthorizeData::foreign_from(req),
-        ));
-
         let auth = worldpay::WorldpayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let connector_router_data = worldpay::WorldpayRouterData::try_from((
             &self.get_currency_unit(),
-            authorize_req.request.currency,
-            authorize_req.request.minor_amount,
-            &authorize_req,
+            req.request.currency,
+            req.request.minor_amount.unwrap_or_default(),
+            req,
         ))?;
         let connector_req =
             WorldpayPaymentsRequest::try_from((&connector_router_data, &auth.entity_id))?;
