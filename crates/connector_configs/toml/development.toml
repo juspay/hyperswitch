@@ -3825,6 +3825,13 @@ key1 = "Adyen Account Id"
 [stripe_payout.connector_auth.HeaderKey]
 api_key = "Stripe API Key"
 
+[nomupay_payout]
+[[nomupay_payout.bank_transfer]]
+  payment_method_type = "sepa"
+[nomupay_payout.connector_auth.BodyKey]
+api_key = "Nomupay kid"
+key1 = "Nomupay eid"
+
 [wise_payout]
 [[wise_payout.bank_transfer]]
   payment_method_type = "ach"

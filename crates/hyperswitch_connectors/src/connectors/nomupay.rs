@@ -2,9 +2,13 @@ pub mod transformers;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use actix_web::ResponseError;
+// use actix_web::ResponseError;
 use common_utils::{
-    errors::CustomResult, ext_traits::BytesExt, pii, request::{Method, Request, RequestBuilder, RequestContent}, types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector}
+    errors::CustomResult,
+    ext_traits::BytesExt,
+    pii,
+    request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -20,34 +24,38 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        PayoutsRouterData, RefundSyncRouterData, RefundsRouterData,
-    },
+    types::PayoutsRouterData,
 };
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
     router_flow_types::payouts::{
-        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount, PoSync,
+        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
+        PoSync,
     },
     router_request_types::PayoutsData,
     router_response_types::PayoutsResponseData,
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation, ConnectorRedirectResponse},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, PayoutCreateType, Response},
+    types::{self, Response},
     webhooks,
 };
-use josekit::{jws::{EdDSA, JwsHeader, JwsSigner, ES256}, jwt::{self, JwtPayload}, JoseError, Map, Value};
-
+use josekit::{
+    jws::{JwsHeader, ES256},
+    jwt::{self, JwtPayload},
+    Map, Value,
+};
 use masking::{ExposeInterface, Mask};
 use serde_json::json;
 use transformers as nomupay;
 
-use crate::{constants::headers, types::ResponseRouterData, utils,};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Nomupay {
@@ -100,7 +108,6 @@ where
     }
 }
 
-
 impl TryFrom<&Option<pii::SecretSerdeValue>> for nomupay::NomupayMetadata {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
@@ -112,7 +119,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for nomupay::NomupayMetadata {
     }
 }
 
-
+/*
 fn get_body_in_map_form(body: &RequestContent)->Result<Map<String, Value>, errors::ConnectorError> {
     let error = errors::ConnectorError::GenericError { error_message: "josh error".to_string(), error_object: Value::String("unable to create the body".to_string())};
     match body {
@@ -123,7 +130,7 @@ fn get_body_in_map_form(body: &RequestContent)->Result<Map<String, Value>, error
             }
             else{
                 json_str = serde_json::to_string(&json_body).unwrap();
-            } 
+            }
 
             // Parse the JSON string into `serde_json::Value`
             let value: Value ;
@@ -146,40 +153,43 @@ fn get_body_in_map_form(body: &RequestContent)->Result<Map<String, Value>, error
         _=> return Err(error)
     }
 }
-
-
+*/
 
 fn get_private_key(
     metadata: Option<pii::SecretSerdeValue>,
 ) -> Result<String, errors::ConnectorError> {
     match nomupay::NomupayMetadata::try_from(&metadata) {
-        Ok(nomupay_metadata) =>  Ok(nomupay_metadata.private_key),
-        Err(_e) =>  Err(errors::ConnectorError::NoConnectorMetaData),
+        Ok(nomupay_metadata) => Ok(nomupay_metadata.private_key),
+        Err(_e) => Err(errors::ConnectorError::NoConnectorMetaData),
     }
 }
 
-
-fn box_to_jwt_payload(body: Box<dyn masking::ErasedMaskSerialize + Send>) -> Result<JwtPayload, errors::ConnectorError> {
-    let error = errors::ConnectorError::GenericError { error_message: "josh error".to_string(), error_object: Value::String("unable to create the body".to_string())};
+fn box_to_jwt_payload(
+    body: Box<dyn masking::ErasedMaskSerialize + Send>,
+) -> Result<JwtPayload, errors::ConnectorError> {
+    let error = errors::ConnectorError::GenericError {
+        error_message: "josh error".to_string(),
+        error_object: Value::String("unable to create the body".to_string()),
+    };
     // Step 1: Serialize `body` to JSON
-    let str_result =  serde_json::to_string(&body);
-    let json_str ;
-    if str_result.is_ok(){
-        json_str=str_result.unwrap();
+    let str_result = serde_json::to_string(&body);
+    let json_str;
+    if str_result.is_ok() {
+        json_str = str_result.unwrap();
 
-        let map_result:Result<Map<String, Value>, serde_json::Error>  =serde_json::from_str(&json_str);
+        let map_result: Result<Map<String, Value>, serde_json::Error> =
+            serde_json::from_str(&json_str);
         let parsed_json: Map<String, Value> = map_result.unwrap();
 
         // Step 3: Use the `from_map` method to populate JwtPayload
         let jwt_payload_result = JwtPayload::from_map(parsed_json);
-        if jwt_payload_result.is_ok(){
+        if jwt_payload_result.is_ok() {
             let jwt_payload = jwt_payload_result.unwrap();
-            return Ok(jwt_payload)
+            return Ok(jwt_payload);
         }
     }
-    return Err(error)
+    Err(error)
 }
-
 
 fn get_signature(
     metadata: Option<pii::SecretSerdeValue>,
@@ -187,18 +197,20 @@ fn get_signature(
     body: RequestContent,
     method: String,
     path: String,
-
 ) -> Result<String, errors::ConnectorError> {
     match body {
         RequestContent::Json(masked_json) => {
-            let error = errors::ConnectorError::GenericError { error_message: "josh error".to_string(), error_object: Value::String("unable to create the body".to_string())};
+            let error = errors::ConnectorError::GenericError {
+                error_message: "josh error".to_string(),
+                error_object: Value::String("unable to create the body".to_string()),
+            };
             // Calculate expiration time in seconds
             let expiration_time = SystemTime::now() + Duration::from_secs(4 * 60);
             let expires_in = match expiration_time.duration_since(UNIX_EPOCH) {
                 Ok(duration) => duration.as_secs(),
                 Err(_e) => 0,
             };
-            
+
             // Generate JWT headers-----------------------------------------
             // let custom_headers =  serde_json::json!({
             //     "alg": "ES256",
@@ -214,16 +226,14 @@ fn get_signature(
             option_map.insert("kid".to_string(), json!(auth.kid));
 
             let header_result = JwsHeader::from_map(option_map);
-            if header_result.is_err(){
+            if header_result.is_err() {
                 return Err(error);
             }
             let header = header_result.unwrap();
 
-
             //Payload------------------------------------------------------
             let mut sample_payload = JwtPayload::new();
             sample_payload.set_subject("subject");
-
 
             // let body_map = json_request_to_map(&body);
             let payload_result = box_to_jwt_payload(masked_json);
@@ -236,31 +246,35 @@ fn get_signature(
             //         .change_context(errors::ConnectorError::RequestEncodingFailed)?
             //         .as_object()
             //         .cloned();
-                
-
 
             // Private KEY------------------------------------------------------
             let private_key = get_private_key(metadata.to_owned())?;
             // let ES256_signer = JwsSigner::new("ES256")?;
             // Signing JWT------------------------------------------------------
             let signer;
-            if  ES256.signer_from_pem(&private_key).is_err(){
-                return Err(errors::ConnectorError::GenericError { error_message: "josh error".to_string(), error_object: Value::String("ES256 signer failed".to_string()) });
-            }
-            else{
+            if ES256.signer_from_pem(&private_key).is_err() {
+                return Err(errors::ConnectorError::GenericError {
+                    error_message: "josh error".to_string(),
+                    error_object: Value::String("ES256 signer failed".to_string()),
+                });
+            } else {
                 signer = ES256.signer_from_pem(&private_key).unwrap();
             }
 
-            let nomupay_jwt_result= jwt::encode_with_signer(&payload, &header, &signer);
-            if nomupay_jwt_result.is_err(){
-                return Err(errors::ConnectorError::GenericError { error_message: "josh error".to_string(), error_object: Value::String("jwt generation failed".to_string()) });
+            let nomupay_jwt_result = jwt::encode_with_signer(&payload, &header, &signer);
+            if nomupay_jwt_result.is_err() {
+                Err(errors::ConnectorError::GenericError {
+                    error_message: "josh error".to_string(),
+                    error_object: Value::String("jwt generation failed".to_string()),
+                })
+            } else {
+                let nomupay_jwt = nomupay_jwt_result.unwrap();
+
+                let jws_blocks: Vec<&str> = nomupay_jwt.split('.').collect();
+                let jws_detached = format!("{}..{}", jws_blocks[0], jws_blocks[2]);
+
+                Ok(jws_detached)
             }
-            let nomupay_jwt = nomupay_jwt_result.unwrap();
-
-            let jws_blocks: Vec<&str> = nomupay_jwt.split('.').collect();
-            let jws_detached = format!("{}..{}", jws_blocks[0], jws_blocks[2]);
-
-            Ok(jws_detached)
         }
         _ => Ok("no json body found".to_string()),
     }
@@ -339,7 +353,6 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for No
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nomupay {}
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Nomupay {}
 
-
 #[cfg(feature = "payouts")]
 impl ConnectorIntegration<PoQuote, PayoutsData, PayoutsResponseData> for Nomupay {}
 #[cfg(feature = "payouts")]
@@ -360,17 +373,15 @@ impl api::PayoutCreate for Nomupay {}
 #[cfg(feature = "payouts")]
 impl api::PayoutEligibility for Nomupay {}
 #[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Nomupay {}
+#[cfg(feature = "payouts")]
 impl api::PayoutQuote for Nomupay {}
 #[cfg(feature = "payouts")]
 impl api::PayoutRecipient for Nomupay {}
 #[cfg(feature = "payouts")]
-impl api::PayoutFulfill for Nomupay {}
+impl api::PayoutRecipientAccount for Nomupay {}
 #[cfg(feature = "payouts")]
 impl api::PayoutSync for Nomupay {}
-#[cfg(feature = "payouts")]
-impl api::PayoutRecipientAccount for Nomupay {}
-
-
 
 #[cfg(feature = "payouts")]
 impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nomupay {
@@ -379,6 +390,10 @@ impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nom
         _req: &PayoutsRouterData<PoRecipient>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        println!(
+            "{:?}",
+            format!("{}/v1alpha1/sub-account", connectors.nomupay.base_url)
+        );
         Ok(format!(
             "{}/v1alpha1/sub-account",
             connectors.nomupay.base_url
@@ -407,11 +422,16 @@ impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nom
         req: &PayoutsRouterData<PoRecipient>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-
         let body = types::PayoutRecipientType::get_request_body(self, req, connectors)?;
         let auth = nomupay::NomupayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let sign = get_signature(req.connector_meta_data.to_owned(), auth, body, "POST".to_string(), "/v1alpha1/sub-account".to_string())?;
+        let sign = get_signature(
+            req.connector_meta_data.to_owned(),
+            auth,
+            body,
+            "POST".to_string(),
+            "/v1alpha1/sub-account".to_string(),
+        )?;
         let mut headers = types::PayoutRecipientType::get_headers(self, req, connectors)?;
         headers.push(("X-Signature".to_string(), masking::Maskable::Normal(sign)));
         let request = RequestBuilder::new()
@@ -426,21 +446,26 @@ impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nom
             )?)
             .build();
 
-
-        // let request = RequestBuilder::new()
-        //     .method(Method::Post)
-        //     .url(&types::PayoutRecipientType::get_url(self, req, connectors)?)
-        //     .attach_default_headers()
-        //     .headers(types::PayoutRecipientType::get_headers(
-        //         self, req, connectors,
-        //     )?)
-        //     .set_body(types::PayoutRecipientType::get_request_body(
-        //         self, req, connectors,
-        //     )?)
-        //     .build();
+        println!("######################");
+        println!("{:?}", headers);
+        println!("######################");
+        println!("{:?}", request);
+        println!("######################");
 
         Ok(Some(request))
     }
+
+    // let request = RequestBuilder::new()
+    //     .method(Method::Post)
+    //     .url(&types::PayoutRecipientType::get_url(self, req, connectors)?)
+    //     .attach_default_headers()
+    //     .headers(types::PayoutRecipientType::get_headers(
+    //         self, req, connectors,
+    //     )?)
+    //     .set_body(types::PayoutRecipientType::get_request_body(
+    //         self, req, connectors,
+    //     )?)
+    //     .build();
 
     // #[instrument(skip_all)]
     fn handle_response(
@@ -524,14 +549,21 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
             .to_owned()
             .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "id" })?;
 
-        let sign = get_signature(req.connector_meta_data.to_owned(), auth, body, "POST".to_string(), 
-            format!("/v1alpha1/sub-account/{}/transfer-method", sid))?;
+        let sign = get_signature(
+            req.connector_meta_data.to_owned(),
+            auth,
+            body,
+            "POST".to_string(),
+            format!("/v1alpha1/sub-account/{}/transfer-method", sid),
+        )?;
 
         let mut headers = types::PayoutRecipientAccountType::get_headers(self, req, connectors)?;
         headers.push(("X-Signature".to_string(), masking::Maskable::Normal(sign)));
         let request = RequestBuilder::new()
             .method(Method::Post)
-            .url(&types::PayoutRecipientAccountType::get_url(self, req, connectors)?)
+            .url(&types::PayoutRecipientAccountType::get_url(
+                self, req, connectors,
+            )?)
             .attach_default_headers()
             .headers(types::PayoutRecipientAccountType::get_headers(
                 self, req, connectors,
@@ -540,6 +572,12 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
                 self, req, connectors,
             )?)
             .build();
+
+        println!("11111111111111111111111");
+        println!("{:?}", headers);
+        println!("11111111111111111111111");
+        println!("{:?}", request);
+        println!("11111111111111111111111");
 
         Ok(Some(request))
     }
@@ -614,11 +652,16 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nomup
         req: &PayoutsRouterData<PoFulfill>,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-
         let body = types::PayoutFulfillType::get_request_body(self, req, connectors)?;
         let auth = nomupay::NomupayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let sign = get_signature(req.connector_meta_data.to_owned(), auth, body, "POST".to_string(), "/v1alpha1/payments".to_string())?;
+        let sign = get_signature(
+            req.connector_meta_data.to_owned(),
+            auth,
+            body,
+            "POST".to_string(),
+            "/v1alpha1/payments".to_string(),
+        )?;
         let mut headers = types::PayoutFulfillType::get_headers(self, req, connectors)?;
         headers.push(("X-Signature".to_string(), masking::Maskable::Normal(sign)));
         let request = RequestBuilder::new()
@@ -632,6 +675,12 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nomup
                 self, req, connectors,
             )?)
             .build();
+
+        println!("22222222222222222222222");
+        println!("{:?}", headers);
+        println!("22222222222222222222222");
+        println!("{:?}", request);
+        println!("22222222222222222222222");
 
         Ok(Some(request))
     }

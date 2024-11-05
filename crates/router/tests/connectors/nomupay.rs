@@ -8,16 +8,15 @@ use crate::utils::{self, ConnectorActions};
 struct NomupayTest;
 impl ConnectorActions for NomupayTest {}
 
-
 impl utils::Connector for NomupayTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connector::Nomupay;
-        api::ConnectorData {
-            connector: Box::new(Nomupay::new()),
-            connector_name: types::Connector::Nomupay,
-            get_token: types::api::GetToken::Connector,
-            merchant_connector_id: None,
-        }
+        use router::connector::Adyen;
+        utils::construct_connector_data_old(
+            Box::new(Adyen::new()),
+            types::Connector::Nomupay,
+            api::GetToken::Connector,
+            None,
+        )
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
@@ -34,7 +33,6 @@ impl utils::Connector for NomupayTest {
     }
 }
 
- 
 static CONNECTOR: NomupayTest = NomupayTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {

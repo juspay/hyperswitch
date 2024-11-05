@@ -245,7 +245,6 @@ pub struct CommitResponse {
     pub expire_on: String,
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct NomupayMetadata {
     pub private_key: String,
@@ -504,11 +503,10 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardSubAccountRequest {
                 .unwrap_or(Secret::new("last name".to_string())),
             date_of_birth: "unknown".to_string(),
             gender: "unknown".to_string(),
-            email_address: item.get_billing_email().unwrap(),
+            email_address: item.get_billing_email()?,
             phone_number_country_code: item
                 .get_billing_phone()
-                .map(|phone| phone.country_code.clone())
-                .unwrap(),
+                .map(|phone| phone.country_code.clone())?,
             phone_number: Some(
                 item.get_billing_phone_number()
                     .unwrap_or(Secret::new("phone number".to_string())),
@@ -564,9 +562,6 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardSubAccountResponse>> for Pay
 impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
-        // let country_iso2_code = item
-        //     .get_billing_country()
-        //     .unwrap_or(enums::CountryAlpha2::ER);
         let payout_method_data = item.get_payout_method_data()?;
         match payout_method_data {
             api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
@@ -577,7 +572,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest {
                         account_purpose: bank_details.bank_name, // savings or somthing else need help
                     };
 
-                    let request = item.request.to_owned();
+                    // let request = item.request.to_owned();
                     // let payout_type = request.payout_type;
                     // let external_id = item.connector_request_reference_id.to_owned();
 
@@ -615,11 +610,10 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest {
                             .unwrap_or(Secret::new("last name".to_string())),
                         date_of_birth: "unknown".to_string(),
                         gender: "unknown".to_string(),
-                        email_address: item.get_billing_email().unwrap(),
+                        email_address: item.get_billing_email()?,
                         phone_number_country_code: item
                             .get_billing_phone()
-                            .map(|phone| phone.country_code.clone())
-                            .unwrap(),
+                            .map(|phone| phone.country_code.clone())?,
                         phone_number: Some(
                             item.get_billing_phone_number()
                                 .unwrap_or(Secret::new("phone number".to_string())),
@@ -627,7 +621,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest {
                         address: my_address,
                     };
 
-                    Ok(OnboardTransferMethodRequest {
+                    Ok(Self {
                         country_code: country_iso2_code,
                         currency_code: item.request.destination_currency,
                         typee: "BANK_ACCOUNT".to_string(),
