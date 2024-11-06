@@ -12,6 +12,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{helpers, operations, PaymentAddress, PaymentData},
     },
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -20,7 +21,6 @@ use crate::{
         storage::{self, enums},
     },
     utils::OptionExt,
-    events::audit_events::{AuditEvent, AuditEventType},
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
@@ -265,13 +265,17 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for Payme
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        
+        let error_code = payment_data.payment_attempt.error_code;
+        let error_message = payment_data.payment_attempt.error_message;
         req_state
             .event_context
-            .event(AuditEvent::new(AuditEventType::PaymentReject))
+            .event(AuditEvent::new(AuditEventType::PaymentReject {
+                error_code,
+                error_message,
+            }))
             .with(payment_data.to_event())
             .emit();
-        
+
         Ok((Box::new(self), payment_data))
     }
 }
