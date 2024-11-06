@@ -694,9 +694,8 @@ Cypress.Commands.add("apiKeyCreateCall", (apiKeyCreateBody, globalState) => {
       expect(response.body.description).to.equal(apiKeyCreateBody.description);
 
       // API Key assertions are intentionally excluded to avoid being exposed in the logs
-      expect(response.body)
-        .to.have.property(key_id_type)
-        .and.to.include(key_id).and.to.not.be.empty;
+      expect(response.body).to.have.property(key_id_type).and.to.include(key_id)
+        .and.to.not.be.empty;
 
       globalState.set("apiKeyId", response.body.key_id);
       globalState.set("apiKey", response.body.api_key);
@@ -738,11 +737,11 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
 
     if (response.status === 200) {
       expect(response.body.merchant_id).to.equal(merchant_id);
-
+      if (typeof req_data.customer_acceptance === "object") {
+      }
       // API Key assertions are intentionally excluded to avoid being exposed in the logs
-      expect(response.body)
-        .to.have.property(key_id_type)
-        .and.to.include(key_id).and.to.not.be.empty;
+      expect(response.body).to.have.property(key_id_type).and.to.include(key_id)
+        .and.to.not.be.empty;
 
       if (api_key === undefined || api_key === null) {
         globalState.set("apiKey", response.body.api_key);
@@ -794,9 +793,8 @@ Cypress.Commands.add("apiKeyUpdateCall", (apiKeyUpdateBody, globalState) => {
       expect(response.body.description).to.equal(apiKeyUpdateBody.description);
 
       // API Key assertions are intentionally excluded to avoid being exposed in the logs
-      expect(response.body)
-        .to.have.property(key_id_type)
-        .and.to.include(key_id).and.to.not.be.empty;
+      expect(response.body).to.have.property(key_id_type).and.to.include(key_id)
+        .and.to.not.be.empty;
 
       if (api_key === undefined || api_key === null) {
         globalState.set("apiKey", response.body.api_key);
