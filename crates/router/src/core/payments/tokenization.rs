@@ -179,133 +179,133 @@ where
             let pm_id = if customer_acceptance.is_some() {
                 if !matches!(
                     &save_payment_method_data.request.get_payment_method_data(),
-                    domain::PaymentMethodData::NetworkToken(_))
-                    {
-                        let payment_method_create_request =
-                            payment_methods::get_payment_method_create_request(
-                                Some(&save_payment_method_data.request.get_payment_method_data()),
-                                Some(save_payment_method_data.payment_method),
-                                payment_method_type,
-                                &customer_id.clone(),
-                                billing_name,
-                                payment_method_billing_address,
-                            )
-                            .await?;
-                        let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
-                        let merchant_id = merchant_account.get_id();
-                        let is_network_tokenization_enabled =
-                            business_profile.is_network_tokenization_enabled;
-                        let (
-                            (mut resp, duplication_check, network_token_requestor_ref_id),
-                            network_token_resp,
-                        ) = if !state.conf.locker.locker_enabled {
-                            let (res, dc) = skip_saving_card_in_locker(
-                                merchant_account,
-                                payment_method_create_request.to_owned(),
-                            )
-                            .await?;
-                            ((res, dc, None), None)
+                    domain::PaymentMethodData::NetworkToken(_)
+                ) {
+                    let payment_method_create_request =
+                        payment_methods::get_payment_method_create_request(
+                            Some(&save_payment_method_data.request.get_payment_method_data()),
+                            Some(save_payment_method_data.payment_method),
+                            payment_method_type,
+                            &customer_id.clone(),
+                            billing_name,
+                            payment_method_billing_address,
+                        )
+                        .await?;
+                    let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
+                    let merchant_id = merchant_account.get_id();
+                    let is_network_tokenization_enabled =
+                        business_profile.is_network_tokenization_enabled;
+                    let (
+                        (mut resp, duplication_check, network_token_requestor_ref_id),
+                        network_token_resp,
+                    ) = if !state.conf.locker.locker_enabled {
+                        let (res, dc) = skip_saving_card_in_locker(
+                            merchant_account,
+                            payment_method_create_request.to_owned(),
+                        )
+                        .await?;
+                        ((res, dc, None), None)
+                    } else {
+                        pm_status = Some(common_enums::PaymentMethodStatus::from(
+                            save_payment_method_data.attempt_status,
+                        ));
+                        let (res, dc) = Box::pin(save_in_locker(
+                            state,
+                            merchant_account,
+                            payment_method_create_request.to_owned(),
+                        ))
+                        .await?;
+
+                        if is_network_tokenization_enabled {
+                            let pm_data =
+                                &save_payment_method_data.request.get_payment_method_data();
+                            match pm_data {
+                                domain::PaymentMethodData::Card(card) => {
+                                    let (
+                                        network_token_resp,
+                                        _network_token_duplication_check, //the duplication check is discarded, since each card has only one token, handling card duplication check will be suffice
+                                        network_token_requestor_ref_id,
+                                    ) = Box::pin(save_network_token_in_locker(
+                                        state,
+                                        merchant_account,
+                                        card,
+                                        payment_method_create_request.clone(),
+                                    ))
+                                    .await?;
+
+                                    (
+                                        (res, dc, network_token_requestor_ref_id),
+                                        network_token_resp,
+                                    )
+                                }
+                                _ => ((res, dc, None), None), //network_token_resp is None in case of other payment methods
+                            }
                         } else {
-                            pm_status = Some(common_enums::PaymentMethodStatus::from(
-                                save_payment_method_data.attempt_status,
-                            ));
-                            let (res, dc) = Box::pin(save_in_locker(
-                                state,
-                                merchant_account,
-                                payment_method_create_request.to_owned(),
-                            ))
-                            .await?;
-
-                            if is_network_tokenization_enabled {
-                                let pm_data =
-                                    &save_payment_method_data.request.get_payment_method_data();
-                                match pm_data {
-                                    domain::PaymentMethodData::Card(card) => {
-                                        let (
-                                            network_token_resp,
-                                            _network_token_duplication_check, //the duplication check is discarded, since each card has only one token, handling card duplication check will be suffice
-                                            network_token_requestor_ref_id,
-                                        ) = Box::pin(save_network_token_in_locker(
-                                            state,
-                                            merchant_account,
-                                            card,
-                                            payment_method_create_request.clone(),
-                                        ))
-                                        .await?;
-
-                                        (
-                                            (res, dc, network_token_requestor_ref_id),
-                                            network_token_resp,
-                                        )
-                                    }
-                                    _ => ((res, dc, None), None), //network_token_resp is None in case of other payment methods
-                                }
+                            ((res, dc, None), None)
+                        }
+                    };
+                    let network_token_locker_id = match network_token_resp {
+                        Some(ref token_resp) => {
+                            if network_token_requestor_ref_id.is_some() {
+                                Some(token_resp.payment_method_id.clone())
                             } else {
-                                ((res, dc, None), None)
+                                None
                             }
-                        };
-                        let network_token_locker_id = match network_token_resp {
-                            Some(ref token_resp) => {
-                                if network_token_requestor_ref_id.is_some() {
-                                    Some(token_resp.payment_method_id.clone())
-                                } else {
-                                    None
-                                }
-                            }
-                            None => None,
-                        };
+                        }
+                        None => None,
+                    };
 
-                        let pm_card_details = resp.card.as_ref().map(|card| {
-                            PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
-                        });
-                        let key_manager_state = state.into();
-                        let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
-                            pm_card_details
+                    let pm_card_details = resp.card.as_ref().map(|card| {
+                        PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
+                    });
+                    let key_manager_state = state.into();
+                    let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
+                        pm_card_details
+                            .async_map(|pm_card| {
+                                create_encrypted_data(&key_manager_state, key_store, pm_card)
+                            })
+                            .await
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Unable to encrypt payment method data")?;
+
+                    let pm_network_token_data_encrypted: Option<
+                        Encryptable<Secret<serde_json::Value>>,
+                    > = match network_token_resp {
+                        Some(token_resp) => {
+                            let pm_token_details = token_resp.card.as_ref().map(|card| {
+                                PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
+                                    card.clone(),
+                                ))
+                            });
+
+                            pm_token_details
                                 .async_map(|pm_card| {
                                     create_encrypted_data(&key_manager_state, key_store, pm_card)
                                 })
                                 .await
                                 .transpose()
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Unable to encrypt payment method data")?;
+                                .attach_printable("Unable to encrypt payment method data")?
+                        }
+                        None => None,
+                    };
 
-                        let pm_network_token_data_encrypted: Option<
-                            Encryptable<Secret<serde_json::Value>>,
-                        > = match network_token_resp {
-                            Some(token_resp) => {
-                                let pm_token_details = token_resp.card.as_ref().map(|card| {
-                                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
-                                        card.clone(),
-                                    ))
-                                });
+                    let encrypted_payment_method_billing_address: Option<
+                        Encryptable<Secret<serde_json::Value>>,
+                    > = payment_method_billing_address
+                        .async_map(|address| {
+                            create_encrypted_data(&key_manager_state, key_store, address.clone())
+                        })
+                        .await
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to encrypt payment method billing address")?;
 
-                                pm_token_details
-                                    .async_map(|pm_card| {
-                                        create_encrypted_data(&key_manager_state, key_store, pm_card)
-                                    })
-                                    .await
-                                    .transpose()
-                                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                                    .attach_printable("Unable to encrypt payment method data")?
-                            }
-                            None => None,
-                        };
+                    let mut payment_method_id = resp.payment_method_id.clone();
+                    let mut locker_id = None;
 
-                        let encrypted_payment_method_billing_address: Option<
-                            Encryptable<Secret<serde_json::Value>>,
-                        > = payment_method_billing_address
-                            .async_map(|address| {
-                                create_encrypted_data(&key_manager_state, key_store, address.clone())
-                            })
-                            .await
-                            .transpose()
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Unable to encrypt payment method billing address")?;
-
-                        let mut payment_method_id = resp.payment_method_id.clone();
-                        let mut locker_id = None;
-
-                        match duplication_check {
+                    match duplication_check {
                             Some(duplication_check) => match duplication_check {
                                 payment_methods::transformers::DataDuplicationCheck::Duplicated => {
                                     let payment_method = {
@@ -695,8 +695,8 @@ where
                             }
                         }
 
-                        Some(resp.payment_method_id)
-                    } else {
+                    Some(resp.payment_method_id)
+                } else {
                     //saving the network token which means pm is already saved with us
                     //just fetch existing pm and update last used and meta data
                     let payment_method = {

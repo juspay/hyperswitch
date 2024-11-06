@@ -181,7 +181,10 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 .ok();
             }
         };
-        let payment_method_id = payment_data.payment_method_info.clone().map(|pm_info| pm_info.payment_method_id);
+        let payment_method_id = payment_data
+            .payment_method_info
+            .clone()
+            .map(|pm_info| pm_info.payment_method_id);
         let connector_mandate_reference_id = payment_data
             .payment_attempt
             .connector_mandate_detail
