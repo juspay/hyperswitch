@@ -31,6 +31,7 @@ mod dlocal;
 #[cfg(feature = "dummy_connector")]
 mod dummyconnector;
 mod ebanx;
+mod elavon;
 mod fiserv;
 mod fiservemea;
 mod fiuu;
@@ -42,6 +43,7 @@ mod gpayments;
 mod helcim;
 mod iatapay;
 mod itaubank;
+mod jpmorgan;
 mod mifinity;
 mod mollie;
 mod multisafepay;
