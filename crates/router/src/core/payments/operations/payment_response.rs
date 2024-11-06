@@ -1954,7 +1954,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 );
             tokio::spawn(
                 async move {
-                    routing_helpers::push_metrics_for_success_based_routing(
+                    routing_helpers::push_metrics_with_update_window_for_success_based_routing(
                         &state,
                         &payment_attempt,
                         routable_connectors,

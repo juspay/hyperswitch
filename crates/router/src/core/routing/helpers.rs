@@ -640,7 +640,7 @@ pub async fn fetch_success_based_routing_configs(
 /// metrics for success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn push_metrics_for_success_based_routing(
+pub async fn push_metrics_with_update_window_for_success_based_routing(
     state: &SessionState,
     payment_attempt: &storage::PaymentAttempt,
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
@@ -699,7 +699,12 @@ pub async fn push_metrics_for_success_based_routing(
         );
 
         let success_based_routing_config_params = success_based_routing_config_params_interpolator
-            .get_string_val(success_based_routing_configs.params.as_ref());
+            .get_string_val(
+                success_based_routing_configs
+                    .params.as_ref()
+                    .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("params not found in success based routing config")?);
 
         let success_based_connectors = client
             .calculate_success_rate(
@@ -997,42 +1002,40 @@ impl SuccessBasedRoutingConfigParamsInterpolator {
 
     pub fn get_string_val(
         &self,
-        params: Option<&Vec<routing_types::SuccessBasedRoutingConfigParams>>,
+        params: &Vec<routing_types::SuccessBasedRoutingConfigParams>,
     ) -> String {
         let mut parts: Vec<String> = Vec::new();
-        if let Some(params) = params {
-            for param in params {
-                let val = match param {
-                    routing_types::SuccessBasedRoutingConfigParams::PaymentMethod => self
-                        .payment_method
-                        .as_ref()
-                        .map_or(String::new(), |pm| pm.to_string()),
-                    routing_types::SuccessBasedRoutingConfigParams::PaymentMethodType => self
-                        .payment_method_type
-                        .as_ref()
-                        .map_or(String::new(), |pmt| pmt.to_string()),
-                    routing_types::SuccessBasedRoutingConfigParams::AuthenticationType => self
-                        .authentication_type
-                        .as_ref()
-                        .map_or(String::new(), |at| at.to_string()),
-                    routing_types::SuccessBasedRoutingConfigParams::Currency => self
-                        .currency
-                        .as_ref()
-                        .map_or(String::new(), |cur| cur.to_string()),
-                    routing_types::SuccessBasedRoutingConfigParams::Country => self
-                        .country
-                        .as_ref()
-                        .map_or(String::new(), |cn| cn.to_string()),
-                    routing_types::SuccessBasedRoutingConfigParams::CardNetwork => {
-                        self.card_network.clone().unwrap_or_default()
-                    }
-                    routing_types::SuccessBasedRoutingConfigParams::CardBin => {
-                        self.card_bin.clone().unwrap_or_default()
-                    }
-                };
-                if !val.is_empty() {
-                    parts.push(val);
+        for param in params {
+            let val = match param {
+                routing_types::SuccessBasedRoutingConfigParams::PaymentMethod => self
+                    .payment_method
+                    .as_ref()
+                    .map_or(String::new(), |pm| pm.to_string()),
+                routing_types::SuccessBasedRoutingConfigParams::PaymentMethodType => self
+                    .payment_method_type
+                    .as_ref()
+                    .map_or(String::new(), |pmt| pmt.to_string()),
+                routing_types::SuccessBasedRoutingConfigParams::AuthenticationType => self
+                    .authentication_type
+                    .as_ref()
+                    .map_or(String::new(), |at| at.to_string()),
+                routing_types::SuccessBasedRoutingConfigParams::Currency => self
+                    .currency
+                    .as_ref()
+                    .map_or(String::new(), |cur| cur.to_string()),
+                routing_types::SuccessBasedRoutingConfigParams::Country => self
+                    .country
+                    .as_ref()
+                    .map_or(String::new(), |cn| cn.to_string()),
+                routing_types::SuccessBasedRoutingConfigParams::CardNetwork => {
+                    self.card_network.clone().unwrap_or_default()
                 }
+                routing_types::SuccessBasedRoutingConfigParams::CardBin => {
+                    self.card_bin.clone().unwrap_or_default()
+                }
+            };
+            if !val.is_empty() {
+                parts.push(val);
             }
         }
         parts.join(":")

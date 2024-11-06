@@ -13,6 +13,7 @@ use success_rate::{
     CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
     UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
+use router_env::logger;
 use tonic::transport::Channel;
 #[allow(
     missing_docs,
@@ -72,6 +73,7 @@ impl DynamicRoutingClientConfig {
             Self::Enabled { host, port } => {
                 let uri = format!("http://{}:{}", host, port);
                 let channel = tonic::transport::Endpoint::new(uri)?.connect().await?;
+                logger::info!("Connection established with gRPC Server");
                 Some(SuccessRateCalculatorClient::new(channel))
             }
             Self::Disabled => None,
