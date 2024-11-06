@@ -644,8 +644,10 @@ async fn handle_existing_user_invitation(
         created_at: now,
         last_modified: now,
         entity: domain::NoLevel,
-        // TODO: To be sent from token after option is removed
-        tenant_id: state.tenant.tenant_id.clone(),
+        tenant_id: user_from_token
+            .tenant_id
+            .clone()
+            .unwrap_or(state.tenant.tenant_id.clone()),
     };
 
     let _user_role = match role_info.get_entity_type() {
@@ -773,8 +775,10 @@ async fn handle_new_user_invitation(
         created_at: now,
         last_modified: now,
         entity: domain::NoLevel,
-        // TODO: To be sent from token after option is removed
-        tenant_id: state.tenant.tenant_id.clone(),
+        tenant_id: user_from_token
+            .tenant_id
+            .clone()
+            .unwrap_or(state.tenant.tenant_id.clone()),
     };
 
     let _user_role = match role_info.get_entity_type() {
