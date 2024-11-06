@@ -107,11 +107,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1676569297,
-        "narHash": "sha256-2n4C4H3/U+3YbDrQB6xIw7AaLdFISCCFwOkcETAigqU=",
+        "lastModified": 1728888510,
+        "narHash": "sha256-nsNdSldaAyu6PE3YUA+YQLqUDJh+gRbBooMMekZJwvI=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ac1f5b72a9e95873d1de0233fddcb56f99884b37",
+        "rev": "a3c0b3b21515f74fd2665903d4ce6bc4dc81c77c",
         "type": "github"
       },
       "original": {
@@ -137,12 +137,29 @@
         "type": "github"
       }
     },
+    "process-compose-flake": {
+      "locked": {
+        "lastModified": 1728868941,
+        "narHash": "sha256-yEMzxZfy+EE9gSqn++SyZeAVHXYupFT8Wyf99Z/CXXU=",
+        "owner": "Platonic-Systems",
+        "repo": "process-compose-flake",
+        "rev": "29301aec92d73c9b075fcfd06a6fb18665bfe6b5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Platonic-Systems",
+        "repo": "process-compose-flake",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "cargo2nix": "cargo2nix",
         "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs_2",
-        "rust-overlay": "rust-overlay_2"
+        "process-compose-flake": "process-compose-flake",
+        "rust-overlay": "rust-overlay_2",
+        "services-flake": "services-flake"
       }
     },
     "rust-overlay": {
@@ -185,6 +202,21 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "services-flake": {
+      "locked": {
+        "lastModified": 1728811751,
+        "narHash": "sha256-IrwycNtt6jxJGCi+QJ8Bbzt9flg0vNeGLAR0KBbj4a8=",
+        "owner": "juspay",
+        "repo": "services-flake",
+        "rev": "e9f663036f3b1b1a12b0f136628ef93a8be92443",
+        "type": "github"
+      },
+      "original": {
+        "owner": "juspay",
+        "repo": "services-flake",
         "type": "github"
       }
     }
