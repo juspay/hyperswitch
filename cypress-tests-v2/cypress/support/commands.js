@@ -225,7 +225,7 @@ Cypress.Commands.add("merchantAccountRetrieveCall", (globalState) => {
   // Define the necessary variables and constants
   const api_key = globalState.get("adminApiKey");
   const base_url = globalState.get("baseUrl");
-  const key_id_type = "key_id";
+  const key_id_type = "publishable_key";
   const key_id = validateEnv(base_url, key_id_type);
   const merchant_id = globalState.get("merchantId");
   const url = `${base_url}/v2/merchant_accounts/${merchant_id}`;
@@ -267,7 +267,7 @@ Cypress.Commands.add(
     // Define the necessary variables and constants
     const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
-    const key_id_type = "key_id";
+    const key_id_type = "publishable_key";
     const key_id = validateEnv(base_url, key_id_type);
     const merchant_id = globalState.get("merchantId");
     const url = `${base_url}/v2/merchant_accounts/${merchant_id}`;
@@ -728,8 +728,6 @@ Cypress.Commands.add("apiKeyRetrieveCall", (globalState) => {
 
     if (response.status === 200) {
       expect(response.body.merchant_id).to.equal(merchant_id);
-      if (typeof req_data.customer_acceptance === "object") {
-      }
       // API Key assertions are intentionally excluded to avoid being exposed in the logs
       expect(response.body).to.have.property(key_id_type).and.to.include(key_id)
         .and.to.not.be.empty;
