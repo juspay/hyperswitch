@@ -176,6 +176,8 @@ Cypress.Commands.add(
     // Define the necessary variables and constants
     const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
+    const key_id_type = "publishable_key";
+    const key_id = validateEnv(base_url, key_id_type);
     const organization_id = globalState.get("organizationId");
     const url = `${base_url}/v2/merchant_accounts`;
 
@@ -202,14 +204,9 @@ Cypress.Commands.add(
           .and.to.include(`${merchant_name}_`)
           .and.to.be.a("string").and.not.be.empty;
 
-        if (base_url.includes("sandbox") || base_url.includes("integ"))
-          expect(response.body)
-            .to.have.property("publishable_key")
-            .and.to.include("pk_snd").and.to.not.be.empty;
-        else if (base_url.includes("localhost"))
-          expect(response.body)
-            .to.have.property("publishable_key")
-            .and.to.include("pk_dev").and.to.not.be.empty;
+        expect(response.body)
+          .to.have.property(key_id_type)
+          .and.to.include(key_id).and.to.not.be.empty;
 
         globalState.set("merchantId", response.body.id);
         globalState.set("publishableKey", response.body.publishable_key);
@@ -228,6 +225,8 @@ Cypress.Commands.add("merchantAccountRetrieveCall", (globalState) => {
   // Define the necessary variables and constants
   const api_key = globalState.get("adminApiKey");
   const base_url = globalState.get("baseUrl");
+  const key_id_type = "key_id";
+  const key_id = validateEnv(base_url, key_id_type);
   const merchant_id = globalState.get("merchantId");
   const url = `${base_url}/v2/merchant_accounts/${merchant_id}`;
 
@@ -246,14 +245,8 @@ Cypress.Commands.add("merchantAccountRetrieveCall", (globalState) => {
       expect(response.body).to.have.property("id").and.to.be.a("string").and.not
         .be.empty;
 
-      if (base_url.includes("sandbox") || base_url.includes("integ"))
-        expect(response.body)
-          .to.have.property("publishable_key")
-          .and.to.include("pk_snd").and.to.not.be.empty;
-      else
-        expect(response.body)
-          .to.have.property("publishable_key")
-          .and.to.include("pk_dev").and.to.not.be.empty;
+      expect(response.body).to.have.property(key_id_type).and.to.include(key_id)
+        .and.to.not.be.empty;
 
       if (merchant_id === undefined || merchant_id === null) {
         globalState.set("merchantId", response.body.id);
@@ -274,6 +267,8 @@ Cypress.Commands.add(
     // Define the necessary variables and constants
     const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
+    const key_id_type = "key_id";
+    const key_id = validateEnv(base_url, key_id_type);
     const merchant_id = globalState.get("merchantId");
     const url = `${base_url}/v2/merchant_accounts/${merchant_id}`;
 
@@ -294,14 +289,10 @@ Cypress.Commands.add(
       if (response.status === 200) {
         expect(response.body.id).to.equal(merchant_id);
 
-        if (base_url.includes("sandbox") || base_url.includes("integ"))
-          expect(response.body)
-            .to.have.property("publishable_key")
-            .and.to.include("pk_snd").and.to.not.be.empty;
-        else
-          expect(response.body)
-            .to.have.property("publishable_key")
-            .and.to.include("pk_dev").and.to.not.be.empty;
+        expect(response.body)
+          .to.have.property(key_id_type)
+          .and.to.include(key_id).and.to.not.be.empty;
+
         expect(response.body.merchant_name).to.equal(merchant_name);
 
         if (merchant_id === undefined || merchant_id === null) {
