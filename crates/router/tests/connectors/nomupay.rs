@@ -17,12 +17,6 @@ impl utils::Connector for NomupayTest {
             api::GetToken::Connector,
             None,
         )
-        // api::ConnectorData {
-        //     connector: Box::new(Nomupay::new()),
-        //     connector_name: types::Connector::Nomupay,
-        //     get_token: types::api::GetToken::Connector,
-        //     merchant_connector_id: None,
-        // }
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
