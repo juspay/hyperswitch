@@ -2,7 +2,7 @@ use common_utils::types::MinorUnit;
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::payments::payment_attempt::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
+    PaymentAttempt, PaymentAttemptUpdate,
 };
 
 use crate::{
@@ -123,10 +123,10 @@ impl AttemptStatusExt for enums::AttemptStatus {
 ))]
 mod tests {
     #![allow(clippy::expect_used, clippy::unwrap_used, clippy::print_stderr)]
+    use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
     use tokio::sync::oneshot;
     use uuid::Uuid;
 
-    use super::*;
     use crate::{
         configs::settings::Settings,
         db::StorageImpl,
@@ -221,7 +221,7 @@ mod tests {
 
         let store = state
             .stores
-            .get(state.conf.multitenancy.get_tenant_names().first().unwrap())
+            .get(state.conf.multitenancy.get_tenant_ids().first().unwrap())
             .unwrap();
         let response = store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
@@ -304,7 +304,7 @@ mod tests {
         };
         let store = state
             .stores
-            .get(state.conf.multitenancy.get_tenant_names().first().unwrap())
+            .get(state.conf.multitenancy.get_tenant_ids().first().unwrap())
             .unwrap();
         store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)
@@ -401,7 +401,7 @@ mod tests {
         };
         let store = state
             .stores
-            .get(state.conf.multitenancy.get_tenant_names().first().unwrap())
+            .get(state.conf.multitenancy.get_tenant_ids().first().unwrap())
             .unwrap();
         store
             .insert_payment_attempt(payment_attempt, enums::MerchantStorageScheme::PostgresOnly)

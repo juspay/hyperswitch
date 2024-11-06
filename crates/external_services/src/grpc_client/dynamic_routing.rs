@@ -6,6 +6,9 @@ use api_models::routing::{
 };
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
+use http_body_util::combinators::UnsyncBoxBody;
+use hyper::body::Bytes;
+use hyper_util::client::legacy::connect::HttpConnector;
 use serde;
 use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
@@ -13,7 +16,7 @@ use success_rate::{
     CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
     UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
-use tonic::transport::Channel;
+use tonic::Status;
 #[allow(
     missing_docs,
     unused_qualifications,
@@ -40,11 +43,13 @@ pub enum DynamicRoutingError {
     SuccessRateBasedRoutingFailure(String),
 }
 
+type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
+
 /// Type that consists of all the services provided by the client
 #[derive(Debug, Clone)]
 pub struct RoutingStrategy {
     /// success rate service for Dynamic Routing
-    pub success_rate_client: Option<SuccessRateCalculatorClient<Channel>>,
+    pub success_rate_client: Option<SuccessRateCalculatorClient<Client>>,
 }
 
 /// Contains the Dynamic Routing Client Config
@@ -70,11 +75,14 @@ impl DynamicRoutingClientConfig {
     pub async fn get_dynamic_routing_connection(
         self,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
+        let client =
+            hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+                .http2_only(true)
+                .build_http();
         let success_rate_client = match self {
-            Self::Enabled { host, port, .. } => {
-                let uri = format!("http://{}:{}", host, port);
-                let channel = tonic::transport::Endpoint::new(uri)?.connect().await?;
-                Some(SuccessRateCalculatorClient::new(channel))
+            Self::Enabled { host, port } => {
+                let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
+                Some(SuccessRateCalculatorClient::with_origin(client, uri))
             }
             Self::Disabled => None,
         };
@@ -104,7 +112,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
 }
 
 #[async_trait::async_trait]
-impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Channel> {
+impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
     async fn calculate_success_rate(
         &self,
         id: String,

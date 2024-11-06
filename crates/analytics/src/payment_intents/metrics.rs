@@ -17,6 +17,7 @@ use crate::{
 };
 
 mod payment_intent_count;
+mod payment_processed_amount;
 mod payments_success_rate;
 mod sessionized_metrics;
 mod smart_retried_amount;
@@ -24,6 +25,7 @@ mod successful_smart_retries;
 mod total_smart_retries;
 
 use payment_intent_count::PaymentIntentCount;
+use payment_processed_amount::PaymentProcessedAmount;
 use payments_success_rate::PaymentsSuccessRate;
 use smart_retried_amount::SmartRetriedAmount;
 use successful_smart_retries::SuccessfulSmartRetries;
@@ -34,15 +36,6 @@ pub struct PaymentIntentMetricRow {
     pub status: Option<DBEnumWrapper<storage_enums::IntentStatus>>,
     pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,
     pub profile_id: Option<String>,
-    pub connector: Option<String>,
-    pub authentication_type: Option<DBEnumWrapper<storage_enums::AuthenticationType>>,
-    pub payment_method: Option<String>,
-    pub payment_method_type: Option<String>,
-    pub card_network: Option<String>,
-    pub merchant_id: Option<String>,
-    pub card_last_4: Option<String>,
-    pub card_issuer: Option<String>,
-    pub error_reason: Option<String>,
     pub first_attempt: Option<i64>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
@@ -113,6 +106,11 @@ where
             }
             Self::PaymentsSuccessRate => {
                 PaymentsSuccessRate
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::PaymentProcessedAmount => {
+                PaymentProcessedAmount
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
