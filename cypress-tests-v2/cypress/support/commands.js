@@ -1007,7 +1007,7 @@ Cypress.Commands.add(
     routingDefaultFallbackBody = payload;
 
     cy.request({
-      method: "POST",
+      method: "PATCH",
       url: url,
       headers: {
         Authorization: `Bearer ${api_key}`,
