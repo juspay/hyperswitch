@@ -27,7 +27,9 @@ pub enum AuditEventType {
         capture_amount: Option<MinorUnit>,
         multiple_capture_count: Option<i16>,
     },
-    PaymentUpdate,
+    PaymentUpdate {
+        amount: Option<MinorUnit>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
