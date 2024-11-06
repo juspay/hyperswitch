@@ -610,7 +610,8 @@ where
                                 Ok(customer_payment_methods) => Ok(customer_payment_methods
                                     .iter()
                                     .find(|payment_method| {
-                                        payment_method.payment_method_type == payment_method_type
+                                        payment_method.get_payment_method_subtype()
+                                            == payment_method_type
                                     })
                                     .cloned()),
                                 Err(error) => {

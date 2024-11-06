@@ -1,10 +1,7 @@
 use common_utils::{
     crypto::OptionalEncryptableValue,
-    // date_time,
-    // encryption::Encryption,
     errors::{CustomResult, ValidationError},
-    pii,
-    type_name,
+    pii, type_name,
     types::keymanager,
 };
 use diesel_models::enums as storage_enums;
@@ -77,8 +74,8 @@ pub struct PaymentMethod {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
-    pub payment_method: Option<storage_enums::PaymentMethod>,
-    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_type: Option<storage_enums::PaymentMethod>,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub payment_method_data: OptionalEncryptableValue,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
@@ -109,6 +106,32 @@ impl PaymentMethod {
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
     pub fn get_id(&self) -> &common_utils::id_type::GlobalPaymentMethodId {
         &self.id
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethod> {
+        self.payment_method
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethod> {
+        self.payment_method_type
+    }
+
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    pub fn get_payment_method_subtype(&self) -> Option<storage_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    pub fn get_payment_method_subtype(&self) -> Option<storage_enums::PaymentMethodType> {
+        self.payment_method_subtype
     }
 }
 
@@ -311,8 +334,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             id: self.id,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            payment_method_type_v2: self.payment_method,
-            payment_method_subtype: self.payment_method_type,
+            payment_method_type_v2: self.payment_method_type,
+            payment_method_subtype: self.payment_method_subtype,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
             locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
@@ -351,8 +374,8 @@ impl super::behaviour::Conversion for PaymentMethod {
                 id: item.id,
                 created_at: item.created_at,
                 last_modified: item.last_modified,
-                payment_method: item.payment_method_type_v2,
-                payment_method_type: item.payment_method_subtype,
+                payment_method_type: item.payment_method_type_v2,
+                payment_method_subtype: item.payment_method_subtype,
                 payment_method_data: item
                     .payment_method_data
                     .async_lift(|inner| async {
@@ -422,8 +445,8 @@ impl super::behaviour::Conversion for PaymentMethod {
             id: self.id,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            payment_method_type_v2: self.payment_method,
-            payment_method_subtype: self.payment_method_type,
+            payment_method_type_v2: self.payment_method_type,
+            payment_method_subtype: self.payment_method_subtype,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
             locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,

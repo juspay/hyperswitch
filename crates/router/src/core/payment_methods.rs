@@ -1153,8 +1153,8 @@ pub async fn create_payment_method_in_db(
                 merchant_id: merchant_id.to_owned(),
                 id: payment_method_id,
                 locker_id,
-                payment_method: Some(req.payment_method),
-                payment_method_type: Some(req.payment_method_type),
+                payment_method_type: Some(req.payment_method),
+                payment_method_subtype: Some(req.payment_method_type),
                 payment_method_data,
                 connector_mandate_details,
                 customer_acceptance,
@@ -1207,8 +1207,8 @@ pub async fn create_payment_method_for_intent(
                 merchant_id: merchant_id.to_owned(),
                 id: payment_method_id,
                 locker_id: None,
-                payment_method: None,
                 payment_method_type: None,
+                payment_method_subtype: None,
                 payment_method_data: None,
                 connector_mandate_details: None,
                 customer_acceptance: None,
@@ -1507,7 +1507,9 @@ pub async fn list_customer_payment_method(
 
     let mut filtered_saved_payment_methods_ctx = Vec::new();
     for pm in saved_payment_methods.into_iter() {
-        let payment_method = pm.payment_method.get_required_value("payment_method")?;
+        let payment_method = pm
+            .get_payment_method_type()
+            .get_required_value("payment_method")?;
         let parent_payment_method_token =
             is_payment_associated.then(|| generate_id(consts::ID_LENGTH, "token"));
 
@@ -1600,7 +1602,9 @@ async fn generate_saved_pm_response(
     customer: &domain::Customer,
     payment_info: Option<&pm_types::SavedPMLPaymentsInfo>,
 ) -> Result<api::CustomerPaymentMethod, error_stack::Report<errors::ApiErrorResponse>> {
-    let payment_method = pm.payment_method.get_required_value("payment_method")?;
+    let payment_method = pm
+        .get_payment_method_type()
+        .get_required_value("payment_method")?;
 
     let bank_details = if payment_method == enums::PaymentMethod::BankDebit {
         cards::get_masked_bank_details(&pm)
@@ -1670,7 +1674,7 @@ async fn generate_saved_pm_response(
         payment_method_id: pm.get_id().get_string_repr().to_owned(),
         customer_id: pm.customer_id.to_owned(),
         payment_method,
-        payment_method_type: pm.payment_method_type,
+        payment_method_type: pm.get_payment_method_subtype(),
         payment_method_data: pmd,
         recurring_enabled: mca_enabled,
         created: Some(pm.created_at),
@@ -1735,8 +1739,8 @@ pub async fn retrieve_payment_method(
         merchant_id: payment_method.merchant_id.to_owned(),
         customer_id: payment_method.customer_id.to_owned(),
         payment_method_id: payment_method.id.get_string_repr().to_string(),
-        payment_method: payment_method.payment_method,
-        payment_method_type: payment_method.payment_method_type,
+        payment_method: payment_method.get_payment_method_type(),
+        payment_method_type: payment_method.get_payment_method_subtype(),
         created: Some(payment_method.created_at),
         recurring_enabled: false,
         last_used_at: Some(payment_method.last_used_at),
@@ -1812,8 +1816,8 @@ pub async fn update_payment_method(
         &state,
         &key_store,
         Some(vaulting_response.vault_id.get_string_repr().clone()),
-        payment_method.payment_method,
-        payment_method.payment_method_type,
+        payment_method.get_payment_method_type(),
+        payment_method.get_payment_method_subtype(),
     )
     .await
     .attach_printable("Unable to create Payment method data")?;
