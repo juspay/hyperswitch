@@ -1010,6 +1010,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     | enums::PaymentMethodType::Dana
                     | enums::PaymentMethodType::DanamonVa
                     | enums::PaymentMethodType::Debit
+                    | enums::PaymentMethodType::DirectCarrierBilling
                     | enums::PaymentMethodType::DuitNow
                     | enums::PaymentMethodType::Efecty
                     | enums::PaymentMethodType::Eps

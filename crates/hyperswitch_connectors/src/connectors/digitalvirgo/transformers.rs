@@ -132,16 +132,16 @@ impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentsResponse, T, Paymen
         item: ResponseRouterData<F, DigitalvirgoPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.state);
-        let redirection_data = match status {
+        let redirection_data = Box::new(match status {
             common_enums::AttemptStatus::AuthenticationPending => Some(RedirectForm::DigitalVirgo),
             _ => None,
-        };
+        });
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
