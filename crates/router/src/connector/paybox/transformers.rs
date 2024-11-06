@@ -1109,7 +1109,16 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
                         |data| Some(data.clone()),
                     ),
                     customer_id: match item.router_data.request.is_mandate_payment() {
-                        true => Some(Secret::new(item.router_data.payment_id.clone())),
+                        true => {
+                            let reference_id = item
+                                .router_data
+                                .connector_mandate_request_reference_id
+                                .clone()
+                                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                                    field_name: "connector_mandate_request_reference_id",
+                                })?;
+                            Some(Secret::new(reference_id))
+                        }
                         false => None,
                     },
                 })
