@@ -26,6 +26,7 @@ use hyperswitch_domain_models::{
         PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
     },
+    router_response_types::MandateReference,
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::Luma;
@@ -1341,6 +1342,7 @@ impl PaymentsCaptureRequestData for PaymentsCaptureData {
 
 pub trait PaymentsSyncRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_connector_mandate_reference(&self) -> Option<MandateReference>;
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
 }
 
@@ -1351,6 +1353,24 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
+    }
+    fn get_connector_mandate_reference(&self) -> Option<MandateReference> {
+        self.mandate_id.as_ref().and_then(|mandate_ids| {
+            mandate_ids.mandate_reference_id.as_ref().and_then(
+                |mandate_ref_id| match mandate_ref_id {
+                    payments::MandateReferenceId::ConnectorMandateId(conn_mandate_id) => {
+                        Some(MandateReference {
+                            connector_mandate_id: conn_mandate_id.get_connector_mandate_id(),
+                            payment_method_id: conn_mandate_id.get_payment_method_id(),
+                            mandate_metadata: conn_mandate_id.get_mandate_metadata(),
+                            connector_mandate_request_reference_id: conn_mandate_id
+                                .get_connector_mandate_request_reference_id(),
+                        })
+                    }
+                    _ => None,
+                },
+            )
+        })
     }
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError> {
         match self.connector_transaction_id.clone() {

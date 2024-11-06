@@ -330,3 +330,6 @@ pub struct WorldpayCompleteAuthorizationRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub collection_reference: Option<String>,
 }
+
+pub const THREE_DS_MODE: &str = "always";
+pub const THREE_DS_TYPE: &str = "integrated";

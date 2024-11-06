@@ -455,3 +455,6 @@ pub enum WorldpayWebhookStatus {
     SentForRefund,
     RefundFailed,
 }
+
+/// Worldpay's unique reference ID for a request
+pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";

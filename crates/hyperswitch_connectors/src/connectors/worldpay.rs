@@ -2,10 +2,7 @@ mod requests;
 mod response;
 pub mod transformers;
 
-use api_models::{
-    payments::{MandateReferenceId, PaymentIdType},
-    webhooks::IncomingWebhookEvent,
-};
+use api_models::{payments::PaymentIdType, webhooks::IncomingWebhookEvent};
 use common_enums::{enums, PaymentAction};
 use common_utils::{
     crypto,
@@ -29,7 +26,7 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
     },
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundExecuteRouterData,
@@ -54,16 +51,18 @@ use requests::{
 use response::{
     EventType, ResponseIdStr, WorldpayErrorResponse, WorldpayEventResponse,
     WorldpayPaymentsResponse, WorldpayWebhookEventType, WorldpayWebhookTransactionId,
+    WP_CORRELATION_ID,
 };
 use ring::hmac;
-use transformers::{self as worldpay, WP_CORRELATION_ID};
+use transformers::{self as worldpay};
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
         construct_not_implemented_error_report, convert_amount, get_header_key_value,
-        is_mandate_supported, ForeignTryFrom, PaymentMethodDataType, RefundsRequestData,
+        is_mandate_supported, ForeignTryFrom, PaymentMethodDataType, PaymentsSyncRequestData,
+        RefundsRequestData,
     },
 };
 
@@ -525,29 +524,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: data.request.connector_transaction_id.clone(),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(data.request.mandate_id.as_ref().and_then(
-                    |mandate_ids| {
-                        mandate_ids
-                            .mandate_reference_id
-                            .as_ref()
-                            .and_then(|mandate_ref_id| match mandate_ref_id {
-                                MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
-                                    Some(MandateReference {
-                                        connector_mandate_id: connector_mandate_id
-                                            .get_connector_mandate_id(),
-                                        payment_method_id: connector_mandate_id
-                                            .get_payment_method_id(),
-                                        mandate_metadata: connector_mandate_id
-                                            .get_mandate_metadata(),
-                                        connector_mandate_request_reference_id:
-                                            connector_mandate_id
-                                                .get_connector_mandate_request_reference_id(),
-                                    })
-                                }
-                                _ => None,
-                            })
-                    },
-                )),
+                mandate_reference: Box::new(data.request.get_connector_mandate_reference()),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: optional_correlation_id,
@@ -874,7 +851,7 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         router_env::logger::info!(connector_response=?response);
         let optional_correlation_id = res.headers.and_then(|headers| {
             headers
-                .get("WP-CorrelationId")
+                .get(WP_CORRELATION_ID)
                 .and_then(|header_value| header_value.to_str().ok())
                 .map(|id| id.to_string())
         });

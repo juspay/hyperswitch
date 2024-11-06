@@ -52,9 +52,6 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, MinorUnit, T)> for Worldpa
     }
 }
 
-/// Worldpay's unique reference ID for a request
-pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";
-
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorldpayConnectorMetadataObject {
     pub merchant_name: Option<Secret<String>>,
@@ -406,8 +403,8 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
                 })?;
 
             Ok(Some(ThreeDSRequest {
-                three_ds_type: "integrated".to_string(),
-                mode: "always".to_string(),
+                three_ds_type: THREE_DS_TYPE.to_string(),
+                mode: THREE_DS_MODE.to_string(),
                 device_data: ThreeDSRequestDeviceData {
                     accept_header,
                     user_agent_header,
