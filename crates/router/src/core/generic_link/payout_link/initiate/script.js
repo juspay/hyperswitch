@@ -144,6 +144,7 @@ if (!isTestMode && !isFramed) {
     // @ts-ignore
     hyper = window.Hyper(publishableKey, {
       isPreloadEnabled: false,
+      useTopRedirection: isFramed,
     });
     widgets = hyper.widgets({
       appearance: appearance,
