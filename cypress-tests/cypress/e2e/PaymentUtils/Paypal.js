@@ -366,7 +366,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "NOT_AUTHORIZED",
+          error_code: "PERMISSION_DENIED",
         },
       },
     },
@@ -403,7 +403,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "NOT_AUTHORIZED",
+          error_code: "PERMISSION_DENIED",
         },
       },
     },
