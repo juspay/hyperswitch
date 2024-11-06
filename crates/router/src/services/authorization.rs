@@ -115,10 +115,7 @@ pub fn check_permission(
 pub fn check_tenant(token_tenant_id: Option<String>, header_tenant_id: &str) -> RouterResult<()> {
     if let Some(tenant_id) = token_tenant_id {
         if tenant_id != header_tenant_id {
-            return Err(ApiErrorResponse::InvalidTenant {
-                tenant_id: tenant_id.clone(),
-            }
-            .into());
+            return Err(ApiErrorResponse::InvalidTenant { tenant_id }.into());
         }
     }
     Ok(())
