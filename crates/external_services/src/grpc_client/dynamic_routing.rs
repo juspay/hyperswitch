@@ -80,7 +80,7 @@ impl DynamicRoutingClientConfig {
                 .http2_only(true)
                 .build_http();
         let success_rate_client = match self {
-            Self::Enabled { host, port } => {
+            Self::Enabled { host, port, .. } => {
                 let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
                 Some(SuccessRateCalculatorClient::with_origin(client, uri))
             }
