@@ -1,5 +1,16 @@
 acknowledgements:
   enabled: true
+enrichment_tables:
+  sdk_map:
+    type: file
+    file:
+      path: /etc/vector/config/sdk_map.csv
+      encoding:
+        type: csv
+    schema:
+      publishable_key: string
+      merchant_id: string
+
 
 api:
   enabled: true
@@ -87,6 +98,21 @@ transforms:
     key_field: "{{ .payment_id }}{{ .merchant_id }}"
     threshold: 1000
     window_secs: 60
+  
+  amend_sdk_logs:
+    type: remap
+    inputs:
+      - sdk_transformed
+    source: |
+      .before_transform = now()
+
+      merchant_id = .merchant_id
+      row = get_enrichment_table_record!("sdk_map", { "publishable_key" : merchant_id }, case_sensitive: true) 
+      .merchant_id = row.merchant_id
+
+      .after_transform = now()
+
+  
 
 sinks:
   opensearch_events_1:
@@ -110,6 +136,9 @@ sinks:
         - offset
         - partition
         - topic
+        - clickhouse_database
+        - last_synced
+        - sign_flag
     bulk:
       index: "vector-{{ .topic }}"
 
@@ -134,6 +163,9 @@ sinks:
         - offset
         - partition
         - topic
+        - clickhouse_database
+        - last_synced
+        - sign_flag
     bulk:
       # Add a date suffixed index for better grouping
       index: "vector-{{ .topic }}-%Y-%m-%d"
@@ -224,7 +256,7 @@ sinks:
         - "path"
         - "source_type"
     inputs:
-      - "sdk_transformed"
+      - "amend_sdk_logs"
     bootstrap_servers: kafka0:29092
     topic: hyper-sdk-logs
     key_field: ".merchant_id"

@@ -1109,7 +1109,16 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
                         |data| Some(data.clone()),
                     ),
                     customer_id: match item.router_data.request.is_mandate_payment() {
-                        true => Some(Secret::new(item.router_data.payment_id.clone())),
+                        true => {
+                            let reference_id = item
+                                .router_data
+                                .connector_mandate_request_reference_id
+                                .clone()
+                                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                                    field_name: "connector_mandate_request_reference_id",
+                                })?;
+                            Some(Secret::new(reference_id))
+                        }
                         false => None,
                     },
                 })
@@ -1224,14 +1233,12 @@ fn get_card_expiry_month_year_2_digit(
     card_exp_month: Secret<String>,
     card_exp_year: Secret<String>,
 ) -> Result<Secret<String>, errors::ConnectorError> {
-    let year_2_digit = card_exp_year
-        .peek()
-        .get(..2)
-        .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        .to_string();
     Ok(Secret::new(format!(
         "{}{}",
         card_exp_month.peek(),
-        year_2_digit
+        card_exp_year
+            .peek()
+            .get(card_exp_year.peek().len() - 2..)
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
     )))
 }

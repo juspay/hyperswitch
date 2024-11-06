@@ -26,7 +26,7 @@ const FALLBACK_FOREX_API_CURRENCY_PREFIX: &str = "USD";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FxExchangeRatesCacheEntry {
-    data: Arc<ExchangeRates>,
+    pub data: Arc<ExchangeRates>,
     timestamp: i64,
 }
 
@@ -421,7 +421,13 @@ pub async fn fallback_fetch_forex_rates(
                 conversions.insert(enum_curr, currency_factors);
             }
             None => {
-                logger::error!("Rates for {} not received from API", &enum_curr);
+                if enum_curr == enums::Currency::USD {
+                    let currency_factors =
+                        CurrencyFactors::new(Decimal::new(1, 0), Decimal::new(1, 0));
+                    conversions.insert(enum_curr, currency_factors);
+                } else {
+                    logger::error!("Rates for {} not received from API", &enum_curr);
+                }
             }
         };
     }
