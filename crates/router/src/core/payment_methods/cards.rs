@@ -3270,7 +3270,11 @@ pub async fn list_payment_methods(
                             .map(|required_fields_final| {
                                 let mut required_fields_hs = required_fields_final.common.clone();
                                 if let Some(pa) = payment_attempt.as_ref() {
-                                    if let Some(_mandate) = &pa.mandate_details {
+                                    let is_cit_transaction = pa.mandate_details.is_some()
+    || setup_future_usage
+        .map(|future_usage| future_usage == common_enums::enums::FutureUsage::OffSession)
+        .unwrap_or(false);
+                                    if is_cit_transaction {
                                         required_fields_hs
                                             .extend(required_fields_final.mandate.clone());
                                     } else {
