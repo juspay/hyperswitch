@@ -46,7 +46,9 @@ impl GrpcClientSettings {
             .expect("Failed to establish a connection with the Dynamic Routing Server");
 
         #[cfg(feature = "dynamic_routing")]
-        let health_client = HealthCheckClient;
+        let health_client = HealthCheckClient::build_connections(self)
+            .await
+            .expect("Failed to build gRPC connections");
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]
