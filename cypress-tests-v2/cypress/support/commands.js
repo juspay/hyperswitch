@@ -1351,7 +1351,68 @@ Cypress.Commands.add("apiKeysListCall", (globalState) => {
   });
 });
 
-// templates
+// Payment API calls
+// Update the below commands while following the conventions
+// Below is an example of how the payment intent create call should look like (update the below command as per the need)
+Cypress.Commands.add(
+  "paymentIntentCreateCall",
+  (
+    globalState,
+    paymentRequestBody,
+    paymentResponseBody
+    /* Add more variables based on the need*/
+  ) => {
+    // Define the necessary variables and constants at the top
+    // Also construct the URL here
+    const api_key = globalState.get("apiKey");
+    const base_url = globalState.get("baseUrl");
+    const profile_id = globalState.get("profileId");
+    const url = `${base_url}/v2/payments/create-intent`;
+
+    // Update request body if needed
+    paymentRequestBody = {};
+
+    // Pass Custom Headers
+    const customHeaders = {
+      "x-profile-id": profile_id,
+    };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "api-key": api_key,
+        "Content-Type": "application/json",
+        ...customHeaders,
+      },
+      body: paymentRequestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      // Logging x-request-id is mandatory
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        // Update the assertions based on the need
+        expect(response.body).to.deep.equal(paymentResponseBody);
+      } else if (response.status === 400) {
+        // Add 4xx validations here
+        expect(response.body).to.deep.equal(paymentResponseBody);
+      } else if (response.status === 500) {
+        // Add 5xx validations here
+        expect(response.body).to.deep.equal(paymentResponseBody);
+      } else {
+        // If status code is other than the ones mentioned above, default should be thrown
+        throw new Error(
+          `Payment intent create call failed with status ${response.status} and message: "${response.body.error.message}"`
+        );
+      }
+    });
+  }
+);
+Cypress.Commands.add("paymentIntentConfirmCall", (globalState) => {});
+Cypress.Commands.add("paymentIntentRetrieveCall", (globalState) => {});
+
+// templates for future use
 Cypress.Commands.add("", () => {
   cy.request({}).then((response) => {});
 });
