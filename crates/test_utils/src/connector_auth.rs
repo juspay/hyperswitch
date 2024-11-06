@@ -37,6 +37,7 @@ pub struct ConnectorAuthentication {
     #[cfg(feature = "dummy_connector")]
     pub dummyconnector: Option<HeaderKey>,
     pub ebanx: Option<HeaderKey>,
+    pub elavon: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
     pub fiservemea: Option<HeaderKey>,
     pub fiuu: Option<HeaderKey>,
@@ -48,6 +49,7 @@ pub struct ConnectorAuthentication {
     pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub itaubank: Option<MultiAuthKey>,
+    pub jpmorgan: Option<HeaderKey>,
     pub mifinity: Option<HeaderKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,

@@ -1117,12 +1117,16 @@ fn build_bill_to(
     Ok(address_details
         .and_then(|addr| {
             addr.address.as_ref().map(|addr| BillTo {
-                first_name: addr.first_name.clone(),
-                last_name: addr.last_name.clone(),
-                address1: addr.line1.clone(),
-                locality: addr.city.clone(),
-                administrative_area: addr.to_state_code_as_optional().ok().flatten(),
-                postal_code: addr.zip.clone(),
+                first_name: addr.first_name.remove_new_line(),
+                last_name: addr.last_name.remove_new_line(),
+                address1: addr.line1.remove_new_line(),
+                locality: addr.city.remove_new_line(),
+                administrative_area: addr
+                    .to_state_code_as_optional()
+                    .ok()
+                    .flatten()
+                    .remove_new_line(),
+                postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
                 email,
             })
@@ -2555,12 +2559,13 @@ fn get_payment_response(
                             .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                         mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     });
 
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
-                redirection_data: None,
-                mandate_reference,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: info_response.processor_information.as_ref().and_then(
                     |processor_information| processor_information.network_transaction_id.clone(),
@@ -2647,18 +2652,20 @@ impl<F>
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: Some(services::RedirectForm::CybersourceAuthSetup {
-                        access_token: info_response
-                            .consumer_authentication_information
-                            .access_token,
-                        ddc_url: info_response
-                            .consumer_authentication_information
-                            .device_data_collection_url,
-                        reference_id: info_response
-                            .consumer_authentication_information
-                            .reference_id,
-                    }),
-                    mandate_reference: None,
+                    redirection_data: Box::new(Some(
+                        services::RedirectForm::CybersourceAuthSetup {
+                            access_token: info_response
+                                .consumer_authentication_information
+                                .access_token,
+                            ddc_url: info_response
+                                .consumer_authentication_information
+                                .device_data_collection_url,
+                            reference_id: info_response
+                                .consumer_authentication_information
+                                .reference_id,
+                        },
+                    )),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(
@@ -3066,8 +3073,8 @@ impl<F>
                         status,
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::NoResponseId,
-                            redirection_data,
-                            mandate_reference: None,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(None),
                             connector_metadata: Some(serde_json::json!({
                                 "three_ds_data": three_ds_data
                             })),
@@ -3281,6 +3288,7 @@ impl
                         .map(|payment_instrument| payment_instrument.id.expose()),
                     payment_method_id: None,
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 });
         let mut mandate_status = enums::AttemptStatus::foreign_from((
             item.response
@@ -3311,8 +3319,8 @@ impl
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.id.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(mandate_reference),
                     connector_metadata: None,
                     network_txn_id: item.response.processor_information.as_ref().and_then(
                         |processor_information| {
@@ -3449,8 +3457,8 @@ impl<F>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 item.response.id.clone(),
                             ),
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: item
@@ -3471,8 +3479,8 @@ impl<F>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.id.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.id),
@@ -4048,5 +4056,24 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
         common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
+    }
+}
+
+pub trait RemoveNewLine {
+    fn remove_new_line(&self) -> Self;
+}
+
+impl RemoveNewLine for Option<Secret<String>> {
+    fn remove_new_line(&self) -> Self {
+        self.clone().map(|masked_value| {
+            let new_string = masked_value.expose().replace("\n", " ");
+            Secret::new(new_string)
+        })
+    }
+}
+
+impl RemoveNewLine for Option<String> {
+    fn remove_new_line(&self) -> Self {
+        self.clone().map(|value| value.replace("\n", " "))
     }
 }

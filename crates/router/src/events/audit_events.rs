@@ -18,7 +18,7 @@ pub enum AuditEventType {
     PaymentConfirm {
         client_src: Option<String>,
         client_ver: Option<String>,
-        frm_message: Option<FraudCheck>,
+        frm_message: Box<Option<FraudCheck>>,
     },
     PaymentCancelled {
         cancellation_reason: Option<String>,

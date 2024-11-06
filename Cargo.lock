@@ -353,6 +353,7 @@ dependencies = [
  "bigdecimal",
  "common_enums",
  "common_utils",
+ "currency_conversion",
  "diesel_models",
  "error-stack",
  "futures 0.3.30",
@@ -363,6 +364,7 @@ dependencies = [
  "opensearch",
  "reqwest 0.11.27",
  "router_env",
+ "rust_decimal",
  "serde",
  "serde_json",
  "sqlx",
@@ -3126,8 +3128,10 @@ dependencies = [
  "dyn-clone",
  "error-stack",
  "hex",
+ "http-body-util",
  "hyper 0.14.30",
  "hyper-proxy",
+ "hyper-util",
  "hyperswitch_interfaces",
  "masking",
  "once_cell",
@@ -3959,9 +3963,9 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.7"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cde7055719c54e36e95e8719f95883f22072a48ede39db7fc17a4e1d5281e9b9"
+checksum = "41296eb09f183ac68eec06e03cdbea2e759633d4067b2f6552fc2e009bcad08b"
 dependencies = [
  "bytes 1.7.1",
  "futures-channel",
@@ -3972,7 +3976,6 @@ dependencies = [
  "pin-project-lite",
  "socket2",
  "tokio 1.40.0",
- "tower",
  "tower-service",
  "tracing",
 ]
@@ -3997,6 +4000,7 @@ dependencies = [
  "hyperswitch_interfaces",
  "image",
  "masking",
+ "mime",
  "once_cell",
  "qrcode",
  "rand",
@@ -4007,9 +4011,11 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "serde_with",
  "strum 0.26.3",
  "time",
  "url",
+ "urlencoding",
  "uuid",
 ]
 
