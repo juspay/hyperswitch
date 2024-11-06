@@ -14,7 +14,7 @@ use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 use crate::{connector::utils::PayoutsData, types::api::payouts, utils::OptionExt};
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
+        self, missing_field_err, AddressDetailsData, BrowserInformationData, CardData,
         PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
     },
     consts,
@@ -1770,8 +1770,8 @@ fn get_line_items(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -
             .iter()
             .enumerate()
             .map(|(i, data)| LineItem {
-                amount_including_tax: Some(MinorUnit::new(data.amount)),
-                amount_excluding_tax: Some(MinorUnit::new(data.amount)),
+                amount_including_tax: Some(data.amount),
+                amount_excluding_tax: Some(data.amount),
                 description: Some(data.product_name.clone()),
                 id: Some(format!("Items #{i}")),
                 tax_amount: None,
@@ -2573,7 +2573,9 @@ impl<'a>
                         None => PaymentType::Scheme,
                     },
                     stored_payment_method_id: Secret::new(
-                        connector_mandate_ids.get_connector_mandate_id()?,
+                        connector_mandate_ids
+                            .get_connector_mandate_id()
+                            .ok_or_else(missing_field_err("mandate_id"))?,
                     ),
                 };
                 Ok::<AdyenPaymentMethod<'_>, Self::Error>(AdyenPaymentMethod::Mandate(Box::new(
@@ -3365,6 +3367,7 @@ pub fn get_adyen_response(
             connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
             mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
         });
     let network_txn_id = response.additional_data.and_then(|additional_data| {
         additional_data

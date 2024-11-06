@@ -1181,7 +1181,7 @@ diesel::table! {
         #[max_length = 64]
         last_modified_by -> Varchar,
         #[max_length = 64]
-        entity_type -> Nullable<Varchar>,
+        entity_type -> Varchar,
     }
 }
 

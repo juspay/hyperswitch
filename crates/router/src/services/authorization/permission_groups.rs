@@ -1,4 +1,9 @@
-use common_enums::{ParentGroup, PermissionGroup, PermissionScope, Resource};
+use std::collections::HashMap;
+
+use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
+use strum::IntoEnumIterator;
+
+use super::permissions::{self, ResourceExt};
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
@@ -15,7 +20,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WorkflowsView
             | Self::AnalyticsView
             | Self::UsersView
-            | Self::MerchantDetailsView => PermissionScope::Read,
+            | Self::MerchantDetailsView
+            | Self::AccountView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -23,7 +29,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::UsersManage
             | Self::MerchantDetailsManage
             | Self::OrganizationManage
-            | Self::ReconOps => PermissionScope::Write,
+            | Self::ReconOps
+            | Self::AccountManage => PermissionScope::Write,
         }
     }
 
@@ -34,9 +41,12 @@ impl PermissionGroupExt for PermissionGroup {
             Self::WorkflowsView | Self::WorkflowsManage => ParentGroup::Workflows,
             Self::AnalyticsView => ParentGroup::Analytics,
             Self::UsersView | Self::UsersManage => ParentGroup::Users,
-            Self::MerchantDetailsView | Self::MerchantDetailsManage => ParentGroup::Merchant,
-            Self::OrganizationManage => ParentGroup::Organization,
             Self::ReconOps => ParentGroup::Recon,
+            Self::MerchantDetailsView
+            | Self::OrganizationManage
+            | Self::MerchantDetailsManage
+            | Self::AccountView
+            | Self::AccountManage => ParentGroup::Account,
         }
     }
 
@@ -52,10 +62,14 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ConnectorsView => vec![Self::ConnectorsView],
             Self::ConnectorsManage => vec![Self::ConnectorsView, Self::ConnectorsManage],
 
-            Self::WorkflowsView => vec![Self::WorkflowsView],
-            Self::WorkflowsManage => vec![Self::WorkflowsView, Self::WorkflowsManage],
+            Self::WorkflowsView => vec![Self::WorkflowsView, Self::ConnectorsView],
+            Self::WorkflowsManage => vec![
+                Self::WorkflowsView,
+                Self::WorkflowsManage,
+                Self::ConnectorsView,
+            ],
 
-            Self::AnalyticsView => vec![Self::AnalyticsView],
+            Self::AnalyticsView => vec![Self::AnalyticsView, Self::OperationsView],
 
             Self::UsersView => vec![Self::UsersView],
             Self::UsersManage => {
@@ -70,12 +84,19 @@ impl PermissionGroupExt for PermissionGroup {
             }
 
             Self::OrganizationManage => vec![Self::OrganizationManage],
+
+            Self::AccountView => vec![Self::AccountView],
+            Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
         }
     }
 }
 
 pub trait ParentGroupExt {
     fn resources(&self) -> Vec<Resource>;
+    fn get_descriptions_for_groups(
+        entity_type: EntityType,
+        groups: Vec<PermissionGroup>,
+    ) -> HashMap<ParentGroup, String>;
 }
 
 impl ParentGroupExt for ParentGroup {
@@ -86,9 +107,37 @@ impl ParentGroupExt for ParentGroup {
             Self::Workflows => WORKFLOWS.to_vec(),
             Self::Analytics => ANALYTICS.to_vec(),
             Self::Users => USERS.to_vec(),
-            Self::Merchant | Self::Organization => ACCOUNT.to_vec(),
+            Self::Account => ACCOUNT.to_vec(),
             Self::Recon => RECON.to_vec(),
         }
+    }
+
+    fn get_descriptions_for_groups(
+        entity_type: EntityType,
+        groups: Vec<PermissionGroup>,
+    ) -> HashMap<Self, String> {
+        Self::iter()
+            .filter_map(|parent| {
+                let scopes = groups
+                    .iter()
+                    .filter(|group| group.parent() == parent)
+                    .map(|group| group.scope())
+                    .max()?;
+
+                let resources = parent
+                    .resources()
+                    .iter()
+                    .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
+                    .map(|res| permissions::get_resource_name(res, &entity_type))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                Some((
+                    parent,
+                    format!("{} {}", permissions::get_scope_name(&scopes), resources),
+                ))
+            })
+            .collect()
     }
 }
 
@@ -105,11 +154,10 @@ pub static OPERATIONS: [Resource; 8] = [
 
 pub static CONNECTORS: [Resource; 2] = [Resource::Connector, Resource::Account];
 
-pub static WORKFLOWS: [Resource; 5] = [
+pub static WORKFLOWS: [Resource; 4] = [
     Resource::Routing,
     Resource::ThreeDsDecisionManager,
     Resource::SurchargeDecisionManager,
-    Resource::Connector,
     Resource::Account,
 ];
 
