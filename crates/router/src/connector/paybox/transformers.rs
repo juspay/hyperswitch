@@ -1,3 +1,4 @@
+use api_models::payments::AdditionalPaymentData;
 use bytes::Bytes;
 use common_utils::{
     date_time::DateFormat, errors::CustomResult, ext_traits::ValueExt, types::MinorUnit,
@@ -8,7 +9,7 @@ use hyperswitch_domain_models::{
     router_data::ConnectorAuthType, router_response_types::RedirectForm,
 };
 use hyperswitch_interfaces::consts;
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
@@ -16,7 +17,7 @@ use crate::{
         self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData, RouterData,
     },
     core::errors,
-    types::{self, api, domain, storage::enums},
+    types::{self, api, domain, storage::enums, MandateReference},
 };
 
 pub struct PayboxRouterData<T> {
@@ -42,6 +43,10 @@ const SUCCESS_CODE: &str = "00000";
 const VERSION_PAYBOX: &str = "00104";
 const PAY_ORIGIN_INTERNET: &str = "024";
 const THREE_DS_FAIL_CODE: &str = "00000000";
+const RECURRING_ORIGIN: &str = "027";
+const MANDATE_REQUEST: &str = "00056";
+const MANDATE_AUTH_ONLY: &str = "00051";
+const MANDATE_AUTH_AND_CAPTURE_ONLY: &str = "00053";
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -50,6 +55,13 @@ type Error = error_stack::Report<errors::ConnectorError>;
 pub enum PayboxPaymentsRequest {
     Card(PaymentsRequest),
     CardThreeDs(ThreeDSPaymentsRequest),
+    Mandate(MandatePaymentRequest),
+}
+
+#[derive(Debug, Serialize)]
+pub struct CardMandateInfo {
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -99,6 +111,10 @@ pub struct PaymentsRequest {
     #[serde(rename = "ID3D")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds_data: Option<Secret<String>>,
+
+    #[serde(rename = "REFABONNE")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<Secret<String>>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -367,8 +383,10 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                 let auth_data: PayboxAuthType =
                     PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                         .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-                let transaction_type =
-                    get_transaction_type(item.router_data.request.capture_method)?;
+                let transaction_type = get_transaction_type(
+                    item.router_data.request.capture_method,
+                    item.router_data.request.is_mandate_payment(),
+                )?;
                 let currency =
                     diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
                         .to_string();
@@ -420,18 +438,80 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                         rank: auth_data.rang,
                         key: auth_data.cle,
                         three_ds_data: None,
+                        customer_id: match item.router_data.request.is_mandate_payment() {
+                            true => {
+                                let reference_id = item
+                                    .router_data
+                                    .connector_mandate_request_reference_id
+                                    .clone()
+                                    .ok_or_else(|| {
+                                        errors::ConnectorError::MissingRequiredField {
+                                            field_name: "connector_mandate_request_reference_id",
+                                        }
+                                    })?;
+                                Some(Secret::new(reference_id))
+                            }
+                            false => None,
+                        },
                     }))
                 }
+            }
+            domain::PaymentMethodData::MandatePayment => {
+                let mandate_data = extract_card_mandate_info(
+                    item.router_data
+                        .request
+                        .additional_payment_method_data
+                        .clone(),
+                )?;
+                Ok(Self::Mandate(MandatePaymentRequest::try_from((
+                    item,
+                    mandate_data,
+                ))?))
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
 
-fn get_transaction_type(capture_method: Option<enums::CaptureMethod>) -> Result<String, Error> {
-    match capture_method {
-        Some(enums::CaptureMethod::Automatic) | None => Ok(AUTH_AND_CAPTURE_REQUEST.to_string()),
-        Some(enums::CaptureMethod::Manual) => Ok(AUTH_REQUEST.to_string()),
+fn extract_card_mandate_info(
+    additional_payment_method_data: Option<AdditionalPaymentData>,
+) -> Result<CardMandateInfo, Error> {
+    match additional_payment_method_data {
+        Some(AdditionalPaymentData::Card(card_data)) => Ok(CardMandateInfo {
+            card_exp_month: card_data.card_exp_month.clone().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_month",
+                }
+            })?,
+            card_exp_year: card_data.card_exp_year.clone().ok_or_else(|| {
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_exp_year",
+                }
+            })?,
+        }),
+        _ => Err(errors::ConnectorError::MissingRequiredFields {
+            field_names: vec!["card_exp_month", "card_exp_year"],
+        }
+        .into()),
+    }
+}
+
+fn get_transaction_type(
+    capture_method: Option<enums::CaptureMethod>,
+    is_mandate_request: bool,
+) -> Result<String, Error> {
+    match (capture_method, is_mandate_request) {
+        (Some(enums::CaptureMethod::Automatic), false) | (None, false) => {
+            Ok(AUTH_AND_CAPTURE_REQUEST.to_string())
+        }
+        (Some(enums::CaptureMethod::Automatic), true) | (None, true) => {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Capture Not allowed in case of Creating the Subscriber".to_string(),
+                connector: "Paybox",
+            })?
+        }
+        (Some(enums::CaptureMethod::Manual), false) => Ok(AUTH_REQUEST.to_string()),
+        (Some(enums::CaptureMethod::Manual), true) => Ok(MANDATE_REQUEST.to_string()),
         _ => Err(errors::ConnectorError::CaptureMethodNotSupported)?,
     }
 }
@@ -499,6 +579,11 @@ pub struct TransactionResponse {
 
     #[serde(rename = "COMMENTAIRE")]
     pub response_message: String,
+    #[serde(rename = "PORTEUR")]
+    pub carrier_id: Option<Secret<String>>,
+
+    #[serde(rename = "REFABONNE")]
+    pub customer_id: Option<Secret<String>>,
 }
 
 pub fn parse_url_encoded_to_struct<T: DeserializeOwned>(
@@ -597,8 +682,8 @@ impl<F, T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         response.paybox_order_id,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
                         connector_request_id: response.transaction_number.clone()
                     })),
@@ -657,8 +742,16 @@ impl<F>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 response.paybox_order_id,
                             ),
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(response.carrier_id.as_ref().map(
+                                |pm: &Secret<String>| MandateReference {
+                                    connector_mandate_id: Some(pm.clone().expose()),
+                                    payment_method_id: None,
+                                    mandate_metadata: None,
+                                    connector_mandate_request_reference_id:
+                                        response.customer_id.map(|secret| secret.expose()),
+                                },
+                            )),
                             connector_metadata: Some(serde_json::json!(PayboxMeta {
                                 connector_request_id: response.transaction_number.clone()
                             })),
@@ -686,10 +779,10 @@ impl<F>
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: Some(RedirectForm::Html {
+                    redirection_data: Box::new(Some(RedirectForm::Html {
                         html_data: data.peek().to_string(),
-                    }),
-                    mandate_reference: None,
+                    })),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -731,8 +824,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxSyncResponse, T, types::Pa
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         response.paybox_order_id,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
                         connector_request_id: response.transaction_number.clone()
                     })),
@@ -916,8 +1009,17 @@ impl<F>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         response.paybox_order_id,
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(response.carrier_id.as_ref().map(|pm| {
+                        MandateReference {
+                            connector_mandate_id: Some(pm.clone().expose()),
+                            payment_method_id: None,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: response
+                                .customer_id
+                                .map(|secret| secret.expose()),
+                        }
+                    })),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
                         connector_request_id: response.transaction_number.clone()
                     })),
@@ -973,8 +1075,10 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
                 let auth_data: PayboxAuthType =
                     PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                         .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-                let transaction_type =
-                    get_transaction_type(item.router_data.request.capture_method)?;
+                let transaction_type = get_transaction_type(
+                    item.router_data.request.capture_method,
+                    item.router_data.request.is_mandate_payment(),
+                )?;
                 let currency =
                     diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
                         .to_string();
@@ -1004,9 +1108,128 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
                         || Some(Secret::new(THREE_DS_FAIL_CODE.to_string())),
                         |data| Some(data.clone()),
                     ),
+                    customer_id: match item.router_data.request.is_mandate_payment() {
+                        true => Some(Secret::new(item.router_data.payment_id.clone())),
+                        false => None,
+                    },
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
+}
+
+#[derive(Debug, Serialize)]
+pub struct MandatePaymentRequest {
+    #[serde(rename = "DATEQ")]
+    pub date: String,
+
+    #[serde(rename = "TYPE")]
+    pub transaction_type: String,
+
+    #[serde(rename = "NUMQUESTION")]
+    pub paybox_request_number: String,
+
+    #[serde(rename = "MONTANT")]
+    pub amount: MinorUnit,
+
+    #[serde(rename = "REFERENCE")]
+    pub description_reference: String,
+
+    #[serde(rename = "VERSION")]
+    pub version: String,
+
+    #[serde(rename = "DEVISE")]
+    pub currency: String,
+
+    #[serde(rename = "ACTIVITE")]
+    pub activity: String,
+
+    #[serde(rename = "SITE")]
+    pub site: Secret<String>,
+
+    #[serde(rename = "RANG")]
+    pub rank: Secret<String>,
+
+    #[serde(rename = "CLE")]
+    pub key: Secret<String>,
+
+    #[serde(rename = "DATEVAL")]
+    pub cc_exp_date: Secret<String>,
+
+    #[serde(rename = "REFABONNE")]
+    pub customer_id: Secret<String>,
+
+    #[serde(rename = "PORTEUR")]
+    pub carrier_id: Secret<String>,
+}
+
+impl
+    TryFrom<(
+        &PayboxRouterData<&types::PaymentsAuthorizeRouterData>,
+        CardMandateInfo,
+    )> for MandatePaymentRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, card_mandate_info): (
+            &PayboxRouterData<&types::PaymentsAuthorizeRouterData>,
+            CardMandateInfo,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let auth_data: PayboxAuthType =
+            PayboxAuthType::try_from(&item.router_data.connector_auth_type)
+                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let transaction_type = match item.router_data.request.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => {
+                Ok(MANDATE_AUTH_AND_CAPTURE_ONLY.to_string())
+            }
+            Some(enums::CaptureMethod::Manual) => Ok(MANDATE_AUTH_ONLY.to_string()),
+            _ => Err(errors::ConnectorError::CaptureMethodNotSupported),
+        }?;
+        let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
+            .to_string();
+        let format_time = common_utils::date_time::format_date(
+            common_utils::date_time::now(),
+            DateFormat::DDMMYYYYHHmmss,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Self {
+            date: format_time.clone(),
+            transaction_type,
+            paybox_request_number: get_paybox_request_number()?,
+            amount: item.router_data.request.minor_amount,
+            description_reference: item.router_data.connector_request_reference_id.clone(),
+            version: VERSION_PAYBOX.to_string(),
+            currency,
+            activity: RECURRING_ORIGIN.to_string(),
+            site: auth_data.site,
+            rank: auth_data.rang,
+            key: auth_data.cle,
+            customer_id: Secret::new(
+                item.router_data
+                    .request
+                    .get_connector_mandate_request_reference_id()?,
+            ),
+            carrier_id: Secret::new(item.router_data.request.get_connector_mandate_id()?),
+            cc_exp_date: get_card_expiry_month_year_2_digit(
+                card_mandate_info.card_exp_month.clone(),
+                card_mandate_info.card_exp_year.clone(),
+            )?,
+        })
+    }
+}
+
+fn get_card_expiry_month_year_2_digit(
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
+) -> Result<Secret<String>, errors::ConnectorError> {
+    Ok(Secret::new(format!(
+        "{}{}",
+        card_exp_month.peek(),
+        card_exp_year
+            .peek()
+            .get(card_exp_year.peek().len() - 2..)
+            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+    )))
 }

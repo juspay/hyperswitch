@@ -285,8 +285,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
         };
         let payments_response = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.handle.clone()),
-            redirection_data: None,
-            mandate_reference: None,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(item.response.handle),

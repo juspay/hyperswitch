@@ -1,16 +1,27 @@
+use common_enums::enums;
+use common_utils::{errors::ParsingError, request::Method};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_domain_models::{
+    payment_method_data::{PaymentMethodData, WalletData},
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        PSync,
+    },
+    router_request_types::{PaymentsSyncData, ResponseId},
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::{api, errors};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    connector::utils::{self, CardData},
-    core::errors,
-    pii::Secret,
-    services,
-    types::{self, api, domain, storage::enums, PaymentsSyncData},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, CardData as _},
 };
 
 pub struct AirwallexAuthType {
@@ -18,11 +29,11 @@ pub struct AirwallexAuthType {
     pub x_client_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
+impl TryFrom<&ConnectorAuthType> for AirwallexAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 x_api_key: api_key.clone(),
                 x_client_id: key1.clone(),
@@ -104,7 +115,7 @@ pub struct AirwallexPaymentsRequest {
 #[serde(untagged)]
 pub enum AirwallexPaymentMethod {
     Card(AirwallexCard),
-    Wallets(WalletData),
+    Wallets(AirwallexWalletData),
 }
 
 #[derive(Debug, Serialize)]
@@ -123,7 +134,7 @@ pub struct AirwallexCardDetails {
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum WalletData {
+pub enum AirwallexWalletData {
     GooglePay(GooglePayData),
 }
 
@@ -173,7 +184,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
         let mut payment_method_options = None;
         let request = &item.router_data.request;
         let payment_method = match request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(ccard) => {
+            PaymentMethodData::Card(ccard) => {
                 payment_method_options =
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(
@@ -191,24 +202,23 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                     payment_method_type: AirwallexPaymentType::Card,
                 }))
             }
-            domain::PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data),
-            domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data),
+            PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("airwallex"),
                 ))
@@ -225,11 +235,11 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
 }
 
 fn get_wallet_details(
-    wallet_data: &domain::WalletData,
+    wallet_data: &WalletData,
 ) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
     let wallet_details: AirwallexPaymentMethod = match wallet_data {
-        domain::WalletData::GooglePay(gpay_details) => {
-            AirwallexPaymentMethod::Wallets(WalletData::GooglePay(GooglePayData {
+        WalletData::GooglePay(gpay_details) => {
+            AirwallexPaymentMethod::Wallets(AirwallexWalletData::GooglePay(GooglePayData {
                 googlepay: GooglePayDetails {
                     encrypted_payment_token: Secret::new(
                         gpay_details.tokenization_data.token.clone(),
@@ -239,33 +249,33 @@ fn get_wallet_details(
                 payment_method_type: AirwallexPaymentType::Googlepay,
             }))
         }
-        domain::WalletData::AliPayQr(_)
-        | domain::WalletData::AliPayRedirect(_)
-        | domain::WalletData::AliPayHkRedirect(_)
-        | domain::WalletData::MomoRedirect(_)
-        | domain::WalletData::KakaoPayRedirect(_)
-        | domain::WalletData::GoPayRedirect(_)
-        | domain::WalletData::GcashRedirect(_)
-        | domain::WalletData::ApplePay(_)
-        | domain::WalletData::ApplePayRedirect(_)
-        | domain::WalletData::ApplePayThirdPartySdk(_)
-        | domain::WalletData::DanaRedirect {}
-        | domain::WalletData::GooglePayRedirect(_)
-        | domain::WalletData::GooglePayThirdPartySdk(_)
-        | domain::WalletData::MbWayRedirect(_)
-        | domain::WalletData::MobilePayRedirect(_)
-        | domain::WalletData::PaypalRedirect(_)
-        | domain::WalletData::PaypalSdk(_)
-        | domain::WalletData::Paze(_)
-        | domain::WalletData::SamsungPay(_)
-        | domain::WalletData::TwintRedirect {}
-        | domain::WalletData::VippsRedirect {}
-        | domain::WalletData::TouchNGoRedirect(_)
-        | domain::WalletData::WeChatPayRedirect(_)
-        | domain::WalletData::WeChatPayQr(_)
-        | domain::WalletData::CashappQr(_)
-        | domain::WalletData::SwishQr(_)
-        | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+        WalletData::AliPayQr(_)
+        | WalletData::AliPayRedirect(_)
+        | WalletData::AliPayHkRedirect(_)
+        | WalletData::MomoRedirect(_)
+        | WalletData::KakaoPayRedirect(_)
+        | WalletData::GoPayRedirect(_)
+        | WalletData::GcashRedirect(_)
+        | WalletData::ApplePay(_)
+        | WalletData::ApplePayRedirect(_)
+        | WalletData::ApplePayThirdPartySdk(_)
+        | WalletData::DanaRedirect {}
+        | WalletData::GooglePayRedirect(_)
+        | WalletData::GooglePayThirdPartySdk(_)
+        | WalletData::MbWayRedirect(_)
+        | WalletData::MobilePayRedirect(_)
+        | WalletData::PaypalRedirect(_)
+        | WalletData::PaypalSdk(_)
+        | WalletData::Paze(_)
+        | WalletData::SamsungPay(_)
+        | WalletData::TwintRedirect {}
+        | WalletData::VippsRedirect {}
+        | WalletData::TouchNGoRedirect(_)
+        | WalletData::WeChatPayRedirect(_)
+        | WalletData::WeChatPayQr(_)
+        | WalletData::CashappQr(_)
+        | WalletData::SwishQr(_)
+        | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("airwallex"),
         ))?,
     };
@@ -279,16 +289,16 @@ pub struct AirwallexAuthUpdateResponse {
     token: Secret<String>,
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>
-    for types::RouterData<F, T, types::AccessToken>
+impl<F, T> TryFrom<ResponseRouterData<F, AirwallexAuthUpdateResponse, T, AccessToken>>
+    for RouterData<F, T, AccessToken>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>,
+        item: ResponseRouterData<F, AirwallexAuthUpdateResponse, T, AccessToken>,
     ) -> Result<Self, Self::Error> {
         let expires = (item.response.expires_at - common_utils::date_time::now()).whole_seconds();
         Ok(Self {
-            response: Ok(types::AccessToken {
+            response: Ok(AccessToken {
                 token: item.response.token,
                 expires,
             }),
@@ -439,7 +449,7 @@ pub struct AirwallexRedirectFormData {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct AirwallexPaymentsNextAction {
     url: Url,
-    method: services::Method,
+    method: Method,
     data: AirwallexRedirectFormData,
     stage: AirwallexNextActionStage,
 }
@@ -466,10 +476,8 @@ pub struct AirwallexPaymentsSyncResponse {
     next_action: Option<AirwallexPaymentsNextAction>,
 }
 
-fn get_redirection_form(
-    response_url_data: AirwallexPaymentsNextAction,
-) -> Option<services::RedirectForm> {
-    Some(services::RedirectForm::Form {
+fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Option<RedirectForm> {
+    Some(RedirectForm::Form {
         endpoint: response_url_data.url.to_string(),
         method: response_url_data.method,
         form_fields: std::collections::HashMap::from([
@@ -510,18 +518,12 @@ fn get_redirection_form(
     })
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, AirwallexPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            AirwallexPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, AirwallexPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (status, redirection_data) = item.response.next_action.clone().map_or(
             // If no next action is there, map the status and set redirection form as None
@@ -569,13 +571,13 @@ impl<F, T>
         Ok(Self {
             status,
             reference_id: Some(item.response.id.clone()),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data,
-                mandate_reference: None,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
@@ -586,21 +588,21 @@ impl<F, T>
 
 impl
     TryFrom<
-        types::ResponseRouterData<
-            api::PSync,
+        ResponseRouterData<
+            PSync,
             AirwallexPaymentsSyncResponse,
             PaymentsSyncData,
-            types::PaymentsResponseData,
+            PaymentsResponseData,
         >,
     > for types::PaymentsSyncRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            api::PSync,
+        item: ResponseRouterData<
+            PSync,
             AirwallexPaymentsSyncResponse,
             PaymentsSyncData,
-            types::PaymentsResponseData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let status = get_payment_status(&item.response.status, &item.response.next_action);
@@ -612,13 +614,13 @@ impl
         Ok(Self {
             status,
             reference_id: Some(item.response.id.clone()),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data,
-                mandate_reference: None,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
@@ -683,16 +685,16 @@ pub struct RefundResponse {
     status: RefundStatus,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status,
             }),
@@ -701,16 +703,14 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
-    type Error = error_stack::Report<errors::ParsingError>;
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
+    type Error = error_stack::Report<ParsingError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_status = enums::RefundStatus::from(item.response.status);
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status,
             }),

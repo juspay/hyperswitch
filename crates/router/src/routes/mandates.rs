@@ -1,5 +1,4 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -117,8 +116,7 @@ pub async fn retrieve_mandates_list(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::MandateRead,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantMandateRead,
             },
             req.headers(),
         ),

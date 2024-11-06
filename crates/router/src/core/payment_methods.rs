@@ -754,6 +754,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     customer_id: &Option<id_type::CustomerId>,
     billing_name: Option<Secret<String>>,
+    payment_method_billing_address: Option<&api_models::payments::Address>,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {
         Some(pm_data) => match payment_method {
@@ -788,7 +789,7 @@ pub(crate) async fn get_payment_method_create_request(
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
                         payment_method_data: None,
-                        billing: None,
+                        billing: payment_method_billing_address.cloned(),
                         connector_mandate_details: None,
                         network_transaction_id: None,
                     };

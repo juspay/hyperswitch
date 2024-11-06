@@ -1,20 +1,28 @@
+use common_enums::enums;
 use common_utils::{
     pii::{self, Email},
     types::FloatMajorUnit,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payment_method_data::UpiCollectData;
+use hyperswitch_domain_models::{
+    payment_method_data::{PaymentMethodData, UpiCollectData, UpiData},
+    router_data::{ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::{
+    configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::Secret;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{
-    configs::settings,
-    consts,
-    core::errors,
-    types::{self, api, domain, storage::enums},
-};
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 
 pub struct RazorpayRouterData<T> {
     pub amount: FloatMajorUnit,
@@ -367,42 +375,42 @@ fn generate_12_digit_number() -> u64 {
 impl
     TryFrom<(
         &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-        &settings::Connectors,
+        &Connectors,
     )> for RazorpayPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, data): (
             &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-            &settings::Connectors,
+            &Connectors,
         ),
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         let txn_card_info = match request.payment_method_data.clone() {
-            domain::PaymentMethodData::Upi(upi_type) => match upi_type {
-                domain::UpiData::UpiCollect(upi_data) => TxnCardInfo::try_from((item, upi_data)),
-                hyperswitch_domain_models::payment_method_data::UpiData::UpiIntent(_) => Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                ),
+            PaymentMethodData::Upi(upi_type) => match upi_type {
+                UpiData::UpiCollect(upi_data) => TxnCardInfo::try_from((item, upi_data)),
+                UpiData::UpiIntent(_) => Err(errors::ConnectorError::NotImplemented(
+                    "Payment methods".to_string(),
+                )
+                .into()),
             },
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }?;
@@ -458,7 +466,7 @@ impl TryFrom<&RazorpayRouterData<&types::PaymentsAuthorizeRouterData>> for Secon
 impl
     TryFrom<(
         &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-        &settings::Connectors,
+        &Connectors,
     )> for MerchantAccount
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -466,7 +474,7 @@ impl
     fn try_from(
         (_item, data): (
             &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-            &settings::Connectors,
+            &Connectors,
         ),
     ) -> Result<Self, Self::Error> {
         let merchant_data = JuspayAuthData::try_from(data)?;
@@ -484,7 +492,7 @@ impl
 impl
     TryFrom<(
         &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-        &settings::Connectors,
+        &Connectors,
     )> for OrderReference
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -492,7 +500,7 @@ impl
     fn try_from(
         (item, data): (
             &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-            &settings::Connectors,
+            &Connectors,
         ),
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
@@ -530,7 +538,7 @@ impl
         let item = payment_data.0;
         let upi_data = payment_data.1;
         let ref_id = generate_12_digit_number();
-        let pm = common_enums::enums::PaymentMethod::Upi;
+        let pm = enums::PaymentMethod::Upi;
         Ok(Self {
             txn_detail_id: ref_id.to_string(),
             txn_id: item.router_data.connector_request_reference_id.clone(),
@@ -551,7 +559,7 @@ impl
 impl
     TryFrom<(
         &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-        &settings::Connectors,
+        &Connectors,
     )> for TxnDetail
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -559,7 +567,7 @@ impl
     fn try_from(
         (item, data): (
             &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-            &settings::Connectors,
+            &Connectors,
         ),
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
@@ -598,7 +606,7 @@ impl
 impl
     TryFrom<(
         &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-        &settings::Connectors,
+        &Connectors,
     )> for MerchantGatewayAccount
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -606,7 +614,7 @@ impl
     fn try_from(
         (item, data): (
             &RazorpayRouterData<&types::PaymentsAuthorizeRouterData>,
-            &settings::Connectors,
+            &Connectors,
         ),
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
@@ -650,11 +658,11 @@ pub struct RazorpayAuthType {
     pub(super) razorpay_secret: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for RazorpayAuthType {
+impl TryFrom<&ConnectorAuthType> for RazorpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 razorpay_id: api_key.to_owned(),
                 razorpay_secret: key1.to_owned(),
             }),
@@ -666,11 +674,11 @@ impl TryFrom<&types::ConnectorAuthType> for RazorpayAuthType {
 pub struct JuspayAuthData {
     pub(super) merchant_id: Secret<String>,
 }
-impl TryFrom<&settings::Connectors> for JuspayAuthData {
+impl TryFrom<&Connectors> for JuspayAuthData {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(connector_param: &settings::Connectors) -> Result<Self, Self::Error> {
-        let settings::Connectors { razorpay, .. } = connector_param;
+    fn try_from(connector_param: &Connectors) -> Result<Self, Self::Error> {
+        let Connectors { razorpay, .. } = connector_param;
         Ok(Self {
             merchant_id: razorpay.merchant_id.clone(),
         })
@@ -768,30 +776,22 @@ impl From<enums::AttemptStatus> for TxnStatus {
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, RazorpayPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            RazorpayPaymentsResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, RazorpayPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let second_factor = item.response.contents.second_factor;
         let status = enums::AttemptStatus::from(item.response.contents.txn_status);
         match second_factor {
             Some(second_factor) => Ok(Self {
                 status,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        second_factor.epg_txn_id,
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(second_factor.epg_txn_id),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(second_factor.txn_id),
@@ -807,10 +807,10 @@ impl<F, T>
                     .pgr_info
                     .resp_message
                     .clone()
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string());
+                    .unwrap_or(NO_ERROR_MESSAGE.to_string());
                 Ok(Self {
                     status,
-                    response: Err(types::ErrorResponse {
+                    response: Err(hyperswitch_domain_models::router_data::ErrorResponse {
                         code: item.response.contents.pgr_info.resp_code.clone(),
                         message: message_code.clone(),
                         reason: Some(message_code.clone()),
@@ -860,7 +860,7 @@ pub struct AccountDetails {
 impl
     TryFrom<(
         RazorpayRouterData<&types::PaymentsSyncRouterData>,
-        &settings::Connectors,
+        &Connectors,
     )> for RazorpayCreateSyncRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -868,7 +868,7 @@ impl
     fn try_from(
         (item, data): (
             RazorpayRouterData<&types::PaymentsSyncRouterData>,
-            &settings::Connectors,
+            &Connectors,
         ),
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
@@ -997,22 +997,21 @@ impl From<PsyncStatus> for enums::AttemptStatus {
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, RazorpaySyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, RazorpaySyncResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, RazorpaySyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
                     item.response.second_factor.epg_txn_id,
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.second_factor.txn_id),
@@ -1072,14 +1071,14 @@ pub struct PaymentGatewayResponse {
 impl<F>
     TryFrom<(
         &RazorpayRouterData<&types::RefundsRouterData<F>>,
-        &settings::Connectors,
+        &Connectors,
     )> for RazorpayRefundRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, data): (
             &RazorpayRouterData<&types::RefundsRouterData<F>>,
-            &settings::Connectors,
+            &Connectors,
         ),
     ) -> Result<Self, Self::Error> {
         let ref_id = generate_12_digit_number();
@@ -1167,7 +1166,7 @@ impl<F>
         let payment_source: Secret<String, pii::UpiVpaMaskingStrategy> =
             Secret::new("".to_string());
 
-        let pm = common_enums::enums::PaymentMethod::Upi;
+        let pm = enums::PaymentMethod::Upi;
 
         let txn_card_info = TxnCardInfo {
             txn_detail_id: ref_id.to_string(),
@@ -1245,34 +1244,34 @@ pub struct RefundRes {
     date_created: Option<PrimitiveDateTime>,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let epg_txn_id = item.response.refund.epg_txn_id.clone();
         let refund_status = enums::RefundStatus::from(item.response.refund.status);
 
         let response = match epg_txn_id {
-            Some(epg_txn_id) => Ok(types::RefundsResponseData {
+            Some(epg_txn_id) => Ok(RefundsResponseData {
                 connector_refund_id: epg_txn_id,
                 refund_status,
             }),
-            None => Err(types::ErrorResponse {
+            None => Err(hyperswitch_domain_models::router_data::ErrorResponse {
                 code: item
                     .response
                     .refund
                     .error_message
                     .clone()
-                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    .unwrap_or(NO_ERROR_CODE.to_string()),
                 message: item
                     .response
                     .refund
                     .response_code
                     .clone()
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    .unwrap_or(NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.refund.response_code.clone(),
                 status_code: item.http_code,
                 attempt_status: None,
@@ -1286,15 +1285,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id: item
                     .data
                     .request

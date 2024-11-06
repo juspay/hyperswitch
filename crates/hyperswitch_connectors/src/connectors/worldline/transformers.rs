@@ -571,8 +571,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, Payment, T, PaymentsResponseData>>
             status: get_status((item.response.status, item.response.capture_method)),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
@@ -622,8 +622,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaymentResponse, T, PaymentsResponseDat
             )),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment.id.clone()),
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.payment.id),

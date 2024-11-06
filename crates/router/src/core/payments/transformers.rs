@@ -102,6 +102,12 @@ where
         customer_data: customer,
     };
 
+    let connector_mandate_request_reference_id = payment_data
+        .payment_attempt
+        .connector_mandate_detail
+        .as_ref()
+        .and_then(|detail| detail.get_connector_mandate_request_reference_id());
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().clone(),
@@ -159,6 +165,7 @@ where
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id,
     };
     Ok(router_data)
 }
@@ -278,7 +285,14 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         charges: None,
         merchant_order_reference_id: None,
         integrity_object: None,
+        shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
+        additional_payment_method_data: None,
     };
+    let connector_mandate_request_reference_id = payment_data
+        .payment_attempt
+        .connector_mandate_detail
+        .as_ref()
+        .and_then(|detail| detail.get_connector_mandate_request_reference_id());
 
     // TODO: evaluate the fields in router data, if they are required or not
     let router_data = types::RouterData {
@@ -354,6 +368,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload,
+        connector_mandate_request_reference_id,
     };
 
     Ok(router_data)
@@ -436,8 +451,8 @@ where
     // [#44]: why should response be filled during request
     let response = Ok(types::PaymentsResponseData::TransactionResponse {
         resource_id,
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
@@ -500,6 +515,11 @@ where
     } else {
         payment_data.address
     };
+    let connector_mandate_request_reference_id = payment_data
+        .payment_attempt
+        .connector_mandate_detail
+        .as_ref()
+        .and_then(|detail| detail.get_connector_mandate_request_reference_id());
 
     crate::logger::debug!("unified address details {:?}", unified_address);
 
@@ -569,6 +589,7 @@ where
             )
         }),
         header_payload,
+        connector_mandate_request_reference_id,
     };
 
     Ok(router_data)
@@ -754,7 +775,7 @@ where
 }
 
 #[cfg(feature = "v2")]
-impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsCreateIntentResponse
+impl<F, Op, D> ToResponse<F, D, Op> for api::PaymentsIntentResponse
 where
     F: Clone,
     Op: Debug,
@@ -1545,7 +1566,7 @@ where
                 .and_then(|mandate_ref| match mandate_ref {
                     api_models::payments::MandateReferenceId::ConnectorMandateId(
                         connector_mandate_reference_id,
-                    ) => connector_mandate_reference_id.connector_mandate_id.clone(),
+                    ) => connector_mandate_reference_id.get_connector_mandate_id(),
                     _ => None,
                 })
         });
@@ -2003,7 +2024,7 @@ pub fn mobile_payment_next_steps_check(
 }
 
 pub fn change_order_details_to_new_type(
-    order_amount: i64,
+    order_amount: MinorUnit,
     order_details: api_models::payments::OrderDetails,
 ) -> Option<Vec<api_models::payments::OrderDetailsWithAmount>> {
     Some(vec![api_models::payments::OrderDetailsWithAmount {
@@ -2141,7 +2162,18 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             payment_data.creds_identifier.as_deref(),
         ));
 
-        // payment_method_data is not required during recurring mandate payment, in such case keep default PaymentMethodData as MandatePayment
+        let additional_payment_method_data = if payment_data.mandate_id.is_some() {
+            let parsed_additional_payment_data: Option<api_models::payments::AdditionalPaymentData> =
+                payment_data.payment_attempt
+                    .payment_method_data
+                    .as_ref().map(|data| data.clone().parse_value("AdditionalPaymentData"))
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse AdditionalPaymentData from payment_data.payment_attempt.payment_method_data")?;
+            parsed_additional_payment_data
+        } else {
+            None
+        };
         let payment_method_data = payment_data.payment_method_data.or_else(|| {
             if payment_data.mandate_id.is_some() {
                 Some(domain::PaymentMethodData::MandatePayment)
@@ -2180,6 +2212,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .payment_intent
             .merchant_order_reference_id
             .clone();
+        let shipping_cost = payment_data.payment_intent.shipping_cost;
 
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
@@ -2226,6 +2259,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             charges,
             merchant_order_reference_id,
             integrity_object: None,
+            additional_payment_method_data,
+            shipping_cost,
         })
     }
 }
@@ -2564,11 +2599,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SdkPaymentsSessi
             + shipping_cost
             + surcharge_amount;
         Ok(Self {
-            net_amount,
+            amount: net_amount,
             order_tax_amount,
             currency: payment_data.currency,
-            amount: payment_data.payment_intent.amount,
+            order_amount: payment_data.payment_intent.amount,
             session_id: payment_data.session_id,
+            shipping_cost: payment_data.payment_intent.shipping_cost,
         })
     }
 }
@@ -2603,11 +2639,24 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             .payment_intent
             .merchant_order_reference_id
             .clone();
+        let router_base_url = &additional_data.router_base_url;
+        let connector_name = &additional_data.connector_name;
+        let attempt = &payment_data.payment_attempt;
+        let router_return_url = Some(helpers::create_redirect_url(
+            router_base_url,
+            attempt,
+            connector_name,
+            payment_data.creds_identifier.as_deref(),
+        ));
         Ok(Self {
             amount, //need to change after we move to connector module
+            order_amount: payment_data.payment_intent.amount,
             currency: payment_data.currency,
             merchant_order_reference_id,
             capture_method: payment_data.payment_attempt.capture_method,
+            shipping_cost: payment_data.payment_intent.shipping_cost,
+            setup_future_usage: payment_data.payment_intent.setup_future_usage,
+            router_return_url,
         })
     }
 }
@@ -2674,6 +2723,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             ),
             order_details,
             surcharge_details: payment_data.surcharge_details,
+            email: payment_data.email,
         })
     }
 }
@@ -2733,6 +2783,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 },
             ),
             order_details,
+            email: payment_data.email,
             surcharge_details: payment_data.surcharge_details,
         })
     }
@@ -2800,6 +2851,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                     | Some(RequestIncrementalAuthorization::Default)
             ),
             metadata: payment_data.payment_intent.metadata.clone().map(Into::into),
+            shipping_cost: payment_data.payment_intent.shipping_cost,
         })
     }
 }
@@ -3298,20 +3350,23 @@ impl ForeignFrom<diesel_models::TransactionDetailsUiConfiguration>
 
 impl ForeignFrom<DieselConnectorMandateReferenceId> for ConnectorMandateReferenceId {
     fn foreign_from(value: DieselConnectorMandateReferenceId) -> Self {
-        Self {
-            connector_mandate_id: value.connector_mandate_id,
-            payment_method_id: value.payment_method_id,
-            update_history: None,
-            mandate_metadata: value.mandate_metadata,
-        }
+        Self::new(
+            value.connector_mandate_id,
+            value.payment_method_id,
+            None,
+            value.mandate_metadata,
+            value.connector_mandate_request_reference_id,
+        )
     }
 }
 impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenceId {
     fn foreign_from(value: ConnectorMandateReferenceId) -> Self {
         Self {
-            connector_mandate_id: value.connector_mandate_id,
-            payment_method_id: value.payment_method_id,
-            mandate_metadata: value.mandate_metadata,
+            connector_mandate_id: value.get_connector_mandate_id(),
+            payment_method_id: value.get_payment_method_id(),
+            mandate_metadata: value.get_mandate_metadata(),
+            connector_mandate_request_reference_id: value
+                .get_connector_mandate_request_reference_id(),
         }
     }
 }

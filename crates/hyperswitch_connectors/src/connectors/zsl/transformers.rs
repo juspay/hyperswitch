@@ -1,18 +1,27 @@
 use std::collections::HashMap;
 
 use base64::Engine;
-use common_utils::{crypto::GenerateDigest, date_time, pii::Email};
+use common_enums::enums;
+use common_utils::{crypto::GenerateDigest, date_time, pii::Email, request::Method};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{BankTransferData, PaymentMethodData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_request_types::{PaymentsSyncData, ResponseId},
+    router_response_types::{PaymentsResponseData, RedirectForm},
+    types,
+};
+use hyperswitch_interfaces::{api, consts::NO_ERROR_CODE, errors};
 use masking::{ExposeInterface, Secret};
 use ring::digest;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self as connector_utils, PaymentsAuthorizeRequestData, RouterData},
-    consts,
-    core::errors,
-    services,
-    types::{self, domain, storage::enums},
+    types::ResponseRouterData,
+    utils::{
+        get_amount_as_string, get_unimplemented_payment_method_error_message,
+        PaymentsAuthorizeRequestData, RouterData as _,
+    },
 };
 
 mod auth_error {
@@ -27,17 +36,12 @@ pub struct ZslRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&types::api::CurrencyUnit, enums::Currency, i64, T)> for ZslRouterData<T> {
+impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for ZslRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, txn_amount, item): (
-            &types::api::CurrencyUnit,
-            enums::Currency,
-            i64,
-            T,
-        ),
+        (currency_unit, currency, txn_amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
     ) -> Result<Self, Self::Error> {
-        let amount = connector_utils::get_amount_as_string(currency_unit, txn_amount, currency)?;
+        let amount = get_amount_as_string(currency_unit, txn_amount, currency)?;
         Ok(Self {
             amount,
             router_data: item,
@@ -50,11 +54,11 @@ pub struct ZslAuthType {
     pub(super) merchant_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for ZslAuthType {
+impl TryFrom<&ConnectorAuthType> for ZslAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 api_key: api_key.to_owned(),
                 merchant_id: key1.clone(),
             }),
@@ -139,59 +143,50 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
         item: &ZslRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let payment_method = match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match *bank_transfer_data {
-                    domain::BankTransferData::LocalBankTransfer { bank_code } => Ok(
-                        ZslPaymentMethods::LocalBankTransfer(LocalBankTransaferRequest {
-                            bank_code,
-                            pay_method: None,
-                        }),
-                    ),
-                    domain::BankTransferData::AchBankTransfer { .. }
-                    | domain::BankTransferData::SepaBankTransfer { .. }
-                    | domain::BankTransferData::BacsBankTransfer { .. }
-                    | domain::BankTransferData::MultibancoBankTransfer { .. }
-                    | domain::BankTransferData::PermataBankTransfer { .. }
-                    | domain::BankTransferData::BcaBankTransfer { .. }
-                    | domain::BankTransferData::BniVaBankTransfer { .. }
-                    | domain::BankTransferData::BriVaBankTransfer { .. }
-                    | domain::BankTransferData::CimbVaBankTransfer { .. }
-                    | domain::BankTransferData::DanamonVaBankTransfer { .. }
-                    | domain::BankTransferData::MandiriVaBankTransfer { .. }
-                    | domain::BankTransferData::Pix { .. }
-                    | domain::BankTransferData::Pse {} => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            connector_utils::get_unimplemented_payment_method_error_message(
-                                item.router_data.connector.as_str(),
-                            ),
-                        ))
-                    }
-                }
-            }
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::MobilePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | domain::PaymentMethodData::OpenBanking(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    connector_utils::get_unimplemented_payment_method_error_message(
+            PaymentMethodData::BankTransfer(bank_transfer_data) => match *bank_transfer_data {
+                BankTransferData::LocalBankTransfer { bank_code } => Ok(
+                    ZslPaymentMethods::LocalBankTransfer(LocalBankTransaferRequest {
+                        bank_code,
+                        pay_method: None,
+                    }),
+                ),
+                BankTransferData::AchBankTransfer { .. }
+                | BankTransferData::SepaBankTransfer { .. }
+                | BankTransferData::BacsBankTransfer { .. }
+                | BankTransferData::MultibancoBankTransfer { .. }
+                | BankTransferData::PermataBankTransfer { .. }
+                | BankTransferData::BcaBankTransfer { .. }
+                | BankTransferData::BniVaBankTransfer { .. }
+                | BankTransferData::BriVaBankTransfer { .. }
+                | BankTransferData::CimbVaBankTransfer { .. }
+                | BankTransferData::DanamonVaBankTransfer { .. }
+                | BankTransferData::MandiriVaBankTransfer { .. }
+                | BankTransferData::Pix { .. }
+                | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message(
                         item.router_data.connector.as_str(),
                     ),
-                ))
-            }
+                )),
+            },
+            PaymentMethodData::Card(_)
+            | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::OpenBanking(_) => Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message(item.router_data.connector.as_str()),
+            )),
         }?;
         let auth_type = ZslAuthType::try_from(&item.router_data.connector_auth_type)?;
         let key: Secret<String> = auth_type.api_key;
@@ -294,13 +289,12 @@ pub struct ZslPaymentsResponse {
     signature: Secret<String>,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, ZslPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, ZslPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if item.response.status.eq("0") && !item.response.txn_url.is_empty() {
             let auth_type = ZslAuthType::try_from(&item.data.connector_auth_type)?;
@@ -327,14 +321,14 @@ impl<F, T>
 
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending, // Redirect is always expected after success response
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::NoResponseId,
-                        redirection_data: Some(services::RedirectForm::Form {
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::NoResponseId,
+                        redirection_data: Box::new(Some(RedirectForm::Form {
                             endpoint: redirect_url,
-                            method: services::Method::Get,
+                            method: Method::Get,
                             form_fields: HashMap::new(),
-                        }),
-                        mandate_reference: None,
+                        })),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(item.response.mer_ref.clone()),
@@ -347,8 +341,8 @@ impl<F, T>
                 // When the signature check fails
                 Ok(Self {
                     status: enums::AttemptStatus::Failure,
-                    response: Err(types::ErrorResponse {
-                        code: consts::NO_ERROR_CODE.to_string(),
+                    response: Err(ErrorResponse {
+                        code: NO_ERROR_CODE.to_string(),
                         message: auth_error::INVALID_SIGNATURE.to_string(),
                         reason: Some(auth_error::INVALID_SIGNATURE.to_string()),
                         status_code: item.http_code,
@@ -363,7 +357,7 @@ impl<F, T>
                 ZslResponseStatus::try_from(item.response.status.clone())?.to_string();
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     code: item.response.status.clone(),
                     message: error_reason.clone(),
                     reason: Some(error_reason.clone()),
@@ -399,34 +393,20 @@ pub struct ZslWebhookResponse {
     pub signature: Secret<String>,
 }
 
-impl types::transformers::ForeignFrom<String> for api_models::webhooks::IncomingWebhookEvent {
-    fn foreign_from(status: String) -> Self {
-        match status.as_str() {
-            //any response with status != 0 are a failed deposit transaction
-            "0" => Self::PaymentIntentSuccess,
-            _ => Self::PaymentIntentFailure,
-        }
+pub(crate) fn get_status(status: String) -> api_models::webhooks::IncomingWebhookEvent {
+    match status.as_str() {
+        //any response with status != 0 are a failed deposit transaction
+        "0" => api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess,
+        _ => api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure,
     }
 }
 
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            ZslWebhookResponse,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, PaymentsResponseData>>
+    for RouterData<F, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            ZslWebhookResponse,
-            types::PaymentsSyncData,
-            types::PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let paid_amount = item
             .response
@@ -448,12 +428,10 @@ impl<F>
             Ok(Self {
                 status,
                 amount_captured: Some(paid_amount),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.txn_id.clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.txn_id.clone()),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.mer_ref.clone()),
@@ -467,7 +445,7 @@ impl<F>
                 ZslResponseStatus::try_from(item.response.status.clone())?.to_string();
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     code: item.response.status.clone(),
                     message: error_reason.clone(),
                     reason: Some(error_reason.clone()),

@@ -136,11 +136,14 @@ pub const CONNECTOR_CREDS_TOKEN_TTL: i64 = 900;
 pub const MAX_ALLOWED_AMOUNT: i64 = 999999999;
 
 //payment attempt default unified error code and unified error message
-pub const DEFAULT_UNIFIED_ERROR_CODE: &str = "UE_000";
+pub const DEFAULT_UNIFIED_ERROR_CODE: &str = "UE_9000";
 pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 
 // Recon's feature tag
 pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
+
+// Length of the unique reference ID generated for connector mandate requests
+pub const CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH: usize = 18;
 
 /// Vault Add request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

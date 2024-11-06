@@ -1711,7 +1711,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                     connector_mandate_ids,
                 )) => (
                     None,
-                    connector_mandate_ids.connector_mandate_id,
+                    connector_mandate_ids.get_connector_mandate_id(),
                     StripeBillingAddress::default(),
                     get_payment_method_type_for_saved_payment_method_payment(item)?,
                 ),
@@ -2453,6 +2453,7 @@ impl<F, T>
                 connector_mandate_id,
                 payment_method_id,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             }
         });
 
@@ -2493,8 +2494,8 @@ impl<F, T>
                 });
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data,
-                mandate_reference,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata,
                 network_txn_id,
                 connector_response_reference_id: Some(item.response.id),
@@ -2658,6 +2659,7 @@ impl<F, T>
                     connector_mandate_id,
                     payment_method_id: Some(payment_method_id),
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 }
             });
 
@@ -2700,8 +2702,8 @@ impl<F, T>
                 });
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data,
-                mandate_reference,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata,
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id.clone()),
@@ -2749,6 +2751,7 @@ impl<F, T>
                 connector_mandate_id,
                 payment_method_id,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             }
         });
         let status = enums::AttemptStatus::from(item.response.status);
@@ -2779,8 +2782,8 @@ impl<F, T>
 
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data,
-                mandate_reference,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: network_transaction_id,
                 connector_response_reference_id: Some(item.response.id),
@@ -3273,7 +3276,7 @@ pub struct MitExemption {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum LatestAttempt {
-    PaymentIntentAttempt(LatestPaymentAttempt),
+    PaymentIntentAttempt(Box<LatestPaymentAttempt>),
     SetupAttempt(String),
 }
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -3484,8 +3487,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::Payme
         } else {
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),

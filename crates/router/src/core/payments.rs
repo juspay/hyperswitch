@@ -1021,7 +1021,7 @@ pub async fn payments_intent_operation_core<F, Req, Op, D>(
 ) -> RouterResult<(D, Req, Option<domain::Customer>)>
 where
     F: Send + Clone + Sync,
-    Req: Authenticate + Clone,
+    Req: Clone,
     Op: Operation<F, Req, Data = D> + Send + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
@@ -1454,7 +1454,7 @@ pub async fn payments_intent_core<F, Res, Req, Op, D>(
 where
     F: Send + Clone + Sync,
     Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
-    Req: Debug + Authenticate + Clone,
+    Req: Debug + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     Res: transformers::ToResponse<F, D, Op>,
 {
@@ -3072,9 +3072,9 @@ where
                 let should_continue = matches!(
                     router_data.response,
                     Ok(router_types::PaymentsResponseData::TransactionResponse {
-                        redirection_data: None,
+                        ref redirection_data,
                         ..
-                    })
+                    }) if redirection_data.is_none()
                 ) && router_data.status
                     != common_enums::AttemptStatus::AuthenticationFailed;
                 (router_data, should_continue)
@@ -4052,6 +4052,7 @@ pub async fn apply_filters_on_payments(
                     constraints.payment_method_type,
                     constraints.authentication_type,
                     constraints.merchant_connector_id,
+                    constraints.card_network,
                     merchant.storage_scheme,
                 )
                 .await
@@ -5216,21 +5217,15 @@ where
                                     }))
                                 },
                             )?;
-                            let mandate_reference_id =
-                                Some(payments_api::MandateReferenceId::ConnectorMandateId(
-                                    payments_api::ConnectorMandateReferenceId {
-                                        connector_mandate_id: Some(
-                                            mandate_reference_record.connector_mandate_id.clone(),
-                                        ),
-                                        payment_method_id: Some(
-                                            payment_method_info.get_id().clone(),
-                                        ),
-                                        update_history: None,
-                                        mandate_metadata: mandate_reference_record
-                                            .mandate_metadata
-                                            .clone(),
-                                    },
-                                ));
+                            let mandate_reference_id = Some(payments_api::MandateReferenceId::ConnectorMandateId(
+                                api_models::payments::ConnectorMandateReferenceId::new(
+                                    Some(mandate_reference_record.connector_mandate_id.clone()),  // connector_mandate_id
+                                    Some(payment_method_info.get_id().clone()),                  // payment_method_id
+                                    None,                                                        // update_history
+                                    mandate_reference_record.mandate_metadata.clone(),           // mandate_metadata
+                                    mandate_reference_record.connector_mandate_request_reference_id.clone(), // connector_mandate_request_reference_id
+                                )
+                            ));
                             payment_data.set_recurring_mandate_payment_data(
                                 hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
                                     payment_method_type: mandate_reference_record
@@ -5240,9 +5235,8 @@ where
                                     original_payment_authorized_currency: mandate_reference_record
                                         .original_payment_authorized_currency,
                                     mandate_metadata: mandate_reference_record
-                                        .mandate_metadata.clone(),
+                                        .mandate_metadata.clone()
                                 });
-
                             connector_choice = Some((connector_data, mandate_reference_id.clone()));
                             break;
                         }
@@ -5520,7 +5514,10 @@ where
             let routing_choice = choice
                 .first()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-            if connector_data.connector.connector_name == routing_choice.connector.connector_name {
+            if connector_data.connector.connector_name == routing_choice.connector.connector_name
+                && connector_data.connector.merchant_connector_id
+                    == routing_choice.connector.merchant_connector_id
+            {
                 final_list.push(connector_data);
             }
         }
@@ -5579,6 +5576,19 @@ where
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("failed eligibility analysis and fallback")?;
+
+    // dynamic success based connector selection
+    #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+    let connectors = {
+        if business_profile.dynamic_routing_algorithm.is_some() {
+            routing::perform_success_based_routing(state, connectors.clone(), business_profile)
+                .await
+                .map_err(|e| logger::error!(success_rate_routing_error=?e))
+                .unwrap_or(connectors)
+        } else {
+            connectors
+        }
+    };
 
     let connector_data = connectors
         .into_iter()

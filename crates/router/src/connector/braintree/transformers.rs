@@ -441,14 +441,15 @@ impl<F>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
-                            MandateReference {
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
+                            |pm| MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
-                            }
-                        }),
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -466,12 +467,12 @@ impl<F>
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: Some(get_braintree_redirect_form(
+                    redirection_data: Box::new(Some(get_braintree_redirect_form(
                         *client_token_data,
                         item.data.get_payment_method_token()?,
                         item.data.request.payment_method_data.clone(),
-                    )?),
-                    mandate_reference: None,
+                    )?)),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -616,14 +617,15 @@ impl<F>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
-                            MandateReference {
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
+                            |pm| MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
-                            }
-                        }),
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -641,12 +643,12 @@ impl<F>
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: Some(get_braintree_redirect_form(
+                    redirection_data: Box::new(Some(get_braintree_redirect_form(
                         *client_token_data,
                         item.data.get_payment_method_token()?,
                         item.data.request.payment_method_data.clone(),
-                    )?),
-                    mandate_reference: None,
+                    )?)),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -698,14 +700,15 @@ impl<F>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
-                            MandateReference {
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
+                            |pm| MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
-                            }
-                        }),
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -762,14 +765,15 @@ impl<F>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
-                            MandateReference {
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(transaction_data.payment_method.as_ref().map(
+                            |pm| MandateReference {
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
-                            }
-                        }),
+                                connector_mandate_request_reference_id: None,
+                            },
+                        )),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -1277,8 +1281,8 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -1387,8 +1391,8 @@ impl<F, T>
                 } else {
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::NoResponseId,
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,
@@ -1492,8 +1496,8 @@ impl<F, T>
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             edge_data.node.id.clone(),
                         ),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: None,

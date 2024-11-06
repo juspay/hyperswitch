@@ -578,6 +578,7 @@ impl<F, T>
                     connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 });
         Ok(Self {
             status,
@@ -597,8 +598,8 @@ impl<F, T>
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             order.id.to_string(),
                         ),
-                        redirection_data,
-                        mandate_reference,
+                        redirection_data: Box::new(redirection_data),
+                        mandate_reference: Box::new(mandate_reference),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id,

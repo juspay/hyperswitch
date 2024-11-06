@@ -721,31 +721,27 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut event_type = payload.get_api_event_type();
-    let tenants: HashSet<_> = state
-        .conf
-        .multitenancy
-        .get_tenant_names()
-        .into_iter()
-        .collect();
     let tenant_id = if !state.conf.multitenancy.enabled {
         DEFAULT_TENANT.to_string()
     } else {
-        incoming_request_header
+        let request_tenant_id = incoming_request_header
             .get(TENANT_HEADER)
             .and_then(|value| value.to_str().ok())
-            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
-            .map(|req_tenant_id| {
-                if !tenants.contains(req_tenant_id) {
-                    Err(errors::ApiErrorResponse::InvalidTenant {
-                        tenant_id: req_tenant_id.to_string(),
-                    }
-                    .switch())
-                } else {
-                    Ok(req_tenant_id.to_string())
+            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())?;
+
+        state
+            .conf
+            .multitenancy
+            .get_tenant(request_tenant_id)
+            .map(|tenant| tenant.tenant_id.clone())
+            .ok_or(
+                errors::ApiErrorResponse::InvalidTenant {
+                    tenant_id: request_tenant_id.to_string(),
                 }
-            })??
+                .switch(),
+            )?
     };
-    // let tenant_id = "public".to_string();
+
     let mut session_state =
         Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
             errors::ApiErrorResponse::InvalidTenant {
@@ -1263,10 +1259,8 @@ impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequ
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
 // impl Authenticate for api_models::payments::PaymentsApproveRequest {}
 impl Authenticate for api_models::payments::PaymentsRejectRequest {}
-#[cfg(feature = "v2")]
-impl Authenticate for api_models::payments::PaymentsCreateIntentRequest {}
 // #[cfg(feature = "v2")]
-// impl Authenticate for api_models::payments::PaymentsCreateIntentResponse {}
+// impl Authenticate for api_models::payments::PaymentsIntentResponse {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,

@@ -383,8 +383,8 @@ fn get_iatpay_response(
 
             types::PaymentsResponseData::TransactionResponse {
                 resource_id: id,
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: connector_response_reference_id.clone(),
@@ -394,8 +394,8 @@ fn get_iatpay_response(
         }
         None => types::PaymentsResponseData::TransactionResponse {
             resource_id: id.clone(),
-            redirection_data: None,
-            mandate_reference: None,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: connector_response_reference_id.clone(),

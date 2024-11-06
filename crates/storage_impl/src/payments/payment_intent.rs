@@ -103,7 +103,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
-                        insertable: kv::Insertable::PaymentIntent(new_payment_intent),
+                        insertable: Box::new(kv::Insertable::PaymentIntent(Box::new(
+                            new_payment_intent,
+                        ))),
                     },
                 };
 
@@ -219,12 +221,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
-                        updatable: kv::Updateable::PaymentIntentUpdate(
+                        updatable: Box::new(kv::Updateable::PaymentIntentUpdate(Box::new(
                             kv::PaymentIntentUpdateMems {
                                 orig: origin_diesel_intent,
                                 update_data: diesel_intent_update,
                             },
-                        ),
+                        ))),
                     },
                 };
 
