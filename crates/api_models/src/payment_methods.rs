@@ -110,11 +110,11 @@ pub struct PaymentMethodCreate {
 pub struct PaymentMethodCreate {
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -165,20 +165,20 @@ pub struct PaymentMethodIntentConfirm {
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_method_subtype: api_enums::PaymentMethodType,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethodIntentConfirm {
     pub fn validate_payment_method_data_against_payment_method(
-        payment_method: api_enums::PaymentMethod,
+        payment_method_type: api_enums::PaymentMethod,
         payment_method_data: PaymentMethodCreateData,
     ) -> bool {
-        match payment_method {
+        match payment_method_type {
             api_enums::PaymentMethod::Card => {
                 matches!(payment_method_data, PaymentMethodCreateData::Card(_))
             }
@@ -195,11 +195,11 @@ pub struct PaymentMethodIntentConfirmInternal {
     pub id: String,
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_type: api_enums::PaymentMethodType,
+    pub payment_method_subtype: api_enums::PaymentMethodType,
 
     /// For SDK based calls, client_secret would be required
     pub client_secret: String,
@@ -217,8 +217,8 @@ impl From<PaymentMethodIntentConfirmInternal> for PaymentMethodIntentConfirm {
     fn from(item: PaymentMethodIntentConfirmInternal) -> Self {
         Self {
             client_secret: item.client_secret,
-            payment_method: item.payment_method,
             payment_method_type: item.payment_method_type,
+            payment_method_subtype: item.payment_method_subtype,
             customer_id: item.customer_id,
             payment_method_data: item.payment_method_data.clone(),
         }
@@ -339,10 +339,10 @@ impl PaymentMethodCreate {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl PaymentMethodCreate {
     pub fn validate_payment_method_data_against_payment_method(
-        payment_method: api_enums::PaymentMethod,
+        payment_method_type: api_enums::PaymentMethod,
         payment_method_data: PaymentMethodCreateData,
     ) -> bool {
-        match payment_method {
+        match payment_method_type {
             api_enums::PaymentMethod::Card => {
                 matches!(payment_method_data, PaymentMethodCreateData::Card(_))
             }
@@ -722,11 +722,11 @@ pub struct PaymentMethodResponse {
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod, example = "card")]
-    pub payment_method: Option<api_enums::PaymentMethod>,
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
-    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]
@@ -1686,11 +1686,11 @@ pub struct CustomerPaymentMethod {
 
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: api_enums::PaymentMethod,
+    pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
     #[schema(value_type = Option<PaymentMethodType>,example = "credit_card")]
-    pub payment_method_type: Option<api_enums::PaymentMethodType>,
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]
@@ -2145,8 +2145,8 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
         match response {
             Ok(res) => Self {
                 payment_method_id: Some(res.payment_method_id),
-                payment_method: res.payment_method,
-                payment_method_type: res.payment_method_type,
+                payment_method: res.payment_method_type,
+                payment_method_type: res.payment_method_subtype,
                 customer_id: Some(res.customer_id),
                 migration_status: MigrationStatus::Success,
                 migration_error: None,

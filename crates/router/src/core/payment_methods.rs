@@ -672,14 +672,14 @@ pub async fn retrieve_payment_method_with_token(
 #[instrument(skip_all)]
 pub(crate) async fn get_payment_method_create_request(
     payment_method_data: Option<&domain::PaymentMethodData>,
-    payment_method: Option<storage_enums::PaymentMethod>,
-    payment_method_type: Option<storage_enums::PaymentMethodType>,
+    payment_method_type: Option<storage_enums::PaymentMethod>,
+    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     customer_id: &Option<id_type::CustomerId>,
     billing_name: Option<Secret<String>>,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {
-        Some(pm_data) => match payment_method {
-            Some(payment_method) => match pm_data {
+        Some(pm_data) => match payment_method_type {
+            Some(payment_method_type) => match pm_data {
                 domain::PaymentMethodData::Card(card) => {
                     let card_detail = payment_methods::CardDetail {
                         card_number: card.card_number.clone(),
@@ -705,9 +705,9 @@ pub(crate) async fn get_payment_method_create_request(
                             .flatten(),
                     };
                     let payment_method_request = payment_methods::PaymentMethodCreate {
-                        payment_method,
-                        payment_method_type: payment_method_type
-                            .get_required_value("Payment_method_type")
+                        payment_method_type,
+                        payment_method_subtype: payment_method_subtype
+                            .get_required_value("payment_method_subtype")
                             .change_context(errors::ApiErrorResponse::MissingRequiredField {
                                 field_name: "payment_method_data",
                             })?,
@@ -899,8 +899,8 @@ pub async fn create_payment_method(
                 state,
                 key_store,
                 Some(resp.vault_id.get_string_repr().clone()),
-                Some(req.payment_method),
                 Some(req.payment_method_type),
+                Some(req.payment_method_subtype),
             )
             .await
             .attach_printable("Unable to create Payment method data")?;
@@ -1071,8 +1071,8 @@ pub async fn payment_method_intent_confirm(
                 state,
                 key_store,
                 Some(resp.vault_id.get_string_repr().clone()),
-                Some(req.payment_method),
                 Some(req.payment_method_type),
+                Some(req.payment_method_subtype),
             )
             .await
             .attach_printable("Unable to create Payment method data")?;
@@ -1153,8 +1153,8 @@ pub async fn create_payment_method_in_db(
                 merchant_id: merchant_id.to_owned(),
                 id: payment_method_id,
                 locker_id,
-                payment_method_type: Some(req.payment_method),
-                payment_method_subtype: Some(req.payment_method_type),
+                payment_method_type: Some(req.payment_method_type),
+                payment_method_subtype: Some(req.payment_method_subtype),
                 payment_method_data,
                 connector_mandate_details,
                 customer_acceptance,
@@ -1602,11 +1602,11 @@ async fn generate_saved_pm_response(
     customer: &domain::Customer,
     payment_info: Option<&pm_types::SavedPMLPaymentsInfo>,
 ) -> Result<api::CustomerPaymentMethod, error_stack::Report<errors::ApiErrorResponse>> {
-    let payment_method = pm
+    let payment_method_type = pm
         .get_payment_method_type()
-        .get_required_value("payment_method")?;
+        .get_required_value("payment_method_type")?;
 
-    let bank_details = if payment_method == enums::PaymentMethod::BankDebit {
+    let bank_details = if payment_method_type == enums::PaymentMethod::BankDebit {
         cards::get_masked_bank_details(&pm)
             .await
             .unwrap_or_else(|err| {
@@ -1673,8 +1673,8 @@ async fn generate_saved_pm_response(
         payment_token: parent_payment_method_token.clone(),
         payment_method_id: pm.get_id().get_string_repr().to_owned(),
         customer_id: pm.customer_id.to_owned(),
-        payment_method,
-        payment_method_type: pm.get_payment_method_subtype(),
+        payment_method_type,
+        payment_method_subtype: pm.get_payment_method_subtype(),
         payment_method_data: pmd,
         recurring_enabled: mca_enabled,
         created: Some(pm.created_at),
@@ -1739,8 +1739,8 @@ pub async fn retrieve_payment_method(
         merchant_id: payment_method.merchant_id.to_owned(),
         customer_id: payment_method.customer_id.to_owned(),
         payment_method_id: payment_method.id.get_string_repr().to_string(),
-        payment_method: payment_method.get_payment_method_type(),
-        payment_method_type: payment_method.get_payment_method_subtype(),
+        payment_method_type: payment_method.get_payment_method_type(),
+        payment_method_subtype: payment_method.get_payment_method_subtype(),
         created: Some(payment_method.created_at),
         recurring_enabled: false,
         last_used_at: Some(payment_method.last_used_at),
@@ -1959,7 +1959,7 @@ impl pm_types::SavedPMLPaymentsInfo {
             .get_order_fulfillment_time()
             .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
-        pm_routes::ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method))
+        pm_routes::ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method_type))
             .insert(intent_fulfillment_time, hyperswitch_token_data, state)
             .await?;
 

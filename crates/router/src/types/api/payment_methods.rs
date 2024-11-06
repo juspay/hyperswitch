@@ -65,8 +65,8 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         utils::when(
             !validate_payment_method_type_against_payment_method(
-                self.payment_method,
                 self.payment_method_type,
+                self.payment_method_subtype,
             ),
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -78,7 +78,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
 
         utils::when(
             !Self::validate_payment_method_data_against_payment_method(
-                self.payment_method,
+                self.payment_method_type,
                 self.payment_method_data.clone(),
             ),
             || {
@@ -97,8 +97,8 @@ impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
     fn validate(&self) -> RouterResult<()> {
         utils::when(
             !validate_payment_method_type_against_payment_method(
-                self.payment_method,
                 self.payment_method_type,
+                self.payment_method_subtype,
             ),
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -110,7 +110,7 @@ impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
 
         utils::when(
             !Self::validate_payment_method_data_against_payment_method(
-                self.payment_method,
+                self.payment_method_type,
                 self.payment_method_data.clone(),
             ),
             || {
