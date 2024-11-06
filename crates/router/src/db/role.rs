@@ -440,7 +440,7 @@ impl RoleInterface for MockDb {
                         && entity_in_vec.contains(&role.entity_type)
                 }
                 storage::ListRolesByEntityPayload::Profile(org_id, merchant_id, profile_id) => {
-                    let entity_in_vec = vec![EntityType::Profile];
+                    let entity_in_vec = [EntityType::Profile];
 
                     let matches_merchant =
                         role.merchant_id == *merchant_id && role.scope == RoleScope::Merchant;
