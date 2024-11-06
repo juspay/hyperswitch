@@ -1349,8 +1349,7 @@ where
 
         let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
-        let next_action_mobile_payment =
-            mobile_payment_next_steps_check(base_url, &payment_attempt, &payment_intent)?;
+        let next_action_mobile_payment = mobile_payment_next_steps_check(&payment_attempt)?;
 
         let next_action_containing_qr_code_url = qr_code_next_steps_check(payment_attempt.clone())?;
 
@@ -1384,7 +1383,7 @@ where
                         }))
                         .or(next_action_mobile_payment.map(|mobile_payment_data| {
                             api_models::payments::NextActionData::CollectOtp {
-                                collect_otp_url: mobile_payment_data.collect_otp_url,
+                                consent_data_required: mobile_payment_data.consent_data_required,
                             }
                         }))
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
@@ -2003,24 +2002,18 @@ pub fn voucher_next_steps_check(
 
 #[cfg(feature = "v1")]
 pub fn mobile_payment_next_steps_check(
-    base_url: &str,
     payment_attempt: &storage::PaymentAttempt,
-    payment_intent: &storage::PaymentIntent,
 ) -> RouterResult<Option<api_models::payments::MobilePaymentNextStepData>> {
-    let mobile_payment_next_step = if let Some(diesel_models::enums::PaymentMethod::MobilePayment) =
-        payment_attempt.payment_method
-    {
-        Some(api_models::payments::MobilePaymentNextStepData {
-            collect_otp_url: helpers::create_startpay_url(
-                base_url,
-                payment_attempt,
-                payment_intent,
-            ),
+    payment_attempt
+        .connector_metadata
+        .clone()
+        .map(|metadata| {
+            metadata
+                .parse_value("MobilePaymentNextStepData")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse the Value to NextRequirements struct")
         })
-    } else {
-        None
-    };
-    Ok(mobile_payment_next_step)
+        .transpose()
 }
 
 pub fn change_order_details_to_new_type(

@@ -392,7 +392,7 @@ pub enum StripeNextAction {
         next_action_data: payments::SdkNextActionData,
     },
     CollectOtp {
-        collect_otp_url: String,
+        consent_data_required: payments::MobilePaymentConsent,
     },
 }
 
@@ -449,9 +449,11 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::InvokeSdkClient { next_action_data } => {
             StripeNextAction::InvokeSdkClient { next_action_data }
         }
-        payments::NextActionData::CollectOtp { collect_otp_url } => {
-            StripeNextAction::CollectOtp { collect_otp_url }
-        }
+        payments::NextActionData::CollectOtp {
+            consent_data_required,
+        } => StripeNextAction::CollectOtp {
+            consent_data_required,
+        },
     })
 }
 

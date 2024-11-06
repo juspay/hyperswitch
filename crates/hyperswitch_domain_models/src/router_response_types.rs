@@ -170,7 +170,6 @@ pub enum RedirectForm {
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
     },
-    DigitalVirgo,
 }
 
 impl From<(url::Url, Method)> for RedirectForm {

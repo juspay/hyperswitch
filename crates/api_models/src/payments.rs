@@ -3955,9 +3955,9 @@ pub enum NextActionData {
     InvokeSdkClient {
         next_action_data: SdkNextActionData,
     },
-    /// Contains url to collect otp for mobile payment
+    /// Contains consent to collect otp for mobile payment
     CollectOtp {
-        collect_otp_url: String,
+        consent_data_required: MobilePaymentConsent,
     },
 }
 
@@ -4056,8 +4056,16 @@ pub struct VoucherNextStepData {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MobilePaymentNextStepData {
-    /// Url to collect OTP
-    pub collect_otp_url: String,
+    /// is consent details required to be shown by sdk
+    pub consent_data_required: MobilePaymentConsent,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum MobilePaymentConsent {
+    ConsentRequired,
+    ConsentNotRequired,
+    ConsentOptional,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

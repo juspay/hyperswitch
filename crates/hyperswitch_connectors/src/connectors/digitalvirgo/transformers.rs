@@ -6,7 +6,7 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, PaymentsCompleteAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
@@ -122,6 +122,12 @@ impl From<DigitalvirgoPaymentStatus> for common_enums::AttemptStatus {
 pub struct DigitalvirgoPaymentsResponse {
     state: DigitalvirgoPaymentStatus,
     transaction_id: String,
+    consent: Option<DigitalvirgoConsentStatus>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DigitalvirgoConsentStatus {
+    required: Option<bool>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentsResponse, T, PaymentsResponseData>>
@@ -131,18 +137,33 @@ impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentsResponse, T, Paymen
     fn try_from(
         item: ResponseRouterData<F, DigitalvirgoPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let status = common_enums::AttemptStatus::from(item.response.state);
-        let redirection_data = Box::new(match status {
-            common_enums::AttemptStatus::AuthenticationPending => Some(RedirectForm::DigitalVirgo),
-            _ => None,
-        });
+        // show if consent is required in next action
+        let connector_metadata = item
+            .response
+            .consent
+            .and_then(|consent_status| {
+                consent_status.required.map(|consent_required| {
+                    if consent_required {
+                        serde_json::json!({
+                            "consent_data_required": "consent_required",
+                        })
+                    } else {
+                        serde_json::json!({
+                            "consent_data_required": "consent_not_required",
+                        })
+                    }
+                })
+            })
+            .or(Some(serde_json::json!({
+                "consent_data_required": "consent_not_required",
+            })));
         Ok(Self {
-            status,
+            status: common_enums::AttemptStatus::from(item.response.state),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
-                redirection_data,
+                redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,

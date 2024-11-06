@@ -1933,29 +1933,6 @@ pub fn build_redirection_form(
                 }
             }
         },
-        RedirectForm::DigitalVirgo => {
-            maud::html! {
-                (maud::DOCTYPE)
-                head {
-                    meta name="viewport" content="width=device-width, initial-scale=1";
-                }
-
-                (PreEscaped(format!("<form id='payment_form'>
-                    <input type='text' name='otp' required>
-                    <input type='submit' value='Submit'>
-                </form>
-                <script>
-                    function setFormAction() {{
-                        var responseForm = document.getElementById('payment_form'); 
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/digitalvirgo\");
-                        responseForm.method='POST';
-                    }}
-
-                    window.onload = setFormAction;
-                    
-                </script>")))
-            }
-        }
     }
 }
 
