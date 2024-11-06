@@ -8,9 +8,7 @@ use common_utils::{
     types::MinorUnit,
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::{
-    payment_intent::PaymentIntentUpdate, AmountDetails, PaymentIntent,
-};
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate;
 use masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -19,7 +17,7 @@ use crate::{
     core::{
         errors::{self, RouterResult},
         payment_methods::cards::create_encrypted_data,
-        payments::{self, helpers, operations},
+        payments::{self, operations},
     },
     db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
@@ -174,32 +172,31 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentUpdateData<F>, PaymentsUpda
                 .map(|details| details.currency()),
             merchant_reference_id: request.merchant_reference_id.clone(),
             routing_algorithm_id: request.routing_algorithm_id.clone(),
-            capture_method: request.capture_method.clone(),
-            authentication_type: request.authentication_type.clone(),
-            billing_address,
-            shipping_address,
+            capture_method: request.capture_method,
+            authentication_type: request.authentication_type,
+            billing_address: Box::new(billing_address),
+            shipping_address: Box::new(shipping_address),
             customer_id: request.customer_id.clone(),
             customer_present: request.customer_present.clone(),
             description: request.description.clone(),
-            return_url: request.return_url.clone(),
-            setup_future_usage: request.setup_future_usage.clone(),
+            return_url: Box::new(request.return_url.clone()),
+            setup_future_usage: request.setup_future_usage,
             apply_mit_exemption: request.apply_mit_exemption.clone(),
             statement_descriptor: request.statement_descriptor.clone(),
-            order_details,
-            allowed_payment_method_types: request.allowed_payment_method_types.clone(),
-            metadata: request.metadata.clone(),
-            connector_metadata: request.connector_metadata.clone(),
-            feature_metadata: request.feature_metadata.clone(),
+            order_details: Box::new(order_details),
+            allowed_payment_method_types: Box::new(request.allowed_payment_method_types.clone()),
+            metadata: Box::new(request.metadata.clone()),
+            connector_metadata: Box::new(request.connector_metadata.clone()),
+            feature_metadata: Box::new(request.feature_metadata.clone()),
             payment_link_enabled: request.payment_link_enabled.clone(),
-            payment_link_config: request.payment_link_config.clone(),
-            request_incremental_authorization: request.request_incremental_authorization.clone(),
-            session_expiry: session_expiry,
+            request_incremental_authorization: request.request_incremental_authorization,
+            session_expiry,
             // TODO: Does frm_metadata need more processing?
-            frm_metadata: request.frm_metadata.clone(),
+            frm_metadata: Box::new(request.frm_metadata.clone()),
             request_external_three_ds_authentication: request
                 .request_external_three_ds_authentication
                 .clone(),
-            updated_by: storage_scheme.to_string(),
+            updated_by: Box::new(storage_scheme.to_string()),
         };
 
         let payment_data = payments::PaymentUpdateData {
@@ -296,10 +293,10 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentUp
     #[instrument(skip_all)]
     async fn get_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut payments::PaymentUpdateData<F>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        _state: &SessionState,
+        _payment_data: &mut payments::PaymentUpdateData<F>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, PaymentsUpdateIntentRequest, payments::PaymentUpdateData<F>>,
@@ -330,12 +327,11 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentUp
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        merchant_account: &domain::MerchantAccount,
-        business_profile: &domain::Profile,
-        state: &SessionState,
-        // TODO: do not take the whole payment data here
-        payment_data: &mut payments::PaymentUpdateData<F>,
-        mechant_key_store: &domain::MerchantKeyStore,
+        _merchant_account: &domain::MerchantAccount,
+        _business_profile: &domain::Profile,
+        _state: &SessionState,
+        _payment_data: &mut payments::PaymentUpdateData<F>,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         Ok(api::ConnectorCallType::Skip)
     }
