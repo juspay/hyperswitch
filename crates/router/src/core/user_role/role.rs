@@ -321,7 +321,7 @@ pub async fn list_roles_with_info(
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to get roles")?,
-            // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
+
             EntityType::Profile => {
                 let Some(profile_id) = user_from_token.profile_id else {
                     return Err(UserErrors::JwtProfileIdMissing.into());
@@ -414,7 +414,7 @@ pub async fn list_roles_at_entity_level(
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to get roles")?,
-        // TODO: Populate this from Db function when support for profile id and profile level custom roles is added
+
         EntityType::Profile => {
             let Some(profile_id) = user_from_token.profile_id else {
                 return Err(UserErrors::JwtProfileIdMissing.into());
