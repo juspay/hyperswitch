@@ -1018,7 +1018,7 @@ default_imp_for_file_upload!(
 macro_rules! default_imp_for_payouts {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::payouts::Payouts for $path::$connector {}
+            impl api::Payouts for $path::$connector {}
     )*
     };
 }
@@ -1041,6 +1041,7 @@ default_imp_for_payouts!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Mollie,
     connectors::Multisafepay,
     connectors::Nexinets,

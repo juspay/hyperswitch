@@ -3,7 +3,6 @@
 use hyperswitch_domain_models::router_flow_types::payouts::{
     PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount, PoSync,
 };
-#[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
     router_request_types::PayoutsData, router_response_types::PayoutsResponseData,
 };
@@ -58,7 +57,3 @@ pub trait Payouts:
     + PayoutSync
 {
 }
-
-/// Empty trait for when payouts feature is disabled
-#[cfg(not(feature = "payouts"))]
-pub trait Payouts {}
