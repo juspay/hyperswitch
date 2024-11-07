@@ -141,6 +141,7 @@ export const connectorDetails = {
         },
       },
     },
+    
     Refund: {
       Request: {
         payment_method: "card",
@@ -158,6 +159,38 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    manualPaymentRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
       Request: {
         payment_method: "card",
         payment_method_data: {

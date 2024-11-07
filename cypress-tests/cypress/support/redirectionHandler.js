@@ -352,10 +352,9 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
           .then(() => {
             cy.get('input[name="challengeDataEntry"]').click().type("1234");
             cy.get('input[value="SUBMIT"]').click();
-          })
+          });
       });
-  }
-  else {
+  } else {
     // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
     cy.wait(WAIT_TIME);
   }

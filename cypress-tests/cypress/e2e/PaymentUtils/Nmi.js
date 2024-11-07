@@ -129,6 +129,15 @@ export const connectorDetails = {
     Void: {
       Request: {},
       Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+        },
+      },
+    },
+    VoidAfterConfirm: {
+      Request: {},
+      Response: {
         status: 400,
         body: {
           error: {
@@ -140,6 +149,7 @@ export const connectorDetails = {
         },
       },
     },
+
     Refund: {
       Request: {
         payment_method: "card",
@@ -157,6 +167,38 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    manualPaymentRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -278,6 +320,58 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        trigger_skip: true,
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        trigger_skip: true,
+
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },

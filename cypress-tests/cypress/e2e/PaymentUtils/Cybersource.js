@@ -690,6 +690,7 @@ export const connectorDetails = {
         },
       },
       Response: {
+        
         status: 200,
         body: {
           status: "requires_customer_action",

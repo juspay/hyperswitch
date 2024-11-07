@@ -180,12 +180,18 @@ export const connectorDetails = {
         },
       },
     },
-    Void: {
+    VoidAfterConfirm: {
       Request: {},
       Response: {
         status: 200,
         body: {
           status: "processing",
+        },
+      },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "cancelled",
         },
       },
     },
@@ -208,6 +214,48 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
+        },
+      },
+    },
+    manualPaymentRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
@@ -741,7 +789,10 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "processing",
+          error_code: "905_1",
+          error_message:
+            "Could not find an acquirer account for the provided txvariant (giropay), currency (EUR), and action (AUTH).",
         },
       },
     },
