@@ -231,10 +231,7 @@ impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentD
                         storage_scheme,
                     )
                     .await?;
-                payment_data.email = customer
-                    .email
-                    .clone()
-                    .map(|email| common_utils::pii::Email::from(email));
+                payment_data.email = customer.email.clone().map(common_utils::pii::Email::from);
                 Ok((Box::new(self), Some(customer)))
             }
             None => Ok((Box::new(self), None)),
