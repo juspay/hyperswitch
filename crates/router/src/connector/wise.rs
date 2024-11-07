@@ -1,8 +1,8 @@
 pub mod transformers;
-use std::fmt::Debug;
 
 #[cfg(feature = "payouts")]
 use common_utils::request::RequestContent;
+use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
 use masking::PeekInterface;
@@ -10,6 +10,7 @@ use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use self::transformers as wise;
+use super::utils::convert_amount;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
@@ -27,8 +28,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Wise;
+#[derive(Clone)]
+pub struct Wise {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Wise {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Wise
 where
@@ -362,7 +373,13 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
         req: &types::PayoutsRouterData<api::PoQuote>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = wise::WisePayoutQuoteRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.source_currency,
+        )?;
+        let connector_router_data = wise::WiseRouterData::from((amount, req));
+        let connector_req = wise::WisePayoutQuoteRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -441,7 +458,13 @@ impl
         req: &types::PayoutsRouterData<api::PoRecipient>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = wise::WiseRecipientCreateRequest::try_from(req)?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.source_currency,
+        )?;
+        let connector_router_data = wise::WiseRouterData::from((amount, req));
+        let connector_req = wise::WiseRecipientCreateRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

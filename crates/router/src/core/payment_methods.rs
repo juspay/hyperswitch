@@ -753,6 +753,7 @@ pub(crate) async fn get_payment_method_create_request(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     customer_id: &Option<id_type::CustomerId>,
     billing_name: Option<Secret<String>>,
+    payment_method_billing_address: Option<&api_models::payments::Address>,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
     match payment_method_data {
         Some(pm_data) => match payment_method {
@@ -787,7 +788,7 @@ pub(crate) async fn get_payment_method_create_request(
                             .map(|card_network| card_network.to_string()),
                         client_secret: None,
                         payment_method_data: None,
-                        billing: None,
+                        billing: payment_method_billing_address.cloned(),
                         connector_mandate_details: None,
                         network_transaction_id: None,
                     };
@@ -852,11 +853,11 @@ pub async fn create_payment_method(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-
+    let key_manager_state = state.into();
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| cards::create_encrypted_data(state, key_store, billing))
+        .async_map(|billing| cards::create_encrypted_data(&key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -964,11 +965,11 @@ pub async fn payment_method_intent_create(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-
+    let key_manager_state = state.into();
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| cards::create_encrypted_data(state, key_store, billing))
+        .async_map(|billing| cards::create_encrypted_data(&key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1251,9 +1252,9 @@ pub async fn create_pm_additional_data_update(
             api::PaymentMethodsData::Card(card.clone().into())
         }
     };
-
+    let key_manager_state = state.into();
     let pmd: Encryptable<Secret<serde_json::Value>> =
-        cards::create_encrypted_data(state, key_store, card)
+        cards::create_encrypted_data(&key_manager_state, key_store, card)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt Payment method data")?;
@@ -1922,7 +1923,7 @@ impl pm_types::SavedPMLPaymentsInfo {
 
         let off_session_payment_flag = matches!(
             payment_intent.setup_future_usage,
-            Some(common_enums::FutureUsage::OffSession)
+            common_enums::FutureUsage::OffSession
         );
 
         let profile_id = &payment_intent.profile_id;

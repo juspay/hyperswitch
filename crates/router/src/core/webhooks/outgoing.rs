@@ -361,7 +361,7 @@ async fn trigger_webhook_to_merchant(
                         &event_id,
                         client_error,
                         delivery_attempt,
-                        ScheduleWebhookRetry::WithProcessTracker(process_tracker),
+                        ScheduleWebhookRetry::WithProcessTracker(Box::new(process_tracker)),
                     )
                     .await?;
                 }
@@ -391,7 +391,7 @@ async fn trigger_webhook_to_merchant(
                             delivery_attempt,
                             status_code.as_u16(),
                             "An error occurred when sending webhook to merchant",
-                            ScheduleWebhookRetry::WithProcessTracker(process_tracker),
+                            ScheduleWebhookRetry::WithProcessTracker(Box::new(process_tracker)),
                         )
                         .await?;
                     }
@@ -668,7 +668,7 @@ pub(crate) fn get_outgoing_webhook_request(
 
 #[derive(Debug)]
 enum ScheduleWebhookRetry {
-    WithProcessTracker(storage::ProcessTracker),
+    WithProcessTracker(Box<storage::ProcessTracker>),
     NoSchedule,
 }
 
@@ -757,7 +757,7 @@ async fn api_client_error_handler(
         outgoing_webhook_retry::retry_webhook_delivery_task(
             &*state.store,
             merchant_id,
-            process_tracker,
+            *process_tracker,
         )
         .await
         .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;
@@ -903,7 +903,7 @@ async fn error_response_handler(
         outgoing_webhook_retry::retry_webhook_delivery_task(
             &*state.store,
             merchant_id,
-            process_tracker,
+            *process_tracker,
         )
         .await
         .change_context(errors::WebhooksFlowError::OutgoingWebhookRetrySchedulingFailed)?;

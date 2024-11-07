@@ -388,20 +388,20 @@ impl<F, T>
                 status: enums::AttemptStatus::Charged,
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::NoResponseId,
-                    redirection_data: None,
-                    mandate_reference: item.response.customer_profile_id.map(
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(item.response.customer_profile_id.map(
                         |customer_profile_id| types::MandateReference {
-                            connector_mandate_id: item
-                                .response
-                                .customer_payment_profile_id_list
-                                .first()
-                                .map(|payment_profile_id| {
-                                    format!("{customer_profile_id}-{payment_profile_id}")
-                                }),
+                            connector_mandate_id:
+                                item.response.customer_payment_profile_id_list.first().map(
+                                    |payment_profile_id| {
+                                        format!("{customer_profile_id}-{payment_profile_id}")
+                                    },
+                                ),
                             payment_method_id: None,
                             mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
                         },
-                    ),
+                    )),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -648,7 +648,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let mandate_id = connector_mandate_id
-            .connector_mandate_id
+            .get_connector_mandate_id()
             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
@@ -1114,6 +1114,7 @@ impl<F, T>
                         ),
                         payment_method_id: None,
                         mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     }
                 });
 
@@ -1125,8 +1126,8 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
-                            redirection_data,
-                            mandate_reference,
+                            redirection_data: Box::new(redirection_data),
+                            mandate_reference: Box::new(mandate_reference),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -1198,8 +1199,8 @@ impl<F, T>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 transaction_response.transaction_id.clone(),
                             ),
-                            redirection_data: None,
-                            mandate_reference: None,
+                            redirection_data: Box::new(None),
+                            mandate_reference: Box::new(None),
                             connector_metadata: metadata,
                             network_txn_id: transaction_response
                                 .network_trans_id
@@ -1528,8 +1529,8 @@ impl<F, Req>
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             transaction.transaction_id.clone(),
                         ),
-                        redirection_data: None,
-                        mandate_reference: None,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(transaction.transaction_id.clone()),
