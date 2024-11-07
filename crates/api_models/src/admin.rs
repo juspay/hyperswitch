@@ -6,6 +6,7 @@ use common_utils::{
     errors::{self, CustomResult},
     ext_traits::Encode,
     id_type, link_utils, pii,
+    types::NameType,
 };
 #[cfg(feature = "v1")]
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
@@ -1879,8 +1880,8 @@ pub struct MerchantConnectorDetails {
 #[serde(deny_unknown_fields)]
 pub struct ProfileCreate {
     /// The name of profile
-    #[schema(max_length = 64)]
-    pub profile_name: Option<String>,
+    #[schema(value_type = Option<String>, max_length = 64)]
+    pub profile_name: Option<NameType>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
@@ -2003,8 +2004,8 @@ pub struct OrderFulfillmentTime(i64);
 #[serde(deny_unknown_fields)]
 pub struct ProfileCreate {
     /// The name of profile
-    #[schema(max_length = 64)]
-    pub profile_name: String,
+    #[schema(value_type = String, max_length = 64)]
+    pub profile_name: NameType,
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
@@ -2113,8 +2114,8 @@ pub struct ProfileResponse {
     pub profile_id: id_type::ProfileId,
 
     /// Name of the profile
-    #[schema(max_length = 64)]
-    pub profile_name: String,
+    #[schema(value_type = String, max_length = 64)]
+    pub profile_name: NameType,
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
@@ -2242,8 +2243,8 @@ pub struct ProfileResponse {
     pub id: id_type::ProfileId,
 
     /// Name of the profile
-    #[schema(max_length = 64)]
-    pub profile_name: String,
+    #[schema(max_length = 64, value_type = String)]
+    pub profile_name: NameType,
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
@@ -2349,7 +2350,7 @@ pub struct ProfileResponse {
 pub struct ProfileUpdate {
     /// The name of profile
     #[schema(max_length = 64)]
-    pub profile_name: Option<String>,
+    pub profile_name: Option<NameType>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
@@ -2471,7 +2472,7 @@ pub struct ProfileUpdate {
 pub struct ProfileUpdate {
     /// The name of profile
     #[schema(max_length = 64)]
-    pub profile_name: Option<String>,
+    pub profile_name: Option<NameType>,
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]

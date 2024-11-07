@@ -8,7 +8,10 @@ use common_utils::{
     date_time,
     ext_traits::{AsyncExt, Encode, OptionExt, ValueExt},
     id_type, pii, type_name,
-    types::keymanager::{self as km_types, KeyManagerState, ToEncryptable},
+    types::{
+        keymanager::{self as km_types, KeyManagerState, ToEncryptable},
+        NameType,
+    },
 };
 use diesel_models::configs;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
@@ -577,7 +580,7 @@ impl CreateProfile {
                 format!("{}_{}", business_profile.country, business_profile.business);
 
             let profile_create_request = api_models::admin::ProfileCreate {
-                profile_name: Some(profile_name),
+                profile_name: Some(NameType::from_string(profile_name).unwrap_or_default()),
                 ..Default::default()
             };
 
@@ -770,6 +773,8 @@ pub async fn create_profile_from_business_labels(
     merchant_id: &id_type::MerchantId,
     new_business_details: Vec<admin_types::PrimaryBusinessDetails>,
 ) -> RouterResult<()> {
+    use common_utils::types::NameType;
+
     let key_manager_state = &state.into();
     let merchant_account = db
         .find_merchant_account_by_merchant_id(key_manager_state, merchant_id, key_store)
@@ -795,7 +800,7 @@ pub async fn create_profile_from_business_labels(
         let profile_name = format!("{}_{}", business_profile.country, business_profile.business);
 
         let profile_create_request = admin_types::ProfileCreate {
-            profile_name: Some(profile_name),
+            profile_name: Some(NameType::from_string(profile_name).unwrap_or_default()),
             ..Default::default()
         };
 
@@ -2353,7 +2358,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         key_manager_state: &KeyManagerState,
     ) -> RouterResult<domain::MerchantConnectorAccount> {
         // If connector label is not passed in the request, generate one
-        let connector_label = self.get_connector_label(business_profile.profile_name.clone());
+        let connector_label =
+            self.get_connector_label(business_profile.profile_name.clone().to_str());
         let payment_methods_enabled = PaymentMethodsEnabled {
             payment_methods_enabled: &self.payment_methods_enabled,
         };
@@ -2524,7 +2530,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             ))
             .unwrap_or(format!(
                 "{}_{}",
-                self.connector_name, business_profile.profile_name
+                self.connector_name,
+                business_profile.profile_name.clone().to_str()
             ));
         let payment_methods_enabled = PaymentMethodsEnabled {
             payment_methods_enabled: &self.payment_methods_enabled,
@@ -2682,7 +2689,9 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             }
             None => match self.business_country.zip(self.business_label) {
                 Some((business_country, business_label)) => {
-                    let profile_name = format!("{business_country}_{business_label}");
+                    let profile_name =
+                        NameType::from_string(format!("{business_country}_{business_label}"))
+                            .unwrap_or_default();
                     let business_profile = db
                         .find_business_profile_by_profile_name_merchant_id(
                             key_manager_state,
@@ -2692,7 +2701,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                            id: profile_name,
+                            id: profile_name.to_str(),
                         })?;
 
                     Ok(business_profile)
@@ -3394,7 +3403,8 @@ pub async fn create_and_insert_business_profile(
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(
-                "Business Profile with the profile_name {profile_name} already exists"
+                "Business Profile with the profile_name {} already exists",
+                profile_name.to_str()
             ),
         })
         .attach_printable("Failed to insert Business profile because of duplication error")
@@ -3452,8 +3462,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
 
         // Generate a unique profile id
         let profile_id = common_utils::generate_profile_id_of_default_length();
-        let profile_name = self.profile_name.unwrap_or("default".to_string());
 
+        let profile_name = self.profile_name.unwrap_or_default();
         let current_time = date_time::now();
 
         let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);

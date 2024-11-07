@@ -1349,6 +1349,8 @@ pub async fn get_profile_id_from_business_details(
     db: &dyn StorageInterface,
     should_validate: bool,
 ) -> RouterResult<common_utils::id_type::ProfileId> {
+    use common_utils::types::NameType;
+
     match request_profile_id.or(merchant_account.default_profile.as_ref()) {
         Some(profile_id) => {
             // Check whether this business profile belongs to the merchant
@@ -1366,7 +1368,9 @@ pub async fn get_profile_id_from_business_details(
         }
         None => match business_country.zip(business_label) {
             Some((business_country, business_label)) => {
-                let profile_name = format!("{business_country}_{business_label}");
+                let profile_name =
+                    NameType::from_string(format!("{business_country}_{business_label}"))
+                        .unwrap_or_default();
                 let business_profile = db
                     .find_business_profile_by_profile_name_merchant_id(
                         key_manager_state,
@@ -1376,7 +1380,7 @@ pub async fn get_profile_id_from_business_details(
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                        id: profile_name,
+                        id: profile_name.to_str(),
                     })?;
 
                 Ok(business_profile.get_id().to_owned())

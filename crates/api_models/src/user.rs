@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_enums::{EntityType, TokenPurpose};
-use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
+use common_utils::{crypto::OptionalEncryptableName, id_type, pii, types::NameType};
 use masking::Secret;
 
 use crate::user_role::UserStatus;
@@ -145,7 +145,7 @@ pub struct GetUserRoleDetailsResponseV2 {
     pub role_id: String,
     pub org: NameIdUnit<Option<String>, id_type::OrganizationId>,
     pub merchant: Option<NameIdUnit<OptionalEncryptableName, id_type::MerchantId>>,
-    pub profile: Option<NameIdUnit<String, id_type::ProfileId>>,
+    pub profile: Option<NameIdUnit<NameType, id_type::ProfileId>>,
     pub status: UserStatus,
     pub entity_type: EntityType,
     pub role_name: String,
@@ -370,5 +370,5 @@ pub struct ListMerchantsForUserInOrgResponse {
 #[derive(Debug, serde::Serialize)]
 pub struct ListProfilesForUserInOrgAndMerchantAccountResponse {
     pub profile_id: id_type::ProfileId,
-    pub profile_name: String,
+    pub profile_name: NameType,
 }

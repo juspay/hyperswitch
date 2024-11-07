@@ -893,7 +893,7 @@ pub async fn list_invitations_for_user(
 
             Ok::<_, error_stack::Report<UserErrors>>((
                 profile_id.clone(),
-                Secret::new(business_profile.profile_name),
+                Secret::new(business_profile.profile_name.to_str()),
             ))
         },
     ))

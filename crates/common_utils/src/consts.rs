@@ -141,6 +141,9 @@ pub const WILDCARD_DOMAIN_REGEX: &str = r"^((\*|https?)?://)?((\*\.|[A-Za-z0-9][
 /// Maximum allowed length for MerchantName
 pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
 
+/// Maximum allowed length for ProfileName
+pub const MAX_ALLOWED_PROFILE_NAME_LENGTH: u16 = 64;
+
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
 
