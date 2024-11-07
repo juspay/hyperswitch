@@ -118,7 +118,7 @@ describe("Bank Redirect tests", () => {
         should_continue = utils.should_continue_further(res_data);
     });
 
-    it.skip("Handle bank redirect redirection", () => {
+    it("Handle bank redirect redirection", () => {
       // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
       let expected_redirection = fixtures.confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
