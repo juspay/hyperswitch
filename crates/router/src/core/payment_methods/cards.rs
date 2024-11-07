@@ -2755,13 +2755,11 @@ pub async fn list_payment_methods(
     let setup_future_usage = payment_intent.as_ref().and_then(|pi| pi.setup_future_usage);
     let is_cit_transaction = payment_attempt
         .as_ref()
-        .and_then(|pa| Some(pa.mandate_details.is_some()))
-        .or_else(|| {
-            setup_future_usage
-                .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
-        })
-        .unwrap_or(false);
-    println!("$$$$$is_cit_transation: {:?}", is_cit_transaction);
+        .map(|pa| pa.mandate_details.is_some())
+        .unwrap_or(false)
+        || setup_future_usage
+            .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
+            .unwrap_or(false);
     let payment_type = payment_attempt.as_ref().map(|pa| {
         let amount = api::Amount::from(pa.net_amount.get_order_amount());
         let mandate_type = if pa.mandate_id.is_some() {
