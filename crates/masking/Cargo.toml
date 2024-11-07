@@ -8,10 +8,11 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["alloc", "serde", "diesel", "time"]
+default = ["alloc", "serde", "diesel", "time", "cassandra"]
 alloc = ["zeroize/alloc"]
 serde = ["dep:serde", "dep:serde_json"]
 time = ["dep:time"]
+cassandra = ["dep:scylla"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -27,6 +28,7 @@ subtle = "2.5.0"
 time = { version = "0.3.35", optional = true, features = ["serde-human-readable"] }
 url = { version = "2.5.0", features = ["serde"] }
 zeroize = { version = "1.7", default-features = false }
+scylla = { version = "0.14.0", optional = true}
 
 [dev-dependencies]
 serde_json = "1.0.115"
