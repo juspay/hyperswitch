@@ -701,10 +701,12 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         let success_based_routing_config_params = success_based_routing_config_params_interpolator
             .get_string_val(
                 success_based_routing_configs
-                    .params.as_ref()
+                    .params
+                    .as_ref()
                     .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("params not found in success based routing config")?);
+                    .attach_printable("params not found in success based routing config")?,
+            );
 
         let success_based_connectors = client
             .calculate_success_rate(

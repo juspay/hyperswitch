@@ -9,6 +9,7 @@ use error_stack::ResultExt;
 use http_body_util::combinators::UnsyncBoxBody;
 use hyper::body::Bytes;
 use hyper_util::client::legacy::connect::HttpConnector;
+use router_env::logger;
 use serde;
 use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
@@ -16,7 +17,6 @@ use success_rate::{
     CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
     UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
-use router_env::logger;
 use tonic::Status;
 #[allow(
     missing_docs,
