@@ -203,7 +203,7 @@ pub struct AnalyticsMetadata {
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentsAnalyticsMetadata {
     pub total_payment_processed_amount: Option<u64>,
-    pub total_payment_processed_amount_usd: Option<u64>,
+    pub total_payment_processed_amount_in_usd: Option<u64>,
     pub total_payment_processed_amount_without_smart_retries: Option<u64>,
     pub total_payment_processed_amount_without_smart_retries_usd: Option<u64>,
     pub total_payment_processed_count: Option<u64>,
