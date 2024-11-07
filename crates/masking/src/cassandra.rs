@@ -1,4 +1,3 @@
-use crate::{abs::PeekInterface, StrongSecret};
 use scylla::{
     cql_to_rust::FromCqlVal,
     frame::response::result::{ColumnType, CqlValue},
@@ -8,6 +7,8 @@ use scylla::{
         SerializationError,
     },
 };
+
+use crate::{abs::PeekInterface, StrongSecret};
 
 impl<T> SerializeValue for StrongSecret<T>
 where
