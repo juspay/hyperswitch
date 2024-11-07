@@ -884,7 +884,6 @@ where
             Self {
                 session_token: payment_data.get_sessions_token(),
                 payment_id: payment_data.get_payment_intent().id.clone(),
-                client_secret: Secret::new(payment_data.get_payment_intent().client_secret.clone()),
             },
             vec![],
         )))
