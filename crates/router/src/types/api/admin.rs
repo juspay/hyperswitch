@@ -34,7 +34,7 @@ use crate::{
 impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
     fn foreign_from(org: diesel_models::organization::Organization) -> Self {
         Self {
-            organization_id: org.get_organization_id(),
+            id: org.get_organization_id(),
             organization_name: org.get_organization_name(),
             organization_details: org.organization_details,
             metadata: org.metadata,

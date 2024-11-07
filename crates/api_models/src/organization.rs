@@ -22,9 +22,14 @@ pub struct OrganizationId {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct OrganizationCreateRequest {
+    /// Name of the organization
     pub organization_name: String,
+
+    /// Details about the organization
     #[schema(value_type = Option<Object>)]
     pub organization_details: Option<pii::SecretSerdeValue>,
+
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
 }
@@ -32,20 +37,32 @@ pub struct OrganizationCreateRequest {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct OrganizationUpdateRequest {
+    /// Name of the organization
     pub organization_name: Option<String>,
+
+    /// Details about the organization
     #[schema(value_type = Option<Object>)]
     pub organization_details: Option<pii::SecretSerdeValue>,
+
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct OrganizationResponse {
+    /// The unique identifier for the Organization
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "org_q98uSGAYbjEwqs0mJwnz")]
-    pub organization_id: id_type::OrganizationId,
+    pub id: id_type::OrganizationId,
+
+    /// Name of the Organization
     pub organization_name: Option<String>,
+
+    /// Details about the organization
     #[schema(value_type = Option<Object>)]
     pub organization_details: Option<pii::SecretSerdeValue>,
+
+    /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>)]
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: time::PrimitiveDateTime,
