@@ -22,7 +22,7 @@ The single API to access payment ecosystems across 130+ countries</div>
 
 <p align="center">
   <a href="https://github.com/juspay/hyperswitch/actions?query=workflow%3ACI+branch%3Amain">
-    <img src="https://github.com/juspay/hyperswitch/workflows/CI/badge.svg" />
+    <img src="https://github.com/juspay/hyperswitch/workflows/CI-push/badge.svg" />
   </a>
   <a href="https://github.com/juspay/hyperswitch/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/juspay/hyperswitch" />
@@ -44,7 +44,6 @@ The single API to access payment ecosystems across 130+ countries</div>
 </p>
 
 <hr>
-<img src="./docs/imgs/switch.png" />
 
 Hyperswitch is a community-led, open payments switch designed to empower digital businesses by providing fast, reliable, and affordable access to the best payments infrastructure.
 
@@ -58,7 +57,8 @@ Here are the components of Hyperswitch that deliver the whole solution:
 
 Jump in and contribute to these repositories to help improve and expand Hyperswitch!
 
-<br>
+<img src="./docs/imgs/switch.png" />
+
 
 <a href="#Quick Setup">
   <h2 id="quick-setup">⚡️ Quick Setup</h2>

@@ -52,6 +52,7 @@ digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.stagin
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
+elavon.base_url = "https://api.convergepay.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com"
 fiuu.base_url = "https://pay.merchant.razer.com/"
@@ -65,6 +66,7 @@ gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayment
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://iata-pay.iata.org/api/v1"
 itaubank.base_url = "https://secure.api.itau/"
+jpmorgan.base_url = "https://api-ms.payments.jpmorgan.com/api/v2"
 klarna.base_url = "https://api{{klarna_region}}.klarna.com/"
 mifinity.base_url = "https://secure.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -145,6 +147,7 @@ password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Production"
 base_url = "https://live.hyperswitch.io"
+force_two_factor_auth = false
 
 [frm]
 enabled = false
@@ -209,7 +212,7 @@ alfamart = { country = "ID", currency = "IDR" }
 ali_pay = { country = "AU,JP,HK,SG,MY,TH,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK,FI,RO,MT,SI,GR,PT,IE,IT,CA,US", currency = "USD,EUR,GBP,JPY,AUD,SGD,CHF,SEK,NOK,NZD,THB,HKD,CAD" }
 ali_pay_hk = { country = "HK", currency = "HKD" }
 alma = { country = "FR", currency = "EUR" }
-apple_pay = { country = "AE,AM,AR,AT,AU,AZ,BE,BG,BH,BR,BY,CA,CH,CN,CO,CR,CY,CZ,DE,DK,EE,ES,FI,FO,FR,GB,GE,GG,GL,GR,HK,HR,HU,IE,IL,IM,IS,IT,JE,JO,JP,KW,KZ,LI,LT,LU,LV,MC,MD,ME,MO,MT,MX,MY,NL,NO,NZ,PE,PL,PS,PT,QA,RO,RS,SA,SE,SG,SI,SK,SM,TW,UA,GB,UM,US", currency = "AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
+apple_pay = { country = "AE,AM,AR,AT,AU,AZ,BE,BG,BH,BR,BY,CA,CH,CN,CO,CR,CY,CZ,DE,DK,EE,ES,FI,FO,FR,GB,GE,GG,GL,GR,HK,HR,HU,IE,IL,IM,IS,IT,JE,JO,JP,KW,KZ,LI,LT,LU,LV,MC,MD,ME,MO,MT,MX,MY,NL,NO,NZ,PE,PL,PS,PT,QA,RO,RS,SA,SE,SG,SI,SK,SM,TW,UA,GB,UM,US", currency = "AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD,MYR" }
 atome = { country = "MY,SG", currency = "MYR,SGD" }
 bacs = { country = "GB", currency = "GBP" }
 bancontact_card = { country = "BE", currency = "EUR" }
