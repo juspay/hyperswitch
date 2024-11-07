@@ -614,7 +614,7 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "Admin API keys allow you to perform some privileged actions such as \
-                        creating a merchant account and Merchant Connector account."
+                        creating a merchant account and Connector account."
                     ))),
                 ),
                 (

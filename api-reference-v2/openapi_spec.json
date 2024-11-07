@@ -213,8 +213,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Merchant Connector - Create",
-        "description": "Creates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
+        "summary": "Connector Account - Create",
+        "description": "Creates a new Connector Account for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -290,7 +290,7 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Merchant Connector - Retrieve",
+        "summary": "Connector Account - Retrieve",
         "description": "Retrieves details of a Connector account",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
@@ -333,8 +333,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Merchant Connector - Update",
-        "description": "To update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
+        "summary": "Connector Account - Update",
+        "description": "To update an existing Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -20093,7 +20093,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "api-key",
-        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Merchant Connector account."
+        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Connector account."
       },
       "api_key": {
         "type": "apiKey",
