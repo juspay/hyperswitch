@@ -108,6 +108,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsGetI
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
+            email: None,
+            sessions_token: vec![],
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

@@ -8,6 +8,8 @@ pub mod operations;
 #[cfg(feature = "retry")]
 pub mod retry;
 pub mod routing;
+#[cfg(feature = "v2")]
+pub mod session_operation;
 pub mod tokenization;
 pub mod transformers;
 pub mod types;
@@ -50,6 +52,8 @@ use router_env::{instrument, metrics::add_attributes, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
 use scheduler::utils as pt_utils;
+#[cfg(feature = "v2")]
+pub use session_operation::payments_session_core;
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 use time;
@@ -172,7 +176,6 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
-
     let connector = get_connector_choice(
         &operation,
         state,
@@ -185,7 +188,6 @@ where
         None,
     )
     .await?;
-
     // TODO: do not use if let
     let payment_data = if let Some(connector_call_type) = connector {
         match connector_call_type {
@@ -2789,6 +2791,7 @@ where
         )
         .await?;
 
+        #[cfg(feature = "v1")]
         payment_data.set_surcharge_details(session_surcharge_details.as_ref().and_then(
             |session_surcharge_details| {
                 session_surcharge_details.fetch_surcharge_details(
@@ -3201,6 +3204,7 @@ pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
     connector_name == *"trustpay" || connector_name == *"payme"
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn construct_profile_id_and_get_mca<'a, F, D>(
     state: &'a SessionState,
@@ -3215,7 +3219,6 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
-    #[cfg(feature = "v1")]
     let profile_id = payment_data
         .get_payment_intent()
         .profile_id
@@ -3232,6 +3235,37 @@ where
         state,
         merchant_account.get_id(),
         payment_data.get_creds_identifier(),
+        key_store,
+        &profile_id,
+        connector_name,
+        merchant_connector_id,
+    )
+    .await?;
+
+    Ok(merchant_connector_account)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn construct_profile_id_and_get_mca<'a, F, D>(
+    state: &'a SessionState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &D,
+    connector_name: &str,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
+    key_store: &domain::MerchantKeyStore,
+    _should_validate: bool,
+) -> RouterResult<helpers::MerchantConnectorAccountType>
+where
+    F: Clone,
+    D: OperationSessionGetters<F> + Send + Sync + Clone,
+{
+    let profile_id = payment_data.get_payment_intent().profile_id.clone();
+
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        state,
+        merchant_account.get_id(),
+        None,
         key_store,
         &profile_id,
         connector_name,
@@ -4439,7 +4473,43 @@ where
     };
     Ok(connector)
 }
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn get_connector_choice_for_sdk_session_token<F, Req, D>(
+    operation: &BoxedOperation<'_, F, Req, D>,
+    state: &SessionState,
+    req: &Req,
+    merchant_account: &domain::MerchantAccount,
+    _business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut D,
+    _eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+    _mandate_type: Option<api::MandateTransactionType>,
+) -> RouterResult<Option<ConnectorCallType>>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let connector_choice = operation
+        .to_domain()?
+        .get_connector(
+            merchant_account,
+            &state.clone(),
+            req,
+            payment_data.get_payment_intent(),
+            key_store,
+        )
+        .await?;
 
+    let connector = Some(match connector_choice {
+        api::ConnectorChoice::SessionMultiple(connectors) => {
+            // todo perform session routing here
+            ConnectorCallType::SessionMultiple(connectors)
+        }
+        _ => return Err(errors::ApiErrorResponse::InternalServerError.into()),
+    });
+    Ok(connector)
+}
 async fn get_eligible_connector_for_nti<T: core_routing::GetRoutableConnectorsForChoice, F, D>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -6538,7 +6608,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     }
 
     fn get_sessions_token(&self) -> Vec<api::SessionToken> {
-        todo!()
+        self.sessions_token.clone()
     }
 
     fn get_token_data(&self) -> Option<&storage::PaymentTokenData> {
@@ -6589,8 +6659,8 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn push_sessions_token(&mut self, _token: api::SessionToken) {
-        todo!()
+    fn push_sessions_token(&mut self, token: api::SessionToken) {
+        self.sessions_token.push(token);
     }
 
     fn set_surcharge_details(&mut self, _surcharge_details: Option<types::SurchargeDetails>) {

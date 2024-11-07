@@ -2,7 +2,7 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::Address;
+use api_models::payments::{Address, SessionToken};
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -509,6 +509,8 @@ where
 {
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
+    pub email: Option<pii::Email>,
+    pub sessions_token: Vec<SessionToken>,
 }
 
 // TODO: Check if this can be merged with existing payment data

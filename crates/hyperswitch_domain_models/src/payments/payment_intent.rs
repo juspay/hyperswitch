@@ -279,6 +279,10 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
     },
+    MetadataUpdate {
+        metadata: Secret<serde_json::Value>,
+        updated_by: String,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -370,6 +374,14 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
                 status: Some(status),
+                updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::MetadataUpdate {
+                metadata,
+                updated_by,
+            } => Self {
+                metadata: Some(metadata),
                 updated_by,
                 ..Default::default()
             },
@@ -588,6 +600,13 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => {
                 Self::ConfirmIntentPostUpdate { status, updated_by }
             }
+            PaymentIntentUpdate::MetadataUpdate {
+                metadata,
+                updated_by,
+            } => Self::MetadataUpdate {
+                metadata,
+                updated_by,
+            },
         }
     }
 }

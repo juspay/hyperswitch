@@ -17,6 +17,8 @@ pub mod payment_reject;
 pub mod payment_response;
 #[cfg(feature = "v1")]
 pub mod payment_session;
+#[cfg(feature = "v2")]
+pub mod payment_session_intent;
 #[cfg(feature = "v1")]
 pub mod payment_start;
 #[cfg(feature = "v1")]
@@ -43,10 +45,6 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
-pub use self::payment_confirm_intent::PaymentIntentConfirm;
-#[cfg(feature = "v2")]
-pub use self::payment_create_intent::PaymentIntentCreate;
-#[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
@@ -58,6 +56,11 @@ pub use self::{
     payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
+};
+#[cfg(feature = "v2")]
+pub use self::{
+    payment_confirm_intent::PaymentIntentConfirm, payment_create_intent::PaymentIntentCreate,
+    payment_session_intent::PaymentSessionIntent,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
