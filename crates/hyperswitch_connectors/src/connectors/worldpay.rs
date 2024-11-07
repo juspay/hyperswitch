@@ -61,8 +61,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         construct_not_implemented_error_report, convert_amount, get_header_key_value,
-        is_mandate_supported, ForeignTryFrom, PaymentMethodDataType, PaymentsSyncRequestData,
-        RefundsRequestData,
+        is_mandate_supported, ForeignTryFrom, PaymentMethodDataType, RefundsRequestData,
     },
 };
 

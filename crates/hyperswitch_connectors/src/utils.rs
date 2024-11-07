@@ -26,7 +26,6 @@ use hyperswitch_domain_models::{
         PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
     },
-    router_response_types::MandateReference,
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::Luma;
