@@ -81,7 +81,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
@@ -137,7 +136,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           fixtures.captureBody,
           req_data,
           res_data,
-          6500,
           globalState
         );
         if (should_continue)
@@ -217,7 +215,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             fixtures.captureBody,
             req_data,
             res_data,
-            100,
             globalState
           );
           if (should_continue)
@@ -273,7 +270,6 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             fixtures.captureBody,
             req_data,
             res_data,
-            100,
             globalState
           );
           if (should_continue)
