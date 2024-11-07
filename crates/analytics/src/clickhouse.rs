@@ -584,6 +584,6 @@ pub enum ClickhouseError {
     ConnectionError,
     #[error("Clickhouse NON-200 response content: '{0}'")]
     ResponseNotOK(String),
-    #[error("Clickhouse response error")]
+    #[error("Clickhouse respose error")]
     ResponseError,
 }
