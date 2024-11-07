@@ -265,8 +265,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for Payme
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        let error_code = payment_data.payment_attempt.error_code;
-        let error_message = payment_data.payment_attempt.error_message;
+        let error_code = payment_data.payment_attempt.error_code.clone();
+        let error_message = payment_data.payment_attempt.error_message.clone();
         req_state
             .event_context
             .event(AuditEvent::new(AuditEventType::PaymentReject {
