@@ -80,7 +80,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         ]["Capture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(captureBody, req_data, res_data, globalState);
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
@@ -133,7 +133,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         ]["Capture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        cy.captureCallTest(captureBody, req_data, res_data, 6500, globalState);
+        cy.captureCallTest(captureBody, req_data, res_data, globalState);
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
@@ -210,7 +210,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           ]["PartialCapture"];
           let req_data = data["Request"];
           let res_data = data["Response"];
-          cy.captureCallTest(captureBody, req_data, res_data, 100, globalState);
+          cy.captureCallTest(captureBody, req_data, res_data, globalState);
           if (should_continue)
             should_continue = utils.should_continue_further(res_data);
         });
@@ -263,7 +263,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           ]["PartialCapture"];
           let req_data = data["Request"];
           let res_data = data["Response"];
-          cy.captureCallTest(captureBody, req_data, res_data, 100, globalState);
+          cy.captureCallTest(captureBody, req_data, res_data, globalState);
           if (should_continue)
             should_continue = utils.should_continue_further(res_data);
         });
