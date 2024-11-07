@@ -41,12 +41,6 @@ impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for &PaymentSessionIn
     fn to_domain(&self) -> RouterResult<&(dyn Domain<F, PaymentsSessionRequest, Self::Data>)> {
         Ok(*self)
     }
-    fn to_update_tracker(
-        &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, PaymentsSessionRequest> + Send + Sync)>
-    {
-        Ok(*self)
-    }
 }
 
 impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for PaymentSessionIntent {
@@ -63,12 +57,6 @@ impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for PaymentSessionInt
         Ok(self)
     }
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, PaymentsSessionRequest, Self::Data>> {
-        Ok(self)
-    }
-    fn to_update_tracker(
-        &self,
-    ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, PaymentsSessionRequest> + Send + Sync)>
-    {
         Ok(self)
     }
 }
@@ -128,52 +116,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSess
         };
 
         Ok(get_trackers_response)
-    }
-}
-
-#[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsSessionRequest>
-    for PaymentSessionIntent
-{
-    #[instrument(skip_all)]
-    async fn update_trackers<'b>(
-        &'b self,
-        state: &'b SessionState,
-        _req_state: ReqState,
-        mut payment_data: payments::PaymentIntentData<F>,
-        _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
-        _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<(
-        PaymentsCreateIntentOperation<'b, F>,
-        payments::PaymentIntentData<F>,
-    )>
-    where
-        F: 'b + Send,
-    {
-        let metadata = payment_data.payment_intent.metadata.clone();
-        payment_data.payment_intent = match metadata {
-            Some(metadata) => state
-                .store
-                .update_payment_intent(
-                    &state.into(),
-                    payment_data.payment_intent,
-                    storage::PaymentIntentUpdate::MetadataUpdate {
-                        metadata,
-                        updated_by: storage_scheme.to_string(),
-                    },
-                    key_store,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-            None => payment_data.payment_intent,
-        };
-
-        Ok((Box::new(self), payment_data))
     }
 }
 

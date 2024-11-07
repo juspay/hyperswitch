@@ -62,9 +62,6 @@ where
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
-
-    // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, FData, Data = D>,
 {
     let (payment_data, _req, customer, connector_http_status_code, external_latency) =
         payments_session_operation_core::<_, _, _, _, _>(
@@ -120,9 +117,6 @@ where
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
-
-    // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);

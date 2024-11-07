@@ -2145,56 +2145,6 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
 }
 
 #[cfg(feature = "v2")]
-impl<F: Send + Clone> Operation<F, types::PaymentsSessionData> for &PaymentResponse {
-    type Data = PaymentIntentData<F>;
-    fn to_post_update_tracker(
-        &self,
-    ) -> RouterResult<
-        &(dyn PostUpdateTracker<F, Self::Data, types::PaymentsSessionData> + Send + Sync),
-    > {
-        Ok(*self)
-    }
-}
-
-#[cfg(feature = "v2")]
-impl<F: Send + Clone> Operation<F, types::PaymentsSessionData> for PaymentResponse {
-    type Data = PaymentIntentData<F>;
-    fn to_post_update_tracker(
-        &self,
-    ) -> RouterResult<
-        &(dyn PostUpdateTracker<F, Self::Data, types::PaymentsSessionData> + Send + Sync),
-    > {
-        Ok(self)
-    }
-}
-
-#[cfg(feature = "v2")]
-#[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentIntentData<F>, types::PaymentsSessionData>
-    for PaymentResponse
-{
-    async fn update_tracker<'b>(
-        &'b self,
-        state: &'b SessionState,
-        mut payment_data: PaymentIntentData<F>,
-        response: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
-        locale: &Option<String>,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
-            RoutableConnectorChoice,
-        >,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
-    ) -> RouterResult<PaymentIntentData<F>>
-    where
-        F: 'b + Send + Sync,
-    {
-        // TODO: Implement this
-        Ok(payment_data)
-    }
-}
-
-#[cfg(feature = "v2")]
 impl<F: Send + Clone> Operation<F, types::PaymentsAuthorizeData> for &PaymentResponse {
     type Data = PaymentConfirmData<F>;
     fn to_post_update_tracker(
