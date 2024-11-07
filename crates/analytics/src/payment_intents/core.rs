@@ -10,8 +10,10 @@ use api_models::analytics::{
     PaymentIntentFiltersResponse, PaymentIntentsAnalyticsMetadata, PaymentIntentsMetricsResponse,
     SankeyResponse,
 };
-use common_enums::IntentStatus;
+use bigdecimal::ToPrimitive;
+use common_enums::{Currency, IntentStatus};
 use common_utils::{errors::CustomResult, types::TimeRange};
+use currency_conversion::{conversion::convert, types::ExchangeRates};
 use error_stack::ResultExt;
 use router_env::{
     instrument, logger,
@@ -120,6 +122,7 @@ pub async fn get_sankey(
 #[instrument(skip_all)]
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
+    ex_rates: &ExchangeRates,
     auth: &AuthInfo,
     req: GetPaymentIntentMetricRequest,
 ) -> AnalyticsResult<PaymentIntentsMetricsResponse<MetricsBucketResponse>> {
@@ -227,16 +230,20 @@ pub async fn get_metrics(
     let mut success = 0;
     let mut success_without_smart_retries = 0;
     let mut total_smart_retried_amount = 0;
+    let mut total_smart_retried_amount_in_usd = 0;
     let mut total_smart_retried_amount_without_smart_retries = 0;
+    let mut total_smart_retried_amount_without_smart_retries_in_usd = 0;
     let mut total = 0;
     let mut total_payment_processed_amount = 0;
+    let mut total_payment_processed_amount_in_usd = 0;
     let mut total_payment_processed_count = 0;
     let mut total_payment_processed_amount_without_smart_retries = 0;
+    let mut total_payment_processed_amount_without_smart_retries_in_usd = 0;
     let mut total_payment_processed_count_without_smart_retries = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
         .map(|(id, val)| {
-            let collected_values = val.collect();
+            let mut collected_values = val.collect();
             if let Some(success_count) = collected_values.successful_payments {
                 success += success_count;
             }
@@ -248,20 +255,95 @@ pub async fn get_metrics(
                 total += total_count;
             }
             if let Some(retried_amount) = collected_values.smart_retried_amount {
+                let amount_in_usd = id
+                    .currency
+                    .and_then(|currency| {
+                        i64::try_from(retried_amount)
+                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                            .ok()
+                            .and_then(|amount_i64| {
+                                convert(ex_rates, currency, Currency::USD, amount_i64)
+                                    .inspect_err(|e| {
+                                        logger::error!("Currency conversion error: {:?}", e)
+                                    })
+                                    .ok()
+                            })
+                    })
+                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                    .unwrap_or_default();
+                collected_values.smart_retried_amount_in_usd = amount_in_usd;
                 total_smart_retried_amount += retried_amount;
+                total_smart_retried_amount_in_usd += amount_in_usd.unwrap_or(0);
             }
             if let Some(retried_amount) =
                 collected_values.smart_retried_amount_without_smart_retries
             {
+                let amount_in_usd = id
+                    .currency
+                    .and_then(|currency| {
+                        i64::try_from(retried_amount)
+                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                            .ok()
+                            .and_then(|amount_i64| {
+                                convert(ex_rates, currency, Currency::USD, amount_i64)
+                                    .inspect_err(|e| {
+                                        logger::error!("Currency conversion error: {:?}", e)
+                                    })
+                                    .ok()
+                            })
+                    })
+                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                    .unwrap_or_default();
+                collected_values.smart_retried_amount_without_smart_retries_in_usd = amount_in_usd;
                 total_smart_retried_amount_without_smart_retries += retried_amount;
+                total_smart_retried_amount_without_smart_retries_in_usd +=
+                    amount_in_usd.unwrap_or(0);
             }
             if let Some(amount) = collected_values.payment_processed_amount {
+                let amount_in_usd = id
+                    .currency
+                    .and_then(|currency| {
+                        i64::try_from(amount)
+                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                            .ok()
+                            .and_then(|amount_i64| {
+                                convert(ex_rates, currency, Currency::USD, amount_i64)
+                                    .inspect_err(|e| {
+                                        logger::error!("Currency conversion error: {:?}", e)
+                                    })
+                                    .ok()
+                            })
+                    })
+                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                    .unwrap_or_default();
+                collected_values.payment_processed_amount_in_usd = amount_in_usd;
+                total_payment_processed_amount_in_usd += amount_in_usd.unwrap_or(0);
                 total_payment_processed_amount += amount;
             }
             if let Some(count) = collected_values.payment_processed_count {
                 total_payment_processed_count += count;
             }
             if let Some(amount) = collected_values.payment_processed_amount_without_smart_retries {
+                let amount_in_usd = id
+                    .currency
+                    .and_then(|currency| {
+                        i64::try_from(amount)
+                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                            .ok()
+                            .and_then(|amount_i64| {
+                                convert(ex_rates, currency, Currency::USD, amount_i64)
+                                    .inspect_err(|e| {
+                                        logger::error!("Currency conversion error: {:?}", e)
+                                    })
+                                    .ok()
+                            })
+                    })
+                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                    .unwrap_or_default();
+                collected_values.payment_processed_amount_without_smart_retries_in_usd =
+                    amount_in_usd;
+                total_payment_processed_amount_without_smart_retries_in_usd +=
+                    amount_in_usd.unwrap_or(0);
                 total_payment_processed_amount_without_smart_retries += amount;
             }
             if let Some(count) = collected_values.payment_processed_count_without_smart_retries {
@@ -293,6 +375,14 @@ pub async fn get_metrics(
             total_payment_processed_amount: Some(total_payment_processed_amount),
             total_payment_processed_amount_without_smart_retries: Some(
                 total_payment_processed_amount_without_smart_retries,
+            ),
+            total_smart_retried_amount_in_usd: Some(total_smart_retried_amount_in_usd),
+            total_smart_retried_amount_without_smart_retries_in_usd: Some(
+                total_smart_retried_amount_without_smart_retries_in_usd,
+            ),
+            total_payment_processed_amount_in_usd: Some(total_payment_processed_amount_in_usd),
+            total_payment_processed_amount_without_smart_retries_in_usd: Some(
+                total_payment_processed_amount_without_smart_retries_in_usd,
             ),
             total_payment_processed_count: Some(total_payment_processed_count),
             total_payment_processed_count_without_smart_retries: Some(
