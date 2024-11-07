@@ -524,7 +524,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: data.request.connector_transaction_id.clone(),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(data.request.get_connector_mandate_reference()),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: optional_correlation_id,
