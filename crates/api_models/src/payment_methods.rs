@@ -1582,35 +1582,6 @@ pub struct PaymentMethodListResponse {
     pub is_tax_calculation_enabled: bool,
 }
 
-#[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
-pub struct PaymentMethodList {
-    /// The type of payment method use for the payment.
-    #[schema(value_type = PaymentMethod,example = "card")]
-    pub payment_method: api_enums::PaymentMethod,
-
-    /// This is a sub-category of payment method.
-    #[schema(value_type = Option<Vec<PaymentMethodType>>,example = json!(["credit"]))]
-    pub payment_method_types: Option<Vec<RequestPaymentMethodTypes>>,
-}
-
-/// Currently if the payment method is Wallet or Paylater the relevant fields are `payment_method`
-/// and `payment_method_issuers`. Otherwise only consider
-/// `payment_method`,`payment_method_issuers`,`payment_method_types`,`payment_schemes` fields.
-impl serde::Serialize for PaymentMethodList {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-        let mut state = serializer.serialize_struct("PaymentMethodList", 4)?;
-        state.serialize_field("payment_method", &self.payment_method)?;
-
-        state.serialize_field("payment_method_types", &self.payment_method_types)?;
-
-        state.end()
-    }
-}
-
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")

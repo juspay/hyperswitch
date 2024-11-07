@@ -231,7 +231,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::customers::CustomerDeleteResponse,
         api_models::payment_methods::PaymentMethodCreate,
         api_models::payment_methods::PaymentMethodResponse,
-        api_models::payment_methods::PaymentMethodList,
         api_models::payment_methods::CustomerPaymentMethod,
         api_models::payment_methods::PaymentMethodListResponse,
         api_models::payment_methods::CustomerPaymentMethodsListResponse,
