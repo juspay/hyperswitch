@@ -704,8 +704,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                     .params
                     .as_ref()
                     .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("params not found in success based routing config")?,
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
             );
 
         let success_based_connectors = client

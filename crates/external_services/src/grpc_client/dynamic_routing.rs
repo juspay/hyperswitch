@@ -81,7 +81,7 @@ impl DynamicRoutingClientConfig {
         let success_rate_client = match self {
             Self::Enabled { host, port } => {
                 let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
-                logger::info!("Connection established with gRPC Server");
+                logger::info!("Connection established with dynamic routing gRPC Server");
                 Some(SuccessRateCalculatorClient::with_origin(client, uri))
             }
             Self::Disabled => None,

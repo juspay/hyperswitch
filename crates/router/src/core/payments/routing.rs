@@ -1299,8 +1299,7 @@ pub async fn perform_success_based_routing(
                 success_based_routing_configs
                     .params
                     .as_ref()
-                    .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)
-                    .attach_printable("params not found in success based routing config")?,
+                    .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)?,
             );
 
         let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
