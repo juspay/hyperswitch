@@ -556,6 +556,7 @@ pub struct UserSettings {
     pub two_factor_auth_expiry_in_secs: i64,
     pub totp_issuer_name: String,
     pub base_url: String,
+    pub force_two_factor_auth: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
