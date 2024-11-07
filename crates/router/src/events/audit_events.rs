@@ -1,3 +1,4 @@
+use api_models::payments::Amount;
 use common_utils::types::MinorUnit;
 use diesel_models::fraud_check::FraudCheck;
 use events::{Event, EventInfo};
@@ -28,7 +29,7 @@ pub enum AuditEventType {
         multiple_capture_count: Option<i16>,
     },
     PaymentUpdate {
-        amount: Option<MinorUnit>,
+        amount: Amount,
     },
 }
 

@@ -926,7 +926,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        let amount = payment_data.amount.into();
+        let amount = payment_data.amount;
         req_state
             .event_context
             .event(AuditEvent::new(AuditEventType::PaymentUpdate { amount }))
