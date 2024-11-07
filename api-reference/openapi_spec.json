@@ -13662,6 +13662,14 @@
       "MobilePayRedirection": {
         "type": "object"
       },
+      "MobilePaymentConsent": {
+        "type": "string",
+        "enum": [
+          "consent_required",
+          "consent_not_required",
+          "consent_optional"
+        ]
+      },
       "MobilePaymentData": {
         "oneOf": [
           {
@@ -13692,6 +13700,17 @@
             }
           }
         ]
+      },
+      "MobilePaymentNextStepData": {
+        "type": "object",
+        "required": [
+          "consent_data_required"
+        ],
+        "properties": {
+          "consent_data_required": {
+            "$ref": "#/components/schemas/MobilePaymentConsent"
+          }
+        }
       },
       "MobilePaymentResponse": {
         "allOf": [
@@ -14011,14 +14030,14 @@
           },
           {
             "type": "object",
-            "description": "Contains url to collect otp for mobile payment",
+            "description": "Contains consent to collect otp for mobile payment",
             "required": [
-              "collect_otp_url",
+              "consent_data_required",
               "type"
             ],
             "properties": {
-              "collect_otp_url": {
-                "type": "string"
+              "consent_data_required": {
+                "$ref": "#/components/schemas/MobilePaymentConsent"
               },
               "type": {
                 "type": "string",

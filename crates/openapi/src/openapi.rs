@@ -440,6 +440,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::MultibancoBillingDetails,
         api_models::payments::DokuBillingDetails,
         api_models::payments::BankTransferInstructions,
+        api_models::payments::MobilePaymentNextStepData,
+        api_models::payments::MobilePaymentConsent,
         api_models::payments::ReceiverDetails,
         api_models::payments::AchTransfer,
         api_models::payments::MultibancoTransferInstructions,
