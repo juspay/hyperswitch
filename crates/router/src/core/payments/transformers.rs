@@ -1466,7 +1466,7 @@ where
                         .and_then(|customer_data| customer_data.email.clone())
                         .or(customer_details_encrypted_data.email.or(customer
                             .as_ref()
-                            .and_then(|customer| customer.email.clone().map(Email::from)))),
+                            .and_then(|customer| customer.email.clone().map(pii::Email::from)))),
                     phone: customer_table_response
                         .as_ref()
                         .and_then(|customer_data| customer_data.phone.clone())
