@@ -84,6 +84,7 @@ pub enum Connector {
     Helcim,
     Iatapay,
     Itaubank,
+    //Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,
@@ -221,6 +222,7 @@ impl Connector {
             | Self::Helcim
             | Self::Iatapay
             | Self::Itaubank
+            //| Self::Jpmorgan
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
