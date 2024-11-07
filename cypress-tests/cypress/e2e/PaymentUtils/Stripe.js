@@ -257,6 +257,38 @@ export const connectorDetails = {
         },
       },
     },
+    manualPaymentRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     PartialRefund: {
       Request: {
         payment_method: "card",
@@ -617,7 +649,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "You cannot confirm with `off_session=true` when `setup_future_usage` is also set on the PaymentIntent. The customer needs to be on-session to perform the steps which may be required to set up the PaymentMethod for future usage. Please confirm this PaymentIntent with your customer on-session.",
+          error_message:
+            "You cannot confirm with `off_session=true` when `setup_future_usage` is also set on the PaymentIntent. The customer needs to be on-session to perform the steps which may be required to set up the PaymentMethod for future usage. Please confirm this PaymentIntent with your customer on-session.",
         },
       },
     },
