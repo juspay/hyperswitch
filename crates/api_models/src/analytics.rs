@@ -228,6 +228,11 @@ pub struct PaymentIntentsAnalyticsMetadata {
     pub total_payment_processed_count_without_smart_retries: Option<u64>,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct RefundsAnalyticsMetadata {
+    pub total_refund_processed_amount: Option<u64>,
+    pub total_refund_processed_amount_in_usd: Option<u64>,
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentFiltersRequest {
@@ -362,6 +367,12 @@ pub struct PaymentIntentsMetricsResponse<T> {
     pub meta_data: [PaymentIntentsAnalyticsMetadata; 1],
 }
 
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundsMetricsResponse<T> {
+    pub query_data: Vec<T>,
+    pub meta_data: [RefundsAnalyticsMetadata; 1],
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetApiEventFiltersRequest {
