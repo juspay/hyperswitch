@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::MandateReferenceId};
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::ResultExt;
@@ -21,7 +21,6 @@ use crate::{
     types::{
         api, domain,
         storage::{self, enums},
-        transformers::ForeignFrom,
     },
     utils::OptionExt,
 };
@@ -452,33 +451,19 @@ async fn get_tracker_for_sync<
         }).await
         .transpose()?;
 
-    let mandate_reference_id =
-        payment_attempt
-            .connector_mandate_detail
-            .as_ref()
-            .map(|connector_mandate_detail| {
-                MandateReferenceId::ConnectorMandateId(ForeignFrom::foreign_from(
-                    connector_mandate_detail.clone(),
-                ))
-            });
-    let mandate_ids = match (
-        payment_attempt.mandate_id.clone(),
-        mandate_reference_id.as_ref(),
-    ) {
-        (None, None) => None,
-        (mandate_id, _) => Some(api_models::payments::MandateIds {
-            mandate_id,
-            mandate_reference_id,
-        }),
-    };
-
     let payment_data = PaymentData {
         flow: PhantomData,
         payment_intent,
         currency,
         amount,
         email: None,
-        mandate_id: mandate_ids,
+        mandate_id: payment_attempt
+            .mandate_id
+            .clone()
+            .map(|id| api_models::payments::MandateIds {
+                mandate_id: Some(id),
+                mandate_reference_id: None,
+            }),
         mandate_connector: None,
         setup_mandate: None,
         customer_acceptance: None,

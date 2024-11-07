@@ -2364,7 +2364,7 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
             ))
         }
     } else {
-        None
+        original_connector_mandate_reference_id
     };
 
     payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
