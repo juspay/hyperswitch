@@ -509,7 +509,6 @@ where
 {
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
-    pub email: Option<pii::Email>,
     pub sessions_token: Vec<SessionToken>,
 }
 

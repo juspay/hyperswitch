@@ -119,7 +119,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSess
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
-            email: None,
             sessions_token: vec![],
         };
 
@@ -231,7 +230,6 @@ impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentD
                         storage_scheme,
                     )
                     .await?;
-                payment_data.email = customer.email.clone().map(common_utils::pii::Email::from);
                 Ok((Box::new(self), Some(customer)))
             }
             None => Ok((Box::new(self), None)),

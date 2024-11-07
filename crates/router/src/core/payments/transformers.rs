@@ -7,8 +7,7 @@ use api_models::payments::{
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
     consts::X_HS_LATENCY,
-    fp_utils,
-    pii::Email,
+    fp_utils, pii,
     types::{self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::{
@@ -411,6 +410,10 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         .attach_printable(
             "Invalid global customer generated, not able to convert to reference id",
         )?;
+    let email = customer
+        .as_ref()
+        .and_then(|customer| customer.email.clone())
+        .map(pii::Email::from);
     let order_details = payment_data
         .payment_intent
         .order_details
@@ -443,7 +446,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         // TODO: populate surcharge here
         surcharge_details: None,
         order_details,
-        email: payment_data.email,
+        email,
         minor_amount: payment_data.payment_intent.amount_details.order_amount,
     };
 
