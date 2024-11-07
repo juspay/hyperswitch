@@ -1,10 +1,12 @@
 //! Payouts interface
 
-use hyperswitch_domain_models::router_flow_types::payouts::{
-    PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount, PoSync,
-};
 use hyperswitch_domain_models::{
-    router_request_types::PayoutsData, router_response_types::PayoutsResponseData,
+    router_flow_types::payouts::{
+        PoCancel, PoCreate, PoEligibility, PoFulfill, PoQuote, PoRecipient, PoRecipientAccount,
+        PoSync,
+    },
+    router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
 };
 
 use super::ConnectorCommon;
@@ -43,7 +45,6 @@ pub trait PayoutRecipientAccount:
 /// trait PayoutSync
 pub trait PayoutSync: ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> {}
 
-#[cfg(feature = "payouts")]
 /// trait Payouts
 pub trait Payouts:
     ConnectorCommon
