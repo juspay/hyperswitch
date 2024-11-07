@@ -170,19 +170,39 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentUpdateData<F>, PaymentsUpda
                 .amount_details
                 .as_ref()
                 .map(|details| details.currency()),
+            shipping_cost: request
+                .amount_details
+                .as_ref()
+                .and_then(|details| details.shipping_cost()),
+            skip_external_tax_calculation: request
+                .amount_details
+                .as_ref()
+                .map(|details| details.skip_external_tax_calculation()),
+            skip_surcharge_calculation: request
+                .amount_details
+                .as_ref()
+                .map(|details| details.skip_surcharge_calculation()),
+            surcharge_amount: request
+                .amount_details
+                .as_ref()
+                .and_then(|details| details.surcharge_amount()),
+            tax_on_surcharge: request
+                .amount_details
+                .as_ref()
+                .and_then(|details| details.tax_on_surcharge()),
             merchant_reference_id: request.merchant_reference_id.clone(),
             routing_algorithm_id: request.routing_algorithm_id.clone(),
             capture_method: request.capture_method,
             authentication_type: request.authentication_type,
             billing_address: Box::new(billing_address),
             shipping_address: Box::new(shipping_address),
-            customer_id: request.customer_id.clone(),
+            customer_id: Box::new(request.customer_id.clone()),
             customer_present: request.customer_present.clone(),
-            description: request.description.clone(),
+            description: Box::new(request.description.clone()),
             return_url: Box::new(request.return_url.clone()),
             setup_future_usage: request.setup_future_usage,
             apply_mit_exemption: request.apply_mit_exemption.clone(),
-            statement_descriptor: request.statement_descriptor.clone(),
+            statement_descriptor: Box::new(request.statement_descriptor.clone()),
             order_details: Box::new(order_details),
             allowed_payment_method_types: Box::new(request.allowed_payment_method_types.clone()),
             metadata: Box::new(request.metadata.clone()),

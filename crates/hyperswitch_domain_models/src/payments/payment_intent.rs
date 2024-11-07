@@ -1,7 +1,12 @@
+#[cfg(feature = "v2")]
 use api_models::payments::{Address, OrderDetailsWithAmount};
-use common_enums::{self as storage_enums, External3dsAuthenticationRequest};
+#[cfg(feature = "v2")]
+use common_enums::External3dsAuthenticationRequest;
+use common_enums::{self as storage_enums};
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
+#[cfg(feature = "v2")]
+use common_utils::types::StatementDescriptor;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     crypto::Encryptable,
@@ -12,7 +17,7 @@ use common_utils::{
     type_name,
     types::{
         keymanager::{self, KeyManagerState, ToEncryptable},
-        MinorUnit, StatementDescriptor,
+        MinorUnit,
     },
 };
 #[cfg(feature = "v2")]
@@ -289,25 +294,30 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     UpdateIntent {
-        // TODO: Add more amount_details fields
         amount: Option<MinorUnit>,
         currency: Option<storage_enums::Currency>,
-
+        shipping_cost: Option<MinorUnit>,
+        // TODO: Check how to handle this
+        // tax_details: Option<diesel_models::TaxDetails>,
+        skip_external_tax_calculation: Option<common_enums::TaxCalculationOverride>,
+        skip_surcharge_calculation: Option<common_enums::SurchargeCalculationOverride>,
+        surcharge_amount: Option<MinorUnit>,
+        tax_on_surcharge: Option<MinorUnit>,
         merchant_reference_id: Option<id_type::PaymentReferenceId>,
         routing_algorithm_id: Option<id_type::RoutingId>,
         capture_method: Option<common_enums::CaptureMethod>,
         authentication_type: Option<common_enums::AuthenticationType>,
         billing_address: Box<Option<Encryptable<Secret<Address>>>>,
         shipping_address: Box<Option<Encryptable<Secret<Address>>>>,
-        customer_id: Option<id_type::CustomerId>,
+        customer_id: Box<Option<id_type::CustomerId>>,
         customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
-        description: Option<common_utils::types::Description>,
+        description: Box<Option<common_utils::types::Description>>,
         return_url: Box<Option<common_utils::types::Url>>,
         setup_future_usage: Option<storage_enums::FutureUsage>,
         apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
         // TODO: Check if it is supported
         // payment_method_token: Option<String>,
-        statement_descriptor: Option<StatementDescriptor>,
+        statement_descriptor: Box<Option<StatementDescriptor>>,
         order_details: Box<Option<Vec<Secret<OrderDetailsWithAmount>>>>,
         allowed_payment_method_types: Box<Option<pii::SecretSerdeValue>>,
         metadata: Box<Option<pii::SecretSerdeValue>>,
@@ -385,6 +395,11 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 currency: None,
+                shipping_cost: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
                 merchant_reference_id: None,
                 routing_algorithm_id: None,
                 capture_method: None,
@@ -417,6 +432,11 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 currency: None,
+                shipping_cost: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
                 merchant_reference_id: None,
                 routing_algorithm_id: None,
                 capture_method: None,
@@ -448,6 +468,11 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 amount: None,
                 currency: None,
+                shipping_cost: None,
+                skip_external_tax_calculation: None,
+                surcharge_applicable: None,
+                surcharge_amount: None,
+                tax_on_surcharge: None,
                 merchant_reference_id: None,
                 routing_algorithm_id: None,
                 capture_method: None,
@@ -476,6 +501,11 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
             PaymentIntentUpdate::UpdateIntent {
                 amount,
                 currency,
+                shipping_cost,
+                skip_external_tax_calculation,
+                skip_surcharge_calculation,
+                surcharge_amount,
+                tax_on_surcharge,
                 merchant_reference_id,
                 routing_algorithm_id,
                 capture_method,
@@ -507,19 +537,30 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
 
                 amount,
                 currency,
+                shipping_cost,
+                skip_external_tax_calculation: skip_external_tax_calculation.map(|val| match val {
+                    common_enums::TaxCalculationOverride::Skip => true,
+                    common_enums::TaxCalculationOverride::Calculate => false,
+                }),
+                surcharge_applicable: skip_surcharge_calculation.map(|val| match val {
+                    common_enums::SurchargeCalculationOverride::Skip => true,
+                    common_enums::SurchargeCalculationOverride::Calculate => false,
+                }),
+                surcharge_amount,
+                tax_on_surcharge,
                 merchant_reference_id,
                 routing_algorithm_id,
                 capture_method,
                 authentication_type,
                 billing_address: billing_address.map(Encryption::from),
                 shipping_address: shipping_address.map(Encryption::from),
-                customer_id,
+                customer_id: *customer_id,
                 customer_present: customer_present.map(|val| val.as_bool()),
-                description,
+                description: *description,
                 return_url: *return_url,
                 setup_future_usage,
                 apply_mit_exemption: apply_mit_exemption.map(|val| val.as_bool()),
-                statement_descriptor,
+                statement_descriptor: *statement_descriptor,
                 order_details: order_details
                     .map(|order_details| {
                         order_details
