@@ -145,6 +145,7 @@ pub trait GlobalStorageInterface:
     + dyn_clone::DynClone
     + user::UserInterface
     + user_key_store::UserKeyStoreInterface
+    + user::theme::ThemeInterface
     + 'static
 {
 }

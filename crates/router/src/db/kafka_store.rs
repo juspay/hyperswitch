@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState};
+use common_utils::{
+    errors::CustomResult,
+    id_type, pii,
+    types::{keymanager::KeyManagerState, theme::ThemeLineage},
+};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -34,7 +38,7 @@ use time::PrimitiveDateTime;
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
-    user::{sample_data::BatchSampleDataInterface, UserInterface},
+    user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
     user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload, UserRoleInterface},
@@ -3679,6 +3683,33 @@ impl UserAuthenticationMethodInterface for KafkaStore {
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
         self.diesel_store
             .update_user_authentication_method(id, user_authentication_method_update)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl ThemeInterface for KafkaStore {
+    async fn insert_theme(
+        &self,
+        theme: storage::theme::ThemeNew,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.insert_theme(theme).await
+    }
+
+    async fn find_theme_by_lineage(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.find_theme_by_lineage(lineage).await
+    }
+
+    async fn delete_theme_by_lineage_and_theme_id(
+        &self,
+        theme_id: String,
+        lineage: ThemeLineage,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .delete_theme_by_lineage_and_theme_id(theme_id, lineage)
             .await
     }
 }
