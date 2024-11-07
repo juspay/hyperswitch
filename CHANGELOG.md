@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.07.1
+
+### Bug Fixes
+
+- **users:** Add force rotate password on first login for non-email flow ([#6483](https://github.com/juspay/hyperswitch/pull/6483)) ([`b43033c`](https://github.com/juspay/hyperswitch/commit/b43033c2d9530d291651326cd987476e4924132b))
+
+### Refactors
+
+- **connector:** Added amount conversion framework to Wise. ([#6469](https://github.com/juspay/hyperswitch/pull/6469)) ([`1ba3d84`](https://github.com/juspay/hyperswitch/commit/1ba3d84df1e93d2286db1a262c4a67b3861b90c0))
+
+**Full Changelog:** [`2024.11.07.0...2024.11.07.1`](https://github.com/juspay/hyperswitch/compare/2024.11.07.0...2024.11.07.1)
+
+- - -
+
 ## 2024.11.07.0
 
 ### Features
