@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.07.1-hotfix1
+
+### Bug Fixes
+
+- **router:** Get apple pay certificates only from metadata during the session call ([#6517](https://github.com/juspay/hyperswitch/pull/6517)) ([`491334f`](https://github.com/juspay/hyperswitch/commit/491334f3218b7ceec1c26315513276c1853bde99))
+
+- - -
+
 ## 2024.11.07.1
 
 ### Bug Fixes
