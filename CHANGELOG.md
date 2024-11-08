@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.08.0
+
+### Features
+
+- **payments:** Add audit events for PaymentCreate update ([#6427](https://github.com/juspay/hyperswitch/pull/6427)) ([`063fe90`](https://github.com/juspay/hyperswitch/commit/063fe904c66c9af3d7ce0a82ad712eac69e41786))
+
+**Full Changelog:** [`2024.11.07.1...2024.11.08.0`](https://github.com/juspay/hyperswitch/compare/2024.11.07.1...2024.11.08.0)
+
+- - -
+
 ## 2024.11.07.1
 
 ### Bug Fixes

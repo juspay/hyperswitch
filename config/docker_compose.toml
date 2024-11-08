@@ -113,6 +113,7 @@ adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
 adyen.dispute_base_url = "https://ca-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
+amazonpay.base_url = "https://pay-api.amazon.com/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
@@ -215,6 +216,7 @@ cards = [
     "adyen",
     "adyenplatform",
     "airwallex",
+    "amazonpay",
     "authorizedotnet",
     "bambora",
     "bamboraapac",

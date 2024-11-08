@@ -453,6 +453,7 @@ default_imp_for_connector_request_id!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
+    connector::Amazonpay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bamboraapac,
@@ -978,8 +979,6 @@ impl<const T: u8> Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
     connector::Aci,
-    connector::Authorizedotnet,
-    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Bluesnap,
     connector::Boku,
@@ -1736,6 +1735,7 @@ default_imp_for_fraud_check!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
+    connector::Amazonpay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bamboraapac,
@@ -2398,6 +2398,7 @@ default_imp_for_connector_authentication!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
+    connector::Amazonpay,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bamboraapac,
