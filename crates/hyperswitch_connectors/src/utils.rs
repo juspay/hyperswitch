@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
+use api_models::payments::{self, Address, AddressDetails, PhoneDetails};
 use base64::Engine;
 use common_enums::{
     enums,
@@ -26,6 +26,7 @@ use hyperswitch_domain_models::{
         PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
     },
+    types::OrderDetailsWithAmount,
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::Luma;

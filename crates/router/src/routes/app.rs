@@ -46,7 +46,7 @@ use super::pm_auth;
 use super::poll;
 #[cfg(feature = "olap")]
 use super::routing;
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(all(feature = "oltp", feature = "v1"))]
 use super::webhooks::*;
@@ -66,6 +66,8 @@ pub use crate::analytics::opensearch::OpenSearchClient;
 use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
+#[cfg(feature = "v1")]
+use crate::routes::cards_info::card_iin_info;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -74,7 +76,6 @@ pub use crate::{
     configs::settings,
     db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
     events::EventsHandler,
-    routes::cards_info::card_iin_info,
     services::{get_cache_store, get_store},
 };
 use crate::{
@@ -670,6 +671,7 @@ pub struct Forex;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl Forex {
+    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/forex")
             .app_data(web::Data::new(state.clone()))
@@ -678,6 +680,10 @@ impl Forex {
             .service(
                 web::resource("/convert_from_minor").route(web::get().to(currency::convert_forex)),
             )
+    }
+    #[cfg(feature = "v2")]
+    pub fn server(state: AppState) -> Scope {
+        todo!()
     }
 }
 
@@ -1055,6 +1061,11 @@ pub struct Payouts;
 
 #[cfg(feature = "payouts")]
 impl Payouts {
+    #[cfg(feature = "v2")]
+    pub fn server(state: AppState) -> Scope {
+        todo!()
+    }
+    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payouts").app_data(web::Data::new(state));
         route = route.service(web::resource("/create").route(web::post().to(payouts_create)));
@@ -1563,10 +1574,15 @@ impl Disputes {
 pub struct Cards;
 
 impl Cards {
+    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")
             .app_data(web::Data::new(state))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
+    }
+    #[cfg(feature = "v2")]
+    pub fn server(state: AppState) -> Scope {
+        todo!()
     }
 }
 
@@ -1628,12 +1644,17 @@ pub struct PayoutLink;
 
 #[cfg(feature = "payouts")]
 impl PayoutLink {
+    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payout_link").app_data(web::Data::new(state));
         route = route.service(
             web::resource("/{merchant_id}/{payout_id}").route(web::get().to(render_payout_link)),
         );
         route
+    }
+    #[cfg(feature = "v2")]
+    pub fn server(state: AppState) -> Scope {
+        todo!()
     }
 }
 
@@ -1750,6 +1771,7 @@ pub struct ProfileNew;
 
 #[cfg(feature = "olap")]
 impl ProfileNew {
+    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/profile")
             .app_data(web::Data::new(state))
@@ -1759,6 +1781,10 @@ impl ProfileNew {
             .service(
                 web::resource("/connectors").route(web::get().to(admin::connector_list_profile)),
             )
+    }
+    #[cfg(feature = "v2")]
+    pub fn server(state: AppState) -> Scope {
+        todo!()
     }
 }
 
