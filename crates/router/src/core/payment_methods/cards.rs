@@ -923,7 +923,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     if condition {
-        Box::pin(add_payment_method_for_migration(
+        Box::pin(save_migration_payment_method(
             state,
             req,
             merchant_account,
@@ -1475,7 +1475,7 @@ pub async fn add_payment_method(
     not(feature = "payment_methods_v2")
 ))]
 #[instrument(skip_all)]
-pub async fn add_payment_method_for_migration(
+pub async fn save_migration_payment_method(
     state: &routes::SessionState,
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
