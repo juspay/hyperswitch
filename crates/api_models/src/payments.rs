@@ -302,16 +302,6 @@ pub struct PaymentsGetIntentRequest {
 pub struct PaymentsUpdateIntentRequest {
     pub amount_details: Option<AmountDetails>,
 
-    /// Unique identifier for the payment. This ensures idempotency for multiple payments
-    /// that have been done by a single merchant.
-    #[schema(
-        value_type = Option<String>,
-        min_length = 30,
-        max_length = 30,
-        example = "pay_mbabizu24mvu3mela5njyhpit4"
-    )]
-    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
-
     /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
     pub routing_algorithm_id: Option<id_type::RoutingId>,
@@ -329,10 +319,6 @@ pub struct PaymentsUpdateIntentRequest {
     /// The shipping address for the payment
     #[schema(value_type = Option<Address>)]
     pub shipping: Option<Address>,
-
-    /// The identifier for the customer
-    #[schema(value_type = Option<String>, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub customer_id: Option<id_type::CustomerId>,
 
     /// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
     #[schema(example = true, value_type = Option<PresenceOfCustomerDuringPayment>)]
@@ -353,8 +339,6 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<MitExemptionRequest>)]
     pub apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
 
-    // TODO: Verify this is required
-    // pub payment_method_token: Option<String>,
     /// For non-card charges, you can use this value as the complete description that appears on your customers’ statements. Must contain at least one letter, maximum 22 characters.
     #[schema(max_length = 22, example = "Hyperswitch Router", value_type = Option<String>)]
     pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
@@ -386,7 +370,7 @@ pub struct PaymentsUpdateIntentRequest {
 
     /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(value_type = Option<EnablePaymentLinkRequest>)]
-    pub payment_link_enabled: Option<common_enums::EnablePaymentLinkRequest>,
+    pub enable_payment_link: Option<common_enums::EnablePaymentLinkRequest>,
 
     /// Configure a custom payment link for the particular payment
     #[schema(value_type = Option<PaymentLinkConfigRequest>)]

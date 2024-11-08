@@ -534,7 +534,7 @@ impl Payments {
                 )
                 .service(
                     web::resource("/update-intent")
-                        .route(web::post().to(payments::payments_update_intent)),
+                        .route(web::put().to(payments::payments_update_intent)),
                 )
                 .service(
                     web::resource("/create-external-sdk-tokens")

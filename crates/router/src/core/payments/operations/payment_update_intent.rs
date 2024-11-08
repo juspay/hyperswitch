@@ -190,13 +190,11 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentUpdateData<F>, PaymentsUpda
                 .amount_details
                 .as_ref()
                 .and_then(|details| details.tax_on_surcharge()),
-            merchant_reference_id: request.merchant_reference_id.clone(),
             routing_algorithm_id: request.routing_algorithm_id.clone(),
             capture_method: request.capture_method,
             authentication_type: request.authentication_type,
             billing_address: Box::new(billing_address),
             shipping_address: Box::new(shipping_address),
-            customer_id: Box::new(request.customer_id.clone()),
             customer_present: request.customer_present.clone(),
             description: Box::new(request.description.clone()),
             return_url: Box::new(request.return_url.clone()),
@@ -208,7 +206,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentUpdateData<F>, PaymentsUpda
             metadata: Box::new(request.metadata.clone()),
             connector_metadata: Box::new(request.connector_metadata.clone()),
             feature_metadata: Box::new(request.feature_metadata.clone()),
-            payment_link_enabled: request.payment_link_enabled.clone(),
+            enable_payment_link: request.enable_payment_link.clone(),
             request_incremental_authorization: request.request_incremental_authorization,
             session_expiry,
             // TODO: Does frm_metadata need more processing?

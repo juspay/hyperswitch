@@ -506,13 +506,11 @@ pub struct PaymentIntentUpdateInternal {
     pub surcharge_applicable: Option<bool>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub authentication_type: Option<common_enums::AuthenticationType>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
     pub customer_present: Option<bool>,
     pub description: Option<common_utils::types::Description>,
     pub return_url: Option<common_utils::types::Url>,
@@ -524,9 +522,7 @@ pub struct PaymentIntentUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<pii::SecretSerdeValue>,
-    // TODO: Should we rename the field instead?
-    #[diesel(column_name = enable_payment_link)]
-    pub payment_link_enabled: Option<bool>,
+    pub enable_payment_link: Option<bool>,
     // TODO: Check this type
     // pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,

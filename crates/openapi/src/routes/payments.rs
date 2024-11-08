@@ -659,7 +659,7 @@ pub fn payments_get_intent() {}
 ///
 /// You will require the 'API - Key' from the Hyperswitch dashboard to make the call.
 #[utoipa::path(
-  post,
+  put,
   path = "/v2/payments/{id}/update-intent",
   params (("id" = String, Path, description = "The unique identifier for the Payment Intent")),
   request_body(
