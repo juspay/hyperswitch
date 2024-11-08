@@ -1127,6 +1127,13 @@ pub async fn create_internal_user(
             }
         })?;
 
+    let default_tenant_id = common_utils::consts::DEFAULT_TENANT.to_string();
+
+    if state.tenant.tenant_id != default_tenant_id {
+        return Err(UserErrors::ForbiddenTenantId)
+            .attach_printable("Operation allowed only for the default tenant.");
+    }
+
     let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
         consts::user_role::INTERNAL_USER_MERCHANT_ID,
     );
@@ -1167,7 +1174,7 @@ pub async fn create_internal_user(
             UserStatus::Active,
         )
         .add_entity(domain::MerchantLevel {
-            tenant_id: common_utils::consts::DEFAULT_TENANT.to_string(),
+            tenant_id: default_tenant_id,
             org_id: internal_merchant.organization_id,
             merchant_id: internal_merchant_id,
         })
