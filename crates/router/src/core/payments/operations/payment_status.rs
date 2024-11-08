@@ -16,6 +16,7 @@ use crate::{
             PaymentData,
         },
     },
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -141,7 +142,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -156,6 +157,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     where
         F: 'b + Send,
     {
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentStatus))
+            .with(payment_data.to_event())
+            .emit();
+
         Ok((Box::new(self), payment_data))
     }
 }
@@ -165,7 +172,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> fo
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: enums::MerchantStorageScheme,
@@ -180,6 +187,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> fo
     where
         F: 'b + Send,
     {
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentStatus))
+            .with(payment_data.to_event())
+            .emit();
+
         Ok((Box::new(self), payment_data))
     }
 }

@@ -29,6 +29,7 @@ pub enum AuditEventType {
     },
     PaymentApprove,
     PaymentCreate,
+    PaymentStatus,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -69,6 +70,7 @@ impl Event for AuditEvent {
             AuditEventType::PaymentCancelled { .. } => "payment_cancelled",
             AuditEventType::PaymentApprove { .. } => "payment_approve",
             AuditEventType::PaymentCreate { .. } => "payment_create",
+            AuditEventType::PaymentStatus { .. } => "payment_status",
         };
         format!(
             "{event_type}-{}",
