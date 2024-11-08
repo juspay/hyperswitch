@@ -72,6 +72,8 @@ use super::{
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::core::routing::helpers as routing_helpers;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
     configs::settings::{ApplePayPreDecryptFlow, PaymentMethodTypeTokenFilter},
@@ -5580,10 +5582,46 @@ where
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let connectors = {
         if business_profile.dynamic_routing_algorithm.is_some() {
-            routing::perform_success_based_routing(state, connectors.clone(), business_profile)
-                .await
-                .map_err(|e| logger::error!(success_rate_routing_error=?e))
-                .unwrap_or(connectors)
+            let success_based_routing_config_params_interpolator =
+                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                    payment_data.get_payment_attempt().payment_method,
+                    payment_data.get_payment_attempt().payment_method_type,
+                    payment_data.get_payment_attempt().authentication_type,
+                    payment_data.get_payment_attempt().currency,
+                    payment_data
+                        .get_billing_address()
+                        .and_then(|address| address.address)
+                        .and_then(|address| address.country),
+                    payment_data
+                        .get_payment_attempt()
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_network"))
+                        .and_then(|network| network.as_str())
+                        .map(|network| network.to_string()),
+                    payment_data
+                        .get_payment_attempt()
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_isin"))
+                        .and_then(|card_isin| card_isin.as_str())
+                        .map(|card_isin| card_isin.to_string()),
+                );
+            routing::perform_success_based_routing(
+                state,
+                connectors.clone(),
+                business_profile,
+                success_based_routing_config_params_interpolator,
+            )
+            .await
+            .map_err(|e| logger::error!(success_rate_routing_error=?e))
+            .unwrap_or(connectors)
         } else {
             connectors
         }
