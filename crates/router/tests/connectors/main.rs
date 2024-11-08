@@ -10,6 +10,7 @@ mod aci;
 mod adyen;
 mod adyenplatform;
 mod airwallex;
+mod amazonpay;
 mod authorizedotnet;
 mod bambora;
 mod bamboraapac;
