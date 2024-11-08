@@ -1155,6 +1155,9 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
     fn get_customer_name(&self) -> Result<Secret<String>, Error>;
+    fn get_card_holder_name_from_additional_payment_method_data(
+        &self,
+    ) -> Result<Secret<String>, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1316,6 +1319,23 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("customer_name"))
     }
+
+    fn get_card_holder_name_from_additional_payment_method_data(
+        &self,
+    ) -> Result<Secret<String>, Error> {
+        match &self.additional_payment_method_data {
+            Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
+                .card_holder_name
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_holder_name",
+                })?),
+            _ => Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["card_holder_name"],
+            }
+            .into()),
+        }
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
@@ -1434,6 +1454,7 @@ impl RefundsRequestData for RefundsData {
 pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_card(&self) -> bool;
 }
 
@@ -1445,6 +1466,11 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
