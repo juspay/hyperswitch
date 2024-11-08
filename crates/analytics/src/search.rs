@@ -190,17 +190,7 @@ pub async fn search_results(
     search_params: Vec<AuthInfo>,
 ) -> CustomResult<GetSearchResponse, OpenSearchError> {
     let search_req = req.search_req;
-    if search_req.query.trim().is_empty()
-        && search_req
-            .filters
-            .as_ref()
-            .map_or(true, |filters| filters.is_all_none())
-    {
-        return Err(OpenSearchError::BadRequestError(
-            "Both query and filters are empty".to_string(),
-        )
-        .into());
-    }
+
     let mut query_builder = OpenSearchQueryBuilder::new(
         OpenSearchQuery::Search(req.index),
         search_req.query,

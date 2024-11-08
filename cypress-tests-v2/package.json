@@ -15,10 +15,9 @@
   "license": "ISC",
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
-    "cypress": "^13.15.2",
+    "cypress": "^13.14.2",
     "cypress-mochawesome-reporter": "^3.8.2",
     "jsqr": "^1.4.0",
-    "prettier": "^3.3.2",
-    "nanoid": "^5.0.8"
+    "prettier": "^3.3.2"
   }
 }

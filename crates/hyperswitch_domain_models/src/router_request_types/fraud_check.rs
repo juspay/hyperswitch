@@ -4,7 +4,6 @@ use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     pii::Email,
 };
-use diesel_models::types::OrderDetailsWithAmount;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -13,7 +12,7 @@ use crate::router_request_types;
 #[derive(Debug, Clone)]
 pub struct FraudCheckSaleData {
     pub amount: i64,
-    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub currency: Option<common_enums::Currency>,
     pub email: Option<Email>,
 }
@@ -21,7 +20,7 @@ pub struct FraudCheckSaleData {
 #[derive(Debug, Clone)]
 pub struct FraudCheckCheckoutData {
     pub amount: i64,
-    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub currency: Option<common_enums::Currency>,
     pub browser_info: Option<router_request_types::BrowserInformation>,
     pub payment_method_data: Option<api_models::payments::AdditionalPaymentData>,
@@ -32,7 +31,7 @@ pub struct FraudCheckCheckoutData {
 #[derive(Debug, Clone)]
 pub struct FraudCheckTransactionData {
     pub amount: i64,
-    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub currency: Option<common_enums::Currency>,
     pub payment_method: Option<common_enums::PaymentMethod>,
     pub error_code: Option<String>,

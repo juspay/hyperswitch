@@ -41,16 +41,6 @@ pub struct AuthorizedResponse {
     pub description: Option<String>,
     pub risk_factors: Option<Vec<RiskFactorsInner>>,
     pub fraud: Option<Fraud>,
-    /// Mandate's token
-    pub token: Option<MandateToken>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MandateToken {
-    pub href: Secret<String>,
-    pub token_id: String,
-    pub token_expiry_date_time: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -455,6 +445,3 @@ pub enum WorldpayWebhookStatus {
     SentForRefund,
     RefundFailed,
 }
-
-/// Worldpay's unique reference ID for a request
-pub(super) const WP_CORRELATION_ID: &str = "WP-CorrelationId";

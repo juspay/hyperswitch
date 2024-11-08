@@ -245,7 +245,6 @@ pub async fn profiles_list(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::ProfileList))]
 pub async fn profiles_list_at_profile_level(
     state: web::Data<AppState>,
@@ -338,7 +337,6 @@ pub async fn toggle_extended_card_info(
     .await
 }
 
-#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
 pub async fn payment_connector_list_profile(
     state: web::Data<AppState>,

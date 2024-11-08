@@ -312,7 +312,7 @@ pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::enums::Currency>,
-    pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub mandate_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]

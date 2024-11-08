@@ -18,8 +18,6 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::ApiModelToDieselModelConvertor;
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
@@ -628,7 +626,6 @@ where
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
-        merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self>;
 }
 
@@ -794,7 +791,6 @@ where
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
-        _merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -826,16 +822,13 @@ where
                 order_details: payment_intent.order_details.clone().map(|order_details| {
                     order_details
                         .into_iter()
-                        .map(|order_detail| order_detail.expose().convert_back())
+                        .map(|order_detail| order_detail.expose())
                         .collect()
                 }),
                 allowed_payment_method_types: payment_intent.allowed_payment_method_types.clone(),
                 metadata: payment_intent.metadata.clone(),
                 connector_metadata: payment_intent.connector_metadata.clone(),
-                feature_metadata: payment_intent
-                    .feature_metadata
-                    .clone()
-                    .map(|feature_metadata| feature_metadata.convert_back()),
+                feature_metadata: payment_intent.feature_metadata.clone(),
                 payment_link_enabled: payment_intent.enable_payment_link.clone(),
                 payment_link_config: payment_intent
                     .payment_link_config
@@ -864,13 +857,12 @@ where
     fn generate_response(
         payment_data: D,
         _customer: Option<domain::Customer>,
-        base_url: &str,
+        _base_url: &str,
         operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
-        merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         let payment_attempt = payment_data.get_payment_attempt();
@@ -899,14 +891,6 @@ where
             .clone()
             .map(api_models::payments::ErrorDetails::foreign_from);
 
-        // TODO: Add support for other next actions, currently only supporting redirect to url
-        let redirect_to_url = payment_intent
-            .create_start_redirection_url(base_url, merchant_account.publishable_key.clone())?;
-        let next_action = payment_attempt
-            .authentication_data
-            .as_ref()
-            .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url });
-
         let response = Self {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -917,7 +901,6 @@ where
             payment_method_data: None,
             payment_method_type: payment_attempt.payment_method_type,
             payment_method_subtype: payment_attempt.payment_method_subtype,
-            next_action,
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
             connector_reference_id: None,
             merchant_connector_id,

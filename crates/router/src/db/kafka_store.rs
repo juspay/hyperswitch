@@ -73,7 +73,7 @@ use crate::{
         unified_translations::UnifiedTranslationsInterface,
         CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
     },
-    services::{kafka::KafkaProducer, Store},
+    services::{authentication, kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
 };
 
@@ -1007,8 +1007,7 @@ impl MerchantAccountInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         publishable_key: &str,
-    ) -> CustomResult<(domain::MerchantAccount, domain::MerchantKeyStore), errors::StorageError>
-    {
+    ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
         self.diesel_store
             .find_merchant_account_by_publishable_key(state, publishable_key)
             .await

@@ -7,7 +7,6 @@ use crate::{
     services::{api, authentication as auth},
 };
 
-#[cfg(feature = "v1")]
 /// Cards Info - Retrieve
 ///
 /// Retrieve the card information given the card bin

@@ -615,11 +615,8 @@ impl Default for SuccessBasedRoutingConfig {
 pub enum SuccessBasedRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,
-    AuthenticationType,
     Currency,
-    Country,
-    CardNetwork,
-    CardBin,
+    AuthenticationType,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]

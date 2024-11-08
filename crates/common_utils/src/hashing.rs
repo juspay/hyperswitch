@@ -1,7 +1,7 @@
 use masking::{PeekInterface, Secret, Strategy};
 use serde::{Deserialize, Serialize, Serializer};
 
-#[derive(Clone, PartialEq, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 /// Represents a hashed string using blake3's hashing strategy.
 pub struct HashedString<T: Strategy<String>>(Secret<String, T>);
 

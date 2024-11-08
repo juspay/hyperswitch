@@ -1,4 +1,3 @@
-use api_models::payments::Amount;
 use common_utils::types::MinorUnit;
 use diesel_models::fraud_check::FraudCheck;
 use events::{Event, EventInfo};
@@ -28,14 +27,6 @@ pub enum AuditEventType {
         capture_amount: Option<MinorUnit>,
         multiple_capture_count: Option<i16>,
     },
-<<<<<<< Updated upstream
-=======
-    PaymentUpdate {
-        amount: Amount,
-    },
-    PaymentApprove,
-    PaymentCreate,
->>>>>>> Stashed changes
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -74,12 +65,6 @@ impl Event for AuditEvent {
             AuditEventType::RefundSuccess => "refund_success",
             AuditEventType::RefundFail => "refund_fail",
             AuditEventType::PaymentCancelled { .. } => "payment_cancelled",
-<<<<<<< Updated upstream
-=======
-            AuditEventType::PaymentUpdate { .. } => "payment_update",
-            AuditEventType::PaymentApprove { .. } => "payment_approve",
-            AuditEventType::PaymentCreate { .. } => "payment_create",
->>>>>>> Stashed changes
         };
         format!(
             "{event_type}-{}",

@@ -328,7 +328,6 @@ impl<F: Clone> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntentRequ
             hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntent {
                 status: intent_status,
                 updated_by: storage_scheme.to_string(),
-                active_attempt_id: payment_data.payment_attempt.get_id().clone(),
             };
 
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntent {

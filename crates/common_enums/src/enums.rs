@@ -1,7 +1,5 @@
-mod payments;
 use std::num::{ParseFloatError, TryFromIntError};
 
-pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -1576,8 +1574,6 @@ pub enum PaymentMethodType {
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
 }
-
-impl masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(

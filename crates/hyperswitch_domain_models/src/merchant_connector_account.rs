@@ -511,32 +511,3 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
         }
     }
 }
-
-#[derive(Debug)]
-pub struct MerchantConnectorAccounts(Vec<MerchantConnectorAccount>);
-
-impl MerchantConnectorAccounts {
-    pub fn new(merchant_connector_accounts: Vec<MerchantConnectorAccount>) -> Self {
-        Self(merchant_connector_accounts)
-    }
-
-    pub fn is_merchant_connector_account_id_in_connector_mandate_details(
-        &self,
-        profile_id: Option<&id_type::ProfileId>,
-        connector_mandate_details: &diesel_models::PaymentsMandateReference,
-    ) -> bool {
-        let mca_ids = self
-            .0
-            .iter()
-            .filter(|mca| {
-                mca.disabled.is_some_and(|disabled| !disabled)
-                    && profile_id.is_some_and(|profile_id| *profile_id == mca.profile_id)
-            })
-            .map(|mca| mca.get_id())
-            .collect::<std::collections::HashSet<_>>();
-
-        connector_mandate_details
-            .keys()
-            .any(|mca_id| mca_ids.contains(mca_id))
-    }
-}

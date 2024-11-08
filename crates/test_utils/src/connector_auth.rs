@@ -17,7 +17,6 @@ pub struct ConnectorAuthentication {
     #[cfg(feature = "payouts")]
     pub adyen_uk: Option<SignatureKey>,
     pub airwallex: Option<BodyKey>,
-    pub amazonpay: Option<HeaderKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bamboraapac: Option<HeaderKey>,

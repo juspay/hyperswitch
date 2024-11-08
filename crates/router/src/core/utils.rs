@@ -1,8 +1,11 @@
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::{
+    enums::{DisputeStage, DisputeStatus},
+    payments::OrderDetailsWithAmount,
+};
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
@@ -14,7 +17,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     merchant_connector_account::MerchantConnectorAccount, payment_address::PaymentAddress,
-    router_data::ErrorResponse, types::OrderDetailsWithAmount,
+    router_data::ErrorResponse,
 };
 #[cfg(feature = "payouts")]
 use masking::{ExposeInterface, PeekInterface};

@@ -357,7 +357,7 @@ pub async fn connector_create(
         state,
         &req,
         payload,
-        |state, auth_data: auth::AuthenticationData, req, _| {
+        |state, auth_data, req, _| {
             create_connector(
                 state,
                 req,
@@ -554,8 +554,6 @@ pub async fn connector_list(
     )
     .await
 }
-
-#[cfg(all(feature = "v1", feature = "olap"))]
 /// Merchant Connector - List
 ///
 /// List Merchant Connector Details for the merchant

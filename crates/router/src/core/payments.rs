@@ -37,8 +37,6 @@ use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{PaymentConfirmData, PaymentIntentData};
-#[cfg(feature = "v2")]
-use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
@@ -73,8 +71,6 @@ use super::{
 };
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
@@ -1465,7 +1461,7 @@ where
     let (payment_data, _req, customer) = payments_intent_operation_core::<_, _, _, _>(
         &state,
         req_state,
-        merchant_account.clone(),
+        merchant_account,
         profile,
         key_store,
         operation.clone(),
@@ -1483,7 +1479,6 @@ where
         None,
         None,
         header_payload.x_hs_latency,
-        &merchant_account,
     )
 }
 
@@ -1524,7 +1519,7 @@ where
         payments_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
-            merchant_account.clone(),
+            merchant_account,
             key_store,
             profile,
             operation.clone(),
@@ -1544,7 +1539,6 @@ where
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
-        &merchant_account,
     )
 }
 
@@ -4470,11 +4464,6 @@ where
 
     let (mandate_reference_id, card_details_for_network_transaction_id)= hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(recurring_payment_details.clone()).get_required_value("network transaction id and card details").attach_printable("Failed to fetch network transaction id and card details for mit")?;
 
-    helpers::validate_card_expiry(
-        &card_details_for_network_transaction_id.card_exp_month,
-        &card_details_for_network_transaction_id.card_exp_year,
-    )?;
-
     let network_transaction_id_supported_connectors = &state
         .conf
         .network_transaction_id_supported_connectors
@@ -5168,8 +5157,7 @@ where
         .connector_mandate_details
         .clone()
         .map(|details| {
-            details
-                .parse_value::<diesel_models::PaymentsMandateReference>("connector_mandate_details")
+            details.parse_value::<storage::PaymentsMandateReference>("connector_mandate_details")
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5592,46 +5580,10 @@ where
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let connectors = {
         if business_profile.dynamic_routing_algorithm.is_some() {
-            let success_based_routing_config_params_interpolator =
-                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
-                    payment_data.get_payment_attempt().payment_method,
-                    payment_data.get_payment_attempt().payment_method_type,
-                    payment_data.get_payment_attempt().authentication_type,
-                    payment_data.get_payment_attempt().currency,
-                    payment_data
-                        .get_billing_address()
-                        .and_then(|address| address.address)
-                        .and_then(|address| address.country),
-                    payment_data
-                        .get_payment_attempt()
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card"))
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card_network"))
-                        .and_then(|network| network.as_str())
-                        .map(|network| network.to_string()),
-                    payment_data
-                        .get_payment_attempt()
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card"))
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card_isin"))
-                        .and_then(|card_isin| card_isin.as_str())
-                        .map(|card_isin| card_isin.to_string()),
-                );
-            routing::perform_success_based_routing(
-                state,
-                connectors.clone(),
-                business_profile,
-                success_based_routing_config_params_interpolator,
-            )
-            .await
-            .map_err(|e| logger::error!(success_rate_routing_error=?e))
-            .unwrap_or(connectors)
+            routing::perform_success_based_routing(state, connectors.clone(), business_profile)
+                .await
+                .map_err(|e| logger::error!(success_rate_routing_error=?e))
+                .unwrap_or(connectors)
         } else {
             connectors
         }
@@ -5973,73 +5925,6 @@ pub async fn payment_external_authentication(
             three_ds_requestor_url: authentication_details.three_ds_requestor_url,
         },
     ))
-}
-
-#[instrument(skip_all)]
-#[cfg(feature = "v2")]
-pub async fn payment_start_redirection(
-    state: SessionState,
-    merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
-    req: api_models::payments::PaymentStartRedirectionRequest,
-) -> RouterResponse<serde_json::Value> {
-    let db = &*state.store;
-    let key_manager_state = &(&state).into();
-
-    let storage_scheme = merchant_account.storage_scheme;
-
-    let payment_intent = db
-        .find_payment_intent_by_id(key_manager_state, &req.id, &key_store, storage_scheme)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-    //TODO: send valid html error pages in this case, or atleast redirect to valid html error pages
-    utils::when(
-        payment_intent.status != storage_enums::IntentStatus::RequiresCustomerAction,
-        || {
-            Err(errors::ApiErrorResponse::PaymentUnexpectedState {
-                current_flow: "PaymentStartRedirection".to_string(),
-                field_name: "status".to_string(),
-                current_value: payment_intent.status.to_string(),
-                states: ["requires_customer_action".to_string()].join(", "),
-            })
-        },
-    )?;
-
-    let payment_attempt = db
-        .find_payment_attempt_by_id(
-            key_manager_state,
-            &key_store,
-            payment_intent
-                .active_attempt_id
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing active attempt in payment_intent")?
-                .get_string_repr(),
-            storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while fetching payment_attempt")?;
-    let redirection_data = payment_attempt
-        .authentication_data
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("missing authentication_data in payment_attempt")?;
-
-    let form: RedirectForm = serde_json::from_value(redirection_data.expose()).map_err(|err| {
-        logger::error!(error = ?err, "Failed to deserialize redirection data");
-        errors::ApiErrorResponse::InternalServerError
-    })?;
-
-    Ok(services::ApplicationResponse::Form(Box::new(
-        services::RedirectionFormData {
-            redirect_form: form,
-            payment_method_data: None,
-            amount: payment_attempt.amount_details.net_amount.to_string(),
-            currency: payment_intent.amount_details.currency.to_string(),
-        },
-    )))
 }
 
 #[instrument(skip_all)]

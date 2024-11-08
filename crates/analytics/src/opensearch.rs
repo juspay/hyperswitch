@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use api_models::{
     analytics::search::SearchIndex,
     errors::types::{ApiError, ApiErrorResponse},
@@ -458,8 +456,7 @@ pub struct OpenSearchQueryBuilder {
     pub count: Option<i64>,
     pub filters: Vec<(String, Vec<String>)>,
     pub time_range: Option<OpensearchTimeRange>,
-    search_params: Vec<AuthInfo>,
-    case_sensitive_fields: HashSet<&'static str>,
+    pub search_params: Vec<AuthInfo>,
 }
 
 impl OpenSearchQueryBuilder {
@@ -472,12 +469,6 @@ impl OpenSearchQueryBuilder {
             count: Default::default(),
             filters: Default::default(),
             time_range: Default::default(),
-            case_sensitive_fields: HashSet::from([
-                "customer_email.keyword",
-                "search_tags.keyword",
-                "card_last_4.keyword",
-                "payment_id.keyword",
-            ]),
         }
     }
 
@@ -499,16 +490,48 @@ impl OpenSearchQueryBuilder {
 
     pub fn get_status_field(&self, index: &SearchIndex) -> &str {
         match index {
-            SearchIndex::Refunds | SearchIndex::SessionizerRefunds => "refund_status.keyword",
-            SearchIndex::Disputes | SearchIndex::SessionizerDisputes => "dispute_status.keyword",
+            SearchIndex::Refunds => "refund_status.keyword",
+            SearchIndex::Disputes => "dispute_status.keyword",
             _ => "status.keyword",
         }
     }
 
-    pub fn build_filter_array(
-        &self,
-        case_sensitive_filters: Vec<&(String, Vec<String>)>,
-    ) -> Vec<Value> {
+    pub fn replace_status_field(&self, filters: &[Value], index: &SearchIndex) -> Vec<Value> {
+        filters
+            .iter()
+            .map(|filter| {
+                if let Some(terms) = filter.get("terms").and_then(|v| v.as_object()) {
+                    let mut new_filter = filter.clone();
+                    if let Some(new_terms) =
+                        new_filter.get_mut("terms").and_then(|v| v.as_object_mut())
+                    {
+                        let key = "status.keyword";
+                        if let Some(status_terms) = terms.get(key) {
+                            new_terms.remove(key);
+                            new_terms.insert(
+                                self.get_status_field(index).to_string(),
+                                status_terms.clone(),
+                            );
+                        }
+                    }
+                    new_filter
+                } else {
+                    filter.clone()
+                }
+            })
+            .collect()
+    }
+
+    /// # Panics
+    ///
+    /// This function will panic if:
+    ///
+    /// * The structure of the JSON query is not as expected (e.g., missing keys or incorrect types).
+    ///
+    /// Ensure that the input data and the structure of the query are valid and correctly handled.
+    pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
+        let mut query_obj = Map::new();
+        let mut bool_obj = Map::new();
         let mut filter_array = Vec::new();
 
         filter_array.push(json!({
@@ -519,12 +542,13 @@ impl OpenSearchQueryBuilder {
             }
         }));
 
-        let case_sensitive_json_filters = case_sensitive_filters
-            .into_iter()
+        let mut filters = self
+            .filters
+            .iter()
             .map(|(k, v)| json!({"terms": {k: v}}))
             .collect::<Vec<Value>>();
 
-        filter_array.extend(case_sensitive_json_filters);
+        filter_array.append(&mut filters);
 
         if let Some(ref time_range) = self.time_range {
             let range = json!(time_range);
@@ -535,72 +559,8 @@ impl OpenSearchQueryBuilder {
             }));
         }
 
-        filter_array
-    }
-
-    pub fn build_case_insensitive_filters(
-        &self,
-        mut payload: Value,
-        case_insensitive_filters: &[&(String, Vec<String>)],
-        auth_array: Vec<Value>,
-        index: &SearchIndex,
-    ) -> Value {
-        let mut must_array = case_insensitive_filters
-            .iter()
-            .map(|(k, v)| {
-                let key = if *k == "status.keyword" {
-                    self.get_status_field(index).to_string()
-                } else {
-                    k.clone()
-                };
-                json!({
-                    "bool": {
-                        "must": [
-                            {
-                                "bool": {
-                                    "should": v.iter().map(|value| {
-                                        json!({
-                                            "term": {
-                                                format!("{}", key): {
-                                                    "value": value,
-                                                    "case_insensitive": true
-                                                }
-                                            }
-                                        })
-                                    }).collect::<Vec<Value>>(),
-                                    "minimum_should_match": 1
-                                }
-                            }
-                        ]
-                    }
-                })
-            })
-            .collect::<Vec<Value>>();
-
-        must_array.push(json!({ "bool": {
-            "must": [
-                {
-                    "bool": {
-                        "should": auth_array,
-                        "minimum_should_match": 1
-                    }
-                }
-            ]
-        }}));
-
-        if let Some(query) = payload.get_mut("query") {
-            if let Some(bool_obj) = query.get_mut("bool") {
-                if let Some(bool_map) = bool_obj.as_object_mut() {
-                    bool_map.insert("must".to_string(), Value::Array(must_array));
-                }
-            }
-        }
-
-        payload
-    }
-
-    pub fn build_auth_array(&self) -> Vec<Value> {
-        self.search_params
+        let should_array = self
+            .search_params
             .iter()
             .map(|user_level| match user_level {
                 AuthInfo::OrgLevel { org_id } => {
@@ -619,17 +579,11 @@ impl OpenSearchQueryBuilder {
                     })
                 }
                 AuthInfo::MerchantLevel {
-                    org_id,
+                    org_id: _,
                     merchant_ids,
                 } => {
                     let must_clauses = vec![
-                        json!({
-                            "term": {
-                                "organization_id.keyword": {
-                                    "value": org_id
-                                }
-                            }
-                        }),
+                        // TODO: Add org_id field to the filters
                         json!({
                             "terms": {
                                 "merchant_id.keyword": merchant_ids
@@ -644,18 +598,12 @@ impl OpenSearchQueryBuilder {
                     })
                 }
                 AuthInfo::ProfileLevel {
-                    org_id,
+                    org_id: _,
                     merchant_id,
                     profile_ids,
                 } => {
                     let must_clauses = vec![
-                        json!({
-                            "term": {
-                                "organization_id.keyword": {
-                                    "value": org_id
-                                }
-                            }
-                        }),
+                        // TODO: Add org_id field to the filters
                         json!({
                             "term": {
                                 "merchant_id.keyword": {
@@ -677,60 +625,55 @@ impl OpenSearchQueryBuilder {
                     })
                 }
             })
-            .collect::<Vec<Value>>()
-    }
-
-    /// # Panics
-    ///
-    /// This function will panic if:
-    ///
-    /// * The structure of the JSON query is not as expected (e.g., missing keys or incorrect types).
-    ///
-    /// Ensure that the input data and the structure of the query are valid and correctly handled.
-    pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
-        let mut query_obj = Map::new();
-        let mut bool_obj = Map::new();
-
-        let (case_sensitive_filters, case_insensitive_filters): (Vec<_>, Vec<_>) = self
-            .filters
-            .iter()
-            .partition(|(k, _)| self.case_sensitive_fields.contains(k.as_str()));
-
-        let filter_array = self.build_filter_array(case_sensitive_filters);
+            .collect::<Vec<Value>>();
 
         if !filter_array.is_empty() {
             bool_obj.insert("filter".to_string(), Value::Array(filter_array));
         }
-
-        let should_array = self.build_auth_array();
-
         if !bool_obj.is_empty() {
             query_obj.insert("bool".to_string(), Value::Object(bool_obj));
         }
 
-        let mut sort_obj = Map::new();
-        sort_obj.insert(
-            "@timestamp".to_string(),
-            json!({
-                "order": "desc"
-            }),
-        );
+        let mut query = Map::new();
+        query.insert("query".to_string(), Value::Object(query_obj));
 
         Ok(indexes
             .iter()
             .map(|index| {
-                let mut payload = json!({
-                    "query": query_obj.clone(),
+                let updated_query = query
+                    .get("query")
+                    .and_then(|q| q.get("bool"))
+                    .and_then(|b| b.get("filter"))
+                    .and_then(|f| f.as_array())
+                    .map(|filters| self.replace_status_field(filters, index))
+                    .unwrap_or_default();
+                let mut final_bool_obj = Map::new();
+                if !updated_query.is_empty() {
+                    final_bool_obj.insert("filter".to_string(), Value::Array(updated_query));
+                }
+                if !should_array.is_empty() {
+                    final_bool_obj.insert("should".to_string(), Value::Array(should_array.clone()));
+                    final_bool_obj
+                        .insert("minimum_should_match".to_string(), Value::Number(1.into()));
+                }
+                let mut final_query = Map::new();
+                if !final_bool_obj.is_empty() {
+                    final_query.insert("bool".to_string(), Value::Object(final_bool_obj));
+                }
+
+                let mut sort_obj = Map::new();
+                sort_obj.insert(
+                    "@timestamp".to_string(),
+                    json!({
+                        "order": "desc"
+                    }),
+                );
+                let payload = json!({
+                    "query": Value::Object(final_query),
                     "sort": [
-                        Value::Object(sort_obj.clone())
+                        Value::Object(sort_obj)
                     ]
                 });
-                payload = self.build_case_insensitive_filters(
-                    payload,
-                    &case_insensitive_filters,
-                    should_array.clone(),
-                    index,
-                );
                 payload
             })
             .collect::<Vec<Value>>())

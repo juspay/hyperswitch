@@ -5,6 +5,7 @@ use std::{fmt::Debug, sync::Arc};
 
 #[cfg(feature = "dynamic_routing")]
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
+use router_env::logger;
 use serde;
 
 /// Struct contains all the gRPC Clients
@@ -36,6 +37,8 @@ impl GrpcClientSettings {
             .get_dynamic_routing_connection()
             .await
             .expect("Failed to establish a connection with the Dynamic Routing Server");
+
+        logger::info!("Connection established with gRPC Server");
 
         Arc::new(GrpcClients {
             #[cfg(feature = "dynamic_routing")]

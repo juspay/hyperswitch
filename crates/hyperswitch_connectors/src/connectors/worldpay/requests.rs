@@ -24,7 +24,6 @@ pub struct Merchant {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Instruction {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub settlement: Option<AutoSettlement>,
     pub method: PaymentMethod,
     pub payment_instrument: PaymentInstrument,
@@ -34,43 +33,6 @@ pub struct Instruction {
     pub debt_repayment: Option<bool>,
     #[serde(rename = "threeDS")]
     pub three_ds: Option<ThreeDSRequest>,
-    /// For setting up mandates
-    pub token_creation: Option<TokenCreation>,
-    /// For specifying CIT vs MIT
-    pub customer_agreement: Option<CustomerAgreement>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct TokenCreation {
-    #[serde(rename = "type")]
-    pub token_type: TokenCreationType,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum TokenCreationType {
-    Worldpay,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CustomerAgreement {
-    #[serde(rename = "type")]
-    pub agreement_type: CustomerAgreementType,
-    pub stored_card_usage: StoredCardUsageType,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum CustomerAgreementType {
-    Subscription,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum StoredCardUsageType {
-    First,
-    Subsequent,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -263,14 +225,6 @@ pub enum ThreeDSRequestChannel {
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSRequestChallenge {
     pub return_url: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub preference: Option<ThreeDsPreference>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ThreeDsPreference {
-    ChallengeMandated,
 }
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
@@ -330,6 +284,3 @@ pub struct WorldpayCompleteAuthorizationRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub collection_reference: Option<String>,
 }
-
-pub(super) const THREE_DS_MODE: &str = "always";
-pub(super) const THREE_DS_TYPE: &str = "integrated";

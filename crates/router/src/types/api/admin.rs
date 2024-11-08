@@ -233,7 +233,6 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             outgoing_webhook_custom_http_headers,
             order_fulfillment_time,
             order_fulfillment_time_origin: item.order_fulfillment_time_origin,
-            should_collect_cvv_during_payment: item.should_collect_cvv_during_payment,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,

@@ -14,14 +14,7 @@ ADD COLUMN routing_algorithm_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN order_fulfillment_time_origin "OrderFulfillmentTimeOrigin" DEFAULT NULL,
     ADD COLUMN frm_routing_algorithm_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN payout_routing_algorithm_id VARCHAR(64) DEFAULT NULL,
-    ADD COLUMN default_fallback_routing JSONB DEFAULT NULL,
-    -- Intentionally not adding a default value here since we would have to
-    -- check if any merchants have enabled this from configs table,
-    -- before filling data for this column.
-    -- If no merchants have enabled this, then we can use `false` as the default value
-    -- when adding the column, later we can drop the default added for the column
-    -- so that we ensure new records inserted always have a value for the column.
-    ADD COLUMN should_collect_cvv_during_payment BOOLEAN NOT NULL;
+    ADD COLUMN default_fallback_routing JSONB DEFAULT NULL;
 
 ALTER TABLE payment_intent
 ADD COLUMN merchant_reference_id VARCHAR(64),

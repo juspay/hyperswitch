@@ -15,7 +15,7 @@ use crate::{
     routes::AppState,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
 };
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(feature = "olap")]
 #[instrument(skip_all)]
 pub async fn routing_create_config(
     state: web::Data<AppState>,
@@ -44,48 +44,6 @@ pub async fn routing_create_config(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingWrite,
-            },
-            req.headers(),
-        ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileRoutingWrite,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(all(feature = "olap", feature = "v2"))]
-#[instrument(skip_all)]
-pub async fn routing_create_config(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    json_payload: web::Json<routing_types::RoutingConfigRequest>,
-    transaction_type: &enums::TransactionType,
-) -> impl Responder {
-    let flow = Flow::RoutingCreateConfig;
-    Box::pin(oss_api::server_wrap(
-        flow,
-        state,
-        &req,
-        json_payload.into_inner(),
-        |state, auth: auth::AuthenticationData, payload, _| {
-            routing::create_routing_algorithm_under_profile(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                Some(auth.profile.get_id().clone()),
-                payload,
-                transaction_type,
-            )
-        },
-        #[cfg(not(feature = "release"))]
-        auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth {
-                permission: Permission::RoutingWrite,
-                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -188,7 +146,7 @@ pub async fn routing_link_config(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(feature = "olap")]
 #[instrument(skip_all)]
 pub async fn routing_retrieve_config(
     state: web::Data<AppState>,
@@ -216,47 +174,6 @@ pub async fn routing_retrieve_config(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::ProfileRoutingRead,
-            },
-            req.headers(),
-        ),
-        #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileRoutingRead,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(all(feature = "olap", feature = "v2"))]
-#[instrument(skip_all)]
-pub async fn routing_retrieve_config(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<common_utils::id_type::RoutingId>,
-) -> impl Responder {
-    let algorithm_id = path.into_inner();
-    let flow = Flow::RoutingRetrieveConfig;
-    Box::pin(oss_api::server_wrap(
-        flow,
-        state,
-        &req,
-        algorithm_id,
-        |state, auth: auth::AuthenticationData, algorithm_id, _| {
-            routing::retrieve_routing_algorithm_from_algorithm_id(
-                state,
-                auth.merchant_account,
-                auth.key_store,
-                Some(auth.profile.get_id().clone()),
-                algorithm_id,
-            )
-        },
-        #[cfg(not(feature = "release"))]
-        auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth {
-                permission: Permission::RoutingRead,
-                minimum_entity_level: EntityType::Profile,
             },
             req.headers(),
         ),
@@ -309,7 +226,7 @@ pub async fn list_routing_configs(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(feature = "olap")]
 #[instrument(skip_all)]
 pub async fn list_routing_configs_for_profile(
     state: web::Data<AppState>,

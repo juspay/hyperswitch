@@ -3,6 +3,8 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::Address;
+#[cfg(feature = "v2")]
+use api_models::payments::OrderDetailsWithAmount;
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -24,8 +26,6 @@ pub mod payment_attempt;
 pub mod payment_intent;
 
 use common_enums as storage_enums;
-#[cfg(feature = "v2")]
-use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
@@ -110,24 +110,6 @@ impl PaymentIntent {
     #[cfg(feature = "v2")]
     pub fn get_id(&self) -> &id_type::GlobalPaymentId {
         &self.id
-    }
-
-    #[cfg(feature = "v2")]
-    pub fn create_start_redirection_url(
-        &self,
-        base_url: &str,
-        publishable_key: String,
-    ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
-        let start_redirection_url = &format!(
-            "{}/v2/payments/{}/start_redirection?publishable_key={}&profile_id={}",
-            base_url,
-            self.get_id().get_string_repr(),
-            publishable_key,
-            self.profile_id.get_string_repr()
-        );
-        url::Url::parse(start_redirection_url)
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error creating start redirection url")
     }
 }
 
@@ -290,16 +272,16 @@ pub struct PaymentIntent {
     pub setup_future_usage: storage_enums::FutureUsage,
     /// The client secret that is generated for the payment. This is used to authenticate the payment from client facing apis.
     pub client_secret: common_utils::types::ClientSecret,
-    /// The active attempt id for the payment intent. This is the payment attempt that is currently active for the payment intent.
-    pub active_attempt_id: Option<id_type::GlobalAttemptId>,
+    /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
+    pub active_attempt: Option<RemoteStorageObject<PaymentAttempt>>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
     /// This field allows the merchant to restrict the payment methods that can be used for the payment intent.
-    pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
+    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     /// This metadata contains details about
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub feature_metadata: Option<FeatureMetadata>,
+    pub feature_metadata: Option<pii::SecretSerdeValue>,
     /// Number of attempts that have been made for the order
     pub attempt_count: i16,
     /// The profile id for the payment.
@@ -399,14 +381,20 @@ impl PaymentIntent {
         billing_address: Option<Encryptable<Secret<Address>>>,
         shipping_address: Option<Encryptable<Secret<Address>>>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
+        let allowed_payment_method_types = request
+            .get_allowed_payment_method_types_as_value()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting allowed payment method types as value")?;
         let connector_metadata = request
             .get_connector_metadata_as_value()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting connector metadata as value")?;
+        let feature_metadata = request
+            .get_feature_metadata_as_value()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error getting feature metadata as value")?;
         let request_incremental_authorization =
             Self::get_request_incremental_authorization_value(&request)?;
-        let allowed_payment_method_types = request.allowed_payment_method_types;
-
         let session_expiry =
             common_utils::date_time::now().saturating_add(time::Duration::seconds(
                 request.session_expiry.map(i64::from).unwrap_or(
@@ -416,12 +404,9 @@ impl PaymentIntent {
                 ),
             ));
         let client_secret = payment_id.generate_client_secret();
-        let order_details = request.order_details.map(|order_details| {
-            order_details
-                .into_iter()
-                .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
-                .collect()
-        });
+        let order_details = request
+            .order_details
+            .map(|order_details| order_details.into_iter().map(Secret::new).collect());
         Ok(Self {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),
@@ -439,11 +424,11 @@ impl PaymentIntent {
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
             client_secret,
-            active_attempt_id: None,
+            active_attempt: None,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
-            feature_metadata: request.feature_metadata.map(FeatureMetadata::convert_from),
+            feature_metadata,
             // Attempt count is 0 in create intent as no attempt is made yet
             attempt_count: 0,
             profile_id: profile.get_id().clone(),

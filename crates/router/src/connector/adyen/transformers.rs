@@ -1763,7 +1763,8 @@ pub fn get_address_info(
 }
 
 fn get_line_items(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -> Vec<LineItem> {
-    let order_details = item.router_data.request.order_details.clone();
+    let order_details: Option<Vec<payments::OrderDetailsWithAmount>> =
+        item.router_data.request.order_details.clone();
     match order_details {
         Some(od) => od
             .iter()

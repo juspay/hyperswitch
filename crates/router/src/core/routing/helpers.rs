@@ -640,12 +640,11 @@ pub async fn fetch_success_based_routing_configs(
 /// metrics for success based dynamic routing
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn push_metrics_with_update_window_for_success_based_routing(
+pub async fn push_metrics_for_success_based_routing(
     state: &SessionState,
     payment_attempt: &storage::PaymentAttempt,
     routable_connectors: Vec<routing_types::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-    success_based_routing_config_params_interpolator: SuccessBasedRoutingConfigParamsInterpolator,
 ) -> RouterResult<()> {
     let success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
         business_profile
@@ -698,20 +697,10 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             business_profile.get_id().get_string_repr(),
         );
 
-        let success_based_routing_config_params = success_based_routing_config_params_interpolator
-            .get_string_val(
-                success_based_routing_configs
-                    .params
-                    .as_ref()
-                    .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            );
-
         let success_based_connectors = client
             .calculate_success_rate(
                 tenant_business_profile_id.clone(),
                 success_based_routing_configs.clone(),
-                success_based_routing_config_params.clone(),
                 routable_connectors.clone(),
             )
             .await
@@ -736,10 +725,9 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         let (first_success_based_connector, merchant_connector_id) = first_success_based_connector_label
             .split_once(':')
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(format!(
-                "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
-                first_success_based_connector_label
-            ))?;
+            .attach_printable(
+                "unable to split connector_name and mca_id from the first connector obtained from dynamic routing service",
+            )?;
 
         let outcome = get_success_based_metrics_outcome_for_payment(
             &payment_status_attribute,
@@ -814,7 +802,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             .update_success_rate(
                 tenant_business_profile_id,
                 success_based_routing_configs,
-                success_based_routing_config_params,
                 vec![routing_types::RoutableConnectorChoiceWithStatus::new(
                     routing_types::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
@@ -968,77 +955,4 @@ pub async fn default_success_based_routing_setup(
         &add_attributes([("profile_id", profile_id.get_string_repr().to_string())]),
     );
     Ok(ApplicationResponse::Json(new_record))
-}
-
-pub struct SuccessBasedRoutingConfigParamsInterpolator {
-    pub payment_method: Option<common_enums::PaymentMethod>,
-    pub payment_method_type: Option<common_enums::PaymentMethodType>,
-    pub authentication_type: Option<common_enums::AuthenticationType>,
-    pub currency: Option<common_enums::Currency>,
-    pub country: Option<common_enums::CountryAlpha2>,
-    pub card_network: Option<String>,
-    pub card_bin: Option<String>,
-}
-
-impl SuccessBasedRoutingConfigParamsInterpolator {
-    pub fn new(
-        payment_method: Option<common_enums::PaymentMethod>,
-        payment_method_type: Option<common_enums::PaymentMethodType>,
-        authentication_type: Option<common_enums::AuthenticationType>,
-        currency: Option<common_enums::Currency>,
-        country: Option<common_enums::CountryAlpha2>,
-        card_network: Option<String>,
-        card_bin: Option<String>,
-    ) -> Self {
-        Self {
-            payment_method,
-            payment_method_type,
-            authentication_type,
-            currency,
-            country,
-            card_network,
-            card_bin,
-        }
-    }
-
-    pub fn get_string_val(
-        &self,
-        params: &Vec<routing_types::SuccessBasedRoutingConfigParams>,
-    ) -> String {
-        let mut parts: Vec<String> = Vec::new();
-        for param in params {
-            let val = match param {
-                routing_types::SuccessBasedRoutingConfigParams::PaymentMethod => self
-                    .payment_method
-                    .as_ref()
-                    .map_or(String::new(), |pm| pm.to_string()),
-                routing_types::SuccessBasedRoutingConfigParams::PaymentMethodType => self
-                    .payment_method_type
-                    .as_ref()
-                    .map_or(String::new(), |pmt| pmt.to_string()),
-                routing_types::SuccessBasedRoutingConfigParams::AuthenticationType => self
-                    .authentication_type
-                    .as_ref()
-                    .map_or(String::new(), |at| at.to_string()),
-                routing_types::SuccessBasedRoutingConfigParams::Currency => self
-                    .currency
-                    .as_ref()
-                    .map_or(String::new(), |cur| cur.to_string()),
-                routing_types::SuccessBasedRoutingConfigParams::Country => self
-                    .country
-                    .as_ref()
-                    .map_or(String::new(), |cn| cn.to_string()),
-                routing_types::SuccessBasedRoutingConfigParams::CardNetwork => {
-                    self.card_network.clone().unwrap_or_default()
-                }
-                routing_types::SuccessBasedRoutingConfigParams::CardBin => {
-                    self.card_bin.clone().unwrap_or_default()
-                }
-            };
-            if !val.is_empty() {
-                parts.push(val);
-            }
-        }
-        parts.join(":")
-    }
 }

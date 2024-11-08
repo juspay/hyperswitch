@@ -1,4 +1,4 @@
-use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
+use common_utils::{id_type, types::keymanager::KeyManagerState};
 use diesel_models::payment_method::PaymentMethodUpdateInternal;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
@@ -1524,38 +1524,34 @@ impl PaymentMethodInterface for MockDb {
         payment_method_update: storage_types::PaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
-        self.payment_methods
+        let pm_update_res = self
+            .payment_methods
             .lock()
             .await
             .iter_mut()
             .find(|pm| pm.get_id() == payment_method.get_id())
-            .async_map(|pm| async {
+            .map(|pm| {
                 let payment_method_updated =
-                    PaymentMethodUpdateInternal::from(payment_method_update).apply_changeset(
-                        Conversion::convert(payment_method)
-                            .await
-                            .change_context(errors::StorageError::EncryptionError)?,
-                    );
-
+                    PaymentMethodUpdateInternal::from(payment_method_update)
+                        .create_payment_method(pm.clone());
                 *pm = payment_method_updated.clone();
-
                 payment_method_updated
-                    .convert(
-                        state,
-                        key_store.key.get_inner(),
-                        key_store.merchant_id.clone().into(),
-                    )
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
-            .transpose()?
-            .ok_or(
-                errors::StorageError::ValueNotFound(
-                    "cannot find payment method to update".to_string(),
+            });
+
+        match pm_update_res {
+            Some(result) => Ok(result
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
                 )
-                .into(),
+                .await
+                .change_context(errors::StorageError::DecryptionError)?),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find payment method to update".to_string(),
             )
+            .into()),
+        }
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1569,38 +1565,34 @@ impl PaymentMethodInterface for MockDb {
             status: Some(common_enums::PaymentMethodStatus::Inactive),
         };
 
-        self.payment_methods
+        let pm_update_res = self
+            .payment_methods
             .lock()
             .await
             .iter_mut()
             .find(|pm| pm.get_id() == payment_method.get_id())
-            .async_map(|pm| async {
+            .map(|pm| {
                 let payment_method_updated =
-                    PaymentMethodUpdateInternal::from(payment_method_update).apply_changeset(
-                        Conversion::convert(payment_method)
-                            .await
-                            .change_context(errors::StorageError::EncryptionError)?,
-                    );
-
+                    PaymentMethodUpdateInternal::from(payment_method_update)
+                        .create_payment_method(pm.clone());
                 *pm = payment_method_updated.clone();
-
                 payment_method_updated
-                    .convert(
-                        state,
-                        key_store.key.get_inner(),
-                        key_store.merchant_id.clone().into(),
-                    )
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
-            .transpose()?
-            .ok_or(
-                errors::StorageError::ValueNotFound(
-                    "cannot find payment method to update".to_string(),
+            });
+
+        match pm_update_res {
+            Some(result) => Ok(result
+                .convert(
+                    state,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
                 )
-                .into(),
+                .await
+                .change_context(errors::StorageError::DecryptionError)?),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find payment method to update".to_string(),
             )
+            .into()),
+        }
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

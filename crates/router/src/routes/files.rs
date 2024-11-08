@@ -12,7 +12,6 @@ use crate::{
     types::api::files,
 };
 
-#[cfg(feature = "v1")]
 /// Files - Create
 ///
 /// To create a file
@@ -57,8 +56,6 @@ pub async fn files_create(
     ))
     .await
 }
-
-#[cfg(feature = "v1")]
 /// Files - Delete
 ///
 /// To delete a file
@@ -103,8 +100,6 @@ pub async fn files_delete(
     ))
     .await
 }
-
-#[cfg(feature = "v1")]
 /// Files - Retrieve
 ///
 /// To retrieve a file

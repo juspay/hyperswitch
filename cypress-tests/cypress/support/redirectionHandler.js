@@ -354,19 +354,6 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
             cy.get('input[value="SUBMIT"]').click();
           });
       });
-  } else if (connectorId === "fiuu") {
-    cy.get('form[id="cc_form"]', { timeout: WAIT_TIME_IATAPAY })
-      .should("exist")
-      .then((form) => {
-        cy.get('button.pay-btn[name="pay"]').click();
-        cy.get("div.otp")
-          .invoke("text")
-          .then((otpText) => {
-            const otp = otpText.match(/\d+/)[0]; // Extract the numeric OTP
-            cy.get("input#otp-input").should("not.be.disabled").type(otp);
-            cy.get('button.pay-btn').click();
-          });
-      });
   } else {
     // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
     cy.wait(WAIT_TIME);

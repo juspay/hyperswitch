@@ -47,11 +47,6 @@ pub mod routes {
     pub struct Analytics;
 
     impl Analytics {
-        #[cfg(feature = "v2")]
-        pub fn server(_state: AppState) -> Scope {
-            todo!()
-        }
-        #[cfg(feature = "v1")]
         pub fn server(state: AppState) -> Scope {
             web::scope("/analytics")
                 .app_data(web::Data::new(state))
@@ -452,7 +447,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetPaymentMetricRequest` element.
@@ -576,7 +570,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetPaymentIntentMetricRequest` element.
@@ -700,7 +693,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetRefundMetricRequest` element.
@@ -954,7 +946,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn get_profile_payment_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1076,7 +1067,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn get_profile_refund_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1260,7 +1250,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_merchant_refund_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1311,7 +1300,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_org_refund_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1360,7 +1348,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_profile_refund_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1415,7 +1402,7 @@ pub mod routes {
         ))
         .await
     }
-    #[cfg(feature = "v1")]
+
     pub async fn generate_merchant_dispute_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1465,7 +1452,7 @@ pub mod routes {
         ))
         .await
     }
-    #[cfg(feature = "v1")]
+
     pub async fn generate_org_dispute_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1514,7 +1501,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_profile_dispute_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1570,7 +1556,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_merchant_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1620,7 +1605,7 @@ pub mod routes {
         ))
         .await
     }
-    #[cfg(feature = "v1")]
+
     pub async fn generate_org_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1669,7 +1654,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn generate_profile_payment_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2080,7 +2064,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn get_profile_dispute_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -2184,7 +2167,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetDisputeMetricRequest` element.
@@ -2328,7 +2310,6 @@ pub mod routes {
         .await
     }
 
-    #[cfg(feature = "v1")]
     pub async fn get_profile_sankey(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,

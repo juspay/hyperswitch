@@ -213,7 +213,6 @@ diesel::table! {
         #[max_length = 64]
         payout_routing_algorithm_id -> Nullable<Varchar>,
         default_fallback_routing -> Nullable<Jsonb>,
-        should_collect_cvv_during_payment -> Bool,
         #[max_length = 64]
         id -> Varchar,
         version -> ApiVersion,
@@ -941,6 +940,7 @@ diesel::table! {
         payment_method -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
+        metadata -> Nullable<Json>,
         payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,

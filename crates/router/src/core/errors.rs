@@ -330,8 +330,6 @@ pub enum RoutingError {
     MetadataParsingError,
     #[error("Unable to retrieve success based routing config")]
     SuccessBasedRoutingConfigError,
-    #[error("Params not found in success based routing config")]
-    SuccessBasedRoutingParamsNotFoundError,
     #[error("Unable to calculate success based routing config from dynamic routing service")]
     SuccessRateCalculationError,
     #[error("Success rate client from dynamic routing gRPC service not initialized")]
