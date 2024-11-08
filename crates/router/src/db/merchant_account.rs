@@ -13,7 +13,6 @@ use crate::{
     connection,
     core::errors::{self, CustomResult},
     db::merchant_key_store::MerchantKeyStoreInterface,
-    services::authentication,
     types::{
         domain::{
             self,
@@ -68,7 +67,7 @@ where
         &self,
         state: &KeyManagerState,
         publishable_key: &str,
-    ) -> CustomResult<authentication::AuthenticationData, errors::StorageError>;
+    ) -> CustomResult<(domain::MerchantAccount, domain::MerchantKeyStore), errors::StorageError>;
 
     #[cfg(feature = "olap")]
     async fn list_merchant_accounts_by_organization_id(
@@ -229,7 +228,8 @@ impl MerchantAccountInterface for Store {
         &self,
         state: &KeyManagerState,
         publishable_key: &str,
-    ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
+    ) -> CustomResult<(domain::MerchantAccount, domain::MerchantKeyStore), errors::StorageError>
+    {
         let fetch_by_pub_key_func = || async {
             let conn = connection::pg_connection_read(self).await?;
 
@@ -261,20 +261,15 @@ impl MerchantAccountInterface for Store {
                 &self.get_master_key().to_vec().into(),
             )
             .await?;
-
-        Ok(authentication::AuthenticationData {
-            merchant_account: merchant_account
-                .convert(
-                    state,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)?,
-
-            key_store,
-            profile_id: None,
-        })
+        let domain_merchant_account = merchant_account
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)?;
+        Ok((domain_merchant_account, key_store))
     }
 
     #[cfg(feature = "olap")]
@@ -578,7 +573,8 @@ impl MerchantAccountInterface for MockDb {
         &self,
         state: &KeyManagerState,
         publishable_key: &str,
-    ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
+    ) -> CustomResult<(domain::MerchantAccount, domain::MerchantKeyStore), errors::StorageError>
+    {
         let accounts = self.merchant_accounts.lock().await;
         let account = accounts
             .iter()
@@ -599,20 +595,16 @@ impl MerchantAccountInterface for MockDb {
                 &self.get_master_key().to_vec().into(),
             )
             .await?;
-        Ok(authentication::AuthenticationData {
-            merchant_account: account
-                .clone()
-                .convert(
-                    state,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
-                )
-                .await
-                .change_context(errors::StorageError::DecryptionError)?,
-
-            key_store,
-            profile_id: None,
-        })
+        let merchant_account = account
+            .clone()
+            .convert(
+                state,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)?;
+        Ok((merchant_account, key_store))
     }
 
     async fn update_all_merchant_account(
