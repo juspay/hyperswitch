@@ -644,16 +644,16 @@ async fn handle_existing_user_invitation(
         created_at: now,
         last_modified: now,
         entity: domain::NoLevel,
-        tenant_id: user_from_token
-            .tenant_id
-            .clone()
-            .unwrap_or(state.tenant.tenant_id.clone()),
     };
 
     let _user_role = match role_info.get_entity_type() {
         EntityType::Organization => {
             user_role
                 .add_entity(domain::OrganizationLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                 })
                 .insert_in_v2(state)
@@ -662,6 +662,10 @@ async fn handle_existing_user_invitation(
         EntityType::Merchant => {
             user_role
                 .add_entity(domain::MerchantLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                 })
@@ -675,6 +679,10 @@ async fn handle_existing_user_invitation(
                 .ok_or(UserErrors::InternalServerError)?;
             user_role
                 .add_entity(domain::ProfileLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                     profile_id: profile_id.clone(),
@@ -775,16 +783,16 @@ async fn handle_new_user_invitation(
         created_at: now,
         last_modified: now,
         entity: domain::NoLevel,
-        tenant_id: user_from_token
-            .tenant_id
-            .clone()
-            .unwrap_or(state.tenant.tenant_id.clone()),
     };
 
     let _user_role = match role_info.get_entity_type() {
         EntityType::Organization => {
             user_role
                 .add_entity(domain::OrganizationLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                 })
                 .insert_in_v2(state)
@@ -793,6 +801,10 @@ async fn handle_new_user_invitation(
         EntityType::Merchant => {
             user_role
                 .add_entity(domain::MerchantLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                 })
@@ -806,6 +818,10 @@ async fn handle_new_user_invitation(
                 .ok_or(UserErrors::InternalServerError)?;
             user_role
                 .add_entity(domain::ProfileLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                     profile_id: profile_id.clone(),
@@ -1147,11 +1163,11 @@ pub async fn create_internal_user(
 
     new_user
         .get_no_level_user_role(
-            common_utils::consts::DEFAULT_TENANT.to_string(),
             common_utils::consts::ROLE_ID_INTERNAL_VIEW_ONLY_USER.to_string(),
             UserStatus::Active,
         )
         .add_entity(domain::MerchantLevel {
+            tenant_id: common_utils::consts::DEFAULT_TENANT.to_string(),
             org_id: internal_merchant.organization_id,
             merchant_id: internal_merchant_id,
         })

@@ -638,7 +638,6 @@ impl NewUser {
 
     pub fn get_no_level_user_role(
         self,
-        tenant_id: String,
         role_id: String,
         user_status: UserStatus,
     ) -> NewUserRole<NoLevel> {
@@ -654,7 +653,6 @@ impl NewUser {
             created_at: now,
             last_modified: now,
             entity: NoLevel,
-            tenant_id,
         }
     }
 
@@ -670,8 +668,11 @@ impl NewUser {
             .get_organization_id();
 
         let org_user_role = self
-            .get_no_level_user_role(state.tenant.tenant_id.clone(), role_id, user_status)
-            .add_entity(OrganizationLevel { org_id });
+            .get_no_level_user_role(role_id, user_status)
+            .add_entity(OrganizationLevel {
+                tenant_id: state.tenant.tenant_id.clone(),
+                org_id,
+            });
 
         org_user_role.insert_in_v2(&state).await
     }
@@ -1080,17 +1081,20 @@ pub struct NoLevel;
 
 #[derive(Clone)]
 pub struct OrganizationLevel {
+    pub tenant_id: String,
     pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Clone)]
 pub struct MerchantLevel {
+    pub tenant_id: String,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
 pub struct ProfileLevel {
+    pub tenant_id: String,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
@@ -1106,8 +1110,6 @@ pub struct NewUserRole<E: Clone> {
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub entity: E,
-    //TODO: This to be removed and a new type TenantLevel to be created
-    pub tenant_id: String,
 }
 
 impl NewUserRole<NoLevel> {
@@ -1124,12 +1126,12 @@ impl NewUserRole<NoLevel> {
             last_modified_by: self.last_modified_by,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            tenant_id: self.tenant_id,
         }
     }
 }
 
 pub struct EntityInfo {
+    tenant_id: String,
     org_id: id_type::OrganizationId,
     merchant_id: Option<id_type::MerchantId>,
     profile_id: Option<id_type::ProfileId>,
@@ -1142,6 +1144,7 @@ impl From<OrganizationLevel> for EntityInfo {
         Self {
             entity_id: value.org_id.get_string_repr().to_owned(),
             entity_type: EntityType::Organization,
+            tenant_id: value.tenant_id,
             org_id: value.org_id,
             merchant_id: None,
             profile_id: None,
@@ -1154,6 +1157,7 @@ impl From<MerchantLevel> for EntityInfo {
         Self {
             entity_id: value.merchant_id.get_string_repr().to_owned(),
             entity_type: EntityType::Merchant,
+            tenant_id: value.tenant_id,
             org_id: value.org_id,
             profile_id: None,
             merchant_id: Some(value.merchant_id),
@@ -1166,6 +1170,7 @@ impl From<ProfileLevel> for EntityInfo {
         Self {
             entity_id: value.profile_id.get_string_repr().to_owned(),
             entity_type: EntityType::Profile,
+            tenant_id: value.tenant_id,
             org_id: value.org_id,
             merchant_id: Some(value.merchant_id),
             profile_id: Some(value.profile_id),
@@ -1192,7 +1197,7 @@ where
             entity_id: Some(entity.entity_id),
             entity_type: Some(entity.entity_type),
             version: UserRoleVersion::V2,
-            tenant_id: self.tenant_id,
+            tenant_id: entity.tenant_id,
         }
     }
 
