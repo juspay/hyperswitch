@@ -2566,13 +2566,13 @@ pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
 ) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationDataV2, T>>,
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
     api::AuthFlow,
 )>
 where
     T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationDataV2, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationDataV2, T>,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
 {
     let api_key = get_api_key(headers)?;
     if api_key.starts_with("pk_") {
@@ -2647,7 +2647,7 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
 #[cfg(feature = "v2")]
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationDataV2, A>>> {
+) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
     todo!()
 }
 

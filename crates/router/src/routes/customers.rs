@@ -109,7 +109,7 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationDataV2, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             retrieve_customer(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,

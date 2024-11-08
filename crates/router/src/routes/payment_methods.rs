@@ -160,7 +160,7 @@ pub async fn confirm_payment_method_intent_api(
         state,
         &req,
         inner_payload,
-        |state, auth: auth::AuthenticationDataV2, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             let pm_id = pm_id.clone();
             async move {
                 Box::pin(payment_method_intent_confirm(
@@ -553,7 +553,7 @@ pub async fn list_customer_payment_method_for_payment(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationDataV2, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
@@ -619,7 +619,7 @@ pub async fn list_customer_payment_method_api(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationDataV2, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             list_customer_payment_method_util(
                 state,
                 auth.merchant_account,
