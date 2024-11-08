@@ -50,6 +50,7 @@ where
                 alias: Some("total"),
             })
             .switch()?;
+        query_builder.add_select_column("currency").switch()?;
         query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
@@ -78,6 +79,11 @@ where
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
+
+        query_builder
+            .add_group_by_clause("currency")
+            .attach_printable("Error grouping by currency")
+            .switch()?;
 
         if let Some(granularity) = granularity.as_ref() {
             granularity
