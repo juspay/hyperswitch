@@ -45,6 +45,7 @@ pub mod wellsfargopayout;
 pub mod wise;
 
 pub use hyperswitch_connectors::connectors::{
+<<<<<<< Updated upstream
     airwallex, airwallex::Airwallex, bambora, bambora::Bambora, billwerk, billwerk::Billwerk,
     bitpay, bitpay::Bitpay, cashtocode, cashtocode::Cashtocode, coinbase, coinbase::Coinbase,
     cryptopay, cryptopay::Cryptopay, deutschebank, deutschebank::Deutschebank, digitalvirgo,
@@ -57,6 +58,20 @@ pub use hyperswitch_connectors::connectors::{
     square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys,
     tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline, worldpay, worldpay::Worldpay,
     zen, zen::Zen, zsl, zsl::Zsl,
+=======
+    airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, bambora, bambora::Bambora,
+    billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay, cashtocode, cashtocode::Cashtocode,
+    coinbase, coinbase::Coinbase, cryptopay, cryptopay::Cryptopay, deutschebank,
+    deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal,
+    elavon, elavon::Elavon, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu,
+    fiuu::Fiuu, forte, forte::Forte, globepay, globepay::Globepay, helcim, helcim::Helcim,
+    jpmorgan, jpmorgan::Jpmorgan, mollie, mollie::Mollie, multisafepay, multisafepay::Multisafepay,
+    nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, novalnet, novalnet::Novalnet,
+    payeezy, payeezy::Payeezy, payu, payu::Payu, powertranz, powertranz::Powertranz, razorpay,
+    razorpay::Razorpay, shift4, shift4::Shift4, square, square::Square, stax, stax::Stax, taxjar,
+    taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline,
+    worldline::Worldline, worldpay, worldpay::Worldpay, zen, zen::Zen, zsl, zsl::Zsl,
+>>>>>>> Stashed changes
 };
 
 #[cfg(feature = "dummy_connector")]

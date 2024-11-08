@@ -13,6 +13,7 @@ use crate::{
     types::api::disputes as dispute_types,
 };
 
+#[cfg(feature = "v1")]
 /// Disputes - Retrieve Dispute
 #[utoipa::path(
     get,
@@ -109,6 +110,7 @@ pub async fn retrieve_disputes_list(
     .await
 }
 
+#[cfg(feature = "v1")]
 /// Disputes - List Disputes for The Given Business Profiles
 #[utoipa::path(
     get,
@@ -200,6 +202,7 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
     .await
 }
 
+#[cfg(feature = "v1")]
 /// Disputes - Disputes Filters Profile
 #[utoipa::path(
     get,
@@ -241,6 +244,7 @@ pub async fn get_disputes_filters_profile(
     .await
 }
 
+#[cfg(feature = "v1")]
 /// Disputes - Accept Dispute
 #[utoipa::path(
     get,
@@ -291,6 +295,8 @@ pub async fn accept_dispute(
     ))
     .await
 }
+
+#[cfg(feature = "v1")]
 /// Disputes - Submit Dispute Evidence
 #[utoipa::path(
     post,
@@ -336,6 +342,7 @@ pub async fn submit_dispute_evidence(
     ))
     .await
 }
+#[cfg(feature = "v1")]
 /// Disputes - Attach Evidence to Dispute
 ///
 /// To attach an evidence file to dispute
@@ -390,6 +397,7 @@ pub async fn attach_dispute_evidence(
     .await
 }
 
+#[cfg(feature = "v1")]
 /// Disputes - Retrieve Dispute
 #[utoipa::path(
     get,
@@ -506,6 +514,7 @@ pub async fn get_disputes_aggregate(
     .await
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::DisputesAggregate))]
 pub async fn get_disputes_aggregate_profile(
     state: web::Data<AppState>,

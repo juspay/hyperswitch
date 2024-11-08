@@ -1296,6 +1296,7 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         connector_payment_id: Option<String>,
         updated_by: String,
+        authentication_data: Option<pii::SecretSerdeValue>,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on error response
     ConfirmIntentError {
@@ -1923,6 +1924,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_message: None,
                 connector_payment_id: None,
                 connector: Some(connector),
+                authentication_data: None,
             },
             PaymentAttemptUpdate::ConfirmIntentError {
                 status,
@@ -1941,11 +1943,13 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_message: None,
                 connector_payment_id: None,
                 connector: None,
+                authentication_data: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse {
                 status,
                 connector_payment_id,
                 updated_by,
+                authentication_data,
             } => Self {
                 status: Some(status),
                 error_message: None,
@@ -1959,6 +1963,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_message: None,
                 connector_payment_id,
                 connector: None,
+                authentication_data,
             },
         }
     }
