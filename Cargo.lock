@@ -353,6 +353,7 @@ dependencies = [
  "bigdecimal",
  "common_enums",
  "common_utils",
+ "currency_conversion",
  "diesel_models",
  "error-stack",
  "futures 0.3.30",
@@ -363,6 +364,7 @@ dependencies = [
  "opensearch",
  "reqwest 0.11.27",
  "router_env",
+ "rust_decimal",
  "serde",
  "serde_json",
  "sqlx",
@@ -2048,6 +2050,7 @@ name = "common_enums"
 version = "0.1.0"
 dependencies = [
  "diesel",
+ "masking",
  "router_derive",
  "serde",
  "serde_json",
