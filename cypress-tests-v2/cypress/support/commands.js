@@ -26,12 +26,9 @@
 
 //  cy.task can only be used in support files (spec files or commands file)
 
+import { nanoid } from "nanoid";
 import { getValueByKey } from "../e2e/configs/Payment/Utils.js";
-import {
-  generateOrganizationName,
-  isoTimeTomorrow,
-  validateEnv,
-} from "../utils/RequestBodyUtils.js";
+import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 
 function logRequestId(xRequestId) {
   if (xRequestId) {
@@ -51,8 +48,7 @@ Cypress.Commands.add(
     const url = `${base_url}/v2/organization`;
 
     // Update request body
-    organizationCreateBody.organization_name +=
-      " " + generateOrganizationName();
+    organizationCreateBody.organization_name += " " + nanoid();
 
     cy.request({
       method: "POST",
@@ -132,8 +128,7 @@ Cypress.Commands.add(
     const url = `${base_url}/v2/organization/${organization_id}`;
 
     // Update request body
-    organizationUpdateBody.organization_name +=
-      " " + generateOrganizationName();
+    organizationUpdateBody.organization_name += " " + nanoid();
 
     cy.request({
       method: "PUT",
