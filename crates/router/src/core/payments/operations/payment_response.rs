@@ -1254,25 +1254,38 @@ async fn update_payment_method_type_for_cards<F: Clone>(
             .get_payment_attempt()
             .payment_method_data
             .clone()
-            .map(|data| data.parse_value("payment_method_data"))
+            .map(|data| data.parse_value("AdditionalPaymentData"))
             .transpose()
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
 
     // Fetch card_type from this struct for cards
-    let payment_method_type = match additional_payment_method_data {
-        Some(api_models::payments::AdditionalPaymentData::Card(card)) => card
-            .card_type
-            .map(|card_type_str| enums::PaymentMethodType::from_str(&card_type_str.to_lowercase()))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+    let payment_method_type = additional_payment_method_data.and_then(|data| match data {
+        api_models::payments::AdditionalPaymentData::Card(card) => {
+            card.card_type.as_ref().and_then(|card_type_str| {
+                match enums::PaymentMethodType::from_str(&card_type_str.to_lowercase()) {
+                    Ok(payment_method_type) => Some(payment_method_type),
+                    // Do not throw errors in case of deserialization errors
+                    Err(e) => {
+                        logger::error!(
+                            "Invalid card_type value in AdditionalPaymentData - {:?}\nErr - {:?}",
+                            card.card_type,
+                            e
+                        );
+                        None
+                    }
+                }
+            })
+        }
         _ => None,
-    };
+    });
 
     // If payment_method_type in PaymentAttempt does not match the one in payment_method_data
     // update payment_method_type in PaymentAttempt table
-    if payment_data.payment_attempt.payment_method_type.as_ref() != payment_method_type.as_ref() {
+    if payment_method_type.is_some()
+        && payment_data.payment_attempt.payment_method_type.as_ref() != payment_method_type.as_ref()
+    {
         payment_data.payment_attempt.payment_method_type = payment_method_type;
         let payment_attempt_update = storage::PaymentAttemptUpdate::PaymentMethodTypeUpdate {
             payment_method_type,
