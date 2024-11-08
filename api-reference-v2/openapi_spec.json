@@ -13384,6 +13384,14 @@
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
           },
+          "next_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NextActionData"
+              }
+            ],
+            "nullable": true
+          },
           "connector_transaction_id": {
             "type": "string",
             "description": "A unique identifier for a payment provided by the connector",
