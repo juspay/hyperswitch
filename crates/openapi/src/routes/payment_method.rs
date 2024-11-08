@@ -31,6 +31,7 @@
     operation_id = "Create a Payment Method",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn create_payment_method_api() {}
 
 /// List payment methods for a Merchant
@@ -84,6 +85,7 @@ pub async fn list_payment_method_api() {}
     operation_id = "List all Payment Methods for a Customer",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn list_customer_payment_method_api() {}
 
 /// List customer saved payment methods for a Payment
@@ -130,6 +132,7 @@ pub async fn list_customer_payment_method_api_client() {}
     operation_id = "Retrieve a Payment method",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn payment_method_retrieve_api() {}
 
 /// Payment Method - Update
@@ -151,6 +154,7 @@ pub async fn payment_method_retrieve_api() {}
     operation_id = "Update a Payment method",
     security(("api_key" = []), ("publishable_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn payment_method_update_api() {}
 
 /// Payment Method - Delete
@@ -170,6 +174,7 @@ pub async fn payment_method_update_api() {}
     operation_id = "Delete a Payment method",
     security(("api_key" = []))
 )]
+#[cfg(feature = "v1")]
 pub async fn payment_method_delete_api() {}
 
 /// Payment Method - Set Default Payment Method for Customer
@@ -192,3 +197,189 @@ pub async fn payment_method_delete_api() {}
     security(("ephemeral_key" = []))
 )]
 pub async fn default_payment_method_set_api() {}
+
+/// List payment methods for a Customer v2
+///
+/// To filter and list the applicable payment methods for a particular Customer ID, is to be associated with a payment
+#[utoipa::path(
+    get,
+    path = "/v2/payments/{id}/saved-payment-methods",
+    request_body(
+    content = PaymentMethodListRequest,
+    // TODO: Add examples and add param for customer_id
+    ),
+    // params (
+    //     ("client-secret" = String, Path, description = "A secret known only to your application and the authorization server"),
+    //     ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
+    //     ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
+    //     ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
+    //     ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
+    //     ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+    //     ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+    // ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved for customer tied to its respective client-secret passed in the param", body = CustomerPaymentMethodsListResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    ),
+    tag = "Payment Methods",
+    operation_id = "List all Payment Methods for a Customer",
+    security(("publishable_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn list_customer_payment_method_for_payment() {}
+
+/// List payment methods for a Customer v2
+///
+/// To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context
+#[utoipa::path(
+    get,
+    path = "/v2/customers/{id}/saved-payment-methods",
+    request_body(
+    content = PaymentMethodListRequest,
+    // TODO: Add examples and add param for customer_id
+    ),
+    // params (
+    //     ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
+    //     ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
+    //     ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
+    //     ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
+    //     ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+    //     ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+    // ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    ),
+    tag = "Payment Methods",
+    operation_id = "List all Payment Methods for a Customer",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn list_customer_payment_method_api() {}
+
+/// Create payment method v2
+///
+/// TODO: Description Here
+#[utoipa::path(
+    post,
+    path = "/v2/payment-methods",
+    request_body(
+    content = PaymentMethodCreate,
+    // TODO: Add examples
+    ),
+    responses(
+        (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
+        (status = 400, description = "Invalid Data"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Create Payment Method",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn create_payment_method_api() {}
+
+/// Create payment method intent v2
+///
+/// TODO: Description Here
+#[utoipa::path(
+    post,
+    path = "/v2/payment-methods/create-intent",
+    request_body(
+    content = PaymentMethodIntentCreate,
+    // TODO: Add examples
+    ),
+    responses(
+        (status = 200, description = "Payment Method Intent Created", body = PaymentMethodResponse),
+        (status = 400, description = "Invalid Data"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Create Payment Method Intent",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn create_payment_method_intent_api() {}
+
+/// Confirm payment method intent v2
+///
+/// TODO: Description Here
+#[utoipa::path(
+    post,
+    path = "/v2/payment-methods/{id}/confirm-intent",
+    request_body(
+    content = PaymentMethodIntentConfirm,
+    // TODO: Add examples
+    ),
+    responses(
+        (status = 200, description = "Payment Method Intent Confirmed", body = PaymentMethodResponse),
+        (status = 400, description = "Invalid Data"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Confirm Payment Method Intent",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn confirm_payment_method_intent_api() {}
+
+/// Update payment method v2
+///
+/// TODO: Description Here
+#[utoipa::path(
+    patch,
+    path = "/v2/payment-methods/{id}/update-saved-payment-method",
+    request_body(
+    content = PaymentMethodUpdate,
+    // TODO: Add examples
+    ),
+    responses(
+        (status = 200, description = "Payment Method Update", body = PaymentMethodResponse),
+        (status = 400, description = "Invalid Data"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Update Payment Method",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn payment_method_update_api() {}
+
+
+/// Retrieve payment method v2
+///
+/// TODO: Description Here
+#[utoipa::path(
+    get,
+    path = "/v2/payment-methods/{id}",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Payment Method Retrieved", body = PaymentMethodResponse),
+        (status = 404, description = "Payment Method Not Found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Retrieve Payment Method",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn payment_method_retrieve_api() {}
+
+/// Delete payment method v2
+///
+/// TODO: Description Here
+#[utoipa::path(
+    delete,
+    path = "/v2/payment-methods/{id}",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Payment Method Retrieved", body = PaymentMethodDeleteResponse),
+        (status = 404, description = "Payment Method Not Found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Delete Payment Method",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn payment_method_delete_api() {}
