@@ -62,6 +62,9 @@ impl DashboardRequestPayload {
                 | (_, PaymentMethodType::Paze) => {
                     Some(api_models::enums::PaymentExperience::InvokeSdkClient)
                 }
+                (_, PaymentMethodType::DirectCarrierBilling) => {
+                    Some(api_models::enums::PaymentExperience::CollectOtp)
+                }
                 _ => Some(api_models::enums::PaymentExperience::RedirectToUrl),
             },
         }

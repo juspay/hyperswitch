@@ -3906,6 +3906,7 @@ pub enum NextActionType {
     TriggerApi,
     DisplayBankTransferInformation,
     DisplayWaitScreen,
+    CollectOtp,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, ToSchema)]

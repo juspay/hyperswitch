@@ -548,7 +548,8 @@ impl
                         | common_enums::PaymentExperience::InvokeSdkClient
                         | common_enums::PaymentExperience::LinkWallet
                         | common_enums::PaymentExperience::OneClick
-                        | common_enums::PaymentExperience::RedirectToUrl,
+                        | common_enums::PaymentExperience::RedirectToUrl
+                        | common_enums::PaymentExperience::CollectOtp,
                         common_enums::PaymentMethodType::Ach
                         | common_enums::PaymentMethodType::Affirm
                         | common_enums::PaymentMethodType::AfterpayClearpay
