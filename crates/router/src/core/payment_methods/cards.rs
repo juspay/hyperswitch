@@ -76,7 +76,9 @@ use crate::{
     },
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{network_tokenization, transformers as payment_methods, vault, migration},
+        payment_methods::{
+            migration, network_tokenization, transformers as payment_methods, vault,
+        },
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -1531,10 +1533,10 @@ pub async fn add_payment_method_for_migration(
                     db,
                 )
                 .await;
-            migration::validate_card_expiry(
-                &card_details.card_exp_month,
-                &card_details.card_exp_year,
-            )?;
+                migration::validate_card_expiry(
+                    &card_details.card_exp_month,
+                    &card_details.card_exp_year,
+                )?;
                 Box::pin(add_card_to_locker(
                     state,
                     req.clone(),
