@@ -37,6 +37,8 @@ use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{PaymentConfirmData, PaymentIntentData};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::router_response_types::RedirectForm;
 pub use hyperswitch_domain_models::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::PaymentAddress,
@@ -1463,7 +1465,7 @@ where
     let (payment_data, _req, customer) = payments_intent_operation_core::<_, _, _, _>(
         &state,
         req_state,
-        merchant_account,
+        merchant_account.clone(),
         profile,
         key_store,
         operation.clone(),
@@ -1481,6 +1483,7 @@ where
         None,
         None,
         header_payload.x_hs_latency,
+        &merchant_account,
     )
 }
 
@@ -1521,7 +1524,7 @@ where
         payments_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
-            merchant_account,
+            merchant_account.clone(),
             key_store,
             profile,
             operation.clone(),
@@ -1541,6 +1544,7 @@ where
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
+        &merchant_account,
     )
 }
 
@@ -5964,6 +5968,73 @@ pub async fn payment_external_authentication(
             three_ds_requestor_url: authentication_details.three_ds_requestor_url,
         },
     ))
+}
+
+#[instrument(skip_all)]
+#[cfg(feature = "v2")]
+pub async fn payment_start_redirection(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: api_models::payments::PaymentStartRedirectionRequest,
+) -> RouterResponse<serde_json::Value> {
+    let db = &*state.store;
+    let key_manager_state = &(&state).into();
+
+    let storage_scheme = merchant_account.storage_scheme;
+
+    let payment_intent = db
+        .find_payment_intent_by_id(key_manager_state, &req.id, &key_store, storage_scheme)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    //TODO: send valid html error pages in this case, or atleast redirect to valid html error pages
+    utils::when(
+        payment_intent.status != storage_enums::IntentStatus::RequiresCustomerAction,
+        || {
+            Err(errors::ApiErrorResponse::PaymentUnexpectedState {
+                current_flow: "PaymentStartRedirection".to_string(),
+                field_name: "status".to_string(),
+                current_value: payment_intent.status.to_string(),
+                states: ["requires_customer_action".to_string()].join(", "),
+            })
+        },
+    )?;
+
+    let payment_attempt = db
+        .find_payment_attempt_by_id(
+            key_manager_state,
+            &key_store,
+            payment_intent
+                .active_attempt_id
+                .clone()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("missing active attempt in payment_intent")?
+                .get_string_repr(),
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while fetching payment_attempt")?;
+    let redirection_data = payment_attempt
+        .authentication_data
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("missing authentication_data in payment_attempt")?;
+
+    let form: RedirectForm = serde_json::from_value(redirection_data.expose()).map_err(|err| {
+        logger::error!(error = ?err, "Failed to deserialize redirection data");
+        errors::ApiErrorResponse::InternalServerError
+    })?;
+
+    Ok(services::ApplicationResponse::Form(Box::new(
+        services::RedirectionFormData {
+            redirect_form: form,
+            payment_method_data: None,
+            amount: payment_attempt.amount_details.net_amount.to_string(),
+            currency: payment_intent.amount_details.currency.to_string(),
+        },
+    )))
 }
 
 #[instrument(skip_all)]

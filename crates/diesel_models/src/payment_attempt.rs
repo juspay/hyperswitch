@@ -770,7 +770,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub connector: Option<String>,
-    // authentication_data: Option<serde_json::Value>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
     // encoded_data: Option<String>,
     pub unified_code: Option<Option<String>>,
     pub unified_message: Option<Option<String>>,

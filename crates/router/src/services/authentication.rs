@@ -1289,6 +1289,61 @@ where
 }
 
 #[derive(Debug)]
+#[cfg(feature = "v2")]
+pub struct PublishableKeyAndProfileIdAuth {
+    pub publishable_key: String,
+    pub profile_id: id_type::ProfileId,
+}
+
+#[async_trait]
+#[cfg(feature = "v2")]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for PublishableKeyAndProfileIdAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        _request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let key_manager_state = &(&state.session_state()).into();
+        let (merchant_account, key_store) = state
+            .store()
+            .find_merchant_account_by_publishable_key(
+                key_manager_state,
+                self.publishable_key.as_str(),
+            )
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            })?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(key_manager_state, &key_store, &self.profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: self.profile_id.get_string_repr().to_owned(),
+            })?;
+
+        let merchant_id = merchant_account.get_id().clone();
+
+        Ok((
+            AuthenticationData {
+                merchant_account,
+                key_store,
+                profile,
+            },
+            AuthenticationType::PublishableKey { merchant_id },
+        ))
+    }
+}
+
+#[derive(Debug)]
 pub struct PublishableKeyAuth;
 
 #[cfg(feature = "partial-auth")]

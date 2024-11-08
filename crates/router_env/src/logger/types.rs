@@ -512,6 +512,8 @@ pub enum Flow {
     PaymentsConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
+    /// Payments start redirection flow
+    PaymentStartRedirection,
 }
 
 ///
