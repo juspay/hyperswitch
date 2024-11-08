@@ -457,4 +457,4 @@ pub enum WorldpayWebhookStatus {
 }
 
 /// Worldpay's unique reference ID for a request
-pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";
+pub(super) const WP_CORRELATION_ID: &str = "WP-CorrelationId";

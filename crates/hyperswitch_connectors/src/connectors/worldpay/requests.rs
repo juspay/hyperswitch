@@ -331,5 +331,5 @@ pub struct WorldpayCompleteAuthorizationRequest {
     pub collection_reference: Option<String>,
 }
 
-pub const THREE_DS_MODE: &str = "always";
-pub const THREE_DS_TYPE: &str = "integrated";
+pub(super) const THREE_DS_MODE: &str = "always";
+pub(super) const THREE_DS_TYPE: &str = "integrated";
