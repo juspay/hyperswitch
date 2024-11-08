@@ -1001,7 +1001,7 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 
 Cypress.Commands.add(
   "createPaymentMethodTest",
-  (createPaymentMethodBody, globalState) => {
+  (createPaymentMethodBody, globalState, res_data) => {
     createPaymentMethodBody.customer_id = globalState.get("customerId");
     createPaymentMethodBody.client_secret = globalState.get("clientSecret");
     cy.request({
@@ -1042,13 +1042,13 @@ Cypress.Commands.add(
         );
         globalState.set("paymentMethodId", response.body.payment_method_id);
       } else {
-        defaultErrorHandler(response);
+        defaultErrorHandler(response, res_data);
       }
     });
   }
 );
 
-Cypress.Commands.add("deletePaymentMethodTest", (globalState) => {
+Cypress.Commands.add("deletePaymentMethodTest", (globalState, res_data) => {
   const payment_method_id = globalState.get("paymentMethodId");
   cy.request({
     method: "DELETE",
@@ -1066,7 +1066,7 @@ Cypress.Commands.add("deletePaymentMethodTest", (globalState) => {
       expect(response.body.payment_method_id).to.equal(payment_method_id);
       expect(response.body.deleted).to.be.true;
     } else {
-      defaultErrorHandler(response);
+      defaultErrorHandler(response, res_data);
     }
   });
 });
@@ -1134,10 +1134,6 @@ Cypress.Commands.add(
         expect(response.body.customer, "customer").to.not.be.empty;
         expect(response.body.billing, "billing_address").to.not.be.empty;
         expect(response.body.profile_id, "profile_id").to.not.be.null;
-        // expect(
-        //   response.body.connector_transaction_id,
-        //   "connector_transaction_id"
-        // ).to.not.be.null;
 
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
@@ -1469,10 +1465,6 @@ Cypress.Commands.add(
         expect(response.body.customer, "customer").to.not.be.empty;
         expect(response.body.billing, "billing_address").to.not.be.empty;
         expect(response.body.profile_id, "profile_id").to.not.be.null;
-        // expect(
-        //   response.body.connector_transaction_id,
-        //   "connector_transaction_id"
-        // ).to.not.be.null;
         expect(response.body).to.have.property("status");
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
@@ -1580,10 +1572,6 @@ Cypress.Commands.add(
         }
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(response.body.payment_token, "payment_token").to.not.be.null;
-        // expect(
-        //   response.body.connector_transaction_id,
-        //   "connector_transaction_id"
-        // ).to.not.be.null;
 
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
@@ -1729,10 +1717,6 @@ Cypress.Commands.add(
         expect(response.body.merchant_connector_id, "connector_id").to.equal(
           globalState.get("merchantConnectorId")
         );
-        // expect(
-        //   response.body.connector_transaction_id,
-        //   "connector_transaction_id"
-        // ).to.not.be.null;
       }
 
       if (autoretries) {
@@ -1879,6 +1863,7 @@ Cypress.Commands.add(
         }
 
         if (response.body.capture_method === "automatic") {
+          expect(response.body).to.have.property("mandate_id");
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
               .to.have.property("next_action")
@@ -1971,10 +1956,6 @@ Cypress.Commands.add(
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(response.body.payment_method_id, "payment_method_id").to.not.be
           .null;
-        // expect(
-        //   response.body.connector_transaction_id,
-        //   "connector_transaction_id"
-        // ).to.not.be.null;
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)

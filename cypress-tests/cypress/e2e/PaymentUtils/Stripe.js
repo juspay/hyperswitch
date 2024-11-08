@@ -263,7 +263,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
         customer_acceptance: null,
       },
       Response: {
