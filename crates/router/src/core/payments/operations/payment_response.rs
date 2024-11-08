@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 #[cfg(feature = "dynamic_routing")]
@@ -36,7 +36,7 @@ use crate::{
             },
             tokenization,
             types::MultipleCaptureData,
-            PaymentData, PaymentMethodChecker,
+            OperationSessionGetters, PaymentData, PaymentMethodChecker,
         },
         utils as core_utils,
     },
@@ -1243,6 +1243,54 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
+async fn update_payment_method_type_for_cards<F: Clone>(
+    state: &SessionState,
+    storage_scheme: enums::MerchantStorageScheme,
+    payment_data: &mut PaymentData<F>,
+) -> RouterResult<()> {
+    // Parse Value to AdditionalPaymentData
+    let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
+        payment_data
+            .get_payment_attempt()
+            .payment_method_data
+            .clone()
+            .map(|data| data.parse_value("payment_method_data"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "payment_method_data",
+            })?;
+
+    // Fetch card_type from this struct for cards
+    let payment_method_type = match additional_payment_method_data {
+        Some(api_models::payments::AdditionalPaymentData::Card(card)) => card
+            .card_type
+            .map(|card_type_str| enums::PaymentMethodType::from_str(&card_type_str.to_lowercase()))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        _ => None,
+    };
+
+    // If payment_method_type in PaymentAttempt does not match the one in payment_method_data
+    // update payment_method_type in PaymentAttempt table
+    if payment_data.payment_attempt.payment_method_type.as_ref() != payment_method_type.as_ref() {
+        payment_data.payment_attempt.payment_method_type = payment_method_type;
+        let payment_attempt_update = storage::PaymentAttemptUpdate::PaymentMethodTypeUpdate {
+            payment_method_type,
+            updated_by: storage_scheme.to_string(),
+        };
+        state
+            .store
+            .update_payment_attempt_with_attempt_id(
+                payment_data.payment_attempt.clone(),
+                payment_attempt_update,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    }
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -1258,8 +1306,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     >,
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
 ) -> RouterResult<PaymentData<F>> {
-    // Update additional payment data with the payment method response that we received from connector
+    // Populate payment_method_type for cards in case it's empty or mismatched
+    update_payment_method_type_for_cards(state, storage_scheme, &mut payment_data).await?;
 
+    // Update additional payment data with the payment method response that we received from connector
     let additional_payment_method_data = match payment_data.payment_method_data.clone() {
         Some(payment_method_data) => match payment_method_data {
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
