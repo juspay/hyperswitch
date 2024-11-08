@@ -9,6 +9,8 @@ use crate::enums as storage_enums;
 use crate::schema::payment_intent;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_intent;
+#[cfg(feature = "v2")]
+use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
@@ -32,11 +34,11 @@ pub struct PaymentIntent {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub client_secret: common_utils::types::ClientSecret,
     pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<masking::Secret<OrderDetailsWithAmount>>)]
+    pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
     pub attempt_count: i16,
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_link_id: Option<String>,
@@ -249,11 +251,11 @@ pub struct PaymentIntentNew {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub client_secret: common_utils::types::ClientSecret,
     pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<masking::Secret<OrderDetailsWithAmount>>)]
+    pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
     pub attempt_count: i16,
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_link_id: Option<String>,

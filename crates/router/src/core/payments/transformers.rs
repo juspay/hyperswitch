@@ -18,6 +18,8 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::ApiModelToDieselModelConvertor;
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, metrics::add_attributes, tracing};
@@ -954,13 +956,16 @@ where
                 order_details: payment_intent.order_details.clone().map(|order_details| {
                     order_details
                         .into_iter()
-                        .map(|order_detail| order_detail.expose())
+                        .map(|order_detail| order_detail.expose().convert_back())
                         .collect()
                 }),
                 allowed_payment_method_types: payment_intent.allowed_payment_method_types.clone(),
                 metadata: payment_intent.metadata.clone(),
                 connector_metadata: payment_intent.connector_metadata.clone(),
-                feature_metadata: payment_intent.feature_metadata.clone(),
+                feature_metadata: payment_intent
+                    .feature_metadata
+                    .clone()
+                    .map(|feature_metadata| feature_metadata.convert_back()),
                 payment_link_enabled: payment_intent.enable_payment_link.clone(),
                 payment_link_config: payment_intent
                     .payment_link_config

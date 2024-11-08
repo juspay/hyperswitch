@@ -123,7 +123,7 @@ pub async fn payments_create_intent(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: auth::AuthenticationDataV2, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_intent_core::<
                 api_types::PaymentCreateIntent,
                 payment_types::PaymentsIntentResponse,
@@ -183,7 +183,7 @@ pub async fn payments_get_intent(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationDataV2, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_intent_core::<
                 api_types::PaymentGetIntent,
                 payment_types::PaymentsIntentResponse,
@@ -2096,7 +2096,7 @@ pub async fn payment_confirm_intent(
         state,
         &req,
         internal_payload,
-        |state, auth: auth::AuthenticationDataV2, req, req_state| async {
+        |state, auth: auth::AuthenticationData, req, req_state| async {
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
