@@ -4984,7 +4984,6 @@ where
 
     let connector_data_list = if is_apple_pay_simplified_flow(
         merchant_connector_account_type.get_metadata(),
-
         merchant_connector_account_type
             .get_connector_name()
             .as_ref(),
