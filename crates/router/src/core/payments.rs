@@ -4470,6 +4470,11 @@ where
 
     let (mandate_reference_id, card_details_for_network_transaction_id)= hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow(recurring_payment_details.clone()).get_required_value("network transaction id and card details").attach_printable("Failed to fetch network transaction id and card details for mit")?;
 
+    helpers::validate_card_expiry(
+        &card_details_for_network_transaction_id.card_exp_month,
+        &card_details_for_network_transaction_id.card_exp_year,
+    )?;
+
     let network_transaction_id_supported_connectors = &state
         .conf
         .network_transaction_id_supported_connectors
