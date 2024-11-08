@@ -455,9 +455,13 @@ pub async fn migrate_payment_method(
 
     let network_token_validation = network_token.clone().map(|network_token| {
         cards::CardNumber::from_str(network_token.network_token_data.network_token_number.peek())
-            .map_err(|_| false)
-    }); // network_token_migrated is true if network_token_number passes the validation and will be migrated to locker
-
+            .map_err(|err| {
+                logger::error!("Network Token Validation Failed. {:?}", err);
+                false
+            })
+    });
+    
+    // network_token_migrated is true if network_token_number passes the validation and will be migrated to locker
     let network_token_migrated = match network_token_validation {
         Some(Ok(network_token)) => {
             logger::debug!("Network token to be migrated is valid, saving in locker");
@@ -486,8 +490,8 @@ pub async fn migrate_payment_method(
                 .unwrap_or_default(),
             )
         }
-        Some(Err(_)) => {
-            logger::debug!("Network token validation failed, not saving in locker");
+        Some(Err(err)) => {
+            logger::debug!("Network token validation failed, not saving in locker {:?}", err);
             Some(false)
         }
         None => {
