@@ -3663,6 +3663,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
                 .or(Some(common_utils::consts::DEFAULT_ORDER_FULFILLMENT_TIME)),
             order_fulfillment_time_origin: self.order_fulfillment_time_origin,
             default_fallback_routing: None,
+            should_collect_cvv_during_payment: false,
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
@@ -4226,7 +4227,7 @@ pub async fn extended_card_info_toggle(
             .is_some_and(|existing_config| existing_config != ext_card_info_choice.enabled)
     {
         let profile_update = domain::ProfileUpdate::ExtendedCardInfoUpdate {
-            is_extended_card_info_enabled: Some(ext_card_info_choice.enabled),
+            is_extended_card_info_enabled: ext_card_info_choice.enabled,
         };
 
         db.update_profile_by_profile_id(
@@ -4280,7 +4281,7 @@ pub async fn connector_agnostic_mit_toggle(
         != Some(connector_agnostic_mit_choice.enabled)
     {
         let profile_update = domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
-            is_connector_agnostic_mit_enabled: Some(connector_agnostic_mit_choice.enabled),
+            is_connector_agnostic_mit_enabled: connector_agnostic_mit_choice.enabled,
         };
 
         db.update_profile_by_profile_id(
