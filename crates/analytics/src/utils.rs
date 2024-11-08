@@ -35,6 +35,12 @@ pub fn get_payment_intent_dimensions() -> Vec<NameDescription> {
         PaymentIntentDimensions::PaymentIntentStatus,
         PaymentIntentDimensions::Currency,
         PaymentIntentDimensions::ProfileId,
+        PaymentIntentDimensions::Connector,
+        PaymentIntentDimensions::AuthType,
+        PaymentIntentDimensions::PaymentMethod,
+        PaymentIntentDimensions::PaymentMethodType,
+        PaymentIntentDimensions::CardNetwork,
+        PaymentIntentDimensions::MerchantId,
     ]
     .into_iter()
     .map(Into::into)
