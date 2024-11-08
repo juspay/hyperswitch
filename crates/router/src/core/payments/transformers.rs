@@ -1685,6 +1685,9 @@ pub fn change_order_details_to_new_type(
         brand: order_details.brand,
         product_type: order_details.product_type,
         product_tax_code: order_details.product_tax_code,
+        tax_rate:order_details.tax_rate,
+        // total_amount: Some(order_details.total_amount),
+        total_tax_amount: order_details.total_tax_amount
     }])
 }
 
@@ -1847,7 +1850,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .payment_intent
             .merchant_order_reference_id
             .clone();
-
+        
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data.payment_intent.setup_future_usage,

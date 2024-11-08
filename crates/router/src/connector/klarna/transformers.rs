@@ -2,6 +2,8 @@ use api_models::payments;
 use common_utils::pii;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_data::KlarnaSdkResponse;
+use hyperswitch_domain_models::router_data::KlarnaCheckoutResponse;
+
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +12,7 @@ use crate::{
         self, AddressData, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, storage::enums, transformers::ForeignFrom, domain},
 };
 
 #[derive(Debug, Serialize)]
@@ -80,7 +82,41 @@ pub struct KlarnaPaymentsRequest {
     merchant_reference1: Option<String>,
     merchant_reference2: Option<String>,
     shipping_address: Option<KlarnaShippingAddress>,
+    order_tax_amount: Option<i64>,
+    // merchant_urls: Option<MerchantURLs>,
+
 }
+
+// #[derive(Default, Debug, Serialize)]
+// pub enum KlarnaPaymentsRequest{
+//     SDK (KlarnaSDKRequest),
+//     Checkout (KlarnaCheckoutRequest),
+// }
+
+// #[derive(Debug)]
+// pub struct KlarnaSDKRequest {
+//     auto_capture: bool,
+//     order_lines: Vec<OrderLines>,
+//     order_amount: i64,
+//     purchase_country: enums::CountryAlpha2,
+//     purchase_currency: enums::Currency,
+//     merchant_reference1: Option<String>,
+//     merchant_reference2: Option<String>,
+//     shipping_address: Option<KlarnaShippingAddress>,
+// }
+
+// pub struct KlarnaCheckoutRequest {
+//     auto_capture: bool,
+//     order_lines: Vec<OrderLines>,
+//     order_amount: i64,
+//     purchase_country: enums::CountryAlpha2,
+//     purchase_currency: enums::Currency,
+//     // merchant_urls: Option<String>,
+
+//     merchant_reference1: Option<String>,
+//     merchant_reference2: Option<String>,
+//     shipping_address: Option<KlarnaShippingAddress>,
+// }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct KlarnaPaymentsResponse {
@@ -97,11 +133,30 @@ pub struct AuthorizedPaymentMethod {
 
 impl From<AuthorizedPaymentMethod> for types::AdditionalPaymentMethodConnectorResponse {
     fn from(item: AuthorizedPaymentMethod) -> Self {
-        Self::PayLater {
-            klarna_sdk: Some(KlarnaSdkResponse {
-                payment_type: Some(item.payment_type),
-            }),
+        match item.payment_type.as_str(){
+            "klarna_sdk"=> Self::PayLater {
+                klarna_sdk: Some(KlarnaSdkResponse {
+                    payment_type: Some(item.payment_type),
+                }),
+                klarna_checkout: None,
+            },
+            "klarna_checkout" => Self::PayLater {
+                klarna_checkout: Some(KlarnaCheckoutResponse {
+                    payment_type: Some(item.payment_type),
+                }),
+                klarna_sdk: None,
+            },
+            _ => Self::PayLater { 
+                klarna_sdk: None, 
+                klarna_checkout: None 
+            },
         }
+
+        // Self::PayLater {
+            // klarna_sdk: Some(KlarnaSdkResponse {
+            //     payment_type: Some(item.payment_type),
+            // }),
+        // }
     }
 }
 
@@ -129,6 +184,14 @@ pub struct KlarnaShippingAddress {
     street_address2: Option<Secret<String>>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct MerchantURLs {
+    terms: String,
+    checkout: String,
+    confirmation: String,
+    push: String,
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct KlarnaSessionResponse {
     pub client_token: Secret<String>,
@@ -141,6 +204,10 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
         item: &KlarnaRouterData<&types::PaymentsSessionRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
+        println!("1 request of auth {:?} ",request);
+        println!("2 item {:?} ",item);
+
+
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
                 intent: KlarnaSessionIntent::Buy,
@@ -158,6 +225,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                         quantity: data.quantity,
                         unit_price: data.amount,
                         total_amount: i64::from(data.quantity) * (data.amount),
+                        tax_rate:None,
+                        total_tax_amount:None
                     })
                     .collect(),
                 shipping_address: get_address_info(item.router_data.get_optional_shipping())
@@ -199,32 +268,255 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
         item: &KlarnaRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        match request.order_details.clone() {
-            Some(order_details) => Ok(Self {
-                purchase_country: item.router_data.get_billing_country()?,
-                purchase_currency: request.currency,
-                order_amount: item.amount,
-                order_lines: order_details
-                    .iter()
-                    .map(|data| OrderLines {
-                        name: data.product_name.clone(),
-                        quantity: data.quantity,
-                        unit_price: data.amount,
-                        total_amount: i64::from(data.quantity) * (data.amount),
-                    })
-                    .collect(),
-                merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
-                merchant_reference2: item.router_data.request.merchant_order_reference_id.clone(),
-                auto_capture: request.is_auto_capture()?,
-                shipping_address: get_address_info(item.router_data.get_optional_shipping())
-                    .transpose()?,
-            }),
-            None => Err(report!(errors::ConnectorError::MissingRequiredField {
-                field_name: "order_details"
-            })),
+        println!("klarna auth request {:?} ",request);
+        println!("klarna auth item {:?} ",item);
+
+        let payment_method_data = request.payment_method_data.clone();
+        let payment_experience = request.payment_experience;
+        let payment_method_type = request.payment_method_type;
+        // match request.order_details.clone() {
+        // match payment_method_data {
+        //     domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
+        //         match (payment_experience, payment_method_type) {
+        //             (
+        //                 common_enums::PaymentExperience::InvokeSdkClient,
+        //                 common_enums::PaymentMethodType::Klarna,
+        //             ) => {
+        //                 println!("klarna payments called");
+
+                        
+        //                 Ok(KlarnaPaymentsRequest::SDK(KlarnaSDKRequest{
+        //                     purchase_country: item.router_data.get_billing_country()?,
+        //                     purchase_currency: request.currency,
+        //                     order_amount: item.amount,
+        //                     order_lines: order_details
+        //                         .iter()
+        //                         .map(|data| OrderLines {
+        //                             name: data.product_name.clone(),
+        //                             quantity: data.quantity,
+        //                             unit_price: data.amount,
+        //                             total_amount: i64::from(data.quantity) * (data.amount),
+        //                         })          
+        //                         .collect(),
+        //                     merchant_reference1: Some(
+        //                         item.router_data.connector_request_reference_id.clone(),
+        //                     ),
+        //                     merchant_reference2: item
+        //                         .router_data
+        //                         .request
+        //                         .merchant_order_reference_id
+        //                         .clone(),
+        //                     auto_capture: request.is_auto_capture()?,
+        //                     shipping_address: get_address_info(
+        //                         item.router_data.get_optional_shipping(),
+        //                     )
+        //                     .transpose()?,
+        //                 }))
+        //             }
+        //             (None, None) => todo!(),
+        //             (None, Some(_)) => todo!(),
+        //             (Some(_), None) => todo!(),
+        //             (Some(_), Some(_)) => todo!(),
+        //         }
+        //     }
+        //     domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
+        //         match (payment_experience, payment_method_type) {
+        //             (
+        //                 common_enums::PaymentExperience::InvokeSdkClient,
+        //                 common_enums::PaymentMethodType::KlarnaCheckout,
+        //             ) => {
+        //                 println!("klarna SDK called");
+        //                 Ok(KlarnaPaymentsRequest::Checkout(KlarnaCheckoutRequest{
+        //                     purchase_country: item.router_data.get_billing_country()?,
+        //                     purchase_currency: request.currency,
+        //                     order_amount: item.amount,
+        //                     order_lines: order_details
+        //                         .iter()
+        //                         .map(|data| OrderLines {
+        //                             name: data.product_name.clone(),
+        //                             quantity: data.quantity,
+        //                             unit_price: data.amount,
+        //                             total_amount: i64::from(data.quantity) * (data.amount),
+        //                         })          
+        //                         .collect(),
+                            
+        //                     merchant_urls: item
+        //                         .router_data
+        //                         .request
+        //                         .merchant_urls
+        //                         .clone(),
+        //                     auto_capture: request.is_auto_capture()?,
+        //                     shipping_address: get_address_info(
+        //                         item.router_data.get_optional_shipping(),
+        //                     )
+        //                     .transpose()?,
+        //                 }))
+        //             }
+        //             (None, None) => todo!(),
+        //             (None, Some(_)) => todo!(),
+        //             (Some(_), None) => todo!(),
+        //             (Some(_), Some(_)) => todo!(),
+        //         }
+        //     }
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_network_transaction_id) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(card_redirect_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(pay_later_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(bank_redirect_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(bank_debit_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(bank_transfer_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(crypto_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(real_time_payment_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(voucher_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(gift_card_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(card_token) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(open_banking_data) => todo!(),
+        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(network_token_data) => todo!(),
+        
+
+        
+        // }
+
+        match payment_method_data {
+            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
+                match request.order_details.clone() {
+                   Some(order_details)=> {
+                        println!("klarna payments called");
+
+                        Ok(Self{
+                            purchase_country: item.router_data.get_billing_country()?,
+                            purchase_currency: request.currency,
+                            order_amount: item.amount,
+                            order_tax_amount:None,
+                            order_lines: order_details
+                                .iter()
+                                .map(|data| OrderLines {
+                                    name: data.product_name.clone(),
+                                    quantity: data.quantity,
+                                    unit_price: data.amount,
+                                    total_amount: i64::from(data.quantity) * (data.amount),
+                                    total_tax_amount:None,
+                                    tax_rate:None
+                                })          
+                                .collect(),
+                            merchant_reference1: Some(
+                                item.router_data.connector_request_reference_id.clone(),
+                            ),
+                            merchant_reference2: item
+                                .router_data
+                                .request
+                                .merchant_order_reference_id
+                                .clone(),
+                            // merchant_urls:None,
+                            auto_capture: request.is_auto_capture()?,
+                            shipping_address: get_address_info(
+                                item.router_data.get_optional_shipping(),
+                            )
+                            .transpose()?,
+                        })
+                   
+                    }
+                    None => todo!(),
+                    // None => todo!(),
+                }
+            }
+            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
+                match request.order_details.clone() {
+
+                    Some(order_details)=> {
+                        println!("klarna Checkout called, order details: {:?}", order_details);
+                      
+                        Ok(Self{
+                            purchase_country: item.router_data.get_billing_country()?,
+                            purchase_currency: request.currency,
+                            order_amount: item.amount,
+                            order_tax_amount: Some(item.amount),
+                            order_lines: order_details
+                                .iter()
+                                .map(|data| OrderLines {
+                                    name: data.product_name.clone(),
+                                    quantity: data.quantity,
+                                    unit_price: data.amount,
+                                    total_tax_amount:data.total_tax_amount,
+                                    tax_rate:data.tax_rate,
+                                    total_amount: i64::from(data.quantity) * (data.amount),
+
+                                    // total_amount: i64::from(data.quantity) * (data.amount),
+                                })          
+                                .collect(),
+                            
+                            // merchant_urls: request.merchant_urls,
+                            // merchant_urls:None,
+                            merchant_reference1: None,
+                            merchant_reference2: None,
+                            auto_capture: request.is_auto_capture()?,
+                            shipping_address: get_address_info(
+                                item.router_data.get_optional_shipping(),
+                            )
+                            .transpose()?,
+                        })
+                    
+                    
+                    }
+                    None => todo!(),
+                }
+            }
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_network_transaction_id) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(card_redirect_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(pay_later_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(bank_redirect_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(bank_debit_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(bank_transfer_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(crypto_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(real_time_payment_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(voucher_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(gift_card_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(card_token) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(open_banking_data) => todo!(),
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(network_token_data) => todo!(),
         }
+
+        
+        
+        
+        
+        // match request.order_details.clone() {
+        //     Some(order_details) => Ok(Self {
+        //         purchase_country: item.router_data.get_billing_country()?,
+        //         purchase_currency: request.currency,
+        //         order_amount: item.amount,
+        //         order_lines: order_details
+        //             .iter()
+        //             .map(|data| OrderLines {
+        //                 name: data.product_name.clone(),
+        //                 quantity: data.quantity,
+        //                 unit_price: data.amount,
+        //                 total_amount: i64::from(data.quantity) * (data.amount),
+        //             })
+        //             .collect(),
+        //         merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
+        //         merchant_reference2: item.router_data.request.merchant_order_reference_id.clone(),
+        //         auto_capture: request.is_auto_capture()?,
+        //         shipping_address: get_address_info(item.router_data.get_optional_shipping())
+        //             .transpose()?,
+        //     }),
+        //     None => Err(report!(errors::ConnectorError::MissingRequiredField {
+        //         field_name: "order_details"
+        //     })),
+        // }
+    
     }
 }
+
 
 fn get_address_info(
     address: Option<&payments::Address>,
@@ -256,17 +548,18 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
+        println!("in response of auth ");
         let connector_response = types::ConnectorResponseData::with_additional_payment_method_data(
             match item.response.authorized_payment_method {
                 Some(authorized_payment_method) => {
                     types::AdditionalPaymentMethodConnectorResponse::from(authorized_payment_method)
                 }
                 None => {
-                    types::AdditionalPaymentMethodConnectorResponse::PayLater { klarna_sdk: None }
+                    types::AdditionalPaymentMethodConnectorResponse::PayLater { klarna_sdk: None, klarna_checkout: todo!() }
                 }
             },
         );
-
+        println!("2 response of auth {:?} ",connector_response);
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
@@ -296,6 +589,8 @@ pub struct OrderLines {
     quantity: u16,
     unit_price: i64,
     total_amount: i64,
+    tax_rate:Option<i64>,
+    total_tax_amount:Option<i64>,
 }
 
 #[derive(Debug, Serialize)]

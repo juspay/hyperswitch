@@ -1630,6 +1630,7 @@ pub enum PaymentMethodType {
     Interac,
     Indomaret,
     Klarna,
+    KlarnaCheckout,
     KakaoPay,
     LocalBankRedirect,
     MandiriVa,

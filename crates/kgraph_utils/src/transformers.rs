@@ -136,6 +136,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Sofort => Ok(dirval!(BankRedirectType = Sofort)),
             api_enums::PaymentMethodType::Eps => Ok(dirval!(BankRedirectType = Eps)),
             api_enums::PaymentMethodType::Klarna => Ok(dirval!(PayLaterType = Klarna)),
+            api_enums::PaymentMethodType::KlarnaCheckout => Ok(dirval!(PayLaterType = Klarna)),
             api_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),
             api_enums::PaymentMethodType::AfterpayClearpay => {
                 Ok(dirval!(PayLaterType = AfterpayClearpay))
