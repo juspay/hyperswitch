@@ -76,7 +76,7 @@ use crate::{
     },
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{network_tokenization, transformers as payment_methods, vault},
+        payment_methods::{network_tokenization, transformers as payment_methods, vault, migration},
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -448,6 +448,7 @@ pub async fn populate_bin_details_for_masked_card(
     card_details: &api_models::payment_methods::MigrateCardDetail,
     db: &dyn db::StorageInterface,
 ) -> errors::CustomResult<api::CardDetailFromLocker, errors::ApiErrorResponse> {
+    migration::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
     let card_number = card_details.card_number.clone();
 
     let (card_isin, _last4_digits) = get_card_bin_and_last4_digits_for_masked_card(
@@ -1530,6 +1531,10 @@ pub async fn add_payment_method_for_migration(
                     db,
                 )
                 .await;
+            migration::validate_card_expiry(
+                &card_details.card_exp_month,
+                &card_details.card_exp_year,
+            )?;
                 Box::pin(add_card_to_locker(
                     state,
                     req.clone(),
