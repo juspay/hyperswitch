@@ -3103,15 +3103,18 @@ pub async fn list_payment_methods(
         .await
         .transpose()?;
     let setup_future_usage = payment_intent.as_ref().and_then(|pi| pi.setup_future_usage);
+    let is_cit_transaction = payment_attempt
+        .as_ref()
+        .map(|pa| pa.mandate_details.is_some())
+        .unwrap_or(false)
+        || setup_future_usage
+            .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
+            .unwrap_or(false);
     let payment_type = payment_attempt.as_ref().map(|pa| {
         let amount = api::Amount::from(pa.net_amount.get_order_amount());
         let mandate_type = if pa.mandate_id.is_some() {
             Some(api::MandateTransactionType::RecurringMandateTransaction)
-        } else if pa.mandate_details.is_some()
-            || setup_future_usage
-                .map(|future_usage| future_usage == common_enums::enums::FutureUsage::OffSession)
-                .unwrap_or(false)
-        {
+        } else if is_cit_transaction {
             Some(api::MandateTransactionType::NewMandateTransaction)
         } else {
             None
@@ -3619,16 +3622,13 @@ pub async fn list_payment_methods(
                             .get(&connector_variant)
                             .map(|required_fields_final| {
                                 let mut required_fields_hs = required_fields_final.common.clone();
-                                if let Some(pa) = payment_attempt.as_ref() {
-                                    if let Some(_mandate) = &pa.mandate_details {
+                                    if is_cit_transaction {
                                         required_fields_hs
                                             .extend(required_fields_final.mandate.clone());
                                     } else {
                                         required_fields_hs
                                             .extend(required_fields_final.non_mandate.clone());
                                     }
-                                }
-
                                  required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
                                     &payment_method,
                                     element.payment_experience.as_ref(),
