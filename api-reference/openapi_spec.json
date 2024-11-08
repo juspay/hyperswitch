@@ -14272,14 +14272,17 @@
         ],
         "properties": {
           "organization_name": {
-            "type": "string"
+            "type": "string",
+            "description": "Name of the organization"
           },
           "organization_details": {
             "type": "object",
+            "description": "Details about the organization",
             "nullable": true
           },
           "metadata": {
             "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           }
         },
@@ -14295,20 +14298,24 @@
         "properties": {
           "organization_id": {
             "type": "string",
+            "description": "The unique identifier for the Organization",
             "example": "org_q98uSGAYbjEwqs0mJwnz",
             "maxLength": 64,
             "minLength": 1
           },
           "organization_name": {
             "type": "string",
+            "description": "Name of the Organization",
             "nullable": true
           },
           "organization_details": {
             "type": "object",
+            "description": "Details about the organization",
             "nullable": true
           },
           "metadata": {
             "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "modified_at": {
@@ -14326,14 +14333,17 @@
         "properties": {
           "organization_name": {
             "type": "string",
+            "description": "Name of the organization",
             "nullable": true
           },
           "organization_details": {
             "type": "object",
+            "description": "Details about the organization",
             "nullable": true
           },
           "metadata": {
             "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           }
         },

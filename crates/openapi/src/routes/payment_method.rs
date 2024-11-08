@@ -343,7 +343,6 @@ pub async fn confirm_payment_method_intent_api() {}
 #[cfg(feature = "v2")]
 pub async fn payment_method_update_api() {}
 
-
 /// Retrieve payment method v2
 ///
 /// TODO: Description Here

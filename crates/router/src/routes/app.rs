@@ -539,11 +539,11 @@ impl Payments {
                 .service(web::resource("").route(web::get().to(payments::payment_status)))
                 .service(
                     web::resource("/start_redirection")
-                        .route(web::get().to(payments::payments_start_redirection))
-                        .service(
-                            web::resource("/saved-payment-methods")
-                                .route(web::get().to(list_customer_payment_method_for_payment)),
-                        ),
+                        .route(web::get().to(payments::payments_start_redirection)),
+                )
+                .service(
+                    web::resource("/saved-payment-methods")
+                        .route(web::get().to(list_customer_payment_method_for_payment)),
                 ),
         );
 
