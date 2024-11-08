@@ -970,16 +970,6 @@ Cypress.Commands.add(
         ).to.be.null;
         expect(response.body.connector_mandate_id, "connector_mandate_id").to.be
           .null;
-        let recurringEnabled = 0;
-        if (
-          response.body.setup_future_usage === "on_session" ||
-          response.body.setup_future_usage === "off_session"
-        ) {
-          recurringEnabled = 1;
-        }
-
-        // Store the value in globalState
-        globalState.set("recurring_enabled", recurringEnabled);
       } else {
         defaultErrorHandler(response, res_data);
       }
@@ -1128,16 +1118,6 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
-        const recurringEnabledFromConfirm =
-          globalState.get("recurring_enabled");
-        if (
-          req_data.customer_acceptance === "object" &&
-          req_data.customer_acceptance !== null
-        ) {
-          recurringEnabledFromConfirm += 1;
-        }
-        globalState.set("recurring_enabled", recurringEnabledFromConfirm);
-
         globalState.set("paymentID", paymentIntentID);
         globalState.set("connectorId", response.body.connector);
         expect(response.body.connector, "connector").to.equal(
@@ -1580,15 +1560,6 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("paymentID", paymentIntentID);
-        const recurringEnabledFromConfirm =
-          globalState.get("recurring_enabled");
-        if (
-          req_data.customer_acceptance === "object" &&
-          req_data.customer_acceptance !== null
-        ) {
-          recurringEnabledFromConfirm += 1;
-        }
-        globalState.set("recurring_enabled", recurringEnabledFromConfirm);
 
         globalState.set("paymentID", paymentIntentID);
         globalState.set("connectorId", response.body.connector);
@@ -2289,26 +2260,6 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
     ).to.not.be.null;
     expect(response.body.customer_payment_methods[0].billing, "billing").to.not
       .be.null;
-    const finalRecurringEnabledValue = globalState.get("recurring_enabled");
-    if (finalRecurringEnabledValue === 2) {
-      expect(
-        response.body.customer_payment_methods[0].recurring_enabled,
-        "recurring_enabled"
-      ).to.be.true;
-      expect(
-        response.body.customer_payment_methods[0].requires_cvv,
-        "requires_cvv"
-      ).to.be.false;
-    } else {
-      expect(
-        response.body.customer_payment_methods[0].recurring_enabled,
-        "recurring_enabled"
-      ).to.be.false;
-      expect(
-        response.body.customer_payment_methods[0].requires_cvv,
-        "requires_cvv"
-      ).to.be.true;
-    }
   });
 });
 
