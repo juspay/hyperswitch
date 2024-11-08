@@ -15,6 +15,7 @@ pub mod fiuu;
 pub mod forte;
 pub mod globepay;
 pub mod helcim;
+pub mod jpmorgan;
 pub mod mollie;
 pub mod multisafepay;
 pub mod nexinets;
@@ -41,8 +42,8 @@ pub use self::{
     cashtocode::Cashtocode, coinbase::Coinbase, cryptopay::Cryptopay, deutschebank::Deutschebank,
     digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon, fiserv::Fiserv,
     fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay, helcim::Helcim,
-    mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay,
-    novalnet::Novalnet, payeezy::Payeezy, payu::Payu, powertranz::Powertranz, razorpay::Razorpay,
-    shift4::Shift4, square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
-    volt::Volt, worldline::Worldline, worldpay::Worldpay, zen::Zen, zsl::Zsl,
+    jpmorgan::Jpmorgan, mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets,
+    nexixpay::Nexixpay, novalnet::Novalnet, payeezy::Payeezy, payu::Payu, powertranz::Powertranz,
+    razorpay::Razorpay, shift4::Shift4, square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes,
+    tsys::Tsys, volt::Volt, worldline::Worldline, worldpay::Worldpay, zen::Zen, zsl::Zsl,
 };

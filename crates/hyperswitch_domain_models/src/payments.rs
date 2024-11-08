@@ -3,8 +3,6 @@ use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
 use api_models::payments::Address;
-#[cfg(feature = "v2")]
-use api_models::payments::OrderDetailsWithAmount;
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -26,6 +24,8 @@ pub mod payment_attempt;
 pub mod payment_intent;
 
 use common_enums as storage_enums;
+#[cfg(feature = "v2")]
+use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
@@ -296,10 +296,10 @@ pub struct PaymentIntent {
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
     /// This field allows the merchant to restrict the payment methods that can be used for the payment intent.
-    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
+    pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
     /// This metadata contains details about
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
     /// Number of attempts that have been made for the order
     pub attempt_count: i16,
     /// The profile id for the payment.
@@ -399,20 +399,14 @@ impl PaymentIntent {
         billing_address: Option<Encryptable<Secret<Address>>>,
         shipping_address: Option<Encryptable<Secret<Address>>>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
-        let allowed_payment_method_types = request
-            .get_allowed_payment_method_types_as_value()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting allowed payment method types as value")?;
         let connector_metadata = request
             .get_connector_metadata_as_value()
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error getting connector metadata as value")?;
-        let feature_metadata = request
-            .get_feature_metadata_as_value()
-            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error getting feature metadata as value")?;
         let request_incremental_authorization =
             Self::get_request_incremental_authorization_value(&request)?;
+        let allowed_payment_method_types = request.allowed_payment_method_types;
+
         let session_expiry =
             common_utils::date_time::now().saturating_add(time::Duration::seconds(
                 request.session_expiry.map(i64::from).unwrap_or(
@@ -422,9 +416,12 @@ impl PaymentIntent {
                 ),
             ));
         let client_secret = payment_id.generate_client_secret();
-        let order_details = request
-            .order_details
-            .map(|order_details| order_details.into_iter().map(Secret::new).collect());
+        let order_details = request.order_details.map(|order_details| {
+            order_details
+                .into_iter()
+                .map(|order_detail| Secret::new(OrderDetailsWithAmount::convert_from(order_detail)))
+                .collect()
+        });
         Ok(Self {
             id: payment_id.clone(),
             merchant_id: merchant_account.get_id().clone(),
@@ -446,7 +443,7 @@ impl PaymentIntent {
             order_details,
             allowed_payment_method_types,
             connector_metadata,
-            feature_metadata,
+            feature_metadata: request.feature_metadata.map(FeatureMetadata::convert_from),
             // Attempt count is 0 in create intent as no attempt is made yet
             attempt_count: 0,
             profile_id: profile.get_id().clone(),
