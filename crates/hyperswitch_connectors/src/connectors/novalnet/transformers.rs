@@ -32,8 +32,9 @@ use strum::Display;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
-        PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
+        self, ApplePay, BrowserInformationData, PaymentsAuthorizeRequestData,
+        PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSyncRequestData,
+        RefundsRequestData, RouterData as _,
     },
 };
 
@@ -298,7 +299,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             return_url: None,
                             error_return_url: None,
                             payment_data: Some(NovalNetPaymentData::ApplePay(NovalnetApplePay {
-                                wallet_data: Secret::new(payment_method_data.payment_data.clone()),
+                                wallet_data: payment_method_data
+                                    .get_applepay_decoded_payment_data()?,
                             })),
                             enforce_3d: None,
                             create_token,

@@ -90,6 +90,7 @@ macro_rules! default_imp_for_authorize_session_token {
 
 default_imp_for_authorize_session_token!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -144,6 +145,7 @@ macro_rules! default_imp_for_calculate_tax {
 
 default_imp_for_calculate_tax!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -198,6 +200,7 @@ macro_rules! default_imp_for_session_update {
 
 default_imp_for_session_update!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -253,6 +256,7 @@ macro_rules! default_imp_for_post_session_tokens {
 
 default_imp_for_post_session_tokens!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Bitpay,
     connectors::Billwerk,
@@ -309,6 +313,7 @@ macro_rules! default_imp_for_complete_authorize {
 }
 
 default_imp_for_complete_authorize!(
+    connectors::Amazonpay,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
@@ -358,6 +363,7 @@ macro_rules! default_imp_for_incremental_authorization {
 
 default_imp_for_incremental_authorization!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -414,6 +420,7 @@ macro_rules! default_imp_for_create_customer {
 
 default_imp_for_create_customer!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -470,6 +477,7 @@ macro_rules! default_imp_for_connector_redirect_response {
 }
 
 default_imp_for_connector_redirect_response!(
+    connectors::Amazonpay,
     connectors::Billwerk,
     connectors::Bitpay,
     connectors::Cashtocode,
@@ -520,6 +528,7 @@ macro_rules! default_imp_for_pre_processing_steps{
 }
 
 default_imp_for_pre_processing_steps!(
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -574,6 +583,7 @@ macro_rules! default_imp_for_post_processing_steps{
 
 default_imp_for_post_processing_steps!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -630,6 +640,7 @@ macro_rules! default_imp_for_approve {
 
 default_imp_for_approve!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -686,6 +697,7 @@ macro_rules! default_imp_for_reject {
 
 default_imp_for_reject!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -742,6 +754,7 @@ macro_rules! default_imp_for_webhook_source_verification {
 
 default_imp_for_webhook_source_verification!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -799,6 +812,7 @@ macro_rules! default_imp_for_accept_dispute {
 
 default_imp_for_accept_dispute!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -855,6 +869,7 @@ macro_rules! default_imp_for_submit_evidence {
 
 default_imp_for_submit_evidence!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -911,6 +926,7 @@ macro_rules! default_imp_for_defend_dispute {
 
 default_imp_for_defend_dispute!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -976,6 +992,7 @@ macro_rules! default_imp_for_file_upload {
 
 default_imp_for_file_upload!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1034,6 +1051,7 @@ macro_rules! default_imp_for_payouts_create {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1092,6 +1110,7 @@ macro_rules! default_imp_for_payouts_retrieve {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_retrieve!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1150,6 +1169,7 @@ macro_rules! default_imp_for_payouts_eligibility {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1208,6 +1228,7 @@ macro_rules! default_imp_for_payouts_fulfill {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1266,6 +1287,7 @@ macro_rules! default_imp_for_payouts_cancel {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1324,6 +1346,7 @@ macro_rules! default_imp_for_payouts_quote {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1382,6 +1405,7 @@ macro_rules! default_imp_for_payouts_recipient {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1440,6 +1464,7 @@ macro_rules! default_imp_for_payouts_recipient_account {
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient_account!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1498,6 +1523,7 @@ macro_rules! default_imp_for_frm_sale {
 #[cfg(feature = "frm")]
 default_imp_for_frm_sale!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1556,6 +1582,7 @@ macro_rules! default_imp_for_frm_checkout {
 #[cfg(feature = "frm")]
 default_imp_for_frm_checkout!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1614,6 +1641,7 @@ macro_rules! default_imp_for_frm_transaction {
 #[cfg(feature = "frm")]
 default_imp_for_frm_transaction!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1672,6 +1700,7 @@ macro_rules! default_imp_for_frm_fulfillment {
 #[cfg(feature = "frm")]
 default_imp_for_frm_fulfillment!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1730,6 +1759,7 @@ macro_rules! default_imp_for_frm_record_return {
 #[cfg(feature = "frm")]
 default_imp_for_frm_record_return!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1785,6 +1815,7 @@ macro_rules! default_imp_for_revoking_mandates {
 
 default_imp_for_revoking_mandates!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,

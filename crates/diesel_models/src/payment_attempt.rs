@@ -20,7 +20,7 @@ common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
 pub struct ConnectorMandateReferenceId {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
@@ -774,7 +774,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub connector: Option<String>,
-    // authentication_data: Option<serde_json::Value>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
     // encoded_data: Option<String>,
     pub unified_code: Option<Option<String>>,
     pub unified_message: Option<Option<String>>,

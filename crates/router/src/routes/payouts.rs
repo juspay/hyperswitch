@@ -49,6 +49,8 @@ pub async fn payouts_create(
     ))
     .await
 }
+
+#[cfg(all(feature = "v1", feature = "payouts"))]
 /// Payouts - Retrieve
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]
 pub async fn payouts_retrieve(
@@ -245,7 +247,7 @@ pub async fn payouts_list(
 }
 
 /// Payouts - List Profile
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
 pub async fn payouts_list_profile(
     state: web::Data<AppState>,
@@ -323,7 +325,7 @@ pub async fn payouts_list_by_filter(
 }
 
 /// Payouts - Filtered list
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsList))]
 pub async fn payouts_list_by_filter_profile(
     state: web::Data<AppState>,
@@ -394,7 +396,7 @@ pub async fn payouts_list_available_filters_for_merchant(
 }
 
 /// Payouts - Available filters for Profile
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
 pub async fn payouts_list_available_filters_for_profile(
     state: web::Data<AppState>,

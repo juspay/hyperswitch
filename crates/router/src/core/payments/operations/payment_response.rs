@@ -21,7 +21,7 @@ use tracing_futures::Instrument;
 
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::core::routing::helpers::push_metrics_for_success_based_routing;
+use crate::core::routing::helpers as routing_helpers;
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
@@ -1649,7 +1649,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         .connector_mandate_details
                                         .clone()
                                         .map(|val| {
-                                            val.parse_value::<storage::PaymentsMandateReference>(
+                                            val.parse_value::<diesel_models::PaymentsMandateReference>(
                                                 "PaymentsMandateReference",
                                             )
                                         })
@@ -2031,13 +2031,44 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
+            let success_based_routing_config_params_interpolator =
+                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                    payment_attempt.payment_method,
+                    payment_attempt.payment_method_type,
+                    payment_attempt.authentication_type,
+                    payment_attempt.currency,
+                    payment_data
+                        .address
+                        .get_payment_billing()
+                        .and_then(|address| address.clone().address)
+                        .and_then(|address| address.country),
+                    payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_network"))
+                        .and_then(|network| network.as_str())
+                        .map(|network| network.to_string()),
+                    payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_isin"))
+                        .and_then(|card_isin| card_isin.as_str())
+                        .map(|card_isin| card_isin.to_string()),
+                );
             tokio::spawn(
                 async move {
-                    push_metrics_for_success_based_routing(
+                    routing_helpers::push_metrics_with_update_window_for_success_based_routing(
                         &state,
                         &payment_attempt,
                         routable_connectors,
                         &business_profile,
+                        success_based_routing_config_params_interpolator,
                     )
                     .await
                     .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
@@ -2047,6 +2078,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             );
         }
     }
+
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
     router_data.payment_method_status.and_then(|status| {
@@ -2276,6 +2308,13 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                         types::ResponseId::ConnectorTransactionId(id)
                         | types::ResponseId::EncodedData(id) => Some(id),
                     };
+                    let authentication_data = (*redirection_data)
+                        .as_ref()
+                        .map(Encode::encode_to_value)
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Could not parse the connector response")?
+                        .map(masking::Secret::new);
 
                     let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntentPostUpdate { status: intent_status, updated_by: storage_scheme.to_string() };
                     let updated_payment_intent = db
@@ -2291,7 +2330,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                         .attach_printable("Unable to update payment intent")?;
                     payment_data.payment_intent = updated_payment_intent;
 
-                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentResponse { status: attempt_status, connector_payment_id, updated_by: storage_scheme.to_string() };
+                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentResponse { status: attempt_status, connector_payment_id, updated_by: storage_scheme.to_string(), authentication_data };
                     let updated_payment_attempt = db
                         .update_payment_attempt(
                             key_manager_state,
@@ -2398,7 +2437,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 #[cfg(feature = "v1")]
 fn update_connector_mandate_details_for_the_flow<F: Clone>(
     connector_mandate_id: Option<String>,
-    mandate_metadata: Option<serde_json::Value>,
+    mandate_metadata: Option<masking::Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<()> {
@@ -2427,7 +2466,7 @@ fn update_connector_mandate_details_for_the_flow<F: Clone>(
             ))
         }
     } else {
-        None
+        original_connector_mandate_reference_id
     };
 
     payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
