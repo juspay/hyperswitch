@@ -6111,29 +6111,23 @@ pub async fn payment_start_redirection(
             &key_store,
             payment_intent
                 .active_attempt_id
-                .clone()
+                .as_ref()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing active attempt in payment_intent")?
-                .get_string_repr(),
+                .attach_printable("missing active attempt in payment_intent")?,
             storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while fetching payment_attempt")?;
     let redirection_data = payment_attempt
-        .authentication_data
+        .redirection_data
         .clone()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("missing authentication_data in payment_attempt")?;
 
-    let form: RedirectForm = serde_json::from_value(redirection_data.expose()).map_err(|err| {
-        logger::error!(error = ?err, "Failed to deserialize redirection data");
-        errors::ApiErrorResponse::InternalServerError
-    })?;
-
     Ok(services::ApplicationResponse::Form(Box::new(
         services::RedirectionFormData {
-            redirect_form: form,
+            redirect_form: redirection_data,
             payment_method_data: None,
             amount: payment_attempt.amount_details.net_amount.to_string(),
             currency: payment_intent.amount_details.currency.to_string(),

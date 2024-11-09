@@ -1035,7 +1035,7 @@ where
         let redirect_to_url = payment_intent
             .create_start_redirection_url(base_url, merchant_account.publishable_key.clone())?;
         let next_action = payment_attempt
-            .authentication_data
+            .redirection_data
             .as_ref()
             .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url });
 
@@ -1081,6 +1081,7 @@ where
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
+        _merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         let payment_attempt = payment_data.get_optional_payment_attempt();

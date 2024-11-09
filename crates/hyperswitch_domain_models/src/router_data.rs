@@ -470,6 +470,7 @@ impl
                         status: attempt_status,
                         connector_payment_id,
                         updated_by: storage_scheme.to_string(),
+                        redirection_data: *redirection_data.clone(),
                     }
                 }
                 router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
