@@ -1444,7 +1444,6 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced: self.last_synced,
             setup_future_usage: Some(self.setup_future_usage),
             client_secret: self.client_secret,
-
             active_attempt_id: self.active_attempt_id,
             order_details: self.order_details,
             allowed_payment_method_types: self

@@ -1325,7 +1325,7 @@ pub struct ConnectorMandateReferenceId {
     connector_mandate_id: Option<String>,
     payment_method_id: Option<String>,
     update_history: Option<Vec<UpdateHistory>>,
-    mandate_metadata: Option<serde_json::Value>,
+    mandate_metadata: Option<pii::SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
 }
 
@@ -1334,7 +1334,7 @@ impl ConnectorMandateReferenceId {
         connector_mandate_id: Option<String>,
         payment_method_id: Option<String>,
         update_history: Option<Vec<UpdateHistory>>,
-        mandate_metadata: Option<serde_json::Value>,
+        mandate_metadata: Option<pii::SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
     ) -> Self {
         Self {
@@ -1352,7 +1352,7 @@ impl ConnectorMandateReferenceId {
     pub fn get_payment_method_id(&self) -> Option<String> {
         self.payment_method_id.clone()
     }
-    pub fn get_mandate_metadata(&self) -> Option<serde_json::Value> {
+    pub fn get_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
         self.mandate_metadata.clone()
     }
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
@@ -1364,7 +1364,7 @@ impl ConnectorMandateReferenceId {
         connector_mandate_id: Option<String>,
         payment_method_id: Option<String>,
         update_history: Option<Vec<UpdateHistory>>,
-        mandate_metadata: Option<serde_json::Value>,
+        mandate_metadata: Option<pii::SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
     ) {
         self.connector_mandate_id = connector_mandate_id.or(self.connector_mandate_id.clone());
@@ -3880,8 +3880,15 @@ pub enum NextActionType {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NextActionData {
     /// Contains the url for redirection flow
+    #[cfg(feature = "v1")]
     RedirectToUrl {
         redirect_to_url: String,
+    },
+    /// Contains the url for redirection flow
+    #[cfg(feature = "v2")]
+    RedirectToUrl {
+        #[schema(value_type = String)]
+        redirect_to_url: Url,
     },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
     DisplayBankTransferInformation {
@@ -4555,6 +4562,9 @@ pub struct PaymentsConfirmIntentResponse {
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
+    /// Additional information required for redirection
+    pub next_action: Option<NextActionData>,
+
     /// A unique identifier for a payment provided by the connector
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_transaction_id: Option<String>,
@@ -4639,6 +4649,22 @@ pub struct PaymentsRetrieveResponse {
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[cfg(feature = "v2")]
+pub struct PaymentStartRedirectionRequest {
+    /// Global Payment ID
+    pub id: id_type::GlobalPaymentId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[cfg(feature = "v2")]
+pub struct PaymentStartRedirectionParams {
+    /// The identifier for the Merchant Account.
+    pub publishable_key: String,
+    /// The identifier for business profile
+    pub profile_id: id_type::ProfileId,
 }
 
 /// Fee information to be charged on the payment being collected

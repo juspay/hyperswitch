@@ -1286,6 +1286,61 @@ where
 }
 
 #[derive(Debug)]
+#[cfg(feature = "v2")]
+pub struct PublishableKeyAndProfileIdAuth {
+    pub publishable_key: String,
+    pub profile_id: id_type::ProfileId,
+}
+
+#[async_trait]
+#[cfg(feature = "v2")]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for PublishableKeyAndProfileIdAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        _request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let key_manager_state = &(&state.session_state()).into();
+        let (merchant_account, key_store) = state
+            .store()
+            .find_merchant_account_by_publishable_key(
+                key_manager_state,
+                self.publishable_key.as_str(),
+            )
+            .await
+            .map_err(|e| {
+                if e.current_context().is_db_not_found() {
+                    e.change_context(errors::ApiErrorResponse::Unauthorized)
+                } else {
+                    e.change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            })?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(key_manager_state, &key_store, &self.profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: self.profile_id.get_string_repr().to_owned(),
+            })?;
+
+        let merchant_id = merchant_account.get_id().clone();
+
+        Ok((
+            AuthenticationData {
+                merchant_account,
+                key_store,
+                profile,
+            },
+            AuthenticationType::PublishableKey { merchant_id },
+        ))
+    }
+}
+
+#[derive(Debug)]
 pub struct PublishableKeyAuth;
 
 #[cfg(feature = "partial-auth")]
@@ -2523,6 +2578,7 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
 }
 
+#[cfg(feature = "v1")]
 pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
@@ -2558,6 +2614,44 @@ where
     Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
 }
 
+#[cfg(feature = "v2")]
+pub fn check_client_secret_and_get_auth<T>(
+    headers: &HeaderMap,
+    payload: &impl ClientSecretFetch,
+) -> RouterResult<(
+    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
+    api::AuthFlow,
+)>
+where
+    T: SessionStateInfo + Sync + Send,
+    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
+{
+    let api_key = get_api_key(headers)?;
+    if api_key.starts_with("pk_") {
+        payload
+            .get_client_secret()
+            .check_value_present("client_secret")
+            .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "client_secret",
+            })?;
+        return Ok((
+            Box::new(HeaderAuth(PublishableKeyAuth)),
+            api::AuthFlow::Client,
+        ));
+    }
+
+    if payload.get_client_secret().is_some() {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "client_secret is not a valid parameter".to_owned(),
+        }
+        .into());
+    }
+
+    Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
+}
+
+#[cfg(feature = "v1")]
 pub async fn get_ephemeral_or_other_auth<T>(
     headers: &HeaderMap,
     is_merchant_flow: bool,
@@ -2590,6 +2684,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
@@ -2600,6 +2695,13 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     } else {
         Ok(Box::new(EphemeralKeyAuth))
     }
+}
+
+#[cfg(feature = "v2")]
+pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
+    headers: &HeaderMap,
+) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
+    todo!()
 }
 
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
