@@ -25,14 +25,13 @@ use time::PrimitiveDateTime;
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::merchant_key_store::MerchantKeyStore;
+#[cfg(feature = "v2")]
+use crate::router_response_types;
 use crate::{
     behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
     router_request_types, ForeignIDRef,
 };
-
-#[cfg(feature = "v2")]
-use crate::router_response_types;
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
