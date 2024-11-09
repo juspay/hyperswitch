@@ -6,9 +6,6 @@ use api_models::routing::{
 };
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
-use http_body_util::combinators::UnsyncBoxBody;
-use hyper::body::Bytes;
-use hyper_util::client::legacy::connect::HttpConnector;
 use serde;
 use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
@@ -16,7 +13,8 @@ use success_rate::{
     CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
     UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
-use tonic::Status;
+
+use super::Client;
 #[allow(
     missing_docs,
     unused_qualifications,
@@ -42,8 +40,6 @@ pub enum DynamicRoutingError {
     #[error("Error from Dynamic Routing Server : {0}")]
     SuccessRateBasedRoutingFailure(String),
 }
-
-type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
 
 /// Type that consists of all the services provided by the client
 #[derive(Debug, Clone)]
@@ -74,11 +70,8 @@ impl DynamicRoutingClientConfig {
     /// establish connection with the server
     pub async fn get_dynamic_routing_connection(
         self,
+        client: Client,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
-        let client =
-            hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
-                .http2_only(true)
-                .build_http();
         let success_rate_client = match self {
             Self::Enabled { host, port, .. } => {
                 let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;

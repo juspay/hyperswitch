@@ -12,6 +12,14 @@ use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 use health_check_client::HealthCheckClient;
 use serde;
 
+use http_body_util::combinators::UnsyncBoxBody;
+use hyper::body::Bytes;
+use hyper_util::client::legacy::connect::HttpConnector;
+use tonic::Status;
+
+/// Hyper based Client type for maintaining connection pool for all gRPC services
+pub type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
+
 /// Struct contains all the gRPC Clients
 #[derive(Debug, Clone)]
 pub struct GrpcClients {
@@ -38,15 +46,21 @@ impl GrpcClientSettings {
     #[allow(clippy::expect_used)]
     pub async fn get_grpc_client_interface(&self) -> Arc<GrpcClients> {
         #[cfg(feature = "dynamic_routing")]
+        let client =
+            hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
+                .http2_only(true)
+                .build_http();
+
+        #[cfg(feature = "dynamic_routing")]
         let dynamic_routing_connection = self
             .dynamic_routing_client
             .clone()
-            .get_dynamic_routing_connection()
+            .get_dynamic_routing_connection(client.clone())
             .await
             .expect("Failed to establish a connection with the Dynamic Routing Server");
 
         #[cfg(feature = "dynamic_routing")]
-        let health_client = HealthCheckClient::build_connections(self)
+        let health_client = HealthCheckClient::build_connections(self, client)
             .await
             .expect("Failed to build gRPC connections");
 

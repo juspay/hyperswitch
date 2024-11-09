@@ -8,7 +8,6 @@ pub use health_check::{
     HealthCheckResponse,
 };
 use router_env::logger;
-use tonic::transport::Channel;
 
 #[allow(
     missing_docs,
@@ -21,7 +20,7 @@ pub mod health_check {
     tonic::include_proto!("grpc.health.v1");
 }
 
-use super::{DynamicRoutingClientConfig, GrpcClientSettings};
+use super::{Client, DynamicRoutingClientConfig, GrpcClientSettings};
 
 /// Result type for Dynamic Routing
 pub type HealthCheckResult<T> = CustomResult<T, HealthCheckError>;
@@ -43,12 +42,15 @@ pub enum HealthCheckError {
 #[derive(Debug, Clone)]
 pub struct HealthCheckClient {
     /// Health clients for all gRPC based services
-    pub clients: HashMap<HealthCheckServices, HealthClient<Channel>>,
+    pub clients: HashMap<HealthCheckServices, HealthClient<Client>>,
 }
 
 impl HealthCheckClient {
     /// Build connections to all gRPC services
-    pub async fn build_connections(config: &GrpcClientSettings) -> HealthCheckResult<Self> {
+    pub async fn build_connections(
+        config: &GrpcClientSettings,
+        client: Client,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let dynamic_routing_config = &config.dynamic_routing_client;
         let connection = match dynamic_routing_config {
             DynamicRoutingClientConfig::Enabled {
@@ -62,16 +64,10 @@ impl HealthCheckClient {
         let mut client_map = HashMap::new();
 
         if let Some(conn) = connection {
-            let uri = format!("http://{}:{}", conn.0, conn.1);
-            let channel = tonic::transport::Endpoint::new(uri)
-                .map_err(|err| HealthCheckError::ConnectionError(err.to_string()))?
-                .connect()
-                .await
-                .map_err(|err| HealthCheckError::ConnectionError(err.to_string()))?;
+            let uri = format!("http://{}:{}", conn.0, conn.1).parse::<tonic::transport::Uri>()?;
+            let health_client = HealthClient::with_origin(client, uri);
 
-            let client = HealthClient::new(channel);
-
-            client_map.insert(HealthCheckServices::DynamicRoutingService, client);
+            client_map.insert(HealthCheckServices::DynamicRoutingService, health_client);
         }
 
         Ok(Self {
@@ -130,7 +126,7 @@ impl HealthCheckClient {
     async fn get_response_from_grpc_service(
         &self,
         service: String,
-        client: Option<&HealthClient<Channel>>,
+        client: Option<&HealthClient<Client>>,
     ) -> HealthCheckResult<HealthCheckResponse> {
         let request = tonic::Request::new(HealthCheckRequest { service });
 
