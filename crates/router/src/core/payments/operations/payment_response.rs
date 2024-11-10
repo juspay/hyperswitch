@@ -1259,6 +1259,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
 ) -> RouterResult<PaymentData<F>> {
     // Update additional payment data with the payment method response that we received from connector
+
     let additional_payment_method_data = match payment_data.payment_method_data.clone() {
         Some(payment_method_data) => match payment_method_data {
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
