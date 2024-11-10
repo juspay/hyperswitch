@@ -2,8 +2,6 @@ use base64::Engine;
 use cards::CardNumber;
 use common_enums::{enums, AttemptStatus};
 use common_utils::{consts, errors::CustomResult, request::Method, types::MinorUnit};
-use common_utils::{types::MinorUnit};
-use domain::PaymentMethodData;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -194,10 +192,10 @@ pub struct ApplepayPaymentMethod {
     token_type: String,
 }
 
-impl TryFrom<&NexinetsRouterData<&types::PaymentsAuthorizeRouterData>> for NexinetsPaymentsRequest {
+impl TryFrom<&NexinetsRouterData<&PaymentsAuthorizeRouterData>> for NexinetsPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &NexinetsRouterData<&types::PaymentsAuthorizeRouterData>,
+        item: &NexinetsRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
         let return_url = request.router_return_url.clone();
@@ -416,12 +414,10 @@ pub struct NexinetsOrder {
     pub order_id: String,
 }
 
-impl TryFrom<&NexinetsRouterData<&types::PaymentsCaptureRouterData>>
-    for NexinetsCaptureOrVoidRequest
-{
+impl TryFrom<&NexinetsRouterData<&PaymentsCaptureRouterData>> for NexinetsCaptureOrVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &NexinetsRouterData<&types::PaymentsCaptureRouterData>,
+        item: &NexinetsRouterData<&PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             initial_amount: item.amount.to_owned(),
@@ -430,13 +426,9 @@ impl TryFrom<&NexinetsRouterData<&types::PaymentsCaptureRouterData>>
     }
 }
 
-impl TryFrom<&NexinetsRouterData<&types::PaymentsCancelRouterData>>
-    for NexinetsCaptureOrVoidRequest
-{
+impl TryFrom<&NexinetsRouterData<&PaymentsCancelRouterData>> for NexinetsCaptureOrVoidRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &NexinetsRouterData<&types::PaymentsCancelRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &NexinetsRouterData<&PaymentsCancelRouterData>) -> Result<Self, Self::Error> {
         Ok(Self {
             initial_amount: item.amount.to_owned(),
             currency: item.router_data.request.get_currency()?,
@@ -500,11 +492,9 @@ pub struct NexinetsRefundRequest {
     pub currency: enums::Currency,
 }
 
-impl<F> TryFrom<&NexinetsRouterData<&types::RefundsRouterData<F>>> for NexinetsRefundRequest {
+impl<F> TryFrom<&NexinetsRouterData<&RefundsRouterData<F>>> for NexinetsRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &NexinetsRouterData<&types::RefundsRouterData<F>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &NexinetsRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             initial_amount: item.amount.to_owned(),
             currency: item.router_data.request.currency,

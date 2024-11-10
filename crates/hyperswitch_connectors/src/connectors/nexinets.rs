@@ -4,11 +4,11 @@ use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::ByteSliceExt, types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
-use nexinets::NexinetsRouterData;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -40,15 +40,16 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::Mask;
+use nexinets::NexinetsRouterData;
 use transformers as nexinets;
 
-use super::utils::PaymentsCancelRequestData;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        construct_not_implemented_error_report, is_mandate_supported, to_connector_meta,
-        PaymentMethodDataType, PaymentsSyncRequestData,
+        construct_not_implemented_error_report, convert_amount, is_mandate_supported,
+        to_connector_meta, PaymentMethodDataType, PaymentsCancelRequestData,
+        PaymentsSyncRequestData,
     },
 };
 
@@ -257,7 +258,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -427,7 +428,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount_to_capture = connector_utils::convert_amount(
+        let amount_to_capture = convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
             req.request.currency,
@@ -520,7 +521,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ne
         req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount_to_cancel = connector_utils::convert_amount(
+        let amount_to_cancel = convert_amount(
             self.amount_converter,
             req.request
                 .minor_amount
@@ -613,7 +614,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Nexinet
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = connector_utils::convert_amount(
+        let refund_amount = convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
