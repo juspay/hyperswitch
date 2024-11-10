@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 use api_models::{
     enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
@@ -1196,34 +1196,10 @@ impl PaymentCreate {
         };
 
         let payment_method_type =
-            additional_pm_data
-                .as_ref()
-                .and_then(|pm_data| {
-                    if let api_models::payments::AdditionalPaymentData::Card(card_info) = pm_data {
-                        card_info.card_type.as_ref().and_then(|card_type_str| {
-                            enums::PaymentMethodType::from_str(&card_type_str.to_lowercase()).map_err(|err| {
-                                logger::error!(
-                                    "Err - {:?}\nInvalid card_type value found in BIN DB - {:?}",
-                                    err,
-                                    card_type_str,
-                                );
-                            }).ok()
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .map_or(payment_method_type, |card_type_in_bin_store| {
-                    if let Some(card_type_in_req) = payment_method_type {
-                        if card_type_in_req != card_type_in_bin_store {
-                            logger::info!(
-                                "Mismatch in card_type\nAPI request - {}; BIN lookup - {}\nOverriding with {}",
-                                card_type_in_req, card_type_in_bin_store, card_type_in_bin_store,
-                            );
-                        }
-                    }
-                    Some(card_type_in_bin_store)
-                });
+            helpers::get_optional_card_type_from_additional_payment_method_data(
+                payment_method_type,
+                additional_pm_data.as_ref(),
+            );
 
         Ok((
             storage::PaymentAttemptNew {

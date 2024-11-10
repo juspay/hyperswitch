@@ -576,12 +576,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_method_info,
         } = mandate_details;
 
-        payment_attempt.payment_method_type = payment_method_type
-            .or(payment_attempt.payment_method_type)
-            .or(payment_method_info
-                .as_ref()
-                .and_then(|pm_info| pm_info.payment_method_type));
-
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         helpers::validate_pm_or_token_given(
@@ -649,6 +643,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .attach_printable("Failed to encode additional pm data")?;
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
+
+        let payment_method_type =
+            helpers::get_optional_card_type_from_additional_payment_method_data(
+                payment_method_type,
+                additional_pm_data.as_ref(),
+            );
+
+        payment_attempt.payment_method_type = payment_method_type
+            .or(payment_attempt.payment_method_type)
+            .or(payment_method_info
+                .as_ref()
+                .and_then(|pm_info| pm_info.payment_method_type));
 
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = mandate_data.map(|mut sm| {
