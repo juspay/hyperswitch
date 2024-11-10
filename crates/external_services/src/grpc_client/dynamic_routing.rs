@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use api_models::routing::{
     CurrentBlockThreshold, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
     SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody,
@@ -6,7 +8,6 @@ use common_utils::{errors::CustomResult, ext_traits::OptionExt, transformers::Fo
 use error_stack::ResultExt;
 use router_env::logger;
 use serde;
-use std::fmt::Debug;
 use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse,
