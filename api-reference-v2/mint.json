@@ -37,7 +37,10 @@
     {
       "group": "Payments",
       "pages": [
-        "api-reference/payments/payments--create-intent"
+        "api-reference/payments/payments--create-intent",
+        "api-reference/payments/payments--get-intent",
+        "api-reference/payments/payments--session-token",
+        "api-reference/payments/payments--confirm-intent"
       ]
     },
     {
@@ -105,6 +108,12 @@
         "api-reference/customers/customers--update",
         "api-reference/customers/customers--delete",
         "api-reference/customers/customers--list"
+      ]
+    },
+    {
+      "group": "Refunds",
+      "pages": [
+        "api-reference/refunds/refunds--create"
       ]
     }
   ],

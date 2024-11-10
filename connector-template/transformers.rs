@@ -75,7 +75,7 @@ impl TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&PaymentsAutho
                     card,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
@@ -132,8 +132,8 @@ impl<F,T> TryFrom<ResponseRouterData<F, {{project-name | downcase | pascal_case}
             status: common_enums::AttemptStatus::from(item.response.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

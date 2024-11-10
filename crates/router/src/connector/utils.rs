@@ -7,7 +7,7 @@ use std::{
 use api_models::payouts::{self, PayoutVendorAccountDetails};
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, OrderDetailsWithAmount},
+    payments,
 };
 use base64::Engine;
 use common_utils::{
@@ -18,7 +18,7 @@ use common_utils::{
     pii::{self, Email, IpAddress},
     types::{AmountConvertor, MinorUnit},
 };
-use diesel_models::enums;
+use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates,
@@ -629,6 +629,7 @@ impl AddressData for api::Address {
 }
 
 pub trait PaymentsPreProcessingData {
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<enums::Currency, Error>;
@@ -696,12 +697,23 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
     }
+    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
+        self.redirect_response
+            .as_ref()
+            .and_then(|res| res.payload.to_owned())
+            .ok_or(
+                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                    field_name: "request.redirect_response.payload",
+                }
+                .into(),
+            )
+    }
     fn connector_mandate_id(&self) -> Option<String> {
         self.mandate_id
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.connector_mandate_id.clone()
+                    connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
                 | None
@@ -713,6 +725,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
 pub trait PaymentsCaptureRequestData {
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
 }
 
 impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
@@ -723,6 +736,9 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+        self.capture_method.to_owned()
     }
 }
 
@@ -783,6 +799,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_total_surcharge_amount(&self) -> Option<i64>;
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -845,7 +862,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.connector_mandate_id.clone()
+                    connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
                 | None
@@ -963,6 +980,21 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("authentication_data"))
     }
+
+    /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_request_reference_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+            .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
+    }
 }
 
 pub trait ConnectorCustomerData {
@@ -1042,6 +1074,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_mandate_payment(&self) -> bool;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -1082,6 +1115,20 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
     }
+    /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_request_reference_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+            .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
+    }
 }
 
 pub trait PaymentsSyncRequestData {
@@ -1105,6 +1152,20 @@ impl PaymentsSyncRequestData for types::PaymentsSyncData {
             })
             .attach_printable("Expected connector transaction ID not found")
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+        }
+    }
+}
+
+pub trait PaymentsPostSessionTokensRequestData {
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPostSessionTokensRequestData for types::PaymentsPostSessionTokensData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
 }
@@ -1419,6 +1480,81 @@ impl CardData for payouts::CardPayout {
     }
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
         self.expiry_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+}
+
+impl CardData
+    for hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId
+{
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.card_exp_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+    fn get_card_issuer(&self) -> Result<CardIssuer, Error> {
+        get_card_issuer(self.card_number.peek())
+    }
+    fn get_card_expiry_month_year_2_digit_with_delimiter(
+        &self,
+        delimiter: String,
+    ) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            self.card_exp_month.peek(),
+            delimiter,
+            year.peek()
+        )))
+    }
+    fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            year.peek(),
+            delimiter,
+            self.card_exp_month.peek()
+        ))
+    }
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            self.card_exp_month.peek(),
+            delimiter,
+            year.peek()
+        ))
+    }
+    fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        let mut year = self.card_exp_year.peek().clone();
+        if year.len() == 2 {
+            year = format!("20{}", year);
+        }
+        Secret::new(year)
+    }
+    fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.card_exp_month.clone().expose();
+        Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
+        self.card_exp_month
+            .peek()
+            .clone()
+            .parse::<i8>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.card_exp_year
             .peek()
             .clone()
             .parse::<i32>()
@@ -1819,8 +1955,7 @@ pub trait MandateReferenceData {
 
 impl MandateReferenceData for payments::ConnectorMandateReferenceId {
     fn get_connector_mandate_id(&self) -> Result<String, Error> {
-        self.connector_mandate_id
-            .clone()
+        self.get_connector_mandate_id()
             .ok_or_else(missing_field_err("mandate_id"))
     }
 }
@@ -2330,31 +2465,13 @@ impl FraudCheckRecordReturnRequest for fraud_check::FraudCheckRecordReturnData {
     }
 }
 
-pub trait AccessPaymentAttemptInfo {
-    fn get_browser_info(
-        &self,
-    ) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>>;
-}
-
-impl AccessPaymentAttemptInfo for PaymentAttempt {
-    fn get_browser_info(
-        &self,
-    ) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>> {
-        self.browser_info
-            .clone()
-            .map(|b| b.parse_value("BrowserInformation"))
-            .transpose()
-            .change_context(ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
-            })
-    }
-}
-
+#[cfg(feature = "v1")]
 pub trait PaymentsAttemptData {
     fn get_browser_info(&self)
         -> Result<BrowserInformation, error_stack::Report<ApiErrorResponse>>;
 }
 
+#[cfg(feature = "v1")]
 impl PaymentsAttemptData for PaymentAttempt {
     fn get_browser_info(
         &self,
@@ -2626,6 +2743,7 @@ pub enum PaymentMethodDataType {
     MobilePayRedirect,
     PaypalRedirect,
     PaypalSdk,
+    Paze,
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
@@ -2712,6 +2830,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
+            domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
             domain::payments::PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                     domain::CardRedirectData::Knet {} => Self::Knet,
@@ -2743,6 +2862,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                 domain::payments::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
                 domain::payments::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
                 domain::payments::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                domain::payments::WalletData::Paze(_) => Self::Paze,
                 domain::payments::WalletData::SamsungPay(_) => Self::SamsungPay,
                 domain::payments::WalletData::TwintRedirect {} => Self::TwintRedirect,
                 domain::payments::WalletData::VippsRedirect {} => Self::VippsRedirect,

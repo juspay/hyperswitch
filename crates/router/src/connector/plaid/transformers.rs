@@ -163,21 +163,15 @@ impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest
         match item.request.payment_method_data {
             domain::PaymentMethodData::OpenBanking(ref data) => match data {
                 domain::OpenBankingData::OpenBankingPIS { .. } => {
-                    let headers = item.header_payload.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "header_payload",
-                        },
-                    )?;
+                    let headers = item.header_payload.clone();
 
-                    let platform = headers.x_client_platform.ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "x_client_platform",
-                        },
-                    )?;
+                    let platform = headers
+                        .as_ref()
+                        .and_then(|headers| headers.x_client_platform.clone());
 
                     let (is_android, is_ios) = match platform {
-                        common_enums::ClientPlatform::Android => (true, false),
-                        common_enums::ClientPlatform::Ios => (false, true),
+                        Some(common_enums::ClientPlatform::Android) => (true, false),
+                        Some(common_enums::ClientPlatform::Ios) => (false, true),
                         _ => (false, false),
                     };
 
@@ -208,20 +202,16 @@ impl TryFrom<&types::PaymentsPostProcessingRouterData> for PlaidLinkTokenRequest
                                 .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
                         },
                         android_package_name: if is_android {
-                            Some(headers.x_app_id.ok_or(
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "x-app-id",
-                                },
-                            )?)
+                            headers
+                                .as_ref()
+                                .and_then(|headers| headers.x_app_id.clone())
                         } else {
                             None
                         },
                         redirect_uri: if is_ios {
-                            Some(headers.x_redirect_uri.ok_or(
-                                errors::ConnectorError::MissingRequiredField {
-                                    field_name: "x_redirect_uri",
-                                },
-                            )?)
+                            headers
+                                .as_ref()
+                                .and_then(|headers| headers.x_redirect_uri.clone())
                         } else {
                             None
                         },
@@ -318,8 +308,8 @@ impl<F, T>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.payment_id.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.payment_id),
@@ -404,8 +394,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PlaidSyncResponse, T, types::Pay
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response.payment_id.clone(),
                     ),
-                    redirection_data: None,
-                    mandate_reference: None,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.payment_id),

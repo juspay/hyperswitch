@@ -546,6 +546,7 @@ pub trait ConnectorActions: Connector {
             integrity_check: Ok(()),
             additional_merchant_data: None,
             header_payload: None,
+            connector_mandate_request_reference_id: None,
         }
     }
 
@@ -567,7 +568,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
-            // Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -947,6 +948,8 @@ impl Default for PaymentAuthorizeType {
             charges: None,
             integrity_object: None,
             merchant_order_reference_id: None,
+            additional_payment_method_data: None,
+            shipping_cost: None,
         };
         Self(data)
     }
@@ -1079,7 +1082,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
-        // Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::SessionUpdateResponse { .. }) => None,
         Err(_) => None,
     }
 }

@@ -145,7 +145,7 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
             .iter()
             .map(|order_detail| Products {
                 item_name: order_detail.product_name.clone(),
-                item_price: order_detail.amount,
+                item_price: order_detail.amount.get_amount_as_i64(), // This should be changed to MinorUnit when we implement amount conversion for this connector. Additionally, the function get_amount_as_i64() should be avoided in the future.
                 item_quantity: i32::from(order_detail.quantity),
                 item_id: order_detail.product_id.clone(),
                 item_category: order_detail.category.clone(),
@@ -153,7 +153,7 @@ impl TryFrom<&frm_types::FrmSaleRouterData> for SignifydPaymentsSaleRequest {
                 item_is_digital: order_detail
                     .product_type
                     .as_ref()
-                    .map(|product| (product == &api_models::payments::ProductType::Digital)),
+                    .map(|product| (product == &common_enums::ProductType::Digital)),
             })
             .collect::<Vec<_>>();
         let metadata: SignifydFrmMetadata = item
@@ -382,7 +382,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
             .iter()
             .map(|order_detail| Products {
                 item_name: order_detail.product_name.clone(),
-                item_price: order_detail.amount,
+                item_price: order_detail.amount.get_amount_as_i64(), // This should be changed to MinorUnit when we implement amount conversion for this connector. Additionally, the function get_amount_as_i64() should be avoided in the future.
                 item_quantity: i32::from(order_detail.quantity),
                 item_id: order_detail.product_id.clone(),
                 item_category: order_detail.category.clone(),
@@ -390,7 +390,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequ
                 item_is_digital: order_detail
                     .product_type
                     .as_ref()
-                    .map(|product| (product == &api_models::payments::ProductType::Digital)),
+                    .map(|product| (product == &common_enums::ProductType::Digital)),
             })
             .collect::<Vec<_>>();
         let metadata: SignifydFrmMetadata = item

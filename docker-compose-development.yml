@@ -59,10 +59,13 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: rust:latest
-    command: | 
-     apt-get install -y protobuf-compiler && \
-     cargo run --bin router -- -f ./config/docker_compose.toml
+    build:
+      dockerfile_inline: |
+        FROM rust:latest
+        RUN apt-get update && \
+            apt-get install -y protobuf-compiler
+        RUN rustup component add rustfmt clippy  
+    command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
       - "8080:8080"

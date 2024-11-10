@@ -139,6 +139,13 @@ pub async fn profile_list() {}
 #[utoipa::path(
     post,
     path = "/v2/profiles",
+    params(
+        (
+            "X-Merchant-Id" = String, Header,
+            description = "Merchant ID of the profile.",
+            example = json!({"X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"})
+        ),
+    ),
     request_body(
         content = ProfileCreate,
         examples(
@@ -169,7 +176,12 @@ pub async fn profile_create() {}
     put,
     path = "/v2/profiles/{profile_id}",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile")
+        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        (
+            "X-Merchant-Id" = String, Header,
+            description = "Merchant ID of the profile.",
+            example = json!({"X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"})
+        ),
     ),
     request_body(
         content = ProfileCreate,
@@ -276,7 +288,12 @@ pub async fn routing_update_default_config() {}
     get,
     path = "/v2/profiles/{profile_id}",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile")
+        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        (
+            "X-Merchant-Id" = String, Header,
+            description = "Merchant ID of the profile.",
+            example = json!({"X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"})
+        ),
     ),
     responses(
         (status = 200, description = "Profile Updated", body = ProfileResponse),
@@ -339,6 +356,11 @@ pub async fn routing_retrieve_default_config() {}
     path = "/v2/profiles/{profile_id}/connector_accounts",
     params(
         ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
+        (
+            "X-Merchant-Id" = String, Header,
+            description = "Merchant ID of the profile.",
+            example = json!({"X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"})
+        ),
     ),
     responses(
         (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),

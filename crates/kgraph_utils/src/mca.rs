@@ -146,6 +146,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::OpenBankingPIS => {
             Ok(dirval!(OpenBankingType = OpenBankingPIS))
         }
+        api_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
     }
 }
 
