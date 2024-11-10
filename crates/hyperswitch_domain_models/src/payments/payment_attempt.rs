@@ -914,10 +914,6 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_metadata: Option<serde_json::Value>,
     },
-    PaymentMethodTypeUpdate {
-        payment_method_type: Option<storage_enums::PaymentMethodType>,
-        updated_by: String,
-    },
 }
 
 #[cfg(feature = "v1")]
@@ -1279,13 +1275,6 @@ impl PaymentAttemptUpdate {
             } => DieselPaymentAttemptUpdate::PostSessionTokensUpdate {
                 updated_by,
                 connector_metadata,
-            },
-            Self::PaymentMethodTypeUpdate {
-                payment_method_type,
-                updated_by,
-            } => DieselPaymentAttemptUpdate::PaymentMethodTypeUpdate {
-                payment_method_type,
-                updated_by,
             },
         }
     }
