@@ -1,14 +1,17 @@
+pub use diesel_models::types::OrderDetailsWithAmount;
+
 use crate::{
     router_data::{AccessToken, RouterData},
     router_flow_types::{
         AccessTokenAuth, Authorize, AuthorizeSessionToken, CalculateTax, Capture,
-        CompleteAuthorize, CreateConnectorCustomer, PSync, PaymentMethodToken, PreProcessing,
-        RSync, SetupMandate, Void,
+        CompleteAuthorize, CreateConnectorCustomer, Execute, PSync, PaymentMethodToken,
+        PostSessionTokens, PreProcessing, RSync, Session, SetupMandate, Void,
     },
     router_request_types::{
         AccessTokenRequestData, AuthorizeSessionTokenData, CompleteAuthorizeData,
         ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPostSessionTokensData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData,
         PaymentsTaxCalculationData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
@@ -28,6 +31,7 @@ pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, Payment
 pub type SetupMandateRouterData =
     RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
+pub type RefundExecuteRouterData = RouterData<Execute, RefundsData, RefundsResponseData>;
 pub type RefundSyncRouterData = RouterData<RSync, RefundsData, RefundsResponseData>;
 pub type TokenizationRouterData =
     RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>;
@@ -38,3 +42,6 @@ pub type PaymentsCompleteAuthorizeRouterData =
 pub type PaymentsTaxCalculationRouterData =
     RouterData<CalculateTax, PaymentsTaxCalculationData, TaxCalculationResponseData>;
 pub type RefreshTokenRouterData = RouterData<AccessTokenAuth, AccessTokenRequestData, AccessToken>;
+pub type PaymentsPostSessionTokensRouterData =
+    RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>;
+pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;

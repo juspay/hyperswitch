@@ -9,11 +9,11 @@ const successfulNo3DSCardDetails = {
 };
 
 const successfulThreeDSTestCardDetails = {
-    card_number: "4349940199004549",
-    card_exp_month: "12",
-    card_exp_year: "30",
-    card_holder_name: "joseph Doe",
-    card_cvc: "396",
+  card_number: "4349940199004549",
+  card_exp_month: "12",
+  card_exp_year: "30",
+  card_holder_name: "joseph Doe",
+  card_cvc: "396",
 };
 
 export const connectorDetails = {
@@ -37,21 +37,21 @@ export const connectorDetails = {
         payment_method: "card",
         billing: {
           address: {
-              line1: "1467",
-              line2: "CA",
-              line3: "CA",
-              city: "Florence",
-              state: "Tuscany",
-              zip: "12345",
-              country: "IT",
-              first_name: "Max",
-              last_name: "Mustermann"
+            line1: "1467",
+            line2: "CA",
+            line3: "CA",
+            city: "Florence",
+            state: "Tuscany",
+            zip: "12345",
+            country: "IT",
+            first_name: "Max",
+            last_name: "Mustermann",
           },
           email: "mauro.morandi@nexi.it",
           phone: {
-              number: "9123456789",
-              country_code: "+91"
-          }
+            number: "9123456789",
+            country_code: "+91",
+          },
         },
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
@@ -71,21 +71,21 @@ export const connectorDetails = {
         payment_method: "card",
         billing: {
           address: {
-              line1: "1467",
-              line2: "CA",
-              line3: "CA",
-              city: "Florence",
-              state: "Tuscany",
-              zip: "12345",
-              country: "IT",
-              first_name: "Max",
-              last_name: "Mustermann"
+            line1: "1467",
+            line2: "CA",
+            line3: "CA",
+            city: "Florence",
+            state: "Tuscany",
+            zip: "12345",
+            country: "IT",
+            first_name: "Max",
+            last_name: "Mustermann",
           },
           email: "mauro.morandi@nexi.it",
           phone: {
-              number: "9123456789",
-              country_code: "+91"
-          }
+            number: "9123456789",
+            country_code: "+91",
+          },
         },
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,

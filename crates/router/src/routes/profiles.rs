@@ -1,5 +1,4 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -34,7 +33,6 @@ pub async fn profile_create(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -65,7 +63,6 @@ pub async fn profile_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -97,8 +94,7 @@ pub async fn profile_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
-                required_permission: permissions::Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Profile,
+                required_permission: permissions::Permission::ProfileAccountRead,
             },
             req.headers(),
         ),
@@ -127,7 +123,6 @@ pub async fn profile_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -161,8 +156,7 @@ pub async fn profile_update(
             &auth::JWTAuthMerchantAndProfileFromRoute {
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
-                required_permission: permissions::Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Profile,
+                required_permission: permissions::Permission::ProfileAccountWrite,
             },
             req.headers(),
         ),
@@ -192,7 +186,6 @@ pub async fn profile_update(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -244,7 +237,6 @@ pub async fn profiles_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -253,6 +245,7 @@ pub async fn profiles_list(
     .await
 }
 
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::ProfileList))]
 pub async fn profiles_list_at_profile_level(
     state: web::Data<AppState>,
@@ -278,8 +271,7 @@ pub async fn profiles_list_at_profile_level(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: permissions::Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Profile,
+                required_permission: permissions::Permission::ProfileAccountRead,
             },
             req.headers(),
         ),
@@ -306,12 +298,13 @@ pub async fn toggle_connector_agnostic_mit(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req, _| connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req),
+        |state, _: auth::AuthenticationData, req, _| {
+            connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: permissions::Permission::RoutingWrite,
-                minimum_entity_level: EntityType::Merchant,
+                permission: permissions::Permission::MerchantRoutingWrite,
             },
             req.headers(),
         ),
@@ -345,6 +338,7 @@ pub async fn toggle_extended_card_info(
     .await
 }
 
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantConnectorsList))]
 pub async fn payment_connector_list_profile(
     state: web::Data<AppState>,
@@ -370,8 +364,7 @@ pub async fn payment_connector_list_profile(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: permissions::Permission::MerchantConnectorAccountRead,
-                minimum_entity_level: EntityType::Profile,
+                required_permission: permissions::Permission::ProfileConnectorRead,
             },
             req.headers(),
         ),

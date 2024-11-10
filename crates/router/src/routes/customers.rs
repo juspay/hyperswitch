@@ -1,5 +1,4 @@
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
-use common_enums::EntityType;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
@@ -23,12 +22,13 @@ pub async fn customers_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| create_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            create_customer(state, auth.merchant_account, auth.key_store, req)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::CustomerWrite,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantCustomerWrite,
             },
             req.headers(),
         ),
@@ -53,8 +53,7 @@ pub async fn customers_retrieve(
 
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth {
-            permission: Permission::CustomerRead,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::MerchantCustomerRead,
         })
     } else {
         match auth::is_ephemeral_auth(req.headers()) {
@@ -68,7 +67,7 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             retrieve_customer(
                 state,
                 auth.merchant_account,
@@ -96,8 +95,7 @@ pub async fn customers_retrieve(
 
     let auth = if auth::is_jwt_auth(req.headers()) {
         Box::new(auth::JWTAuth {
-            permission: Permission::CustomerRead,
-            minimum_entity_level: EntityType::Merchant,
+            permission: Permission::MerchantCustomerRead,
         })
     } else {
         match auth::is_ephemeral_auth(req.headers()) {
@@ -111,7 +109,9 @@ pub async fn customers_retrieve(
         state,
         &req,
         payload,
-        |state, auth, req, _| retrieve_customer(state, auth.merchant_account, auth.key_store, req),
+        |state, auth: auth::AuthenticationData, req, _| {
+            retrieve_customer(state, auth.merchant_account, auth.key_store, req)
+        },
         &*auth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -132,7 +132,7 @@ pub async fn customers_list(
         state,
         &req,
         payload,
-        |state, auth, request, _| {
+        |state, auth: auth::AuthenticationData, request, _| {
             list_customers(
                 state,
                 auth.merchant_account.get_id().to_owned(),
@@ -144,8 +144,7 @@ pub async fn customers_list(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::CustomerRead,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantCustomerRead,
             },
             req.headers(),
         ),
@@ -171,7 +170,7 @@ pub async fn customers_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             update_customer(
                 state,
                 auth.merchant_account,
@@ -183,8 +182,7 @@ pub async fn customers_update(
         auth::auth_type(
             &auth::ApiKeyAuth,
             &auth::JWTAuth {
-                permission: Permission::CustomerWrite,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantCustomerWrite,
             },
             req.headers(),
         ),
@@ -209,7 +207,7 @@ pub async fn customers_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             update_customer(
                 state,
                 auth.merchant_account,
@@ -221,8 +219,7 @@ pub async fn customers_update(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::CustomerWrite,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantCustomerWrite,
             },
             req.headers(),
         ),
@@ -246,12 +243,13 @@ pub async fn customers_delete(
         state,
         &req,
         payload,
-        |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
+        |state, auth: auth::AuthenticationData, req, _| {
+            delete_customer(state, auth.merchant_account, req, auth.key_store)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::CustomerWrite,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantCustomerWrite,
             },
             req.headers(),
         ),
@@ -278,12 +276,13 @@ pub async fn customers_delete(
         state,
         &req,
         payload,
-        |state, auth, req, _| delete_customer(state, auth.merchant_account, req, auth.key_store),
+        |state, auth: auth::AuthenticationData, req, _| {
+            delete_customer(state, auth.merchant_account, req, auth.key_store)
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::CustomerWrite,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantCustomerWrite,
             },
             req.headers(),
         ),
@@ -309,7 +308,7 @@ pub async fn get_customer_mandates(
         state,
         &req,
         customer_id,
-        |state, auth, req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             crate::core::mandate::get_customer_mandates(
                 state,
                 auth.merchant_account,
@@ -320,8 +319,7 @@ pub async fn get_customer_mandates(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::MandateRead,
-                minimum_entity_level: EntityType::Merchant,
+                permission: Permission::MerchantMandateRead,
             },
             req.headers(),
         ),

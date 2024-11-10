@@ -197,6 +197,24 @@ pub struct TwoFactorAuthStatusResponse {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TwoFactorAuthAttempts {
+    pub is_completed: bool,
+    pub remaining_attempts: u8,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TwoFactorAuthStatusResponseWithAttempts {
+    pub totp: TwoFactorAuthAttempts,
+    pub recovery_code: TwoFactorAuthAttempts,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TwoFactorStatus {
+    pub status: Option<TwoFactorAuthStatusResponseWithAttempts>,
+    pub is_skippable: bool,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserFromEmailRequest {
     pub token: Secret<String>,
 }

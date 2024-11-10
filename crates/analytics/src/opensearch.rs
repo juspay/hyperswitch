@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use api_models::{
     analytics::search::SearchIndex,
     errors::types::{ApiError, ApiErrorResponse},
@@ -42,6 +44,10 @@ pub struct OpenSearchIndexes {
     pub payment_intents: String,
     pub refunds: String,
     pub disputes: String,
+    pub sessionizer_payment_attempts: String,
+    pub sessionizer_payment_intents: String,
+    pub sessionizer_refunds: String,
+    pub sessionizer_disputes: String,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
@@ -81,6 +87,10 @@ impl Default for OpenSearchConfig {
                 payment_intents: "hyperswitch-payment-intent-events".to_string(),
                 refunds: "hyperswitch-refund-events".to_string(),
                 disputes: "hyperswitch-dispute-events".to_string(),
+                sessionizer_payment_attempts: "sessionizer-payment-attempt-events".to_string(),
+                sessionizer_payment_intents: "sessionizer-payment-intent-events".to_string(),
+                sessionizer_refunds: "sessionizer-refund-events".to_string(),
+                sessionizer_disputes: "sessionizer-dispute-events".to_string(),
             },
         }
     }
@@ -219,6 +229,14 @@ impl OpenSearchClient {
             SearchIndex::PaymentIntents => self.indexes.payment_intents.clone(),
             SearchIndex::Refunds => self.indexes.refunds.clone(),
             SearchIndex::Disputes => self.indexes.disputes.clone(),
+            SearchIndex::SessionizerPaymentAttempts => {
+                self.indexes.sessionizer_payment_attempts.clone()
+            }
+            SearchIndex::SessionizerPaymentIntents => {
+                self.indexes.sessionizer_payment_intents.clone()
+            }
+            SearchIndex::SessionizerRefunds => self.indexes.sessionizer_refunds.clone(),
+            SearchIndex::SessionizerDisputes => self.indexes.sessionizer_disputes.clone(),
         }
     }
 
@@ -324,6 +342,36 @@ impl OpenSearchIndexes {
             ))
         })?;
 
+        when(
+            self.sessionizer_payment_attempts.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Opensearch Sessionizer Payment Attempts index must not be empty".into(),
+                ))
+            },
+        )?;
+
+        when(
+            self.sessionizer_payment_intents.is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "Opensearch Sessionizer Payment Intents index must not be empty".into(),
+                ))
+            },
+        )?;
+
+        when(self.sessionizer_refunds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Sessionizer Refunds index must not be empty".into(),
+            ))
+        })?;
+
+        when(self.sessionizer_disputes.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Opensearch Sessionizer Disputes index must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 }
@@ -410,7 +458,8 @@ pub struct OpenSearchQueryBuilder {
     pub count: Option<i64>,
     pub filters: Vec<(String, Vec<String>)>,
     pub time_range: Option<OpensearchTimeRange>,
-    pub search_params: Vec<AuthInfo>,
+    search_params: Vec<AuthInfo>,
+    case_sensitive_fields: HashSet<&'static str>,
 }
 
 impl OpenSearchQueryBuilder {
@@ -423,6 +472,12 @@ impl OpenSearchQueryBuilder {
             count: Default::default(),
             filters: Default::default(),
             time_range: Default::default(),
+            case_sensitive_fields: HashSet::from([
+                "customer_email.keyword",
+                "search_tags.keyword",
+                "card_last_4.keyword",
+                "payment_id.keyword",
+            ]),
         }
     }
 
@@ -444,48 +499,16 @@ impl OpenSearchQueryBuilder {
 
     pub fn get_status_field(&self, index: &SearchIndex) -> &str {
         match index {
-            SearchIndex::Refunds => "refund_status.keyword",
-            SearchIndex::Disputes => "dispute_status.keyword",
+            SearchIndex::Refunds | SearchIndex::SessionizerRefunds => "refund_status.keyword",
+            SearchIndex::Disputes | SearchIndex::SessionizerDisputes => "dispute_status.keyword",
             _ => "status.keyword",
         }
     }
 
-    pub fn replace_status_field(&self, filters: &[Value], index: &SearchIndex) -> Vec<Value> {
-        filters
-            .iter()
-            .map(|filter| {
-                if let Some(terms) = filter.get("terms").and_then(|v| v.as_object()) {
-                    let mut new_filter = filter.clone();
-                    if let Some(new_terms) =
-                        new_filter.get_mut("terms").and_then(|v| v.as_object_mut())
-                    {
-                        let key = "status.keyword";
-                        if let Some(status_terms) = terms.get(key) {
-                            new_terms.remove(key);
-                            new_terms.insert(
-                                self.get_status_field(index).to_string(),
-                                status_terms.clone(),
-                            );
-                        }
-                    }
-                    new_filter
-                } else {
-                    filter.clone()
-                }
-            })
-            .collect()
-    }
-
-    /// # Panics
-    ///
-    /// This function will panic if:
-    ///
-    /// * The structure of the JSON query is not as expected (e.g., missing keys or incorrect types).
-    ///
-    /// Ensure that the input data and the structure of the query are valid and correctly handled.
-    pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
-        let mut query_obj = Map::new();
-        let mut bool_obj = Map::new();
+    pub fn build_filter_array(
+        &self,
+        case_sensitive_filters: Vec<&(String, Vec<String>)>,
+    ) -> Vec<Value> {
         let mut filter_array = Vec::new();
 
         filter_array.push(json!({
@@ -496,13 +519,12 @@ impl OpenSearchQueryBuilder {
             }
         }));
 
-        let mut filters = self
-            .filters
-            .iter()
+        let case_sensitive_json_filters = case_sensitive_filters
+            .into_iter()
             .map(|(k, v)| json!({"terms": {k: v}}))
             .collect::<Vec<Value>>();
 
-        filter_array.append(&mut filters);
+        filter_array.extend(case_sensitive_json_filters);
 
         if let Some(ref time_range) = self.time_range {
             let range = json!(time_range);
@@ -513,8 +535,72 @@ impl OpenSearchQueryBuilder {
             }));
         }
 
-        let should_array = self
-            .search_params
+        filter_array
+    }
+
+    pub fn build_case_insensitive_filters(
+        &self,
+        mut payload: Value,
+        case_insensitive_filters: &[&(String, Vec<String>)],
+        auth_array: Vec<Value>,
+        index: &SearchIndex,
+    ) -> Value {
+        let mut must_array = case_insensitive_filters
+            .iter()
+            .map(|(k, v)| {
+                let key = if *k == "status.keyword" {
+                    self.get_status_field(index).to_string()
+                } else {
+                    k.clone()
+                };
+                json!({
+                    "bool": {
+                        "must": [
+                            {
+                                "bool": {
+                                    "should": v.iter().map(|value| {
+                                        json!({
+                                            "term": {
+                                                format!("{}", key): {
+                                                    "value": value,
+                                                    "case_insensitive": true
+                                                }
+                                            }
+                                        })
+                                    }).collect::<Vec<Value>>(),
+                                    "minimum_should_match": 1
+                                }
+                            }
+                        ]
+                    }
+                })
+            })
+            .collect::<Vec<Value>>();
+
+        must_array.push(json!({ "bool": {
+            "must": [
+                {
+                    "bool": {
+                        "should": auth_array,
+                        "minimum_should_match": 1
+                    }
+                }
+            ]
+        }}));
+
+        if let Some(query) = payload.get_mut("query") {
+            if let Some(bool_obj) = query.get_mut("bool") {
+                if let Some(bool_map) = bool_obj.as_object_mut() {
+                    bool_map.insert("must".to_string(), Value::Array(must_array));
+                }
+            }
+        }
+
+        payload
+    }
+
+    pub fn build_auth_array(&self) -> Vec<Value> {
+        self.search_params
             .iter()
             .map(|user_level| match user_level {
                 AuthInfo::OrgLevel { org_id } => {
@@ -533,11 +619,17 @@ impl OpenSearchQueryBuilder {
                     })
                 }
                 AuthInfo::MerchantLevel {
-                    org_id: _,
+                    org_id,
                     merchant_ids,
                 } => {
                     let must_clauses = vec![
-                        // TODO: Add org_id field to the filters
+                        json!({
+                            "term": {
+                                "organization_id.keyword": {
+                                    "value": org_id
+                                }
+                            }
+                        }),
                         json!({
                             "terms": {
                                 "merchant_id.keyword": merchant_ids
@@ -552,12 +644,18 @@ impl OpenSearchQueryBuilder {
                     })
                 }
                 AuthInfo::ProfileLevel {
-                    org_id: _,
+                    org_id,
                     merchant_id,
                     profile_ids,
                 } => {
                     let must_clauses = vec![
-                        // TODO: Add org_id field to the filters
+                        json!({
+                            "term": {
+                                "organization_id.keyword": {
+                                    "value": org_id
+                                }
+                            }
+                        }),
                         json!({
                             "term": {
                                 "merchant_id.keyword": {
@@ -579,55 +677,60 @@ impl OpenSearchQueryBuilder {
                     })
                 }
             })
-            .collect::<Vec<Value>>();
+            .collect::<Vec<Value>>()
+    }
+
+    /// # Panics
+    ///
+    /// This function will panic if:
+    ///
+    /// * The structure of the JSON query is not as expected (e.g., missing keys or incorrect types).
+    ///
+    /// Ensure that the input data and the structure of the query are valid and correctly handled.
+    pub fn construct_payload(&self, indexes: &[SearchIndex]) -> QueryResult<Vec<Value>> {
+        let mut query_obj = Map::new();
+        let mut bool_obj = Map::new();
+
+        let (case_sensitive_filters, case_insensitive_filters): (Vec<_>, Vec<_>) = self
+            .filters
+            .iter()
+            .partition(|(k, _)| self.case_sensitive_fields.contains(k.as_str()));
+
+        let filter_array = self.build_filter_array(case_sensitive_filters);
 
         if !filter_array.is_empty() {
             bool_obj.insert("filter".to_string(), Value::Array(filter_array));
         }
+
+        let should_array = self.build_auth_array();
+
         if !bool_obj.is_empty() {
             query_obj.insert("bool".to_string(), Value::Object(bool_obj));
         }
 
-        let mut query = Map::new();
-        query.insert("query".to_string(), Value::Object(query_obj));
+        let mut sort_obj = Map::new();
+        sort_obj.insert(
+            "@timestamp".to_string(),
+            json!({
+                "order": "desc"
+            }),
+        );
 
         Ok(indexes
             .iter()
             .map(|index| {
-                let updated_query = query
-                    .get("query")
-                    .and_then(|q| q.get("bool"))
-                    .and_then(|b| b.get("filter"))
-                    .and_then(|f| f.as_array())
-                    .map(|filters| self.replace_status_field(filters, index))
-                    .unwrap_or_default();
-                let mut final_bool_obj = Map::new();
-                if !updated_query.is_empty() {
-                    final_bool_obj.insert("filter".to_string(), Value::Array(updated_query));
-                }
-                if !should_array.is_empty() {
-                    final_bool_obj.insert("should".to_string(), Value::Array(should_array.clone()));
-                    final_bool_obj
-                        .insert("minimum_should_match".to_string(), Value::Number(1.into()));
-                }
-                let mut final_query = Map::new();
-                if !final_bool_obj.is_empty() {
-                    final_query.insert("bool".to_string(), Value::Object(final_bool_obj));
-                }
-
-                let mut sort_obj = Map::new();
-                sort_obj.insert(
-                    "@timestamp".to_string(),
-                    json!({
-                        "order": "desc"
-                    }),
-                );
-                let payload = json!({
-                    "query": Value::Object(final_query),
+                let mut payload = json!({
+                    "query": query_obj.clone(),
                     "sort": [
-                        Value::Object(sort_obj)
+                        Value::Object(sort_obj.clone())
                     ]
                 });
+                payload = self.build_case_insensitive_filters(
+                    payload,
+                    &case_insensitive_filters,
+                    should_array.clone(),
+                    index,
+                );
                 payload
             })
             .collect::<Vec<Value>>())

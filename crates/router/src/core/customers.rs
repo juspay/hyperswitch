@@ -1,16 +1,15 @@
-use api_models::customers::CustomerRequestWithEmail;
 use common_utils::{
     crypto::Encryptable,
     errors::ReportSwitchExt,
     ext_traits::{AsyncExt, OptionExt},
-    id_type, type_name,
+    id_type, pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState, ToEncryptable},
         Description,
     },
 };
 use error_stack::{report, ResultExt};
-use masking::{Secret, SwitchStrategy};
+use masking::{ExposeInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
@@ -145,13 +144,15 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let encrypted_data = types::crypto_operation(
             key_manager_state,
             type_name!(domain::Customer),
-            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
-                CustomerRequestWithEmail {
-                    name: self.name.clone(),
-                    email: self.email.clone(),
-                    phone: self.phone.clone(),
-                },
-            )),
+            types::CryptoOperation::BatchEncrypt(
+                domain::FromRequestEncryptableCustomer::to_encryptable(
+                    domain::FromRequestEncryptableCustomer {
+                        name: self.name.clone(),
+                        email: self.email.clone().map(|a| a.expose().switch_strategy()),
+                        phone: self.phone.clone(),
+                    },
+                ),
+            ),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key,
         )
@@ -160,8 +161,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         .switch()
         .attach_printable("Failed while encrypting Customer")?;
 
-        let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
-            .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+        let encryptable_customer =
+            domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
+                .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
         Ok(domain::Customer {
             customer_id: merchant_reference_id
@@ -169,7 +171,13 @@ impl CustomerCreateBridge for customers::CustomerRequest {
                 .ok_or(errors::CustomersErrorResponse::InternalServerError)?,
             merchant_id: merchant_id.to_owned(),
             name: encryptable_customer.name,
-            email: encryptable_customer.email,
+            email: encryptable_customer.email.map(|email| {
+                let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
+                encryptable
+            }),
             phone: encryptable_customer.phone,
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
@@ -211,15 +219,18 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let default_customer_billing_address = self.get_default_customer_billing_address();
         let encrypted_customer_billing_address = default_customer_billing_address
-            .async_map(|billing_address| create_encrypted_data(state, key_store, billing_address))
+            .async_map(|billing_address| {
+                create_encrypted_data(key_state, key_store, billing_address)
+            })
             .await
             .transpose()
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt default customer billing address")?;
         let default_customer_shipping_address = self.get_default_customer_shipping_address();
-
         let encrypted_customer_shipping_address = default_customer_shipping_address
-            .async_map(|shipping_address| create_encrypted_data(state, key_store, shipping_address))
+            .async_map(|shipping_address| {
+                create_encrypted_data(key_state, key_store, shipping_address)
+            })
             .await
             .transpose()
             .change_context(errors::CustomersErrorResponse::InternalServerError)
@@ -231,13 +242,15 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let encrypted_data = types::crypto_operation(
             key_state,
             type_name!(domain::Customer),
-            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
-                CustomerRequestWithEmail {
-                    name: Some(self.name.clone()),
-                    email: Some(self.email.clone()),
-                    phone: self.phone.clone(),
-                },
-            )),
+            types::CryptoOperation::BatchEncrypt(
+                domain::FromRequestEncryptableCustomer::to_encryptable(
+                    domain::FromRequestEncryptableCustomer {
+                        name: Some(self.name.clone()),
+                        email: Some(self.email.clone().expose().switch_strategy()),
+                        phone: self.phone.clone(),
+                    },
+                ),
+            ),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key,
         )
@@ -246,15 +259,22 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         .switch()
         .attach_printable("Failed while encrypting Customer")?;
 
-        let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
-            .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+        let encryptable_customer =
+            domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
+                .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
         Ok(domain::Customer {
             id: common_utils::generate_time_ordered_id("cus"),
             merchant_reference_id: merchant_reference_id.to_owned(),
             merchant_id,
             name: encryptable_customer.name,
-            email: encryptable_customer.email,
+            email: encryptable_customer.email.map(|email| {
+                let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
+                encryptable
+            }),
             phone: encryptable_customer.phone,
             description: self.description.clone(),
             phone_country_code: self.phone_country_code.clone(),
@@ -659,7 +679,7 @@ impl CustomerDeleteBridge for customers::GlobalId {
             description: Some(Description::from_str_unchecked(REDACTED)),
             phone_country_code: Some(REDACTED.to_string()),
             metadata: None,
-            connector_customer: None,
+            connector_customer: Box::new(None),
             default_billing_address: None,
             default_shipping_address: None,
             default_payment_method_id: None,
@@ -901,7 +921,7 @@ impl CustomerDeleteBridge for customers::CustomerId {
             description: Some(Description::from_str_unchecked(REDACTED)),
             phone_country_code: Some(REDACTED.to_string()),
             metadata: None,
-            connector_customer: None,
+            connector_customer: Box::new(None),
             address_id: None,
         };
 
@@ -1171,13 +1191,18 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let encrypted_data = types::crypto_operation(
             key_manager_state,
             type_name!(domain::Customer),
-            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
-                CustomerRequestWithEmail {
-                    name: self.name.clone(),
-                    email: self.email.clone(),
-                    phone: self.phone.clone(),
-                },
-            )),
+            types::CryptoOperation::BatchEncrypt(
+                domain::FromRequestEncryptableCustomer::to_encryptable(
+                    domain::FromRequestEncryptableCustomer {
+                        name: self.name.clone(),
+                        email: self
+                            .email
+                            .as_ref()
+                            .map(|a| a.clone().expose().switch_strategy()),
+                        phone: self.phone.clone(),
+                    },
+                ),
+            ),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key,
         )
@@ -1185,8 +1210,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         .and_then(|val| val.try_into_batchoperation())
         .switch()?;
 
-        let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
-            .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+        let encryptable_customer =
+            domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
+                .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
         let response = db
             .update_customer_by_customer_id_merchant_id(
@@ -1196,12 +1222,19 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 domain_customer.to_owned(),
                 storage::CustomerUpdate::Update {
                     name: encryptable_customer.name,
-                    email: encryptable_customer.email,
+                    email: encryptable_customer.email.map(|email| {
+                        let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> =
+                            Encryptable::new(
+                                email.clone().into_inner().switch_strategy(),
+                                email.into_encrypted(),
+                            );
+                        encryptable
+                    }),
                     phone: Box::new(encryptable_customer.phone),
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),
                     description: self.description.clone(),
-                    connector_customer: None,
+                    connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
                 },
                 key_store,
@@ -1239,18 +1272,20 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         domain_customer: &'a domain::Customer,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
         let default_billing_address = self.get_default_customer_billing_address();
-
         let encrypted_customer_billing_address = default_billing_address
-            .async_map(|billing_address| create_encrypted_data(state, key_store, billing_address))
+            .async_map(|billing_address| {
+                create_encrypted_data(key_manager_state, key_store, billing_address)
+            })
             .await
             .transpose()
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt default customer billing address")?;
 
         let default_shipping_address = self.get_default_customer_shipping_address();
-
         let encrypted_customer_shipping_address = default_shipping_address
-            .async_map(|shipping_address| create_encrypted_data(state, key_store, shipping_address))
+            .async_map(|shipping_address| {
+                create_encrypted_data(key_manager_state, key_store, shipping_address)
+            })
             .await
             .transpose()
             .change_context(errors::CustomersErrorResponse::InternalServerError)
@@ -1261,13 +1296,18 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let encrypted_data = types::crypto_operation(
             key_manager_state,
             type_name!(domain::Customer),
-            types::CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
-                CustomerRequestWithEmail {
-                    name: self.name.clone(),
-                    email: self.email.clone(),
-                    phone: self.phone.clone(),
-                },
-            )),
+            types::CryptoOperation::BatchEncrypt(
+                domain::FromRequestEncryptableCustomer::to_encryptable(
+                    domain::FromRequestEncryptableCustomer {
+                        name: self.name.clone(),
+                        email: self
+                            .email
+                            .as_ref()
+                            .map(|a| a.clone().expose().switch_strategy()),
+                        phone: self.phone.clone(),
+                    },
+                ),
+            ),
             Identifier::Merchant(key_store.merchant_id.clone()),
             key,
         )
@@ -1275,8 +1315,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         .and_then(|val| val.try_into_batchoperation())
         .switch()?;
 
-        let encryptable_customer = CustomerRequestWithEmail::from_encryptable(encrypted_data)
-            .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+        let encryptable_customer =
+            domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
+                .change_context(errors::CustomersErrorResponse::InternalServerError)?;
 
         let response = db
             .update_customer_by_global_id(
@@ -1286,12 +1327,19 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                 merchant_account.get_id(),
                 storage::CustomerUpdate::Update {
                     name: encryptable_customer.name,
-                    email: Box::new(encryptable_customer.email),
+                    email: Box::new(encryptable_customer.email.map(|email| {
+                        let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> =
+                            Encryptable::new(
+                                email.clone().into_inner().switch_strategy(),
+                                email.into_encrypted(),
+                            );
+                        encryptable
+                    })),
                     phone: Box::new(encryptable_customer.phone),
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),
                     description: self.description.clone(),
-                    connector_customer: None,
+                    connector_customer: Box::new(None),
                     default_billing_address: encrypted_customer_billing_address.map(Into::into),
                     default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),

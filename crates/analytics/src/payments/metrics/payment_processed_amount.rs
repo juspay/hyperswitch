@@ -50,6 +50,7 @@ where
                 alias: Some("total"),
             })
             .switch()?;
+        query_builder.add_select_column("currency").switch()?;
         query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
@@ -78,6 +79,11 @@ where
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
+
+        query_builder
+            .add_group_by_clause("currency")
+            .attach_printable("Error grouping by currency")
+            .switch()?;
 
         if let Some(granularity) = granularity.as_ref() {
             granularity
@@ -111,6 +117,11 @@ where
                         i.client_source.clone(),
                         i.client_version.clone(),
                         i.profile_id.clone(),
+                        i.card_network.clone(),
+                        i.merchant_id.clone(),
+                        i.card_last_4.clone(),
+                        i.card_issuer.clone(),
+                        i.error_reason.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

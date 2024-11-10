@@ -67,7 +67,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
     it("void-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Void"
+        "VoidAfterConfirm"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -178,7 +178,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       it("void-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["Void"];
+        ]["VoidAfterConfirm"];
         let req_data = data["Request"];
         let res_data = data["Response"];
         cy.voidCallTest(fixtures.voidBody, req_data, res_data, globalState);
