@@ -20,8 +20,16 @@ common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
 pub struct ConnectorMandateReferenceId {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_request_reference_id: Option<String>,
 }
+
+impl ConnectorMandateReferenceId {
+    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.connector_mandate_request_reference_id.clone()
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
@@ -34,9 +42,8 @@ pub struct PaymentAttempt {
     pub connector: Option<String>,
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
-    pub payment_method_id: Option<String>,
-    pub confirm: bool,
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    pub authentication_type: storage_enums::AuthenticationType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -45,12 +52,12 @@ pub struct PaymentAttempt {
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<MinorUnit>,
-    pub browser_info: Option<serde_json::Value>,
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
     pub error_code: Option<String>,
     pub payment_token: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_data: Option<serde_json::Value>,
+    pub payment_method_data: Option<pii::SecretSerdeValue>,
     pub preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
     pub multiple_capture_count: Option<i16>,
@@ -58,16 +65,15 @@ pub struct PaymentAttempt {
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
+    pub encoded_data: Option<masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: Option<MinorUnit>,
+    pub net_amount: MinorUnit,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -75,15 +81,16 @@ pub struct PaymentAttempt {
     pub profile_id: id_type::ProfileId,
     pub organization_id: id_type::OrganizationId,
     pub card_network: Option<String>,
-    pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
+    pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub routing_result: Option<serde_json::Value>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
+    pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
     pub connector_payment_data: Option<String>,
-    pub id: String,
+    pub id: id_type::GlobalAttemptId,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
@@ -225,9 +232,8 @@ pub struct PaymentAttemptNew {
     pub error_message: Option<String>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub payment_method_id: Option<String>,
-    pub confirm: bool,
-    pub authentication_type: Option<storage_enums::AuthenticationType>,
+    pub payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    pub authentication_type: storage_enums::AuthenticationType,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -236,12 +242,12 @@ pub struct PaymentAttemptNew {
     pub last_synced: Option<PrimitiveDateTime>,
     pub cancellation_reason: Option<String>,
     pub amount_to_capture: Option<MinorUnit>,
-    pub browser_info: Option<serde_json::Value>,
+    pub browser_info: Option<common_utils::types::BrowserInformation>,
     pub payment_token: Option<String>,
     pub error_code: Option<String>,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
-    pub payment_method_data: Option<serde_json::Value>,
+    pub payment_method_data: Option<pii::SecretSerdeValue>,
     pub preprocessing_step_id: Option<String>,
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
@@ -249,16 +255,16 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub authentication_data: Option<serde_json::Value>,
-    pub encoded_data: Option<String>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
+    pub encoded_data: Option<masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub net_amount: Option<MinorUnit>,
+    pub net_amount: MinorUnit,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub payment_method_billing_address_id: Option<String>,
+    pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -268,6 +274,9 @@ pub struct PaymentAttemptNew {
     pub card_network: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub payment_method_type_v2: storage_enums::PaymentMethod,
+    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub id: id_type::GlobalAttemptId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
 }
 
@@ -413,6 +422,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -731,48 +741,48 @@ pub enum PaymentAttemptUpdate {
     // },
 }
 
+// TODO: uncomment fields as and when required
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_attempt)]
 pub struct PaymentAttemptUpdateInternal {
-    net_amount: Option<i64>,
-    status: Option<storage_enums::AttemptStatus>,
-    authentication_type: Option<storage_enums::AuthenticationType>,
-    error_message: Option<Option<String>>,
-    payment_method_id: Option<String>,
-    cancellation_reason: Option<String>,
-    modified_at: PrimitiveDateTime,
-    browser_info: Option<serde_json::Value>,
-    payment_token: Option<String>,
-    error_code: Option<Option<String>>,
-    connector_metadata: Option<serde_json::Value>,
-    payment_method_data: Option<serde_json::Value>,
-    payment_experience: Option<storage_enums::PaymentExperience>,
-    preprocessing_step_id: Option<String>,
-    error_reason: Option<Option<String>>,
-    connector_response_reference_id: Option<String>,
-    multiple_capture_count: Option<i16>,
-    surcharge_amount: Option<i64>,
-    tax_on_surcharge: Option<i64>,
-    amount_capturable: Option<i64>,
-    updated_by: String,
-    merchant_connector_id: Option<Option<id_type::MerchantConnectorAccountId>>,
-    authentication_data: Option<serde_json::Value>,
-    encoded_data: Option<String>,
-    unified_code: Option<Option<String>>,
-    unified_message: Option<Option<String>>,
-    external_three_ds_authentication_attempted: Option<bool>,
-    authentication_connector: Option<String>,
-    authentication_id: Option<String>,
-    fingerprint_id: Option<String>,
-    payment_method_billing_address_id: Option<String>,
-    charge_id: Option<String>,
-    client_source: Option<String>,
-    client_version: Option<String>,
-    customer_acceptance: Option<pii::SecretSerdeValue>,
-    card_network: Option<String>,
-    connector_payment_data: Option<String>,
-    connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    // net_amount: Option<MinorUnit>,
+    pub status: Option<storage_enums::AttemptStatus>,
+    // authentication_type: Option<storage_enums::AuthenticationType>,
+    pub error_message: Option<String>,
+    pub connector_payment_id: Option<String>,
+    // payment_method_id: Option<String>,
+    // cancellation_reason: Option<String>,
+    pub modified_at: PrimitiveDateTime,
+    pub browser_info: Option<serde_json::Value>,
+    // payment_token: Option<String>,
+    pub error_code: Option<String>,
+    // connector_metadata: Option<serde_json::Value>,
+    // payment_method_data: Option<serde_json::Value>,
+    // payment_experience: Option<storage_enums::PaymentExperience>,
+    // preprocessing_step_id: Option<String>,
+    pub error_reason: Option<String>,
+    // connector_response_reference_id: Option<String>,
+    // multiple_capture_count: Option<i16>,
+    // pub surcharge_amount: Option<MinorUnit>,
+    // tax_on_surcharge: Option<MinorUnit>,
+    // amount_capturable: Option<MinorUnit>,
+    pub updated_by: String,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub connector: Option<String>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
+    // encoded_data: Option<String>,
+    pub unified_code: Option<Option<String>>,
+    pub unified_message: Option<Option<String>>,
+    // external_three_ds_authentication_attempted: Option<bool>,
+    // authentication_connector: Option<String>,
+    // authentication_id: Option<String>,
+    // fingerprint_id: Option<String>,
+    // charge_id: Option<String>,
+    // client_source: Option<String>,
+    // client_version: Option<String>,
+    // customer_acceptance: Option<pii::SecretSerdeValue>,
+    // card_network: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -830,13 +840,6 @@ pub struct PaymentAttemptUpdateInternal {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-}
-
-#[cfg(feature = "v2")]
-impl PaymentAttemptUpdateInternal {
-    pub fn populate_derived_fields(self, source: &PaymentAttempt) -> Self {
-        todo!();
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -2164,6 +2167,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 customer_acceptance,
                 shipping_cost,
                 order_tax_amount,
+                connector_mandate_detail,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2215,7 +2219,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost,
                 order_tax_amount,
                 connector_transaction_data: None,
-                connector_mandate_detail: None,
+                connector_mandate_detail,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,

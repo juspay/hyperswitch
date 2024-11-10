@@ -40,7 +40,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<api_models::payments::HeaderPayload>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Session,
@@ -80,7 +80,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
         business_profile: &domain::Profile,
-        header_payload: api_models::payments::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
             &metrics::CONTEXT,
@@ -172,7 +172,7 @@ async fn create_applepay_session_token(
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
     business_profile: &domain::Profile,
-    header_payload: api_models::payments::HeaderPayload,
+    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let delayed_response = is_session_response_delayed(state, connector);
     if delayed_response {
@@ -189,20 +189,11 @@ async fn create_applepay_session_token(
         )
     } else {
         // Get the apple pay metadata
-        let connector_apple_pay_wallet_details =
-            helpers::get_applepay_metadata(router_data.connector_wallets_details.clone())
-                .map_err(|error| {
-                    logger::debug!(
-                        "Apple pay connector wallets details parsing failed in create_applepay_session_token {:?}",
-                        error
-                    )
-                })
-                .ok();
-
-        let apple_pay_metadata = match connector_apple_pay_wallet_details {
-            Some(apple_pay_wallet_details) => apple_pay_wallet_details,
-            None => helpers::get_applepay_metadata(router_data.connector_meta_data.clone())?,
-        };
+        let apple_pay_metadata =
+            helpers::get_applepay_metadata(router_data.connector_meta_data.clone())
+                .attach_printable(
+                    "Failed to to fetch apple pay certificates during session call",
+                )?;
 
         // Get payment request data , apple pay session request and merchant keys
         let (
@@ -500,7 +491,7 @@ async fn create_applepay_session_token(
 
 fn create_paze_session_token(
     router_data: &types::PaymentsSessionRouterData,
-    _header_payload: api_models::payments::HeaderPayload,
+    _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let paze_wallet_details = router_data
         .connector_wallets_details
@@ -511,7 +502,13 @@ fn create_paze_session_token(
             field_name: "connector_wallets_details".to_string(),
             expected_format: "paze_metadata_format".to_string(),
         })?;
-
+    let required_amount_type = StringMajorUnitForConnector;
+    let transaction_currency_code = router_data.request.currency;
+    let transaction_amount = required_amount_type
+        .convert(router_data.request.minor_amount, transaction_currency_code)
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for paze".to_string(),
+        })?;
     Ok(types::PaymentsSessionRouterData {
         response: Ok(types::PaymentsResponseData::SessionResponse {
             session_token: payment_types::SessionToken::Paze(Box::new(
@@ -519,6 +516,9 @@ fn create_paze_session_token(
                     client_id: paze_wallet_details.data.client_id,
                     client_name: paze_wallet_details.data.client_name,
                     client_profile_id: paze_wallet_details.data.client_profile_id,
+                    transaction_currency_code,
+                    transaction_amount,
+                    email_address: router_data.request.email.clone(),
                 },
             )),
         }),
@@ -528,7 +528,7 @@ fn create_paze_session_token(
 
 fn create_samsung_pay_session_token(
     router_data: &types::PaymentsSessionRouterData,
-    header_payload: api_models::payments::HeaderPayload,
+    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let samsung_pay_session_token_data = router_data
         .connector_wallets_details
@@ -682,7 +682,7 @@ fn create_apple_pay_session_response(
     connector_name: String,
     delayed_response: bool,
     next_action: payment_types::NextActionCall,
-    header_payload: api_models::payments::HeaderPayload,
+    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     match session_response {
         Some(response) => Ok(types::PaymentsSessionRouterData {
@@ -931,7 +931,7 @@ where
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
-        header_payload: api_models::payments::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self>;
 }
 
@@ -980,7 +980,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         _confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
-        header_payload: api_models::payments::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         match connector.get_token {
             api::GetToken::GpayMetadata => {

@@ -739,6 +739,10 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::filters::PaymentIntentFi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let customer_id: Option<String> = row.try_get("customer_id").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
         Ok(Self {
             status,
             currency,
@@ -752,6 +756,7 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::filters::PaymentIntentFi
             card_last_4,
             card_issuer,
             error_reason,
+            customer_id,
         })
     }
 }

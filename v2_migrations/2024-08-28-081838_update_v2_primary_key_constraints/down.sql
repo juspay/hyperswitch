@@ -87,6 +87,7 @@ ALTER COLUMN currency DROP NOT NULL,
     ALTER COLUMN client_secret DROP NOT NULL,
     ALTER COLUMN profile_id DROP NOT NULL;
 ALTER TABLE payment_intent ALTER COLUMN active_attempt_id SET NOT NULL;
+ALTER TABLE payment_intent ALTER COLUMN active_attempt_id SET DEFAULT 'xxx';
 ALTER TABLE payment_intent ALTER COLUMN session_expiry DROP NOT NULL;
 
 ------------------------ Payment Attempt -----------------------
@@ -95,6 +96,9 @@ ALTER TABLE payment_attempt DROP CONSTRAINT payment_attempt_pkey;
 UPDATE payment_attempt
 SET attempt_id = id
 WHERE attempt_id IS NULL;
+
+ALTER TABLE payment_attempt
+ALTER COLUMN net_amount DROP NOT NULL;
 
 ALTER TABLE payment_attempt
 ADD PRIMARY KEY (attempt_id, merchant_id);

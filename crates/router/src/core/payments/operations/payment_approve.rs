@@ -12,6 +12,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{helpers, operations, PaymentData},
     },
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -43,7 +44,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCaptureRequest>
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
-        _header_payload: &api::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest, PaymentData<F>>,
     > {
@@ -213,14 +214,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest> for
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentApproveOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -257,6 +258,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureRequest> for
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentApprove))
+            .with(payment_data.to_event())
+            .emit();
 
         Ok((Box::new(self), payment_data))
     }

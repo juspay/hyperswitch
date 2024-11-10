@@ -176,7 +176,7 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
             }
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let mandate_metadata: DeutschebankMandateMetadata = mandate_data
-                    .mandate_metadata
+                    .get_mandate_metadata()
                     .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
                     .clone()
                     .parse_value("DeutschebankMandateMetadata")
@@ -298,19 +298,20 @@ impl
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
-                    redirection_data: Some(RedirectForm::Form {
+                    redirection_data: Box::new(Some(RedirectForm::Form {
                         endpoint: item.data.request.get_complete_authorize_url()?,
                         method: common_utils::request::Method::Get,
                         form_fields: HashMap::from([
                             ("reference".to_string(), reference.clone()),
                             ("signed_on".to_string(), signed_on.clone()),
                         ]),
-                    }),
+                    })),
                     mandate_reference: if item.data.request.is_mandate_payment() {
-                        Some(MandateReference {
+                        Box::new(Some(MandateReference {
                             connector_mandate_id: item.response.mandate_id,
                             payment_method_id: None,
-                            mandate_metadata: Some(serde_json::json!(DeutschebankMandateMetadata {
+                            mandate_metadata: Some(Secret::new(
+                                serde_json::json!(DeutschebankMandateMetadata {
                                 account_holder: item.data.get_billing_address()?.get_full_name()?,
                                 iban: match item.data.request.payment_method_data.clone() {
                                     PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
@@ -324,10 +325,12 @@ impl
                                 }?,
                                 reference: Secret::from(reference.clone()),
                                 signed_on,
-                            })),
-                        })
+                            }),
+                            )),
+                            connector_mandate_request_reference_id: None,
+                        }))
                     } else {
-                        None
+                        Box::new(None)
                     },
                     connector_metadata: None,
                     network_txn_id: None,
@@ -375,8 +378,8 @@ impl
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -578,8 +581,8 @@ impl
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -637,8 +640,8 @@ impl
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

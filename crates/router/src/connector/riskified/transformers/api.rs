@@ -113,7 +113,7 @@ pub struct LineItem {
     price: i64,
     quantity: i32,
     title: String,
-    product_type: Option<api_models::payments::ProductType>,
+    product_type: Option<common_enums::ProductType>,
     requires_shipping: Option<bool>,
     product_id: Option<String>,
     category: Option<String>,
@@ -163,7 +163,7 @@ impl TryFrom<&frm_types::FrmCheckoutRouterData> for RiskifiedPaymentsCheckoutReq
                     .get_order_details()?
                     .iter()
                     .map(|order_detail| LineItem {
-                        price: order_detail.amount,
+                        price: order_detail.amount.get_amount_as_i64(), // This should be changed to MinorUnit when we implement amount conversion for this connector. Additionally, the function get_amount_as_i64() should be avoided in the future.
                         quantity: i32::from(order_detail.quantity),
                         title: order_detail.product_name.clone(),
                         product_type: order_detail.product_type.clone(),

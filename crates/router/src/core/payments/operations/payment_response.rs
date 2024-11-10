@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+#[cfg(feature = "dynamic_routing")]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use common_enums::{AuthorizationStatus, SessionUpdateStatus};
@@ -12,6 +12,8 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentConfirmData;
 use router_derive;
 use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use storage_impl::DataModelExt;
@@ -19,7 +21,7 @@ use tracing_futures::Instrument;
 
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::core::routing::helpers::push_metrics_for_success_based_routing;
+use crate::core::routing::helpers as routing_helpers;
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
@@ -40,7 +42,7 @@ use crate::{
     },
     routes::{metrics, SessionState},
     types::{
-        self, api, domain,
+        self, domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
         CaptureSyncResponse, ErrorResponse,
@@ -68,7 +70,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -92,7 +93,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -181,7 +181,11 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 .ok();
             }
         };
-
+        let connector_mandate_reference_id = payment_data
+            .payment_attempt
+            .connector_mandate_detail
+            .as_ref()
+            .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
         let save_payment_call_future = Box::pin(tokenization::save_payment_method(
             state,
             connector_name.clone(),
@@ -193,6 +197,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             billing_name.clone(),
             payment_method_billing_address,
             business_profile,
+            connector_mandate_reference_id.clone(),
         ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
@@ -307,6 +312,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                         billing_name,
                         payment_method_billing_address.as_ref(),
                         &business_profile,
+                        connector_mandate_reference_id,
                     ))
                     .await;
 
@@ -365,7 +371,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
     async fn update_tracker<'b>(
         &'b self,
         state: &'b SessionState,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -532,7 +537,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -548,7 +552,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     {
         Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -574,7 +577,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        let (connector_mandate_id, mandate_metadata) = resp
+        let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
             .ok()
@@ -587,17 +590,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
                         (
                             mandate_ref.connector_mandate_id.clone(),
                             mandate_ref.mandate_metadata.clone(),
+                            mandate_ref.connector_mandate_request_reference_id.clone(),
                         )
                     })
                 } else {
                     None
                 }
             })
-            .unwrap_or((None, None));
+            .unwrap_or((None, None, None));
 
         update_connector_mandate_details_for_the_flow(
             connector_mandate_id,
             mandate_metadata,
+            connector_mandate_request_reference_id,
             payment_data,
         )?;
 
@@ -623,7 +628,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsSessionData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -639,7 +643,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSessionData>
     {
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -664,7 +667,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -789,7 +791,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsPostSessionTo
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -851,7 +852,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -867,7 +867,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCaptureData>
     {
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -890,7 +889,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -906,7 +904,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
     {
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -931,7 +928,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsApproveData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -947,7 +943,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
     {
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -970,7 +965,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsRejectData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -986,7 +980,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
     {
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -1011,7 +1004,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<
             F,
@@ -1036,7 +1028,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
 
         payment_data = Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             router_data,
             key_store,
@@ -1064,6 +1055,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
+        let payment_method_billing_address = payment_data.address.get_payment_method_billing();
         let billing_name = resp
             .address
             .get_payment_method_billing()
@@ -1082,6 +1074,12 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
                     field_name: "connector_name",
                 }
             })?;
+        let connector_mandate_reference_id = payment_data
+            .payment_attempt
+            .connector_mandate_detail
+            .as_ref()
+            .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
+
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         let tokenization::SavePaymentMethodDataResponse {
             payment_method_id,
@@ -1096,11 +1094,40 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             resp.request.payment_method_type,
             key_store,
             billing_name,
-            None,
+            payment_method_billing_address,
             business_profile,
+            connector_mandate_reference_id,
         ))
         .await?;
 
+        payment_data.payment_method_info = if let Some(payment_method_id) = &payment_method_id {
+            match state
+                .store
+                .find_payment_method(
+                    &(state.into()),
+                    key_store,
+                    payment_method_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+            {
+                Ok(payment_method) => Some(payment_method),
+                Err(error) => {
+                    if error.current_context().is_db_not_found() {
+                        logger::info!("Payment Method not found in db {:?}", error);
+                        None
+                    } else {
+                        Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error retrieving payment method from db")
+                            .map_err(|err| logger::error!(payment_method_retrieve=?err))
+                            .ok()
+                    }
+                }
+            }
+        } else {
+            None
+        };
         let mandate_id = mandate::mandate_procedure(
             state,
             resp,
@@ -1134,7 +1161,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         payment_data: PaymentData<F>,
         response: types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
@@ -1150,7 +1176,6 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     {
         Box::pin(payment_response_update_tracker(
             db,
-            payment_id,
             payment_data,
             response,
             key_store,
@@ -1176,7 +1201,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        let (connector_mandate_id, mandate_metadata) = resp
+        let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) = resp
             .response
             .clone()
             .ok()
@@ -1189,16 +1214,18 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
                         (
                             mandate_ref.connector_mandate_id.clone(),
                             mandate_ref.mandate_metadata.clone(),
+                            mandate_ref.connector_mandate_request_reference_id.clone(),
                         )
                     })
                 } else {
                     None
                 }
             })
-            .unwrap_or((None, None));
+            .unwrap_or((None, None, None));
         update_connector_mandate_details_for_the_flow(
             connector_mandate_id,
             mandate_metadata,
+            connector_mandate_request_reference_id,
             payment_data,
         )?;
 
@@ -1216,26 +1243,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
-    state: &SessionState,
-    _payment_id: &api::PaymentIdType,
-    mut payment_data: PaymentData<F>,
-    router_data: types::RouterData<F, T, types::PaymentsResponseData>,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
-    locale: &Option<String>,
-) -> RouterResult<PaymentData<F>> {
-    todo!()
-}
-
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     state: &SessionState,
-    _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     key_store: &domain::MerchantKeyStore,
@@ -1534,7 +1546,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
-                            let authentication_data = redirection_data
+                            let authentication_data = (*redirection_data)
                                 .as_ref()
                                 .map(Encode::encode_to_value)
                                 .transpose()
@@ -1556,8 +1568,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 } else {
                                     None
                                 };
-
-                            if router_data.status == enums::AttemptStatus::Charged {
+                            // update connector_mandate_details in case of Authorized/Charged Payment Status
+                            if matches!(
+                                router_data.status,
+                                enums::AttemptStatus::Charged | enums::AttemptStatus::Authorized
+                            ) {
                                 payment_data
                                     .payment_intent
                                     .fingerprint_id
@@ -1571,7 +1586,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         .connector_mandate_details
                                         .clone()
                                         .map(|val| {
-                                            val.parse_value::<storage::PaymentsMandateReference>(
+                                            val.parse_value::<diesel_models::PaymentsMandateReference>(
                                                 "PaymentsMandateReference",
                                             )
                                         })
@@ -1597,10 +1612,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         })
                                         .unwrap_or(false)
                                     {
-                                        let (connector_mandate_id, mandate_metadata) = payment_data.payment_attempt.connector_mandate_detail.clone()
-                                        .map(|cmr| (cmr.connector_mandate_id, cmr.mandate_metadata))
-                                        .unwrap_or((None, None));
 
+                                        let (connector_mandate_id, mandate_metadata,connector_mandate_request_reference_id) = payment_data.payment_attempt.connector_mandate_detail.clone()
+                                        .map(|cmr| (cmr.connector_mandate_id, cmr.mandate_metadata,cmr.connector_mandate_request_reference_id))
+                                        .unwrap_or((None, None,None));
                                         // Update the connector mandate details with the payment attempt connector mandate id
                                         let connector_mandate_details =
                                                     tokenization::update_connector_mandate_details(
@@ -1617,6 +1632,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                                         payment_data.payment_attempt.merchant_connector_id.clone(),
                                                         connector_mandate_id,
                                                         mandate_metadata,
+                                                        connector_mandate_request_reference_id
                                                     )?;
                                         // Update the payment method table with the active mandate record
                                         payment_methods::cards::update_payment_method_connector_mandate_details(
@@ -1948,19 +1964,48 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     {
-        if let Some(dynamic_routing_algorithm) = business_profile.dynamic_routing_algorithm.clone()
-        {
+        if business_profile.dynamic_routing_algorithm.is_some() {
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
+            let success_based_routing_config_params_interpolator =
+                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                    payment_attempt.payment_method,
+                    payment_attempt.payment_method_type,
+                    payment_attempt.authentication_type,
+                    payment_attempt.currency,
+                    payment_data
+                        .address
+                        .get_payment_billing()
+                        .and_then(|address| address.clone().address)
+                        .and_then(|address| address.country),
+                    payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_network"))
+                        .and_then(|network| network.as_str())
+                        .map(|network| network.to_string()),
+                    payment_attempt
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card"))
+                        .and_then(|data| data.as_object())
+                        .and_then(|card| card.get("card_isin"))
+                        .and_then(|card_isin| card_isin.as_str())
+                        .map(|card_isin| card_isin.to_string()),
+                );
             tokio::spawn(
                 async move {
-                    push_metrics_for_success_based_routing(
+                    routing_helpers::push_metrics_with_update_window_for_success_based_routing(
                         &state,
                         &payment_attempt,
                         routable_connectors,
                         &business_profile,
-                        dynamic_routing_algorithm,
+                        success_based_routing_config_params_interpolator,
                     )
                     .await
                     .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
@@ -1970,6 +2015,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             );
         }
     }
+
     payment_data.payment_intent = payment_intent;
     payment_data.payment_attempt = payment_attempt;
     router_data.payment_method_status.and_then(|status| {
@@ -2130,20 +2176,234 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     Ok(())
 }
 
+#[cfg(feature = "v2")]
+impl<F: Send + Clone> Operation<F, types::PaymentsAuthorizeData> for &PaymentResponse {
+    type Data = PaymentConfirmData<F>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, Self::Data, types::PaymentsAuthorizeData> + Send + Sync),
+    > {
+        Ok(*self)
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F: Send + Clone> Operation<F, types::PaymentsAuthorizeData> for PaymentResponse {
+    type Data = PaymentConfirmData<F>;
+    fn to_post_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn PostUpdateTracker<F, Self::Data, types::PaymentsAuthorizeData> + Send + Sync),
+    > {
+        Ok(self)
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthorizeData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        state: &'b SessionState,
+        mut payment_data: PaymentConfirmData<F>,
+        response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+        locale: &Option<String>,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
+            RoutableConnectorChoice,
+        >,
+        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+    ) -> RouterResult<PaymentConfirmData<F>>
+    where
+        F: 'b + Send + Sync,
+    {
+        let db = &*state.store;
+        let key_manager_state = &state.into();
+
+        let response_router_data = response;
+
+        match response_router_data.response {
+            Ok(response) => match response {
+                types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata,
+                    network_txn_id,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed,
+                    charge_id,
+                } => {
+                    let attempt_status = response_router_data.status;
+                    let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                    let connector_payment_id = match resource_id {
+                        types::ResponseId::NoResponseId => None,
+                        types::ResponseId::ConnectorTransactionId(id)
+                        | types::ResponseId::EncodedData(id) => Some(id),
+                    };
+                    let authentication_data = (*redirection_data)
+                        .as_ref()
+                        .map(Encode::encode_to_value)
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Could not parse the connector response")?
+                        .map(masking::Secret::new);
+
+                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntentPostUpdate { status: intent_status, updated_by: storage_scheme.to_string() };
+                    let updated_payment_intent = db
+                        .update_payment_intent(
+                            key_manager_state,
+                            payment_data.payment_intent,
+                            payment_intent_update,
+                            key_store,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to update payment intent")?;
+                    payment_data.payment_intent = updated_payment_intent;
+
+                    let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentResponse { status: attempt_status, connector_payment_id, updated_by: storage_scheme.to_string(), authentication_data };
+                    let updated_payment_attempt = db
+                        .update_payment_attempt(
+                            key_manager_state,
+                            key_store,
+                            payment_data.payment_attempt,
+                            payment_attempt_update,
+                            storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to update payment attempt")?;
+                    payment_data.payment_attempt = updated_payment_attempt;
+                }
+                types::PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list,
+                } => todo!(),
+                types::PaymentsResponseData::SessionResponse { session_token } => todo!(),
+                types::PaymentsResponseData::SessionTokenResponse { session_token } => todo!(),
+                types::PaymentsResponseData::TransactionUnresolvedResponse {
+                    resource_id,
+                    reason,
+                    connector_response_reference_id,
+                } => todo!(),
+                types::PaymentsResponseData::TokenizationResponse { token } => todo!(),
+                types::PaymentsResponseData::ConnectorCustomerResponse {
+                    connector_customer_id,
+                } => todo!(),
+                types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    enrolled_v2,
+                    related_transaction_id,
+                } => todo!(),
+                types::PaymentsResponseData::PreProcessingResponse {
+                    pre_processing_id,
+                    connector_metadata,
+                    session_token,
+                    connector_response_reference_id,
+                } => todo!(),
+                types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status,
+                    connector_authorization_id,
+                    error_code,
+                    error_message,
+                } => todo!(),
+                types::PaymentsResponseData::PostProcessingResponse { session_token } => todo!(),
+                types::PaymentsResponseData::SessionUpdateResponse { status } => todo!(),
+            },
+            Err(ErrorResponse {
+                code,
+                message,
+                reason,
+                status_code,
+                attempt_status,
+                connector_transaction_id,
+            }) => {
+                let attempt_status = common_enums::AttemptStatus::Failure;
+                let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
+                let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::ConfirmIntentPostUpdate { status: intent_status, updated_by: storage_scheme.to_string() };
+
+                let updated_payment_intent = db
+                    .update_payment_intent(
+                        key_manager_state,
+                        payment_data.payment_intent,
+                        payment_intent_update,
+                        key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to update payment intent")?;
+
+                payment_data.payment_intent = updated_payment_intent;
+
+                // TODO: populate unified code and message and translation by calling gsm and translation table
+                let error_details =
+                    hyperswitch_domain_models::payments::payment_attempt::ErrorDetails {
+                        code,
+                        message,
+                        reason,
+                        unified_code: None,
+                        unified_message: None,
+                    };
+
+                let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ConfirmIntentError { status: attempt_status, error: error_details,updated_by: storage_scheme.to_string() };
+                let updated_payment_attempt = db
+                    .update_payment_attempt(
+                        key_manager_state,
+                        key_store,
+                        payment_data.payment_attempt,
+                        payment_attempt_update,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to update payment attempt")?;
+
+                payment_data.payment_attempt = updated_payment_attempt;
+            }
+        }
+        // TODO: Implement this
+        Ok(payment_data)
+    }
+}
+
+#[cfg(feature = "v1")]
 fn update_connector_mandate_details_for_the_flow<F: Clone>(
     connector_mandate_id: Option<String>,
-    mandate_metadata: Option<serde_json::Value>,
+    mandate_metadata: Option<masking::Secret<serde_json::Value>>,
+    connector_mandate_request_reference_id: Option<String>,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<()> {
+    let mut original_connector_mandate_reference_id = payment_data
+        .payment_attempt
+        .connector_mandate_detail
+        .as_ref()
+        .map(|detail| ConnectorMandateReferenceId::foreign_from(detail.clone()));
     let connector_mandate_reference_id = if connector_mandate_id.is_some() {
-        Some(ConnectorMandateReferenceId {
-            connector_mandate_id: connector_mandate_id.clone(),
-            payment_method_id: None,
-            update_history: None,
-            mandate_metadata: mandate_metadata.clone(),
-        })
+        if let Some(ref mut record) = original_connector_mandate_reference_id {
+            record.update(
+                connector_mandate_id,
+                None,
+                None,
+                mandate_metadata,
+                connector_mandate_request_reference_id,
+            );
+            Some(record.clone())
+        } else {
+            Some(ConnectorMandateReferenceId::new(
+                connector_mandate_id,
+                None,
+                None,
+                mandate_metadata,
+                connector_mandate_request_reference_id,
+            ))
+        }
     } else {
-        None
+        original_connector_mandate_reference_id
     };
 
     payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id

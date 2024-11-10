@@ -1,58 +1,8 @@
-use common_enums::PermissionGroup;
+use common_enums::{ParentGroup, PermissionGroup};
 use common_utils::pii;
 use masking::Secret;
 
 pub mod role;
-
-#[derive(Debug, serde::Serialize)]
-pub enum Permission {
-    PaymentRead,
-    PaymentWrite,
-    RefundRead,
-    RefundWrite,
-    ApiKeyRead,
-    ApiKeyWrite,
-    MerchantAccountRead,
-    MerchantAccountWrite,
-    MerchantConnectorAccountRead,
-    MerchantConnectorAccountWrite,
-    RoutingRead,
-    RoutingWrite,
-    DisputeRead,
-    DisputeWrite,
-    MandateRead,
-    MandateWrite,
-    CustomerRead,
-    CustomerWrite,
-    Analytics,
-    ThreeDsDecisionManagerWrite,
-    ThreeDsDecisionManagerRead,
-    SurchargeDecisionManagerWrite,
-    SurchargeDecisionManagerRead,
-    UsersRead,
-    UsersWrite,
-    MerchantAccountCreate,
-    WebhookEventRead,
-    PayoutWrite,
-    PayoutRead,
-    WebhookEventWrite,
-    GenerateReport,
-    ReconAdmin,
-}
-
-#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash)]
-pub enum ParentGroup {
-    Operations,
-    Connectors,
-    Workflows,
-    Analytics,
-    Users,
-    #[serde(rename = "MerchantAccess")]
-    Merchant,
-    #[serde(rename = "OrganizationAccess")]
-    Organization,
-    Recon,
-}
 
 #[derive(Debug, serde::Serialize)]
 pub struct AuthorizationInfoResponse(pub Vec<AuthorizationInfo>);
@@ -69,7 +19,6 @@ pub enum AuthorizationInfo {
 pub struct GroupInfo {
     pub group: PermissionGroup,
     pub description: &'static str,
-    pub permissions: Vec<PermissionInfo>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -77,12 +26,6 @@ pub struct ParentInfo {
     pub name: ParentGroup,
     pub description: &'static str,
     pub groups: Vec<PermissionGroup>,
-}
-
-#[derive(Debug, serde::Serialize)]
-pub struct PermissionInfo {
-    pub enum_name: Permission,
-    pub description: &'static str,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

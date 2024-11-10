@@ -246,12 +246,15 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
         };
         Ok(Self::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(value.payme_sale_id.clone()),
-            redirection_data,
-            mandate_reference: value.buyer_key.clone().map(|buyer_key| MandateReference {
-                connector_mandate_id: Some(buyer_key.expose()),
-                payment_method_id: None,
-                mandate_metadata: None,
-            }),
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(value.buyer_key.clone().map(|buyer_key| {
+                MandateReference {
+                    connector_mandate_id: Some(buyer_key.expose()),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                }
+            })),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
@@ -316,9 +319,9 @@ impl From<&SaleQuery> for types::PaymentsResponseData {
     fn from(value: &SaleQuery) -> Self {
         Self::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(value.sale_payme_id.clone()),
-            redirection_data: None,
+            redirection_data: Box::new(None),
             // mandate reference will be updated with webhooks only. That has been handled with PaymePaySaleResponse struct
-            mandate_reference: None,
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
@@ -536,8 +539,8 @@ impl<F>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 item.response.payme_sale_id.to_owned(),
                             ),
-                            redirection_data: Some(services::RedirectForm::Payme),
-                            mandate_reference: None,
+                            redirection_data: Box::new(Some(services::RedirectForm::Payme)),
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: None,
@@ -1110,8 +1113,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
             // Since we are not receiving payme_sale_id, we are not populating the transaction response
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

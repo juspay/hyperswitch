@@ -3,7 +3,7 @@ use common_enums as storage_enums;
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
-    crypto::{self, Encryptable},
+    crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     id_type,
@@ -14,6 +14,8 @@ use common_utils::{
         MinorUnit,
     },
 };
+#[cfg(feature = "v2")]
+use diesel_models::types::OrderDetailsWithAmount;
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
@@ -21,7 +23,6 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::{Deserialize, PeekInterface, Secret};
-use rustc_hash::FxHashMap;
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
@@ -34,6 +35,7 @@ use crate::{
     type_encryption::{crypto_operation, CryptoOperation},
     RemoteStorageObject,
 };
+
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
@@ -266,76 +268,16 @@ pub enum PaymentIntentUpdate {
     },
 }
 
-// TODO: remove all enum variants and create new variants that should be used for v2
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
-    ResponseUpdate {
-        status: storage_enums::IntentStatus,
-        amount_captured: Option<MinorUnit>,
-        return_url: Option<String>,
-        updated_by: String,
-    },
-    MetadataUpdate {
-        metadata: pii::SecretSerdeValue,
-        updated_by: String,
-    },
-    Update(Box<PaymentIntentUpdateFields>),
-    PaymentCreateUpdate {
-        return_url: Option<String>,
-        status: Option<storage_enums::IntentStatus>,
-        customer_id: Option<id_type::CustomerId>,
-        shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
-        billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
-        customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
-        updated_by: String,
-    },
-    MerchantStatusUpdate {
-        status: storage_enums::IntentStatus,
-        shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
-        billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
-        updated_by: String,
-    },
-    PGStatusUpdate {
+    ConfirmIntent {
         status: storage_enums::IntentStatus,
         updated_by: String,
+        active_attempt_id: id_type::GlobalAttemptId,
     },
-    PaymentAttemptAndAttemptCountUpdate {
-        active_attempt_id: String,
-        attempt_count: i16,
-        updated_by: String,
-    },
-    StatusAndAttemptUpdate {
+    ConfirmIntentPostUpdate {
         status: storage_enums::IntentStatus,
-        active_attempt_id: String,
-        attempt_count: i16,
-        updated_by: String,
-    },
-    ApproveUpdate {
-        status: storage_enums::IntentStatus,
-        frm_merchant_decision: Option<String>,
-        updated_by: String,
-    },
-    RejectUpdate {
-        status: storage_enums::IntentStatus,
-        frm_merchant_decision: Option<String>,
-        updated_by: String,
-    },
-    SurchargeApplicableUpdate {
-        surcharge_applicable: bool,
-        updated_by: String,
-    },
-    IncrementalAuthorizationAmountUpdate {
-        amount: MinorUnit,
-    },
-    AuthorizationCountUpdate {
-        authorization_count: i32,
-    },
-    CompleteAuthorizeUpdate {
-        shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    },
-    ManualUpdate {
-        status: Option<storage_enums::IntentStatus>,
         updated_by: String,
     },
 }
@@ -353,7 +295,7 @@ pub struct PaymentIntentUpdateInternal {
     pub off_session: Option<bool>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<PrimitiveDateTime>,
-    pub active_attempt_id: Option<String>,
+    pub active_attempt_id: Option<id_type::GlobalAttemptId>,
     pub description: Option<String>,
     pub statement_descriptor: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
@@ -417,181 +359,27 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
+// TODO: convert directly to diesel_models::PaymentIntentUpdateInternal
 #[cfg(feature = "v2")]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
-        todo!()
-        // match payment_intent_update {
-        //     PaymentIntentUpdate::MetadataUpdate {
-        //         metadata,
-        //         updated_by,
-        //     } => Self {
-        //         metadata: Some(metadata),
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         updated_by,
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::Update(value) => Self {
-        //         amount: Some(value.amount),
-        //         currency: Some(value.currency),
-        //         setup_future_usage: value.setup_future_usage,
-        //         status: Some(value.status),
-        //         customer_id: value.customer_id,
-        //         return_url: value.return_url,
-        //         description: value.description,
-        //         statement_descriptor: value.statement_descriptor,
-        //         order_details: value.order_details,
-        //         metadata: value.metadata,
-        //         payment_confirm_source: value.payment_confirm_source,
-        //         updated_by: value.updated_by,
-        //         session_expiry: value.session_expiry,
-        //         request_external_three_ds_authentication: value
-        //             .request_external_three_ds_authentication,
-        //         frm_metadata: value.frm_metadata,
-        //         customer_details: value.customer_details,
-        //         billing_address: value.billing_address,
-        //         merchant_order_reference_id: value.merchant_order_reference_id,
-        //         shipping_address: value.shipping_address,
-        //         is_payment_processor_token_flow: value.is_payment_processor_token_flow,
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::PaymentCreateUpdate {
-        //         return_url,
-        //         status,
-        //         customer_id,
-        //         shipping_address,
-        //         billing_address,
-        //         customer_details,
-        //         updated_by,
-        //     } => Self {
-        //         return_url,
-        //         status,
-        //         customer_id,
-        //         shipping_address,
-        //         billing_address,
-        //         customer_details,
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         updated_by,
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::PGStatusUpdate { status, updated_by } => Self {
-        //         status: Some(status),
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         updated_by,
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::MerchantStatusUpdate {
-        //         status,
-        //         shipping_address,
-        //         billing_address,
-        //         updated_by,
-        //     } => Self {
-        //         status: Some(status),
-        //         shipping_address,
-        //         billing_address,
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         updated_by,
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::ResponseUpdate {
-        //         // amount,
-        //         // currency,
-        //         status,
-        //         amount_captured,
-        //         // customer_id,
-        //         return_url,
-        //         updated_by,
-        //     } => Self {
-        //         // amount,
-        //         // currency: Some(currency),
-        //         status: Some(status),
-        //         amount_captured,
-        //         // customer_id,
-        //         return_url,
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         updated_by,
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-        //         active_attempt_id,
-        //         attempt_count,
-        //         updated_by,
-        //     } => Self {
-        //         active_attempt_id: Some(active_attempt_id),
-        //         attempt_count: Some(attempt_count),
-        //         updated_by,
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::StatusAndAttemptUpdate {
-        //         status,
-        //         active_attempt_id,
-        //         attempt_count,
-        //         updated_by,
-        //     } => Self {
-        //         status: Some(status),
-        //         active_attempt_id: Some(active_attempt_id),
-        //         attempt_count: Some(attempt_count),
-        //         updated_by,
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::ApproveUpdate {
-        //         status,
-        //         frm_merchant_decision,
-        //         updated_by,
-        //     } => Self {
-        //         status: Some(status),
-        //         frm_merchant_decision,
-        //         updated_by,
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::RejectUpdate {
-        //         status,
-        //         frm_merchant_decision,
-        //         updated_by,
-        //     } => Self {
-        //         status: Some(status),
-        //         frm_merchant_decision,
-        //         updated_by,
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::SurchargeApplicableUpdate {
-        //         surcharge_applicable,
-        //         updated_by,
-        //     } => Self {
-        //         surcharge_applicable: Some(surcharge_applicable),
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         updated_by,
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
-        //         amount: Some(amount),
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::AuthorizationCountUpdate {
-        //         authorization_count,
-        //     } => Self {
-        //         authorization_count: Some(authorization_count),
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::CompleteAuthorizeUpdate { shipping_address } => Self {
-        //         shipping_address,
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         ..Default::default()
-        //     },
-        //     PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
-        //         status,
-        //         modified_at: Some(common_utils::date_time::now()),
-        //         updated_by,
-        //         ..Default::default()
-        //     },
-        // }
+        match payment_intent_update {
+            PaymentIntentUpdate::ConfirmIntent {
+                status,
+                updated_by,
+                active_attempt_id,
+            } => Self {
+                status: Some(status),
+                updated_by,
+                active_attempt_id: Some(active_attempt_id),
+                ..Default::default()
+            },
+            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
+                status: Some(status),
+                updated_by,
+                ..Default::default()
+            },
+        }
     }
 }
 
@@ -799,144 +587,20 @@ use diesel_models::{
 #[cfg(feature = "v2")]
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
     fn from(value: PaymentIntentUpdate) -> Self {
-        todo!()
-        // match value {
-        //     PaymentIntentUpdate::ResponseUpdate {
-        //         status,
-        //         amount_captured,
-        //         return_url,
-        //         updated_by,
-        //     } => Self::ResponseUpdate {
-        //         status,
-        //         amount_captured,
-        //         return_url,
-        //         updated_by,
-        //     },
-        //     PaymentIntentUpdate::MetadataUpdate {
-        //         metadata,
-        //         updated_by,
-        //     } => Self::MetadataUpdate {
-        //         metadata,
-        //         updated_by,
-        //     },
-        //     PaymentIntentUpdate::Update(value) => {
-        //         Self::Update(Box::new(DieselPaymentIntentUpdateFields {
-        //             amount: value.amount,
-        //             currency: value.currency,
-        //             setup_future_usage: value.setup_future_usage,
-        //             status: value.status,
-        //             customer_id: value.customer_id,
-        //             return_url: value.return_url,
-        //             description: value.description,
-        //             statement_descriptor: value.statement_descriptor,
-        //             order_details: value.order_details,
-        //             metadata: value.metadata,
-        //             payment_confirm_source: value.payment_confirm_source,
-        //             updated_by: value.updated_by,
-        //             session_expiry: value.session_expiry,
-        //             request_external_three_ds_authentication: value
-        //                 .request_external_three_ds_authentication,
-        //             frm_metadata: value.frm_metadata,
-        //             customer_details: value.customer_details.map(Encryption::from),
-        //             billing_address: value.billing_address.map(Encryption::from),
-        //             shipping_address: value.shipping_address.map(Encryption::from),
-        //             merchant_order_reference_id: value.merchant_order_reference_id,
-        //             is_payment_processor_token_flow: value.is_payment_processor_token_flow,
-        //         }))
-        //     }
-        //     PaymentIntentUpdate::PaymentCreateUpdate {
-        //         return_url,
-        //         status,
-        //         customer_id,
-        //         shipping_address,
-        //         billing_address,
-        //         customer_details,
-        //         updated_by,
-        //     } => Self::PaymentCreateUpdate {
-        //         return_url,
-        //         status,
-        //         customer_id,
-        //         shipping_address: shipping_address.map(Encryption::from),
-        //         billing_address: billing_address.map(Encryption::from),
-        //         customer_details: customer_details.map(Encryption::from),
-        //         updated_by,
-        //     },
-        //     PaymentIntentUpdate::MerchantStatusUpdate {
-        //         status,
-        //         shipping_address,
-        //         billing_address,
-        //         updated_by,
-        //     } => Self::MerchantStatusUpdate {
-        //         status,
-        //         shipping_address: shipping_address.map(Encryption::from),
-        //         billing_address: billing_address.map(Encryption::from),
-        //         updated_by,
-        //     },
-        //     PaymentIntentUpdate::PGStatusUpdate { status, updated_by } => {
-        //         Self::PGStatusUpdate { status, updated_by }
-        //     }
-        //     PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-        //         active_attempt_id,
-        //         attempt_count,
-        //         updated_by,
-        //     } => Self::PaymentAttemptAndAttemptCountUpdate {
-        //         active_attempt_id,
-        //         attempt_count,
-        //         updated_by,
-        //     },
-        //     PaymentIntentUpdate::StatusAndAttemptUpdate {
-        //         status,
-        //         active_attempt_id,
-        //         attempt_count,
-        //         updated_by,
-        //     } => Self::StatusAndAttemptUpdate {
-        //         status,
-        //         active_attempt_id,
-        //         attempt_count,
-        //         updated_by,
-        //     },
-        //     PaymentIntentUpdate::ApproveUpdate {
-        //         status,
-        //         frm_merchant_decision,
-        //         updated_by,
-        //     } => Self::ApproveUpdate {
-        //         status,
-        //         frm_merchant_decision,
-        //         updated_by,
-        //     },
-        //     PaymentIntentUpdate::RejectUpdate {
-        //         status,
-        //         frm_merchant_decision,
-        //         updated_by,
-        //     } => Self::RejectUpdate {
-        //         status,
-        //         frm_merchant_decision,
-        //         updated_by,
-        //     },
-        //     PaymentIntentUpdate::SurchargeApplicableUpdate {
-        //         surcharge_applicable,
-        //         updated_by,
-        //     } => Self::SurchargeApplicableUpdate {
-        //         surcharge_applicable: Some(surcharge_applicable),
-        //         updated_by,
-        //     },
-        //     PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => {
-        //         Self::IncrementalAuthorizationAmountUpdate { amount }
-        //     }
-        //     PaymentIntentUpdate::AuthorizationCountUpdate {
-        //         authorization_count,
-        //     } => Self::AuthorizationCountUpdate {
-        //         authorization_count,
-        //     },
-        //     PaymentIntentUpdate::CompleteAuthorizeUpdate { shipping_address } => {
-        //         Self::CompleteAuthorizeUpdate {
-        //             shipping_address: shipping_address.map(Encryption::from),
-        //         }
-        //     }
-        //     PaymentIntentUpdate::ManualUpdate { status, updated_by } => {
-        //         Self::ManualUpdate { status, updated_by }
-        //     }
-        // }
+        match value {
+            PaymentIntentUpdate::ConfirmIntent {
+                status,
+                updated_by,
+                active_attempt_id,
+            } => Self::ConfirmIntent {
+                status,
+                updated_by,
+                active_attempt_id,
+            },
+            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => {
+                Self::ConfirmIntentPostUpdate { status, updated_by }
+            }
+        }
     }
 }
 
@@ -1482,7 +1146,7 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced,
             setup_future_usage,
             client_secret,
-            active_attempt,
+            active_attempt_id,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -1530,19 +1194,23 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced,
             setup_future_usage: Some(setup_future_usage),
             client_secret,
-            active_attempt_id: active_attempt.map(|attempt| attempt.get_id()),
-            order_details: order_details
-                .map(|order_details| {
-                    order_details
-                        .into_iter()
-                        .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
-                        .collect::<Result<Vec<_>, _>>()
+            active_attempt_id,
+            order_details: order_details.map(|order_details| {
+                order_details
+                    .into_iter()
+                    .map(|order_detail| Secret::new(order_detail.expose()))
+                    .collect::<Vec<_>>()
+            }),
+            allowed_payment_method_types: allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types
+                        .encode_to_value()
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed to serialize allowed_payment_method_types".to_string(),
+                        })
                 })
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "invalid value found for order_details".to_string(),
-                })?,
-            allowed_payment_method_types,
+                .transpose()?
+                .map(Secret::new),
             connector_metadata,
             feature_metadata,
             attempt_count,
@@ -1591,10 +1259,10 @@ impl behaviour::Conversion for PaymentIntent {
             let decrypted_data = crypto_operation(
                 state,
                 type_name!(Self::DstType),
-                CryptoOperation::BatchDecrypt(EncryptedPaymentIntentAddress::to_encryptable(
-                    EncryptedPaymentIntentAddress {
-                        billing: storage_model.billing_address,
-                        shipping: storage_model.shipping_address,
+                CryptoOperation::BatchDecrypt(super::EncryptedPaymentIntent::to_encryptable(
+                    super::EncryptedPaymentIntent {
+                        billing_address: storage_model.billing_address,
+                        shipping_address: storage_model.shipping_address,
                         customer_details: storage_model.customer_details,
                     },
                 )),
@@ -1604,7 +1272,7 @@ impl behaviour::Conversion for PaymentIntent {
             .await
             .and_then(|val| val.try_into_batchoperation())?;
 
-            let data = EncryptedPaymentIntentAddress::from_encryptable(decrypted_data)
+            let data = super::EncryptedPaymentIntent::from_encryptable(decrypted_data)
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Invalid batch operation data")?;
 
@@ -1621,9 +1289,11 @@ impl behaviour::Conversion for PaymentIntent {
                 skip_surcharge_calculation: super::SurchargeCalculationOverride::from(
                     storage_model.surcharge_applicable,
                 ),
+                amount_captured: storage_model.amount_captured,
             };
+
             let billing_address = data
-                .billing
+                .billing_address
                 .map(|billing| {
                     billing.deserialize_inner_value(|value| value.parse_value("Address"))
                 })
@@ -1632,14 +1302,20 @@ impl behaviour::Conversion for PaymentIntent {
                 .attach_printable("Error while deserializing Address")?;
 
             let shipping_address = data
-                .shipping
+                .shipping_address
                 .map(|shipping| {
                     shipping.deserialize_inner_value(|value| value.parse_value("Address"))
                 })
                 .transpose()
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Error while deserializing Address")?;
-
+            let allowed_payment_method_types = storage_model
+                .allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types.parse_value("Vec<PaymentMethodType>")
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)?;
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
                 merchant_id: storage_model.merchant_id,
                 status: storage_model.status,
@@ -1655,22 +1331,14 @@ impl behaviour::Conversion for PaymentIntent {
                 last_synced: storage_model.last_synced,
                 setup_future_usage: storage_model.setup_future_usage.unwrap_or_default(),
                 client_secret: storage_model.client_secret,
-                active_attempt: storage_model
-                    .active_attempt_id
-                    .map(RemoteStorageObject::ForeignID),
-                order_details: storage_model
-                    .order_details
-                    .map(|order_details| {
-                        order_details
-                            .into_iter()
-                            .map(|order_detail| {
-                                order_detail.expose().parse_value("OrderDetailsWithAmount")
-                            })
-                            .collect::<Result<Vec<_>, _>>()
-                    })
-                    .transpose()
-                    .change_context(common_utils::errors::CryptoError::DecodingFailed)?,
-                allowed_payment_method_types: storage_model.allowed_payment_method_types,
+                active_attempt_id: storage_model.active_attempt_id,
+                order_details: storage_model.order_details.map(|order_details| {
+                    order_details
+                        .into_iter()
+                        .map(|order_detail| Secret::new(order_detail.expose()))
+                        .collect::<Vec<_>>()
+                }),
+                allowed_payment_method_types,
                 connector_metadata: storage_model.connector_metadata,
                 feature_metadata: storage_model.feature_metadata,
                 attempt_count: storage_model.attempt_count,
@@ -1737,20 +1405,19 @@ impl behaviour::Conversion for PaymentIntent {
             last_synced: self.last_synced,
             setup_future_usage: Some(self.setup_future_usage),
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt.map(|attempt| attempt.get_id()),
-            order_details: self
-                .order_details
-                .map(|order_details| {
-                    order_details
-                        .into_iter()
-                        .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
-                        .collect::<Result<Vec<_>, _>>()
+            active_attempt_id: self.active_attempt_id,
+            order_details: self.order_details,
+            allowed_payment_method_types: self
+                .allowed_payment_method_types
+                .map(|allowed_payment_method_types| {
+                    allowed_payment_method_types
+                        .encode_to_value()
+                        .change_context(ValidationError::InvalidValue {
+                            message: "Failed to serialize allowed_payment_method_types".to_string(),
+                        })
                 })
-                .transpose()
-                .change_context(ValidationError::InvalidValue {
-                    message: "Invalid value found for ".to_string(),
-                })?,
-            allowed_payment_method_types: self.allowed_payment_method_types,
+                .transpose()?
+                .map(Secret::new),
             connector_metadata: self.connector_metadata,
             feature_metadata: self.feature_metadata,
             attempt_count: self.attempt_count,
@@ -1861,10 +1528,10 @@ impl behaviour::Conversion for PaymentIntent {
             let decrypted_data = crypto_operation(
                 state,
                 type_name!(Self::DstType),
-                CryptoOperation::BatchDecrypt(EncryptedPaymentIntentAddress::to_encryptable(
-                    EncryptedPaymentIntentAddress {
-                        billing: storage_model.billing_details,
-                        shipping: storage_model.shipping_details,
+                CryptoOperation::BatchDecrypt(super::EncryptedPaymentIntent::to_encryptable(
+                    super::EncryptedPaymentIntent {
+                        billing_details: storage_model.billing_details,
+                        shipping_details: storage_model.shipping_details,
                         customer_details: storage_model.customer_details,
                     },
                 )),
@@ -1874,7 +1541,7 @@ impl behaviour::Conversion for PaymentIntent {
             .await
             .and_then(|val| val.try_into_batchoperation())?;
 
-            let data = EncryptedPaymentIntentAddress::from_encryptable(decrypted_data)
+            let data = super::EncryptedPaymentIntent::from_encryptable(decrypted_data)
                 .change_context(common_utils::errors::CryptoError::DecodingFailed)
                 .attach_printable("Invalid batch operation data")?;
 
@@ -1926,9 +1593,9 @@ impl behaviour::Conversion for PaymentIntent {
                 shipping_cost: storage_model.shipping_cost,
                 tax_details: storage_model.tax_details,
                 customer_details: data.customer_details,
-                billing_details: data.billing,
+                billing_details: data.billing_details,
                 merchant_order_reference_id: storage_model.merchant_order_reference_id,
-                shipping_details: data.shipping,
+                shipping_details: data.shipping_details,
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
@@ -1995,75 +1662,5 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
         })
-    }
-}
-
-pub struct EncryptedPaymentIntentAddress {
-    pub shipping: Option<Encryption>,
-    pub billing: Option<Encryption>,
-    pub customer_details: Option<Encryption>,
-}
-
-pub struct PaymentAddressFromRequest {
-    pub shipping: Option<Secret<serde_json::Value>>,
-    pub billing: Option<Secret<serde_json::Value>>,
-    pub customer_details: Option<Secret<serde_json::Value>>,
-}
-
-pub struct DecryptedPaymentIntentAddress {
-    pub shipping: crypto::OptionalEncryptableValue,
-    pub billing: crypto::OptionalEncryptableValue,
-    pub customer_details: crypto::OptionalEncryptableValue,
-}
-
-impl ToEncryptable<DecryptedPaymentIntentAddress, Secret<serde_json::Value>, Encryption>
-    for EncryptedPaymentIntentAddress
-{
-    fn from_encryptable(
-        mut hashmap: FxHashMap<String, Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<DecryptedPaymentIntentAddress, common_utils::errors::ParsingError> {
-        Ok(DecryptedPaymentIntentAddress {
-            shipping: hashmap.remove("shipping"),
-            billing: hashmap.remove("billing"),
-            customer_details: hashmap.remove("customer_details"),
-        })
-    }
-
-    fn to_encryptable(self) -> FxHashMap<String, Encryption> {
-        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
-
-        self.shipping.map(|s| map.insert("shipping".to_string(), s));
-        self.billing.map(|s| map.insert("billing".to_string(), s));
-        self.customer_details
-            .map(|s| map.insert("customer_details".to_string(), s));
-        map
-    }
-}
-
-impl
-    ToEncryptable<
-        DecryptedPaymentIntentAddress,
-        Secret<serde_json::Value>,
-        Secret<serde_json::Value>,
-    > for PaymentAddressFromRequest
-{
-    fn from_encryptable(
-        mut hashmap: FxHashMap<String, Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<DecryptedPaymentIntentAddress, common_utils::errors::ParsingError> {
-        Ok(DecryptedPaymentIntentAddress {
-            shipping: hashmap.remove("shipping"),
-            billing: hashmap.remove("billing"),
-            customer_details: hashmap.remove("customer_details"),
-        })
-    }
-
-    fn to_encryptable(self) -> FxHashMap<String, Secret<serde_json::Value>> {
-        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
-
-        self.shipping.map(|s| map.insert("shipping".to_string(), s));
-        self.billing.map(|s| map.insert("billing".to_string(), s));
-        self.customer_details
-            .map(|s| map.insert("customer_details".to_string(), s));
-        map
     }
 }

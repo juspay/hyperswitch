@@ -644,7 +644,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))
             },
             Self::WebhookInvalidMerchantSecret => {
-                AER::BadRequest(ApiError::new("WE", 6, "Merchant Secret set for webhook source verificartion is invalid", None))
+                AER::BadRequest(ApiError::new("WE", 6, "Merchant Secret set for webhook source verification is invalid", None))
             }
             Self::IntegrityCheckFailed {
                 reason,

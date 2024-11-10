@@ -25,6 +25,7 @@ use crate::{
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -54,7 +55,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        _header_payload: &api::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
@@ -82,7 +83,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
                 order_details.to_owned(),
-                payment_intent.amount.get_amount_as_i64(),
+                payment_intent.amount,
                 false,
             )?;
         }
@@ -329,7 +330,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             api_models::payments::MandateIds {
                                 mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None, mandate_metadata:connector_id.mandate_metadata, },
+                                    api_models::payments::ConnectorMandateReferenceId::new(
+                                        connector_id.get_connector_mandate_id(),        // connector_mandate_id
+                                        connector_id.get_payment_method_id(),           // payment_method_id
+                                        None,                                     // update_history
+                                        connector_id.get_mandate_metadata(),            // mandate_metadata
+                                        connector_id.get_connector_mandate_request_reference_id()  // connector_mandate_request_reference_id
+                                    )
                                 ))
                             }
                          }),
@@ -688,14 +695,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut _payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -708,14 +715,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
-        _header_payload: api::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -919,6 +926,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let amount = payment_data.amount;
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentUpdate { amount }))
+            .with(payment_data.to_event())
+            .emit();
 
         Ok((
             payments::is_confirm(self, payment_data.confirm),

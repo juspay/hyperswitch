@@ -36,6 +36,8 @@ pub struct PaymentIntentFilters {
     pub card_issuer: Vec<String>,
     #[serde(default)]
     pub error_reason: Vec<String>,
+    #[serde(default)]
+    pub customer_id: Vec<id_type::CustomerId>,
 }
 
 #[derive(
@@ -91,6 +93,7 @@ pub enum PaymentIntentMetrics {
     SmartRetriedAmount,
     PaymentIntentCount,
     PaymentsSuccessRate,
+    PaymentProcessedAmount,
     SessionizedSuccessfulSmartRetries,
     SessionizedTotalSmartRetries,
     SessionizedSmartRetriedAmount,
@@ -223,7 +226,9 @@ pub struct PaymentIntentMetricsBucketValue {
     pub successful_smart_retries: Option<u64>,
     pub total_smart_retries: Option<u64>,
     pub smart_retried_amount: Option<u64>,
+    pub smart_retried_amount_in_usd: Option<u64>,
     pub smart_retried_amount_without_smart_retries: Option<u64>,
+    pub smart_retried_amount_without_smart_retries_in_usd: Option<u64>,
     pub payment_intent_count: Option<u64>,
     pub successful_payments: Option<u32>,
     pub successful_payments_without_smart_retries: Option<u32>,
@@ -231,8 +236,10 @@ pub struct PaymentIntentMetricsBucketValue {
     pub payments_success_rate: Option<f64>,
     pub payments_success_rate_without_smart_retries: Option<f64>,
     pub payment_processed_amount: Option<u64>,
+    pub payment_processed_amount_in_usd: Option<u64>,
     pub payment_processed_count: Option<u64>,
     pub payment_processed_amount_without_smart_retries: Option<u64>,
+    pub payment_processed_amount_without_smart_retries_in_usd: Option<u64>,
     pub payment_processed_count_without_smart_retries: Option<u64>,
     pub payments_success_rate_distribution_without_smart_retries: Option<f64>,
     pub payments_failure_rate_distribution_without_smart_retries: Option<f64>,

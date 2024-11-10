@@ -15,6 +15,10 @@ Check the Table Of Contents to jump to the relevant section.
 - [Run hyperswitch using Docker Compose](#run-hyperswitch-using-docker-compose)
   - [Running additional services](#running-additional-services)
 - [Set up a development environment using Docker Compose](#set-up-a-development-environment-using-docker-compose)
+- [Set up a Nix development environment](#set-up-a-nix-development-environment)
+   - [Install Nix](#install-nix)
+   - [Using external services through Nix](#using-external-services-through-nix)
+   - [Develop in a Nix environment (coming soon)](#develop-in-a-nix-environment-coming-soon)
 - [Set up a Rust environment and other dependencies](#set-up-a-rust-environment-and-other-dependencies)
   - [Set up dependencies on Ubuntu-based systems](#set-up-dependencies-on-ubuntu-based-systems)
   - [Set up dependencies on Windows (Ubuntu on WSL2)](#set-up-dependencies-on-windows-ubuntu-on-wsl2)
@@ -165,6 +169,43 @@ Once the services have been confirmed to be up and running, you can proceed with
 
    If the command returned a `200 OK` status code, proceed with
    [trying out our APIs](#try-out-our-apis).
+
+## Set up a Nix development environment
+
+A Nix development environment simplifies the setup of required project dependencies. This is available for MacOS, Linux and WSL2 users.
+
+### Install nix
+
+We recommend that you install Nix using [the DetSys nix-installer][detsys-nixos-installer], which automatically enables flakes.
+
+As an **optional** next step, if you are interested in using Nix to manage your dotfiles and local packages, you can setup [nixos-unified-template][nixos-unified-template-repo].
+
+### Using external services through Nix
+
+Once Nix is installed, you can use it to manage external services via `flakes`. More services will be added soon.
+
+- Run below command in hyperswitch directory
+
+   ```shell
+   nix run .#ext-services
+   ```
+
+This will start the following services using `process-compose`
+- PostgreSQL
+   - Creates database and an user to be used by the application
+- Redis
+
+### Develop in a Nix environment (coming soon)
+
+Nix development environment ensures all the required project dependencies, including both the tools and services are readily available, eliminating the need for manual setup.
+
+Run below command in hyperswitch directory
+
+   ```shell
+   nix develop
+   ```
+
+**NOTE:** This is a work in progress, and only a selected commands are available at the moment. Look in `flake.nix` (hyperswitch-shell) for a full list of packages.
 
 ## Set up a Rust environment and other dependencies
 
@@ -681,3 +722,5 @@ To explore more of our APIs, please check the remaining folders in the
 [refunds-create]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-4d1315c6-ac61-4411-8f7d-15d4e4e736a1
 [refunds-retrieve]: https://www.postman.com/hyperswitch/workspace/hyperswitch-development/request/25176162-137d6260-24f7-4752-9e69-26b61b83df0d
 [connector-specific-details]: https://docs.google.com/spreadsheets/d/e/2PACX-1vQWHLza9m5iO4Ol-tEBx22_Nnq8Mb3ISCWI53nrinIGLK8eHYmHGnvXFXUXEut8AFyGyI9DipsYaBLG/pubhtml?gid=748960791&single=true
+[detsys-nixos-installer]: https://nixos.asia/en/install
+[nixos-unified-template-repo]: https://github.com/juspay/nixos-unified-template#on-non-nixos
