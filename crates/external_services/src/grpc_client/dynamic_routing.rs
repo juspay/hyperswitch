@@ -75,6 +75,7 @@ impl DynamicRoutingClientConfig {
         let success_rate_client = match self {
             Self::Enabled { host, port, .. } => {
                 let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
+                logger::info!("Connection established with dynamic routing gRPC Server");
                 Some(SuccessRateCalculatorClient::with_origin(client, uri))
             }
             Self::Disabled => None,
@@ -93,6 +94,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse>;
     /// To update the success rate with the given label
@@ -100,6 +102,7 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
 }
@@ -110,24 +113,9 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         label_input: Vec<RoutableConnectorChoice>,
     ) -> DynamicRoutingResult<CalSuccessRateResponse> {
-        let params = success_rate_based_config
-            .params
-            .map(|vec| {
-                vec.into_iter().fold(String::new(), |mut acc_str, params| {
-                    if !acc_str.is_empty() {
-                        acc_str.push(':')
-                    }
-                    acc_str.push_str(params.to_string().as_str());
-                    acc_str
-                })
-            })
-            .get_required_value("params")
-            .change_context(DynamicRoutingError::MissingRequiredField {
-                field: "params".to_string(),
-            })?;
-
         let labels = label_input
             .into_iter()
             .map(|conn_choice| conn_choice.to_string())
@@ -162,6 +150,7 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
         &self,
         id: String,
         success_rate_based_config: SuccessBasedRoutingConfig,
+        params: String,
         label_input: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse> {
         let config = success_rate_based_config
@@ -176,22 +165,6 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
                 status: conn_choice.status,
             })
             .collect();
-
-        let params = success_rate_based_config
-            .params
-            .map(|vec| {
-                vec.into_iter().fold(String::new(), |mut acc_str, params| {
-                    if !acc_str.is_empty() {
-                        acc_str.push(':')
-                    }
-                    acc_str.push_str(params.to_string().as_str());
-                    acc_str
-                })
-            })
-            .get_required_value("params")
-            .change_context(DynamicRoutingError::MissingRequiredField {
-                field: "params".to_string(),
-            })?;
 
         let request = tonic::Request::new(UpdateSuccessRateWindowRequest {
             id,

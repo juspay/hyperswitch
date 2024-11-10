@@ -12,11 +12,16 @@ use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 use health_check_client::HealthCheckClient;
 use serde;
 
+#[cfg(feature = "dynamic_routing")]
 use http_body_util::combinators::UnsyncBoxBody;
+#[cfg(feature = "dynamic_routing")]
 use hyper::body::Bytes;
+#[cfg(feature = "dynamic_routing")]
 use hyper_util::client::legacy::connect::HttpConnector;
+#[cfg(feature = "dynamic_routing")]
 use tonic::Status;
 
+#[cfg(feature = "dynamic_routing")]
 /// Hyper based Client type for maintaining connection pool for all gRPC services
 pub type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
 
