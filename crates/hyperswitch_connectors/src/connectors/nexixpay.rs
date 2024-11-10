@@ -480,31 +480,17 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        if data.request.connector_mandate_id().is_none() {
-            let response: nexixpay::NexixpayPaymentsResponse = res
-                .response
-                .parse_struct("NexixpayPaymentsResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            event_builder.map(|i| i.set_response_body(&response));
-            router_env::logger::info!(connector_response=?response);
-            RouterData::try_from(ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        } else {
-            let response: nexixpay::NexixpayMandateResponse = res
-                .response
-                .parse_struct("NexixpayMandateResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            event_builder.map(|i| i.set_response_body(&response));
-            router_env::logger::info!(connector_response=?response);
-            RouterData::try_from(ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        }
+        let response: nexixpay::NexixpayPaymentsResponse = res
+            .response
+            .parse_struct("NexixpayPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
