@@ -280,7 +280,7 @@ impl
         req: &types::authentication::PreAuthNRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = NetceteraRouterData::try_from((MinorUnit::zero(), req))?;
+        let connector_router_data = NetceteraRouterData::try_from((Some(MinorUnit::zero()), req))?;
         let req_obj =
             netcetera::NetceteraPreAuthenticationRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(req_obj)))
@@ -378,18 +378,22 @@ impl
         req: &types::authentication::ConnectorAuthenticationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let currency =
-            req.request
-                .currency
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
-        let amount = req.request.amount.map(MinorUnit::new).ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            },
-        )?;
-        let amount = utils::convert_amount(self.amount_convertor, amount, currency)?;
+        let amount = match req.request.amount {
+            Some(amount) => {
+                let currency =
+                    req.request
+                        .currency
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "currency",
+                        })?;
+                Some(utils::convert_amount(
+                    self.amount_convertor,
+                    MinorUnit::new(amount),
+                    currency,
+                )?)
+            }
+            None => None,
+        };
         let connector_router_data = NetceteraRouterData::try_from((amount, req))?;
         let req_obj = netcetera::NetceteraAuthenticationRequest::try_from(&connector_router_data);
         Ok(RequestContent::Json(Box::new(req_obj?)))

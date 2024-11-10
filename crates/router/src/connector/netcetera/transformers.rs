@@ -13,13 +13,13 @@ use crate::{
 
 //TODO: Fill the struct with respective fields
 pub struct NetceteraRouterData<T> {
-    pub amount: MinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: Option<MinorUnit>, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> TryFrom<(MinorUnit, T)> for NetceteraRouterData<T> {
+impl<T> TryFrom<(Option<MinorUnit>, T)> for NetceteraRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from((amount, router_data): (MinorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, router_data): (Option<MinorUnit>, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
@@ -470,7 +470,7 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         let purchase = netcetera_types::Purchase {
             purchase_instal_data: None,
             merchant_risk_indicator: None,
-            purchase_amount: Some(item.amount),
+            purchase_amount: item.amount,
             purchase_currency: currency.iso_4217().to_string(),
             purchase_exponent: currency.number_of_digits_after_decimal_point(),
             purchase_date: Some(
