@@ -1,5 +1,5 @@
 use std::{collections::HashMap, str::FromStr, time::Instant};
-use masking::PeekInterface;
+
 use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
@@ -7,16 +7,15 @@ use api_models::{
     payment_methods::{PaymentsMandateReference, PaymentsMandateReferenceRecord},
     webhooks::{self, WebhookResponseTracker},
 };
-
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::AsyncExt};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payments::{HeaderPayload, payment_attempt::PaymentAttempt},
+    payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
 
 use super::{types, utils, MERCHANT_ID};
@@ -48,7 +47,7 @@ use crate::{
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
-    utils::{self as helper_utils, generate_id,ext_traits::OptionExt},
+    utils::{self as helper_utils, ext_traits::OptionExt, generate_id},
 };
 #[cfg(feature = "payouts")]
 use crate::{core::payouts, types::storage::PayoutAttemptUpdate};
@@ -569,7 +568,20 @@ async fn payments_incoming_webhook_flow(
                 HeaderPayload::default(),
             ))
             .await;
-            webhook_details.connector_mandate_details.as_ref().async_map(|details| update_connector_mandate_details(&state,&merchant_account,&key_store, details.clone(), webhook_details.object_reference_id.clone(), source_verified)).await;
+            webhook_details
+                .connector_mandate_details
+                .as_ref()
+                .async_map(|details| {
+                    update_connector_mandate_details(
+                        &state,
+                        &merchant_account,
+                        &key_store,
+                        details.clone(),
+                        webhook_details.object_reference_id.clone(),
+                        source_verified,
+                    )
+                })
+                .await;
             lock_action
                 .free_lock_action(&state, merchant_account.get_id().to_owned())
                 .await?;
@@ -879,10 +891,7 @@ async fn get_payment_attempt_from_object_reference_id(
     state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
-) -> CustomResult<
-    PaymentAttempt,
-    errors::ApiErrorResponse,
-> {
+) -> CustomResult<PaymentAttempt, errors::ApiErrorResponse> {
     let db = &*state.store;
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
@@ -1727,7 +1736,6 @@ async fn fetch_optional_mca_and_connector(
     }
 }
 
-
 async fn update_connector_mandate_details(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -1736,8 +1744,9 @@ async fn update_connector_mandate_details(
     object_ref_id: api::ObjectReferenceId,
     source_verified: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    let payment_attempt = get_payment_attempt_from_object_reference_id(&state, object_ref_id, &merchant_account)
-        .await?;
+    let payment_attempt =
+        get_payment_attempt_from_object_reference_id(&state, object_ref_id, &merchant_account)
+            .await?;
     if should_update_connector_mandate_details(&payment_attempt, source_verified) {
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id {
             let key_manager_state = &state.into();
@@ -1779,8 +1788,7 @@ fn should_update_connector_mandate_details(
     payment_attempt: &PaymentAttempt,
     source_verified: bool,
 ) -> bool {
-    payment_attempt.status == enums::AttemptStatus::Charged
-        &&source_verified
+    payment_attempt.status == enums::AttemptStatus::Charged && source_verified
 }
 
 fn prepare_updated_connector_mandate_details(
@@ -1788,12 +1796,22 @@ fn prepare_updated_connector_mandate_details(
     connector_mandate_details: &webhooks::ConnectorMandateDetails,
 ) -> CustomResult<Option<serde_json::Value>, errors::ApiErrorResponse> {
     let mandate_reference = Some(PaymentsMandateReference(HashMap::from([(
-        payment_attempt.merchant_connector_id.clone().get_required_value("merchant_connector_id")?,
+        payment_attempt
+            .merchant_connector_id
+            .clone()
+            .get_required_value("merchant_connector_id")?,
         PaymentsMandateReferenceRecord {
-            connector_mandate_id: connector_mandate_details.connector_mandate_id.peek().to_string(),
+            connector_mandate_id: connector_mandate_details
+                .connector_mandate_id
+                .peek()
+                .to_string(),
             payment_method_type: payment_attempt.payment_method_type.clone(),
-            original_payment_authorized_amount: Some(payment_attempt.net_amount.get_total_amount()
-            .get_amount_as_i64()),
+            original_payment_authorized_amount: Some(
+                payment_attempt
+                    .net_amount
+                    .get_total_amount()
+                    .get_amount_as_i64(),
+            ),
             original_payment_authorized_currency: payment_attempt.currency.clone(),
         },
     )])));

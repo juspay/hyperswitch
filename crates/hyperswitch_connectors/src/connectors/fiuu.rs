@@ -928,7 +928,7 @@ impl webhooks::IncomingWebhook for Fiuu {
                     }
                 });
                 Ok(mandate_reference)
-            },
+            }
             FiuuWebhooksResponse::FiuuWebhookRefundResponse(_webhook_refund_response) => Ok(None),
         }
     }
