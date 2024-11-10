@@ -10,14 +10,13 @@ use std::{fmt::Debug, sync::Arc};
 use dynamic_routing::{DynamicRoutingClientConfig, RoutingStrategy};
 #[cfg(feature = "dynamic_routing")]
 use health_check_client::HealthCheckClient;
-use serde;
-
 #[cfg(feature = "dynamic_routing")]
 use http_body_util::combinators::UnsyncBoxBody;
 #[cfg(feature = "dynamic_routing")]
 use hyper::body::Bytes;
 #[cfg(feature = "dynamic_routing")]
 use hyper_util::client::legacy::connect::HttpConnector;
+use serde;
 #[cfg(feature = "dynamic_routing")]
 use tonic::Status;
 
