@@ -1,13 +1,17 @@
-use std::{str::FromStr, time::Instant};
-
+use std::{collections::HashMap, str::FromStr, time::Instant};
+use masking::PeekInterface;
 use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
-use api_models::webhooks::{self, WebhookResponseTracker};
-use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
+use api_models::{
+    payment_methods::{PaymentsMandateReference, PaymentsMandateReferenceRecord},
+    webhooks::{self, WebhookResponseTracker},
+};
+
+use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::AsyncExt};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payments::HeaderPayload,
+    payments::{HeaderPayload, payment_attempt::PaymentAttempt},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
@@ -44,7 +48,7 @@ use crate::{
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
-    utils::{self as helper_utils, generate_id},
+    utils::{self as helper_utils, generate_id,ext_traits::OptionExt},
 };
 #[cfg(feature = "payouts")]
 use crate::{core::payouts, types::storage::PayoutAttemptUpdate};
@@ -245,6 +249,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .get_webhook_object_reference_id(&request_details)
             .switch()
             .attach_printable("Could not find object reference id in incoming webhook body")?;
+        let connector_mandate_details = connector
+            .get_mandate_details(&request_details)
+            .switch()
+            .attach_printable("Could not find connector mandate details incoming webhook body")?;
         let connector_enum = api_models::enums::Connector::from_str(&connector_name)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector",
@@ -343,6 +351,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .attach_printable(
                     "There was an issue when encoding the incoming webhook body to bytes",
                 )?,
+            connector_mandate_details,
         };
 
         let profile_id = &merchant_connector_account.profile_id;
@@ -507,7 +516,7 @@ async fn payments_incoming_webhook_flow(
         payments::CallConnectorAction::Trigger
     };
     let payments_response = match webhook_details.object_reference_id {
-        webhooks::ObjectReferenceId::PaymentId(id) => {
+        webhooks::ObjectReferenceId::PaymentId(ref id) => {
             let payment_id = get_payment_id(
                 state.store.as_ref(),
                 &id,
@@ -544,7 +553,7 @@ async fn payments_incoming_webhook_flow(
                 key_store.clone(),
                 payments::operations::PaymentStatus,
                 api::PaymentsRetrieveRequest {
-                    resource_id: id,
+                    resource_id: id.clone(),
                     merchant_id: Some(merchant_account.get_id().clone()),
                     force_sync: true,
                     connector: None,
@@ -555,12 +564,12 @@ async fn payments_incoming_webhook_flow(
                     expand_captures: None,
                 },
                 services::AuthFlow::Merchant,
-                consume_or_trigger_flow,
+                consume_or_trigger_flow.clone(),
                 None,
                 HeaderPayload::default(),
             ))
             .await;
-
+            webhook_details.connector_mandate_details.as_ref().async_map(|details| update_connector_mandate_details(&state,&merchant_account,&key_store, details.clone(), webhook_details.object_reference_id.clone(), source_verified)).await;
             lock_action
                 .free_lock_action(&state, merchant_account.get_id().to_owned())
                 .await?;
@@ -576,6 +585,7 @@ async fn payments_incoming_webhook_flow(
                         .webhooks
                         .ignore_error
                         .payment_not_found
+                        .clone()
                         .unwrap_or(true) =>
                 {
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
@@ -870,7 +880,7 @@ async fn get_payment_attempt_from_object_reference_id(
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<
-    hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    PaymentAttempt,
     errors::ApiErrorResponse,
 > {
     let db = &*state.store;
@@ -911,7 +921,7 @@ async fn get_or_update_dispute_object(
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &common_utils::id_type::MerchantId,
     organization_id: &common_utils::id_type::OrganizationId,
-    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     event_type: webhooks::IncomingWebhookEvent,
     business_profile: &domain::Profile,
     connector_name: &str,
@@ -1715,4 +1725,81 @@ async fn fetch_optional_mca_and_connector(
             get_connector_by_connector_name(state, connector_name_or_mca_id, None)?;
         Ok((None, connector, connector_name))
     }
+}
+
+
+async fn update_connector_mandate_details(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    connector_mandate_details: webhooks::ConnectorMandateDetails,
+    object_ref_id: api::ObjectReferenceId,
+    source_verified: bool,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let payment_attempt = get_payment_attempt_from_object_reference_id(&state, object_ref_id, &merchant_account)
+        .await?;
+    if should_update_connector_mandate_details(&payment_attempt, source_verified) {
+        if let Some(ref payment_method_id) = payment_attempt.payment_method_id {
+            let key_manager_state = &state.into();
+            let payment_method_info = state
+                .store
+                .find_payment_method(
+                    key_manager_state,
+                    &key_store,
+                    &payment_method_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+            let updated_connector_mandate_details = prepare_updated_connector_mandate_details(
+                &payment_attempt,
+                &connector_mandate_details,
+            )?;
+            let pm_update = diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+                connector_mandate_details: updated_connector_mandate_details,
+            };
+            state
+                .store
+                .update_payment_method(
+                    key_manager_state,
+                    &key_store,
+                    payment_method_info,
+                    pm_update,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to update payment method in db")?;
+        }
+    }
+    Ok(())
+}
+
+fn should_update_connector_mandate_details(
+    payment_attempt: &PaymentAttempt,
+    source_verified: bool,
+) -> bool {
+    payment_attempt.status == enums::AttemptStatus::Charged
+        &&source_verified
+}
+
+fn prepare_updated_connector_mandate_details(
+    payment_attempt: &PaymentAttempt,
+    connector_mandate_details: &webhooks::ConnectorMandateDetails,
+) -> CustomResult<Option<serde_json::Value>, errors::ApiErrorResponse> {
+    let mandate_reference = Some(PaymentsMandateReference(HashMap::from([(
+        payment_attempt.merchant_connector_id.clone().get_required_value("merchant_connector_id")?,
+        PaymentsMandateReferenceRecord {
+            connector_mandate_id: connector_mandate_details.connector_mandate_id.peek().to_string(),
+            payment_method_type: payment_attempt.payment_method_type.clone(),
+            original_payment_authorized_amount: Some(payment_attempt.net_amount.get_total_amount()
+            .get_amount_as_i64()),
+            original_payment_authorized_currency: payment_attempt.currency.clone(),
+        },
+    )])));
+
+    mandate_reference
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
 }

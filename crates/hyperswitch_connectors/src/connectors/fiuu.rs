@@ -42,7 +42,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::multipart::Form;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use transformers::{self as fiuu, FiuuWebhooksResponse};
+use transformers::{self as fiuu, ExtraParameters, FiuuWebhooksResponse};
 
 use crate::{
     constants::headers,
@@ -888,6 +888,48 @@ impl webhooks::IncomingWebhook for Fiuu {
                     webhook_refund_response,
                 )))
             }
+        }
+    }
+
+    fn get_mandate_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<api_models::webhooks::ConnectorMandateDetails>, errors::ConnectorError>
+    {
+        let header = utils::get_header_key_value("content-type", request.headers)?;
+        let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+        };
+        match payload.clone() {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhook_payment_response) => {
+                let mandate_reference = webhook_payment_response.extra_parameters.as_ref().and_then(|extra_p| {
+                    let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(extra_p);
+                    match mandate_token {
+                        Ok(token) => {
+                            token.token.as_ref().map(|token| api_models::webhooks::ConnectorMandateDetails {
+                                connector_mandate_id:token.clone(),
+                            })
+                        }
+                        Err(err) => {
+                            router_env::logger::warn!(
+                                "Failed to convert 'extraP' from fiuu webhook response to fiuu::ExtraParameters. \
+                                 Input: '{}', Error: {}",
+                                extra_p,
+                                err
+                            );
+                            None
+                        }
+                    }
+                });
+                Ok(mandate_reference)
+            },
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(_webhook_refund_response) => Ok(None),
         }
     }
 }

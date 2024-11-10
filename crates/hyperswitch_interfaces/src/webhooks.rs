@@ -226,4 +226,12 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         )
         .into())
     }
+
+    /// fn get_mandate_details
+    fn get_mandate_details(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<api_models::webhooks::ConnectorMandateDetails>, errors::ConnectorError> {
+        Ok(None)
+    }
 }

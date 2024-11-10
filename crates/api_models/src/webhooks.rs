@@ -202,6 +202,7 @@ pub enum ObjectReferenceId {
 pub struct IncomingWebhookDetails {
     pub object_reference_id: ObjectReferenceId,
     pub resource_object: Vec<u8>,
+    pub connector_mandate_details: Option<ConnectorMandateDetails>
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -245,4 +246,9 @@ pub enum OutgoingWebhookContent {
 pub struct ConnectorWebhookSecrets {
     pub secret: Vec<u8>,
     pub additional_secret: Option<masking::Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConnectorMandateDetails {
+    pub connector_mandate_id : masking::Secret<String>,
 }

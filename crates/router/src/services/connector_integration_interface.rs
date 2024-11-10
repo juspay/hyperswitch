@@ -306,6 +306,16 @@ impl api::IncomingWebhook for ConnectorEnum {
             Self::New(connector) => connector.get_external_authentication_details(request),
         }
     }
+
+    fn get_mandate_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<api_models::webhooks::ConnectorMandateDetails>, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.get_mandate_details(request),
+            Self::New(connector) => connector.get_mandate_details(request),
+        }
+    }
 }
 
 impl api::ConnectorTransactionId for ConnectorEnum {
