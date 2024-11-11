@@ -1,3 +1,4 @@
+use api_models::payments::Amount;
 use common_utils::types::MinorUnit;
 use diesel_models::fraud_check::FraudCheck;
 use events::{Event, EventInfo};
@@ -26,6 +27,9 @@ pub enum AuditEventType {
     PaymentCapture {
         capture_amount: Option<MinorUnit>,
         multiple_capture_count: Option<i16>,
+    },
+    PaymentUpdate {
+        amount: Amount,
     },
     PaymentApprove,
     PaymentCreate,
@@ -67,6 +71,7 @@ impl Event for AuditEvent {
             AuditEventType::RefundSuccess => "refund_success",
             AuditEventType::RefundFail => "refund_fail",
             AuditEventType::PaymentCancelled { .. } => "payment_cancelled",
+            AuditEventType::PaymentUpdate { .. } => "payment_update",
             AuditEventType::PaymentApprove { .. } => "payment_approve",
             AuditEventType::PaymentCreate { .. } => "payment_create",
         };
