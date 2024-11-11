@@ -82,7 +82,7 @@ pub struct TaxCalculationResponseData {
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
