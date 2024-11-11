@@ -1065,6 +1065,7 @@ pub struct Payouts;
 
 #[cfg(feature = "payouts")]
 impl Payouts {
+    #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/payouts").app_data(web::Data::new(state))
     }
