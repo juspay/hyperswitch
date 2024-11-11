@@ -18,8 +18,8 @@ use crate::{
         payments::{
             call_multiple_connectors_service,
             flows::{ConstructFlowSpecificData, Feature},
-            get_connector_choice_for_sdk_session_token, operations,
-            operations::{BoxedOperation, Operation, PaymentResponse},
+            operations,
+            operations::{BoxedOperation, Operation},
             transformers, OperationSessionGetters, OperationSessionSetters,
         },
     },
@@ -28,7 +28,7 @@ use crate::{
     services,
     types::{
         self as router_types,
-        api::{self, ConnectorCallType},
+        api::{self, ConnectorChoice},
         domain,
     },
 };
@@ -154,45 +154,39 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    let connector = get_connector_choice_for_sdk_session_token(
-        &operation,
-        state,
-        &req,
-        &merchant_account,
-        &profile,
-        &key_store,
-        &mut payment_data,
-        None,
-        None,
-    )
-    .await?;
+    let connector = operation
+        .to_domain()?
+        .get_connector(
+            &merchant_account,
+            &state.clone(),
+            &req,
+            payment_data.get_payment_intent(),
+            &key_store,
+        )
+        .await?;
 
     // TODO: do not use if let
-    let payment_data = if let Some(connector_call_type) = connector {
-        match connector_call_type {
-            ConnectorCallType::PreDetermined(_connectors) => {
-                todo!()
-            }
-            ConnectorCallType::Retryable(_connectors) => todo!(),
-            ConnectorCallType::SessionMultiple(connectors) => {
-                // todo: call surcharge manager for session token call.
-                Box::pin(call_multiple_connectors_service(
-                    state,
-                    &merchant_account,
-                    &key_store,
-                    connectors,
-                    &operation,
-                    payment_data,
-                    &customer,
-                    None,
-                    &profile,
-                    header_payload.clone(),
-                ))
-                .await?
-            }
+    let payment_data = match connector {
+        ConnectorChoice::StraightThrough(_connectors) => {
+            todo!()
         }
-    } else {
-        todo!()
+        ConnectorChoice::Decide => todo!(),
+        ConnectorChoice::SessionMultiple(connectors) => {
+            // todo: call surcharge manager for session token call.
+            Box::pin(call_multiple_connectors_service(
+                state,
+                &merchant_account,
+                &key_store,
+                connectors,
+                &operation,
+                payment_data,
+                &customer,
+                None,
+                &profile,
+                header_payload.clone(),
+            ))
+            .await?
+        }
     };
 
     Ok((payment_data, req, customer, None, None))

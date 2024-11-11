@@ -4476,43 +4476,7 @@ where
     };
     Ok(connector)
 }
-#[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-pub async fn get_connector_choice_for_sdk_session_token<F, Req, D>(
-    operation: &BoxedOperation<'_, F, Req, D>,
-    state: &SessionState,
-    req: &Req,
-    merchant_account: &domain::MerchantAccount,
-    _business_profile: &domain::Profile,
-    key_store: &domain::MerchantKeyStore,
-    payment_data: &mut D,
-    _eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
-    _mandate_type: Option<api::MandateTransactionType>,
-) -> RouterResult<Option<ConnectorCallType>>
-where
-    F: Send + Clone,
-    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
-{
-    let connector_choice = operation
-        .to_domain()?
-        .get_connector(
-            merchant_account,
-            &state.clone(),
-            req,
-            payment_data.get_payment_intent(),
-            key_store,
-        )
-        .await?;
 
-    let connector = Some(match connector_choice {
-        api::ConnectorChoice::SessionMultiple(connectors) => {
-            // todo perform session routing here
-            ConnectorCallType::SessionMultiple(connectors)
-        }
-        _ => return Err(errors::ApiErrorResponse::InternalServerError.into()),
-    });
-    Ok(connector)
-}
 async fn get_eligible_connector_for_nti<T: core_routing::GetRoutableConnectorsForChoice, F, D>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
