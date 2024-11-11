@@ -65,16 +65,7 @@ pub async fn create_role(
     _req_state: ReqState,
 ) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
     let now = common_utils::date_time::now();
-    let role_name = RoleName::new(req.role_name)?;
 
-    utils::user_role::validate_role_groups(&req.groups)?;
-    utils::user_role::validate_role_name(
-        &state,
-        &role_name,
-        &user_from_token.merchant_id,
-        &user_from_token.org_id,
-    )
-    .await?;
     let user_entity_type = user_from_token
         .get_role_info_from_db(&state)
         .await
@@ -88,20 +79,39 @@ pub async fn create_role(
             .attach_printable("User trying to create org level custom role");
     }
 
+    let requestor_entity_from_role_scope = EntityType::from(req.role_scope);
+
+    if !(user_entity_type >= role_entity_type) {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "{} is trying to create {} ",
+            user_entity_type, role_entity_type
+        ));
+    } else if !(user_entity_type >= requestor_entity_from_role_scope) {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "{} is trying to create role of scope {} ",
+            user_entity_type, requestor_entity_from_role_scope
+        ));
+    } else if !(requestor_entity_from_role_scope >= role_entity_type) {
+        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
+            "User is trying to create role of type {} and scope {}",
+            requestor_entity_from_role_scope, role_entity_type
+        ));
+    }
+
+    let role_name = RoleName::new(req.role_name)?;
+
+    utils::user_role::validate_role_groups(&req.groups)?;
+    utils::user_role::validate_role_name(
+        &state,
+        &role_name,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await?;
+
     let profile_id = matches!(role_entity_type, EntityType::Profile)
         .then_some(user_from_token.profile_id)
         .flatten();
-
-    let requestor_entity_from_role_scope = EntityType::from(req.role_scope);
-    if !(user_entity_type >= role_entity_type
-        && user_entity_type >= requestor_entity_from_role_scope
-        && requestor_entity_from_role_scope >= role_entity_type)
-    {
-        return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
-            "{} is trying to create {} role at scope {}",
-            user_entity_type, role_entity_type, req.role_scope
-        ));
-    }
 
     let role = state
         .store
