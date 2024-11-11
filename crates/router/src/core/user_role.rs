@@ -120,7 +120,7 @@ pub async fn update_user_role(
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V2,
         )
         .await
@@ -174,7 +174,7 @@ pub async fn update_user_role(
                 user_to_be_updated.get_user_id(),
                 &user_from_token.org_id,
                 Some(&user_from_token.merchant_id),
-                user_from_token.profile_id.as_ref(),
+                Some(&user_from_token.profile_id),
                 UserRoleUpdate::UpdateRole {
                     role_id: req.role_id.clone(),
                     modified_by: user_from_token.user_id.clone(),
@@ -193,7 +193,7 @@ pub async fn update_user_role(
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V1,
         )
         .await
@@ -247,7 +247,7 @@ pub async fn update_user_role(
                 user_to_be_updated.get_user_id(),
                 &user_from_token.org_id,
                 Some(&user_from_token.merchant_id),
-                user_from_token.profile_id.as_ref(),
+                Some(&user_from_token.profile_id),
                 UserRoleUpdate::UpdateRole {
                     role_id: req.role_id.clone(),
                     modified_by: user_from_token.user_id,
@@ -434,7 +434,7 @@ pub async fn delete_user_role(
             user_from_db.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V2,
         )
         .await
@@ -481,7 +481,7 @@ pub async fn delete_user_role(
                 user_from_db.get_user_id(),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
-                user_from_token.profile_id.as_ref(),
+                &user_from_token.profile_id,
                 UserRoleVersion::V2,
             )
             .await
@@ -496,7 +496,7 @@ pub async fn delete_user_role(
             user_from_db.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V1,
         )
         .await
@@ -543,7 +543,7 @@ pub async fn delete_user_role(
                 user_from_db.get_user_id(),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
-                user_from_token.profile_id.as_ref(),
+                &user_from_token.profile_id,
                 UserRoleVersion::V1,
             )
             .await
@@ -635,17 +635,13 @@ pub async fn list_users_in_lineage(
             .await?
         }
         EntityType::Profile => {
-            let Some(profile_id) = user_from_token.profile_id.as_ref() else {
-                return Err(UserErrors::JwtProfileIdMissing.into());
-            };
-
             utils::user_role::fetch_user_roles_by_payload(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
-                    profile_id: Some(profile_id),
+                    profile_id: Some(&user_from_token.profile_id),
                     version: None,
                     limit: None,
                 },

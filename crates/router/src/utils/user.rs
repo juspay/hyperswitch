@@ -99,7 +99,7 @@ pub async fn generate_jwt_auth_token_with_attributes(
         role_id,
         &state.conf,
         org_id,
-        Some(profile_id),
+        profile_id,
     )
     .await?;
     Ok(Secret::new(token))
