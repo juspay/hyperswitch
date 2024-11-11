@@ -365,11 +365,6 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
     },
-    /// Update the payment intent details on payment intent session token call, before calling the connector
-    MetadataUpdate {
-        metadata: masking::Secret<serde_json::Value>,
-        updated_by: String,
-    },
 }
 
 #[cfg(feature = "v1")]
@@ -523,7 +518,7 @@ pub struct PaymentIntentUpdateInternal {
     // pub customer_id: Option<common_utils::id_type::CustomerId>,
     // pub return_url: Option<>,
     // pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub metadata: Option<pii::SecretSerdeValue>,
+    // pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
     // pub active_attempt_id: Option<String>,
     // pub description: Option<String>,
@@ -597,7 +592,7 @@ impl PaymentIntentUpdate {
             // customer_id,
             // return_url,
             // setup_future_usage,
-            metadata,
+            // metadata,
             modified_at: _,
             // active_attempt_id,
             // description,
@@ -623,7 +618,7 @@ impl PaymentIntentUpdate {
             // customer_id: customer_id.or(source.customer_id),
             // return_url: return_url.or(source.return_url),
             // setup_future_usage: setup_future_usage.or(source.setup_future_usage),
-            metadata: metadata.or(source.metadata),
+            // metadata: metadata.or(source.metadata),
             modified_at: common_utils::date_time::now(),
             // active_attempt_id: active_attempt_id.unwrap_or(source.active_attempt_id),
             // description: description.or(source.description),
@@ -743,22 +738,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::ConfirmIntent { status, updated_by } => Self {
                 status: Some(status),
                 modified_at: common_utils::date_time::now(),
-                metadata: None,
                 updated_by,
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
                 status: Some(status),
                 modified_at: common_utils::date_time::now(),
-                metadata: None,
-                updated_by,
-            },
-            PaymentIntentUpdate::MetadataUpdate {
-                metadata,
-                updated_by,
-            } => Self {
-                status: None,
-                modified_at: common_utils::date_time::now(),
-                metadata: Some(metadata),
                 updated_by,
             },
         }
