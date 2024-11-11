@@ -226,6 +226,9 @@ pub enum FieldType {
     UserIban,
     BrowserLanguage,
     BrowserIp,
+    UserMsisdn,
+    UserClientIdentifier,
+    OrderDetailsProductName,
 }
 
 impl FieldType {
@@ -316,6 +319,9 @@ impl PartialEq for FieldType {
             (Self::UserCpf, Self::UserCpf) => true,
             (Self::UserCnpj, Self::UserCnpj) => true,
             (Self::LanguagePreference { .. }, Self::LanguagePreference { .. }) => true,
+            (Self::UserMsisdn, Self::UserMsisdn) => true,
+            (Self::UserClientIdentifier, Self::UserClientIdentifier) => true,
+            (Self::OrderDetailsProductName, Self::OrderDetailsProductName) => true,
             _unused => false,
         }
     }

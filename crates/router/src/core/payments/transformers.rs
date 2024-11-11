@@ -2004,16 +2004,25 @@ pub fn voucher_next_steps_check(
 pub fn mobile_payment_next_steps_check(
     payment_attempt: &storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::MobilePaymentNextStepData>> {
-    payment_attempt
-        .connector_metadata
-        .clone()
-        .map(|metadata| {
-            metadata
-                .parse_value("MobilePaymentNextStepData")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse the Value to NextRequirements struct")
-        })
-        .transpose()
+    let mobile_payment_next_step = if let Some(diesel_models::enums::PaymentMethod::MobilePayment) =
+        payment_attempt.payment_method
+    {
+        let mobile_paymebnt_next_steps: Option<api_models::payments::MobilePaymentNextStepData> =
+            payment_attempt
+                .connector_metadata
+                .clone()
+                .map(|metadata| {
+                    metadata
+                        .parse_value("MobilePaymentNextStepData")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse the Value to NextRequirements struct")
+                })
+                .transpose()?;
+        mobile_paymebnt_next_steps
+    } else {
+        None
+    };
+    Ok(mobile_payment_next_step)
 }
 
 pub fn change_order_details_to_new_type(
