@@ -1018,26 +1018,22 @@ Cypress.Commands.add(
 
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
-        expect(response.body.client_secret, "client_secret").to.equal(
-          response.body.client_secret
-        );
-        expect(response.body.payment_method_id, "payment_method_id").to.equal(
-          response.body.payment_method_id
-        );
-        expect(response.body.merchant_id, "merchant_id").to.equal(
-          response.body.merchant_id
-        );
-        expect(response.body.payment_method, "payment_method").to.equal(
-          response.body.payment_method
-        );
+        expect(response.body.client_secret, "client_secret").to.not.be.null;
+        expect(response.body.payment_method_id, "payment_method_id").to.not.be
+          .null;
+        expect(response.body.merchant_id, "merchant_id").to.not.be.null;
         expect(
-          response.body.payment_method_type,
+          createPaymentMethodBody.payment_method_type,
           "payment_method_type"
         ).to.equal(response.body.payment_method_type);
-        expect(response.body.last_used_at, "last_used_at").to.equal(
-          response.body.last_used_at
-        );
-        expect(response.body.customer_id, "customer_id").to.equal(
+        expect(
+          createPaymentMethodBody.payment_method,
+          "payment_method"
+        ).to.equal(response.body.payment_method);
+        expect(response.body.card, "card").to.not.be.empty;
+        expect(response.body.card, "card").to.be.an("object");
+        expect(response.body.last_used_at, "last_used_at").to.not.be.null;
+        expect(createPaymentMethodBody.customer_id, "customer_id").to.equal(
           response.body.customer_id
         );
         globalState.set("paymentMethodId", response.body.payment_method_id);
