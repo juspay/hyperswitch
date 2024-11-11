@@ -56,6 +56,13 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "999",
 };
 
+const PaymentMethodCardDetails = {
+  card_number: "4111111145551142",
+  card_exp_month: "03",
+  card_exp_year: "30",
+  card_holder_name: "Joseph Doe",
+};
+
 const singleUseMandateData = {
   customer_acceptance: {
     acceptance_type: "offline",
@@ -959,6 +966,19 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentMethod: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_issuer: "Gpay",
+        payment_method_issuer_code: "jp_hdfc",
+        card: PaymentMethodCardDetails,
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",

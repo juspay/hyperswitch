@@ -31,11 +31,14 @@ describe("Payment Methods Tests", () => {
     });
 
     it("Create Payment Method", () => {
-      cy.createPaymentMethodTest(fixtures.createPaymentMethodBody, globalState);
+      let data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createPaymentMethodTest(globalState, req_data, res_data);
+    });
 
-      it("List PM for customer", () => {
-        cy.listCustomerPMCallTest(globalState);
-      });
+    it("List PM for customer", () => {
+      cy.listCustomerPMCallTest(globalState);
     });
   });
 
@@ -53,7 +56,10 @@ describe("Payment Methods Tests", () => {
     });
 
     it("Create Payment Method", () => {
-      cy.createPaymentMethodTest(fixtures.createPaymentMethodBody, globalState);
+      let data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
+      let req_data = data["Request"];
+      let res_data = data["Response"];
+      cy.createPaymentMethodTest(globalState, req_data, res_data);
     });
 
     it("create-payment-call-test", () => {

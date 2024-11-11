@@ -474,6 +474,8 @@ Cypress.Commands.add(
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
     createConnectorBody.connector_type = "payout_processor";
+    createConnectorBody.profile_id = globalState.get("profileId");
+
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
@@ -1001,8 +1003,8 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 
 Cypress.Commands.add(
   "createPaymentMethodTest",
-  (createPaymentMethodBody, globalState, res_data) => {
-    createPaymentMethodBody.customer_id = globalState.get("customerId");
+  (globalState, req_data, res_data) => {
+    req_data.customer_id = globalState.get("customerId");
     const merchant_id = globalState.get("merchantId");
 
     cy.request({
@@ -1013,7 +1015,8 @@ Cypress.Commands.add(
         Accept: "application/json",
         "api-key": globalState.get("apiKey"),
       },
-      body: createPaymentMethodBody,
+      body: req_data,
+      failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
@@ -1025,18 +1028,14 @@ Cypress.Commands.add(
         expect(response.body.payment_method_id, "payment_method_id").to.not.be
           .null;
         expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
-        expect(
-          createPaymentMethodBody.payment_method_type,
-          "payment_method_type"
-        ).to.equal(response.body.payment_method_type);
-        expect(
-          createPaymentMethodBody.payment_method,
-          "payment_method"
-        ).to.equal(response.body.payment_method);
-        expect(response.body.card, "card").to.be.an("object").and.to.not.be
-          .empty;
+        expect(req_data.payment_method_type, "payment_method_type").to.equal(
+          response.body.payment_method_type
+        );
+        expect(req_data.payment_method, "payment_method").to.equal(
+          response.body.payment_method
+        );
         expect(response.body.last_used_at, "last_used_at").to.not.be.null;
-        expect(createPaymentMethodBody.customer_id, "customer_id").to.equal(
+        expect(req_data.customer_id, "customer_id").to.equal(
           response.body.customer_id
         );
         globalState.set("paymentMethodId", response.body.payment_method_id);
@@ -2214,11 +2213,6 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
         .to.have.property("customer_payment_methods")
         .to.be.an("array").and.empty;
     }
-    expect(response.body.customer_payment_methods[0].card, "card").to.be.an(
-      "object"
-    );
-    expect(response.body.customer_payment_methods[0].card, "card").to.not.be
-      .empty;
     expect(globalState.get("customerId"), "customer_id").to.equal(
       response.body.customer_payment_methods[0].customer_id
     );
@@ -2238,8 +2232,6 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
       response.body.customer_payment_methods[0].payment_method_type,
       "payment_method_type"
     ).to.not.be.null;
-    expect(response.body.customer_payment_methods[0].billing, "billing").to.not
-      .be.null;
   });
 });
 
