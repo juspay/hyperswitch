@@ -1825,7 +1825,7 @@ async fn update_connector_mandate_details(
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
                 logger::info!("Updated connector mandate details of the payment_attempt based on webhook details.");
-            }else{
+            } else {
                 logger::info!("Skipping connector mandate details update in payment attempt and payment method since connector mandate details are already present in the payment method.");
             }
         }
