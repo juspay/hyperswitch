@@ -8016,6 +8016,24 @@
             "enum": [
               "browser_ip"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_msisdn"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_client_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "order_details_product_name"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
