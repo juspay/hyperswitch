@@ -28,7 +28,7 @@ use common_utils::{
     consts,
     crypto::{self, Encryptable},
     encryption::Encryption,
-    ext_traits::{AsyncExt, BytesExt, Encode, StringExt, ValueExt},
+    ext_traits::{AsyncExt, BytesExt, ConfigExt, Encode, StringExt, ValueExt},
     generate_id, id_type,
     request::Request,
     type_name,
@@ -55,6 +55,7 @@ use hyperswitch_domain_models::customer::CustomerUpdate;
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
 use router_env::{instrument, metrics::add_attributes, tracing};
+use serde_json::json;
 use strum::IntoEnumIterator;
 
 use super::surcharge_decision_configs::{
@@ -492,7 +493,13 @@ pub async fn migrate_payment_method(
                 "Network token validation failed, not saving in locker {:?}",
                 err
             );
-            Some(false)
+            network_token.clone().and_then(|val| {
+                (!val
+                    .network_token_data
+                    .network_token_number
+                    .is_empty_after_trim())
+                .then_some(false)
+            })
         }
         None => {
             logger::debug!("Network token data is not available");
@@ -798,15 +805,6 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    migration_status.network_transaction_id_migrated(network_transaction_id.clone().map(|_| true));
-
-    migration_status.connector_mandate_details_migrated(
-        connector_mandate_details
-            .clone()
-            .map(|_| true)
-            .or_else(|| req.connector_mandate_details.clone().map(|_| false)),
-    );
-
     let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
     let current_time = common_utils::date_time::now();
@@ -826,11 +824,11 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 scheme: req.card_network.clone().or(card.scheme.clone()),
                 metadata: payment_method_metadata.map(Secret::new),
                 payment_method_data: payment_method_data_encrypted.map(Into::into),
-                connector_mandate_details,
+                connector_mandate_details: connector_mandate_details.clone(),
                 customer_acceptance: None,
                 client_secret: None,
                 status: enums::PaymentMethodStatus::Active,
-                network_transaction_id,
+                network_transaction_id: network_transaction_id.clone(),
                 payment_method_issuer_code: None,
                 accepted_currency: None,
                 token: None,
@@ -858,6 +856,21 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .attach_printable("Failed to add payment method in db")?;
 
     logger::debug!("Payment method inserted in db");
+
+    migration_status.network_transaction_id_migrated(
+        network_transaction_id.and_then(|val| (!val.is_empty_after_trim()).then_some(true)),
+    );
+
+    migration_status.connector_mandate_details_migrated(
+        connector_mandate_details
+            .clone()
+            .and_then(|val| if val == json!({}) { None } else { Some(true) })
+            .or_else(|| {
+                req.connector_mandate_details
+                    .clone()
+                    .and_then(|val| (!val.0.is_empty()).then_some(false))
+            }),
+    );
 
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = set_default_payment_method(
@@ -1183,8 +1196,12 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         migration_status.connector_mandate_details_migrated(
             connector_mandate_details
                 .clone()
-                .map(|_| true)
-                .or_else(|| req.connector_mandate_details.clone().map(|_| false)),
+                .and_then(|val| (val != json!({})).then_some(true))
+                .or_else(|| {
+                    req.connector_mandate_details
+                        .clone()
+                        .and_then(|val| (!val.0.is_empty()).then_some(false))
+                }),
         );
 
         migration_status.card_migrated(false); //card is not migrated in this case
@@ -1739,15 +1756,6 @@ pub async fn save_migration_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    migration_status.network_transaction_id_migrated(network_transaction_id.clone().map(|_| true));
-
-    migration_status.connector_mandate_details_migrated(
-        connector_mandate_details
-            .clone()
-            .map(|_| true)
-            .or_else(|| req.connector_mandate_details.clone().map(|_| false)),
-    );
-
     let response = match payment_method {
         #[cfg(feature = "payouts")]
         api_enums::PaymentMethod::BankTransfer => match req.bank_transfer.clone() {
@@ -1807,7 +1815,6 @@ pub async fn save_migration_payment_method(
 
     let (mut resp, duplication_check) = response?;
 
-    migration_status.card_migrated(true); //card is saved to locker
     match duplication_check {
         Some(duplication_check) => match duplication_check {
             payment_methods::DataDuplicationCheck::Duplicated => {
@@ -1957,8 +1964,8 @@ pub async fn save_migration_payment_method(
                 pm_metadata.cloned(),
                 None,
                 locker_id,
-                connector_mandate_details,
-                network_transaction_id,
+                connector_mandate_details.clone(),
+                network_transaction_id.clone(),
                 merchant_account.storage_scheme,
                 payment_method_billing_address.map(Into::into),
                 None,
@@ -1970,6 +1977,20 @@ pub async fn save_migration_payment_method(
             resp.client_secret = pm.client_secret;
         }
     }
+
+    migration_status.card_migrated(true);
+    migration_status.network_transaction_id_migrated(
+        network_transaction_id.and_then(|val| (!val.is_empty_after_trim()).then_some(true)),
+    );
+
+    migration_status.connector_mandate_details_migrated(
+        connector_mandate_details
+            .and_then(|val| if val == json!({}) { None } else { Some(true) })
+            .or_else(|| {
+                req.connector_mandate_details
+                    .and_then(|val| (!val.0.is_empty()).then_some(false))
+            }),
+    );
 
     Ok(services::ApplicationResponse::Json(resp))
 }
