@@ -1195,11 +1195,10 @@ impl PaymentCreate {
             None
         };
 
-        let payment_method_type =
-            helpers::get_optional_card_type_from_additional_payment_method_data(
-                payment_method_type,
-                additional_pm_data.as_ref(),
-            );
+        let payment_method_type = Option::<enums::PaymentMethodType>::foreign_from((
+            payment_method_type,
+            additional_pm_data.as_ref(),
+        ));
 
         Ok((
             storage::PaymentAttemptNew {
