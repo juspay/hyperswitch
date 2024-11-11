@@ -5,6 +5,9 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
+use common_enums::ProductType;
+#[cfg(feature = "v2")]
+use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -374,7 +377,7 @@ pub struct PaymentsIntentResponse {
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
-    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
+    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
@@ -386,7 +389,7 @@ pub struct PaymentsIntentResponse {
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     #[schema(value_type = Option<FeatureMetadata>)]
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(value_type = EnablePaymentLinkRequest)]
@@ -1318,7 +1321,7 @@ pub struct ConnectorMandateReferenceId {
     connector_mandate_id: Option<String>,
     payment_method_id: Option<String>,
     update_history: Option<Vec<UpdateHistory>>,
-    mandate_metadata: Option<serde_json::Value>,
+    mandate_metadata: Option<pii::SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
 }
 
@@ -1327,7 +1330,7 @@ impl ConnectorMandateReferenceId {
         connector_mandate_id: Option<String>,
         payment_method_id: Option<String>,
         update_history: Option<Vec<UpdateHistory>>,
-        mandate_metadata: Option<serde_json::Value>,
+        mandate_metadata: Option<pii::SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
     ) -> Self {
         Self {
@@ -1345,7 +1348,7 @@ impl ConnectorMandateReferenceId {
     pub fn get_payment_method_id(&self) -> Option<String> {
         self.payment_method_id.clone()
     }
-    pub fn get_mandate_metadata(&self) -> Option<serde_json::Value> {
+    pub fn get_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
         self.mandate_metadata.clone()
     }
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
@@ -1357,7 +1360,7 @@ impl ConnectorMandateReferenceId {
         connector_mandate_id: Option<String>,
         payment_method_id: Option<String>,
         update_history: Option<Vec<UpdateHistory>>,
-        mandate_metadata: Option<serde_json::Value>,
+        mandate_metadata: Option<pii::SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
     ) {
         self.connector_mandate_id = connector_mandate_id.or(self.connector_mandate_id.clone());
@@ -3873,8 +3876,15 @@ pub enum NextActionType {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NextActionData {
     /// Contains the url for redirection flow
+    #[cfg(feature = "v1")]
     RedirectToUrl {
         redirect_to_url: String,
+    },
+    /// Contains the url for redirection flow
+    #[cfg(feature = "v2")]
+    RedirectToUrl {
+        #[schema(value_type = String)]
+        redirect_to_url: Url,
     },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
     DisplayBankTransferInformation {
@@ -4535,6 +4545,9 @@ pub struct PaymentsConfirmIntentResponse {
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
+    /// Additional information required for redirection
+    pub next_action: Option<NextActionData>,
+
     /// A unique identifier for a payment provided by the connector
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_transaction_id: Option<String>,
@@ -4553,6 +4566,22 @@ pub struct PaymentsConfirmIntentResponse {
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[cfg(feature = "v2")]
+pub struct PaymentStartRedirectionRequest {
+    /// Global Payment ID
+    pub id: id_type::GlobalPaymentId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[cfg(feature = "v2")]
+pub struct PaymentStartRedirectionParams {
+    /// The identifier for the Merchant Account.
+    pub publishable_key: String,
+    /// The identifier for business profile
+    pub profile_id: id_type::ProfileId,
 }
 
 /// Fee information to be charged on the payment being collected
@@ -5106,18 +5135,6 @@ pub struct OrderDetailsWithAmount {
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
-
-#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ProductType {
-    #[default]
-    Physical,
-    Digital,
-    Travel,
-    Ride,
-    Event,
-    Accommodation,
-}
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetails {

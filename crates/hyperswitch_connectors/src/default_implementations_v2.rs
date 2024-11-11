@@ -206,6 +206,7 @@ macro_rules! default_imp_for_new_connector_integration_payment {
 
 default_imp_for_new_connector_integration_payment!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -222,6 +223,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -262,6 +264,7 @@ macro_rules! default_imp_for_new_connector_integration_refund {
 
 default_imp_for_new_connector_integration_refund!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -278,6 +281,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -313,6 +317,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_access_token {
 
 default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -329,6 +334,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -370,6 +376,7 @@ macro_rules! default_imp_for_new_connector_integration_accept_dispute {
 
 default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -386,6 +393,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -426,6 +434,7 @@ macro_rules! default_imp_for_new_connector_integration_submit_evidence {
 
 default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -442,6 +451,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -482,6 +492,7 @@ macro_rules! default_imp_for_new_connector_integration_defend_dispute {
 
 default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -498,6 +509,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -548,6 +560,7 @@ macro_rules! default_imp_for_new_connector_integration_file_upload {
 
 default_imp_for_new_connector_integration_file_upload!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -564,6 +577,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -606,6 +620,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_create {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_create!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -622,6 +637,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -664,6 +680,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_eligibility {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -680,6 +697,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -722,6 +740,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_fulfill {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -738,6 +757,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -780,6 +800,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_cancel {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -796,6 +817,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -838,6 +860,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_quote {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -854,6 +877,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -896,6 +920,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -912,6 +937,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -954,6 +980,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_sync {
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -970,6 +997,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -1012,6 +1040,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts_recipient_account
 #[cfg(feature = "payouts")]
 default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1028,6 +1057,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -1068,6 +1098,7 @@ macro_rules! default_imp_for_new_connector_integration_webhook_source_verificati
 
 default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1084,6 +1115,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -1126,6 +1158,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_sale {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_sale!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1142,6 +1175,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -1184,6 +1218,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_checkout {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1200,6 +1235,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -1242,6 +1278,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_transaction {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1258,6 +1295,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -1300,6 +1338,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_fulfillment {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1316,6 +1355,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -1358,6 +1398,7 @@ macro_rules! default_imp_for_new_connector_integration_frm_record_return {
 #[cfg(feature = "frm")]
 default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1374,6 +1415,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,
@@ -1413,6 +1455,7 @@ macro_rules! default_imp_for_new_connector_integration_revoking_mandates {
 
 default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Airwallex,
+    connectors::Amazonpay,
     connectors::Bambora,
     connectors::Billwerk,
     connectors::Bitpay,
@@ -1429,6 +1472,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Jpmorgan,
     connectors::Novalnet,
     connectors::Nexinets,
     connectors::Nexixpay,

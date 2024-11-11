@@ -17,6 +17,7 @@ pub struct ConnectorAuthentication {
     #[cfg(feature = "payouts")]
     pub adyen_uk: Option<SignatureKey>,
     pub airwallex: Option<BodyKey>,
+    pub amazonpay: Option<HeaderKey>,
     pub authorizedotnet: Option<BodyKey>,
     pub bambora: Option<BodyKey>,
     pub bamboraapac: Option<HeaderKey>,
@@ -49,6 +50,7 @@ pub struct ConnectorAuthentication {
     pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub itaubank: Option<MultiAuthKey>,
+    pub jpmorgan: Option<HeaderKey>,
     pub mifinity: Option<HeaderKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,

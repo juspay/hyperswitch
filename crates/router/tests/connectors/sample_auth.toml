@@ -10,6 +10,9 @@ api_key = "Bearer MyApiKey"
 key1 = "MerchantId"
 api_secret = "Secondary key"
 
+[amazonpay]
+api_key="API Key"
+
 [authorizedotnet]
 api_key = "MyMerchantName"
 key1 = "MyTransactionKey"
@@ -284,6 +287,8 @@ api_secret = "Client Key"
 [thunes]
 api_key="API Key"
 
+[jpmorgan]
+api_key="API Key"
 
 [elavon]
 api_key="API Key"
