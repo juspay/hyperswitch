@@ -462,7 +462,7 @@ pub async fn migrate_payment_method(
                 false
             })
     });
-    
+
     // network_token_migrated is true if network_token_number passes the validation and will be migrated to locker
     let network_token_migrated = match network_token_validation {
         Some(Ok(network_token)) => {
@@ -493,7 +493,10 @@ pub async fn migrate_payment_method(
             )
         }
         Some(Err(err)) => {
-            logger::debug!("Network token validation failed, not saving in locker {:?}", err);
+            logger::debug!(
+                "Network token validation failed, not saving in locker {:?}",
+                err
+            );
             Some(false)
         }
         None => {
