@@ -49,12 +49,8 @@ pub mod routes {
 
     pub struct Analytics;
 
+    #[cfg(feature = "v1")]
     impl Analytics {
-        #[cfg(feature = "v2")]
-        pub fn server(_state: AppState) -> Scope {
-            todo!()
-        }
-        #[cfg(feature = "v1")]
         pub fn server(state: AppState) -> Scope {
             web::scope("/analytics")
                 .app_data(web::Data::new(state))

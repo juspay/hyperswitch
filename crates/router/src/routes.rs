@@ -61,8 +61,6 @@ pub mod webhooks;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
-#[cfg(any(feature = "olap", feature = "oltp"))]
-pub use self::app::Forex;
 #[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
 pub use self::app::Recon;
 pub use self::app::{
