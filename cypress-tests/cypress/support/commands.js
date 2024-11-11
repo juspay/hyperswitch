@@ -1033,9 +1033,8 @@ Cypress.Commands.add(
           createPaymentMethodBody.payment_method,
           "payment_method"
         ).to.equal(response.body.payment_method);
-        expect(response.body.card, "card").to.not.be.empty.and.to.be.an(
-          "object"
-        );
+        expect(response.body.card, "card").to.be.an("object").and.to.not.be
+          .empty;
         expect(response.body.last_used_at, "last_used_at").to.not.be.null;
         expect(createPaymentMethodBody.customer_id, "customer_id").to.equal(
           response.body.customer_id
