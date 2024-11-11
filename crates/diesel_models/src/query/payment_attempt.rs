@@ -204,7 +204,10 @@ impl PaymentAttempt {
     }
 
     #[cfg(feature = "v2")]
-    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
+    pub async fn find_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::GlobalAttemptId,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id.eq(id.to_owned()),

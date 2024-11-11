@@ -1,6 +1,6 @@
 use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::{id_type, types::keymanager::KeyManagerState};
 use diesel_models::enums as storage_enums;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
@@ -74,7 +74,7 @@ impl PaymentAttemptInterface for MockDb {
         &self,
         _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
-        _attempt_id: &str,
+        _attempt_id: &id_type::GlobalAttemptId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`

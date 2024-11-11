@@ -13,6 +13,8 @@ use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use super::behaviour;
+#[cfg(feature = "v2")]
+use crate::router_data;
 use crate::type_encryption::{crypto_operation, CryptoOperation};
 
 #[cfg(feature = "v1")]
@@ -86,6 +88,22 @@ pub struct MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        self.disabled.unwrap_or(false)
+    }
+
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        use common_utils::ext_traits::ValueExt;
+
+        self.connector_account_details
+            .get_inner()
+            .clone()
+            .parse_value("ConnectorAuthType")
     }
 }
 

@@ -76,6 +76,8 @@ pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
     Retryable(Vec<ConnectorData>),
     SessionMultiple(Vec<SessionConnectorData>),
+    #[cfg(feature = "v2")]
+    Skip,
 }
 
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {

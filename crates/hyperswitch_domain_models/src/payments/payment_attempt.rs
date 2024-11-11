@@ -25,6 +25,8 @@ use time::PrimitiveDateTime;
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::merchant_key_store::MerchantKeyStore;
+#[cfg(feature = "v2")]
+use crate::router_response_types;
 use crate::{
     behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
@@ -122,7 +124,7 @@ pub trait PaymentAttemptInterface {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        attempt_id: &str,
+        attempt_id: &id_type::GlobalAttemptId,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
@@ -261,7 +263,7 @@ pub struct PaymentAttempt {
     /// Whether the payment was updated by postgres or redis
     pub updated_by: String,
     /// The authentication data which is used for external authentication
-    pub authentication_data: Option<pii::SecretSerdeValue>,
+    pub redirection_data: Option<router_response_types::RedirectForm>,
     pub encoded_data: Option<Secret<String>>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     /// Whether external 3DS authentication was attempted for this payment.
@@ -383,7 +385,7 @@ impl PaymentAttempt {
             multiple_capture_count: None,
             connector_response_reference_id: None,
             updated_by: storage_scheme.to_string(),
-            authentication_data: None,
+            redirection_data: None,
             encoded_data: None,
             merchant_connector_id: None,
             external_three_ds_authentication_attempted: None,
@@ -1280,7 +1282,6 @@ impl PaymentAttemptUpdate {
     }
 }
 
-// TODO: Add fields as necessary
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentAttemptUpdate {
@@ -1296,13 +1297,19 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         connector_payment_id: Option<String>,
         updated_by: String,
-        authentication_data: Option<pii::SecretSerdeValue>,
+        redirection_data: Option<router_response_types::RedirectForm>,
+    },
+    /// Update the payment attempt after force syncing with the connector
+    SyncUpdate {
+        status: storage_enums::AttemptStatus,
+        updated_by: String,
     },
     /// Update the payment attempt on confirming the intent, after calling the connector on error response
-    ConfirmIntentError {
+    ErrorUpdate {
         status: storage_enums::AttemptStatus,
         error: ErrorDetails,
         updated_by: String,
+        connector_payment_id: Option<String>,
     },
 }
 
@@ -1614,7 +1621,7 @@ impl behaviour::Conversion for PaymentAttempt {
             multiple_capture_count,
             connector_response_reference_id,
             updated_by,
-            authentication_data,
+            redirection_data,
             encoded_data,
             merchant_connector_id,
             external_three_ds_authentication_attempted,
@@ -1683,7 +1690,7 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_capturable,
             updated_by,
             merchant_connector_id,
-            authentication_data,
+            redirection_data: redirection_data.map(From::from),
             encoded_data,
             unified_code: error
                 .as_ref()
@@ -1791,7 +1798,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 multiple_capture_count: storage_model.multiple_capture_count,
                 connector_response_reference_id: storage_model.connector_response_reference_id,
                 updated_by: storage_model.updated_by,
-                authentication_data: storage_model.authentication_data,
+                redirection_data: storage_model.redirection_data.map(From::from),
                 encoded_data: storage_model.encoded_data,
                 merchant_connector_id: storage_model.merchant_connector_id,
                 external_three_ds_authentication_attempted: storage_model
@@ -1867,7 +1874,7 @@ impl behaviour::Conversion for PaymentAttempt {
             amount_capturable: self.amount_details.amount_capturable,
             updated_by: self.updated_by,
             merchant_connector_id: self.merchant_connector_id,
-            authentication_data: self.authentication_data,
+            redirection_data: self.redirection_data.map(From::from),
             encoded_data: self.encoded_data,
             unified_code: error_details
                 .as_ref()
@@ -1924,11 +1931,12 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_message: None,
                 connector_payment_id: None,
                 connector: Some(connector),
-                authentication_data: None,
+                redirection_data: None,
             },
-            PaymentAttemptUpdate::ConfirmIntentError {
+            PaymentAttemptUpdate::ErrorUpdate {
                 status,
                 error,
+                connector_payment_id,
                 updated_by,
             } => Self {
                 status: Some(status),
@@ -1941,15 +1949,15 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 merchant_connector_id: None,
                 unified_code: None,
                 unified_message: None,
-                connector_payment_id: None,
+                connector_payment_id,
                 connector: None,
-                authentication_data: None,
+                redirection_data: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse {
                 status,
                 connector_payment_id,
                 updated_by,
-                authentication_data,
+                redirection_data,
             } => Self {
                 status: Some(status),
                 error_message: None,
@@ -1963,7 +1971,23 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 unified_message: None,
                 connector_payment_id,
                 connector: None,
-                authentication_data,
+                redirection_data: redirection_data
+                    .map(diesel_models::payment_attempt::RedirectForm::from),
+            },
+            PaymentAttemptUpdate::SyncUpdate { status, updated_by } => Self {
+                status: Some(status),
+                error_message: None,
+                error_code: None,
+                modified_at: common_utils::date_time::now(),
+                browser_info: None,
+                error_reason: None,
+                updated_by,
+                merchant_connector_id: None,
+                unified_code: None,
+                unified_message: None,
+                connector_payment_id: None,
+                connector: None,
+                redirection_data: None,
             },
         }
     }

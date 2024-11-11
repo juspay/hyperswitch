@@ -315,9 +315,6 @@ where
 #[derive(Debug)]
 pub struct ApiKeyAuth;
 
-#[derive(Debug)]
-pub struct ApiKeyAuthV2;
-
 pub struct NoAuth;
 
 #[cfg(feature = "partial-auth")]
@@ -2498,6 +2495,13 @@ impl ClientSecretFetch for payments::PaymentsRequest {
     }
 }
 
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
 impl ClientSecretFetch for PaymentMethodListRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -2528,12 +2532,6 @@ impl ClientSecretFetch for PaymentMethodIntentConfirm {
 }
 
 impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
-    fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret.as_ref()
-    }
-}
-
-impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }

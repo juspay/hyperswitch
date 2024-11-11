@@ -290,7 +290,7 @@ pub struct PaymentIntent {
     pub setup_future_usage: storage_enums::FutureUsage,
     /// The client secret that is generated for the payment. This is used to authenticate the payment from client facing apis.
     pub client_secret: common_utils::types::ClientSecret,
-    /// The active attempt id for the payment intent. This is the payment attempt that is currently active for the payment intent.
+    /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
     pub active_attempt_id: Option<id_type::GlobalAttemptId>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
@@ -540,4 +540,18 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentStatusData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: Option<PaymentAttempt>,
+    /// Should the payment status be synced with connector
+    /// This will depend on the payment status and the force sync flag in the request
+    pub should_sync_with_connector: bool,
 }

@@ -134,43 +134,10 @@ impl
     }
 }
 
+// TODO: remove this usage in v1 code
 impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
     fn foreign_from(s: storage_enums::AttemptStatus) -> Self {
-        match s {
-            storage_enums::AttemptStatus::Charged | storage_enums::AttemptStatus::AutoRefunded => {
-                Self::Succeeded
-            }
-
-            storage_enums::AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
-            storage_enums::AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
-
-            storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
-            storage_enums::AttemptStatus::AuthenticationPending
-            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
-                Self::RequiresCustomerAction
-            }
-            storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-
-            storage_enums::AttemptStatus::PartialCharged => Self::PartiallyCaptured,
-            storage_enums::AttemptStatus::PartialChargedAndChargeable => {
-                Self::PartiallyCapturedAndCapturable
-            }
-            storage_enums::AttemptStatus::Started
-            | storage_enums::AttemptStatus::AuthenticationSuccessful
-            | storage_enums::AttemptStatus::Authorizing
-            | storage_enums::AttemptStatus::CodInitiated
-            | storage_enums::AttemptStatus::VoidInitiated
-            | storage_enums::AttemptStatus::CaptureInitiated
-            | storage_enums::AttemptStatus::Pending => Self::Processing,
-
-            storage_enums::AttemptStatus::AuthenticationFailed
-            | storage_enums::AttemptStatus::AuthorizationFailed
-            | storage_enums::AttemptStatus::VoidFailed
-            | storage_enums::AttemptStatus::RouterDeclined
-            | storage_enums::AttemptStatus::CaptureFailed
-            | storage_enums::AttemptStatus::Failure => Self::Failed,
-            storage_enums::AttemptStatus::Voided => Self::Cancelled,
-        }
+        Self::from(s)
     }
 }
 
