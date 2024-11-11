@@ -201,7 +201,6 @@ pub fn mk_app(
     {
         server_app = server_app
             .service(routes::StripeApis::server(state.clone()))
-            .server_app
             .service(routes::Cards::server(state.clone()));
     }
 

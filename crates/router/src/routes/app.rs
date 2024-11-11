@@ -671,7 +671,7 @@ impl Payments {
     }
 }
 
-#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
+#[cfg(all(any(feature = "olap", feature = "oltp")))]
 pub struct Forex;
 
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
@@ -1065,10 +1065,6 @@ pub struct Payouts;
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
 impl Payouts {
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/payouts").app_data(web::Data::new(state))
-    }
-    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payouts").app_data(web::Data::new(state));
         route = route.service(web::resource("/create").route(web::post().to(payouts_create)));

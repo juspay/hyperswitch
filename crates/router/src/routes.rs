@@ -65,7 +65,7 @@ pub use self::app::DummyConnector;
 pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
-    Customers, Disputes, EphemeralKey, Files, Gsm, Health, Mandates, MerchantAccount,
+    Customers, Disputes, EphemeralKey, Files, Forex, Gsm, Health, Mandates, MerchantAccount,
     MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll, Profile, ProfileNew,
     Refunds, SessionState, User, Webhooks,
 };

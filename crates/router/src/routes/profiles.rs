@@ -241,7 +241,7 @@ pub async fn profiles_list(
         state,
         &req,
         merchant_id.clone(),
-        |state, auth, merchant_id, _| list_profile(state, merchant_id, None),
+        |state, _auth, merchant_id, _| list_profile(state, merchant_id, None),
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
