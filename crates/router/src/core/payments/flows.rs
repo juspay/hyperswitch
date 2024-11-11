@@ -979,6 +979,8 @@ impl<const T: u8> Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
     connector::Aci,
+    connector::Authorizedotnet,
+    connector::Bamboraapac,
     connector::Bankofamerica,
     connector::Bluesnap,
     connector::Boku,
