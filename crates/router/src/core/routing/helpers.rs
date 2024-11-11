@@ -753,18 +753,14 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             &add_attributes([
                 ("tenant", state.tenant.tenant_id.clone()),
                 (
-                    "merchant_id",
-                    payment_attempt.merchant_id.get_string_repr().to_string(),
-                ),
-                (
-                    "profile_id",
-                    payment_attempt.profile_id.get_string_repr().to_string(),
+                    "merchant_profile_id",
+                    format!(
+                        "{}{}",
+                        payment_attempt.merchant_id.get_string_repr().to_string(),
+                        payment_attempt.profile_id.get_string_repr().to_string()
+                    ),
                 ),
                 ("merchant_connector_id", merchant_connector_id.to_string()),
-                (
-                    "payment_id",
-                    payment_attempt.payment_id.get_string_repr().to_string(),
-                ),
                 (
                     "success_based_routing_connector",
                     first_success_based_connector.to_string(),
