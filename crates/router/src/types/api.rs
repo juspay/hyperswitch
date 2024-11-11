@@ -326,6 +326,9 @@ impl ConnectorData {
                 enums::Connector::Airwallex => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Airwallex)))
                 }
+                // enums::Connector::Amazonpay => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
+                // }
                 enums::Connector::Authorizedotnet => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
                 }
@@ -484,7 +487,7 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
-                enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(&connector::Wise))),
+                enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(connector::Wise::new()))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
                 }

@@ -576,41 +576,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_method_info,
         } = mandate_details;
 
-        let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
-            let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
-                .payment_method_data
-                .clone()
-                .map(|x| x.into_inner().expose())
-                .and_then(|v| {
-                    v.parse_value("PaymentMethodsData")
-                        .map_err(|err| {
-                            router_env::logger::info!(
-                                "PaymentMethodsData deserialization failed: {:?}",
-                                err
-                            )
-                        })
-                        .ok()
-                })
-                .and_then(|pmd| match pmd {
-                    PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-                    _ => None,
-                });
-            card_detail_from_locker.map(|card_details| {
-                let additional_data = card_details.into();
-                api_models::payments::AdditionalPaymentData::Card(Box::new(additional_data))
-            })
-        } else {
-            None
-        };
-        payment_attempt.payment_method_data = additional_pm_data_from_locker
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode additional pm data")?;
-
-        payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
-
         payment_attempt.payment_method_type = payment_method_type
             .or(payment_attempt.payment_method_type)
             .or(payment_method_info
@@ -650,6 +615,41 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         } else {
             (None, payment_method_info)
         };
+        let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
+            let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
+                .payment_method_data
+                .clone()
+                .map(|x| x.into_inner().expose())
+                .and_then(|v| {
+                    v.parse_value("PaymentMethodsData")
+                        .map_err(|err| {
+                            router_env::logger::info!(
+                                "PaymentMethodsData deserialization failed: {:?}",
+                                err
+                            )
+                        })
+                        .ok()
+                })
+                .and_then(|pmd| match pmd {
+                    PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                    _ => None,
+                });
+            card_detail_from_locker.map(|card_details| {
+                let additional_data = card_details.into();
+                api_models::payments::AdditionalPaymentData::Card(Box::new(additional_data))
+            })
+        } else {
+            None
+        };
+        payment_attempt.payment_method_data = additional_pm_data_from_locker
+            .as_ref()
+            .map(Encode::encode_to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode additional pm data")?;
+
+        payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
+
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = mandate_data.map(|mut sm| {
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);

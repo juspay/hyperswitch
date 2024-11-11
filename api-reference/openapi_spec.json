@@ -21368,7 +21368,7 @@
           },
           "is_network_tokenization_enabled": {
             "type": "boolean",
-            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
+            "description": "Indicates if network tokenization is enabled or not."
           },
           "is_auto_retries_enabled": {
             "type": "boolean",
@@ -21595,7 +21595,7 @@
           },
           "is_network_tokenization_enabled": {
             "type": "boolean",
-            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
+            "description": "Indicates if network tokenization is enabled or not.",
             "default": false,
             "example": false
           },

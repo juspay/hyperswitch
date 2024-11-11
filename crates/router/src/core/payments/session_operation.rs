@@ -67,7 +67,7 @@ where
         payments_session_operation_core::<_, _, _, _, _>(
             &state,
             req_state,
-            merchant_account,
+            merchant_account.clone(),
             key_store,
             profile,
             operation.clone(),
@@ -87,6 +87,7 @@ where
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
+        &merchant_account,
     )
 }
 
