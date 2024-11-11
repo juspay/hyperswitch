@@ -123,13 +123,13 @@ pub async fn payments_create_intent(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: auth::AuthenticationDataV2, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_intent_core::<
-                api_types::CreateIntent,
-                payment_types::PaymentsCreateIntentResponse,
+                api_types::PaymentCreateIntent,
+                payment_types::PaymentsIntentResponse,
                 _,
                 _,
-                PaymentIntentData<api_types::CreateIntent>,
+                PaymentIntentData<api_types::PaymentCreateIntent>,
             >(
                 state,
                 req_state,
@@ -151,6 +151,57 @@ pub async fn payments_create_intent(
                 req.headers(),
             ),
         },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsGetIntent, payment_id))]
+pub async fn payments_get_intent(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    use api_models::payments::PaymentsGetIntentRequest;
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+
+    let flow = Flow::PaymentsGetIntent;
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let payload = PaymentsGetIntentRequest {
+        id: path.into_inner(),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            payments::payments_intent_core::<
+                api_types::PaymentGetIntent,
+                payment_types::PaymentsIntentResponse,
+                _,
+                _,
+                PaymentIntentData<api_types::PaymentGetIntent>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                payments::operations::PaymentGetIntent,
+                req,
+                header_payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -2007,6 +2058,56 @@ mod internal_payload_types {
 }
 
 #[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentStartRedirection, payment_id))]
+pub async fn payments_start_redirection(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<api_models::payments::PaymentStartRedirectionParams>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentStartRedirection;
+
+    let global_payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let publishable_key = &payload.publishable_key;
+    let profile_id = &payload.profile_id;
+
+    let payment_start_redirection_request = api_models::payments::PaymentStartRedirectionRequest {
+        id: global_payment_id.clone(),
+    };
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id: global_payment_id.clone(),
+        payload: payment_start_redirection_request.clone(),
+    };
+
+    let locking_action = internal_payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_start_redirection_request.clone(),
+        |state, auth: auth::AuthenticationData, _req, req_state| async {
+            payments::payment_start_redirection(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                payment_start_redirection_request.clone(),
+            )
+            .await
+        },
+        &auth::PublishableKeyAndProfileIdAuth {
+            publishable_key: publishable_key.clone(),
+            profile_id: profile_id.clone(),
+        },
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirmIntent, payment_id))]
 pub async fn payment_confirm_intent(
     state: web::Data<app::AppState>,
@@ -2052,7 +2153,7 @@ pub async fn payment_confirm_intent(
         state,
         &req,
         internal_payload,
-        |state, auth: auth::AuthenticationDataV2, req, req_state| async {
+        |state, auth: auth::AuthenticationData, req, req_state| async {
             let payment_id = req.global_payment_id;
             let request = req.payload;
 

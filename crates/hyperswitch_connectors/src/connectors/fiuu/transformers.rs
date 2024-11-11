@@ -205,8 +205,11 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuMandateReque
         let order_id = item.router_data.connector_request_reference_id.clone();
         let currency = item.router_data.request.currency;
         let amount = item.amount.clone();
-        let billing_name = item.router_data.get_billing_full_name()?;
-        let email = item.router_data.request.get_email()?;
+        let billing_name = item
+            .router_data
+            .request
+            .get_card_holder_name_from_additional_payment_method_data()?;
+        let email = item.router_data.get_billing_email()?;
         let token = Secret::new(item.router_data.request.get_connector_mandate_id()?);
         let verify_key = auth.verify_key;
         let recurring_request = FiuuRecurringRequest {
@@ -313,8 +316,6 @@ pub struct FiuuCardData {
     cc_year: Secret<String>,
     #[serde(rename = "mpstokenstatus")]
     mps_token_status: Option<i32>,
-    #[serde(rename = "CustName")]
-    customer_name: Option<Secret<String>>,
     #[serde(rename = "CustEmail")]
     customer_email: Option<Email>,
 }
@@ -548,15 +549,11 @@ impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
     fn try_from(
         (req_card, item): (&Card, &PaymentsAuthorizeRouterData),
     ) -> Result<Self, Self::Error> {
-        let (mps_token_status, customer_name, customer_email) =
+        let (mps_token_status, customer_email) =
             if item.request.is_customer_initiated_mandate_payment() {
-                (
-                    Some(1),
-                    Some(item.request.get_customer_name()?),
-                    Some(item.request.get_email()?),
-                )
+                (Some(1), Some(item.get_billing_email()?))
             } else {
-                (None, None, None)
+                (None, None)
             };
         let non_3ds = match item.is_three_ds() {
             false => 1,
@@ -570,7 +567,6 @@ impl TryFrom<(&Card, &PaymentsAuthorizeRouterData)> for FiuuPaymentMethodData {
             cc_month: req_card.card_exp_month.clone(),
             cc_year: req_card.card_exp_year.clone(),
             mps_token_status,
-            customer_name,
             customer_email,
         })))
     }
@@ -809,6 +805,7 @@ impl<F>
                                     connector_mandate_id: Some(token.clone().expose()),
                                     payment_method_id: None,
                                     mandate_metadata: None,
+                                    connector_mandate_request_reference_id: None,
                                 })
                             });
                     let status = match non_threeds_data.status.as_str() {
@@ -1184,6 +1181,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                                 connector_mandate_id: Some(token.clone().expose()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
+                                connector_mandate_request_reference_id:None
                             })
                         }
                         Err(err) => {

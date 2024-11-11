@@ -18,7 +18,7 @@ pub struct Role {
     pub created_by: String,
     pub last_modified_at: PrimitiveDateTime,
     pub last_modified_by: String,
-    pub entity_type: Option<enums::EntityType>,
+    pub entity_type: enums::EntityType,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -35,7 +35,7 @@ pub struct RoleNew {
     pub created_by: String,
     pub last_modified_at: PrimitiveDateTime,
     pub last_modified_by: String,
-    pub entity_type: Option<enums::EntityType>,
+    pub entity_type: enums::EntityType,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]

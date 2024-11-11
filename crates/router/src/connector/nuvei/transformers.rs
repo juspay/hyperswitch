@@ -1607,6 +1607,7 @@ where
                                 connector_mandate_id: Some(id),
                                 payment_method_id: None,
                                 mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
                             }),
                     ),
                     // we don't need to save session token for capture, void flow so ignoring if it is not present

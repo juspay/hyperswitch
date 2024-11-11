@@ -142,6 +142,9 @@ pub const DEFAULT_UNIFIED_ERROR_MESSAGE: &str = "Something went wrong";
 // Recon's feature tag
 pub const RECON_FEATURE_TAG: &str = "RECONCILIATION AND SETTLEMENT";
 
+// Length of the unique reference ID generated for connector mandate requests
+pub const CONNECTOR_MANDATE_REQUEST_REFERENCE_ID_LENGTH: usize = 18;
+
 /// Vault Add request url
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub const ADD_VAULT_REQUEST_URL: &str = "/vault/add";
@@ -177,6 +180,3 @@ pub const VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
 /// Vault Fingerprint fetch flow type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
-
-/// Worldpay's unique reference ID for a request TODO: Move to hyperswitch_connectors/constants once Worldpay is moved to connectors crate
-pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";

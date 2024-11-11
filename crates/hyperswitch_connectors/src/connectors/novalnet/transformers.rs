@@ -32,8 +32,9 @@ use strum::Display;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, BrowserInformationData, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
-        PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
+        self, ApplePay, BrowserInformationData, PaymentsAuthorizeRequestData,
+        PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSyncRequestData,
+        RefundsRequestData, RouterData as _,
     },
 };
 
@@ -298,7 +299,8 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                             return_url: None,
                             error_return_url: None,
                             payment_data: Some(NovalNetPaymentData::ApplePay(NovalnetApplePay {
-                                wallet_data: Secret::new(payment_method_data.payment_data.clone()),
+                                wallet_data: payment_method_data
+                                    .get_applepay_decoded_payment_data()?,
                             })),
                             enforce_3d: None,
                             create_token,
@@ -374,7 +376,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 .into()),
             },
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
-                let connector_mandate_id = mandate_data.connector_mandate_id.ok_or(
+                let connector_mandate_id = mandate_data.get_connector_mandate_id().ok_or(
                     errors::ConnectorError::MissingRequiredField {
                         field_name: "connector_mandate_id",
                     },
@@ -597,6 +599,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
                             }
                         })),
                         connector_metadata: None,
@@ -998,6 +1001,7 @@ impl<F>
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 mandate_metadata: None,
+                                connector_mandate_request_reference_id: None,
                             }
                         })),
                         connector_metadata: None,

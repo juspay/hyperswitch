@@ -123,6 +123,7 @@ Never share your secret api keys. Keep them guarded and secure.
 
         //Routes for payments
         routes::payments::payments_create_intent,
+        routes::payments::payments_get_intent,
         routes::payments::payments_confirm_intent,
 
         //Routes for refunds
@@ -186,6 +187,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::customers::CustomerResponse,
         api_models::admin::AcceptedCountries,
         api_models::admin::AcceptedCurrencies,
+        api_models::enums::ProductType,
         api_models::enums::PaymentType,
         api_models::enums::PaymentMethod,
         api_models::enums::PaymentMethodType,
@@ -325,7 +327,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsSessionRequest,
         api_models::payments::PaymentsSessionResponse,
         api_models::payments::PaymentsCreateIntentRequest,
-        api_models::payments::PaymentsCreateIntentResponse,
+        api_models::payments::PaymentsIntentResponse,
         api_models::payments::PazeWalletData,
         api_models::payments::AmountDetails,
         api_models::payments::SessionToken,
@@ -338,7 +340,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplePayShippingContactFields,
         api_models::payments::ApplePayAddressParameters,
         api_models::payments::AmountInfo,
-        api_models::payments::ProductType,
         api_models::payments::GooglePayWalletData,
         api_models::payments::PayPalWalletData,
         api_models::payments::PaypalRedirection,
@@ -432,7 +433,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
-        api_models::refunds::RefundAggregateResponse,
         api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,

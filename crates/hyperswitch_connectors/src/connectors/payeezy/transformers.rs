@@ -185,7 +185,7 @@ fn get_transaction_type_and_stored_creds(
         match mandate_ids.mandate_reference_id.clone() {
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
                 connector_mandate_ids,
-            )) => connector_mandate_ids.connector_mandate_id,
+            )) => connector_mandate_ids.get_connector_mandate_id(),
             _ => None,
         }
     });
@@ -420,6 +420,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsRes
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             });
         let status = get_status(
             item.response.transaction_status,

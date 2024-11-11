@@ -20,8 +20,16 @@ common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
 pub struct ConnectorMandateReferenceId {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_request_reference_id: Option<String>,
 }
+
+impl ConnectorMandateReferenceId {
+    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.connector_mandate_request_reference_id.clone()
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
@@ -414,6 +422,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -761,7 +770,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub connector: Option<String>,
-    // authentication_data: Option<serde_json::Value>,
+    pub authentication_data: Option<pii::SecretSerdeValue>,
     // encoded_data: Option<String>,
     pub unified_code: Option<Option<String>>,
     pub unified_message: Option<Option<String>>,
@@ -2158,6 +2167,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 customer_acceptance,
                 shipping_cost,
                 order_tax_amount,
+                connector_mandate_detail,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2209,7 +2219,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost,
                 order_tax_amount,
                 connector_transaction_data: None,
-                connector_mandate_detail: None,
+                connector_mandate_detail,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,

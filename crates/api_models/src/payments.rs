@@ -5,6 +5,9 @@ use std::{
 };
 pub mod additional_info;
 use cards::CardNumber;
+use common_enums::ProductType;
+#[cfg(feature = "v2")]
+use common_utils::id_type::GlobalPaymentId;
 use common_utils::{
     consts::default_payments_list_limit,
     crypto,
@@ -12,13 +15,12 @@ use common_utils::{
     ext_traits::{ConfigExt, Encode, ValueExt},
     hashing::HashedString,
     id_type,
-    pii::{self, Email, EmailStrategy},
-    types::{keymanager::ToEncryptable, MinorUnit, StringMajorUnit},
+    pii::{self, Email},
+    types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy, WithType};
+use masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
-use rustc_hash::FxHashMap;
 use serde::{de, ser::Serializer, Deserialize, Deserializer, Serialize};
 use strum::Display;
 use time::{Date, PrimitiveDateTime};
@@ -287,10 +289,17 @@ impl PaymentsCreateIntentRequest {
     }
 }
 
+// This struct is only used internally, not visible in API Reference
+#[derive(Debug, Clone, serde::Serialize)]
+#[cfg(feature = "v2")]
+pub struct PaymentsGetIntentRequest {
+    pub id: id_type::GlobalPaymentId,
+}
+
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
-pub struct PaymentsCreateIntentResponse {
+pub struct PaymentsIntentResponse {
     /// Global Payment Id for the payment
     #[schema(value_type = String)]
     pub id: id_type::GlobalPaymentId,
@@ -368,7 +377,7 @@ pub struct PaymentsCreateIntentResponse {
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
-    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
+    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
@@ -380,7 +389,7 @@ pub struct PaymentsCreateIntentResponse {
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     #[schema(value_type = Option<FeatureMetadata>)]
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(value_type = EnablePaymentLinkRequest)]
@@ -1309,12 +1318,59 @@ pub struct NetworkTokenWithNTIRef {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct ConnectorMandateReferenceId {
-    pub connector_mandate_id: Option<String>,
-    pub payment_method_id: Option<String>,
-    pub update_history: Option<Vec<UpdateHistory>>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    connector_mandate_id: Option<String>,
+    payment_method_id: Option<String>,
+    update_history: Option<Vec<UpdateHistory>>,
+    mandate_metadata: Option<pii::SecretSerdeValue>,
+    connector_mandate_request_reference_id: Option<String>,
 }
 
+impl ConnectorMandateReferenceId {
+    pub fn new(
+        connector_mandate_id: Option<String>,
+        payment_method_id: Option<String>,
+        update_history: Option<Vec<UpdateHistory>>,
+        mandate_metadata: Option<pii::SecretSerdeValue>,
+        connector_mandate_request_reference_id: Option<String>,
+    ) -> Self {
+        Self {
+            connector_mandate_id,
+            payment_method_id,
+            update_history,
+            mandate_metadata,
+            connector_mandate_request_reference_id,
+        }
+    }
+
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.connector_mandate_id.clone()
+    }
+    pub fn get_payment_method_id(&self) -> Option<String> {
+        self.payment_method_id.clone()
+    }
+    pub fn get_mandate_metadata(&self) -> Option<pii::SecretSerdeValue> {
+        self.mandate_metadata.clone()
+    }
+    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.connector_mandate_request_reference_id.clone()
+    }
+
+    pub fn update(
+        &mut self,
+        connector_mandate_id: Option<String>,
+        payment_method_id: Option<String>,
+        update_history: Option<Vec<UpdateHistory>>,
+        mandate_metadata: Option<pii::SecretSerdeValue>,
+        connector_mandate_request_reference_id: Option<String>,
+    ) {
+        self.connector_mandate_id = connector_mandate_id.or(self.connector_mandate_id.clone());
+        self.payment_method_id = payment_method_id.or(self.payment_method_id.clone());
+        self.update_history = update_history.or(self.update_history.clone());
+        self.mandate_metadata = mandate_metadata.or(self.mandate_metadata.clone());
+        self.connector_mandate_request_reference_id = connector_mandate_request_reference_id
+            .or(self.connector_mandate_request_reference_id.clone());
+    }
+}
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
 pub struct UpdateHistory {
     pub connector_mandate_id: Option<String>,
@@ -3764,54 +3820,6 @@ pub struct EncryptableAddressDetails {
     pub email: crypto::OptionalEncryptableEmail,
 }
 
-impl ToEncryptable<EncryptableAddressDetails, Secret<String>, Secret<String>>
-    for AddressDetailsWithPhone
-{
-    fn from_encryptable(
-        mut hashmap: FxHashMap<String, crypto::Encryptable<Secret<String>>>,
-    ) -> common_utils::errors::CustomResult<
-        EncryptableAddressDetails,
-        common_utils::errors::ParsingError,
-    > {
-        Ok(EncryptableAddressDetails {
-            line1: hashmap.remove("line1"),
-            line2: hashmap.remove("line2"),
-            line3: hashmap.remove("line3"),
-            state: hashmap.remove("state"),
-            zip: hashmap.remove("zip"),
-            first_name: hashmap.remove("first_name"),
-            last_name: hashmap.remove("last_name"),
-            phone_number: hashmap.remove("phone_number"),
-            email: hashmap.remove("email").map(|x| {
-                let inner: Secret<String, EmailStrategy> = x.clone().into_inner().switch_strategy();
-                crypto::Encryptable::new(inner, x.into_encrypted())
-            }),
-        })
-    }
-
-    fn to_encryptable(self) -> FxHashMap<String, Secret<String>> {
-        let mut map = FxHashMap::with_capacity_and_hasher(9, Default::default());
-        self.address.map(|address| {
-            address.line1.map(|x| map.insert("line1".to_string(), x));
-            address.line2.map(|x| map.insert("line2".to_string(), x));
-            address.line3.map(|x| map.insert("line3".to_string(), x));
-            address.state.map(|x| map.insert("state".to_string(), x));
-            address.zip.map(|x| map.insert("zip".to_string(), x));
-            address
-                .first_name
-                .map(|x| map.insert("first_name".to_string(), x));
-            address
-                .last_name
-                .map(|x| map.insert("last_name".to_string(), x));
-        });
-        self.email
-            .map(|x| map.insert("email".to_string(), x.expose().switch_strategy()));
-        self.phone_number
-            .map(|x| map.insert("phone_number".to_string(), x));
-        map
-    }
-}
-
 #[derive(Debug, Clone, Default, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
 pub struct PhoneDetails {
     /// The contact number
@@ -3868,8 +3876,15 @@ pub enum NextActionType {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum NextActionData {
     /// Contains the url for redirection flow
+    #[cfg(feature = "v1")]
     RedirectToUrl {
         redirect_to_url: String,
+    },
+    /// Contains the url for redirection flow
+    #[cfg(feature = "v2")]
+    RedirectToUrl {
+        #[schema(value_type = String)]
+        redirect_to_url: Url,
     },
     /// Informs the next steps for bank transfer and also contains the charges details (ex: amount received, amount charged etc)
     DisplayBankTransferInformation {
@@ -4530,6 +4545,9 @@ pub struct PaymentsConfirmIntentResponse {
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
     pub payment_method_subtype: api_enums::PaymentMethodType,
 
+    /// Additional information required for redirection
+    pub next_action: Option<NextActionData>,
+
     /// A unique identifier for a payment provided by the connector
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub connector_transaction_id: Option<String>,
@@ -4548,6 +4566,22 @@ pub struct PaymentsConfirmIntentResponse {
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[cfg(feature = "v2")]
+pub struct PaymentStartRedirectionRequest {
+    /// Global Payment ID
+    pub id: id_type::GlobalPaymentId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+#[cfg(feature = "v2")]
+pub struct PaymentStartRedirectionParams {
+    /// The identifier for the Merchant Account.
+    pub publishable_key: String,
+    /// The identifier for business profile
+    pub profile_id: id_type::ProfileId,
 }
 
 /// Fee information to be charged on the payment being collected
@@ -5101,18 +5135,6 @@ pub struct OrderDetailsWithAmount {
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
-
-#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ProductType {
-    #[default]
-    Physical,
-    Digital,
-    Travel,
-    Ride,
-    Event,
-    Accommodation,
-}
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetails {

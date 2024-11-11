@@ -326,6 +326,9 @@ impl ConnectorData {
                 enums::Connector::Airwallex => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Airwallex)))
                 }
+                // enums::Connector::Amazonpay => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
+                // }
                 enums::Connector::Authorizedotnet => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
                 }
@@ -406,6 +409,7 @@ impl ConnectorData {
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
+                // enums::Connector::Elavon => Ok(ConnectorEnum::Old(Box::new(connector::Elavon))),
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
                 enums::Connector::Fiservemea => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
@@ -428,6 +432,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
                 enums::Connector::Itaubank => {
+                    //enums::Connector::Jpmorgan => Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }
                 enums::Connector::Klarna => {
@@ -471,7 +476,9 @@ impl ConnectorData {
                 enums::Connector::Razorpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Razorpay::new())))
                 }
-                enums::Connector::Rapyd => Ok(ConnectorEnum::Old(Box::new(&connector::Rapyd))),
+                enums::Connector::Rapyd => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
+                }
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
                 }
@@ -480,7 +487,7 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
-                enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(&connector::Wise))),
+                enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(connector::Wise::new()))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
                 }

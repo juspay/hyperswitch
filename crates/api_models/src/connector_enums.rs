@@ -54,6 +54,7 @@ pub enum Connector {
     Aci,
     Adyen,
     Airwallex,
+    // Amazonpay,
     Authorizedotnet,
     Bambora,
     Bamboraapac,
@@ -84,6 +85,7 @@ pub enum Connector {
     Helcim,
     Iatapay,
     Itaubank,
+    //Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,
@@ -195,6 +197,7 @@ impl Connector {
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
+            // | Self::Amazonpay
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bamboraapac
@@ -221,6 +224,7 @@ impl Connector {
             | Self::Helcim
             | Self::Iatapay
             | Self::Itaubank
+            //| Self::Jpmorgan
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie

@@ -171,6 +171,8 @@ pub enum Flow {
     PaymentsAggregate,
     /// Payments Create Intent flow
     PaymentsCreateIntent,
+    /// Payments Get Intent flow
+    PaymentsGetIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,
@@ -510,6 +512,8 @@ pub enum Flow {
     PaymentsConfirmIntent,
     /// Payments post session tokens flow
     PaymentsPostSessionTokens,
+    /// Payments start redirection flow
+    PaymentStartRedirection,
 }
 
 ///
