@@ -630,7 +630,6 @@ pub enum PaymentAttemptUpdate {
     // },
     // PaymentMethodDetailsUpdate {
     //     payment_method_id: Option<String>,
-    //     connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     //     updated_by: String,
     // },
     // ConnectorMandateDetailUpdate {

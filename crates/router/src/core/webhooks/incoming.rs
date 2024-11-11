@@ -1768,7 +1768,7 @@ async fn update_connector_mandate_details(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-            if payment_method_info.connector_mandate_details.is_some() {
+            if payment_method_info.connector_mandate_details.is_none() {
                 let updated_connector_mandate_details = prepare_updated_connector_mandate_details(
                     &payment_attempt,
                     &connector_mandate_details,
