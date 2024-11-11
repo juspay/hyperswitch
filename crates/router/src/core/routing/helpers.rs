@@ -760,7 +760,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                         payment_attempt.profile_id.get_string_repr()
                     ),
                 ),
-                ("merchant_connector_id", merchant_connector_id.to_string()),
                 (
                     "success_based_routing_connector",
                     first_success_based_connector.to_string(),
