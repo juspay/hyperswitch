@@ -999,7 +999,6 @@ impl PaymentAttemptUpdate {
             Self::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
                 updated_by,
-                
             } => DieselPaymentAttemptUpdate::ConnectorMandateDetailUpdate {
                 connector_mandate_detail,
                 updated_by,

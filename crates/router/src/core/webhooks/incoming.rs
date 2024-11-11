@@ -7,11 +7,7 @@ use api_models::{
     payment_methods::{PaymentsMandateReference, PaymentsMandateReferenceRecord},
     webhooks::{self, WebhookResponseTracker},
 };
-use common_utils::{
-    errors::ReportSwitchExt,
-    events::ApiEventsType,
-    ext_traits::AsyncExt,
-};
+use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::AsyncExt};
 use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
