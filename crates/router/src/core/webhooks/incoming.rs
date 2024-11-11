@@ -518,7 +518,7 @@ async fn payments_incoming_webhook_flow(
         webhooks::ObjectReferenceId::PaymentId(ref id) => {
             let payment_id = get_payment_id(
                 state.store.as_ref(),
-                &id,
+                id,
                 merchant_account.get_id(),
                 merchant_account.storage_scheme,
             )
@@ -597,7 +597,6 @@ async fn payments_incoming_webhook_flow(
                         .webhooks
                         .ignore_error
                         .payment_not_found
-                        .clone()
                         .unwrap_or(true) =>
                 {
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
@@ -1745,7 +1744,7 @@ async fn update_connector_mandate_details(
     source_verified: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let payment_attempt =
-        get_payment_attempt_from_object_reference_id(&state, object_ref_id, &merchant_account)
+        get_payment_attempt_from_object_reference_id(state, object_ref_id, merchant_account)
             .await?;
     if should_update_connector_mandate_details(&payment_attempt, source_verified) {
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id {
@@ -1754,8 +1753,8 @@ async fn update_connector_mandate_details(
                 .store
                 .find_payment_method(
                     key_manager_state,
-                    &key_store,
-                    &payment_method_id,
+                    key_store,
+                    payment_method_id,
                     merchant_account.storage_scheme,
                 )
                 .await
@@ -1771,7 +1770,7 @@ async fn update_connector_mandate_details(
                 .store
                 .update_payment_method(
                     key_manager_state,
-                    &key_store,
+                    key_store,
                     payment_method_info,
                     pm_update,
                     merchant_account.storage_scheme,
@@ -1805,14 +1804,14 @@ fn prepare_updated_connector_mandate_details(
                 .connector_mandate_id
                 .peek()
                 .to_string(),
-            payment_method_type: payment_attempt.payment_method_type.clone(),
+            payment_method_type: payment_attempt.payment_method_type,
             original_payment_authorized_amount: Some(
                 payment_attempt
                     .net_amount
                     .get_total_amount()
                     .get_amount_as_i64(),
             ),
-            original_payment_authorized_currency: payment_attempt.currency.clone(),
+            original_payment_authorized_currency: payment_attempt.currency,
         },
     )])));
 
