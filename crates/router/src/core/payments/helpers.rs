@@ -1240,7 +1240,7 @@ pub fn create_webhook_url(
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
-        router_base_url
+        router_base_url,
         merchant_id.get_string_repr(),
         connector_name
     )
