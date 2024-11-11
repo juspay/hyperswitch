@@ -755,7 +755,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 (
                     "merchant_profile_id",
                     format!(
-                        "{}{}",
+                        "{}:{}",
                         payment_attempt.merchant_id.get_string_repr().to_string(),
                         payment_attempt.profile_id.get_string_repr().to_string()
                     ),
