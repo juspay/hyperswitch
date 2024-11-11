@@ -687,7 +687,7 @@ impl Forex {
     }
     #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
-        todo!()
+        web::scope("/forex").app_data(web::Data::new(state.clone()))
     }
 }
 
@@ -1065,9 +1065,8 @@ pub struct Payouts;
 
 #[cfg(feature = "payouts")]
 impl Payouts {
-    #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
-        todo!()
+        web::scope("/payouts").app_data(web::Data::new(state))
     }
     #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
@@ -1586,7 +1585,7 @@ impl Cards {
     }
     #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
-        todo!()
+        web::scope("/cards").app_data(web::Data::new(state))
     }
 }
 
@@ -1658,7 +1657,7 @@ impl PayoutLink {
     }
     #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
-        todo!()
+        web::scope("/payout_link").app_data(web::Data::new(state))
     }
 }
 
@@ -1788,7 +1787,7 @@ impl ProfileNew {
     }
     #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
-        todo!()
+        web::scope("/account/{account_id}/profile").app_data(web::Data::new(state))
     }
 }
 
