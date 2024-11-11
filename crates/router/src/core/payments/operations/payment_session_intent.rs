@@ -225,14 +225,8 @@ impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentD
             .iter()
             .for_each(|connector_account| {
                 let res = connector_account
-                    .payment_methods_enabled
-                    .clone()
-                    .unwrap_or_default()
+                    .get_parsed_payment_methods_enabled()
                     .into_iter()
-                    .map(|payment_methods_enabled| {
-                        payment_methods_enabled
-                            .parse_value::<PaymentMethodsEnabled>("payment_methods_enabled")
-                    })
                     .filter_map(|parsed_payment_method_result| {
                         parsed_payment_method_result
                             .inspect_err(|err| {

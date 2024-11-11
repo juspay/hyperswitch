@@ -1,3 +1,7 @@
+#[cfg(feature = "v2")]
+use api_models::admin;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -13,6 +17,8 @@ use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use super::behaviour;
+#[cfg(feature = "v2")]
+use crate::errors::api_error_response::ApiErrorResponse;
 use crate::type_encryption::{crypto_operation, CryptoOperation};
 
 #[cfg(feature = "v1")]
@@ -86,6 +92,23 @@ pub struct MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
+    }
+
+    pub fn get_parsed_payment_methods_enabled(
+        &self,
+    ) -> Vec<CustomResult<admin::PaymentMethodsEnabled, ApiErrorResponse>> {
+        self.payment_methods_enabled
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|payment_methods_enabled| {
+                payment_methods_enabled
+                    .parse_value::<admin::PaymentMethodsEnabled>("payment_methods_enabled")
+                    .change_context(ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_methods_enabled",
+                    })
+            })
+            .collect()
     }
 }
 
