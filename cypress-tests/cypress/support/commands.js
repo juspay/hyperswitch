@@ -1003,7 +1003,8 @@ Cypress.Commands.add(
   "createPaymentMethodTest",
   (createPaymentMethodBody, globalState, res_data) => {
     createPaymentMethodBody.customer_id = globalState.get("customerId");
-    createPaymentMethodBody.client_secret = globalState.get("clientSecret");
+    const merchant_id = globalState.get("merchantId");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payment_methods`,
@@ -1018,10 +1019,12 @@ Cypress.Commands.add(
 
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
-        expect(response.body.client_secret, "client_secret").to.not.be.null;
+        expect(response.body.client_secret, "client_secret").to.include(
+          "_secret_"
+        ).and.to.not.be.null;
         expect(response.body.payment_method_id, "payment_method_id").to.not.be
           .null;
-        expect(response.body.merchant_id, "merchant_id").to.not.be.null;
+        expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
         expect(
           createPaymentMethodBody.payment_method_type,
           "payment_method_type"
@@ -1030,8 +1033,9 @@ Cypress.Commands.add(
           createPaymentMethodBody.payment_method,
           "payment_method"
         ).to.equal(response.body.payment_method);
-        expect(response.body.card, "card").to.not.be.empty;
-        expect(response.body.card, "card").to.be.an("object");
+        expect(response.body.card, "card").to.not.be.empty.and.to.be.an(
+          "object"
+        );
         expect(response.body.last_used_at, "last_used_at").to.not.be.null;
         expect(createPaymentMethodBody.customer_id, "customer_id").to.equal(
           response.body.customer_id
