@@ -211,6 +211,7 @@ pub struct TwoFactorAuthStatusResponseWithAttempts {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct TwoFactorStatus {
     pub status: Option<TwoFactorAuthStatusResponseWithAttempts>,
+    pub is_skippable: bool,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

@@ -56,6 +56,7 @@ password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch"
 base_url = "http://localhost:8080"
+force_two_factor_auth = false
 
 [locker]
 host = ""
@@ -112,6 +113,7 @@ adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
 adyen.dispute_base_url = "https://ca-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
+amazonpay.base_url = "https://pay-api.amazon.com/v2"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
@@ -135,6 +137,7 @@ digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.stagin
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
+elavon.base_url = "https://api.demo.convergepay.com"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
 fiuu.base_url = "https://sandbox.merchant.razer.com/"
@@ -148,6 +151,7 @@ gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayment
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
+jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -212,6 +216,7 @@ cards = [
     "adyen",
     "adyenplatform",
     "airwallex",
+    "amazonpay",
     "authorizedotnet",
     "bambora",
     "bamboraapac",
@@ -231,6 +236,7 @@ cards = [
     "dlocal",
     "dummyconnector",
     "ebanx",
+    "elavon",
     "fiserv",
     "fiservemea",
     "fiuu",
@@ -242,6 +248,7 @@ cards = [
     "helcim",
     "iatapay",
     "itaubank",
+    "jpmorgan",
     "mollie",
     "multisafepay",
     "netcetera",

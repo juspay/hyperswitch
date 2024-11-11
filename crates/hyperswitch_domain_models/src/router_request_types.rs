@@ -7,7 +7,7 @@ use common_utils::{
     id_type, pii,
     types::{self as common_types, MinorUnit},
 };
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
@@ -49,7 +49,7 @@ pub struct PaymentsAuthorizeData {
     pub customer_acceptance: Option<mandates::CustomerAcceptance>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub browser_info: Option<BrowserInformation>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
@@ -88,6 +88,8 @@ pub struct PaymentsPostSessionTokensData {
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub router_return_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -286,7 +288,7 @@ pub struct PaymentsPreProcessingData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
@@ -821,7 +823,7 @@ pub struct PaymentsSessionData {
     pub currency: common_enums::Currency,
     pub country: Option<common_enums::CountryAlpha2>,
     pub surcharge_details: Option<SurchargeDetails>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub email: Option<pii::Email>,
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
@@ -832,7 +834,7 @@ pub struct PaymentsTaxCalculationData {
     pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub shipping_cost: Option<MinorUnit>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub shipping_address: Address,
 }
 
