@@ -79,7 +79,9 @@ use crate::{
     },
     core::{
         errors::{self, StorageErrorExt},
-        payment_methods::{network_tokenization, transformers as payment_methods, vault},
+        payment_methods::{
+            migration, network_tokenization, transformers as payment_methods, vault,
+        },
         payments::{
             helpers,
             routing::{self, SessionFlowRoutingInput},
@@ -419,7 +421,7 @@ pub async fn migrate_payment_method(
                 );
 
             logger::debug!("Storing the card in locker and migrating the payment method");
-            get_client_secret_or_add_payment_method_for_migrate_api(
+            get_client_secret_or_add_payment_method_for_migration(
                 &state,
                 payment_method_create_request,
                 merchant_account,
@@ -528,6 +530,7 @@ pub async fn populate_bin_details_for_masked_card(
     card_details: &api_models::payment_methods::MigrateCardDetail,
     db: &dyn db::StorageInterface,
 ) -> errors::CustomResult<api::CardDetailFromLocker, errors::ApiErrorResponse> {
+    migration::validate_card_expiry(&card_details.card_exp_month, &card_details.card_exp_year)?;
     let card_number = card_details.card_number.clone();
 
     let (card_isin, _last4_digits) = get_card_bin_and_last4_digits_for_masked_card(
@@ -1113,7 +1116,7 @@ pub async fn get_client_secret_or_add_payment_method(
     not(feature = "payment_methods_v2")
 ))]
 #[instrument(skip_all)]
-pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
+pub async fn get_client_secret_or_add_payment_method_for_migration(
     state: &routes::SessionState,
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
@@ -1146,7 +1149,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migrate_api(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     if condition {
-        Box::pin(add_payment_method_for_migrate_api(
+        Box::pin(save_migration_payment_method(
             state,
             req,
             merchant_account,
@@ -1707,7 +1710,7 @@ pub async fn add_payment_method(
     not(feature = "payment_methods_v2")
 ))]
 #[instrument(skip_all)]
-pub async fn add_payment_method_for_migrate_api(
+pub async fn save_migration_payment_method(
     state: &routes::SessionState,
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
@@ -1775,7 +1778,7 @@ pub async fn add_payment_method_for_migrate_api(
                     db,
                 )
                 .await;
-                helpers::validate_card_expiry(
+                migration::validate_card_expiry(
                     &card_details.card_exp_month,
                     &card_details.card_exp_year,
                 )?;
@@ -2806,25 +2809,6 @@ pub async fn update_payment_method_metadata_and_last_used(
     Ok(())
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn update_payment_method_metadata_and_last_used(
-    state: &routes::SessionState,
-    key_store: &domain::MerchantKeyStore,
-    db: &dyn db::StorageInterface,
-    pm: domain::PaymentMethod,
-    pm_metadata: Option<serde_json::Value>,
-    storage_scheme: MerchantStorageScheme,
-) -> errors::CustomResult<(), errors::VaultError> {
-    let pm_update = payment_method::PaymentMethodUpdate::MetadataUpdateAndLastUsed {
-        metadata: pm_metadata.map(Secret::new),
-        last_used_at: common_utils::date_time::now(),
-    };
-    db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
-        .await
-        .change_context(errors::VaultError::UpdateInPaymentMethodDataTableFailed)?;
-    Ok(())
-}
-
 pub async fn update_payment_method_and_last_used(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -2849,11 +2833,11 @@ pub async fn update_payment_method_connector_mandate_details(
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
-    connector_mandate_details: Option<serde_json::Value>,
+    connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
     storage_scheme: MerchantStorageScheme,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-        connector_mandate_details: connector_mandate_details.map(Secret::new),
+        connector_mandate_details,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
@@ -3346,15 +3330,18 @@ pub async fn list_payment_methods(
         .await
         .transpose()?;
     let setup_future_usage = payment_intent.as_ref().and_then(|pi| pi.setup_future_usage);
+    let is_cit_transaction = payment_attempt
+        .as_ref()
+        .map(|pa| pa.mandate_details.is_some())
+        .unwrap_or(false)
+        || setup_future_usage
+            .map(|future_usage| future_usage == common_enums::FutureUsage::OffSession)
+            .unwrap_or(false);
     let payment_type = payment_attempt.as_ref().map(|pa| {
         let amount = api::Amount::from(pa.net_amount.get_order_amount());
         let mandate_type = if pa.mandate_id.is_some() {
             Some(api::MandateTransactionType::RecurringMandateTransaction)
-        } else if pa.mandate_details.is_some()
-            || setup_future_usage
-                .map(|future_usage| future_usage == common_enums::enums::FutureUsage::OffSession)
-                .unwrap_or(false)
-        {
+        } else if is_cit_transaction {
             Some(api::MandateTransactionType::NewMandateTransaction)
         } else {
             None
@@ -3862,16 +3849,13 @@ pub async fn list_payment_methods(
                             .get(&connector_variant)
                             .map(|required_fields_final| {
                                 let mut required_fields_hs = required_fields_final.common.clone();
-                                if let Some(pa) = payment_attempt.as_ref() {
-                                    if let Some(_mandate) = &pa.mandate_details {
+                                    if is_cit_transaction {
                                         required_fields_hs
                                             .extend(required_fields_final.mandate.clone());
                                     } else {
                                         required_fields_hs
                                             .extend(required_fields_final.non_mandate.clone());
                                     }
-                                }
-
                                  required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
                                     &payment_method,
                                     element.payment_experience.as_ref(),
@@ -4967,7 +4951,9 @@ pub async fn list_customer_payment_method(
             .connector_mandate_details
             .clone()
             .map(|val| {
-                val.parse_value::<storage::PaymentsMandateReference>("PaymentsMandateReference")
+                val.parse_value::<diesel_models::PaymentsMandateReference>(
+                    "PaymentsMandateReference",
+                )
             })
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5229,7 +5215,7 @@ async fn perform_surcharge_ops(
 pub async fn perform_surcharge_ops(
     _payment_intent: Option<storage::PaymentIntent>,
     _state: &routes::SessionState,
-    _merchant_account: domain::MerchantAccount,
+    _merchant_account: &domain::MerchantAccount,
     _key_store: domain::MerchantKeyStore,
     _business_profile: Option<Profile>,
     _response: &mut api::CustomerPaymentMethodsListResponse,
@@ -5237,13 +5223,14 @@ pub async fn perform_surcharge_ops(
     todo!()
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_mca_status(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
-    connector_mandate_details: Option<storage::PaymentsMandateReference>,
+    connector_mandate_details: Option<payment_method::PaymentsMandateReference>,
     network_transaction_id: Option<&String>,
 ) -> errors::RouterResult<bool> {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
@@ -5262,25 +5249,42 @@ pub async fn get_mca_status(
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
-        let mut mca_ids = HashSet::new();
-        let mcas = mcas
-            .into_iter()
-            .filter(|mca| {
-                mca.disabled == Some(false) && profile_id.clone() == Some(mca.profile_id.clone())
-            })
-            .collect::<Vec<_>>();
+        let merchant_connector_accounts = domain::MerchantConnectorAccounts::new(mcas);
 
-        for mca in mcas {
-            mca_ids.insert(mca.get_id());
-        }
-        for mca_id in connector_mandate_details.keys() {
-            if mca_ids.contains(mca_id) {
-                return Ok(true);
-            }
-        }
+        return Ok(merchant_connector_accounts
+            .is_merchant_connector_account_id_in_connector_mandate_details(
+                profile_id.as_ref(),
+                &connector_mandate_details,
+            ));
     }
     Ok(false)
 }
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[allow(clippy::too_many_arguments)]
+pub async fn get_mca_status(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    profile_id: Option<id_type::ProfileId>,
+    merchant_id: &id_type::MerchantId,
+    is_connector_agnostic_mit_enabled: bool,
+    connector_mandate_details: Option<&payment_method::PaymentsMandateReference>,
+    network_transaction_id: Option<&String>,
+    merchant_connector_accounts: &domain::MerchantConnectorAccounts,
+) -> bool {
+    if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
+        return true;
+    }
+    match connector_mandate_details {
+        Some(connector_mandate_details) => merchant_connector_accounts
+            .is_merchant_connector_account_id_in_connector_mandate_details(
+                profile_id.as_ref(),
+                connector_mandate_details,
+            ),
+        None => false,
+    }
+}
+
 pub async fn decrypt_generic_data<T>(
     state: &routes::SessionState,
     data: Option<Encryption>,
