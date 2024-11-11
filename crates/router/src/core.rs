@@ -16,6 +16,7 @@ pub mod connector_onboarding;
 pub mod currency;
 pub mod customers;
 pub mod disputes;
+pub mod dynamic_routing;
 pub mod encryption;
 pub mod errors;
 pub mod files;

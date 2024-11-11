@@ -21,7 +21,7 @@ use tracing_futures::Instrument;
 
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::core::routing::helpers as routing_helpers;
+use crate::core::dynamic_routing::helpers as dynamic_routing_helpers;
 use crate::{
     connector::utils::PaymentResponseRouterData,
     consts,
@@ -1969,7 +1969,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
             let success_based_routing_config_params_interpolator =
-                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                dynamic_routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
                     payment_attempt.payment_method,
                     payment_attempt.payment_method_type,
                     payment_attempt.authentication_type,
@@ -2000,7 +2000,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 );
             tokio::spawn(
                 async move {
-                    routing_helpers::push_metrics_with_update_window_for_success_based_routing(
+                    dynamic_routing_helpers::push_metrics_with_update_window_for_success_based_routing(
                         &state,
                         &payment_attempt,
                         routable_connectors,
