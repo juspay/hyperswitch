@@ -733,7 +733,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             .label
             .to_string();
 
-        let (first_success_based_connector, merchant_connector_id) = first_success_based_connector_label
+        let (first_success_based_connector, _) = first_success_based_connector_label
             .split_once(':')
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
