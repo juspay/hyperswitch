@@ -42,6 +42,8 @@ use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
 #[cfg(feature = "v2")]
 use crate::core::admin;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::core::dynamic_routing;
 #[cfg(feature = "payouts")]
 use crate::core::payouts;
 use crate::{
@@ -1240,7 +1242,7 @@ pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
-    success_based_routing_config_params_interpolator: routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
+    success_based_routing_config_params_interpolator: dynamic_routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
     let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
         business_profile
@@ -1277,22 +1279,23 @@ pub async fn perform_success_based_routing(
             .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
             .attach_printable("success_rate gRPC client not found")?;
 
-        let success_based_routing_configs = routing::helpers::fetch_success_based_routing_configs(
-            state,
-            business_profile,
-            success_based_algo_ref
-                .algorithm_id_with_timestamp
-                .algorithm_id
-                .ok_or(errors::RoutingError::GenericNotFoundError {
-                    field: "success_based_routing_algorithm_id".to_string(),
-                })
-                .attach_printable(
-                    "success_based_routing_algorithm_id not found in business_profile",
-                )?,
-        )
-        .await
-        .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
-        .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
+        let success_based_routing_configs =
+            dynamic_routing::helpers::fetch_success_based_routing_configs(
+                state,
+                business_profile,
+                success_based_algo_ref
+                    .algorithm_id_with_timestamp
+                    .algorithm_id
+                    .ok_or(errors::RoutingError::GenericNotFoundError {
+                        field: "success_based_routing_algorithm_id".to_string(),
+                    })
+                    .attach_printable(
+                        "success_based_routing_algorithm_id not found in business_profile",
+                    )?,
+            )
+            .await
+            .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
+            .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
         let success_based_routing_config_params = success_based_routing_config_params_interpolator
             .get_string_val(
@@ -1302,10 +1305,11 @@ pub async fn perform_success_based_routing(
                     .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)?,
             );
 
-        let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
-            &state.tenant.redis_key_prefix,
-            business_profile.get_id().get_string_repr(),
-        );
+        let tenant_business_profile_id =
+            dynamic_routing::helpers::generate_tenant_business_profile_id(
+                &state.tenant.redis_key_prefix,
+                business_profile.get_id().get_string_repr(),
+            );
 
         let success_based_connectors: CalSuccessRateResponse = client
             .calculate_success_rate(

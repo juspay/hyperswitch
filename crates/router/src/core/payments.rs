@@ -73,10 +73,10 @@ use self::{
 use super::{
     errors::StorageErrorExt, payment_methods::surcharge_decision_configs, routing::TransactionData,
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::core::dynamic_routing::helpers as dynamic_routing_helpers;
 #[cfg(feature = "frm")]
 use crate::core::fraud_check as frm_core;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::core::routing::helpers as routing_helpers;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
@@ -5690,7 +5690,7 @@ where
     let connectors = {
         if business_profile.dynamic_routing_algorithm.is_some() {
             let success_based_routing_config_params_interpolator =
-                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                dynamic_routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
                     payment_data.get_payment_attempt().payment_method,
                     payment_data.get_payment_attempt().payment_method_type,
                     payment_data.get_payment_attempt().authentication_type,

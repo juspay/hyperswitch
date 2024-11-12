@@ -11,7 +11,7 @@ use router_env::{
 };
 
 use crate::{
-    core::{api_locking, conditional_config, routing, surcharge_decision_config},
+    core::{api_locking, conditional_config, dynamic_routing, routing, surcharge_decision_config},
     routes::AppState,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
 };
@@ -1035,7 +1035,7 @@ pub async fn toggle_success_based_routing(
          auth: auth::AuthenticationData,
          wrapper: routing_types::ToggleSuccessBasedRoutingWrapper,
          _| {
-            routing::toggle_success_based_routing(
+            dynamic_routing::toggle_success_based_routing(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -1076,7 +1076,7 @@ pub async fn success_based_routing_update_configs(
         &req,
         routing_payload_wrapper,
         |state, _, wrapper: routing_types::SuccessBasedRoutingPayloadWrapper, _| async {
-            Box::pin(routing::success_based_routing_update_configs(
+            Box::pin(dynamic_routing::success_based_routing_update_configs(
                 state,
                 wrapper.updated_config,
                 wrapper.algorithm_id,
