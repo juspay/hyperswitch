@@ -770,7 +770,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
-        .async_map(|billing| create_encrypted_data(&key_manager_state, key_store, billing))
+        .async_map(|billing| create_encrypted_data(key_manager_state, key_store, billing))
         .await
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -791,7 +791,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()));
 
     let payment_method_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = Some(
-        create_encrypted_data(&key_manager_state, key_store, payment_method_card_details)
+        create_encrypted_data(key_manager_state, key_store, payment_method_card_details)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt Payment method card details")?,
@@ -867,7 +867,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = set_default_payment_method(
-            &state,
+            state,
             &merchant_id,
             key_store.clone(),
             &customer_id,
@@ -923,7 +923,7 @@ pub async fn save_network_token_and_update_payment_method(
     );
 
     let token_resp = Box::pin(add_card_to_locker(
-        &state,
+        state,
         payment_method_create_request.clone(),
         &network_token_details,
         &customer_id,
@@ -944,7 +944,7 @@ pub async fn save_network_token_and_update_payment_method(
                 .as_ref()
                 .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
             let pm_network_token_data_encrypted = pm_token_details
-                .async_map(|pm_card| create_encrypted_data(&key_manager_state, key_store, pm_card))
+                .async_map(|pm_card| create_encrypted_data(key_manager_state, key_store, pm_card))
                 .await
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
