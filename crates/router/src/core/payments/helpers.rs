@@ -1239,8 +1239,7 @@ pub fn create_webhook_url(
     connector_name: impl std::fmt::Display,
 ) -> String {
     format!(
-        "{}/webhooks/{}/{}",
-        router_base_url,
+        "https://bc33-2409-40f2-40-949-d8b3-4d62-aab9-41da.ngrok-free.app/webhooks/{}/{}",
         merchant_id.get_string_repr(),
         connector_name
     )

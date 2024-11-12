@@ -246,8 +246,3 @@ pub struct ConnectorWebhookSecrets {
     pub secret: Vec<u8>,
     pub additional_secret: Option<masking::Secret<String>>,
 }
-
-#[derive(Debug, Clone, Serialize)]
-pub struct ConnectorMandateDetails {
-    pub connector_mandate_id: masking::Secret<String>,
-}

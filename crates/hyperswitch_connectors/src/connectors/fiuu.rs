@@ -894,25 +894,19 @@ impl webhooks::IncomingWebhook for Fiuu {
     fn get_mandate_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Option<api_models::webhooks::ConnectorMandateDetails>, errors::ConnectorError>
-    {
-        let header = utils::get_header_key_value("content-type", request.headers)?;
-        let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
-            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(request.body)
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
-        } else {
-            request
-                .body
-                .parse_struct("fiuu::FiuuWebhooksResponse")
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
-        };
-        match payload.clone() {
-            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(webhook_payment_response) => {
-                let mandate_reference = webhook_payment_response.extra_parameters.as_ref().and_then(|extra_p| {
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
+        errors::ConnectorError,
+    > {
+        let webhook_payment_response: transformers::FiuuWebhooksPaymentResponse = request
+            .body
+            .parse_struct("fiuu::FiuuWebhooksPaymentResponse")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let mandate_reference = webhook_payment_response.extra_parameters.as_ref().and_then(|extra_p| {
                     let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(extra_p);
                     match mandate_token {
                         Ok(token) => {
-                            token.token.as_ref().map(|token| api_models::webhooks::ConnectorMandateDetails {
+                            token.token.as_ref().map(|token| hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails {
                                 connector_mandate_id:token.clone(),
                             })
                         }
@@ -927,9 +921,6 @@ impl webhooks::IncomingWebhook for Fiuu {
                         }
                     }
                 });
-                Ok(mandate_reference)
-            }
-            FiuuWebhooksResponse::FiuuWebhookRefundResponse(_webhook_refund_response) => Ok(None),
-        }
+        Ok(mandate_reference)
     }
 }
