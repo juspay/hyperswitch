@@ -15,7 +15,7 @@ use crate::{
     routes::SessionState,
     types::{
         api,
-        domain::{self, MerchantConnectorAccountListTrait},
+        domain::{self, MerchantConnectorAccountsTrait},
         storage::enums,
     },
 };
@@ -212,8 +212,7 @@ impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentD
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
-        let all_connector_accounts =
-            domain::MerchantConnectorAccountList::new(all_connector_accounts);
+        let all_connector_accounts = domain::MerchantConnectorAccounts::new(all_connector_accounts);
         let profile_id = &payment_data.payment_intent.profile_id;
         let filtered_connector_accounts = all_connector_accounts
             .filter_based_on_profile_and_connector_type(
