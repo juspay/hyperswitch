@@ -1,24 +1,22 @@
 use std::marker::PhantomData;
 
-use api_models::{
-    admin::PaymentMethodsEnabled, enums::FrmSuggestion, payments::PaymentsSessionRequest,
-};
+use api_models::payments::PaymentsSessionRequest;
 use async_trait::async_trait;
-use common_utils::{errors::CustomResult, ext_traits::ValueExt};
+use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use masking::ExposeInterface;
 use router_env::{instrument, logger, tracing};
 
-use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+use super::{BoxedOperation, Domain, GetTracker, Operation, ValidateRequest};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations},
     },
-    routes::{app::ReqState, SessionState},
+    routes::SessionState,
     types::{
-        api, domain,
-        storage::{self, enums},
+        api,
+        domain::{self, MerchantConnectorAccountListTrait},
+        storage::enums,
     },
 };
 
@@ -73,9 +71,9 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSess
         &'a self,
         state: &'a SessionState,
         payment_id: &common_utils::id_type::GlobalPaymentId,
-        request: &PaymentsSessionRequest,
+        _request: &PaymentsSessionRequest,
         merchant_account: &domain::MerchantAccount,
-        profile: &domain::Profile,
+        _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
@@ -214,46 +212,16 @@ impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentD
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
+        let all_connector_accounts =
+            domain::MerchantConnectorAccountList::new(all_connector_accounts);
         let profile_id = &payment_data.payment_intent.profile_id;
-        let filtered_connector_accounts = helpers::filter_mca_based_on_profile_and_connector_type(
-            all_connector_accounts,
-            profile_id,
-            common_enums::ConnectorType::PaymentProcessor,
-        );
-        let mut connector_and_supporting_payment_method_type = Vec::new();
-        filtered_connector_accounts
-            .iter()
-            .for_each(|connector_account| {
-                let res = connector_account
-                    .get_parsed_payment_methods_enabled()
-                    .into_iter()
-                    .filter_map(|parsed_payment_method_result| {
-                        parsed_payment_method_result
-                            .inspect_err(|err| {
-                                logger::error!(session_token_parsing_error=?err);
-                            })
-                            .ok()
-                    })
-                    .flat_map(|parsed_payment_methods_enabled| {
-                        parsed_payment_methods_enabled
-                            .payment_method_types
-                            .unwrap_or_default()
-                            .into_iter()
-                            .filter(|payment_method_type| {
-                                let is_invoke_sdk_client = matches!(
-                                    payment_method_type.payment_experience,
-                                    Some(api_models::enums::PaymentExperience::InvokeSdkClient)
-                                );
-                                is_invoke_sdk_client
-                            })
-                            .map(|payment_method_type| {
-                                (connector_account, payment_method_type.payment_method_type)
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .collect::<Vec<_>>();
-                connector_and_supporting_payment_method_type.extend(res);
-            });
+        let filtered_connector_accounts = all_connector_accounts
+            .filter_based_on_profile_and_connector_type(
+                &profile_id,
+                common_enums::ConnectorType::PaymentProcessor,
+            );
+        let connector_and_supporting_payment_method_type = filtered_connector_accounts
+            .get_connector_and_supporting_payment_method_type_for_session_call();
         let mut session_connector_data =
             Vec::with_capacity(connector_and_supporting_payment_method_type.len());
         for (merchant_connector_account, payment_method_type) in
