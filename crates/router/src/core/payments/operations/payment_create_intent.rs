@@ -288,15 +288,17 @@ impl<F: Clone + Send> Domain<F, PaymentsCreateIntentRequest, payments::PaymentIn
         Ok((Box::new(self), None, None))
     }
 
-    async fn get_connector<'a>(
+    #[instrument(skip_all)]
+    async fn perform_routing<'a>(
         &'a self,
-        _merchant_account: &domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
+        business_profile: &domain::Profile,
         state: &SessionState,
-        _request: &PaymentsCreateIntentRequest,
-        _payment_intent: &storage::PaymentIntent,
-        _merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
-        helpers::get_connector_default(state, None).await
+        // TODO: do not take the whole payment data here
+        payment_data: &mut payments::PaymentIntentData<F>,
+        mechant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
+        Ok(api::ConnectorCallType::Skip)
     }
 
     #[instrument(skip_all)]

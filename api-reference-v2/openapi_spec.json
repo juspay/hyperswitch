@@ -14314,6 +14314,7 @@
         "type": "object",
         "required": [
           "id",
+          "status",
           "amount_details",
           "client_secret",
           "capture_method",
@@ -14330,6 +14331,9 @@
           "id": {
             "type": "string",
             "description": "Global Payment Id for the payment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
           },
           "amount_details": {
             "$ref": "#/components/schemas/AmountDetailsResponse"
@@ -15049,56 +15053,11 @@
       },
       "PaymentsRetrieveRequest": {
         "type": "object",
-        "required": [
-          "resource_id",
-          "force_sync"
-        ],
+        "description": "Request for Payment Status",
         "properties": {
-          "resource_id": {
-            "type": "string",
-            "description": "The type of ID (ex: payment intent id, payment attempt id or connector txn id)"
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account.",
-            "nullable": true
-          },
           "force_sync": {
             "type": "boolean",
-            "description": "Decider to enable or disable the connector call for retrieve request"
-          },
-          "param": {
-            "type": "string",
-            "description": "The parameters passed to a retrieve request",
-            "nullable": true
-          },
-          "connector": {
-            "type": "string",
-            "description": "The name of the connector",
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
-            "nullable": true
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
-            "nullable": true
-          },
-          "expand_captures": {
-            "type": "boolean",
-            "description": "If enabled provides list of captures linked to latest attempt",
-            "nullable": true
-          },
-          "expand_attempts": {
-            "type": "boolean",
-            "description": "If enabled provides list of attempts linked to payment intent",
-            "nullable": true
+            "description": "A boolean used to indicate if the payment status should be fetched from the connector\nIf this is set to true, the status will be fetched from the connector"
           }
         }
       },

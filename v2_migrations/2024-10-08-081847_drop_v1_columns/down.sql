@@ -87,6 +87,7 @@ ADD COLUMN IF NOT EXISTS attempt_id VARCHAR(64) NOT NULL,
     ADD COLUMN tax_amount bigint,
     ADD COLUMN straight_through_algorithm JSONB,
     ADD COLUMN confirm BOOLEAN,
+    ADD COLUMN authentication_data JSONB,
     ADD COLUMN payment_method_billing_address_id VARCHAR(64);
 
 -- Create the index which was dropped because of dropping the column

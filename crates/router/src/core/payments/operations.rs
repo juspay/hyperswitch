@@ -37,6 +37,9 @@ pub mod payment_create_intent;
 #[cfg(feature = "v2")]
 pub mod payment_get_intent;
 
+#[cfg(feature = "v2")]
+pub mod payment_get;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
@@ -44,6 +47,8 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v2")]
+pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
 pub use self::payment_response::PaymentResponse;
@@ -86,20 +91,24 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
     }
+
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F, Self::Data, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("get tracker interface not found for {self:?}"))
     }
+
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, T, Self::Data>> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("domain interface not found for {self:?}"))
     }
+
     fn to_update_tracker(
         &self,
     ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("update tracker interface not found for {self:?}"))
     }
+
     fn to_post_update_tracker(
         &self,
     ) -> RouterResult<&(dyn PostUpdateTracker<F, Self::Data, T> + Send + Sync)> {
@@ -241,6 +250,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    #[cfg(feature = "v1")]
     async fn get_connector<'a>(
         &'a self,
         merchant_account: &domain::MerchantAccount,
@@ -249,6 +259,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         payment_intent: &storage::PaymentIntent,
         mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
+
+    #[cfg(feature = "v2")]
+    async fn perform_routing<'a>(
+        &'a self,
+        merchant_account: &domain::MerchantAccount,
+        business_profile: &domain::Profile,
+        state: &SessionState,
+        // TODO: do not take the whole payment data here
+        payment_data: &mut D,
+        mechant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse>;
 
     async fn populate_payment_data<'a>(
         &'a self,
@@ -306,11 +327,36 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
+
+    // #[cfg(feature = "v2")]
+    // async fn call_connector<'a, RouterDataReq>(
+    //     &'a self,
+    //     _state: &SessionState,
+    //     _req_state: ReqState,
+    //     _merchant_account: &domain::MerchantAccount,
+    //     _key_store: &domain::MerchantKeyStore,
+    //     _business_profile: &domain::Profile,
+    //     _payment_method_data: Option<&domain::PaymentMethodData>,
+    //     _connector: api::ConnectorData,
+    //     _customer: &Option<domain::Customer>,
+    //     _payment_data: &mut D,
+    //     _call_connector_action: common_enums::CallConnectorAction,
+    // ) -> CustomResult<
+    //     hyperswitch_domain_models::router_data::RouterData<F, RouterDataReq, PaymentsResponseData>,
+    //     errors::ApiErrorResponse,
+    // > {
+    //     // TODO: raise an error here
+    //     todo!();
+    // }
 }
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
 pub trait UpdateTracker<F, D, Req>: Send {
+    /// Update the tracker information with the new data from request or calculated by the operations performed after get trackers
+    /// This will persist the SessionData ( PaymentData ) in the database
+    ///
+    /// In case we are calling a processor / connector, we persist all the data in the database and then call the connector
     async fn update_trackers<'b>(
         &'b self,
         db: &'b SessionState,
@@ -327,9 +373,33 @@ pub trait UpdateTracker<F, D, Req>: Send {
         F: 'b + Send;
 }
 
+#[cfg(feature = "v2")]
+#[async_trait]
+#[allow(clippy::too_many_arguments)]
+pub trait CallConnector<F, D, RouterDReq: Send>: Send {
+    async fn call_connector<'b>(
+        &'b self,
+        db: &'b SessionState,
+        req_state: ReqState,
+        payment_data: D,
+        key_store: &domain::MerchantKeyStore,
+        call_connector_action: common_enums::CallConnectorAction,
+        connector_data: api::ConnectorData,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<types::RouterData<F, RouterDReq, PaymentsResponseData>>
+    where
+        F: 'b + Send + Sync,
+        D: super::flows::ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+        types::RouterData<F, RouterDReq, PaymentsResponseData>:
+            super::flows::Feature<F, RouterDReq> + Send;
+}
+
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
 pub trait PostUpdateTracker<F, D, R: Send>: Send {
+    /// Update the tracker information with the response from the connector
+    /// The response from routerdata is used to update paymentdata and also persist this in the database
+    #[cfg(feature = "v1")]
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
@@ -338,13 +408,25 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
-            RoutableConnectorChoice,
-        >,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        #[cfg(feature = "dynamic_routing")] routable_connector: Vec<RoutableConnectorChoice>,
+        #[cfg(feature = "dynamic_routing")] business_profile: &domain::Profile,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;
+
+    #[cfg(feature = "v2")]
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        payment_data: D,
+        response: types::RouterData<F, R, PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<D>
+    where
+        F: 'b + Send + Sync,
+        types::RouterData<F, R, PaymentsResponseData>:
+            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, R>;
 
     async fn save_pm_and_mandate<'b>(
         &self,
@@ -362,6 +444,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<
         D,
@@ -412,24 +495,6 @@ where
         Ok((Box::new(self), customer))
     }
 
-    #[instrument(skip_all)]
-    #[cfg(feature = "v2")]
-    async fn get_customer_details<'a>(
-        &'a self,
-        _state: &SessionState,
-        _payment_data: &mut D,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
-            Option<domain::Customer>,
-        ),
-        errors::StorageError,
-    > {
-        todo!()
-    }
-
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
@@ -470,6 +535,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest, Data = D>>
     Domain<F, api::PaymentsCaptureRequest, D> for Op
@@ -574,6 +640,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCancelRequest, Data = D>>
     Domain<F, api::PaymentsCancelRequest, D> for Op
@@ -678,6 +745,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRejectRequest, Data = D>>
     Domain<F, api::PaymentsRejectRequest, D> for Op
@@ -767,4 +835,13 @@ pub trait ValidateStatusForOperation {
         &self,
         intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse>;
+}
+
+/// Should the connector be called for this operation
+pub trait ShouldCallConnector {
+    fn should_call_connector(
+        &self,
+        intent_status: common_enums::IntentStatus,
+        force_sync: Option<bool>,
+    ) -> bool;
 }
