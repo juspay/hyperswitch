@@ -1516,32 +1516,3 @@ pub trait ConnectorTransactionIdTrait {
         self.get_optional_connector_transaction_id()
     }
 }
-
-/// Generic List Wrapper type
-#[derive(Debug)]
-pub struct GenericListWrapper<T>(Vec<T>);
-
-impl<T> GenericListWrapper<T> {
-    /// constructor for GenericListWrapper
-    pub fn new(list: Vec<T>) -> Self {
-        Self(list)
-    }
-    /// returns iter of the enclosed Vec type
-    pub fn iter(&self) -> std::slice::Iter<'_, T> {
-        self.0.iter()
-    }
-}
-
-impl<T> Iterator for GenericListWrapper<T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.pop()
-    }
-}
-
-impl<U> FromIterator<U> for GenericListWrapper<U> {
-    fn from_iter<T: IntoIterator<Item = U>>(iter: T) -> Self {
-        Self(iter.into_iter().collect())
-    }
-}

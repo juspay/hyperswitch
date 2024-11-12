@@ -91,7 +91,7 @@ use crate::{
     services,
     types::{
         api::{self, routing as routing_types, PaymentMethodCreateExt},
-        domain::{self, MerchantConnectorAccountsTrait, Profile},
+        domain::{self, Profile},
         storage::{self, enums, PaymentMethodListContext, PaymentTokenData},
         transformers::ForeignTryFrom,
     },

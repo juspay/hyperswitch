@@ -13,11 +13,7 @@ use crate::{
         payments::{self, helpers, operations},
     },
     routes::SessionState,
-    types::{
-        api,
-        domain::{self, MerchantConnectorAccountsTrait},
-        storage::enums,
-    },
+    types::{api, domain, storage::enums},
 };
 
 #[derive(Debug, Clone, Copy)]
