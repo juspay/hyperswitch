@@ -68,6 +68,7 @@ impl SPTFlow {
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id: user.get_user_id(),
+                    tenant_id: Some(&state.tenant.tenant_id),
                     org_id: None,
                     merchant_id: None,
                     profile_id: None,
@@ -120,19 +121,63 @@ impl JWTFlow {
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
-        let (merchant_id, profile_id) =
-            utils::user_role::get_single_merchant_id_and_profile_id(state, user_role).await?;
+        let (oid, mid, pid) = match user_role.entity_type {
+            Some(common_enums::EntityType::Tenant) => {
+                let key_manager_state = &(&*state).into();
+
+                let ma = state
+                    .store
+                    .list_all_merchant_accounts(key_manager_state, Some(1), None)
+                    .await
+                    .change_context(UserErrors::InternalServerError)?
+                    .pop()
+                    .ok_or(UserErrors::InternalServerError)?;
+
+                let mid = ma.get_id().to_owned();
+                let oid = ma.get_org_id().to_owned();
+
+                let key_store = state
+                    .store
+                    .get_merchant_key_store_by_merchant_id(
+                        &state.into(),
+                        &mid,
+                        &state.store.get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)?;
+
+                let pid = state
+                    .store
+                    .list_profile_by_merchant_id(&state.into(), &key_store, &mid)
+                    .await
+                    .change_context(UserErrors::InternalServerError)?
+                    .pop()
+                    .ok_or(UserErrors::InternalServerError)?
+                    .get_id()
+                    .to_owned();
+                (oid, mid, pid)
+            }
+            _ => {
+                let oid = user_role
+                    .org_id
+                    .clone()
+                    .ok_or(report!(UserErrors::InternalServerError))
+                    .attach_printable("org_id not found")?;
+
+                let (mid, pid) =
+                    utils::user_role::get_single_merchant_id_and_profile_id(state, user_role)
+                        .await?;
+                (oid, mid, pid)
+            }
+        };
+
         auth::AuthToken::new_token(
             next_flow.user.get_user_id().to_string(),
-            merchant_id,
+            mid,
             user_role.role_id.clone(),
             &state.conf,
-            user_role
-                .org_id
-                .clone()
-                .ok_or(report!(UserErrors::InternalServerError))
-                .attach_printable("org_id not found")?,
-            Some(profile_id),
+            oid,
+            Some(pid),
             Some(user_role.tenant_id.clone()),
         )
         .await
@@ -304,6 +349,7 @@ impl NextFlow {
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: self.user.get_user_id(),
+                        tenant_id: Some(&state.tenant.tenant_id),
                         org_id: None,
                         merchant_id: None,
                         profile_id: None,

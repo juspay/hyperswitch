@@ -15,6 +15,7 @@ use crate::{
 
 pub struct ListUserRolesByOrgIdPayload<'a> {
     pub user_id: Option<&'a String>,
+    pub tenant_id: Option<&'a String>,
     pub org_id: &'a id_type::OrganizationId,
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,
@@ -24,6 +25,7 @@ pub struct ListUserRolesByOrgIdPayload<'a> {
 
 pub struct ListUserRolesByUserIdPayload<'a> {
     pub user_id: &'a str,
+    pub tenant_id: Option<&'a String>,
     pub org_id: Option<&'a id_type::OrganizationId>,
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,

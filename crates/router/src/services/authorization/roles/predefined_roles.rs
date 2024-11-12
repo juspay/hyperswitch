@@ -63,7 +63,39 @@ pub static PREDEFINED_ROLES: Lazy<HashMap<&'static str, RoleInfo>> = Lazy::new(|
         },
     );
 
-    // Merchant Roles
+    // Tenant Roles
+    roles.insert(
+        common_utils::consts::ROLE_ID_TENANT_ADMIN,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::OperationsView,
+                PermissionGroup::OperationsManage,
+                PermissionGroup::ConnectorsView,
+                PermissionGroup::ConnectorsManage,
+                PermissionGroup::WorkflowsView,
+                PermissionGroup::WorkflowsManage,
+                PermissionGroup::AnalyticsView,
+                PermissionGroup::UsersView,
+                PermissionGroup::UsersManage,
+                PermissionGroup::MerchantDetailsView,
+                PermissionGroup::AccountView,
+                PermissionGroup::MerchantDetailsManage,
+                PermissionGroup::AccountManage,
+                PermissionGroup::OrganizationManage,
+                PermissionGroup::ReconOps,
+            ],
+            role_id: common_utils::consts::ROLE_ID_TENANT_ADMIN.to_string(),
+            role_name: "tenant_admin".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Organization,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+        },
+    );
+
+    // Organization Roles
     roles.insert(
         common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN,
         RoleInfo {

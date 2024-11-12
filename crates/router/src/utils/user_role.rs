@@ -181,7 +181,7 @@ pub async fn get_single_merchant_id(
     user_role: &UserRole,
 ) -> UserResult<id_type::MerchantId> {
     match user_role.entity_type {
-        Some(EntityType::Organization) => Ok(state
+        Some(EntityType::Tenant) | Some(EntityType::Organization) => Ok(state
             .store
             .list_merchant_accounts_by_organization_id(
                 &state.into(),
@@ -207,6 +207,7 @@ pub async fn get_single_merchant_id(
     }
 }
 
+// i guess here we need to consider tenant_id in these values
 pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
     state: &SessionState,
     user_id: &str,
@@ -220,6 +221,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
     )>,
 > {
     match entity_type {
+        EntityType::Tenant => todo!(),
         EntityType::Organization => {
             let Ok(org_id) =
                 id_type::OrganizationId::try_from(std::borrow::Cow::from(entity_id.clone()))
@@ -231,6 +233,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id,
+                    tenant_id: Some(&state.tenant.tenant_id),
                     org_id: Some(&org_id),
                     merchant_id: None,
                     profile_id: None,
@@ -275,6 +278,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id,
+                    tenant_id: Some(&state.tenant.tenant_id.clone()),
                     org_id: None,
                     merchant_id: Some(&merchant_id),
                     profile_id: None,
@@ -320,6 +324,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id,
+                    tenant_id: Some(&state.tenant.tenant_id.clone()),
                     org_id: None,
                     merchant_id: None,
                     profile_id: Some(&profile_id),
@@ -371,7 +376,7 @@ pub async fn get_single_merchant_id_and_profile_id(
         .get_entity_id_and_type()
         .ok_or(UserErrors::InternalServerError)?;
     let profile_id = match entity_type {
-        EntityType::Organization | EntityType::Merchant => {
+        EntityType::Tenant | EntityType::Organization | EntityType::Merchant => {
             let key_store = state
                 .store
                 .get_merchant_key_store_by_merchant_id(

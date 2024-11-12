@@ -1840,6 +1840,8 @@ impl User {
             .service(
                 web::resource("/internal_signup").route(web::post().to(user::internal_user_signup)),
             )
+            .service(web::resource("/create_tenant").route(web::post().to(user::create_tenant)))
+            .service(web::resource("/create_org").route(web::post().to(user::user_org_create)))
             .service(
                 web::resource("/create_merchant")
                     .route(web::post().to(user::user_merchant_account_create)),

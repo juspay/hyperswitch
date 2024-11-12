@@ -11,7 +11,7 @@ use crate::user::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
     AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
-    ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
+    ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest, CreateTenantRequest,
     CreateUserAuthenticationMethodRequest, ForgotPasswordRequest, GetSsoAuthUrlRequest,
     GetUserAuthenticationMethodsRequest, GetUserDetailsResponse, GetUserRoleDetailsRequest,
     GetUserRoleDetailsResponseV2, InviteUserRequest, ReInviteUserRequest, RecoveryCodes,
@@ -19,8 +19,8 @@ use crate::user::{
     SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
     SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse, TwoFactorAuthStatusResponse,
     TwoFactorStatus, UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest,
-    UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest,
-    VerifyTotpRequest,
+    UserFromEmailRequest, UserMerchantCreate, UserOrgCreate, VerifyEmailRequest,
+    VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
 #[cfg(feature = "recon")]
@@ -46,6 +46,8 @@ common_utils::impl_api_event_type!(
         SwitchMerchantRequest,
         SwitchProfileRequest,
         CreateInternalUserRequest,
+        CreateTenantRequest,
+        UserOrgCreate,
         UserMerchantCreate,
         AuthorizeResponse,
         ConnectAccountRequest,

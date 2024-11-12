@@ -282,6 +282,14 @@ impl From<user_api::SignUpRequest> for NewUserOrganization {
     }
 }
 
+impl From<user_api::CreateTenantRequest> for NewUserOrganization {
+    fn from(_value: user_api::CreateTenantRequest) -> Self {
+        let new_organization = api_org::OrganizationNew::new(None);
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        Self(db_organization)
+    }
+}
+
 impl From<user_api::ConnectAccountRequest> for NewUserOrganization {
     fn from(_value: user_api::ConnectAccountRequest) -> Self {
         let new_organization = api_org::OrganizationNew::new(None);
@@ -472,6 +480,21 @@ impl TryFrom<user_api::SignUpRequest> for NewUserMerchant {
     fn try_from(value: user_api::SignUpRequest) -> UserResult<Self> {
         let merchant_id = id_type::MerchantId::new_from_unix_timestamp();
 
+        let new_organization = NewUserOrganization::from(value);
+
+        Ok(Self {
+            company_name: None,
+            merchant_id,
+            new_organization,
+        })
+    }
+}
+
+impl TryFrom<user_api::CreateTenantRequest> for NewUserMerchant {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(value: user_api::CreateTenantRequest) -> UserResult<Self> {
+        let merchant_id = id_type::MerchantId::new_from_unix_timestamp();
         let new_organization = NewUserOrganization::from(value);
 
         Ok(Self {
@@ -773,6 +796,29 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
     }
 }
 
+impl TryFrom<user_api::CreateTenantRequest> for NewUser {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(value: user_api::CreateTenantRequest) -> UserResult<Self> {
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let email = value.email.clone().try_into()?;
+        let name = UserName::new(value.name.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
+        let new_merchant = NewUserMerchant::try_from(value)?;
+
+        Ok(Self {
+            user_id,
+            name,
+            email,
+            password: Some(password),
+            new_merchant,
+        })
+    }
+}
+
 impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
@@ -816,6 +862,31 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
         })
     }
 }
+
+// impl TryFrom<(user_api::CreateTenantUserRequest, id_type::OrganizationId)> for NewUser {
+//     type Error = error_stack::Report<UserErrors>;
+
+//     fn try_from(
+//         (value, org_id): (user_api::CreateTenantUserRequest, id_type::OrganizationId),
+//     ) -> UserResult<Self> {
+//         let user_id = uuid::Uuid::new_v4().to_string();
+//         let email = value.email.clone().try_into()?;
+//         let name = UserName::new(value.name.clone())?;
+//         let password = NewUserPassword {
+//             password: UserPassword::new(value.password.clone())?,
+//             is_temporary: false,
+//         };
+//         let new_merchant = NewUserMerchant::try_from((value, org_id))?;
+
+//         Ok(Self {
+//             user_id,
+//             name,
+//             email,
+//             password: Some(password),
+//             new_merchant,
+//         })
+//     }
+// }
 
 impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
     type Error = error_stack::Report<UserErrors>;
@@ -1118,6 +1189,11 @@ impl RecoveryCodes {
 pub struct NoLevel;
 
 #[derive(Clone)]
+pub struct TenantLevel {
+    pub tenant_id: String,
+}
+
+#[derive(Clone)]
 pub struct OrganizationLevel {
     pub tenant_id: String,
     pub org_id: id_type::OrganizationId,
@@ -1170,11 +1246,24 @@ impl NewUserRole<NoLevel> {
 
 pub struct EntityInfo {
     tenant_id: String,
-    org_id: id_type::OrganizationId,
+    org_id: Option<id_type::OrganizationId>,
     merchant_id: Option<id_type::MerchantId>,
     profile_id: Option<id_type::ProfileId>,
     entity_id: String,
     entity_type: EntityType,
+}
+
+impl From<TenantLevel> for EntityInfo {
+    fn from(value: TenantLevel) -> Self {
+        Self {
+            entity_id: value.tenant_id.clone(),
+            entity_type: EntityType::Tenant,
+            tenant_id: value.tenant_id,
+            org_id: None,
+            merchant_id: None,
+            profile_id: None,
+        }
+    }
 }
 
 impl From<OrganizationLevel> for EntityInfo {
@@ -1183,7 +1272,7 @@ impl From<OrganizationLevel> for EntityInfo {
             entity_id: value.org_id.get_string_repr().to_owned(),
             entity_type: EntityType::Organization,
             tenant_id: value.tenant_id,
-            org_id: value.org_id,
+            org_id: Some(value.org_id),
             merchant_id: None,
             profile_id: None,
         }
@@ -1196,7 +1285,7 @@ impl From<MerchantLevel> for EntityInfo {
             entity_id: value.merchant_id.get_string_repr().to_owned(),
             entity_type: EntityType::Merchant,
             tenant_id: value.tenant_id,
-            org_id: value.org_id,
+            org_id: Some(value.org_id),
             profile_id: None,
             merchant_id: Some(value.merchant_id),
         }
@@ -1209,7 +1298,7 @@ impl From<ProfileLevel> for EntityInfo {
             entity_id: value.profile_id.get_string_repr().to_owned(),
             entity_type: EntityType::Profile,
             tenant_id: value.tenant_id,
-            org_id: value.org_id,
+            org_id: Some(value.org_id),
             merchant_id: Some(value.merchant_id),
             profile_id: Some(value.profile_id),
         }
@@ -1229,7 +1318,7 @@ where
             last_modified_by: self.last_modified_by,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            org_id: Some(entity.org_id),
+            org_id: entity.org_id,
             merchant_id: entity.merchant_id,
             profile_id: entity.profile_id,
             entity_id: Some(entity.entity_id),

@@ -602,6 +602,7 @@ pub async fn delete_user_role(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: user_from_db.get_user_id(),
+            tenant_id: Some(&state.tenant.tenant_id.clone()),
             org_id: None,
             merchant_id: None,
             profile_id: None,
@@ -645,11 +646,17 @@ pub async fn list_users_in_lineage(
         requestor_role_info.get_entity_type(),
         request.entity_type,
     )? {
-        EntityType::Organization => {
+        EntityType::Tenant | EntityType::Organization => {
             utils::user_role::fetch_user_roles_by_payload(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
+                    tenant_id: Some(
+                        &user_from_token
+                            .tenant_id
+                            .clone()
+                            .unwrap_or(state.tenant.tenant_id.clone()),
+                    ),
                     org_id: &user_from_token.org_id,
                     merchant_id: None,
                     profile_id: None,
@@ -665,6 +672,12 @@ pub async fn list_users_in_lineage(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
+                    tenant_id: Some(
+                        &user_from_token
+                            .tenant_id
+                            .clone()
+                            .unwrap_or(state.tenant.tenant_id.clone()),
+                    ),
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: None,
@@ -684,6 +697,12 @@ pub async fn list_users_in_lineage(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
+                    tenant_id: Some(
+                        &user_from_token
+                            .tenant_id
+                            .clone()
+                            .unwrap_or(state.tenant.tenant_id.clone()),
+                    ),
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: Some(profile_id),
@@ -783,6 +802,7 @@ pub async fn list_invitations_for_user(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: &user_from_token.user_id,
+            tenant_id: Some(&state.tenant.tenant_id.clone()),
             org_id: None,
             merchant_id: None,
             profile_id: None,
@@ -806,6 +826,12 @@ pub async fn list_invitations_for_user(
                 .attach_printable("Failed to compute entity id and type")?;
 
             match entity_type {
+                EntityType::Tenant => {
+                    return Err(UserErrors::InvalidRoleOperationWithMessage(
+                        "Tenant roles are not allowed for this operation".to_string(),
+                    )
+                    .into());
+                }
                 EntityType::Organization => org_ids.push(
                     user_role
                         .org_id
@@ -910,6 +936,13 @@ pub async fn list_invitations_for_user(
                 .attach_printable("Failed to compute entity id and type")?;
 
             let entity_name = match entity_type {
+                EntityType::Tenant => {
+                    return Err(UserErrors::InvalidRoleOperationWithMessage(
+                        "Tenant roles are not allowed for this operation".to_string(),
+                    )
+                    .into());
+                }
+
                 EntityType::Organization => user_role
                     .org_id
                     .as_ref()
