@@ -671,7 +671,7 @@ impl Payments {
     }
 }
 
-#[cfg(all(any(feature = "olap", feature = "oltp")))]
+#[cfg(any(feature = "olap", feature = "oltp"))]
 pub struct Forex;
 
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
