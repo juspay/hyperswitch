@@ -114,10 +114,15 @@ impl ConnectorCommon for Jpmorgan {
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        _auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = jpmorgan::JpmorganAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        /*let auth = jpmorgan::JpmorganAuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;*/
+        let str_api_key : &str = "eyJ0eXAiOiJKV1QiLCJraWQiOiJJR05rNSthbHVNdy9FeHQ4ejc5Wmg5ZVpZL0U9IiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI1YWE0NmMwZi0xZDRkLTQ3OGMtYmJjOC1mZjA5MWJkZDg1NWIiLCJjdHMiOiJPQVVUSDJfU1RBVEVMRVNTX0dSQU5UIiwiYXVkaXRUcmFja2luZ0lkIjoiMzQ0ZjQ5YzItMGQzNi00YWFiLTg0ZmItODVlOWY3ODMzNTcyLTI1NTY3MDYiLCJzdWJuYW1lIjoiNWFhNDZjMGYtMWQ0ZC00NzhjLWJiYzgtZmYwOTFiZGQ4NTViIiwiaXNzIjoiaHR0cHM6Ly9pZC5wYXltZW50cy5qcG1vcmdhbi5jb206NDQzL2FtL29hdXRoMiIsInRva2VuTmFtZSI6ImFjY2Vzc190b2tlbiIsInRva2VuX3R5cGUiOiJCZWFyZXIiLCJhdXRoR3JhbnRJZCI6Ik5STkhpcnhieU1PWVRfZDB2NS10c0lBYkEybyIsImNsaWVudF9pZCI6IjVhYTQ2YzBmLTFkNGQtNDc4Yy1iYmM4LWZmMDkxYmRkODU1YiIsImF1ZCI6IjVhYTQ2YzBmLTFkNGQtNDc4Yy1iYmM4LWZmMDkxYmRkODU1YiIsIm5iZiI6MTczMTM5ODczNSwiZ3JhbnRfdHlwZSI6ImNsaWVudF9jcmVkZW50aWFscyIsInNjb3BlIjpbImpwbTpwYXltZW50czpzYW5kYm94Il0sImF1dGhfdGltZSI6MTczMTM5ODczNSwicmVhbG0iOiIvYWxwaGEiLCJleHAiOjE3MzE0MDIzMzUsImlhdCI6MTczMTM5ODczNSwiZXhwaXJlc19pbiI6MzYwMCwianRpIjoiUExzekxadjRFUWhKSW1LbTR6WFo5ckd2SktjIn0.VPs_g0y3KzRQAZIBQoS8n7JQsjKWN-Oek_AK-K6W3du7NfFWcefdmDdVjrpIPcJbB4GQyecJmjpyqdC2R0LzUmdyqe5nim4E3tNRxgDfSX9u3f6D4gqYrra5hH-FUU0Cu0JiOZIXN4sMKVtgvG_Ronpd33KuTzk4tmfJCQh1XBLyYGMfLoV9yrQZ0lEtUd5lKuS8Kq7isF5uyaB962nqznZhSOx0LIein2ZAN0dc-Q-u7Pe_0Hs1TFlUNP-cwC0IRMqyRfRNALO9_Q_P-uGPjoyNqUhRzvZEnIZToTzWjaPHCXCD1YjzhWnT-QzuLFr_ddMjiRTL5m2ghuTOc4_FXA";
+        let api_key : String = str_api_key.to_string();
+        let masked_api_key = api_key.into_masked();
+
+        //sending the hardcoded access token in the api key (just for testing flows)
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             auth.api_key.into_masked(),
