@@ -293,3 +293,6 @@ key1 ="Client Secret"
 
 [elavon]
 api_key="API Key"
+
+[nomupay]
+api_key="API Key"

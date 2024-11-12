@@ -138,6 +138,7 @@ cards = [
     "nexinets",
     "nexixpay",
     "nmi",
+    "nomupay",
     "noon",
     "novalnet",
     "nuvei",
@@ -245,6 +246,7 @@ netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netce
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 nmi.base_url = "https://secure.nmi.com/"
+nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test.noonpayments.com/"
 novalnet.base_url = "https://payport.novalnet.de/v2"
 noon.key_mode = "Test"
