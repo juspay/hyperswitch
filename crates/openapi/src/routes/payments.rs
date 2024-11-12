@@ -711,6 +711,7 @@ pub fn payments_confirm_intent() {}
 pub fn payment_status() {}
 
 #[derive(utoipa::ToSchema)]
+#[schema(rename_all = "lowercase")]
 pub(crate) enum ForceSync {
     /// Force sync with the connector / processor to update the status
     True,

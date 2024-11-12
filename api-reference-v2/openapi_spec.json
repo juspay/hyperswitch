@@ -8072,8 +8072,8 @@
       "ForceSync": {
         "type": "string",
         "enum": [
-          "True",
-          "False"
+          "true",
+          "false"
         ]
       },
       "FrmAction": {
