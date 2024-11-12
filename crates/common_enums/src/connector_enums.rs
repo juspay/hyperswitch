@@ -80,7 +80,7 @@ pub enum RoutableConnectors {
     Helcim,
     Iatapay,
     Itaubank,
-    //Jpmorgan,
+    Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,

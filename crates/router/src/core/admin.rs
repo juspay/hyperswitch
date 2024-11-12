@@ -1394,6 +1394,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 itaubank::transformers::ItaubankAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Jpmorgan => {
+                jpmorgan::transformers::JpmorganAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Klarna => {
                 klarna::transformers::KlarnaAuthType::try_from(self.auth_type)?;
                 klarna::transformers::KlarnaConnectorMetadataObject::try_from(
