@@ -10,7 +10,7 @@ pub enum ThemeLineage {
         tenant_id: String,
     },
     /// Org lineage variant
-    Org {
+    Organization {
         /// tenant_id: String
         tenant_id: String,
         /// org_id: OrganizationId

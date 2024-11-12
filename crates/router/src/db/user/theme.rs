@@ -71,7 +71,7 @@ fn check_theme_with_lineage(theme: &storage::Theme, lineage: &ThemeLineage) -> b
                 && theme.merchant_id.is_none()
                 && theme.profile_id.is_none()
         }
-        ThemeLineage::Org { tenant_id, org_id } => {
+        ThemeLineage::Organization { tenant_id, org_id } => {
             &theme.tenant_id == tenant_id
                 && theme
                     .org_id

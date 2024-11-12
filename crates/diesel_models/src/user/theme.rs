@@ -16,7 +16,7 @@ pub struct Theme {
     pub last_modified_at: PrimitiveDateTime,
 }
 
-#[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = themes)]
 pub struct ThemeNew {
     pub theme_id: String,

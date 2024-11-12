@@ -5,8 +5,8 @@ CREATE TABLE IF NOT EXISTS themes (
     org_id VARCHAR(64),
     merchant_id VARCHAR(64),
     profile_id VARCHAR(64),
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    last_modified_at TIMESTAMP NOT NULL DEFAULT now()
+    created_at TIMESTAMP NOT NULL,
+    last_modified_at TIMESTAMP NOT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS themes_index ON themes (

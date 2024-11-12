@@ -35,7 +35,7 @@ impl Theme {
                     .and(dsl::profile_id.is_null())
                     .nullable(),
             ),
-            ThemeLineage::Org { tenant_id, org_id } => Box::new(
+            ThemeLineage::Organization { tenant_id, org_id } => Box::new(
                 dsl::tenant_id
                     .eq(tenant_id)
                     .and(dsl::org_id.eq(org_id))
