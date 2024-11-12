@@ -13,6 +13,7 @@ use common_utils::{
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+#[cfg(feature = "v2")]
 use router_env::logger;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
