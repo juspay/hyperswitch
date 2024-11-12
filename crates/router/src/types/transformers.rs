@@ -134,43 +134,10 @@ impl
     }
 }
 
+// TODO: remove this usage in v1 code
 impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
     fn foreign_from(s: storage_enums::AttemptStatus) -> Self {
-        match s {
-            storage_enums::AttemptStatus::Charged | storage_enums::AttemptStatus::AutoRefunded => {
-                Self::Succeeded
-            }
-
-            storage_enums::AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
-            storage_enums::AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
-
-            storage_enums::AttemptStatus::Authorized => Self::RequiresCapture,
-            storage_enums::AttemptStatus::AuthenticationPending
-            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
-                Self::RequiresCustomerAction
-            }
-            storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
-
-            storage_enums::AttemptStatus::PartialCharged => Self::PartiallyCaptured,
-            storage_enums::AttemptStatus::PartialChargedAndChargeable => {
-                Self::PartiallyCapturedAndCapturable
-            }
-            storage_enums::AttemptStatus::Started
-            | storage_enums::AttemptStatus::AuthenticationSuccessful
-            | storage_enums::AttemptStatus::Authorizing
-            | storage_enums::AttemptStatus::CodInitiated
-            | storage_enums::AttemptStatus::VoidInitiated
-            | storage_enums::AttemptStatus::CaptureInitiated
-            | storage_enums::AttemptStatus::Pending => Self::Processing,
-
-            storage_enums::AttemptStatus::AuthenticationFailed
-            | storage_enums::AttemptStatus::AuthorizationFailed
-            | storage_enums::AttemptStatus::VoidFailed
-            | storage_enums::AttemptStatus::RouterDeclined
-            | storage_enums::AttemptStatus::CaptureFailed
-            | storage_enums::AttemptStatus::Failure => Self::Failed,
-            storage_enums::AttemptStatus::Voided => Self::Cancelled,
-        }
+        Self::from(s)
     }
 }
 
@@ -247,6 +214,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Adyen => Self::Adyen,
             api_enums::Connector::Adyenplatform => Self::Adyenplatform,
             api_enums::Connector::Airwallex => Self::Airwallex,
+            // api_enums::Connector::Amazonpay => Self::Amazonpay,
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,
             api_enums::Connector::Bambora => Self::Bambora,
             api_enums::Connector::Bamboraapac => Self::Bamboraapac,
@@ -265,6 +233,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Deutschebank => Self::Deutschebank,
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
+            // api_enums::Connector::Elavon => Self::Elavon,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
@@ -280,6 +249,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Helcim => Self::Helcim,
             api_enums::Connector::Iatapay => Self::Iatapay,
             api_enums::Connector::Itaubank => Self::Itaubank,
+            //api_enums::Connector::Jpmorgan => Self::Jpmorgan,
             api_enums::Connector::Klarna => Self::Klarna,
             api_enums::Connector::Mifinity => Self::Mifinity,
             api_enums::Connector::Mollie => Self::Mollie,
@@ -292,6 +262,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Nexinets => Self::Nexinets,
             api_enums::Connector::Nexixpay => Self::Nexixpay,
             api_enums::Connector::Nmi => Self::Nmi,
+            // api_enums::Connector::Nomupay => Self::Nomupay,
             api_enums::Connector::Noon => Self::Noon,
             api_enums::Connector::Novalnet => Self::Novalnet,
             api_enums::Connector::Nuvei => Self::Nuvei,

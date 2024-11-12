@@ -31,6 +31,7 @@ impl
     ConstructFlowSpecificData<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for PaymentData<api::Session>
 {
+    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &routes::SessionState,
@@ -57,6 +58,21 @@ impl
             header_payload,
         ))
         .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &routes::SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsSessionRouterData> {
+        todo!()
     }
 
     async fn get_merchant_recipient_data<'a>(
@@ -189,20 +205,11 @@ async fn create_applepay_session_token(
         )
     } else {
         // Get the apple pay metadata
-        let connector_apple_pay_wallet_details =
-            helpers::get_applepay_metadata(router_data.connector_wallets_details.clone())
-                .map_err(|error| {
-                    logger::debug!(
-                        "Apple pay connector wallets details parsing failed in create_applepay_session_token {:?}",
-                        error
-                    )
-                })
-                .ok();
-
-        let apple_pay_metadata = match connector_apple_pay_wallet_details {
-            Some(apple_pay_wallet_details) => apple_pay_wallet_details,
-            None => helpers::get_applepay_metadata(router_data.connector_meta_data.clone())?,
-        };
+        let apple_pay_metadata =
+            helpers::get_applepay_metadata(router_data.connector_meta_data.clone())
+                .attach_printable(
+                    "Failed to to fetch apple pay certificates during session call",
+                )?;
 
         // Get payment request data , apple pay session request and merchant keys
         let (

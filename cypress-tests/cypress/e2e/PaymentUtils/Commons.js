@@ -56,6 +56,13 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "999",
 };
 
+const PaymentMethodCardDetails = {
+  card_number: "4111111145551142",
+  card_exp_month: "03",
+  card_exp_year: "30",
+  card_holder_name: "Joseph Doe",
+};
+
 const singleUseMandateData = {
   customer_acceptance: {
     acceptance_type: "offline",
@@ -666,6 +673,27 @@ export const connectorDetails = {
         },
       },
     }),
+    VoidAfterConfirm: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
+          capture_method: "manual",
+        },
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot cancel this payment because it has status succeeded",
+            code: "IR_16",
+          },
+        },
+      },
+    }),
     Refund: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -683,6 +711,38 @@ export const connectorDetails = {
             message: "The refund amount exceeds the amount captured",
             code: "IR_13",
           },
+        },
+      },
+    }),
+    manualPaymentRefund: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    }),
+    manualPaymentPartialRefund: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
         },
       },
     }),
@@ -796,6 +856,23 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
     }),
+    ZeroAuthPaymentIntent: getCustomExchange({
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+        payment_type: "setup_mandate",
+      },
+    }),
+    ZeroAuthConfirmPayment: getCustomExchange({
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+    }),
     SaveCardUseNo3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -858,6 +935,19 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
       },
     }),
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          billing: null,
+        },
+      },
+    },
     SaveCardUseNo3DSManualCapture: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -876,6 +966,19 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentMethod: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_issuer: "Gpay",
+        payment_method_issuer_code: "jp_hdfc",
+        card: PaymentMethodCardDetails,
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",

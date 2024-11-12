@@ -25,6 +25,7 @@ use crate::{
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -329,7 +330,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                             api_models::payments::MandateIds {
                                 mandate_id: Some(mandate_obj.mandate_id),
                                 mandate_reference_id: Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                    api_models::payments::ConnectorMandateReferenceId {connector_mandate_id:connector_id.connector_mandate_id,payment_method_id:connector_id.payment_method_id, update_history: None, mandate_metadata:connector_id.mandate_metadata, },
+                                    api_models::payments::ConnectorMandateReferenceId::new(
+                                        connector_id.get_connector_mandate_id(),        // connector_mandate_id
+                                        connector_id.get_payment_method_id(),           // payment_method_id
+                                        None,                                     // update_history
+                                        connector_id.get_mandate_metadata(),            // mandate_metadata
+                                        connector_id.get_connector_mandate_request_reference_id()  // connector_mandate_request_reference_id
+                                    )
                                 ))
                             }
                          }),
@@ -688,7 +695,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         _state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut _payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
@@ -708,7 +715,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -919,6 +926,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let amount = payment_data.amount;
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentUpdate { amount }))
+            .with(payment_data.to_event())
+            .emit();
 
         Ok((
             payments::is_confirm(self, payment_data.confirm),

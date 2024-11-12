@@ -1,11 +1,10 @@
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
-use api_models::customers::CustomerRequestWithEmail;
 use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
+    crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt},
-    fp_utils, id_type, payout_method_utils as payout_additional, type_name,
+    fp_utils, id_type, payout_method_utils as payout_additional, pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
         MinorUnit, UnifiedCode, UnifiedMessage,
@@ -15,7 +14,7 @@ use common_utils::{
 use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use masking::{PeekInterface, Secret};
+use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::logger;
 
 use super::PayoutData;
@@ -696,13 +695,18 @@ pub(super) async fn get_or_create_customer_details(
                 let encrypted_data = crypto_operation(
                     &state.into(),
                     type_name!(domain::Customer),
-                    CryptoOperation::BatchEncrypt(CustomerRequestWithEmail::to_encryptable(
-                        CustomerRequestWithEmail {
-                            name: customer_details.name.clone(),
-                            email: customer_details.email.clone(),
-                            phone: customer_details.phone.clone(),
-                        },
-                    )),
+                    CryptoOperation::BatchEncrypt(
+                        domain::FromRequestEncryptableCustomer::to_encryptable(
+                            domain::FromRequestEncryptableCustomer {
+                                name: customer_details.name.clone(),
+                                email: customer_details
+                                    .email
+                                    .clone()
+                                    .map(|a| a.expose().switch_strategy()),
+                                phone: customer_details.phone.clone(),
+                            },
+                        ),
+                    ),
                     Identifier::Merchant(key_store.merchant_id.clone()),
                     key,
                 )
@@ -711,7 +715,7 @@ pub(super) async fn get_or_create_customer_details(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to encrypt customer")?;
                 let encryptable_customer =
-                    CustomerRequestWithEmail::from_encryptable(encrypted_data)
+                    domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to form EncryptableCustomer")?;
 
@@ -719,7 +723,14 @@ pub(super) async fn get_or_create_customer_details(
                     customer_id: customer_id.clone(),
                     merchant_id: merchant_id.to_owned().clone(),
                     name: encryptable_customer.name,
-                    email: encryptable_customer.email,
+                    email: encryptable_customer.email.map(|email| {
+                        let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> =
+                            Encryptable::new(
+                                email.clone().into_inner().switch_strategy(),
+                                email.into_encrypted(),
+                            );
+                        encryptable
+                    }),
                     phone: encryptable_customer.phone,
                     description: None,
                     phone_country_code: customer_details.phone_country_code.to_owned(),

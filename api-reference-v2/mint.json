@@ -38,6 +38,7 @@
       "group": "Payments",
       "pages": [
         "api-reference/payments/payments--create-intent",
+        "api-reference/payments/payments--get-intent",
         "api-reference/payments/payments--session-token",
         "api-reference/payments/payments--confirm-intent"
       ]
@@ -75,11 +76,11 @@
       ]
     },
     {
-      "group": "Merchant Connector Account",
+      "group": "Connector Account",
       "pages": [
-        "api-reference/merchant-connector-account/merchant-connector--create",
-        "api-reference/merchant-connector-account/merchant-connector--retrieve",
-        "api-reference/merchant-connector-account/merchant-connector--update"
+        "api-reference/connector-account/connector-account--create",
+        "api-reference/connector-account/connector-account--retrieve",
+        "api-reference/connector-account/connector-account--update"
       ]
     },
     {

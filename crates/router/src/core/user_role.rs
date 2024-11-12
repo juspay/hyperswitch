@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::{user as user_api, user_role as user_role_api};
+use api_models::{
+    user as user_api,
+    user_role::{self as user_role_api, role as role_api},
+};
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
     organization::OrganizationBridge,
@@ -16,7 +19,11 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
-        authorization::{info, permission_groups::PermissionGroupExt, roles},
+        authorization::{
+            info,
+            permission_groups::{ParentGroupExt, PermissionGroupExt},
+            roles,
+        },
         ApplicationResponse,
     },
     types::domain,
@@ -70,6 +77,40 @@ pub async fn get_authorization_info_with_group_tag(
                 .collect(),
         ),
     ))
+}
+
+pub async fn get_parent_group_info(
+    state: SessionState,
+    user_from_token: auth::UserFromToken,
+) -> UserResponse<Vec<role_api::ParentGroupInfo>> {
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
+
+    let parent_groups = ParentGroup::get_descriptions_for_groups(
+        role_info.get_entity_type(),
+        PermissionGroup::iter().collect(),
+    )
+    .into_iter()
+    .map(|(parent_group, description)| role_api::ParentGroupInfo {
+        name: parent_group.clone(),
+        description,
+        scopes: PermissionGroup::iter()
+            .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+            // TODO: Remove this hashset conversion when merhant access
+            // and organization access groups are removed
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect(),
+    })
+    .collect::<Vec<_>>();
+
+    Ok(ApplicationResponse::Json(parent_groups))
 }
 
 pub async fn update_user_role(

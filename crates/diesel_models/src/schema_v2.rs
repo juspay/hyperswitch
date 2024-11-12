@@ -213,6 +213,7 @@ diesel::table! {
         #[max_length = 64]
         payout_routing_algorithm_id -> Nullable<Varchar>,
         default_fallback_routing -> Nullable<Jsonb>,
+        should_collect_cvv_during_payment -> Bool,
         #[max_length = 64]
         id -> Varchar,
         version -> ApiVersion,
@@ -775,7 +776,6 @@ diesel::table! {
         updated_by -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
-        authentication_data -> Nullable<Json>,
         encoded_data -> Nullable<Text>,
         #[max_length = 255]
         unified_code -> Nullable<Varchar>,
@@ -813,6 +813,7 @@ diesel::table! {
         external_reference_id -> Nullable<Varchar>,
         tax_on_surcharge -> Nullable<Int8>,
         payment_method_billing_address -> Nullable<Bytea>,
+        redirection_data -> Nullable<Jsonb>,
         #[max_length = 512]
         connector_payment_data -> Nullable<Varchar>,
         #[max_length = 64]
@@ -940,7 +941,6 @@ diesel::table! {
         payment_method -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
-        metadata -> Nullable<Json>,
         payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,
@@ -1181,7 +1181,7 @@ diesel::table! {
         #[max_length = 64]
         last_modified_by -> Varchar,
         #[max_length = 64]
-        entity_type -> Nullable<Varchar>,
+        entity_type -> Varchar,
     }
 }
 

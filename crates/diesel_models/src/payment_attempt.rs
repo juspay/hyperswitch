@@ -20,8 +20,16 @@ common_utils::impl_to_sql_from_sql_json!(ConnectorMandateReferenceId);
 pub struct ConnectorMandateReferenceId {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    pub mandate_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_request_reference_id: Option<String>,
 }
+
+impl ConnectorMandateReferenceId {
+    pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
+        self.connector_mandate_request_reference_id.clone()
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable,
@@ -57,7 +65,6 @@ pub struct PaymentAttempt {
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub authentication_data: Option<pii::SecretSerdeValue>,
     pub encoded_data: Option<masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
@@ -81,6 +88,7 @@ pub struct PaymentAttempt {
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
     pub payment_method_billing_address: Option<common_utils::encryption::Encryption>,
+    pub redirection_data: Option<RedirectForm>,
     pub connector_payment_data: Option<String>,
     pub id: id_type::GlobalAttemptId,
     pub shipping_cost: Option<MinorUnit>,
@@ -247,7 +255,7 @@ pub struct PaymentAttemptNew {
     pub amount_capturable: MinorUnit,
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    pub authentication_data: Option<pii::SecretSerdeValue>,
+    pub redirection_data: Option<RedirectForm>,
     pub encoded_data: Option<masking::Secret<String>>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
@@ -414,6 +422,7 @@ pub enum PaymentAttemptUpdate {
         customer_acceptance: Option<pii::SecretSerdeValue>,
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -761,7 +770,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub updated_by: String,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub connector: Option<String>,
-    // authentication_data: Option<serde_json::Value>,
+    pub redirection_data: Option<RedirectForm>,
     // encoded_data: Option<String>,
     pub unified_code: Option<Option<String>>,
     pub unified_message: Option<Option<String>>,
@@ -2158,6 +2167,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 customer_acceptance,
                 shipping_cost,
                 order_tax_amount,
+                connector_mandate_detail,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -2209,7 +2219,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 shipping_cost,
                 order_tax_amount,
                 connector_transaction_data: None,
-                connector_mandate_detail: None,
+                connector_mandate_detail,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -3272,6 +3282,55 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
         }
     }
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub enum RedirectForm {
+    Form {
+        endpoint: String,
+        method: common_utils::request::Method,
+        form_fields: std::collections::HashMap<String, String>,
+    },
+    Html {
+        html_data: String,
+    },
+    BlueSnap {
+        payment_fields_token: String,
+    },
+    CybersourceAuthSetup {
+        access_token: String,
+        ddc_url: String,
+        reference_id: String,
+    },
+    CybersourceConsumerAuth {
+        access_token: String,
+        step_up_url: String,
+    },
+    Payme,
+    Braintree {
+        client_token: String,
+        card_token: String,
+        bin: String,
+    },
+    Nmi {
+        amount: String,
+        currency: common_enums::Currency,
+        public_key: masking::Secret<String>,
+        customer_vault_id: String,
+        order_id: String,
+    },
+    Mifinity {
+        initialization_token: String,
+    },
+    WorldpayDDCForm {
+        endpoint: common_utils::types::Url,
+        method: common_utils::request::Method,
+        form_fields: std::collections::HashMap<String, String>,
+        collection_id: Option<String>,
+    },
+}
+
+common_utils::impl_to_sql_from_sql_json!(RedirectForm);
 
 mod tests {
 
