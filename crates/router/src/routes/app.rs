@@ -685,10 +685,6 @@ impl Forex {
                 web::resource("/convert_from_minor").route(web::get().to(currency::convert_forex)),
             )
     }
-    #[cfg(feature = "v2")]
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/forex").app_data(web::Data::new(state.clone()))
-    }
 }
 
 #[cfg(feature = "olap")]
@@ -1579,10 +1575,6 @@ impl Cards {
             .app_data(web::Data::new(state))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
     }
-    #[cfg(feature = "v2")]
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/cards").app_data(web::Data::new(state))
-    }
 }
 
 pub struct Files;
@@ -1649,10 +1641,6 @@ impl PayoutLink {
             web::resource("/{merchant_id}/{payout_id}").route(web::get().to(render_payout_link)),
         );
         route
-    }
-    #[cfg(feature = "v2")]
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/payout_link").app_data(web::Data::new(state))
     }
 }
 
