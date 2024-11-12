@@ -213,8 +213,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Merchant Connector - Create",
-        "description": "Creates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
+        "summary": "Connector Account - Create",
+        "description": "Creates a new Connector Account for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -290,7 +290,7 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Merchant Connector - Retrieve",
+        "summary": "Connector Account - Retrieve",
         "description": "Retrieves details of a Connector account",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
@@ -333,8 +333,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Merchant Connector - Update",
-        "description": "To update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
+        "summary": "Connector Account - Update",
+        "description": "To update an existing Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -573,7 +573,7 @@
         "operationId": "Update a Merchant Account",
         "parameters": [
           {
-            "name": "account_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
@@ -630,17 +630,17 @@
         ]
       }
     },
-    "/v2/merchant_accounts/{account_id}/profiles": {
+    "/v2/merchant_accounts/{id}/profiles": {
       "get": {
         "tags": [
           "Merchant Account"
         ],
-        "summary": "Profile - List",
+        "summary": "Merchant Account - Profile List",
         "description": "List profiles for an Merchant",
         "operationId": "List Profiles",
         "parameters": [
           {
-            "name": "account_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the Merchant",
             "required": true,
@@ -682,6 +682,17 @@
         "summary": "Payments - Session token",
         "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
         "operationId": "Create Session tokens for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -775,7 +786,7 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}": {
+    "/v2/profiles/{id}": {
       "get": {
         "tags": [
           "Profile"
@@ -785,7 +796,7 @@
         "operationId": "Retrieve a Profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -836,7 +847,7 @@
         "operationId": "Update a Profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -896,17 +907,17 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}/connector_accounts": {
+    "/v2/profiles/{id}/connector_accounts": {
       "get": {
         "tags": [
           "Business Profile"
         ],
-        "summary": "Merchant Connector - List",
-        "description": "List Merchant Connector Details for the business profile",
+        "summary": "Profile - Connector Accounts List",
+        "description": "List Connector Accounts for the profile",
         "operationId": "List all Merchant Connectors",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the business profile",
             "required": true,
@@ -955,7 +966,7 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}/activate_routing_algorithm": {
+    "/v2/profiles/{id}/activate_routing_algorithm": {
       "patch": {
         "tags": [
           "Profile"
@@ -965,7 +976,7 @@
         "operationId": "Activates a routing algorithm under a profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -1022,7 +1033,7 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}/deactivate_routing_algorithm": {
+    "/v2/profiles/{id}/deactivate_routing_algorithm": {
       "patch": {
         "tags": [
           "Profile"
@@ -1032,7 +1043,7 @@
         "operationId": " Deactivates a routing algorithm under a profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -1075,7 +1086,7 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}/fallback_routing": {
+    "/v2/profiles/{id}/fallback_routing": {
       "patch": {
         "tags": [
           "Profile"
@@ -1085,7 +1096,7 @@
         "operationId": "Update the default fallback routing algorithm for the profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -1149,7 +1160,7 @@
         "operationId": "Retrieve the default fallback routing algorithm for the profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -1186,7 +1197,7 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}/routing_algorithm": {
+    "/v2/profiles/{id}/routing_algorithm": {
       "get": {
         "tags": [
           "Profile"
@@ -1196,7 +1207,7 @@
         "operationId": "Retrieve the active routing algorithm under the profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -1315,7 +1326,7 @@
         ]
       }
     },
-    "/v2/routing_algorithm/{routing_algorithm_id}": {
+    "/v2/routing_algorithm/{id}": {
       "get": {
         "tags": [
           "Routing"
@@ -1325,7 +1336,7 @@
         "operationId": "Retrieve a routing algorithm with its algorithm id",
         "parameters": [
           {
-            "name": "routing_algorithm_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for a routing algorithm",
             "required": true,
@@ -1405,7 +1416,7 @@
         ]
       }
     },
-    "/v2/api_keys/{key_id}": {
+    "/v2/api_keys/{id}": {
       "get": {
         "tags": [
           "API Key"
@@ -1415,7 +1426,7 @@
         "operationId": "Retrieve an API Key",
         "parameters": [
           {
-            "name": "key_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the API Key",
             "required": true,
@@ -1454,7 +1465,7 @@
         "operationId": "Update an API Key",
         "parameters": [
           {
-            "name": "key_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the API Key",
             "required": true,
@@ -1503,7 +1514,7 @@
         "operationId": "Revoke an API Key",
         "parameters": [
           {
-            "name": "key_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the API Key",
             "required": true,
@@ -20054,7 +20065,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "api-key",
-        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Merchant Connector account."
+        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Connector account."
       },
       "api_key": {
         "type": "apiKey",
