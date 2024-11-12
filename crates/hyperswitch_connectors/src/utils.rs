@@ -299,6 +299,7 @@ pub trait RouterData {
     fn get_optional_shipping_state(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_email(&self) -> Option<Email>;
 
@@ -366,6 +367,12 @@ impl<Flow, Request, Response> RouterData
                 .address
                 .and_then(|shipping_details| shipping_details.last_name)
         })
+    }
+
+    fn get_optional_shipping_full_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping()
+            .and_then(|shipping_details| shipping_details.address.as_ref())
+            .and_then(|shipping_address| shipping_address.get_optional_full_name())
     }
 
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>> {
