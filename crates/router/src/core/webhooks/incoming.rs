@@ -1792,7 +1792,9 @@ async fn update_connector_mandate_details(
 
             if mandate_details
                 .as_ref()
-                .map(|details: &diesel_models::PaymentsMandateReference| !details.0.contains_key(&merchant_connector_account_id))
+                .map(|details: &diesel_models::PaymentsMandateReference| {
+                    !details.0.contains_key(&merchant_connector_account_id)
+                })
                 .unwrap_or(true)
             {
                 let updated_connector_mandate_details = insert_mandate_details(
