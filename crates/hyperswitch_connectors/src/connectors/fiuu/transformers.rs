@@ -477,6 +477,9 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                         PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Fiuu"))?
                         }
+                        PaymentMethodToken::GooglePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Google Pay", "Simplified", "Fiuu"),
+                        )?,
                     }
                 }
                 WalletData::AliPayQr(_)

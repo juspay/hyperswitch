@@ -136,6 +136,11 @@ where
                             message: "Paze Decrypt token is not supported".to_string(),
                         })?
                     }
+                    types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                        Err(errors::ApiErrorResponse::NotSupported {
+                            message: "Google Pay Decrypt token is not supported".to_string(),
+                        })?
+                    }
                 };
                 Some((connector_name, token))
             } else {

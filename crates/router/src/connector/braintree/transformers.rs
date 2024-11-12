@@ -1600,6 +1600,9 @@ impl
                         types::PaymentMethodToken::PazeDecrypt(_) => {
                             Err(unimplemented_payment_method!("Paze", "Braintree"))?
                         }
+                        types::PaymentMethodToken::GooglePayDecrypt(_) => Err(
+                            unimplemented_payment_method!("Google Pay", "Simplified", "Braintree"),
+                        )?,
                     },
                     transaction: transaction_body,
                 },
@@ -1701,6 +1704,11 @@ fn get_braintree_redirect_form(
             types::PaymentMethodToken::PazeDecrypt(_) => {
                 Err(unimplemented_payment_method!("Paze", "Braintree"))?
             }
+            types::PaymentMethodToken::GooglePayDecrypt(_) => Err(unimplemented_payment_method!(
+                "Google Pay",
+                "Simplified",
+                "Braintree"
+            ))?,
         },
         bin: match card_details {
             domain::PaymentMethodData::Card(card_details) => {

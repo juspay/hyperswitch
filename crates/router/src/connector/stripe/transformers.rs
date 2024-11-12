@@ -1825,6 +1825,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                     types::PaymentMethodToken::PazeDecrypt(_) => {
                         Err(crate::unimplemented_payment_method!("Paze", "Stripe"))?
                     }
+                    types::PaymentMethodToken::GooglePayDecrypt(_) => Err(
+                        crate::unimplemented_payment_method!("Google Pay", "Simplified", "Stripe"),
+                    )?,
                 };
                 Some(StripePaymentMethodData::Wallet(
                     StripeWallet::ApplepayPayment(ApplepayPayment {
