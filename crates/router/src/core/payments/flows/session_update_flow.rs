@@ -19,6 +19,7 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::SdkSessionUpdate>
 {
+    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -45,6 +46,21 @@ impl
             ),
         )
         .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+        _merchant_recipient_data: Option<types::MerchantRecipientData>,
+        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::SdkSessionUpdateRouterData> {
+        todo!()
     }
 
     async fn get_merchant_recipient_data<'a>(

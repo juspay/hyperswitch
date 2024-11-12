@@ -629,6 +629,16 @@ impl Url {
     pub fn get_string_repr(&self) -> &str {
         self.0.as_str()
     }
+
+    /// wrap the url::Url in Url type
+    pub fn wrap(url: url::Url) -> Self {
+        Self(url)
+    }
+
+    /// Get the inner url
+    pub fn into_inner(self) -> url::Url {
+        self.0
+    }
 }
 
 impl<DB> ToSql<sql_types::Text, DB> for Url

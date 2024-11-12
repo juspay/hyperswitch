@@ -207,7 +207,7 @@ impl TaxDetails {
     }
 
     /// Get the default tax amount
-    fn get_default_tax_amount(&self) -> Option<MinorUnit> {
+    pub fn get_default_tax_amount(&self) -> Option<MinorUnit> {
         self.default
             .as_ref()
             .map(|default_tax_details| default_tax_details.order_tax_amount)
@@ -358,8 +358,8 @@ pub enum PaymentIntentUpdate {
     /// Update the payment intent details on payment intent confirmation, before calling the connector
     ConfirmIntent {
         status: storage_enums::IntentStatus,
-        updated_by: String,
         active_attempt_id: common_utils::id_type::GlobalAttemptId,
+        updated_by: String,
     },
     /// Update the payment intent details on payment intent confirmation, after calling the connector
     ConfirmIntentPostUpdate {
@@ -738,19 +738,19 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
         match payment_intent_update {
             PaymentIntentUpdate::ConfirmIntent {
                 status,
-                updated_by,
                 active_attempt_id,
+                updated_by,
             } => Self {
                 status: Some(status),
+                active_attempt_id: Some(active_attempt_id),
                 modified_at: common_utils::date_time::now(),
                 updated_by,
-                active_attempt_id: Some(active_attempt_id),
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
                 status: Some(status),
+                active_attempt_id: None,
                 modified_at: common_utils::date_time::now(),
                 updated_by,
-                active_attempt_id: None,
             },
         }
     }

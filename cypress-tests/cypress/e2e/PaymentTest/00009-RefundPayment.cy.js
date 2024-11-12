@@ -421,7 +421,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "manualPaymentRefund"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -526,7 +526,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PartialRefund"
+        "manualPaymentPartialRefund"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -542,7 +542,7 @@ describe("Card - Refund flow - No 3DS", () => {
     });
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PartialRefund"
+        "manualPaymentPartialRefund"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -650,7 +650,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "manualPaymentRefund"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -755,7 +755,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PartialRefund"
+        "manualPaymentPartialRefund"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -1297,7 +1297,7 @@ describe("Card - Refund flow - 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "manualPaymentRefund"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -1405,7 +1405,7 @@ describe("Card - Refund flow - 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "manualPaymentPartialRefund"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -1421,7 +1421,7 @@ describe("Card - Refund flow - 3DS", () => {
     });
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "manualPaymentPartialRefund"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -1529,7 +1529,7 @@ describe("Card - Refund flow - 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "manualPaymentRefund"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -1637,7 +1637,7 @@ describe("Card - Refund flow - 3DS", () => {
 
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
+        "manualPaymentRefund"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
