@@ -898,10 +898,9 @@ impl webhooks::IncomingWebhook for Fiuu {
         Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
         errors::ConnectorError,
     > {
-        let webhook_payment_response: transformers::FiuuWebhooksPaymentResponse = request
-            .body
-            .parse_struct("fiuu::FiuuWebhooksPaymentResponse")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let webhook_payment_response: transformers::FiuuWebhooksPaymentResponse =
+            serde_urlencoded::from_bytes::<transformers::FiuuWebhooksPaymentResponse>(request.body)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         let mandate_reference = webhook_payment_response.extra_parameters.as_ref().and_then(|extra_p| {
                     let mandate_token: Result<ExtraParameters, _> = serde_json::from_str(extra_p);
                     match mandate_token {
