@@ -406,6 +406,9 @@ pub fn payments_connector_session() {}
 #[utoipa::path(
     post,
     path = "/v2/payments/{payment_id}/create-external-sdk-tokens",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
     request_body=PaymentsSessionRequest,
     responses(
         (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
