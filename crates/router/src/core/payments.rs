@@ -1552,6 +1552,7 @@ fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
     format!("{operation:?}").eq("PaymentStart")
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentsRedirectResponseData {
     pub connector: Option<String>,
@@ -1563,11 +1564,20 @@ pub struct PaymentsRedirectResponseData {
     pub creds_identifier: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentsRedirectResponseData {
+    pub payment_id: id_type::GlobalPaymentId,
+    pub query_params: String,
+    pub json_payload: Option<serde_json::Value>,
+}
+
 #[async_trait::async_trait]
 pub trait PaymentRedirectFlow: Sync {
     // Associated type for call_payment_flow response
     type PaymentFlowResponse;
 
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
         &self,
@@ -1581,6 +1591,17 @@ pub trait PaymentRedirectFlow: Sync {
         payment_id: id_type::PaymentId,
     ) -> RouterResult<Self::PaymentFlowResponse>;
 
+    #[cfg(feature = "v2")]
+    async fn call_payment_flow(
+        &self,
+        state: &SessionState,
+        req_state: ReqState,
+        merchant_account: domain::MerchantAccount,
+        merchant_key_store: domain::MerchantKeyStore,
+        profile: domain::Profile,
+        req: PaymentsRedirectResponseData,
+    ) -> RouterResult<Self::PaymentFlowResponse>;
+
     fn get_payment_action(&self) -> services::PaymentAction;
 
     fn generate_response(
@@ -1590,7 +1611,7 @@ pub trait PaymentRedirectFlow: Sync {
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
 
-    #[allow(clippy::too_many_arguments)]
+    #[cfg(feature = "v1")]
     async fn handle_payments_redirect_response(
         &self,
         state: SessionState,
@@ -1651,6 +1672,39 @@ pub trait PaymentRedirectFlow: Sync {
                 flow_type,
                 connector.clone(),
                 resource_id.clone(),
+            )
+            .await?;
+
+        self.generate_response(&payment_flow_response, resource_id, connector)
+    }
+
+    #[cfg(feature = "v2")]
+    async fn handle_payments_redirect_response(
+        &self,
+        state: SessionState,
+        req_state: ReqState,
+        merchant_account: domain::MerchantAccount,
+        key_store: domain::MerchantKeyStore,
+        profile: domain::Profile,
+        request: PaymentsRedirectResponseData,
+    ) -> RouterResponse<api::RedirectionResponse> {
+        metrics::REDIRECTION_TRIGGERED.add(
+            &metrics::CONTEXT,
+            1,
+            &add_attributes([(
+                "merchant_id",
+                merchant_account.get_id().get_string_repr().to_owned(),
+            )]),
+        );
+
+        let payment_flow_response = self
+            .call_payment_flow(
+                &state,
+                req_state,
+                merchant_account,
+                key_store,
+                profile,
+                request,
             )
             .await?;
 
@@ -1867,6 +1921,102 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
+        Ok(router_types::RedirectPaymentFlowResponse {
+            payments_response,
+            business_profile,
+        })
+    }
+    fn generate_response(
+        &self,
+        payment_flow_response: &Self::PaymentFlowResponse,
+        payment_id: id_type::PaymentId,
+        connector: String,
+    ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
+        Ok(services::ApplicationResponse::JsonForRedirection(
+            helpers::get_handle_response_url(
+                payment_id,
+                &payment_flow_response.business_profile,
+                &payment_flow_response.payments_response,
+                connector,
+            )?,
+        ))
+    }
+
+    fn get_payment_action(&self) -> services::PaymentAction {
+        services::PaymentAction::PSync
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl PaymentRedirectFlow for PaymentRedirectSync {
+    type PaymentFlowResponse = router_types::RedirectPaymentFlowResponse;
+
+    async fn call_payment_flow(
+        &self,
+        state: &SessionState,
+        req_state: ReqState,
+        merchant_account: domain::MerchantAccount,
+        merchant_key_store: domain::MerchantKeyStore,
+        profile: domain::Profile,
+        req: PaymentsRedirectResponseData,
+    ) -> RouterResult<Self::PaymentFlowResponse> {
+        let payment_id = req.payment_id.clone();
+
+        let payment_sync_request = api::PaymentsRetrieveRequest {
+            param: Some(req.query_params),
+            force_sync: true,
+        };
+
+        let operation = operations::PaymentGet;
+        let boxed_operation: BoxedOperation<
+            '_,
+            api::PSync,
+            api::PaymentsRetrieveRequest,
+            PaymentStatusData<api::PSync>,
+        > = Box::new(operation);
+
+        let get_tracker_response = boxed_operation
+            .to_get_tracker()?
+            .get_trackers(
+                state,
+                &payment_id,
+                &payment_sync_request,
+                &merchant_account,
+                &profile,
+                &merchant_key_store,
+                &HeaderPayload::default(),
+            )
+            .await?;
+
+        let response = Box::pin(payments_core::<
+            api::PSync,
+            api_models::payments::PaymentsRetrieveResponse,
+            _,
+            _,
+            _,
+            _,
+        >(
+            state.clone(),
+            req_state,
+            merchant_account,
+            profile,
+            merchant_key_store.clone(),
+            operation,
+            payment_sync_request,
+            payment_id,
+            CallConnectorAction::Trigger,
+            HeaderPayload::default(),
+        ))
+        .await?;
+
+        let payments_response = match response {
+            services::ApplicationResponse::Json(response) => Ok(response),
+            services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
+            _ => Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get the response in json"),
+        }?;
+
         Ok(router_types::RedirectPaymentFlowResponse {
             payments_response,
             business_profile,

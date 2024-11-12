@@ -540,6 +540,10 @@ impl Payments {
                 .service(
                     web::resource("/start_redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
+                )
+                .service(
+                    web::resource("/finish_redirection")
+                        .route(web::get().to(payments::payments_finish_redirection)),
                 ),
         );
 
