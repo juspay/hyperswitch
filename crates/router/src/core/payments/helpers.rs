@@ -2900,6 +2900,7 @@ pub(super) fn validate_payment_list_request_for_joins(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub fn get_handle_response_url(
     payment_id: id_type::PaymentId,
     business_profile: &domain::Profile,

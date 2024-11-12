@@ -5151,6 +5151,7 @@ pub struct PgRedirectResponse {
     pub amount: Option<MinorUnit>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
 pub struct RedirectionResponse {
     pub return_url: String,
@@ -5158,6 +5159,13 @@ pub struct RedirectionResponse {
     pub return_url_with_query_params: String,
     pub http_method: String,
     pub headers: Vec<(String, String)>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
+pub struct RedirectionResponse {
+    pub return_url_with_query_params: String,
+    pub http_method: String,
 }
 
 #[derive(Debug, serde::Deserialize)]

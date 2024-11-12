@@ -1604,11 +1604,18 @@ pub trait PaymentRedirectFlow: Sync {
 
     fn get_payment_action(&self) -> services::PaymentAction;
 
+    #[cfg(feature = "v1")]
     fn generate_response(
         &self,
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+    ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
+
+    #[cfg(feature = "v2")]
+    fn generate_response(
+        &self,
+        payment_flow_response: &Self::PaymentFlowResponse,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
 
     #[cfg(feature = "v1")]
@@ -1708,7 +1715,7 @@ pub trait PaymentRedirectFlow: Sync {
             )
             .await?;
 
-        self.generate_response(&payment_flow_response, resource_id, connector)
+        self.generate_response(&payment_flow_response)
     }
 }
 
@@ -1950,7 +1957,8 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl PaymentRedirectFlow for PaymentRedirectSync {
-    type PaymentFlowResponse = router_types::RedirectPaymentFlowResponse;
+    type PaymentFlowResponse =
+        router_types::RedirectPaymentFlowResponse<PaymentStatusData<api::PSync>>;
 
     async fn call_payment_flow(
         &self,
@@ -1989,19 +1997,12 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             )
             .await?;
 
-        let response = Box::pin(payments_core::<
-            api::PSync,
-            api_models::payments::PaymentsRetrieveResponse,
-            _,
-            _,
-            _,
-            _,
-        >(
-            state.clone(),
+        let response = Box::pin(payments_operation_core::<api::PSync, _, _, _, _>(
+            state,
             req_state,
             merchant_account,
-            profile,
             merchant_key_store.clone(),
+            profile.clone(),
             operation,
             payment_sync_request,
             payment_id,
@@ -2010,32 +2011,28 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         ))
         .await?;
 
-        let payments_response = match response {
-            services::ApplicationResponse::Json(response) => Ok(response),
-            services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
-            _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to get the response in json"),
-        }?;
-
         Ok(router_types::RedirectPaymentFlowResponse {
-            payments_response,
-            business_profile,
+            payment_data: get_tracker_response.payment_data,
+            profile,
         })
     }
     fn generate_response(
         &self,
         payment_flow_response: &Self::PaymentFlowResponse,
-        payment_id: id_type::PaymentId,
-        connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
-        Ok(services::ApplicationResponse::JsonForRedirection(
-            helpers::get_handle_response_url(
-                payment_id,
-                &payment_flow_response.business_profile,
-                &payment_flow_response.payments_response,
-                connector,
-            )?,
-        ))
+        let payment_intent = payment_flow_response.payment_data.payment_intent;
+        let profile = payment_flow_response.profile;
+
+        let return_url = payment_intent.return_url.unwrap_or(profile.return_url);
+
+        // Ok(services::ApplicationResponse::JsonForRedirection(
+        //     helpers::get_handle_response_url(
+        //         payment_id,
+        //         &payment_flow_response.business_profile,
+        //         &payment_flow_response.payments_response,
+        //         connector,
+        //     )?,
+        // ))
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {
