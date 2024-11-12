@@ -1081,6 +1081,7 @@ default_imp_for_payouts!(
     connectors::Multisafepay,
     connectors::Nexinets,
     connectors::Nexixpay,
+    connectors::Nomupay,
     connectors::Novalnet,
     connectors::Payeezy,
     connectors::Payu,

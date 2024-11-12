@@ -997,7 +997,6 @@ default_imp_for_payouts!(
     connector::Mifinity,
     connector::Netcetera,
     connector::Nmi,
-    connector::Nomupay,
     connector::Noon,
     connector::Nuvei,
     connector::Opayo,
