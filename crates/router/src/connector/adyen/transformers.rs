@@ -3127,6 +3127,23 @@ impl<'a>
         let shopper_email = get_shopper_email(item.router_data, store_payment_method.is_some())?;
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
+        let mpi_data = if let domain::WalletData::Paze(_) = wallet_data {
+            match item.router_data.payment_method_token.clone() {
+                Some(types::PaymentMethodToken::PazeDecrypt(paze_decrypted_data)) => {
+                    Some(AdyenMpiData {
+                        directory_response: "Y".to_string(),
+                        authentication_response: "Y".to_string(),
+                        token_authentication_verification_value: paze_decrypted_data
+                            .token
+                            .payment_account_reference,
+                        eci: paze_decrypted_data.eci,
+                    })
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3137,23 +3154,7 @@ impl<'a>
             recurring_processing_model,
             browser_info,
             additional_data,
-            mpi_data: if let domain::WalletData::Paze(_) = wallet_data {
-                match item.router_data.payment_method_token.clone() {
-                    Some(types::PaymentMethodToken::PazeDecrypt(paze_decrypted_data)) => {
-                        Some(AdyenMpiData {
-                            directory_response: "Y".to_string(),
-                            authentication_response: "Y".to_string(),
-                            token_authentication_verification_value: paze_decrypted_data
-                                .token
-                                .payment_account_reference,
-                            eci: paze_decrypted_data.eci,
-                        })
-                    }
-                    _ => None,
-                }
-            } else {
-                None
-            },
+            mpi_data,
             telephone_number: None,
             shopper_name: None,
             shopper_email,
