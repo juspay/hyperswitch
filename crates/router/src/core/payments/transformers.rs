@@ -228,7 +228,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
 
     let router_return_url = payment_data
         .payment_intent
-        .create_redirect_response_url(&router_base_url, &merchant_account.publishable_key)
+        .create_finish_redirection_url(&router_base_url, &merchant_account.publishable_key)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to construct finish redirection url")?
         .to_string();

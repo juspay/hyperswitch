@@ -133,13 +133,14 @@ impl PaymentIntent {
 
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, after completing the redirection flow
-    pub fn create_redirect_response_url(
+    pub fn create_finish_redirection_url(
         &self,
         base_url: &str,
         publishable_key: &str,
     ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
         let finish_redirection_url = format!(
-            "{base_url}/v2/finish_redirection/{publishable_key}/{}",
+            "{base_url}/v2/payments/{}/finish_redirection/{publishable_key}/{}",
+            self.id.get_string_repr(),
             self.profile_id.get_string_repr()
         );
 

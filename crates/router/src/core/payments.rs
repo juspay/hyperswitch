@@ -2020,14 +2020,16 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         &self,
         payment_flow_response: &Self::PaymentFlowResponse,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
-        let payment_intent = payment_flow_response.payment_data.payment_intent;
-        let profile = payment_flow_response.profile;
+        let payment_intent = &payment_flow_response.payment_data.payment_intent;
+        let profile = &payment_flow_response.profile;
 
         let return_url = payment_intent
             .return_url
-            .or(profile.return_url)
+            .as_ref()
+            .or(profile.return_url.as_ref())
             .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("return url not found in payment intent and profile")?;
+            .attach_printable("return url not found in payment intent and profile")?
+            .to_owned();
 
         let return_url =
             return_url.add_query_params(("payment_id", payment_intent.id.get_string_repr()));
