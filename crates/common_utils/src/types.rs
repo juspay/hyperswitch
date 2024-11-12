@@ -639,6 +639,17 @@ impl Url {
     pub fn into_inner(self) -> url::Url {
         self.0
     }
+
+    /// Add query params to the url
+    pub fn add_query_params(mut self, (key, value): (&str, &str)) -> Self {
+        let url = self
+            .0
+            .query_pairs_mut()
+            .append_pair(key, value)
+            .finish()
+            .clone();
+        Self(url)
+    }
 }
 
 impl<DB> ToSql<sql_types::Text, DB> for Url
@@ -1089,7 +1100,7 @@ impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> LengthString<MAX_LENGTH, MIN_
             Err(LengthStringError::MaxLengthViolated(MAX_LENGTH))
         })?;
 
-        when(length_of_input_string < u16::from(MIN_LENGTH), || {
+        when(length_of_input_string < MIN_LENGTH, || {
             Err(LengthStringError::MinLengthViolated(MIN_LENGTH))
         })?;
 

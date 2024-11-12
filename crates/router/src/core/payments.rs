@@ -2023,16 +2023,22 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         let payment_intent = payment_flow_response.payment_data.payment_intent;
         let profile = payment_flow_response.profile;
 
-        let return_url = payment_intent.return_url.unwrap_or(profile.return_url);
+        let return_url = payment_intent
+            .return_url
+            .or(profile.return_url)
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("return url not found in payment intent and profile")?;
 
-        // Ok(services::ApplicationResponse::JsonForRedirection(
-        //     helpers::get_handle_response_url(
-        //         payment_id,
-        //         &payment_flow_response.business_profile,
-        //         &payment_flow_response.payments_response,
-        //         connector,
-        //     )?,
-        // ))
+        let return_url =
+            return_url.add_query_params(("payment_id", payment_intent.id.get_string_repr()));
+
+        let return_url_str = return_url.into_inner().to_string();
+
+        Ok(services::ApplicationResponse::JsonForRedirection(
+            api::RedirectionResponse {
+                return_url_with_query_params: return_url_str,
+            },
+        ))
     }
 
     fn get_payment_action(&self) -> services::PaymentAction {

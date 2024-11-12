@@ -472,7 +472,7 @@ impl Health {
 #[cfg(feature = "dummy_connector")]
 pub struct DummyConnector;
 
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
         let mut routes_with_restricted_access = web::scope("");
@@ -542,7 +542,7 @@ impl Payments {
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
-                    web::resource("/finish_redirection")
+                    web::resource("/finish_redirection/{publishable_key}/{profile_id}")
                         .route(web::get().to(payments::payments_finish_redirection)),
                 ),
         );
