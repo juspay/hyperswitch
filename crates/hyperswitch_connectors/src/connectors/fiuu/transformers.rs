@@ -401,7 +401,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             true => TxnType::Sals,
             false => TxnType::Auts,
         };
-        let return_url = Some("https://www.google.com/".to_string());
+        let return_url = item.router_data.request.router_return_url.clone();
         let non_3ds = match item.router_data.is_three_ds() {
             false => 1,
             true => 0,
