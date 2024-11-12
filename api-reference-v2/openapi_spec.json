@@ -8069,18 +8069,6 @@
           {
             "type": "string",
             "enum": [
-              "browser_language"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "browser_ip"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
               "user_msisdn"
             ]
           },
