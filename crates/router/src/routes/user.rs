@@ -260,7 +260,7 @@ pub async fn user_org_create(
             user_core::create_org_for_user(state, auth, json_payload)
         },
         &auth::JWTAuth {
-            permission: Permission::OrganizationAccountWrite,
+            permission: Permission::TenantAccountWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))

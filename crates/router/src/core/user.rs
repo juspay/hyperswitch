@@ -2557,8 +2557,12 @@ pub async fn list_orgs_for_user(
         .into());
     }
 
+    println!("Role info tx {:#?}",role_info);
+
+    
     // Conditional handling based on user role entity type
     let orgs = if matches!(role_info.get_entity_type(), EntityType::Tenant) {
+        println!("Inside Tenant Listing");
         // For tenant roles, list all unique org_ids from all merchant accounts
         let key_manager_state = &(&state).into();
 
