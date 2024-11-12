@@ -455,25 +455,11 @@ pub async fn migrate_payment_method(
 
     let network_token = req.network_token.clone();
 
-    let network_token_validation = network_token.clone().map(|network_token| {
-        cards::CardNumber::from_str(network_token.network_token_data.network_token_number.peek())
-            .map_err(|err| {
-                logger::error!("Network Token Validation Failed. {:?}", err);
-                false
-            })
-    });
-
-    // network_token_migrated is true if network_token_number passes the validation and will be migrated to locker
-    let network_token_migrated = match network_token_validation {
-        Some(Ok(network_token)) => {
-            logger::debug!("Network token to be migrated is valid, saving in locker");
-            let network_token_details = req
-                .network_token
-                .clone()
-                .get_required_value("network_token")?;
-            let network_token_requestor_ref_id =
-                network_token_details.network_token_requestor_ref_id.clone();
-            let network_token_data = network_token_details.network_token_data.clone();
+    let network_token_migrated = match network_token {
+        Some(nt_detail) => {
+            logger::debug!("Network token migration");
+            let network_token_requestor_ref_id = nt_detail.network_token_requestor_ref_id.clone();
+            let network_token_data = &nt_detail.network_token_data;
 
             Some(
                 save_network_token_and_update_payment_method(
@@ -483,21 +469,13 @@ pub async fn migrate_payment_method(
                     merchant_account,
                     network_token_data,
                     network_token_requestor_ref_id,
-                    network_token,
                     pm_id,
                 )
                 .await
-                .map_err(|err| logger::error!(?err, "Failed to save network token in locker"))
+                .map_err(|err| logger::error!(?err, "Failed to save network token"))
                 .ok()
                 .unwrap_or_default(),
             )
-        }
-        Some(Err(err)) => {
-            logger::debug!(
-                "Network token validation failed, not saving in locker {:?}",
-                err
-            );
-            Some(false)
         }
         None => {
             logger::debug!("Network token data is not available");
@@ -893,20 +871,19 @@ pub async fn save_network_token_and_update_payment_method(
     req: &api::PaymentMethodMigrate,
     key_store: &domain::MerchantKeyStore,
     merchant_account: &domain::MerchantAccount,
-    network_token_data: api_models::payment_methods::MigrateNetworkTokenData,
+    network_token_data: &api_models::payment_methods::MigrateNetworkTokenData,
     network_token_requestor_ref_id: String,
-    network_token: cards::CardNumber,
     pm_id: String,
 ) -> errors::RouterResult<bool> {
     let payment_method_create_request =
         api::PaymentMethodCreate::get_payment_method_create_from_payment_method_migrate(
-            network_token.clone(),
+            network_token_data.network_token_number.clone(),
             req,
         );
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
     let network_token_details = api::CardDetail {
-        card_number: network_token,
+        card_number: network_token_data.network_token_number.clone(),
         card_exp_month: network_token_data.network_token_exp_month.clone(),
         card_exp_year: network_token_data.network_token_exp_year.clone(),
         card_holder_name: network_token_data.card_holder_name.clone(),

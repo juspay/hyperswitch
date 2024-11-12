@@ -565,7 +565,7 @@ pub struct MigrateCardDetail {
 pub struct MigrateNetworkTokenData {
     /// Network Token Number
     #[schema(value_type = String,example = "4111111145551142")]
-    pub network_token_number: masking::Secret<String>,
+    pub network_token_number: CardNumber,
 
     /// Network Token Expiry Month
     #[schema(value_type = String,example = "10")]
@@ -2151,7 +2151,7 @@ pub struct PaymentMethodRecord {
     pub original_transaction_amount: Option<i64>,
     pub original_transaction_currency: Option<common_enums::Currency>,
     pub line_number: Option<i64>,
-    pub network_token_number: Option<masking::Secret<String>>,
+    pub network_token_number: Option<CardNumber>,
     pub network_token_expiry_month: Option<masking::Secret<String>>,
     pub network_token_expiry_year: Option<masking::Secret<String>>,
     pub network_token_requestor_ref_id: Option<String>,
