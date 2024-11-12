@@ -759,22 +759,14 @@ impl Routing {
                 },
             )))
             .service(
-                web::resource("/default")
-                    .route(web::get().to(|state, req| {
-                        routing::routing_retrieve_default_config(
-                            state,
-                            req,
-                            &TransactionType::Payment,
-                        )
-                    }))
-                    .route(web::post().to(|state, req, payload| {
-                        routing::routing_update_default_config(
-                            state,
-                            req,
-                            payload,
-                            &TransactionType::Payment,
-                        )
-                    })),
+                web::resource("/default").route(web::post().to(|state, req, payload| {
+                    routing::routing_update_default_config(
+                        state,
+                        req,
+                        payload,
+                        &TransactionType::Payment,
+                    )
+                })),
             )
             .service(
                 web::resource("/deactivate").route(web::post().to(|state, req, payload| {
@@ -794,8 +786,8 @@ impl Routing {
                     .route(web::delete().to(routing::delete_surcharge_decision_manager_config)),
             )
             .service(
-                web::resource("/default/profile/{profile_id}").route(web::post().to(
-                    |state, req, path, payload| {
+                web::resource("/default/profile/{profile_id}")
+                    .route(web::post().to(|state, req, path, payload| {
                         routing::routing_update_default_config_for_profile(
                             state,
                             req,
@@ -803,17 +795,15 @@ impl Routing {
                             payload,
                             &TransactionType::Payment,
                         )
-                    },
-                )),
-            )
-            .service(
-                web::resource("/default/profile").route(web::get().to(|state, req| {
-                    routing::routing_retrieve_default_config_for_profiles(
-                        state,
-                        req,
-                        &TransactionType::Payment,
-                    )
-                })),
+                    }))
+                    .route(web::get().to(|state, req, path| {
+                        routing::routing_retrieve_default_config(
+                            state,
+                            req,
+                            path,
+                            &TransactionType::Payment,
+                        )
+                    })),
             );
 
         #[cfg(feature = "payouts")]
@@ -861,11 +851,12 @@ impl Routing {
                     },
                 )))
                 .service(
-                    web::resource("/payouts/default")
-                        .route(web::get().to(|state, req| {
+                    web::resource("/payouts/default/{profile_id}")
+                        .route(web::get().to(|state, req, path| {
                             routing::routing_retrieve_default_config(
                                 state,
                                 req,
+                                path,
                                 &TransactionType::Payout,
                             )
                         }))

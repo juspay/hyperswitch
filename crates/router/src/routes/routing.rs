@@ -557,27 +557,31 @@ pub async fn routing_retrieve_default_config(
 pub async fn routing_retrieve_default_config(
     state: web::Data<AppState>,
     req: HttpRequest,
+    path: web::Path<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> impl Responder {
+    let path = path.into_inner();
     Box::pin(oss_api::server_wrap(
         Flow::RoutingRetrieveDefaultConfig,
         state,
         &req,
-        (),
-        |state, auth: auth::AuthenticationData, _, _| {
-            routing::retrieve_default_routing_config(state, auth.merchant_account, transaction_type)
+        path.clone(),
+        |state, _, profile_id, _| {
+            routing::retrieve_default_routing_config(state, profile_id, transaction_type)
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth {
-                permission: Permission::ProfileRoutingRead,
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: path,
+                required_permission: Permission::ProfileRoutingRead,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileRoutingRead,
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: path,
+            required_permission: Permission::ProfileRoutingRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
