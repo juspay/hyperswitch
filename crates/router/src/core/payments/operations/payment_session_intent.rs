@@ -212,7 +212,7 @@ impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentD
         let profile_id = &payment_data.payment_intent.profile_id;
         let filtered_connector_accounts = all_connector_accounts
             .filter_based_on_profile_and_connector_type(
-                &profile_id,
+                profile_id,
                 common_enums::ConnectorType::PaymentProcessor,
             );
         let connector_and_supporting_payment_method_type = filtered_connector_accounts
