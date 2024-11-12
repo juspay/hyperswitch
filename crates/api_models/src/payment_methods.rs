@@ -2226,14 +2226,18 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
     fn from((response, record): PaymentMethodMigrationResponseType) -> Self {
         match response {
             Ok(res) => Self {
-                payment_method_id: Some(res.payment_method_id),
-                payment_method: res.payment_method,
-                payment_method_type: res.payment_method_type,
-                customer_id: Some(res.customer_id),
+                payment_method_id: Some(res.payment_method_response.payment_method_id),
+                payment_method: res.payment_method_response.payment_method,
+                payment_method_type: res.payment_method_response.payment_method_type,
+                customer_id: Some(res.payment_method_response.customer_id),
                 migration_status: MigrationStatus::Success,
                 migration_error: None,
                 card_number_masked: Some(record.card_number_masked),
                 line_number: record.line_number,
+                card_migrated: res.card_migrated,
+                network_token_migrated: res.network_token_migrated,
+                connector_mandate_details_migrated: res.connector_mandate_details_migrated,
+                network_transaction_id_migrated: res.network_transaction_id_migrated,
             },
             Err(e) => Self {
                 customer_id: Some(record.customer_id),

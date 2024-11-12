@@ -7,7 +7,7 @@ pub use api_models::payment_methods::{
     PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
     PaymentMethodIntentConfirm, PaymentMethodIntentConfirmInternal, PaymentMethodIntentCreate,
     PaymentMethodList, PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
-    PaymentMethodMigrate, PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate,
+    PaymentMethodMigrate, PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate,
     PaymentMethodUpdateData, PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest,
     TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
 };

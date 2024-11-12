@@ -525,7 +525,7 @@ pub async fn migrate_payment_method(
     _merchant_id: &id_type::MerchantId,
     _merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
-) -> errors::RouterResponse<api::PaymentMethodResponse> {
+) -> errors::RouterResponse<api::PaymentMethodMigrateResponse> {
     todo!()
 }
 
