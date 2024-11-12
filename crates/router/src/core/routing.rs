@@ -911,9 +911,10 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
 #[cfg(feature = "v1")]
 pub async fn retrieve_default_routing_config(
     state: SessionState,
-    profile_id: common_utils::id_type::ProfileId,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
+    let profile_id = profile_id.ok_or(errors::ApiErrorResponse::GenericNotFoundError { message: "profile_id not found".to_string() })?;
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
 
