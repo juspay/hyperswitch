@@ -25,7 +25,7 @@ use super::{requests::*, response::*};
 use crate::{
     types::ResponseRouterData,
     utils::{
-        self, AddressData, ForeignTryFrom, PaymentsAuthorizeRequestData,
+        self, AddressData, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsSetupMandateRequestData, RouterData as RouterDataTrait,
     },
 };
@@ -77,8 +77,8 @@ fn fetch_payment_instrument(
         PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
             payment_type: PaymentType::Plain,
             expiry_date: ExpiryDate {
-                month: utils::CardData::get_expiry_month_as_i8(&card)?,
-                year: utils::CardData::get_expiry_year_as_i32(&card)?,
+                month: card.get_expiry_month_as_i8()?,
+                year: card.get_expiry_year_as_4_digit_i32()?,
             },
             card_number: card.card_number,
             cvc: card.card_cvc,
