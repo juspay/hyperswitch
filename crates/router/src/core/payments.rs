@@ -2031,8 +2031,9 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             .attach_printable("return url not found in payment intent and profile")?
             .to_owned();
 
-        let return_url =
-            return_url.add_query_params(("payment_id", payment_intent.id.get_string_repr()));
+        let return_url = return_url
+            .add_query_params(("id", payment_intent.id.get_string_repr()))
+            .add_query_params(("status", &payment_intent.status.to_string()));
 
         let return_url_str = return_url.into_inner().to_string();
 
