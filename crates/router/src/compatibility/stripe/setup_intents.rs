@@ -58,7 +58,7 @@ pub async fn setup_intents_create(
         state.into_inner(),
         &req,
         create_payment_req,
-        |state, auth, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_core::<
                 api_types::SetupMandate,
                 api_types::PaymentsResponse,
@@ -77,7 +77,7 @@ pub async fn setup_intents_create(
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
                 None,
-                api_types::HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -86,7 +86,7 @@ pub async fn setup_intents_create(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
@@ -147,7 +147,7 @@ pub async fn setup_intents_retrieve(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
-                api_types::HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
         &*auth_type,
@@ -223,7 +223,7 @@ pub async fn setup_intents_update(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
-                api_types::HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
         &*auth_type,
@@ -300,7 +300,7 @@ pub async fn setup_intents_confirm(
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
                 None,
-                api_types::HeaderPayload::default(),
+                hyperswitch_domain_models::payments::HeaderPayload::default(),
             )
         },
         &*auth_type,

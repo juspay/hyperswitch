@@ -11,6 +11,8 @@ pub mod payment_confirm;
 #[cfg(feature = "v1")]
 pub mod payment_create;
 #[cfg(feature = "v1")]
+pub mod payment_post_session_tokens;
+#[cfg(feature = "v1")]
 pub mod payment_reject;
 pub mod payment_response;
 #[cfg(feature = "v1")]
@@ -26,6 +28,16 @@ pub mod payments_incremental_authorization;
 #[cfg(feature = "v1")]
 pub mod tax_calculation;
 
+#[cfg(feature = "v2")]
+pub mod payment_confirm_intent;
+#[cfg(feature = "v2")]
+pub mod payment_create_intent;
+#[cfg(feature = "v2")]
+pub mod payment_get_intent;
+
+#[cfg(feature = "v2")]
+pub mod payment_get;
+
 use api_models::enums::FrmSuggestion;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::RoutableConnectorChoice;
@@ -33,13 +45,22 @@ use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "v2")]
+pub use self::payment_confirm_intent::PaymentIntentConfirm;
+#[cfg(feature = "v2")]
+pub use self::payment_create_intent::PaymentIntentCreate;
+#[cfg(feature = "v2")]
+pub use self::payment_get::PaymentGet;
+#[cfg(feature = "v2")]
+pub use self::payment_get_intent::PaymentGetIntent;
 pub use self::payment_response::PaymentResponse;
 #[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
     payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
-    payment_create::PaymentCreate, payment_reject::PaymentReject, payment_session::PaymentSession,
-    payment_start::PaymentStart, payment_status::PaymentStatus, payment_update::PaymentUpdate,
+    payment_create::PaymentCreate, payment_post_session_tokens::PaymentPostSessionTokens,
+    payment_reject::PaymentReject, payment_session::PaymentSession, payment_start::PaymentStart,
+    payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
 };
@@ -67,20 +88,24 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
     }
+
     fn to_get_tracker(&self) -> RouterResult<&(dyn GetTracker<F, Self::Data, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("get tracker interface not found for {self:?}"))
     }
+
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, T, Self::Data>> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("domain interface not found for {self:?}"))
     }
+
     fn to_update_tracker(
         &self,
     ) -> RouterResult<&(dyn UpdateTracker<F, Self::Data, T> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("update tracker interface not found for {self:?}"))
     }
+
     fn to_post_update_tracker(
         &self,
     ) -> RouterResult<&(dyn PostUpdateTracker<F, Self::Data, T> + Send + Sync)> {
@@ -90,6 +115,7 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
     }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone)]
 pub struct ValidateResult {
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -98,6 +124,15 @@ pub struct ValidateResult {
     pub requeue: bool,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct ValidateResult {
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub storage_scheme: enums::MerchantStorageScheme,
+    pub requeue: bool,
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::type_complexity)]
 pub trait ValidateRequest<F, R, D> {
     fn validate_request<'b>(
@@ -107,6 +142,22 @@ pub trait ValidateRequest<F, R, D> {
     ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
 }
 
+#[cfg(feature = "v2")]
+pub trait ValidateRequest<F, R, D> {
+    fn validate_request<'b>(
+        &'b self,
+        request: &R,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
+}
+
+#[cfg(feature = "v2")]
+pub struct GetTrackerResponse<'a, F: Clone, R, D> {
+    pub operation: BoxedOperation<'a, F, R, D>,
+    pub payment_data: D,
+}
+
+#[cfg(feature = "v1")]
 pub struct GetTrackerResponse<'a, F: Clone, R, D> {
     pub operation: BoxedOperation<'a, F, R, D>,
     pub customer_details: Option<CustomerDetails>,
@@ -115,8 +166,11 @@ pub struct GetTrackerResponse<'a, F: Clone, R, D> {
     pub mandate_type: Option<api::MandateTransactionType>,
 }
 
+/// This trait is used to fetch / create all the tracker related information for a payment
+/// This functions returns the session data that is used by subsequent functions
 #[async_trait]
 pub trait GetTracker<F: Clone, D, R>: Send {
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
@@ -126,18 +180,44 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
-        header_payload: &api::HeaderPayload,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
+
+    // TODO: this need not return the operation, since operation does not change in v2
+    // Operation remains the same from start to finish
+    #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        request: &R,
+        merchant_account: &domain::MerchantAccount,
+        profile: &domain::Profile,
+        mechant_key_store: &domain::MerchantKeyStore,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 }
 
 #[async_trait]
 pub trait Domain<F: Clone, R, D>: Send + Sync {
+    #[cfg(feature = "v1")]
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
         payment_data: &mut D,
         request: Option<CustomerDetails>,
+        merchant_key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
+
+    #[cfg(feature = "v2")]
+    /// This will fetch customer details, (this operation is flow specific)
+    async fn get_customer_details<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut D,
         merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
@@ -167,6 +247,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(())
     }
 
+    #[cfg(feature = "v1")]
     async fn get_connector<'a>(
         &'a self,
         merchant_account: &domain::MerchantAccount,
@@ -175,6 +256,17 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         payment_intent: &storage::PaymentIntent,
         mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
+
+    #[cfg(feature = "v2")]
+    async fn perform_routing<'a>(
+        &'a self,
+        merchant_account: &domain::MerchantAccount,
+        business_profile: &domain::Profile,
+        state: &SessionState,
+        // TODO: do not take the whole payment data here
+        payment_data: &mut D,
+        mechant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse>;
 
     async fn populate_payment_data<'a>(
         &'a self,
@@ -232,11 +324,36 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
+
+    // #[cfg(feature = "v2")]
+    // async fn call_connector<'a, RouterDataReq>(
+    //     &'a self,
+    //     _state: &SessionState,
+    //     _req_state: ReqState,
+    //     _merchant_account: &domain::MerchantAccount,
+    //     _key_store: &domain::MerchantKeyStore,
+    //     _business_profile: &domain::Profile,
+    //     _payment_method_data: Option<&domain::PaymentMethodData>,
+    //     _connector: api::ConnectorData,
+    //     _customer: &Option<domain::Customer>,
+    //     _payment_data: &mut D,
+    //     _call_connector_action: common_enums::CallConnectorAction,
+    // ) -> CustomResult<
+    //     hyperswitch_domain_models::router_data::RouterData<F, RouterDataReq, PaymentsResponseData>,
+    //     errors::ApiErrorResponse,
+    // > {
+    //     // TODO: raise an error here
+    //     todo!();
+    // }
 }
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
 pub trait UpdateTracker<F, D, Req>: Send {
+    /// Update the tracker information with the new data from request or calculated by the operations performed after get trackers
+    /// This will persist the SessionData ( PaymentData ) in the database
+    ///
+    /// In case we are calling a processor / connector, we persist all the data in the database and then call the connector
     async fn update_trackers<'b>(
         &'b self,
         db: &'b SessionState,
@@ -247,31 +364,66 @@ pub trait UpdateTracker<F, D, Req>: Send {
         updated_customer: Option<storage::CustomerUpdate>,
         mechant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
-        header_payload: api::HeaderPayload,
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
     where
         F: 'b + Send;
 }
 
+#[cfg(feature = "v2")]
+#[async_trait]
+#[allow(clippy::too_many_arguments)]
+pub trait CallConnector<F, D, RouterDReq: Send>: Send {
+    async fn call_connector<'b>(
+        &'b self,
+        db: &'b SessionState,
+        req_state: ReqState,
+        payment_data: D,
+        key_store: &domain::MerchantKeyStore,
+        call_connector_action: common_enums::CallConnectorAction,
+        connector_data: api::ConnectorData,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<types::RouterData<F, RouterDReq, PaymentsResponseData>>
+    where
+        F: 'b + Send + Sync,
+        D: super::flows::ConstructFlowSpecificData<F, RouterDReq, PaymentsResponseData>,
+        types::RouterData<F, RouterDReq, PaymentsResponseData>:
+            super::flows::Feature<F, RouterDReq> + Send;
+}
+
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
 pub trait PostUpdateTracker<F, D, R: Send>: Send {
+    /// Update the tracker information with the response from the connector
+    /// The response from routerdata is used to update paymentdata and also persist this in the database
+    #[cfg(feature = "v1")]
     async fn update_tracker<'b>(
         &'b self,
         db: &'b SessionState,
-        payment_id: &api::PaymentIdType,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
         key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
         locale: &Option<String>,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] routable_connector: Vec<
-            RoutableConnectorChoice,
-        >,
-        #[cfg(all(feature = "v1", feature = "dynamic_routing"))] business_profile: &domain::Profile,
+        #[cfg(feature = "dynamic_routing")] routable_connector: Vec<RoutableConnectorChoice>,
+        #[cfg(feature = "dynamic_routing")] business_profile: &domain::Profile,
     ) -> RouterResult<D>
     where
         F: 'b + Send + Sync;
+
+    #[cfg(feature = "v2")]
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &'b SessionState,
+        payment_data: D,
+        response: types::RouterData<F, R, PaymentsResponseData>,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<D>
+    where
+        F: 'b + Send + Sync,
+        types::RouterData<F, R, PaymentsResponseData>:
+            hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, R>;
 
     async fn save_pm_and_mandate<'b>(
         &self,
@@ -289,6 +441,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<
         D,
@@ -339,25 +492,6 @@ where
         Ok((Box::new(self), customer))
     }
 
-    #[instrument(skip_all)]
-    #[cfg(feature = "v2")]
-    async fn get_or_create_customer_details<'a>(
-        &'a self,
-        state: &SessionState,
-        payment_data: &mut D,
-        _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<
-        (
-            BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
-            Option<domain::Customer>,
-        ),
-        errors::StorageError,
-    > {
-        todo!()
-    }
-
     async fn get_connector<'a>(
         &'a self,
         _merchant_account: &domain::MerchantAccount,
@@ -398,6 +532,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest, Data = D>>
     Domain<F, api::PaymentsCaptureRequest, D> for Op
@@ -446,13 +581,12 @@ where
 
     #[instrument(skip_all)]
     #[cfg(feature = "v2")]
-    async fn get_or_create_customer_details<'a>(
+    async fn get_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut D,
-        _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
-        storage_scheme: enums::MerchantStorageScheme,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
@@ -503,6 +637,7 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsCancelRequest, Data = D>>
     Domain<F, api::PaymentsCancelRequest, D> for Op
@@ -551,12 +686,11 @@ where
 
     #[instrument(skip_all)]
     #[cfg(feature = "v2")]
-    async fn get_or_create_customer_details<'a>(
+    async fn get_customer_details<'a>(
         &'a self,
-        state: &SessionState,
-        payment_data: &mut D,
-        _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
@@ -608,18 +742,38 @@ where
     }
 }
 
+#[cfg(feature = "v1")]
 #[async_trait]
 impl<D, F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRejectRequest, Data = D>>
     Domain<F, api::PaymentsRejectRequest, D> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsRejectRequest, Data = D>,
 {
+    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         _state: &SessionState,
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<
+        (
+            BoxedOperation<'a, F, api::PaymentsRejectRequest, D>,
+            Option<domain::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        Ok((Box::new(self), None))
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn get_customer_details<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
         _merchant_key_store: &domain::MerchantKeyStore,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
@@ -670,4 +824,21 @@ where
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
+}
+
+/// Validate if a particular operation can be performed for the given intent status
+pub trait ValidateStatusForOperation {
+    fn validate_status_for_operation(
+        &self,
+        intent_status: common_enums::IntentStatus,
+    ) -> Result<(), errors::ApiErrorResponse>;
+}
+
+/// Should the connector be called for this operation
+pub trait ShouldCallConnector {
+    fn should_call_connector(
+        &self,
+        intent_status: common_enums::IntentStatus,
+        force_sync: Option<bool>,
+    ) -> bool;
 }

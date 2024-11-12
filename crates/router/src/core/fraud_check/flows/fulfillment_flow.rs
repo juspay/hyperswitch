@@ -89,7 +89,10 @@ pub async fn construct_fulfillment_router_data<'a>(
         minor_amount_captured: payment_intent.amount_captured,
         payment_method_status: None,
         request: FraudCheckFulfillmentData {
-            amount: payment_attempt.amount.get_amount_as_i64(),
+            amount: payment_attempt
+                .net_amount
+                .get_total_amount()
+                .get_amount_as_i64(),
             order_details: payment_intent.order_details.clone(),
             fulfillment_req: fulfillment_request,
         },
@@ -124,6 +127,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         integrity_check: Ok(()),
         additional_merchant_data: None,
         header_payload: None,
+        connector_mandate_request_reference_id: None,
     };
     Ok(router_data)
 }

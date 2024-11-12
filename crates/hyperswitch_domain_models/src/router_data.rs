@@ -9,7 +9,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 
-use crate::{payment_address::PaymentAddress, payment_method_data};
+use crate::{payment_address::PaymentAddress, payment_method_data, payments};
 
 #[derive(Debug, Clone)]
 pub struct RouterData<Flow, Request, Response> {
@@ -83,7 +83,9 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,
 
-    pub header_payload: Option<api_models::payments::HeaderPayload>,
+    pub header_payload: Option<payments::HeaderPayload>,
+
+    pub connector_mandate_request_reference_id: Option<String>,
 }
 
 // Different patterns of authentication.
@@ -220,6 +222,7 @@ pub struct AccessToken {
 pub enum PaymentMethodToken {
     Token(Secret<String>),
     ApplePayDecrypt(Box<ApplePayPredecryptData>),
+    PazeDecrypt(Box<PazeDecryptedData>),
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -241,12 +244,75 @@ pub struct ApplePayCryptogramData {
     pub eci_indicator: Option<String>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazeDecryptedData {
+    pub client_id: Secret<String>,
+    pub profile_id: String,
+    pub token: PazeToken,
+    pub payment_card_network: common_enums::enums::CardNetwork,
+    pub dynamic_data: Vec<PazeDynamicData>,
+    pub billing_address: PazeAddress,
+    pub consumer: PazeConsumer,
+    pub eci: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazeToken {
+    pub payment_token: cards::CardNumber,
+    pub token_expiration_month: Secret<String>,
+    pub token_expiration_year: Secret<String>,
+    pub payment_account_reference: Secret<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazeDynamicData {
+    pub dynamic_data_value: Option<Secret<String>>,
+    pub dynamic_data_type: Option<String>,
+    pub dynamic_data_expiration: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazeAddress {
+    pub name: Option<Secret<String>>,
+    pub line1: Option<Secret<String>>,
+    pub line2: Option<Secret<String>>,
+    pub line3: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
+    pub country_code: Option<common_enums::enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazeConsumer {
+    // This is consumer data not customer data.
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub full_name: Secret<String>,
+    pub email_address: common_utils::pii::Email,
+    pub mobile_number: Option<PazePhoneNumber>,
+    pub country_code: Option<common_enums::enums::CountryAlpha2>,
+    pub language_code: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PazePhoneNumber {
+    pub country_code: Secret<String>,
+    pub phone_number: Secret<String>,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<common_enums::enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::enums::Currency>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -320,6 +386,260 @@ impl ErrorResponse {
             status_code: http::StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
             attempt_status: None,
             connector_transaction_id: None,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+use crate::{
+    payments::{
+        payment_attempt::{ErrorDetails, PaymentAttemptUpdate},
+        payment_intent::PaymentIntentUpdate,
+    },
+    router_flow_types, router_request_types, router_response_types,
+};
+
+/// Get updatable trakcer objects of payment intent and payment attempt
+#[cfg(feature = "v2")]
+pub trait TrackerPostUpdateObjects<Flow, FlowRequest> {
+    fn get_payment_intent_update(
+        &self,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentIntentUpdate;
+    fn get_payment_attempt_update(
+        &self,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentAttemptUpdate;
+}
+
+#[cfg(feature = "v2")]
+impl
+    TrackerPostUpdateObjects<
+        router_flow_types::Authorize,
+        router_request_types::PaymentsAuthorizeData,
+    >
+    for RouterData<
+        router_flow_types::Authorize,
+        router_request_types::PaymentsAuthorizeData,
+        router_response_types::PaymentsResponseData,
+    >
+{
+    fn get_payment_intent_update(
+        &self,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentIntentUpdate {
+        match self.response {
+            Ok(ref _response) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status: common_enums::IntentStatus::from(self.status),
+                updated_by: storage_scheme.to_string(),
+            },
+            Err(ref error) => PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status: error
+                    .attempt_status
+                    .map(common_enums::IntentStatus::from)
+                    .unwrap_or(common_enums::IntentStatus::Failed),
+                updated_by: storage_scheme.to_string(),
+            },
+        }
+    }
+
+    fn get_payment_attempt_update(
+        &self,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentAttemptUpdate {
+        match self.response {
+            Ok(ref response_router_data) => match response_router_data {
+                router_response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata,
+                    network_txn_id,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed,
+                    charge_id,
+                } => {
+                    let attempt_status = self.status;
+                    let connector_payment_id = match resource_id {
+                        router_request_types::ResponseId::NoResponseId => None,
+                        router_request_types::ResponseId::ConnectorTransactionId(id)
+                        | router_request_types::ResponseId::EncodedData(id) => Some(id.to_owned()),
+                    };
+
+                    PaymentAttemptUpdate::ConfirmIntentResponse {
+                        status: attempt_status,
+                        connector_payment_id,
+                        updated_by: storage_scheme.to_string(),
+                        redirection_data: *redirection_data.clone(),
+                    }
+                }
+                router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::SessionResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::SessionTokenResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::TransactionUnresolvedResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::TokenizationResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::ConnectorCustomerResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::PreProcessingResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                    todo!()
+                }
+            },
+            Err(ref error_response) => {
+                let ErrorResponse {
+                    code,
+                    message,
+                    reason,
+                    status_code: _,
+                    attempt_status,
+                    connector_transaction_id,
+                } = error_response.clone();
+                let attempt_status = attempt_status.unwrap_or(self.status);
+
+                let error_details = ErrorDetails {
+                    code,
+                    message,
+                    reason,
+                    unified_code: None,
+                    unified_message: None,
+                };
+
+                PaymentAttemptUpdate::ErrorUpdate {
+                    status: attempt_status,
+                    error: error_details,
+                    connector_payment_id: connector_transaction_id,
+                    updated_by: storage_scheme.to_string(),
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl TrackerPostUpdateObjects<router_flow_types::PSync, router_request_types::PaymentsSyncData>
+    for RouterData<
+        router_flow_types::PSync,
+        router_request_types::PaymentsSyncData,
+        router_response_types::PaymentsResponseData,
+    >
+{
+    fn get_payment_intent_update(
+        &self,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentIntentUpdate {
+        match self.response {
+            Ok(ref _response) => PaymentIntentUpdate::SyncUpdate {
+                status: common_enums::IntentStatus::from(self.status),
+                updated_by: storage_scheme.to_string(),
+            },
+            Err(ref error) => PaymentIntentUpdate::SyncUpdate {
+                status: error
+                    .attempt_status
+                    .map(common_enums::IntentStatus::from)
+                    .unwrap_or(common_enums::IntentStatus::Failed),
+                updated_by: storage_scheme.to_string(),
+            },
+        }
+    }
+
+    fn get_payment_attempt_update(
+        &self,
+        storage_scheme: common_enums::MerchantStorageScheme,
+    ) -> PaymentAttemptUpdate {
+        match self.response {
+            Ok(ref response_router_data) => match response_router_data {
+                router_response_types::PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata,
+                    network_txn_id,
+                    connector_response_reference_id,
+                    incremental_authorization_allowed,
+                    charge_id,
+                } => {
+                    let attempt_status = self.status;
+                    let connector_payment_id = match resource_id {
+                        router_request_types::ResponseId::NoResponseId => None,
+                        router_request_types::ResponseId::ConnectorTransactionId(id)
+                        | router_request_types::ResponseId::EncodedData(id) => Some(id.to_owned()),
+                    };
+
+                    PaymentAttemptUpdate::SyncUpdate {
+                        status: attempt_status,
+                        updated_by: storage_scheme.to_string(),
+                    }
+                }
+                router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::SessionResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::SessionTokenResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::TransactionUnresolvedResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::TokenizationResponse { .. } => todo!(),
+                router_response_types::PaymentsResponseData::ConnectorCustomerResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::ThreeDSEnrollmentResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::PreProcessingResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::IncrementalAuthorizationResponse {
+                    ..
+                } => todo!(),
+                router_response_types::PaymentsResponseData::PostProcessingResponse { .. } => {
+                    todo!()
+                }
+                router_response_types::PaymentsResponseData::SessionUpdateResponse { .. } => {
+                    todo!()
+                }
+            },
+            Err(ref error_response) => {
+                let ErrorResponse {
+                    code,
+                    message,
+                    reason,
+                    status_code: _,
+                    attempt_status,
+                    connector_transaction_id,
+                } = error_response.clone();
+                let attempt_status = attempt_status.unwrap_or(self.status);
+
+                let error_details = ErrorDetails {
+                    code,
+                    message,
+                    reason,
+                    unified_code: None,
+                    unified_message: None,
+                };
+
+                PaymentAttemptUpdate::ErrorUpdate {
+                    status: attempt_status,
+                    error: error_details,
+                    connector_payment_id: connector_transaction_id,
+                    updated_by: storage_scheme.to_string(),
+                }
+            }
         }
     }
 }

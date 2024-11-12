@@ -1,13 +1,13 @@
 pub mod authentication;
 pub mod fraud_check;
-use api_models::payments::{Address, RequestSurchargeDetails};
+use api_models::payments::{AdditionalPaymentData, Address, RequestSurchargeDetails};
 use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
     id_type, pii,
     types::{self as common_types, MinorUnit},
 };
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::Serialize;
@@ -49,7 +49,7 @@ pub struct PaymentsAuthorizeData {
     pub customer_acceptance: Option<mandates::CustomerAcceptance>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub browser_info: Option<BrowserInformation>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub order_category: Option<String>,
     pub session_token: Option<String>,
     pub enrolled_for_3ds: bool,
@@ -71,6 +71,25 @@ pub struct PaymentsAuthorizeData {
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub additional_payment_method_data: Option<AdditionalPaymentData>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentsPostSessionTokensData {
+    // amount here would include amount, surcharge_amount and shipping_cost
+    pub amount: MinorUnit,
+    /// original amount sent by the merchant
+    pub order_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    /// Merchant's identifier for the payment/invoice. This will be sent to the connector
+    /// if the connector provides support to accept multiple reference ids.
+    /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
+    pub merchant_order_reference_id: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub router_return_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -107,6 +126,7 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub metadata: Option<serde_json::Value>,
     // This metadata is used to store the metadata shared during the payment intent request.
+    pub capture_method: Option<storage_enums::CaptureMethod>,
 
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
@@ -268,7 +288,7 @@ pub struct PaymentsPreProcessingData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
@@ -350,7 +370,7 @@ pub struct PaymentsPostProcessingData {
     pub connector_transaction_id: Option<String>,
     pub country: Option<common_enums::CountryAlpha2>,
     pub connector_meta_data: Option<pii::SecretSerdeValue>,
-    pub header_payload: Option<api_models::payments::HeaderPayload>,
+    pub header_payload: Option<payments::HeaderPayload>,
 }
 
 impl<F> TryFrom<RouterData<F, PaymentsAuthorizeData, response_types::PaymentsResponseData>>
@@ -512,19 +532,9 @@ pub struct SurchargeDetails {
     pub surcharge_amount: MinorUnit,
     /// tax on surcharge amount for this payment
     pub tax_on_surcharge_amount: MinorUnit,
-    /// sum of original amount,
-    pub final_amount: MinorUnit,
 }
 
 impl SurchargeDetails {
-    pub fn is_request_surcharge_matching(
-        &self,
-        request_surcharge_details: RequestSurchargeDetails,
-    ) -> bool {
-        request_surcharge_details.surcharge_amount == self.surcharge_amount
-            && request_surcharge_details.tax_amount.unwrap_or_default()
-                == self.tax_on_surcharge_amount
-    }
     pub fn get_total_surcharge_amount(&self) -> MinorUnit {
         self.surcharge_amount + self.tax_on_surcharge_amount
     }
@@ -546,14 +556,13 @@ impl
         let surcharge_amount = request_surcharge_details.surcharge_amount;
         let tax_on_surcharge_amount = request_surcharge_details.tax_amount.unwrap_or_default();
         Self {
-            original_amount: payment_attempt.amount,
+            original_amount: payment_attempt.net_amount.get_order_amount(),
             surcharge: common_utils::types::Surcharge::Fixed(
                 request_surcharge_details.surcharge_amount,
             ),
             tax_on_surcharge: None,
             surcharge_amount,
             tax_on_surcharge_amount,
-            final_amount: payment_attempt.amount + surcharge_amount + tax_on_surcharge_amount,
         }
     }
 }
@@ -814,8 +823,8 @@ pub struct PaymentsSessionData {
     pub currency: common_enums::Currency,
     pub country: Option<common_enums::CountryAlpha2>,
     pub surcharge_details: Option<SurchargeDetails>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
-
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
+    pub email: Option<pii::Email>,
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
 }
@@ -825,14 +834,20 @@ pub struct PaymentsTaxCalculationData {
     pub amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub shipping_cost: Option<MinorUnit>,
-    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub shipping_address: Address,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct SdkPaymentsSessionUpdateData {
     pub order_tax_amount: MinorUnit,
-    pub net_amount: MinorUnit,
+    // amount here would include amount, surcharge_amount, order_tax_amount and shipping_cost
+    pub amount: MinorUnit,
+    /// original amount sent by the merchant
+    pub order_amount: MinorUnit,
+    pub currency: storage_enums::Currency,
+    pub session_id: Option<String>,
+    pub shipping_cost: Option<MinorUnit>,
 }
 
 #[derive(Debug, Clone)]
@@ -858,4 +873,5 @@ pub struct SetupMandateRequestData {
 
     // MinorUnit for amount framework
     pub minor_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
 }

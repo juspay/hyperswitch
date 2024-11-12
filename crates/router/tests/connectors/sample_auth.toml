@@ -10,6 +10,9 @@ api_key = "Bearer MyApiKey"
 key1 = "MerchantId"
 api_secret = "Secondary key"
 
+[amazonpay]
+api_key="API Key"
+
 [authorizedotnet]
 api_key = "MyMerchantName"
 key1 = "MyTransactionKey"
@@ -30,6 +33,7 @@ api_key = "Bearer MyApiKey"
 [worldpay]
 api_key = "api_key"
 key1 = "key1"
+api_secret = "Merchant Identifier"
 
 [payu]
 api_key = "Bearer MyApiKey"
@@ -281,4 +285,13 @@ key1 = "Merchant ID"
 api_secret = "Client Key"
 
 [thunes]
+api_key="API Key"
+
+[jpmorgan]
+api_key="API Key"
+
+[elavon]
+api_key="API Key"
+
+[nomupay]
 api_key="API Key"

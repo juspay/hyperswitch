@@ -1,4 +1,4 @@
-use common_utils::{id_type, types::keymanager::KeyManagerState};
+use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
 use diesel_models::payment_method::PaymentMethodUpdateInternal;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
@@ -210,13 +210,13 @@ mod storage {
 
                         Box::pin(db_utils::try_redis_get_else_try_database_get(
                             async {
-                                kv_wrapper(
+                                Box::pin(kv_wrapper(
                                     self,
                                     KvOperation::<storage_types::PaymentMethod>::HGet(
                                         &lookup.sk_id,
                                     ),
                                     key,
-                                )
+                                ))
                                 .await?
                                 .try_into_hget()
                             },
@@ -348,13 +348,13 @@ mod storage {
 
                         Box::pin(db_utils::try_redis_get_else_try_database_get(
                             async {
-                                kv_wrapper(
+                                Box::pin(kv_wrapper(
                                     self,
                                     KvOperation::<storage_types::PaymentMethod>::HGet(
                                         &lookup.sk_id,
                                     ),
                                     key,
-                                )
+                                ))
                                 .await?
                                 .try_into_hget()
                             },
@@ -496,11 +496,11 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
-                            insertable: kv::Insertable::PaymentMethod(payment_method_new),
+                            insertable: Box::new(kv::Insertable::PaymentMethod(payment_method_new)),
                         },
                     };
 
-                    match kv_wrapper::<diesel_models::PaymentMethod, _, _>(
+                    match Box::pin(kv_wrapper::<diesel_models::PaymentMethod, _, _>(
                         self,
                         KvOperation::<diesel_models::PaymentMethod>::HSetNx(
                             &field,
@@ -508,7 +508,7 @@ mod storage {
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hsetnx()
@@ -588,23 +588,23 @@ mod storage {
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
-                            updatable: kv::Updateable::PaymentMethodUpdate(
+                            updatable: Box::new(kv::Updateable::PaymentMethodUpdate(Box::new(
                                 kv::PaymentMethodUpdateMems {
                                     orig: payment_method,
                                     update_data: p_update,
                                 },
-                            ),
+                            ))),
                         },
                     };
 
-                    kv_wrapper::<(), _, _>(
+                    Box::pin(kv_wrapper::<(), _, _>(
                         self,
                         KvOperation::<diesel_models::PaymentMethod>::Hset(
                             (&field, redis_value),
                             redis_entry,
                         ),
                         key,
-                    )
+                    ))
                     .await
                     .map_err(|err| err.to_redis_failed_response(&key_str))?
                     .try_into_hset()
@@ -743,11 +743,11 @@ mod storage {
                     let pattern = "payment_method_id_*";
 
                     let redis_fut = async {
-                        let kv_result = kv_wrapper::<storage_types::PaymentMethod, _, _>(
+                        let kv_result = Box::pin(kv_wrapper::<storage_types::PaymentMethod, _, _>(
                             self,
                             KvOperation::<storage_types::PaymentMethod>::Scan(pattern),
                             key,
-                        )
+                        ))
                         .await?
                         .try_into_scan();
                         kv_result.map(|payment_methods| {
@@ -1524,34 +1524,38 @@ impl PaymentMethodInterface for MockDb {
         payment_method_update: storage_types::PaymentMethodUpdate,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::PaymentMethod, errors::StorageError> {
-        let pm_update_res = self
-            .payment_methods
+        self.payment_methods
             .lock()
             .await
             .iter_mut()
             .find(|pm| pm.get_id() == payment_method.get_id())
-            .map(|pm| {
+            .async_map(|pm| async {
                 let payment_method_updated =
-                    PaymentMethodUpdateInternal::from(payment_method_update)
-                        .create_payment_method(pm.clone());
-                *pm = payment_method_updated.clone();
-                payment_method_updated
-            });
+                    PaymentMethodUpdateInternal::from(payment_method_update).apply_changeset(
+                        Conversion::convert(payment_method)
+                            .await
+                            .change_context(errors::StorageError::EncryptionError)?,
+                    );
 
-        match pm_update_res {
-            Some(result) => Ok(result
-                .convert(
-                    state,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
+                *pm = payment_method_updated.clone();
+
+                payment_method_updated
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()?
+            .ok_or(
+                errors::StorageError::ValueNotFound(
+                    "cannot find payment method to update".to_string(),
                 )
-                .await
-                .change_context(errors::StorageError::DecryptionError)?),
-            None => Err(errors::StorageError::ValueNotFound(
-                "cannot find payment method to update".to_string(),
+                .into(),
             )
-            .into()),
-        }
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -1565,34 +1569,38 @@ impl PaymentMethodInterface for MockDb {
             status: Some(common_enums::PaymentMethodStatus::Inactive),
         };
 
-        let pm_update_res = self
-            .payment_methods
+        self.payment_methods
             .lock()
             .await
             .iter_mut()
             .find(|pm| pm.get_id() == payment_method.get_id())
-            .map(|pm| {
+            .async_map(|pm| async {
                 let payment_method_updated =
-                    PaymentMethodUpdateInternal::from(payment_method_update)
-                        .create_payment_method(pm.clone());
-                *pm = payment_method_updated.clone();
-                payment_method_updated
-            });
+                    PaymentMethodUpdateInternal::from(payment_method_update).apply_changeset(
+                        Conversion::convert(payment_method)
+                            .await
+                            .change_context(errors::StorageError::EncryptionError)?,
+                    );
 
-        match pm_update_res {
-            Some(result) => Ok(result
-                .convert(
-                    state,
-                    key_store.key.get_inner(),
-                    key_store.merchant_id.clone().into(),
+                *pm = payment_method_updated.clone();
+
+                payment_method_updated
+                    .convert(
+                        state,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+            .transpose()?
+            .ok_or(
+                errors::StorageError::ValueNotFound(
+                    "cannot find payment method to update".to_string(),
                 )
-                .await
-                .change_context(errors::StorageError::DecryptionError)?),
-            None => Err(errors::StorageError::ValueNotFound(
-                "cannot find payment method to update".to_string(),
+                .into(),
             )
-            .into()),
-        }
     }
 
     #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]

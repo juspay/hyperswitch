@@ -112,7 +112,8 @@ impl TryFrom<&BokuRouterData<&types::PaymentsAuthorizeRouterData>> for BokuPayme
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::OpenBanking(_)
             | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::NetworkToken(_) => {
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("boku"),
                 ))?
@@ -180,6 +181,7 @@ fn get_wallet_type(wallet_data: &domain::WalletData) -> Result<String, errors::C
         | domain::WalletData::MobilePayRedirect(_)
         | domain::WalletData::PaypalRedirect(_)
         | domain::WalletData::PaypalSdk(_)
+        | domain::WalletData::Paze(_)
         | domain::WalletData::SamsungPay(_)
         | domain::WalletData::TwintRedirect {}
         | domain::WalletData::VippsRedirect {}
@@ -299,8 +301,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, BokuResponse, T, types::Payments
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(transaction_id),
-                redirection_data,
-                mandate_reference: None,
+                redirection_data: Box::new(redirection_data),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

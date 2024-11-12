@@ -146,7 +146,9 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
             .and_then(|mandate_id| mandate_id.mandate_reference_id)
         {
             None => {
-                if item.router_data.request.is_mandate_payment() {
+                // To facilitate one-off payments via SEPA with Deutsche Bank, we are considering not storing the connector mandate ID in our system if future usage is on-session.
+                // We will only check for customer acceptance to make a one-off payment. we will be storing the connector mandate details only when setup future usage is off-session.
+                if item.router_data.request.customer_acceptance.is_some() {
                     match item.router_data.request.payment_method_data.clone() {
                         PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
                             iban, ..
@@ -167,14 +169,14 @@ impl TryFrom<&DeutschebankRouterData<&PaymentsAuthorizeRouterData>>
                     }
                 } else {
                     Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "setup_future_usage or customer_acceptance.acceptance_type",
+                        field_name: "customer_acceptance",
                     }
                     .into())
                 }
             }
             Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
                 let mandate_metadata: DeutschebankMandateMetadata = mandate_data
-                    .mandate_metadata
+                    .get_mandate_metadata()
                     .ok_or(errors::ConnectorError::MissingConnectorMandateMetadata)?
                     .clone()
                     .parse_value("DeutschebankMandateMetadata")
@@ -296,33 +298,40 @@ impl
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
-                    redirection_data: Some(RedirectForm::Form {
+                    redirection_data: Box::new(Some(RedirectForm::Form {
                         endpoint: item.data.request.get_complete_authorize_url()?,
                         method: common_utils::request::Method::Get,
                         form_fields: HashMap::from([
                             ("reference".to_string(), reference.clone()),
                             ("signed_on".to_string(), signed_on.clone()),
                         ]),
-                    }),
-                    mandate_reference: Some(MandateReference {
-                        connector_mandate_id: item.response.mandate_id,
-                        payment_method_id: None,
-                        mandate_metadata: Some(serde_json::json!(DeutschebankMandateMetadata {
-                            account_holder: item.data.get_billing_address()?.get_full_name()?,
-                            iban: match item.data.request.payment_method_data.clone() {
-                                PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
-                                    iban,
-                                    ..
-                                }) => Ok(Secret::from(iban.peek().replace(" ", ""))),
-                                _ => Err(errors::ConnectorError::MissingRequiredField {
-                                    field_name:
-                                        "payment_method_data.bank_debit.sepa_bank_debit.iban"
-                                }),
-                            }?,
-                            reference: Secret::from(reference),
-                            signed_on,
-                        })),
-                    }),
+                    })),
+                    mandate_reference: if item.data.request.is_mandate_payment() {
+                        Box::new(Some(MandateReference {
+                            connector_mandate_id: item.response.mandate_id,
+                            payment_method_id: None,
+                            mandate_metadata: Some(Secret::new(
+                                serde_json::json!(DeutschebankMandateMetadata {
+                                account_holder: item.data.get_billing_address()?.get_full_name()?,
+                                iban: match item.data.request.payment_method_data.clone() {
+                                    PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
+                                        iban,
+                                        ..
+                                    }) => Ok(Secret::from(iban.peek().replace(" ", ""))),
+                                    _ => Err(errors::ConnectorError::MissingRequiredField {
+                                        field_name:
+                                            "payment_method_data.bank_debit.sepa_bank_debit.iban"
+                                    }),
+                                }?,
+                                reference: Secret::from(reference.clone()),
+                                signed_on,
+                            }),
+                            )),
+                            connector_mandate_request_reference_id: None,
+                        }))
+                    } else {
+                        Box::new(None)
+                    },
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
@@ -369,8 +378,8 @@ impl
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -572,8 +581,8 @@ impl
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -631,8 +640,8 @@ impl
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.tx_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

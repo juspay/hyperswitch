@@ -3,13 +3,11 @@ use std::{str::FromStr, time::Instant};
 use actix_web::FromRequest;
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
-use api_models::{
-    payments::HeaderPayload,
-    webhooks::{self, WebhookResponseTracker},
-};
+use api_models::webhooks::{self, WebhookResponseTracker};
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payments::HeaderPayload,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
@@ -320,13 +318,13 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         let merchant_connector_account = match merchant_connector_account {
             Some(merchant_connector_account) => merchant_connector_account,
             None => {
-                helper_utils::get_mca_from_object_reference_id(
+                Box::pin(helper_utils::get_mca_from_object_reference_id(
                     &state,
                     object_ref_id.clone(),
                     &merchant_account,
                     &connector_name,
                     &key_store,
-                )
+                ))
                 .await?
             }
         };
@@ -1052,7 +1050,7 @@ async fn payments_incoming_webhook_flow(
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
-                    api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                    api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
                 ))
                 .await?;
@@ -1184,7 +1182,7 @@ async fn payouts_incoming_webhook_flow(
                 enums::EventClass::Payouts,
                 updated_payout_attempt.payout_id.clone(),
                 enums::EventObjectType::PayoutDetails,
-                api::OutgoingWebhookContent::PayoutDetails(payout_create_response),
+                api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
                 Some(updated_payout_attempt.created_at),
             ))
             .await?;
@@ -1251,6 +1249,7 @@ async fn refunds_incoming_webhook_flow(
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("failed refund status mapping from event type")?,
             updated_by: merchant_account.storage_scheme.to_string(),
+            connector_refund_data: None,
         };
         db.update_refund(
             refund.to_owned(),
@@ -1290,7 +1289,7 @@ async fn refunds_incoming_webhook_flow(
             enums::EventClass::Refunds,
             refund_id,
             enums::EventObjectType::RefundDetails,
-            api::OutgoingWebhookContent::RefundDetails(refund_response),
+            api::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
             Some(updated_refund.created_at),
         ))
         .await?;
@@ -1566,7 +1565,9 @@ async fn external_authentication_incoming_webhook_flow(
                                 enums::EventClass::Payments,
                                 payment_id.get_string_repr().to_owned(),
                                 enums::EventObjectType::PaymentDetails,
-                                api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                                api::OutgoingWebhookContent::PaymentDetails(Box::new(
+                                    payments_response,
+                                )),
                                 primary_object_created_at,
                             ))
                             .await?;
@@ -1772,7 +1773,7 @@ async fn frm_incoming_webhook_flow(
                         enums::EventClass::Payments,
                         payment_id.get_string_repr().to_owned(),
                         enums::EventObjectType::PaymentDetails,
-                        api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                        api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                         primary_object_created_at,
                     ))
                     .await?;
@@ -1936,7 +1937,7 @@ async fn bank_transfer_webhook_flow(
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
-                    api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                    api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
                 ))
                 .await?;

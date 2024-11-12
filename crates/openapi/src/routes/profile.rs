@@ -139,6 +139,13 @@ pub async fn profile_list() {}
 #[utoipa::path(
     post,
     path = "/v2/profiles",
+    params(
+        (
+            "X-Merchant-Id" = String, Header,
+            description = "Merchant ID of the profile.",
+            example = json!({"X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"})
+        ),
+    ),
     request_body(
         content = ProfileCreate,
         examples(
@@ -167,9 +174,14 @@ pub async fn profile_create() {}
 /// Update the *profile*
 #[utoipa::path(
     put,
-    path = "/v2/profiles/{profile_id}",
+    path = "/v2/profiles/{id}",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile")
+        ("id" = String, Path, description = "The unique identifier for the profile"),
+        (
+            "X-Merchant-Id" = String, Header,
+            description = "Merchant ID of the profile.",
+            example = json!({"X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"})
+        ),
     ),
     request_body(
         content = ProfileCreate,
@@ -198,7 +210,7 @@ pub async fn profile_update() {}
 /// Activates a routing algorithm under a profile
 #[utoipa::path(
     patch,
-    path = "/v2/profiles/{profile_id}/activate_routing_algorithm",
+    path = "/v2/profiles/{id}/activate_routing_algorithm",
     request_body ( content = RoutingAlgorithmId,
       examples(  (
             "Activate a routing algorithm" = (
@@ -208,7 +220,7 @@ pub async fn profile_update() {}
             )
             ))),
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Routing Algorithm is activated", body = RoutingDictionaryRecord),
@@ -228,9 +240,9 @@ pub async fn routing_link_config() {}
 /// Deactivates a routing algorithm under a profile
 #[utoipa::path(
     patch,
-    path = "/v2/profiles/{profile_id}/deactivate_routing_algorithm",
+    path = "/v2/profiles/{id}/deactivate_routing_algorithm",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Successfully deactivated routing config", body = RoutingDictionaryRecord),
@@ -251,10 +263,10 @@ pub async fn routing_unlink_config() {}
 /// Update the default fallback routing algorithm for the profile
 #[utoipa::path(
     patch,
-    path = "/v2/profiles/{profile_id}/fallback_routing",
+    path = "/v2/profiles/{id}/fallback_routing",
     request_body = Vec<RoutableConnectorChoice>,
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Successfully updated the default fallback routing algorithm", body = Vec<RoutableConnectorChoice>),
@@ -274,9 +286,14 @@ pub async fn routing_update_default_config() {}
 /// Retrieve existing *profile*
 #[utoipa::path(
     get,
-    path = "/v2/profiles/{profile_id}",
+    path = "/v2/profiles/{id}",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile")
+        ("id" = String, Path, description = "The unique identifier for the profile"),
+        (
+            "X-Merchant-Id" = String, Header,
+            description = "Merchant ID of the profile.",
+            example = json!({"X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"})
+        ),
     ),
     responses(
         (status = 200, description = "Profile Updated", body = ProfileResponse),
@@ -294,9 +311,9 @@ pub async fn profile_retrieve() {}
 /// Retrieve active routing algorithm under the profile
 #[utoipa::path(
     get,
-    path = "/v2/profiles/{profile_id}/routing_algorithm",
+    path = "/v2/profiles/{id}/routing_algorithm",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
         ("limit" = Option<u16>, Query, description = "The number of records of the algorithms to be returned"),
         ("offset" = Option<u8>, Query, description = "The record offset of the algorithm from which to start gathering the results")),
     responses(
@@ -317,9 +334,9 @@ pub async fn routing_retrieve_linked_config() {}
 /// Retrieve the default fallback routing algorithm for the profile
 #[utoipa::path(
     get,
-    path = "/v2/profiles/{profile_id}/fallback_routing",
+    path = "/v2/profiles/{id}/fallback_routing",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the profile"),
+        ("id" = String, Path, description = "The unique identifier for the profile"),
     ),
     responses(
         (status = 200, description = "Successfully retrieved default fallback routing algorithm", body = Vec<RoutableConnectorChoice>),
@@ -331,14 +348,19 @@ pub async fn routing_retrieve_linked_config() {}
 )]
 pub async fn routing_retrieve_default_config() {}
 
-/// Merchant Connector - List
+/// Profile - Connector Accounts List
 ///
-/// List Merchant Connector Details for the business profile
+/// List Connector Accounts for the profile
 #[utoipa::path(
     get,
-    path = "/v2/profiles/{profile_id}/connector_accounts",
+    path = "/v2/profiles/{id}/connector_accounts",
     params(
-        ("profile_id" = String, Path, description = "The unique identifier for the business profile"),
+        ("id" = String, Path, description = "The unique identifier for the business profile"),
+        (
+            "X-Merchant-Id" = String, Header,
+            description = "Merchant ID of the profile.",
+            example = json!({"X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"})
+        ),
     ),
     responses(
         (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),

@@ -721,31 +721,27 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut event_type = payload.get_api_event_type();
-    let tenants: HashSet<_> = state
-        .conf
-        .multitenancy
-        .get_tenant_names()
-        .into_iter()
-        .collect();
     let tenant_id = if !state.conf.multitenancy.enabled {
         DEFAULT_TENANT.to_string()
     } else {
-        incoming_request_header
+        let request_tenant_id = incoming_request_header
             .get(TENANT_HEADER)
             .and_then(|value| value.to_str().ok())
-            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
-            .map(|req_tenant_id| {
-                if !tenants.contains(req_tenant_id) {
-                    Err(errors::ApiErrorResponse::InvalidTenant {
-                        tenant_id: req_tenant_id.to_string(),
-                    }
-                    .switch())
-                } else {
-                    Ok(req_tenant_id.to_string())
+            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())?;
+
+        state
+            .conf
+            .multitenancy
+            .get_tenant(request_tenant_id)
+            .map(|tenant| tenant.tenant_id.clone())
+            .ok_or(
+                errors::ApiErrorResponse::InvalidTenant {
+                    tenant_id: request_tenant_id.to_string(),
                 }
-            })??
+                .switch(),
+            )?
     };
-    // let tenant_id = "public".to_string();
+
     let mut session_state =
         Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
             errors::ApiErrorResponse::InvalidTenant {
@@ -1225,6 +1221,7 @@ pub trait Authenticate {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -1237,12 +1234,19 @@ impl Authenticate for api_models::payment_methods::PaymentMethodListRequest {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsSessionRequest {
     fn get_client_secret(&self) -> Option<&String> {
         Some(&self.client_secret)
     }
 }
 impl Authenticate for api_models::payments::PaymentsDynamicTaxCalculationRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        Some(self.client_secret.peek())
+    }
+}
+
+impl Authenticate for api_models::payments::PaymentsPostSessionTokensRequest {
     fn get_client_secret(&self) -> Option<&String> {
         Some(self.client_secret.peek())
     }
@@ -1255,6 +1259,8 @@ impl Authenticate for api_models::payments::PaymentsIncrementalAuthorizationRequ
 impl Authenticate for api_models::payments::PaymentsStartRequest {}
 // impl Authenticate for api_models::payments::PaymentsApproveRequest {}
 impl Authenticate for api_models::payments::PaymentsRejectRequest {}
+// #[cfg(feature = "v2")]
+// impl Authenticate for api_models::payments::PaymentsIntentResponse {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,
@@ -1322,9 +1328,9 @@ pub fn build_redirection_form(
                 }
                 (PreEscaped(format!(r#"
                     <script type="text/javascript"> {logging_template}
-                    var frm = document.getElementById("payment_form"); 
+                    var frm = document.getElementById("payment_form");
                     var formFields = frm.querySelectorAll("input");
-                
+
                     if (frm.method.toUpperCase() === "GET" && formFields.length === 0) {{
                         window.setTimeout(function () {{
                             window.location.href = frm.action;
@@ -1798,6 +1804,135 @@ pub fn build_redirection_form(
 
             }
         }
+        RedirectForm::WorldpayDDCForm {
+            endpoint,
+            method,
+            form_fields,
+            collection_id,
+        } => maud::html! {
+            (maud::DOCTYPE)
+            html {
+                meta name="viewport" content="width=device-width, initial-scale=1";
+                head {
+                    (PreEscaped(r##"
+                            <style>
+                                #loader1 {
+                                    width: 500px;
+                                }
+                                @media max-width: 600px {
+                                    #loader1 {
+                                        width: 200px;
+                                    }
+                                }
+                            </style>
+                        "##))
+                }
+
+                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
+                    (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+                    (PreEscaped(r#"
+                        <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                        </script>
+                    "#))
+                    h3 style="text-align: center;" { "Please wait while we process your payment..." }
+
+                    script {
+                        (PreEscaped(format!(
+                            r#"
+                                function submitCollectionReference(collectionReference) {{
+                                    var redirectPathname = window.location.pathname.replace(/payments\/redirect\/(\w+)\/(\w+)\/\w+/, "payments/$1/$2/redirect/complete/worldpay");
+                                    var redirectUrl = window.location.origin + redirectPathname;
+                                    try {{
+                                        if (typeof collectionReference === "string" && collectionReference.length > 0) {{
+                                            var form = document.createElement("form");
+                                            form.action = redirectPathname;
+                                            form.method = "GET";
+                                            var input = document.createElement("input");
+                                            input.type = "hidden";
+                                            input.name = "collectionReference";
+                                            input.value = collectionReference;
+                                            form.appendChild(input);
+                                            document.body.appendChild(form);
+                                            form.submit();;
+                                        }} else {{
+                                            window.location.replace(redirectUrl);
+                                        }}
+                                    }} catch (error) {{
+                                        window.location.replace(redirectUrl);
+                                    }}
+                                }}
+                                var allowedHost = "{}";
+                                var collectionField = "{}";
+                                window.addEventListener("message", function(event) {{
+                                    if (event.origin === allowedHost) {{
+                                        try {{
+                                            var data = JSON.parse(event.data);
+                                            if (collectionField.length > 0) {{
+                                                var collectionReference = data[collectionField];
+                                                return submitCollectionReference(collectionReference);
+                                            }} else {{
+                                                console.error("Collection field not found in event data (" + collectionField + ")"); 
+                                            }}
+                                        }} catch (error) {{
+                                            console.error("Error parsing event data: ", error);
+                                        }}
+                                    }} else {{
+                                        console.error("Invalid origin: " + event.origin, "Expected origin: " + allowedHost);
+                                    }}
+
+                                    submitCollectionReference("");
+                                }});
+
+                                // Redirect within 8 seconds if no collection reference is received
+                                window.setTimeout(submitCollectionReference, 8000);
+                            "#,
+                            endpoint.host_str().map_or(endpoint.as_ref().split('/').take(3).collect::<Vec<&str>>().join("/"), |host| format!("{}://{}", endpoint.scheme(), host)),
+                            collection_id.clone().unwrap_or("".to_string())))
+                        )
+                    }
+
+                    iframe
+                        style="display: none;"
+                        srcdoc=(
+                            maud::html! {
+                                (maud::DOCTYPE)
+                                html {
+                                    body {
+                                        form action=(PreEscaped(endpoint.to_string())) method=(method.to_string()) #payment_form {
+                                            @for (field, value) in form_fields {
+                                                input type="hidden" name=(field) value=(value);
+                                            }
+                                        }
+                                        (PreEscaped(format!(r#"
+                                            <script type="text/javascript"> {logging_template}
+                                                var form = document.getElementById("payment_form"); 
+                                                var formFields = form.querySelectorAll("input");
+                                                window.setTimeout(function () {{
+                                                    if (form.method.toUpperCase() === "GET" && formFields.length === 0) {{
+                                                        window.location.href = form.action;
+                                                    }} else {{
+                                                        form.submit();
+                                                    }}
+                                                }}, 300);
+                                            </script>
+                                        "#)))
+                                    }
+                                }
+                            }.into_string()
+                        )
+                        {}
+                }
+            }
+        },
     }
 }
 
