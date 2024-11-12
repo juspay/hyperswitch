@@ -381,7 +381,7 @@ pub async fn migrate_payment_method(
     key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodMigrateResponse> {
     let mut req = req;
-    let card_details = &req.card.clone().get_required_value("card")?;
+    let card_details = req.card.as_ref().get_required_value("card")?;
 
     let card_number_validation_result =
         cards::CardNumber::from_str(card_details.card_number.peek());
@@ -433,7 +433,7 @@ pub async fn migrate_payment_method(
         Err(card_validation_error) => {
             logger::debug!("Card number to be migrated is invalid, skip saving in locker {card_validation_error}");
             skip_locker_call_and_migrate_payment_method(
-                state.clone(),
+                &state,
                 &req,
                 merchant_id.to_owned(),
                 key_store,
@@ -477,7 +477,7 @@ pub async fn migrate_payment_method(
 
             Some(
                 save_network_token_and_update_payment_method(
-                    state,
+                    &state,
                     &req,
                     key_store,
                     merchant_account,
@@ -730,7 +730,7 @@ impl
 ))]
 #[allow(clippy::too_many_arguments)]
 pub async fn skip_locker_call_and_migrate_payment_method(
-    state: routes::SessionState,
+    state: &routes::SessionState,
     req: &api::PaymentMethodMigrate,
     merchant_id: id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
@@ -742,10 +742,10 @@ pub async fn skip_locker_call_and_migrate_payment_method(
     let db = &*state.store;
     let customer_id = req.customer_id.clone().get_required_value("customer_id")?;
 
-    // // In this case, since we do not have valid card details, recurring payments can only be done through connector mandate details.
+    // In this case, since we do not have valid card details, recurring payments can only be done through connector mandate details.
+    //if network token data is present, then connector mandate details are not mandatory
 
     let connector_mandate_details = if should_require_connector_mandate_details {
-        // If `should_require_connector_mandate_details` is true, we must extract it
         let connector_mandate_details_req = req
             .connector_mandate_details
             .clone()
@@ -757,7 +757,6 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 .attach_printable("Failed to parse connector mandate details")?,
         )
     } else {
-        // If not required, serialize only if present in the request, else handle it (e.g., return null or skip)
         req.connector_mandate_details
             .clone()
             .map(|connector_mandate_details_req| {
@@ -767,7 +766,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
             })
             .transpose()?
     };
-    let key_manager_state = (&state).into();
+    let key_manager_state = &state.into();
     let payment_method_billing_address: Option<Encryptable<Secret<serde_json::Value>>> = req
         .billing
         .clone()
@@ -779,7 +778,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let customer = db
         .find_customer_by_customer_id_merchant_id(
-            &(&state).into(),
+            &state.into(),
             &customer_id,
             &merchant_id,
             key_store,
@@ -803,14 +802,16 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    migration_status.network_transaction_id_migrated(network_transaction_id.clone().map(|_| true));
+    migration_status.network_transaction_id_migrated(network_transaction_id.as_ref().map(|_| true));
 
     migration_status.connector_mandate_details_migrated(
         connector_mandate_details
-            .clone()
+            .as_ref()
             .map(|_| true)
-            .or_else(|| req.connector_mandate_details.clone().map(|_| false)),
+            .or_else(|| req.connector_mandate_details.as_ref().map(|_| false)),
     );
+
+    migration_status.card_migrated(false);
 
     let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
@@ -818,7 +819,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let response = db
         .insert_payment_method(
-            &(&state).into(),
+            &state.into(),
             key_store,
             domain::PaymentMethod {
                 customer_id: customer_id.to_owned(),
@@ -888,7 +889,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 ))]
 #[allow(clippy::too_many_arguments)]
 pub async fn save_network_token_and_update_payment_method(
-    state: routes::SessionState,
+    state: &routes::SessionState,
     req: &api::PaymentMethodMigrate,
     key_store: &domain::MerchantKeyStore,
     merchant_account: &domain::MerchantAccount,
@@ -931,8 +932,8 @@ pub async fn save_network_token_and_update_payment_method(
     ))
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Add Card Failed");
-    let key_manager_state = (&state).into();
+    .attach_printable("Add Network Token failed");
+    let key_manager_state = &state.into();
 
     match token_resp {
         Ok(resp) => {
@@ -957,7 +958,7 @@ pub async fn save_network_token_and_update_payment_method(
             let db = &*state.store;
             let existing_pm = db
                 .find_payment_method(
-                    &((&state).into()),
+                    &state.into(),
                     key_store,
                     &pm_id,
                     merchant_account.storage_scheme,
@@ -970,7 +971,7 @@ pub async fn save_network_token_and_update_payment_method(
                 ))?;
 
             db.update_payment_method(
-                &((&state).into()),
+                &state.into(),
                 key_store,
                 existing_pm,
                 pm_update,
@@ -1192,7 +1193,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                 .or_else(|| req.connector_mandate_details.clone().map(|_| false)),
         );
 
-        migration_status.card_migrated(false); //card is not migrated in this case
+        migration_status.card_migrated(false);
 
         if res.status == enums::PaymentMethodStatus::AwaitingData {
             add_payment_method_status_update_task(
@@ -1744,13 +1745,13 @@ pub async fn save_migration_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    migration_status.network_transaction_id_migrated(network_transaction_id.clone().map(|_| true));
+    migration_status.network_transaction_id_migrated(network_transaction_id.as_ref().map(|_| true));
 
     migration_status.connector_mandate_details_migrated(
         connector_mandate_details
-            .clone()
+            .as_ref()
             .map(|_| true)
-            .or_else(|| req.connector_mandate_details.clone().map(|_| false)),
+            .or_else(|| req.connector_mandate_details.as_ref().map(|_| false)),
     );
 
     let response = match payment_method {
@@ -1812,7 +1813,7 @@ pub async fn save_migration_payment_method(
 
     let (mut resp, duplication_check) = response?;
 
-    migration_status.card_migrated(true); //card is saved to locker
+    migration_status.card_migrated(true);
     match duplication_check {
         Some(duplication_check) => match duplication_check {
             payment_methods::DataDuplicationCheck::Duplicated => {

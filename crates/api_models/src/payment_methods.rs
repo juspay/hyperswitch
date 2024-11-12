@@ -563,15 +563,15 @@ pub struct MigrateCardDetail {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MigrateNetworkTokenData {
-    /// Token Number
+    /// Network Token Number
     #[schema(value_type = String,example = "4111111145551142")]
     pub network_token_number: masking::Secret<String>,
 
-    /// Token Expiry Month
+    /// Network Token Expiry Month
     #[schema(value_type = String,example = "10")]
     pub network_token_exp_month: masking::Secret<String>,
 
-    /// Card Expiry Year
+    /// Network Token Expiry Year
     #[schema(value_type = String,example = "25")]
     pub network_token_exp_year: masking::Secret<String>,
 
