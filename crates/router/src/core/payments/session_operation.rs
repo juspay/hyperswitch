@@ -26,11 +26,7 @@ use crate::{
     errors::RouterResponse,
     routes::{app::ReqState, SessionState},
     services,
-    types::{
-        self as router_types,
-        api::{self, ConnectorChoice},
-        domain,
-    },
+    types::{self as router_types, api, domain},
 };
 
 #[cfg(feature = "v2")]
@@ -95,14 +91,14 @@ where
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     state: &SessionState,
-    req_state: ReqState,
+    _req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     profile: domain::Profile,
     operation: Op,
     req: Req,
     payment_id: id_type::GlobalPaymentId,
-    call_connector_action: CallConnectorAction,
+    _call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
@@ -156,22 +152,22 @@ where
 
     let connector = operation
         .to_domain()?
-        .get_connector(
+        .perform_routing(
             &merchant_account,
+            &profile,
             &state.clone(),
-            &req,
-            payment_data.get_payment_intent(),
+            &mut payment_data,
             &key_store,
         )
         .await?;
 
-    // TODO: do not use if let
     let payment_data = match connector {
-        ConnectorChoice::StraightThrough(_connectors) => {
+        api::ConnectorCallType::PreDetermined(_connector) => {
             todo!()
         }
-        ConnectorChoice::Decide => todo!(),
-        ConnectorChoice::SessionMultiple(connectors) => {
+        api::ConnectorCallType::Retryable(_connectors) => todo!(),
+        api::ConnectorCallType::Skip => todo!(),
+        api::ConnectorCallType::SessionMultiple(connectors) => {
             // todo: call surcharge manager for session token call.
             Box::pin(call_multiple_connectors_service(
                 state,

@@ -96,6 +96,10 @@ impl MerchantConnectorAccount {
         self.id.clone()
     }
 
+    pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
+        self.metadata.clone()
+    }
+
     pub fn get_parsed_payment_methods_enabled(
         &self,
     ) -> Vec<CustomResult<admin::PaymentMethodsEnabled, ApiErrorResponse>> {

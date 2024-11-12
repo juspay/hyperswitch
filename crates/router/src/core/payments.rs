@@ -2891,6 +2891,118 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn call_multiple_connectors_service<F, Op, Req, D>(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    connectors: Vec<api::SessionConnectorData>,
+    _operation: &Op,
+    mut payment_data: D,
+    customer: &Option<domain::Customer>,
+    _session_surcharge_details: Option<api::SessionSurchargeDetails>,
+    business_profile: &domain::Profile,
+    header_payload: HeaderPayload,
+) -> RouterResult<D>
+where
+    Op: Debug,
+    F: Send + Clone,
+
+    // To create connector flow specific interface data
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+    D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
+
+    // To construct connector flow specific api
+    dyn api::Connector:
+        services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
+{
+    let call_connectors_start_time = Instant::now();
+    let mut join_handlers = Vec::with_capacity(connectors.len());
+    for session_connector_data in connectors.iter() {
+        let merchant_connector_id = session_connector_data
+            .connector
+            .merchant_connector_id
+            .as_ref()
+            .get_required_value("merchant_connector_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("connector id is not set")?;
+        let merchant_connector_account = state
+            .store
+            .find_merchant_connector_account_by_id(&state.into(), merchant_connector_id, key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: merchant_connector_id.get_string_repr().to_owned(),
+            })?;
+        let connector_id = session_connector_data.connector.connector.id();
+        let router_data = payment_data
+            .construct_router_data(
+                state,
+                connector_id,
+                merchant_account,
+                key_store,
+                customer,
+                &merchant_connector_account,
+                None,
+                None,
+            )
+            .await?;
+
+        let res = router_data.decide_flows(
+            state,
+            &session_connector_data.connector,
+            CallConnectorAction::Trigger,
+            None,
+            business_profile,
+            header_payload.clone(),
+        );
+
+        join_handlers.push(res);
+    }
+
+    let result = join_all(join_handlers).await;
+
+    for (connector_res, session_connector) in result.into_iter().zip(connectors) {
+        let connector_name = session_connector.connector.connector_name.to_string();
+        match connector_res {
+            Ok(connector_response) => {
+                if let Ok(router_types::PaymentsResponseData::SessionResponse {
+                    session_token,
+                    ..
+                }) = connector_response.response.clone()
+                {
+                    // If session token is NoSessionTokenReceived, it is not pushed into the sessions_token as there is no response or there can be some error
+                    // In case of error, that error is already logged
+                    if !matches!(
+                        session_token,
+                        api_models::payments::SessionToken::NoSessionTokenReceived,
+                    ) {
+                        payment_data.push_sessions_token(session_token);
+                    }
+                }
+                if let Err(connector_error_response) = connector_response.response {
+                    logger::error!(
+                        "sessions_connector_error {} {:?}",
+                        connector_name,
+                        connector_error_response
+                    );
+                }
+            }
+            Err(api_error) => {
+                logger::error!("sessions_api_error {} {:?}", connector_name, api_error);
+            }
+        }
+    }
+
+    let call_connectors_end_time = Instant::now();
+    let call_connectors_duration =
+        call_connectors_end_time.saturating_duration_since(call_connectors_start_time);
+    tracing::info!(duration = format!("Duration taken: {}", call_connectors_duration.as_millis()));
+
+    Ok(payment_data)
+}
+
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn call_multiple_connectors_service<F, Op, Req, D>(
@@ -2937,7 +3049,6 @@ where
         )
         .await?;
 
-        #[cfg(feature = "v1")]
         payment_data.set_surcharge_details(session_surcharge_details.as_ref().and_then(
             |session_surcharge_details| {
                 session_surcharge_details.fetch_surcharge_details(

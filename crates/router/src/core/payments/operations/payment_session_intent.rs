@@ -195,14 +195,14 @@ impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentD
         Ok((Box::new(self), None, None))
     }
 
-    async fn get_connector<'a>(
+    async fn perform_routing<'a>(
         &'a self,
         merchant_account: &domain::MerchantAccount,
+        _business_profile: &domain::Profile,
         state: &SessionState,
-        _request: &PaymentsSessionRequest,
-        payment_intent: &storage::PaymentIntent,
+        payment_data: &mut payments::PaymentIntentData<F>,
         merchant_key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+    ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         let db = &state.store;
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -214,7 +214,7 @@ impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentD
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
-        let profile_id = &payment_intent.profile_id;
+        let profile_id = &payment_data.payment_intent.profile_id;
         let filtered_connector_accounts = helpers::filter_mca_based_on_profile_and_connector_type(
             all_connector_accounts,
             profile_id,
@@ -275,7 +275,7 @@ impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentD
             };
         }
 
-        Ok(api::ConnectorChoice::SessionMultiple(
+        Ok(api::ConnectorCallType::SessionMultiple(
             session_connector_data,
         ))
     }

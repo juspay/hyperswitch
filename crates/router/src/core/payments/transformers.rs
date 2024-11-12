@@ -516,7 +516,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
@@ -526,7 +526,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
 
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
