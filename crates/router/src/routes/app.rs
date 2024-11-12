@@ -536,6 +536,7 @@ impl Payments {
                     web::resource("/create-external-sdk-tokens")
                         .route(web::post().to(payments::payments_connector_session)),
                 )
+                .service(web::resource("").route(web::get().to(payments::payment_status)))
                 .service(
                     web::resource("/start_redirection")
                         .route(web::get().to(payments::payments_start_redirection)),

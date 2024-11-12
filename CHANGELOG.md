@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.12.0
+
+### Features
+
+- **payment_v2:** Implement payments sync ([#6464](https://github.com/juspay/hyperswitch/pull/6464)) ([`42bdf47`](https://github.com/juspay/hyperswitch/commit/42bdf47fd295c523e26b91f7ed209239d5c4b1bb))
+
+### Refactors
+
+- Explicitly specify top redirections for secure payment and payout links ([#6494](https://github.com/juspay/hyperswitch/pull/6494)) ([`0a506b1`](https://github.com/juspay/hyperswitch/commit/0a506b1729a27e47543cf24f64fbad08479d8dec))
+
+**Full Changelog:** [`2024.11.11.0...2024.11.12.0`](https://github.com/juspay/hyperswitch/compare/2024.11.11.0...2024.11.12.0)
+
+- - -
+
 ## 2024.11.11.0
 
 ### Features

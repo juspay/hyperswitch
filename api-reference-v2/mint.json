@@ -76,11 +76,11 @@
       ]
     },
     {
-      "group": "Merchant Connector Account",
+      "group": "Connector Account",
       "pages": [
-        "api-reference/merchant-connector-account/merchant-connector--create",
-        "api-reference/merchant-connector-account/merchant-connector--retrieve",
-        "api-reference/merchant-connector-account/merchant-connector--update"
+        "api-reference/connector-account/connector-account--create",
+        "api-reference/connector-account/connector-account--retrieve",
+        "api-reference/connector-account/connector-account--update"
       ]
     },
     {
