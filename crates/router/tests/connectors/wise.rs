@@ -28,7 +28,7 @@ impl utils::Connector for WiseTest {
     fn get_payout_data(&self) -> Option<api::ConnectorData> {
         use router::connector::Wise;
         Some(utils::construct_connector_data_old(
-            Box::new(&Wise),
+            Box::new(Wise::new()),
             types::Connector::Wise,
             api::GetToken::Connector,
             None,

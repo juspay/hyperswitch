@@ -1235,7 +1235,7 @@ diesel::table! {
         #[max_length = 64]
         last_modified_by -> Varchar,
         #[max_length = 64]
-        entity_type -> Nullable<Varchar>,
+        entity_type -> Varchar,
     }
 }
 
@@ -1343,6 +1343,8 @@ diesel::table! {
         #[max_length = 64]
         entity_type -> Nullable<Varchar>,
         version -> UserRoleVersion,
+        #[max_length = 64]
+        tenant_id -> Varchar,
     }
 }
 

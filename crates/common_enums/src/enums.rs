@@ -1,7 +1,11 @@
+mod payments;
 use std::num::{ParseFloatError, TryFromIntError};
 
+pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+pub use super::connector_enums::RoutableConnectors;
 
 #[doc(hidden)]
 pub mod diesel_exports {
@@ -138,132 +142,6 @@ pub enum AttemptStatus {
     PaymentMethodAwaited,
     ConfirmationAwaited,
     DeviceDataCollectionPending,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    strum::EnumIter,
-    strum::VariantNames,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-/// Connectors eligible for payments routing
-pub enum RoutableConnectors {
-    Adyenplatform,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "phonypay")]
-    #[strum(serialize = "phonypay")]
-    DummyConnector1,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "fauxpay")]
-    #[strum(serialize = "fauxpay")]
-    DummyConnector2,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "pretendpay")]
-    #[strum(serialize = "pretendpay")]
-    DummyConnector3,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "stripe_test")]
-    #[strum(serialize = "stripe_test")]
-    DummyConnector4,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "adyen_test")]
-    #[strum(serialize = "adyen_test")]
-    DummyConnector5,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "checkout_test")]
-    #[strum(serialize = "checkout_test")]
-    DummyConnector6,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "paypal_test")]
-    #[strum(serialize = "paypal_test")]
-    DummyConnector7,
-    Aci,
-    Adyen,
-    Airwallex,
-    Authorizedotnet,
-    Bankofamerica,
-    Billwerk,
-    Bitpay,
-    Bambora,
-    Bamboraapac,
-    Bluesnap,
-    Boku,
-    Braintree,
-    Cashtocode,
-    Checkout,
-    Coinbase,
-    Cryptopay,
-    Cybersource,
-    Datatrans,
-    Deutschebank,
-    // Digitalvirgo, template code for future usage
-    Dlocal,
-    Ebanx,
-    Fiserv,
-    Fiservemea,
-    Fiuu,
-    Forte,
-    Globalpay,
-    Globepay,
-    Gocardless,
-    Helcim,
-    Iatapay,
-    Itaubank,
-    Klarna,
-    Mifinity,
-    Mollie,
-    Multisafepay,
-    Nexinets,
-    Nexixpay,
-    Nmi,
-    Noon,
-    Novalnet,
-    Nuvei,
-    // Opayo, added as template code for future usage
-    Opennode,
-    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    Paybox,
-    Payme,
-    Payone,
-    Paypal,
-    Payu,
-    Placetopay,
-    Powertranz,
-    Prophetpay,
-    Rapyd,
-    Razorpay,
-    Riskified,
-    Shift4,
-    Signifyd,
-    Square,
-    Stax,
-    Stripe,
-    // Taxjar,
-    Trustpay,
-    // Thunes
-    // Tsys,
-    Tsys,
-    Volt,
-    Wellsfargo,
-    // Wellsfargopayout,
-    Wise,
-    Worldline,
-    Worldpay,
-    Zen,
-    Plaid,
-    Zsl,
 }
 
 impl AttemptStatus {
@@ -1419,6 +1297,28 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
 }
 
+impl IntentStatus {
+    /// Indicates whether the syncing with the connector should be allowed or not
+    pub fn should_force_sync_with_connector(&self) -> bool {
+        match self {
+            // Confirm has not happened yet
+            Self::RequiresConfirmation
+            | Self::RequiresPaymentMethod
+            // Once the status is success, failed or cancelled need not force sync with the connector
+            | Self::Succeeded
+            | Self::Failed
+            | Self::Cancelled
+            |  Self::PartiallyCaptured
+            |  Self::RequiresCapture => false,
+            Self::Processing
+            | Self::RequiresCustomerAction
+            | Self::RequiresMerchantAction
+            | Self::PartiallyCapturedAndCapturable
+            => true,
+        }
+    }
+}
+
 /// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
 /// - On_session - Payment method saved only at hyperswitch when consent is provided by the user. CVV will asked during the returning user payment
 /// - Off_session - Payment method saved at both hyperswitch and Processor when consent is provided by the user. No input is required during the returning user payment.
@@ -1698,6 +1598,8 @@ pub enum PaymentMethodType {
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
 }
+
+impl masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(
@@ -2884,10 +2786,15 @@ pub enum PermissionGroup {
     AnalyticsView,
     UsersView,
     UsersManage,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     MerchantDetailsView,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     MerchantDetailsManage,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     OrganizationManage,
     ReconOps,
+    AccountView,
+    AccountManage,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -2897,14 +2804,12 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    #[serde(rename = "MerchantAccess")]
-    Merchant,
-    #[serde(rename = "OrganizationAccess")]
-    Organization,
     Recon,
+    Account,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Resource {
     Payment,
     Refund,
@@ -2925,10 +2830,11 @@ pub enum Resource {
     Recon,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
+#[serde(rename_all = "snake_case")]
 pub enum PermissionScope {
-    Read,
-    Write,
+    Read = 0,
+    Write = 1,
 }
 
 /// Name of banks supported by Hyperswitch

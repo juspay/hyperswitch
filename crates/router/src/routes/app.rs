@@ -46,7 +46,7 @@ use super::pm_auth;
 use super::poll;
 #[cfg(feature = "olap")]
 use super::routing;
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(all(feature = "oltp", feature = "v1"))]
 use super::webhooks::*;
@@ -66,6 +66,8 @@ pub use crate::analytics::opensearch::OpenSearchClient;
 use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
 use crate::errors::RouterResult;
+#[cfg(feature = "v1")]
+use crate::routes::cards_info::card_iin_info;
 #[cfg(all(feature = "frm", feature = "oltp"))]
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
@@ -74,7 +76,6 @@ pub use crate::{
     configs::settings,
     db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
     events::EventsHandler,
-    routes::cards_info::card_iin_info,
     services::{get_cache_store, get_store},
 };
 use crate::{
@@ -207,7 +208,7 @@ pub struct AppState {
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
-        self.conf.multitenancy.get_tenant_names()
+        self.conf.multitenancy.get_tenant_ids()
     }
 }
 pub trait AppStateInfo {
@@ -528,8 +529,17 @@ impl Payments {
                         .route(web::post().to(payments::payment_confirm_intent)),
                 )
                 .service(
+                    web::resource("/get-intent")
+                        .route(web::get().to(payments::payments_get_intent)),
+                )
+                .service(
                     web::resource("/create-external-sdk-tokens")
                         .route(web::post().to(payments::payments_connector_session)),
+                )
+                .service(web::resource("").route(web::get().to(payments::payment_status)))
+                .service(
+                    web::resource("/start_redirection")
+                        .route(web::get().to(payments::payments_start_redirection)),
                 ),
         );
 
@@ -664,7 +674,7 @@ impl Payments {
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub struct Forex;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 impl Forex {
     pub fn server(state: AppState) -> Scope {
         web::scope("/forex")
@@ -1049,7 +1059,7 @@ impl Refunds {
 #[cfg(feature = "payouts")]
 pub struct Payouts;
 
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 impl Payouts {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payouts").app_data(web::Data::new(state));
@@ -1558,6 +1568,7 @@ impl Disputes {
 
 pub struct Cards;
 
+#[cfg(feature = "v1")]
 impl Cards {
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")
@@ -1622,7 +1633,7 @@ impl PaymentLink {
 #[cfg(feature = "payouts")]
 pub struct PayoutLink;
 
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 impl PayoutLink {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payout_link").app_data(web::Data::new(state));
@@ -1753,6 +1764,7 @@ pub struct ProfileNew;
 
 #[cfg(feature = "olap")]
 impl ProfileNew {
+    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/profile")
             .app_data(web::Data::new(state))
@@ -1762,6 +1774,10 @@ impl ProfileNew {
             .service(
                 web::resource("/connectors").route(web::get().to(admin::connector_list_profile)),
             )
+    }
+    #[cfg(feature = "v2")]
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account/{account_id}/profile").app_data(web::Data::new(state))
     }
 }
 
@@ -1826,8 +1842,13 @@ impl User {
                 web::resource("/permission_info")
                     .route(web::get().to(user_role::get_authorization_info)),
             )
+            // TODO: To be deprecated
             .service(
                 web::resource("/module/list").route(web::get().to(user_role::get_role_information)),
+            )
+            .service(
+                web::resource("/parent/list")
+                    .route(web::get().to(user_role::get_parent_group_info)),
             )
             .service(
                 web::resource("/update").route(web::post().to(user::update_user_account_details)),
@@ -2024,6 +2045,9 @@ impl User {
                             .route(web::get().to(user_role::get_role_from_token))
                             .route(web::post().to(user_role::create_role)),
                     )
+                    .service(web::resource("/v2").route(
+                        web::get().to(user_role::get_groups_and_resources_for_role_from_token),
+                    ))
                     // TODO: To be deprecated
                     .service(
                         web::resource("/v2/list")
@@ -2046,6 +2070,10 @@ impl User {
                         web::resource("/{role_id}")
                             .route(web::get().to(user_role::get_role))
                             .route(web::put().to(user_role::update_role)),
+                    )
+                    .service(
+                        web::resource("/{role_id}/v2")
+                            .route(web::get().to(user_role::get_parent_info_for_role)),
                     ),
             );
 

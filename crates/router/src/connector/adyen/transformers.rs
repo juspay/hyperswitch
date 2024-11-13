@@ -14,7 +14,7 @@ use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 use crate::{connector::utils::PayoutsData, types::api::payouts, utils::OptionExt};
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
+        self, missing_field_err, AddressDetailsData, BrowserInformationData, CardData,
         PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
     },
     consts,
@@ -143,6 +143,8 @@ pub struct AdyenPaymentRequest<'a> {
     amount: Amount,
     merchant_account: Secret<String>,
     payment_method: AdyenPaymentMethod<'a>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mpi_data: Option<AdyenMpiData>,
     reference: String,
     return_url: String,
     browser_info: Option<AdyenBrowserInfo>,
@@ -166,6 +168,16 @@ pub struct AdyenPaymentRequest<'a> {
     channel: Option<Channel>,
     metadata: Option<pii::SecretSerdeValue>,
     merchant_order_reference: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AdyenMpiData {
+    directory_response: String,
+    authentication_response: String,
+    token_authentication_verification_value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1763,8 +1775,7 @@ pub fn get_address_info(
 }
 
 fn get_line_items(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -> Vec<LineItem> {
-    let order_details: Option<Vec<payments::OrderDetailsWithAmount>> =
-        item.router_data.request.order_details.clone();
+    let order_details = item.router_data.request.order_details.clone();
     match order_details {
         Some(od) => od
             .iter()
@@ -2140,6 +2151,29 @@ impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
                 };
                 Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
+            domain::WalletData::Paze(_) => match item.payment_method_token.clone() {
+                Some(types::PaymentMethodToken::PazeDecrypt(paze_decrypted_data)) => {
+                    let data = AdyenCard {
+                        payment_type: PaymentType::NetworkToken,
+                        number: paze_decrypted_data.token.payment_token,
+                        expiry_month: paze_decrypted_data.token.token_expiration_month,
+                        expiry_year: paze_decrypted_data.token.token_expiration_year,
+                        cvc: None,
+                        holder_name: paze_decrypted_data
+                            .billing_address
+                            .name
+                            .or(item.get_optional_billing_full_name()),
+                        brand: Some(paze_decrypted_data.payment_card_network.clone())
+                            .and_then(get_adyen_card_network),
+                        network_payment_reference: None,
+                    };
+                    Ok(AdyenPaymentMethod::AdyenCard(Box::new(data)))
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                )
+                .into()),
+            },
             domain::WalletData::TwintRedirect { .. } => Ok(AdyenPaymentMethod::Twint),
             domain::WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
             domain::WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
@@ -2150,7 +2184,6 @@ impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
             | domain::WalletData::GooglePayRedirect(_)
             | domain::WalletData::GooglePayThirdPartySdk(_)
             | domain::WalletData::PaypalSdk(_)
-            | domain::WalletData::Paze(_)
             | domain::WalletData::WeChatPayQr(_)
             | domain::WalletData::CashappQr(_)
             | domain::WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
@@ -2573,7 +2606,9 @@ impl<'a>
                         None => PaymentType::Scheme,
                     },
                     stored_payment_method_id: Secret::new(
-                        connector_mandate_ids.get_connector_mandate_id()?,
+                        connector_mandate_ids
+                            .get_connector_mandate_id()
+                            .ok_or_else(missing_field_err("mandate_id"))?,
                     ),
                 };
                 Ok::<AdyenPaymentMethod<'_>, Self::Error>(AdyenPaymentMethod::Mandate(Box::new(
@@ -2654,6 +2689,7 @@ impl<'a>
             recurring_processing_model,
             browser_info,
             additional_data,
+            mpi_data: None,
             telephone_number: None,
             shopper_name: None,
             shopper_email: None,
@@ -2717,6 +2753,7 @@ impl<'a>
             recurring_processing_model,
             browser_info,
             additional_data,
+            mpi_data: None,
             telephone_number: None,
             shopper_name,
             shopper_email,
@@ -2772,6 +2809,7 @@ impl<'a>
             shopper_interaction,
             recurring_processing_model,
             additional_data,
+            mpi_data: None,
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
@@ -2835,6 +2873,7 @@ impl<'a>
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number,
+            mpi_data: None,
             telephone_number: None,
             billing_address,
             delivery_address: None,
@@ -2882,6 +2921,7 @@ impl<'a>
             shopper_interaction,
             recurring_processing_model: None,
             additional_data: None,
+            mpi_data: None,
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
@@ -2933,6 +2973,7 @@ impl<'a>
             shopper_interaction,
             recurring_processing_model: None,
             additional_data: None,
+            mpi_data: None,
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
@@ -2996,6 +3037,7 @@ impl<'a>
             recurring_processing_model,
             browser_info,
             additional_data,
+            mpi_data: None,
             telephone_number: None,
             shopper_name: None,
             shopper_email: item.router_data.get_optional_billing_email(),
@@ -3085,6 +3127,23 @@ impl<'a>
         let shopper_email = get_shopper_email(item.router_data, store_payment_method.is_some())?;
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
+        let mpi_data = if let domain::WalletData::Paze(_) = wallet_data {
+            match item.router_data.payment_method_token.clone() {
+                Some(types::PaymentMethodToken::PazeDecrypt(paze_decrypted_data)) => {
+                    Some(AdyenMpiData {
+                        directory_response: "Y".to_string(),
+                        authentication_response: "Y".to_string(),
+                        token_authentication_verification_value: paze_decrypted_data
+                            .token
+                            .payment_account_reference,
+                        eci: paze_decrypted_data.eci,
+                    })
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3095,6 +3154,7 @@ impl<'a>
             recurring_processing_model,
             browser_info,
             additional_data,
+            mpi_data,
             telephone_number: None,
             shopper_name: None,
             shopper_email,
@@ -3173,6 +3233,7 @@ impl<'a>
             telephone_number,
             shopper_name,
             shopper_email,
+            mpi_data: None,
             shopper_locale: None,
             social_security_number: None,
             billing_address,
@@ -3229,6 +3290,7 @@ impl<'a>
             recurring_processing_model: None,
             browser_info: None,
             additional_data: None,
+            mpi_data: None,
             telephone_number,
             shopper_name,
             shopper_email,
@@ -3365,6 +3427,7 @@ pub fn get_adyen_response(
             connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
             mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
         });
     let network_txn_id = response.additional_data.and_then(|additional_data| {
         additional_data

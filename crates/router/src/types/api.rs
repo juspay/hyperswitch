@@ -76,6 +76,8 @@ pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
     Retryable(Vec<ConnectorData>),
     SessionMultiple(Vec<SessionConnectorData>),
+    #[cfg(feature = "v2")]
+    Skip,
 }
 
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
@@ -326,6 +328,9 @@ impl ConnectorData {
                 enums::Connector::Airwallex => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Airwallex)))
                 }
+                // enums::Connector::Amazonpay => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay)))
+                // }
                 enums::Connector::Authorizedotnet => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Authorizedotnet)))
                 }
@@ -406,6 +411,7 @@ impl ConnectorData {
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
+                // enums::Connector::Elavon => Ok(ConnectorEnum::Old(Box::new(connector::Elavon))),
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
                 enums::Connector::Fiservemea => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
@@ -428,6 +434,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
                 enums::Connector::Itaubank => {
+                    //enums::Connector::Jpmorgan => Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }
                 enums::Connector::Klarna => {
@@ -440,6 +447,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
                 enums::Connector::Nmi => Ok(ConnectorEnum::Old(Box::new(connector::Nmi::new()))),
+                // enums::Connector::Nomupay => Ok(ConnectorEnum::Old(Box::new(connector::Nomupay))),
                 enums::Connector::Noon => Ok(ConnectorEnum::Old(Box::new(connector::Noon::new()))),
                 enums::Connector::Novalnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
@@ -458,7 +466,7 @@ impl ConnectorData {
                 enums::Connector::Payone => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payone::new())))
                 }
-                enums::Connector::Payu => Ok(ConnectorEnum::Old(Box::new(&connector::Payu))),
+                enums::Connector::Payu => Ok(ConnectorEnum::Old(Box::new(connector::Payu::new()))),
                 enums::Connector::Placetopay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Placetopay::new())))
                 }
@@ -471,7 +479,9 @@ impl ConnectorData {
                 enums::Connector::Razorpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Razorpay::new())))
                 }
-                enums::Connector::Rapyd => Ok(ConnectorEnum::Old(Box::new(&connector::Rapyd))),
+                enums::Connector::Rapyd => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Rapyd::new())))
+                }
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
                 }
@@ -480,7 +490,7 @@ impl ConnectorData {
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))
                 }
-                enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(&connector::Wise))),
+                enums::Connector::Wise => Ok(ConnectorEnum::Old(Box::new(connector::Wise::new()))),
                 enums::Connector::Worldline => {
                     Ok(ConnectorEnum::Old(Box::new(&connector::Worldline)))
                 }
@@ -557,25 +567,6 @@ pub trait FraudCheck {}
 
 #[cfg(not(feature = "frm"))]
 pub trait FraudCheckV2 {}
-
-#[cfg(feature = "payouts")]
-pub trait Payouts:
-    ConnectorCommon
-    + PayoutCancel
-    + PayoutCreate
-    + PayoutEligibility
-    + PayoutFulfill
-    + PayoutQuote
-    + PayoutRecipient
-    + PayoutRecipientAccount
-    + PayoutSync
-{
-}
-#[cfg(not(feature = "payouts"))]
-pub trait Payouts {}
-
-#[cfg(not(feature = "payouts"))]
-pub trait PayoutsV2 {}
 
 #[cfg(test)]
 mod test {
