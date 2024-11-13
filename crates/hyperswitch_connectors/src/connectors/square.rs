@@ -41,14 +41,12 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, Maskable, PeekInterface};
-use transformers::{
-    self as square, SquareAuthType,
-};
+use transformers::{self as square, SquareAuthType};
 
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, get_header_key_value, RefundsRequestData, convert_amount},
+    utils::{self, convert_amount, get_header_key_value, RefundsRequestData},
 };
 
 #[derive(Clone)]
