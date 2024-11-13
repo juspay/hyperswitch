@@ -351,7 +351,6 @@ diesel::table! {
         dispute_id -> Varchar,
         #[max_length = 255]
         amount -> Varchar,
-        #[max_length = 255]
         currency -> Varchar,
         dispute_stage -> DisputeStage,
         dispute_status -> DisputeStatus,
@@ -384,6 +383,7 @@ diesel::table! {
         dispute_amount -> Int8,
         #[max_length = 32]
         organization_id -> Varchar,
+        dispute_currency -> Currency,
     }
 }
 

@@ -1,5 +1,4 @@
 pub mod transformers;
-use std::str::FromStr;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
@@ -999,12 +998,10 @@ impl api::IncomingWebhook for Braintree {
 
         match response.dispute {
             Some(dispute_data) => {
-                let currency = enums::Currency::from_str(dispute_data.currency_iso_code.as_str())
-                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
                 Ok(api::disputes::DisputePayload {
                     amount: connector_utils::to_currency_lower_unit(
                         dispute_data.amount_disputed.to_string(),
-                        currency,
+                        dispute_data.currency_iso_code,
                     )?,
                     currency: dispute_data.currency_iso_code,
                     dispute_stage: transformers::get_dispute_stage(dispute_data.kind.as_str())?,

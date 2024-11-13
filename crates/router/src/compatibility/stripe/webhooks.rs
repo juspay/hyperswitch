@@ -1,7 +1,7 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::{
-    enums::{DisputeStatus, MandateStatus},
+    enums::{DisputeStatus, MandateStatus, Currency},
     webhooks::{self as api},
 };
 #[cfg(feature = "payouts")]
@@ -93,7 +93,7 @@ pub enum StripeWebhookObject {
 pub struct StripeDisputeResponse {
     pub id: String,
     pub amount: String,
-    pub currency: String,
+    pub currency: Currency,
     pub payment_intent: common_utils::id_type::PaymentId,
     pub reason: Option<String>,
     pub status: StripeDisputeStatus,

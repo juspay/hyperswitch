@@ -6,8 +6,8 @@ use serde::de::Error;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use super::enums::{DisputeStage, DisputeStatus};
-use crate::{admin::MerchantConnectorInfo, enums, files};
+use super::enums::{DisputeStage, DisputeStatus, Currency};
+use crate::{admin::MerchantConnectorInfo, files};
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
 pub struct DisputeResponse {
@@ -21,7 +21,8 @@ pub struct DisputeResponse {
     /// The dispute amount
     pub amount: String,
     /// The three-letter ISO currency code
-    pub currency: String,
+    #[schema(value_type = Currency)]
+    pub currency: Currency,
     /// Stage of the dispute
     pub dispute_stage: DisputeStage,
     /// Status of the dispute
@@ -137,7 +138,7 @@ pub struct DisputeListGetConstraints {
     pub connector: Option<Vec<String>>,
     /// The comma separated list of currencies of the disputes
     #[serde(default, deserialize_with = "parse_comma_separated")]
-    pub currency: Option<Vec<common_enums::Currency>>,
+    pub currency: Option<Vec<Currency>>,
     /// The merchant connector id to filter the disputes list
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
@@ -150,7 +151,7 @@ pub struct DisputeListFilters {
     /// The map of available connector filters, where the key is the connector name and the value is a list of MerchantConnectorInfo instances
     pub connector: HashMap<String, Vec<MerchantConnectorInfo>>,
     /// The list of available currency filters
-    pub currency: Vec<enums::Currency>,
+    pub currency: Vec<Currency>,
     /// The list of available dispute status filters
     pub dispute_status: Vec<DisputeStatus>,
     /// The list of available dispute stage filters

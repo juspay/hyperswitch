@@ -31,6 +31,7 @@ pub struct DisputeNew {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub dispute_amount: i64,
     pub organization_id: common_utils::id_type::OrganizationId,
+    pub dispute_currency: storage_enums::Currency,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]
@@ -61,6 +62,7 @@ pub struct Dispute {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub dispute_amount: i64,
     pub organization_id: common_utils::id_type::OrganizationId,
+    pub dispute_currency: storage_enums::Currency,
 }
 
 #[derive(Debug)]

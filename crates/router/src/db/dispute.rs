@@ -199,6 +199,7 @@ impl DisputeInterface for MockDb {
             merchant_connector_id: dispute.merchant_connector_id,
             dispute_amount: dispute.dispute_amount,
             organization_id: dispute.organization_id,
+            dispute_currency: dispute.dispute_currency,
         };
 
         locked_disputes.push(new_dispute.clone());
@@ -310,7 +311,7 @@ impl DisputeInterface for MockDb {
                         .map_or(true, |currencies| {
                             currencies
                                 .iter()
-                                .any(|currency| dispute.currency.as_str() == currency.to_string())
+                                .any(|currency| &dispute.dispute_currency == currency)
                         })
                     && dispute_constraints
                         .time_range
@@ -502,6 +503,7 @@ mod tests {
                 merchant_connector_id: None,
                 dispute_amount: 1040,
                 organization_id: common_utils::id_type::OrganizationId::default(),
+                dispute_currency: common_enums::Currency::default(),
             }
         }
 

@@ -886,7 +886,7 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             payment_id: dispute.payment_id,
             attempt_id: dispute.attempt_id,
             amount: dispute.amount,
-            currency: dispute.currency,
+            currency: dispute.dispute_currency,
             dispute_stage: dispute.dispute_stage,
             dispute_status: dispute.dispute_status,
             connector: dispute.connector,

@@ -2001,7 +2001,7 @@ impl api::IncomingWebhook for Paypal {
                         payload.dispute_amount.value.get_amount_as_string(),
                         payload.dispute_amount.currency_code,
                     )?,
-                    currency: payload.dispute_amount.currency_code.to_string(),
+                    currency: payload.dispute_amount.currency_code,
                     dispute_stage: api_models::enums::DisputeStage::from(
                         payload.dispute_life_cycle_stage.clone(),
                     ),
