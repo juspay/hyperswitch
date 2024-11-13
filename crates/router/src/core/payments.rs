@@ -49,6 +49,8 @@ pub use hyperswitch_domain_models::{
     router_request_types::CustomerDetails,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "v2")]
+use operations::ValidateStatusForOperation;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, metrics::add_attributes, tracing};
 #[cfg(feature = "olap")]
@@ -111,9 +113,6 @@ use crate::{
     core::authentication as authentication_core,
     types::{api::authentication, BrowserInformation},
 };
-
-#[cfg(feature = "v2")]
-use operations::ValidateStatusForOperation;
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
