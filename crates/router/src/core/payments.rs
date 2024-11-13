@@ -1973,7 +1973,7 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
                     current_value: intent_status.to_string(),
-                    states: ["requires_payment_method".to_string()].join(", "),
+                    states: ["requires_customer_action".to_string()].join(", "),
                 })
             }
         }

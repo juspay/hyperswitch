@@ -1530,7 +1530,7 @@ pub trait ConnectorTransactionIdTrait {
     }
 }
 
-/// Domain type for Statement Descriptor
+/// Domain type for PublishableKey
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
 pub struct PublishableKey(LengthString<PUBLISHABLE_KEY_LENGTH, PUBLISHABLE_KEY_LENGTH>);

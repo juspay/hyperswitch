@@ -4459,6 +4459,7 @@ pub struct PaymentsResponse {
 /// Request for Payment Intent Confirm
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PaymentsConfirmIntentRequest {
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     /// If this url is not passed, the url configured in the business profile will be used

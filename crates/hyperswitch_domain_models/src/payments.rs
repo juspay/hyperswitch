@@ -146,7 +146,7 @@ impl PaymentIntent {
 
         url::Url::parse(&finish_redirection_url)
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error creating start redirection url")
+            .attach_printable("Error creating finish redirection url")
     }
 }
 
