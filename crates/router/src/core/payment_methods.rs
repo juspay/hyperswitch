@@ -865,9 +865,10 @@ pub async fn create_payment_method(
         .attach_printable("Unable to encrypt Payment method billing address")?;
 
     // create pm
-    let payment_method_id = id_type::GlobalPaymentMethodId::generate("random_cell_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+    let payment_method_id =
+        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
     let payment_method = create_payment_method_for_intent(
         state,
@@ -978,9 +979,10 @@ pub async fn payment_method_intent_create(
 
     // create pm entry
 
-    let payment_method_id = id_type::GlobalPaymentMethodId::generate("random_cell_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+    let payment_method_id =
+        id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to generate GlobalPaymentMethodId")?;
 
     let payment_method = create_payment_method_for_intent(
         state,

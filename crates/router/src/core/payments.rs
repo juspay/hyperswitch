@@ -1015,7 +1015,7 @@ where
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
-    let payment_id = id_type::GlobalPaymentId::generate(state.conf.cell_information.id.clone());
+    let payment_id = id_type::GlobalPaymentId::generate(&state.conf.cell_information.id.clone());
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
