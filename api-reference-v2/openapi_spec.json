@@ -13381,7 +13381,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentsConfirmIntentResponse": {
         "type": "object",
