@@ -296,6 +296,18 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
         cy.get('input[type="text"]').click().type("1234");
         cy.get('input[value="SUBMIT"]').click();
       });
+  } else if (connectorId === "checkout") {
+    cy.get("iframe", { timeout: TIMEOUT })
+      .its("0.contentDocument.body")
+      .within((body) => {
+        cy.get('form[id="form"]', { timeout: WAIT_TIME })
+          .should("exist")
+          .then((form) => {
+            cy.get('input[id="password"]').click();
+            cy.get('input[id="password"]').type("Checkout1!");
+            cy.get("#txtButton").click();
+          });
+      });
   } else if (connectorId === "nmi" || connectorId === "noon") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
@@ -355,7 +367,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
           .then((otpText) => {
             const otp = otpText.match(/\d+/)[0]; // Extract the numeric OTP
             cy.get("input#otp-input").should("not.be.disabled").type(otp);
-            cy.get('button.pay-btn').click();
+            cy.get("button.pay-btn").click();
           });
       });
   } else {

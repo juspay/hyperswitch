@@ -1,6 +1,7 @@
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
+import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import {
   connectorDetails as CommonConnectorDetails,
   updateDefaultStatusCode,
@@ -8,6 +9,7 @@ import {
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
+import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
@@ -18,13 +20,13 @@ import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
-import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
   bankofamerica: bankOfAmericaConnectorDetails,
   bluesnap: bluesnapConnectorDetails,
+  checkout: checkoutConnectorDetails,
   commons: CommonConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
@@ -49,7 +51,8 @@ export default function getConnectorDetails(connectorId) {
 }
 
 export function getConnectorFlowDetails(connectorData, commonData, key) {
-  let data = connectorData[key] === undefined ? commonData[key] : connectorData[key];
+  let data =
+    connectorData[key] === undefined ? commonData[key] : connectorData[key];
   return data;
 }
 
