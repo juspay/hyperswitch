@@ -239,18 +239,18 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     #[instrument(skip_all)]
     #[cfg(feature = "v2")]
-    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
         connector_txn_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        DieselPaymentAttempt::find_by_merchant_id_connector_txn_id(
+        DieselPaymentAttempt::find_by_profile_id_connector_transaction_id(
             &conn,
-            merchant_id,
+            profile_id,
             connector_txn_id,
         )
         .await
@@ -964,21 +964,21 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     }
 
     #[cfg(feature = "v2")]
-    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector_txn_id: &str,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_transaction_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         // Ignoring storage scheme for v2 implementation
         self.router_store
-            .find_payment_attempt_by_merchant_id_connector_txn_id(
+            .find_payment_attempt_by_profile_id_connector_transaction_id(
                 key_manager_state,
                 merchant_key_store,
-                merchant_id,
-                connector_txn_id,
+                profile_id,
+                connector_transaction_id,
                 storage_scheme,
             )
             .await

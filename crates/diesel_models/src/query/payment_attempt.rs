@@ -189,9 +189,9 @@ impl PaymentAttempt {
     }
 
     #[cfg(feature = "v2")]
-    pub async fn find_by_merchant_id_connector_txn_id(
+    pub async fn find_by_profile_id_connector_transaction_id(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
         connector_txn_id: &str,
     ) -> StorageResult<Self> {
         let (txn_id, txn_data) = common_utils::types::ConnectorTransactionId::form_id_and_data(
@@ -208,8 +208,8 @@ impl PaymentAttempt {
             })?;
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::merchant_id
-                .eq(merchant_id.to_owned())
+            dsl::profile_id
+                .eq(profile_id.to_owned())
                 .and(dsl::connector_payment_id.eq(connector_transaction_id.to_owned())),
         )
         .await

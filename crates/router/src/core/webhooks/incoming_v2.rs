@@ -392,7 +392,7 @@ async fn payments_incoming_webhook_flow(
             let payment_id = get_payment_id(
                 state.store.as_ref(),
                 &id,
-                merchant_account.get_id(),
+                profile.get_id(),
                 key_manager_state,
                 &key_store,
                 merchant_account.storage_scheme,
@@ -506,7 +506,7 @@ async fn payments_incoming_webhook_flow(
 async fn get_payment_id(
     db: &dyn StorageInterface,
     payment_id: &api::PaymentIdType,
-    merchant_id: &common_utils::id_type::MerchantId,
+    profile_id: &common_utils::id_type::ProfileId,
     key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
@@ -514,10 +514,10 @@ async fn get_payment_id(
     Ok(match payment_id {
         api_models::payments::PaymentIdType::PaymentIntentId(ref id) => id.to_owned(),
         api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => db
-            .find_payment_attempt_by_merchant_id_connector_txn_id(
+            .find_payment_attempt_by_profile_id_connector_transaction_id(
                 key_manager_state,
                 merchant_key_store,
-                merchant_id,
+                profile_id,
                 id,
                 storage_scheme,
             )

@@ -103,12 +103,12 @@ pub trait PaymentAttemptInterface {
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     #[cfg(feature = "v2")]
-    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        merchant_id: &id_type::MerchantId,
-        connector_txn_id: &str,
+        profile_id: &id_type::ProfileId,
+        connector_transaction_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError>;
 
@@ -1308,7 +1308,7 @@ pub enum PaymentAttemptUpdate {
         connector_payment_id: Option<String>,
         updated_by: String,
         redirection_data: Option<router_response_types::RedirectForm>,
-        connector_metadata: Option<serde_json::Value>,
+        connector_metadata: Option<pii::SecretSerdeValue>,
     },
     /// Update the payment attempt after force syncing with the connector
     SyncUpdate {

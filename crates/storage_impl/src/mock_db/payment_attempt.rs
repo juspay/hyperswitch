@@ -104,12 +104,12 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v2")]
-    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
         &self,
-        key_manager_state: &KeyManagerState,
-        merchant_key_store: &MerchantKeyStore,
-        merchant_id: &id_type::MerchantId,
-        connector_txn_id: &str,
+        _key_manager_state: &KeyManagerState,
+        _merchant_key_store: &MerchantKeyStore,
+        _profile_id: &id_type::ProfileId,
+        _connector_transaction_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`
