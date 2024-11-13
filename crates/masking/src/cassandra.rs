@@ -24,16 +24,16 @@ where
     }
 }
 
-impl<'metadata, 'frame, T> DeserializeValue<'frame, 'metadata> for StrongSecret<T>
+impl<'frame, T> DeserializeValue<'frame> for StrongSecret<T>
 where
-    T: DeserializeValue<'frame, 'metadata> + zeroize::Zeroize + Clone,
+    T: DeserializeValue<'frame> + zeroize::Zeroize + Clone,
 {
     fn type_check(_typ: &ColumnType) -> Result<(), scylla::deserialize::TypeCheckError> {
         Ok(())
     }
 
     fn deserialize(
-        typ: &'metadata ColumnType<'metadata>,
+        typ: &'frame ColumnType,
         v: Option<scylla::deserialize::FrameSlice<'frame>>,
     ) -> Result<Self, scylla::deserialize::DeserializationError> {
         Ok(Self::new(T::deserialize(typ, v)?))
