@@ -4,6 +4,45 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.13.0
+
+### Features
+
+- **connector:** [NOMUPAY] Add template code ([#6382](https://github.com/juspay/hyperswitch/pull/6382)) ([`20a3a1c`](https://github.com/juspay/hyperswitch/commit/20a3a1c2d6bb93fb4dae7f7eb669ebd85e631c96))
+- **events:** Add payment reject audit events ([#6465](https://github.com/juspay/hyperswitch/pull/6465)) ([`6b029ab`](https://github.com/juspay/hyperswitch/commit/6b029ab195670f526089a708e7aa807f58a5de7d))
+
+### Bug Fixes
+
+- Trustpay `eps` redirection in cypress ([#6529](https://github.com/juspay/hyperswitch/pull/6529)) ([`7f4f55b`](https://github.com/juspay/hyperswitch/commit/7f4f55b63af86cab11421f8ed2979a4ec90b8a44))
+
+### Refactors
+
+- **routing:** Remove payment_id from dynamic_routing metrics ([#6535](https://github.com/juspay/hyperswitch/pull/6535)) ([`c484beb`](https://github.com/juspay/hyperswitch/commit/c484beb039de4fa2df8d803ad000b4d352ce4c13))
+- Move Payout traits to hyperswitch_interfaces for connectors crate ([#6481](https://github.com/juspay/hyperswitch/pull/6481)) ([`6808272`](https://github.com/juspay/hyperswitch/commit/6808272de305c685b7cf948060f006d39cbac60b))
+
+### Documentation
+
+- **api-reference:** Remove redundant webhooks page ([#6538](https://github.com/juspay/hyperswitch/pull/6538)) ([`548d1b0`](https://github.com/juspay/hyperswitch/commit/548d1b0c0ed9ed21fefbe8bf1289540cb4a7cec1))
+- **openapi:** Fixed API documentation for V2 ([#6496](https://github.com/juspay/hyperswitch/pull/6496)) ([`7dfcd51`](https://github.com/juspay/hyperswitch/commit/7dfcd514cf7c04c92fefc58edfc518dc4eb49bcd))
+
+**Full Changelog:** [`2024.11.12.0...2024.11.13.0`](https://github.com/juspay/hyperswitch/compare/2024.11.12.0...2024.11.13.0)
+
+- - -
+
+## 2024.11.12.0
+
+### Features
+
+- **payment_v2:** Implement payments sync ([#6464](https://github.com/juspay/hyperswitch/pull/6464)) ([`42bdf47`](https://github.com/juspay/hyperswitch/commit/42bdf47fd295c523e26b91f7ed209239d5c4b1bb))
+
+### Refactors
+
+- Explicitly specify top redirections for secure payment and payout links ([#6494](https://github.com/juspay/hyperswitch/pull/6494)) ([`0a506b1`](https://github.com/juspay/hyperswitch/commit/0a506b1729a27e47543cf24f64fbad08479d8dec))
+
+**Full Changelog:** [`2024.11.11.0...2024.11.12.0`](https://github.com/juspay/hyperswitch/compare/2024.11.11.0...2024.11.12.0)
+
+- - -
+
 ## 2024.11.11.0
 
 ### Features

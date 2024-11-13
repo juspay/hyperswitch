@@ -726,7 +726,7 @@ pub struct NonThreeDSResponseData {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExtraParameters {
-    token: Option<Secret<String>>,
+    pub token: Option<Secret<String>>,
 }
 
 impl<F>

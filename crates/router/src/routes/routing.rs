@@ -84,8 +84,7 @@ pub async fn routing_create_config(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::RoutingWrite,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileRoutingWrite,
             },
             req.headers(),
         ),
@@ -255,8 +254,7 @@ pub async fn routing_retrieve_config(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::RoutingRead,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileRoutingRead,
             },
             req.headers(),
         ),

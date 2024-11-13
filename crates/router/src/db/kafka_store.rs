@@ -34,7 +34,6 @@ use scheduler::{
 use serde::Serialize;
 use storage_impl::{config::TenantConfig, redis::kv_store::RedisConnInterface};
 use time::PrimitiveDateTime;
-
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
@@ -80,17 +79,14 @@ use crate::{
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
 };
-
 #[derive(Debug, Clone, Serialize)]
 pub struct TenantID(pub String);
-
 #[derive(Clone)]
 pub struct KafkaStore {
     pub kafka_producer: KafkaProducer,
     pub diesel_store: Store,
     pub tenant_id: TenantID,
 }
-
 impl KafkaStore {
     pub async fn new(
         store: Store,
@@ -106,7 +102,6 @@ impl KafkaStore {
         }
     }
 }
-
 #[async_trait::async_trait]
 impl AddressInterface for KafkaStore {
     async fn find_address_by_address_id(
@@ -217,7 +212,6 @@ impl AddressInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl ApiKeyInterface for KafkaStore {
     async fn insert_api_key(
@@ -276,7 +270,6 @@ impl ApiKeyInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl CardsInfoInterface for KafkaStore {
     async fn get_card_info(
@@ -286,7 +279,6 @@ impl CardsInfoInterface for KafkaStore {
         self.diesel_store.get_card_info(card_iin).await
     }
 }
-
 #[async_trait::async_trait]
 impl ConfigInterface for KafkaStore {
     async fn insert_config(
@@ -347,7 +339,6 @@ impl ConfigInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl CustomerInterface for KafkaStore {
     #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -547,7 +538,6 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl DisputeInterface for KafkaStore {
     async fn insert_dispute(
@@ -643,7 +633,6 @@ impl DisputeInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl EphemeralKeyInterface for KafkaStore {
     async fn create_ephemeral_key(
@@ -666,7 +655,6 @@ impl EphemeralKeyInterface for KafkaStore {
         self.diesel_store.delete_ephemeral_key(id).await
     }
 }
-
 #[async_trait::async_trait]
 impl EventInterface for KafkaStore {
     async fn insert_event(
@@ -808,7 +796,6 @@ impl EventInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl LockerMockUpInterface for KafkaStore {
     async fn find_locker_by_card_id(
@@ -832,7 +819,6 @@ impl LockerMockUpInterface for KafkaStore {
         self.diesel_store.delete_locker_mock_up(card_id).await
     }
 }
-
 #[async_trait::async_trait]
 impl MandateInterface for KafkaStore {
     async fn find_mandate_by_merchant_id_mandate_id(
@@ -918,7 +904,6 @@ impl MandateInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl PaymentLinkInterface for KafkaStore {
     async fn find_payment_link_by_payment_link_id(
@@ -949,7 +934,6 @@ impl PaymentLinkInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl MerchantAccountInterface for KafkaStore {
     async fn insert_merchant(
@@ -1049,7 +1033,6 @@ impl MerchantAccountInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl ConnectorAccessToken for KafkaStore {
     async fn get_access_token(
@@ -1073,7 +1056,6 @@ impl ConnectorAccessToken for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl FileMetadataInterface for KafkaStore {
     async fn insert_file_metadata(
@@ -1113,7 +1095,6 @@ impl FileMetadataInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl MerchantConnectorAccountInterface for KafkaStore {
     async fn update_multiple_merchant_connector_accounts(
@@ -1287,7 +1268,6 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl QueueInterface for KafkaStore {
     async fn fetch_consumer_tasks(
@@ -1343,7 +1323,6 @@ impl QueueInterface for KafkaStore {
         self.diesel_store.get_key(key).await
     }
 }
-
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v1")]
@@ -1520,7 +1499,7 @@ impl PaymentAttemptInterface for KafkaStore {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        attempt_id: &str,
+        attempt_id: &id_type::GlobalAttemptId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<storage::PaymentAttempt, errors::DataStorageError> {
         self.diesel_store
@@ -1636,7 +1615,6 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl PaymentIntentInterface for KafkaStore {
     async fn update_payment_intent(
@@ -1820,7 +1798,6 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl PaymentMethodInterface for KafkaStore {
     #[cfg(all(
@@ -2022,10 +1999,8 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 }
-
 #[cfg(not(feature = "payouts"))]
 impl PayoutAttemptInterface for KafkaStore {}
-
 #[cfg(feature = "payouts")]
 #[async_trait::async_trait]
 impl PayoutAttemptInterface for KafkaStore {
@@ -2124,10 +2099,8 @@ impl PayoutAttemptInterface for KafkaStore {
             .await
     }
 }
-
 #[cfg(not(feature = "payouts"))]
 impl PayoutsInterface for KafkaStore {}
-
 #[cfg(feature = "payouts")]
 #[async_trait::async_trait]
 impl PayoutsInterface for KafkaStore {
@@ -2265,7 +2238,6 @@ impl PayoutsInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl ProcessTrackerInterface for KafkaStore {
     async fn reinitialize_limbo_processes(
@@ -2348,7 +2320,6 @@ impl ProcessTrackerInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl CaptureInterface for KafkaStore {
     async fn insert_capture(
@@ -2389,7 +2360,6 @@ impl CaptureInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl RefundInterface for KafkaStore {
     async fn find_refund_by_internal_reference_id_merchant_id(
@@ -2556,7 +2526,6 @@ impl RefundInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl MerchantKeyStoreInterface for KafkaStore {
     async fn insert_merchant_key_store(
@@ -2613,7 +2582,6 @@ impl MerchantKeyStoreInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl ProfileInterface for KafkaStore {
     async fn insert_business_profile(
@@ -2710,7 +2678,6 @@ impl ProfileInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl ReverseLookupInterface for KafkaStore {
     async fn insert_reverse_lookup(
@@ -2733,7 +2700,6 @@ impl ReverseLookupInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl RoutingAlgorithmInterface for KafkaStore {
     async fn insert_routing_algorithm(
@@ -2814,7 +2780,6 @@ impl RoutingAlgorithmInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl GsmInterface for KafkaStore {
     async fn add_gsm_rule(
@@ -2877,7 +2842,6 @@ impl GsmInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl UnifiedTranslationsInterface for KafkaStore {
     async fn add_unfied_translation(
@@ -2921,7 +2885,6 @@ impl UnifiedTranslationsInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl StorageInterface for KafkaStore {
     fn get_scheduler_db(&self) -> Box<dyn SchedulerInterface> {
@@ -2932,9 +2895,7 @@ impl StorageInterface for KafkaStore {
         Box::new(self.clone())
     }
 }
-
 impl GlobalStorageInterface for KafkaStore {}
-
 impl CommonStorageInterface for KafkaStore {
     fn get_storage_interface(&self) -> Box<dyn StorageInterface> {
         Box::new(self.clone())
@@ -2943,10 +2904,8 @@ impl CommonStorageInterface for KafkaStore {
         Box::new(self.clone())
     }
 }
-
 #[async_trait::async_trait]
 impl SchedulerInterface for KafkaStore {}
-
 impl MasterKeyInterface for KafkaStore {
     fn get_master_key(&self) -> &[u8] {
         self.diesel_store.get_master_key()
@@ -3009,13 +2968,11 @@ impl UserInterface for KafkaStore {
         self.diesel_store.find_users_by_user_ids(user_ids).await
     }
 }
-
 impl RedisConnInterface for KafkaStore {
     fn get_redis_conn(&self) -> CustomResult<Arc<RedisConnectionPool>, RedisError> {
         self.diesel_store.get_redis_conn()
     }
 }
-
 #[async_trait::async_trait]
 impl UserRoleInterface for KafkaStore {
     async fn insert_user_role(
@@ -3098,7 +3055,6 @@ impl UserRoleInterface for KafkaStore {
         self.diesel_store.list_user_roles_by_org_id(payload).await
     }
 }
-
 #[async_trait::async_trait]
 impl DashboardMetadataInterface for KafkaStore {
     async fn insert_metadata(
@@ -3175,7 +3131,6 @@ impl DashboardMetadataInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl BatchSampleDataInterface for KafkaStore {
     #[cfg(feature = "v1")]
@@ -3353,7 +3308,6 @@ impl BatchSampleDataInterface for KafkaStore {
         Ok(disputes_list)
     }
 }
-
 #[async_trait::async_trait]
 impl AuthorizationInterface for KafkaStore {
     async fn insert_authorization(
@@ -3388,7 +3342,6 @@ impl AuthorizationInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl AuthenticationInterface for KafkaStore {
     async fn insert_authentication(
@@ -3458,14 +3411,12 @@ impl AuthenticationInterface for KafkaStore {
         Ok(auth)
     }
 }
-
 #[async_trait::async_trait]
 impl HealthCheckDbInterface for KafkaStore {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError> {
         self.diesel_store.health_check_db().await
     }
 }
-
 #[async_trait::async_trait]
 impl RoleInterface for KafkaStore {
     async fn insert_role(
@@ -3540,7 +3491,6 @@ impl RoleInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl GenericLinkInterface for KafkaStore {
     async fn find_generic_link_by_link_id(
@@ -3601,7 +3551,6 @@ impl GenericLinkInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl UserKeyStoreInterface for KafkaStore {
     async fn insert_user_key_store(
@@ -3638,7 +3587,6 @@ impl UserKeyStoreInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl UserAuthenticationMethodInterface for KafkaStore {
     async fn insert_user_authentication_method(
@@ -3687,7 +3635,6 @@ impl UserAuthenticationMethodInterface for KafkaStore {
             .await
     }
 }
-
 #[async_trait::async_trait]
 impl ThemeInterface for KafkaStore {
     async fn insert_theme(
@@ -3714,3 +3661,53 @@ impl ThemeInterface for KafkaStore {
             .await
     }
 }
+#[cfg(feature = "payouts")]
+#[cfg(not(feature = "payouts"))]
+#[cfg(feature = "payouts")]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[cfg(not(feature = "payouts"))]
+#[cfg(feature = "payouts")]
+#[async_trait::async_trait]
+#[cfg(not(feature = "payouts"))]
+#[cfg(feature = "payouts")]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
+#[async_trait::async_trait]
