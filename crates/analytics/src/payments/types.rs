@@ -104,6 +104,9 @@ where
                 .add_filter_in_range_clause(PaymentDimensions::ErrorReason, &self.error_reason)
                 .attach_printable("Error adding error reason filter")?;
         }
+        builder
+            .add_filter_in_range_clause(PaymentDimensions::PaymentStatus, &["Charged"])
+            .attach_printable("Error adding payment status filter")?;
         Ok(())
     }
 }
