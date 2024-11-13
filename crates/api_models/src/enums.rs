@@ -226,6 +226,8 @@ pub enum FieldType {
     UserIban,
     BrowserLanguage,
     BrowserIp,
+    UserSocialSecurityNumber,
+    UserSortCode,
 }
 
 impl FieldType {
