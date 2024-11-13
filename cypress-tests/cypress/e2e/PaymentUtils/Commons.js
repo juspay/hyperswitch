@@ -1229,6 +1229,79 @@ export const connectorDetails = {
         },
       },
     },
+    IncorrectCardType: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "off_session",
+        confirm: true,
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2034",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          payment_method_type: "credit",
+        },
+      },
+    },
+    EmptyCardType: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        setup_future_usage: "off_session",
+        confirm: true,
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2034",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          payment_method_type: "credit",
+        },
+      },
+    },
     InvalidAmountToCapture: {
       Request: {
         currency: "USD",
