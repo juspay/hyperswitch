@@ -185,6 +185,7 @@ pub struct UserFromSinglePurposeToken {
     pub user_id: String,
     pub origin: domain::Origin,
     pub path: Vec<TokenPurpose>,
+    pub tenant_id: Option<String>,
 }
 
 #[cfg(feature = "olap")]
@@ -195,6 +196,7 @@ pub struct SinglePurposeToken {
     pub origin: domain::Origin,
     pub path: Vec<TokenPurpose>,
     pub exp: u64,
+    pub tenant_id: Option<String>,
 }
 
 #[cfg(feature = "olap")]
@@ -205,6 +207,7 @@ impl SinglePurposeToken {
         origin: domain::Origin,
         settings: &Settings,
         path: Vec<TokenPurpose>,
+        tenant_id: Option<String>,
     ) -> UserResult<String> {
         let exp_duration =
             std::time::Duration::from_secs(consts::SINGLE_PURPOSE_TOKEN_TIME_IN_SECS);
@@ -215,6 +218,7 @@ impl SinglePurposeToken {
             origin,
             exp,
             path,
+            tenant_id,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
@@ -228,6 +232,7 @@ pub struct AuthToken {
     pub exp: u64,
     pub org_id: id_type::OrganizationId,
     pub profile_id: Option<id_type::ProfileId>,
+    pub tenant_id: Option<String>,
 }
 
 #[cfg(feature = "olap")]
@@ -239,6 +244,7 @@ impl AuthToken {
         settings: &Settings,
         org_id: id_type::OrganizationId,
         profile_id: Option<id_type::ProfileId>,
+        tenant_id: Option<String>,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
@@ -249,6 +255,7 @@ impl AuthToken {
             exp,
             org_id,
             profile_id,
+            tenant_id,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
@@ -261,6 +268,7 @@ pub struct UserFromToken {
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
     pub profile_id: Option<id_type::ProfileId>,
+    pub tenant_id: Option<String>,
 }
 
 pub struct UserIdFromAuth {
@@ -274,6 +282,7 @@ pub struct SinglePurposeOrLoginToken {
     pub role_id: Option<String>,
     pub purpose: Option<TokenPurpose>,
     pub exp: u64,
+    pub tenant_id: Option<String>,
 }
 
 pub trait AuthInfo {
@@ -749,6 +758,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         if self.0 != payload.purpose {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
@@ -759,6 +772,7 @@ where
                 user_id: payload.user_id.clone(),
                 origin: payload.origin.clone(),
                 path: payload.path,
+                tenant_id: payload.tenant_id,
             },
             AuthenticationType::SinglePurposeJwt {
                 user_id: payload.user_id,
@@ -783,6 +797,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         if self.0 != payload.purpose {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
@@ -793,6 +811,7 @@ where
                 user_id: payload.user_id.clone(),
                 origin: payload.origin.clone(),
                 path: payload.path,
+                tenant_id: payload.tenant_id,
             }),
             AuthenticationType::SinglePurposeJwt {
                 user_id: payload.user_id,
@@ -822,6 +841,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let is_purpose_equal = payload
             .purpose
@@ -1602,6 +1625,11 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
 
@@ -1630,6 +1658,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
@@ -1641,6 +1673,7 @@ where
                 org_id: payload.org_id,
                 role_id: payload.role_id,
                 profile_id: payload.profile_id,
+                tenant_id: payload.tenant_id,
             },
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
@@ -1665,6 +1698,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
@@ -1724,6 +1761,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
@@ -1765,6 +1806,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
@@ -1801,6 +1846,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
 
@@ -2012,6 +2061,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
@@ -2045,6 +2098,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         if payload.merchant_id != self.merchant_id {
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
@@ -2246,6 +2303,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         if payload.merchant_id != self.merchant_id {
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
@@ -2321,6 +2382,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
@@ -2487,6 +2552,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
@@ -2544,6 +2613,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let profile_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
@@ -2616,6 +2689,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
@@ -2675,6 +2752,11 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
         Ok((
             UserFromToken {
                 user_id: payload.user_id.clone(),
@@ -2682,6 +2764,7 @@ where
                 org_id: payload.org_id,
                 role_id: payload.role_id,
                 profile_id: payload.profile_id,
+                tenant_id: payload.tenant_id,
             },
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
@@ -2706,6 +2789,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         Ok(((), AuthenticationType::NoAuth))
     }
@@ -2723,6 +2810,11 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -3091,6 +3183,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
 

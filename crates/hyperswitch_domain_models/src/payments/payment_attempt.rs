@@ -817,6 +817,10 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<String>,
         updated_by: String,
     },
+    ConnectorMandateDetailUpdate {
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        updated_by: String,
+    },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
@@ -1002,6 +1006,13 @@ impl PaymentAttemptUpdate {
                 status,
                 error_code,
                 error_message,
+                updated_by,
+            },
+            Self::ConnectorMandateDetailUpdate {
+                connector_mandate_detail,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::ConnectorMandateDetailUpdate {
+                connector_mandate_detail,
                 updated_by,
             },
             Self::PaymentMethodDetailsUpdate {
