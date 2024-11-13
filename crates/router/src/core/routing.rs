@@ -919,17 +919,21 @@ pub async fn retrieve_default_routing_config(
     let db = state.store.as_ref();
     if let Some(profile_id) = profile_id {
         helpers::get_merchant_default_config(db, profile_id.get_string_repr(), transaction_type)
-        .await
-        .map(|conn_choice| {
-            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
-                &metrics::CONTEXT,
-                1,
-                &[],
-            );
-            service_api::ApplicationResponse::Json(conn_choice)
-        })
+            .await
+            .map(|conn_choice| {
+                metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[],
+                );
+                service_api::ApplicationResponse::Json(conn_choice)
+            })
     } else {
-        helpers::get_merchant_default_config(db, merchant_account.get_id().get_string_repr(), transaction_type)
+        helpers::get_merchant_default_config(
+            db,
+            merchant_account.get_id().get_string_repr(),
+            transaction_type,
+        )
         .await
         .map(|conn_choice| {
             metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
