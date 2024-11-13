@@ -1324,46 +1324,68 @@ pub async fn vault_payment_method(
     feature = "customer_v2"
 ))]
 async fn get_pm_list_context(
-    state: &SessionState,
-    payment_method: &enums::PaymentMethod,
-    _key_store: &domain::MerchantKeyStore,
-    pm: &domain::PaymentMethod,
-    _parent_payment_method_token: Option<String>,
+    payment_method_type: enums::PaymentMethod,
+    payment_method: &domain::PaymentMethod,
     is_payment_associated: bool,
 ) -> Result<Option<PaymentMethodListContext>, error_stack::Report<errors::ApiErrorResponse>> {
-    let payment_method_retrieval_context = match payment_method {
-        enums::PaymentMethod::Card => {
-            let card_details = cards::get_card_details_with_locker_fallback(pm, state).await?;
+    let payment_method_data = payment_method
+        .payment_method_data
+        .clone()
+        .map(|payment_method_data| payment_method_data.into_inner().expose().into_inner());
 
-            card_details.as_ref().map(|card| PaymentMethodListContext {
-                card_details: Some(card.clone()),
+    let payment_method_retrieval_context = match payment_method_data {
+        Some(payment_methods::PaymentMethodsData::Card(card)) => {
+            let card_details = api::CardDetailFromLocker::from(card);
+
+            Some(PaymentMethodListContext {
+                card_details: Some(card_details.clone()),
                 #[cfg(feature = "payouts")]
                 bank_transfer_details: None,
                 hyperswitch_token_data: is_payment_associated.then_some(
                     storage::PaymentTokenData::permanent_card(
-                        Some(pm.get_id().clone()),
-                        pm.locker_id
+                        Some(payment_method.get_id().clone()),
+                        payment_method
+                            .locker_id
                             .as_ref()
-                            .map(|id| id.get_string_repr().clone())
-                            .or(Some(pm.get_id().get_string_repr().to_owned())),
-                        pm.locker_id
+                            .map(|id| id.get_string_repr().to_owned())
+                            .or_else(|| Some(payment_method.get_id().get_string_repr().to_owned())),
+                        payment_method
+                            .locker_id
                             .as_ref()
-                            .map(|id| id.get_string_repr().clone())
-                            .unwrap_or(pm.get_id().get_string_repr().to_owned()),
+                            .map(|id| id.get_string_repr().to_owned())
+                            .unwrap_or_else(|| {
+                                payment_method.get_id().get_string_repr().to_owned()
+                            }),
                     ),
                 ),
             })
         }
+        Some(payment_methods::PaymentMethodsData::BankDetails(bank_details)) => {
+            let get_bank_account_token_data =
+                || -> errors::CustomResult<payment_methods::BankAccountTokenData, errors::ApiErrorResponse> {
+                    let connector_details = bank_details
+                        .connector_details
+                        .first()
+                        .cloned()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to obtain bank account connector details")?;
 
-        enums::PaymentMethod::BankDebit => {
+                    let payment_method_subtype = payment_method
+                        .get_payment_method_subtype()
+                        .get_required_value("payment_method_subtype")
+                        .attach_printable("PaymentMethodType not found")?;
+
+                    Ok(payment_methods::BankAccountTokenData {
+                        payment_method_type: payment_method_subtype,
+                        payment_method: payment_method_type,
+                        connector_details,
+                    })
+                };
+
             // Retrieve the pm_auth connector details so that it can be tokenized
-            let bank_account_token_data = cards::get_bank_account_connector_details(pm)
-                .await
-                .unwrap_or_else(|err| {
-                    logger::error!(error=?err);
-                    None
-                });
-
+            let bank_account_token_data = get_bank_account_token_data()
+                .inspect_err(|error| logger::error!(?error))
+                .ok();
             bank_account_token_data.map(|data| {
                 let token_data = storage::PaymentTokenData::AuthBankDebit(data);
 
@@ -1375,8 +1397,7 @@ async fn get_pm_list_context(
                 }
             })
         }
-
-        _ => Some(PaymentMethodListContext {
+        None => Some(PaymentMethodListContext {
             card_details: None,
             #[cfg(feature = "payouts")]
             bank_transfer_details: None,
@@ -1509,25 +1530,23 @@ pub async fn list_customer_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let mut filtered_saved_payment_methods_ctx = Vec::new();
-    for pm in saved_payment_methods.into_iter() {
-        let payment_method = pm
+    for payment_method in saved_payment_methods.into_iter() {
+        let payment_method_type = payment_method
             .get_payment_method_type()
             .get_required_value("payment_method")?;
         let parent_payment_method_token =
             is_payment_associated.then(|| generate_id(consts::ID_LENGTH, "token"));
 
-        let pm_list_context = get_pm_list_context(
-            state,
-            &payment_method,
-            &key_store,
-            &pm,
-            parent_payment_method_token.clone(),
-            is_payment_associated,
-        )
-        .await?;
+        let pm_list_context =
+            get_pm_list_context(payment_method_type, &payment_method, is_payment_associated)
+                .await?;
 
         if let Some(ctx) = pm_list_context {
-            filtered_saved_payment_methods_ctx.push((ctx, parent_payment_method_token, pm));
+            filtered_saved_payment_methods_ctx.push((
+                ctx,
+                parent_payment_method_token,
+                payment_method,
+            ));
         }
     }
 
