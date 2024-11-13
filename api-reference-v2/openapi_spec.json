@@ -6826,6 +6826,7 @@
           "customer_id",
           "payment_method_type",
           "recurring_enabled",
+          "created",
           "requires_cvv",
           "is_default"
         ],
@@ -6883,9 +6884,8 @@
           "created": {
             "type": "string",
             "format": "date-time",
-            "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
-            "example": "2023-01-18T11:04:09.922Z",
-            "nullable": true
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was created",
+            "example": "2023-01-18T11:04:09.922Z"
           },
           "surcharge_details": {
             "allOf": [
@@ -13059,7 +13059,7 @@
           "created": {
             "type": "string",
             "format": "date-time",
-            "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was created",
             "example": "2023-01-18T11:04:09.922Z",
             "nullable": true
           },

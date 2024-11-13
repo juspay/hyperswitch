@@ -1680,7 +1680,7 @@ async fn generate_saved_pm_response(
         payment_method_subtype: pm.get_payment_method_subtype(),
         payment_method_data: pmd,
         recurring_enabled: mca_enabled,
-        created: Some(pm.created_at),
+        created: pm.created_at,
         bank: bank_details,
         surcharge_details: None,
         requires_cvv: requires_cvv
