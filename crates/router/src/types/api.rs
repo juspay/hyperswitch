@@ -485,7 +485,9 @@ impl ConnectorData {
                 enums::Connector::Shift4 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Shift4::new())))
                 }
-                enums::Connector::Square => Ok(ConnectorEnum::Old(Box::new(&connector::Square))),
+                enums::Connector::Square => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Square::new())))
+                },
                 enums::Connector::Stax => Ok(ConnectorEnum::Old(Box::new(&connector::Stax))),
                 enums::Connector::Stripe => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Stripe::new())))

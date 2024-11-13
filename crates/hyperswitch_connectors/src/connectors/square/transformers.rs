@@ -1,5 +1,6 @@
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::enums;
+use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, Card, PayLaterData, PaymentMethodData, WalletData},
@@ -19,6 +20,22 @@ use crate::{
     utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData as _},
 };
 
+#[derive(Debug, Serialize)]
+pub struct SquareRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T, 
+}
+
+impl<T> TryFrom<(MinorUnit, T)> for SquareRouterData<T> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -36,11 +53,11 @@ impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenReq
     }
 }
 
-impl TryFrom<(&types::TokenizationRouterData, Card)> for SquareTokenRequest {
+impl TryFrom<(&SquareRouterData<&types::TokenizationRouterData>, Card)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: (&types::TokenizationRouterData, Card)) -> Result<Self, Self::Error> {
+    fn try_from(value: (&SquareRouterData<&types::TokenizationRouterData>, Card)) -> Result<Self, Self::Error> {
         let (item, card_data) = value;
-        let auth = SquareAuthType::try_from(&item.connector_auth_type)
+        let auth = SquareAuthType::try_from(&item.router_data.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let exp_year = Secret::new(
             card_data
@@ -58,7 +75,7 @@ impl TryFrom<(&types::TokenizationRouterData, Card)> for SquareTokenRequest {
         );
         //The below error will never happen because if session-id is not generated it would give error in execute_pretasks itself.
         let session_id = Secret::new(
-            item.session_token
+            item.router_data.session_token
                 .clone()
                 .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
         );
@@ -162,7 +179,13 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
             PaymentMethodData::BankDebit(bank_debit_data) => {
                 Self::try_from((item, bank_debit_data))
             }
-            PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
+            PaymentMethodData::Card(card_data) => {
+                let router_data = SquareRouterData {
+                    amount: MinorUnit::default(),
+                    router_data: item,
+                };
+                Self::try_from((&router_data, card_data))
+            },
             PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, wallet_data)),
             PaymentMethodData::PayLater(pay_later_data) => Self::try_from((item, pay_later_data)),
             PaymentMethodData::GiftCard(_)
@@ -234,7 +257,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquareTokenResponse, T, PaymentsRespons
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SquarePaymentsAmountData {
-    amount: i64,
+    amount: MinorUnit,
     currency: enums::Currency,
 }
 #[derive(Debug, Serialize)]
@@ -253,15 +276,15 @@ pub struct SquarePaymentsRequest {
     external_details: SquarePaymentsRequestExternalDetails,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
+impl TryFrom<&SquareRouterData<&types::PaymentsAuthorizeRouterData>> for SquarePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let autocomplete = item.request.is_auto_capture()?;
-        match item.request.payment_method_data.clone() {
+    fn try_from(item: &SquareRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+        let autocomplete = item.router_data.request.is_auto_capture()?;
+        match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => {
-                let pm_token = item.get_payment_method_token()?;
+                let pm_token = item.router_data.get_payment_method_token()?;
                 Ok(Self {
-                    idempotency_key: Secret::new(item.attempt_id.clone()),
+                    idempotency_key: Secret::new(item.router_data.attempt_id.clone()),
                     source_id: match pm_token {
                         PaymentMethodToken::Token(token) => token,
                         PaymentMethodToken::ApplePayDecrypt(_) => Err(
@@ -272,8 +295,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                         }
                     },
                     amount_money: SquarePaymentsAmountData {
-                        amount: item.request.amount,
-                        currency: item.request.currency,
+                        amount: item.amount,
+                        currency: item.router_data.request.currency,
                     },
                     autocomplete,
                     external_details: SquarePaymentsRequestExternalDetails {
@@ -375,11 +398,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResp
     fn try_from(
         item: ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        //Since this try_from is being used in Authorize, Sync, Capture & Void flow. Field amount_captured should only be updated in case of Charged status.
         let status = enums::AttemptStatus::from(item.response.payment.status);
         let mut amount_captured = None;
         if status == enums::AttemptStatus::Charged {
-            amount_captured = Some(item.response.payment.amount_money.amount)
+            amount_captured = Some(item.response.payment.amount_money.amount);
         };
         Ok(Self {
             status,
@@ -393,7 +415,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResp
                 incremental_authorization_allowed: None,
                 charge_id: None,
             }),
-            amount_captured,
+            minor_amount_captured: amount_captured.map(|amount| amount.into()),
             ..item.data
         })
     }
@@ -408,16 +430,16 @@ pub struct SquareRefundRequest {
     payment_id: Secret<String>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
+impl<F> TryFrom<&SquareRouterData<&types::RefundsRouterData<F>>> for SquareRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &SquareRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_money: SquarePaymentsAmountData {
-                amount: item.request.refund_amount,
-                currency: item.request.currency,
+                amount: item.amount,
+                currency: item.router_data.request.currency,
             },
-            idempotency_key: Secret::new(item.request.refund_id.clone()),
-            payment_id: Secret::new(item.request.connector_transaction_id.clone()),
+            idempotency_key: Secret::new(item.router_data.request.refund_id.clone()),
+            payment_id: Secret::new(item.router_data.request.connector_transaction_id.clone()),
         })
     }
 }
