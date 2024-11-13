@@ -912,15 +912,13 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
 pub async fn retrieve_default_routing_config(
     state: SessionState,
     profile_id: Option<common_utils::id_type::ProfileId>,
+    merchant_account: domain::MerchantAccount,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
-    let profile_id = profile_id.ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "profile_id not found".to_string(),
-    })?;
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
-
-    helpers::get_merchant_default_config(db, profile_id.get_string_repr(), transaction_type)
+    if let Some(profile_id) = profile_id {
+        helpers::get_merchant_default_config(db, profile_id.get_string_repr(), transaction_type)
         .await
         .map(|conn_choice| {
             metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
@@ -930,6 +928,18 @@ pub async fn retrieve_default_routing_config(
             );
             service_api::ApplicationResponse::Json(conn_choice)
         })
+    } else {
+        helpers::get_merchant_default_config(db, merchant_account.get_id().get_string_repr(), transaction_type)
+        .await
+        .map(|conn_choice| {
+            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
+                &metrics::CONTEXT,
+                1,
+                &[],
+            );
+            service_api::ApplicationResponse::Json(conn_choice)
+        })
+    }
 }
 
 #[cfg(feature = "v2")]
