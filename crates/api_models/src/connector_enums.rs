@@ -94,6 +94,7 @@ pub enum Connector {
     Nexinets,
     Nexixpay,
     Nmi,
+    // Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -231,6 +232,7 @@ impl Connector {
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
+            // | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
