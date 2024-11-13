@@ -113,7 +113,7 @@ pub fn mk_app(
 > {
     let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
 
-    #[cfg(feature = "dummy_connector")]
+    #[cfg(all(feature = "dummy_connector", feature = "v1"))]
     {
         use routes::DummyConnector;
         server_app = server_app.service(DummyConnector::server(state.clone()));
