@@ -198,89 +198,7 @@ pub async fn payment_method_delete_api() {}
 )]
 pub async fn default_payment_method_set_api() {}
 
-/// List payment methods for a Customer v2
-///
-/// To filter and list the applicable payment methods for a particular Customer ID, is to be associated with a payment
-#[utoipa::path(
-    get,
-    path = "/v2/payments/{id}/saved-payment-methods",
-    request_body(
-    content = PaymentMethodListRequest,
-    // TODO: Add examples and add param for customer_id
-    ),
-    // params (
-    //     ("client-secret" = String, Path, description = "A secret known only to your application and the authorization server"),
-    //     ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
-    //     ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
-    //     ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
-    //     ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
-    //     ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
-    //     ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
-    // ),
-    responses(
-        (status = 200, description = "Payment Methods retrieved for customer tied to its respective client-secret passed in the param", body = CustomerPaymentMethodsListResponse),
-        (status = 400, description = "Invalid Data"),
-        (status = 404, description = "Payment Methods does not exist in records")
-    ),
-    tag = "Payment Methods",
-    operation_id = "List all Payment Methods for a Customer",
-    security(("publishable_key" = []))
-)]
-#[cfg(feature = "v2")]
-pub async fn list_customer_payment_method_for_payment() {}
-
-/// List payment methods for a Customer v2
-///
-/// To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context
-#[utoipa::path(
-    get,
-    path = "/v2/customers/{id}/saved-payment-methods",
-    request_body(
-    content = PaymentMethodListRequest,
-    // TODO: Add examples and add param for customer_id
-    ),
-    // params (
-    //     ("accepted_country" = Vec<String>, Query, description = "The two-letter ISO currency code"),
-    //     ("accepted_currency" = Vec<Currency>, Path, description = "The three-letter ISO currency code"),
-    //     ("minimum_amount" = i64, Query, description = "The minimum amount accepted for processing by the particular payment method."),
-    //     ("maximum_amount" = i64, Query, description = "The maximum amount amount accepted for processing by the particular payment method."),
-    //     ("recurring_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
-    //     ("installment_payment_enabled" = bool, Query, description = "Indicates whether the payment method is eligible for installment payments"),
-    // ),
-    responses(
-        (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
-        (status = 400, description = "Invalid Data"),
-        (status = 404, description = "Payment Methods does not exist in records")
-    ),
-    tag = "Payment Methods",
-    operation_id = "List all Payment Methods for a Customer",
-    security(("api_key" = []))
-)]
-#[cfg(feature = "v2")]
-pub async fn list_customer_payment_method_api() {}
-
-/// Create payment method v2
-///
-/// TODO: Description Here
-#[utoipa::path(
-    post,
-    path = "/v2/payment-methods",
-    request_body(
-    content = PaymentMethodCreate,
-    // TODO: Add examples
-    ),
-    responses(
-        (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
-        (status = 400, description = "Invalid Data"),
-    ),
-    tag = "Payment Methods",
-    operation_id = "Create Payment Method",
-    security(("api_key" = []))
-)]
-#[cfg(feature = "v2")]
-pub async fn create_payment_method_api() {}
-
-/// Create payment method intent v2
+/// Payment Method - Create Intent
 ///
 /// TODO: Description Here
 #[utoipa::path(
@@ -301,7 +219,7 @@ pub async fn create_payment_method_api() {}
 #[cfg(feature = "v2")]
 pub async fn create_payment_method_intent_api() {}
 
-/// Confirm payment method intent v2
+/// Payment Method - Confirm Intent
 ///
 /// TODO: Description Here
 #[utoipa::path(
@@ -322,9 +240,50 @@ pub async fn create_payment_method_intent_api() {}
 #[cfg(feature = "v2")]
 pub async fn confirm_payment_method_intent_api() {}
 
-/// Update payment method v2
+/// Payment Method - Create
 ///
-/// TODO: Description Here
+/// Creates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants.
+#[utoipa::path(
+    post,
+    path = "/v2/payment-methods",
+    request_body(
+    content = PaymentMethodCreate,
+    // TODO: Add examples
+    ),
+    responses(
+        (status = 200, description = "Payment Method Created", body = PaymentMethodResponse),
+        (status = 400, description = "Invalid Data"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Create Payment Method",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn create_payment_method_api() {}
+
+/// Payment Method - Retrieve
+///
+/// Retrieves a payment method of a customer.
+#[utoipa::path(
+    get,
+    path = "/v2/payment-methods/{id}",
+    params (
+        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
+    ),
+    responses(
+        (status = 200, description = "Payment Method Retrieved", body = PaymentMethodResponse),
+        (status = 404, description = "Payment Method Not Found"),
+    ),
+    tag = "Payment Methods",
+    operation_id = "Retrieve Payment Method",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn payment_method_retrieve_api() {}
+
+/// Payment Method - Update
+///
+/// Update an existing payment method of a customer. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments.
 #[utoipa::path(
     patch,
     path = "/v2/payment-methods/{id}/update-saved-payment-method",
@@ -343,29 +302,9 @@ pub async fn confirm_payment_method_intent_api() {}
 #[cfg(feature = "v2")]
 pub async fn payment_method_update_api() {}
 
-/// Retrieve payment method v2
+/// Payment Method - Delete
 ///
-/// TODO: Description Here
-#[utoipa::path(
-    get,
-    path = "/v2/payment-methods/{id}",
-    params (
-        ("id" = String, Path, description = "The unique identifier for the Payment Method"),
-    ),
-    responses(
-        (status = 200, description = "Payment Method Retrieved", body = PaymentMethodResponse),
-        (status = 404, description = "Payment Method Not Found"),
-    ),
-    tag = "Payment Methods",
-    operation_id = "Retrieve Payment Method",
-    security(("api_key" = []))
-)]
-#[cfg(feature = "v2")]
-pub async fn payment_method_retrieve_api() {}
-
-/// Delete payment method v2
-///
-/// TODO: Description Here
+/// Deletes a payment method of a customer.
 #[utoipa::path(
     delete,
     path = "/v2/payment-methods/{id}",
@@ -382,3 +321,47 @@ pub async fn payment_method_retrieve_api() {}
 )]
 #[cfg(feature = "v2")]
 pub async fn payment_method_delete_api() {}
+
+/// List customer saved payment methods for a payment
+///
+/// To filter and list the applicable payment methods for a particular Customer ID, is to be associated with a payment
+#[utoipa::path(
+    get,
+    path = "/v2/payments/{id}/saved-payment-methods",
+    request_body(
+    content = PaymentMethodListRequest,
+    // TODO: Add examples and add param for customer_id
+    ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved for customer tied to its respective client-secret passed in the param", body = CustomerPaymentMethodsListResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    ),
+    tag = "Payment Methods",
+    operation_id = "List all Payment Methods for a Customer",
+    security(("publishable_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn list_customer_payment_method_for_payment() {}
+
+/// List saved payment methods for a Customer
+///
+/// To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context
+#[utoipa::path(
+    get,
+    path = "/v2/customers/{id}/saved-payment-methods",
+    request_body(
+    content = PaymentMethodListRequest,
+    // TODO: Add examples and add param for customer_id
+    ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved", body = CustomerPaymentMethodsListResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    ),
+    tag = "Payment Methods",
+    operation_id = "List all Payment Methods for a Customer",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub async fn list_customer_payment_method_api() {}

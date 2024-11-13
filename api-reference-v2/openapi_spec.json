@@ -2022,7 +2022,7 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "List payment methods for a Customer v2",
+        "summary": "List customer saved payment methods for a payment",
         "description": "To filter and list the applicable payment methods for a particular Customer ID, is to be associated with a payment",
         "operationId": "List all Payment Methods for a Customer",
         "requestBody": {
@@ -2065,7 +2065,7 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "List payment methods for a Customer v2",
+        "summary": "List saved payment methods for a Customer",
         "description": "To filter and list the applicable payment methods for a particular Customer ID, to be used in a non-payments context",
         "operationId": "List all Payment Methods for a Customer",
         "requestBody": {
@@ -2108,8 +2108,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "Create payment method v2",
-        "description": "TODO: Description Here",
+        "summary": "Payment Method - Create",
+        "description": "Creates and stores a payment method against a customer. In case of cards, this API should be used only by PCI compliant merchants.",
         "operationId": "Create Payment Method",
         "requestBody": {
           "content": {
@@ -2148,7 +2148,7 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "Create payment method intent v2",
+        "summary": "Payment Method - Create Intent",
         "description": "TODO: Description Here",
         "operationId": "Create Payment Method Intent",
         "requestBody": {
@@ -2188,7 +2188,7 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "Confirm payment method intent v2",
+        "summary": "Payment Method - Confirm Intent",
         "description": "TODO: Description Here",
         "operationId": "Confirm Payment Method Intent",
         "requestBody": {
@@ -2228,8 +2228,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "Update payment method v2",
-        "description": "TODO: Description Here",
+        "summary": "Payment Method - Update",
+        "description": "Update an existing payment method of a customer. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments.",
         "operationId": "Update Payment Method",
         "requestBody": {
           "content": {
@@ -2268,8 +2268,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "Retrieve payment method v2",
-        "description": "TODO: Description Here",
+        "summary": "Payment Method - Retrieve",
+        "description": "Retrieves a payment method of a customer.",
         "operationId": "Retrieve Payment Method",
         "parameters": [
           {
@@ -2307,8 +2307,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "Delete payment method v2",
-        "description": "TODO: Description Here",
+        "summary": "Payment Method - Delete",
+        "description": "Deletes a payment method of a customer.",
         "operationId": "Delete Payment Method",
         "parameters": [
           {
