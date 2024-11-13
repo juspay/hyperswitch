@@ -92,6 +92,7 @@ pub async fn generate_jwt_auth_token_with_attributes(
     org_id: id_type::OrganizationId,
     role_id: String,
     profile_id: id_type::ProfileId,
+    tenant_id: Option<String>,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user_id,
@@ -100,6 +101,7 @@ pub async fn generate_jwt_auth_token_with_attributes(
         &state.conf,
         org_id,
         profile_id,
+        tenant_id,
     )
     .await?;
     Ok(Secret::new(token))

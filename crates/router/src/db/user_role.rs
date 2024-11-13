@@ -234,6 +234,7 @@ impl UserRoleInterface for MockDb {
             entity_id: None,
             entity_type: None,
             version: enums::UserRoleVersion::V1,
+            tenant_id: user_role.tenant_id,
         };
         db_user_roles.push(user_role.clone());
         Ok(user_role)

@@ -65,7 +65,7 @@ impl SPTFlow {
                 .is_password_rotate_required(state)
                 .map(|rotate_required| rotate_required && !path.contains(&TokenPurpose::SSO)),
             Self::MerchantSelect => Ok(state
-                .store
+                .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id: user.get_user_id(),
                     org_id: None,
@@ -93,6 +93,7 @@ impl SPTFlow {
             next_flow.origin.clone(),
             &state.conf,
             next_flow.path.to_vec(),
+            Some(state.tenant.tenant_id.clone()),
         )
         .await
         .map(|token| token.into())
@@ -132,6 +133,7 @@ impl JWTFlow {
                 .ok_or(report!(UserErrors::InternalServerError))
                 .attach_printable("org_id not found")?,
             profile_id,
+            Some(user_role.tenant_id.clone()),
         )
         .await
         .map(|token| token.into())
@@ -299,7 +301,7 @@ impl NextFlow {
                     self.user.get_verification_days_left(state)?;
                 }
                 let user_role = state
-                    .store
+                    .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: self.user.get_user_id(),
                         org_id: None,

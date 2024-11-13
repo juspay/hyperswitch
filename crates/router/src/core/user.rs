@@ -596,7 +596,7 @@ async fn handle_existing_user_invitation(
     let now = common_utils::date_time::now();
 
     if state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             invitee_user_from_db.get_user_id(),
             &user_from_token.org_id,
@@ -612,7 +612,7 @@ async fn handle_existing_user_invitation(
     }
 
     if state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             invitee_user_from_db.get_user_id(),
             &user_from_token.org_id,
@@ -648,6 +648,10 @@ async fn handle_existing_user_invitation(
         EntityType::Organization => {
             user_role
                 .add_entity(domain::OrganizationLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                 })
                 .insert_in_v2(state)
@@ -656,6 +660,10 @@ async fn handle_existing_user_invitation(
         EntityType::Merchant => {
             user_role
                 .add_entity(domain::MerchantLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                 })
@@ -665,6 +673,10 @@ async fn handle_existing_user_invitation(
         EntityType::Profile => {
             user_role
                 .add_entity(domain::ProfileLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                     profile_id: user_from_token.profile_id.clone(),
@@ -765,6 +777,10 @@ async fn handle_new_user_invitation(
         EntityType::Organization => {
             user_role
                 .add_entity(domain::OrganizationLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                 })
                 .insert_in_v2(state)
@@ -773,6 +789,10 @@ async fn handle_new_user_invitation(
         EntityType::Merchant => {
             user_role
                 .add_entity(domain::MerchantLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                 })
@@ -782,6 +802,10 @@ async fn handle_new_user_invitation(
         EntityType::Profile => {
             user_role
                 .add_entity(domain::ProfileLevel {
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
                     profile_id: user_from_token.profile_id.clone(),
@@ -842,6 +866,7 @@ async fn handle_new_user_invitation(
             org_id: user_from_token.org_id.clone(),
             role_id: request.role_id.clone(),
             profile_id: user_from_token.profile_id.clone(),
+            tenant_id: user_from_token.tenant_id.clone(),
         };
 
         let set_metadata_request = SetMetaDataRequest::IsChangePasswordRequired;
@@ -887,7 +912,7 @@ pub async fn resend_invite(
         .into();
 
     let user_role = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user.get_user_id(),
             &user_from_token.org_id,
@@ -910,7 +935,7 @@ pub async fn resend_invite(
     let user_role = match user_role {
         Some(user_role) => user_role,
         None => state
-            .store
+            .global_store
             .find_user_role_by_user_id_and_lineage(
                 user.get_user_id(),
                 &user_from_token.org_id,
@@ -1080,6 +1105,13 @@ pub async fn create_internal_user(
             }
         })?;
 
+    let default_tenant_id = common_utils::consts::DEFAULT_TENANT.to_string();
+
+    if state.tenant.tenant_id != default_tenant_id {
+        return Err(UserErrors::ForbiddenTenantId)
+            .attach_printable("Operation allowed only for the default tenant.");
+    }
+
     let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
         consts::user_role::INTERNAL_USER_MERCHANT_ID,
     );
@@ -1120,6 +1152,7 @@ pub async fn create_internal_user(
             UserStatus::Active,
         )
         .add_entity(domain::MerchantLevel {
+            tenant_id: default_tenant_id,
             org_id: internal_merchant.organization_id,
             merchant_id: internal_merchant_id,
         })
@@ -1173,7 +1206,7 @@ pub async fn list_user_roles_details(
     }
 
     let user_roles_set = state
-        .store
+        .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: required_user.get_user_id(),
             org_id: Some(&user_from_token.org_id),
@@ -2347,7 +2380,7 @@ pub async fn list_orgs_for_user(
     }
 
     let orgs = state
-        .store
+        .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: user_from_token.user_id.as_str(),
             org_id: None,
@@ -2412,7 +2445,7 @@ pub async fn list_merchants_for_user_in_org(
             .change_context(UserErrors::InternalServerError)?,
         EntityType::Merchant | EntityType::Profile => {
             let merchant_ids = state
-                .store
+                .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id: user_from_token.user_id.as_str(),
                     org_id: Some(&user_from_token.org_id),
@@ -2491,7 +2524,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
             .change_context(UserErrors::InternalServerError)?,
         EntityType::Profile => {
             let profile_ids = state
-                .store
+                .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id: user_from_token.user_id.as_str(),
                     org_id: Some(&user_from_token.org_id),
@@ -2567,7 +2600,7 @@ pub async fn switch_org_for_user(
     }
 
     let user_role = state
-        .store
+        .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: &user_from_token.user_id,
             org_id: Some(&request.org_id),
@@ -2596,6 +2629,7 @@ pub async fn switch_org_for_user(
         request.org_id.clone(),
         user_role.role_id.clone(),
         profile_id.clone(),
+        user_from_token.tenant_id,
     )
     .await?;
 
@@ -2739,7 +2773,7 @@ pub async fn switch_merchant_for_user_in_org(
 
             EntityType::Merchant | EntityType::Profile => {
                 let user_role = state
-                    .store
+                    .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &user_from_token.user_id,
                         org_id: Some(&user_from_token.org_id),
@@ -2780,6 +2814,7 @@ pub async fn switch_merchant_for_user_in_org(
         org_id.clone(),
         role_id.clone(),
         profile_id,
+        user_from_token.tenant_id,
     )
     .await?;
 
@@ -2854,7 +2889,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
 
         EntityType::Profile => {
             let user_role = state
-                .store
+                .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload{
                     user_id:&user_from_token.user_id,
                     org_id: Some(&user_from_token.org_id),
@@ -2885,6 +2920,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
         user_from_token.org_id.clone(),
         role_id.clone(),
         profile_id,
+        user_from_token.tenant_id,
     )
     .await?;
 
