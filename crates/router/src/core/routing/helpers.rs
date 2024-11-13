@@ -30,7 +30,7 @@ use storage_impl::redis::cache;
 use crate::types::domain::MerchantConnectorAccount;
 use crate::{
     core::errors::{self, RouterResult},
-    db::StorageInterface,
+    db::{errors::StorageErrorExt, StorageInterface},
     routes::SessionState,
     types::{domain, storage},
     utils::StringExt,
@@ -909,6 +909,162 @@ pub fn generate_tenant_business_profile_id(
     format!("{}:{}", redis_key_prefix, business_profile_id)
 }
 
+pub async fn disable_dynamic_routing_algorithm(
+    state: &SessionState,
+    key_store: domain::MerchantKeyStore,
+    business_profile: domain::Profile,
+    feature_to_enable: routing_types::SuccessBasedRoutingFeatures,
+) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
+    // disable success based routing for the requested profile
+    let db = state.store.as_ref();
+    let key_manager_state = &state.into();
+    let timestamp = common_utils::date_time::now_unix_timestamp();
+    match success_based_dynamic_routing_algo_ref.success_based_algorithm {
+        Some(algorithm_ref) => {
+            if let Some(algorithm_id) =
+                algorithm_ref.algorithm_id_with_timestamp.algorithm_id
+            {
+                let dynamic_routing_algorithm = routing_types::DynamicRoutingAlgorithmRef {
+                    success_based_algorithm: Some(routing_types::SuccessBasedAlgorithm {
+                        algorithm_id_with_timestamp:
+                            routing_types::DynamicAlgorithmWithTimestamp {
+                                algorithm_id: None,
+                                timestamp,
+                            },
+                        enabled_feature: routing_types::SuccessBasedRoutingFeatures::None,
+                    }),
+                };
+
+                // redact cache for success based routing configs
+                let cache_key = format!(
+                    "{}_{}",
+                    business_profile.get_id().get_string_repr(),
+                    algorithm_id.get_string_repr()
+                );
+                let cache_entries_to_redact =
+                    vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
+                        cache_key.into(),
+                    )];
+                let _ = cache::publish_into_redact_channel(
+                    state.store.get_cache_store().as_ref(),
+                    cache_entries_to_redact,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to publish into the redact channel for evicting the success based routing config cache")?;
+
+                let record = db
+                    .find_routing_algorithm_by_profile_id_algorithm_id(
+                        business_profile.get_id(),
+                        &algorithm_id,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+                let response = record.foreign_into();
+                update_business_profile_active_dynamic_algorithm_ref(
+                    db,
+                    key_manager_state,
+                    &key_store,
+                    business_profile,
+                    dynamic_routing_algorithm,
+                )
+                .await?;
+
+                core_metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &add_attributes([(
+                        "profile_id",
+                        business_profile.get_id().get_string_repr().to_owned(),
+                    )]),
+                );
+
+                Ok(ApplicationResponse::Json(response))
+            } else {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Algorithm is already inactive".to_string(),
+                })?
+            }
+        }
+        None => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Success rate based routing is already disabled".to_string(),
+        })?,
+    }
+}
+
+pub async fn enable_dynamic_routing_algorithm(
+    state: &SessionState,
+    key_store: domain::MerchantKeyStore,
+    business_profile: domain::Profile,
+    feature_to_enable: routing_types::SuccessBasedRoutingFeatures,
+    mut success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
+) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
+    let db = state.store.as_ref();
+    let key_manager_state = &state.into();
+    if let Some(ref mut algo_with_timestamp) =
+        success_based_dynamic_routing_algo_ref.success_based_algorithm
+    {
+        match algo_with_timestamp
+            .algorithm_id_with_timestamp
+            .algorithm_id
+            .clone()
+        {
+            Some(algorithm_id) => {
+                // algorithm is already present in profile
+                if algo_with_timestamp.enabled_feature == feature_to_enable {
+                    // algorithm already has the required feature
+                    Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Success rate based routing is already enabled"
+                            .to_string(),
+                    })?
+                } else {
+                    // enable the requested feature for the algorithm
+                    algo_with_timestamp.update_enabled_features(feature_to_enable);
+                    let record = db
+                        .find_routing_algorithm_by_profile_id_algorithm_id(
+                            business_profile.get_id(),
+                            &algorithm_id,
+                        )
+                        .await
+                        .to_not_found_response(
+                            errors::ApiErrorResponse::ResourceIdNotFound,
+                        )?;
+                    let response = record.foreign_into();
+                    update_business_profile_active_dynamic_algorithm_ref(
+                        db,
+                        key_manager_state,
+                        &key_store,
+                        business_profile,
+                        success_based_dynamic_routing_algo_ref,
+                    )
+                    .await?;
+
+                    core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &add_attributes([(
+                            "profile_id",
+                            business_profile.get_id().get_string_repr().to_owned(),
+                        )]),
+                    );
+                    Ok(ApplicationResponse::Json(response))
+                }
+            }
+            None => {
+                // algorithm isn't present in profile
+                default_success_based_routing_setup(
+                    &state,
+                    key_store,
+                    business_profile,
+                    feature_to_enable,
+                    success_based_dynamic_routing_algo_ref,
+                )
+                .await
+            }
+        }
+    }
+}
+
 /// default config setup for success_based_routing
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
@@ -917,12 +1073,12 @@ pub async fn default_success_based_routing_setup(
     key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
     feature_to_enable: routing_types::SuccessBasedRoutingFeatures,
-    merchant_id: id_type::MerchantId,
     mut success_based_dynamic_routing_algo: routing_types::DynamicRoutingAlgorithmRef,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
     let profile_id = business_profile.get_id().to_owned();
+    let merchant_id = business_profile.merchant_id;
     let default_success_based_routing_config = routing_types::SuccessBasedRoutingConfig::default();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();

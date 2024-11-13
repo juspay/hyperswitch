@@ -643,6 +643,12 @@ pub struct SuccessBasedRoutingPayloadWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum DynamicRoutingType {
+    SuccessRateBasedRouting,
+    EliminationRouting,
+}
+
 impl SuccessBasedRoutingConfig {
     pub fn update(&mut self, new: Self) {
         if let Some(params) = new.params {

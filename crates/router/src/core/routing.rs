@@ -1178,6 +1178,8 @@ pub async fn update_default_routing_config_for_profile(
     ))
 }
 
+// Toggle the specific routing type as well as add the default configs in RoutingAlgorithm table
+// and update the same in business profile table.
 #[cfg(feature = "v1")]
 pub async fn toggle_success_based_routing(
     state: SessionState,
@@ -1185,6 +1187,7 @@ pub async fn toggle_success_based_routing(
     key_store: domain::MerchantKeyStore,
     feature_to_enable: routing::SuccessBasedRoutingFeatures,
     profile_id: common_utils::id_type::ProfileId,
+    dynamic_routing_type: routing::DynamicRoutingType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         &metrics::CONTEXT,
@@ -1222,155 +1225,28 @@ pub async fn toggle_success_based_routing(
     match feature_to_enable {
         routing::SuccessBasedRoutingFeatures::Metrics
         | routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection => {
-            if let Some(ref mut algo_with_timestamp) =
-                success_based_dynamic_routing_algo_ref.success_based_algorithm
-            {
-                match algo_with_timestamp
-                    .algorithm_id_with_timestamp
-                    .algorithm_id
-                    .clone()
-                {
-                    Some(algorithm_id) => {
-                        // algorithm is already present in profile
-                        if algo_with_timestamp.enabled_feature == feature_to_enable {
-                            // algorithm already has the required feature
-                            Err(errors::ApiErrorResponse::PreconditionFailed {
-                                message: "Success rate based routing is already enabled"
-                                    .to_string(),
-                            })?
-                        } else {
-                            // enable the requested feature for the algorithm
-                            algo_with_timestamp.update_enabled_features(feature_to_enable);
-                            let record = db
-                                .find_routing_algorithm_by_profile_id_algorithm_id(
-                                    business_profile.get_id(),
-                                    &algorithm_id,
-                                )
-                                .await
-                                .to_not_found_response(
-                                    errors::ApiErrorResponse::ResourceIdNotFound,
-                                )?;
-                            let response = record.foreign_into();
-                            helpers::update_business_profile_active_dynamic_algorithm_ref(
-                                db,
-                                key_manager_state,
-                                &key_store,
-                                business_profile,
-                                success_based_dynamic_routing_algo_ref,
-                            )
-                            .await?;
-
-                            metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                                &metrics::CONTEXT,
-                                1,
-                                &add_attributes([(
-                                    "profile_id",
-                                    profile_id.get_string_repr().to_owned(),
-                                )]),
-                            );
-                            Ok(service_api::ApplicationResponse::Json(response))
-                        }
-                    }
-                    None => {
-                        // algorithm isn't present in profile
-                        helpers::default_success_based_routing_setup(
-                            &state,
-                            key_store,
-                            business_profile,
-                            feature_to_enable,
-                            merchant_account.get_id().to_owned(),
-                            success_based_dynamic_routing_algo_ref,
-                        )
-                        .await
-                    }
-                }
-            } else {
-                // algorithm isn't present in profile
-                helpers::default_success_based_routing_setup(
-                    &state,
-                    key_store,
-                    business_profile,
-                    feature_to_enable,
-                    merchant_account.get_id().to_owned(),
-                    success_based_dynamic_routing_algo_ref,
-                )
-                .await
-            }
-        }
+            // occurs when algorithm is already present in the db
+            // 1. If present with same feature then return response as already enabled
+            // 2. Else update the feature and preserve the same on database
+            // 3. If not present in db then create a new default entry
+            helpers::enable_dynamic_routing_algorithm(
+                &state,
+                key_store,
+                business_profile,
+                feature_to_enable,
+                success_based_dynamic_routing_algo_ref,
+            )
+            .await
+        },
         routing::SuccessBasedRoutingFeatures::None => {
             // disable success based routing for the requested profile
-            let timestamp = common_utils::date_time::now_unix_timestamp();
-            match success_based_dynamic_routing_algo_ref.success_based_algorithm {
-                Some(algorithm_ref) => {
-                    if let Some(algorithm_id) =
-                        algorithm_ref.algorithm_id_with_timestamp.algorithm_id
-                    {
-                        let dynamic_routing_algorithm = routing_types::DynamicRoutingAlgorithmRef {
-                            success_based_algorithm: Some(routing::SuccessBasedAlgorithm {
-                                algorithm_id_with_timestamp:
-                                    routing_types::DynamicAlgorithmWithTimestamp {
-                                        algorithm_id: None,
-                                        timestamp,
-                                    },
-                                enabled_feature: routing::SuccessBasedRoutingFeatures::None,
-                            }),
-                        };
-
-                        // redact cache for success based routing configs
-                        let cache_key = format!(
-                            "{}_{}",
-                            business_profile.get_id().get_string_repr(),
-                            algorithm_id.get_string_repr()
-                        );
-                        let cache_entries_to_redact =
-                            vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
-                                cache_key.into(),
-                            )];
-                        let _ = cache::publish_into_redact_channel(
-                            state.store.get_cache_store().as_ref(),
-                            cache_entries_to_redact,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("unable to publish into the redact channel for evicting the success based routing config cache")?;
-
-                        let record = db
-                            .find_routing_algorithm_by_profile_id_algorithm_id(
-                                business_profile.get_id(),
-                                &algorithm_id,
-                            )
-                            .await
-                            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-                        let response = record.foreign_into();
-                        helpers::update_business_profile_active_dynamic_algorithm_ref(
-                            db,
-                            key_manager_state,
-                            &key_store,
-                            business_profile,
-                            dynamic_routing_algorithm,
-                        )
-                        .await?;
-
-                        metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
-                            &metrics::CONTEXT,
-                            1,
-                            &add_attributes([(
-                                "profile_id",
-                                profile_id.get_string_repr().to_owned(),
-                            )]),
-                        );
-
-                        Ok(service_api::ApplicationResponse::Json(response))
-                    } else {
-                        Err(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "Algorithm is already inactive".to_string(),
-                        })?
-                    }
-                }
-                None => Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Success rate based routing is already disabled".to_string(),
-                })?,
-            }
+            helpers::disable_dynamic_routing_algorithm(
+                &state,
+                key_store,
+                business_profile,
+                feature_to_enable,
+            )
+            .await
         }
     }
 }
