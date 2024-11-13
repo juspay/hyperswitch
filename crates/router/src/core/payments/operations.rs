@@ -144,8 +144,8 @@ pub trait ValidateRequest<F, R, D> {
 
 #[cfg(feature = "v2")]
 pub trait ValidateRequest<F, R, D> {
-    fn validate_request<'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         request: &R,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<ValidateResult>;

@@ -113,6 +113,9 @@ use crate::{
 };
 
 #[cfg(feature = "v2")]
+use operations::ValidateStatusForOperation;
+
+#[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData, D>(
@@ -1949,6 +1952,34 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
     }
 }
 
+impl ValidateStatusForOperation for &PaymentRedirectSync {
+    fn validate_status_for_operation(
+        &self,
+        intent_status: common_enums::IntentStatus,
+    ) -> Result<(), errors::ApiErrorResponse> {
+        match intent_status {
+            common_enums::IntentStatus::RequiresCustomerAction => Ok(()),
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+                Err(errors::ApiErrorResponse::PaymentUnexpectedState {
+                    current_flow: format!("{self:?}"),
+                    field_name: "status".to_string(),
+                    current_value: intent_status.to_string(),
+                    states: ["requires_payment_method".to_string()].join(", "),
+                })
+            }
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl PaymentRedirectFlow for PaymentRedirectSync {
@@ -1967,7 +1998,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         let payment_id = req.payment_id.clone();
 
         let payment_sync_request = api::PaymentsRetrieveRequest {
-            param: Some(req.query_params),
+            param: Some(req.query_params.clone()),
             force_sync: true,
         };
 
@@ -1992,6 +2023,42 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             )
             .await?;
 
+        let payment_data = &get_tracker_response.payment_data;
+        self.validate_status_for_operation(payment_data.payment_intent.status)?;
+
+        let payment_attempt = payment_data
+            .payment_attempt
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("payment_attempt not found in get_tracker_response")?;
+
+        let connector = payment_attempt
+            .connector
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "connector is not set in payment attempt in finish redirection flow",
+            )?;
+
+        // This connector data is ephemeral, the call payment flow will get new connector data
+        // with merchant account details, so the connector_id can be safely set to None here
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector,
+            api::GetToken::Connector,
+            None,
+        )?;
+
+        let call_connector_action = connector_data
+            .connector
+            .get_flow_type(
+                &req.query_params,
+                req.json_payload.clone(),
+                self.get_payment_action(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to decide the response flow")?;
+
         let (payment_data, _, _, _, _) =
             Box::pin(payments_operation_core::<api::PSync, _, _, _, _>(
                 state,
@@ -2002,7 +2069,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 operation,
                 payment_sync_request,
                 get_tracker_response,
-                CallConnectorAction::Trigger,
+                call_connector_action,
                 HeaderPayload::default(),
             ))
             .await?;
