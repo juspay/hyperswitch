@@ -45,6 +45,7 @@ pub trait UserRoleInterface {
     async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: Option<&id_type::ProfileId>,
@@ -54,6 +55,7 @@ pub trait UserRoleInterface {
     async fn update_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
@@ -64,6 +66,7 @@ pub trait UserRoleInterface {
     async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: Option<&id_type::ProfileId>,
@@ -100,6 +103,7 @@ impl UserRoleInterface for Store {
     async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: Option<&id_type::ProfileId>,
@@ -122,6 +126,7 @@ impl UserRoleInterface for Store {
     async fn update_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
@@ -146,6 +151,7 @@ impl UserRoleInterface for Store {
     async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: Option<&id_type::ProfileId>,
@@ -245,6 +251,7 @@ impl UserRoleInterface for MockDb {
     async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: Option<&id_type::ProfileId>,
@@ -284,6 +291,7 @@ impl UserRoleInterface for MockDb {
     async fn update_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
@@ -338,6 +346,7 @@ impl UserRoleInterface for MockDb {
     async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: Option<&id_type::ProfileId>,

@@ -159,6 +159,10 @@ pub async fn update_user_role(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user_to_be_updated.get_user_id(),
+            &user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             user_from_token.profile_id.as_ref(),
@@ -213,6 +217,10 @@ pub async fn update_user_role(
             .global_store
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
+                &user_from_token
+                    .tenant_id
+                    .clone()
+                    .unwrap_or(state.tenant.tenant_id.clone()),
                 &user_from_token.org_id,
                 Some(&user_from_token.merchant_id),
                 user_from_token.profile_id.as_ref(),
@@ -232,6 +240,10 @@ pub async fn update_user_role(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user_to_be_updated.get_user_id(),
+            &user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             user_from_token.profile_id.as_ref(),
@@ -286,6 +298,10 @@ pub async fn update_user_role(
             .global_store
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
+                &user_from_token
+                    .tenant_id
+                    .clone()
+                    .unwrap_or(state.tenant.tenant_id.clone()),
                 &user_from_token.org_id,
                 Some(&user_from_token.merchant_id),
                 user_from_token.profile_id.as_ref(),
@@ -335,6 +351,10 @@ pub async fn accept_invitations_v2(
                 utils::user_role::update_v1_and_v2_user_roles_in_db(
                     &state,
                     user_from_token.user_id.as_str(),
+                    &user_from_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id,
                     merchant_id.as_ref(),
                     profile_id.as_ref(),
@@ -387,6 +407,10 @@ pub async fn accept_invitations_pre_auth(
                 utils::user_role::update_v1_and_v2_user_roles_in_db(
                     &state,
                     user_token.user_id.as_str(),
+                    &user_token
+                        .tenant_id
+                        .clone()
+                        .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id,
                     merchant_id.as_ref(),
                     profile_id.as_ref(),
@@ -473,6 +497,10 @@ pub async fn delete_user_role(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
+            &user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             user_from_token.profile_id.as_ref(),
@@ -520,6 +548,10 @@ pub async fn delete_user_role(
             .global_store
             .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
+                &user_from_token
+                    .tenant_id
+                    .clone()
+                    .unwrap_or(state.tenant.tenant_id.clone()),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
                 user_from_token.profile_id.as_ref(),
@@ -535,6 +567,10 @@ pub async fn delete_user_role(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
+            &user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             user_from_token.profile_id.as_ref(),
@@ -582,6 +618,10 @@ pub async fn delete_user_role(
             .global_store
             .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
+                &user_from_token
+                    .tenant_id
+                    .clone()
+                    .unwrap_or(state.tenant.tenant_id.clone()),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
                 user_from_token.profile_id.as_ref(),

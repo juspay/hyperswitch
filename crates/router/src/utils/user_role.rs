@@ -13,7 +13,10 @@ use storage_impl::errors::StorageError;
 use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
-    db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
+    db::{
+        errors::StorageErrorExt,
+        user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
+    },
     routes::SessionState,
     services::authorization::{self as authz, roles},
     types::domain,
@@ -133,6 +136,7 @@ pub async fn set_role_permissions_in_cache_if_required(
 pub async fn update_v1_and_v2_user_roles_in_db(
     state: &SessionState,
     user_id: &str,
+    tenant_id: &str,
     org_id: &id_type::OrganizationId,
     merchant_id: Option<&id_type::MerchantId>,
     profile_id: Option<&id_type::ProfileId>,
@@ -145,6 +149,7 @@ pub async fn update_v1_and_v2_user_roles_in_db(
         .global_store
         .update_user_role_by_user_id_and_lineage(
             user_id,
+            tenant_id,
             org_id,
             merchant_id,
             profile_id,
@@ -161,6 +166,7 @@ pub async fn update_v1_and_v2_user_roles_in_db(
         .global_store
         .update_user_role_by_user_id_and_lineage(
             user_id,
+            tenant_id,
             org_id,
             merchant_id,
             profile_id,
@@ -176,10 +182,42 @@ pub async fn update_v1_and_v2_user_roles_in_db(
     (updated_v1_role, updated_v2_role)
 }
 
+pub async fn get_single_org_id(
+    state: &SessionState,
+    user_role: &UserRole,
+) -> UserResult<id_type::OrganizationId> {
+    match user_role.entity_type {
+        Some(EntityType::Tenant) => {
+            println!("Inside tenant org switch");
+            Ok(state
+                .store
+                .list_all_merchant_accounts(&state.into(), Some(1), None)
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to get merchants list")?
+                .first()
+                .ok_or(UserErrors::InternalServerError)
+                .attach_printable("No merchants to get the org id")?
+                .get_org_id()
+                .clone())
+        }
+        Some(EntityType::Organization)
+        | Some(EntityType::Merchant)
+        | Some(EntityType::Profile)
+        | None => user_role
+            .org_id
+            .clone()
+            .ok_or(UserErrors::InternalServerError)
+            .attach_printable("Org_id not found"),
+    }
+}
+
 pub async fn get_single_merchant_id(
     state: &SessionState,
     user_role: &UserRole,
 ) -> UserResult<id_type::MerchantId> {
+    let org_id = get_single_org_id(state, user_role).await?;
+    // have to check this with the function passed parameter of the org_id
     match user_role.entity_type {
         Some(EntityType::Tenant) | Some(EntityType::Organization) => Ok(state
             .store
@@ -192,8 +230,9 @@ pub async fn get_single_merchant_id(
                     .attach_printable("org_id not found")?,
             )
             .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to get merchant list for org")?
+            .to_not_found_response(UserErrors::InvalidRoleOperationWithMessage(
+                "Invalid Org Id".to_string(),
+            ))?
             .first()
             .ok_or(UserErrors::InternalServerError)
             .attach_printable("No merchants found for org_id")?

@@ -769,26 +769,23 @@ impl MerchantAccountInterface for MockDb {
         offset: Option<u32>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         let accounts = self.merchant_accounts.lock().await;
-        let futures = accounts
-            .iter()
-            // .filter(|account| merchant_ids.contains(account.get_id()))
-            .map(|account| async {
-                let key_store = self
-                    .get_merchant_key_store_by_merchant_id(
-                        state,
-                        account.get_id(),
-                        &self.get_master_key().to_vec().into(),
-                    )
-                    .await;
-                match key_store {
-                    Ok(key) => account
-                        .clone()
-                        .convert(state, key.key.get_inner(), key.merchant_id.clone().into())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError),
-                    Err(err) => Err(err),
-                }
-            });
+        let futures = accounts.iter().map(|account| async {
+            let key_store = self
+                .get_merchant_key_store_by_merchant_id(
+                    state,
+                    account.get_id(),
+                    &self.get_master_key().to_vec().into(),
+                )
+                .await;
+            match key_store {
+                Ok(key) => account
+                    .clone()
+                    .convert(state, key.key.get_inner(), key.merchant_id.clone().into())
+                    .await
+                    .change_context(errors::StorageError::DecryptionError),
+                Err(err) => Err(err),
+            }
+        });
         futures::future::join_all(futures)
             .await
             .into_iter()
