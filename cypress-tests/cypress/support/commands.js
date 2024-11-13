@@ -2086,6 +2086,84 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add(
+  "mitUsingNTID",
+  (requestBody, amount, confirm, capture_method, globalState) => {
+
+    requestBody.amount = amount;
+    requestBody.confirm = confirm;
+    requestBody.capture_method = capture_method;
+
+    const networkTransactionIdAndCardDetails = {
+      card_number: "4242424242424242",
+      card_exp_month: "11",
+      card_exp_year: "2024",
+      card_holder_name: "joseph Doe",
+      network_transaction_id: "MCC5ZRGMI0925"
+    };
+
+    requestBody.recurring_details.data = networkTransactionIdAndCardDetails;
+
+    if (globalState.get("connectorId") !== "cybersource") {
+      return;
+    }
+    
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        globalState.set("paymentID", response.body.payment_id);
+        if (response.body.capture_method === "automatic") {
+          if (response.body.authentication_type === "three_ds") {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            const nextActionUrl = response.body.next_action.redirect_to_url;
+            cy.log(nextActionUrl);
+          } else if (response.body.authentication_type === "no_three_ds") {
+              expect(response.body.status).to.equal("succeeded");
+          } else {
+            throw new Error(
+              `Invalid authentication type ${response.body.authentication_type}`
+            );
+          }
+        } else if (response.body.capture_method === "manual") {
+          if (response.body.authentication_type === "three_ds") {
+            expect(response.body)
+              .to.have.property("next_action")
+              .to.have.property("redirect_to_url");
+            const nextActionUrl = response.body.next_action.redirect_to_url;
+            cy.log(nextActionUrl);
+          } else if (response.body.authentication_type === "no_three_ds") {
+              expect(response.body.status).to.equal("requires_capture");
+          } else {
+            throw new Error(
+              `Invalid authentication type ${response.body.authentication_type}`
+            );
+          }
+        } else {
+          throw new Error(
+            `Invalid capture method ${response.body.capture_method}`
+          );
+        }
+      } else {
+        throw new Error(
+          `Error Response: ${response.status}\n${response.body.error.message}\n${response.body.error.code}`
+        );
+      }
+    });
+  }
+);
+
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
   const customerId = globalState.get("customerId");
   cy.request({
