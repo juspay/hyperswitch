@@ -1765,6 +1765,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::WaitScreenInformation{..} => None,
                         api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
                         api_models::payments::NextActionData::InvokeSdkClient{..} => None,
+                        api_models::payments::NextActionData::CollectOtp{ .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
 
