@@ -5288,7 +5288,8 @@
           "card_number",
           "card_exp_month",
           "card_exp_year",
-          "card_holder_name"
+          "card_holder_name",
+          "card_issuing_country"
         ],
         "properties": {
           "card_number": {
@@ -5318,9 +5319,7 @@
             "nullable": true
           },
           "card_issuing_country": {
-            "type": "string",
-            "description": "Card Issuing Country",
-            "nullable": true
+            "$ref": "#/components/schemas/CountryAlpha2"
           },
           "card_network": {
             "allOf": [
@@ -5336,8 +5335,11 @@
             "nullable": true
           },
           "card_type": {
-            "type": "string",
-            "description": "Card Type",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardType"
+              }
+            ],
             "nullable": true
           }
         },
@@ -5346,16 +5348,12 @@
       "CardDetailFromLocker": {
         "type": "object",
         "required": [
+          "issuer_country",
           "saved_to_locker"
         ],
         "properties": {
-          "scheme": {
-            "type": "string",
-            "nullable": true
-          },
           "issuer_country": {
-            "type": "string",
-            "nullable": true
+            "$ref": "#/components/schemas/CountryAlpha2"
           },
           "last4_digits": {
             "type": "string",
@@ -5366,10 +5364,6 @@
             "nullable": true
           },
           "expiry_year": {
-            "type": "string",
-            "nullable": true
-          },
-          "card_token": {
             "type": "string",
             "nullable": true
           },
@@ -5413,21 +5407,9 @@
       "CardDetailUpdate": {
         "type": "object",
         "required": [
-          "card_exp_month",
-          "card_exp_year",
           "card_holder_name"
         ],
         "properties": {
-          "card_exp_month": {
-            "type": "string",
-            "description": "Card Expiry Month",
-            "example": "10"
-          },
-          "card_exp_year": {
-            "type": "string",
-            "description": "Card Expiry Year",
-            "example": "25"
-          },
           "card_holder_name": {
             "type": "string",
             "description": "Card Holder Name",
@@ -5685,6 +5667,13 @@
           {
             "type": "object"
           }
+        ]
+      },
+      "CardType": {
+        "type": "string",
+        "enum": [
+          "credit",
+          "debit"
         ]
       },
       "CashappQr": {
@@ -6778,20 +6767,19 @@
       "CustomerPaymentMethod": {
         "type": "object",
         "required": [
-          "payment_token",
           "payment_method_id",
           "customer_id",
-          "payment_method",
+          "payment_method_type",
           "recurring_enabled",
-          "installment_payment_enabled",
           "requires_cvv",
-          "default_payment_method_set"
+          "is_default"
         ],
         "properties": {
           "payment_token": {
             "type": "string",
             "description": "Token for payment method in temporary card locker which gets refreshed often",
-            "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
+            "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef",
+            "nullable": true
           },
           "payment_method_id": {
             "type": "string",
@@ -6805,27 +6793,13 @@
             "maxLength": 64,
             "minLength": 1
           },
-          "payment_method": {
+          "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
-          "payment_method_type": {
+          "payment_method_subtype": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_method_issuer": {
-            "type": "string",
-            "description": "The name of the bank/ provider issuing the payment method to the end user",
-            "example": "Citibank",
-            "nullable": true
-          },
-          "payment_method_issuer_code": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodIssuerCode"
               }
             ],
             "nullable": true
@@ -6835,46 +6809,10 @@
             "description": "Indicates whether the payment method is eligible for recurring payments",
             "example": true
           },
-          "installment_payment_enabled": {
-            "type": "boolean",
-            "description": "Indicates whether the payment method is eligible for installment payments",
-            "example": true
-          },
-          "payment_experience": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentExperience"
-            },
-            "description": "Type of payment experience enabled with the connector",
-            "example": [
-              "redirect_to_url"
-            ],
-            "nullable": true
-          },
-          "card": {
+          "payment_method_data": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/CardDetailFromLocker"
-              }
-            ],
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
-          "created": {
-            "type": "string",
-            "format": "date-time",
-            "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
-            "example": "2023-01-18T11:04:09.922Z",
-            "nullable": true
-          },
-          "bank_transfer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Bank"
+                "$ref": "#/components/schemas/PaymentMethodListData"
               }
             ],
             "nullable": true
@@ -6885,6 +6823,13 @@
                 "$ref": "#/components/schemas/MaskedBankDetails"
               }
             ],
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
+            "example": "2023-01-18T11:04:09.922Z",
             "nullable": true
           },
           "surcharge_details": {
@@ -6907,7 +6852,7 @@
             "example": "2024-02-24T11:04:09.922Z",
             "nullable": true
           },
-          "default_payment_method_set": {
+          "is_default": {
             "type": "boolean",
             "description": "Indicates if the payment method has been set to default or not",
             "example": true
@@ -12309,41 +12254,17 @@
       "PaymentMethodCreate": {
         "type": "object",
         "required": [
-          "payment_method"
+          "payment_method_type",
+          "payment_method_subtype",
+          "customer_id",
+          "payment_method_data"
         ],
         "properties": {
-          "payment_method": {
+          "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
-          "payment_method_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
-          },
-          "payment_method_issuer": {
-            "type": "string",
-            "description": "The name of the bank/ provider issuing the payment method to the end user",
-            "example": "Citibank",
-            "nullable": true
-          },
-          "payment_method_issuer_code": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodIssuerCode"
-              }
-            ],
-            "nullable": true
-          },
-          "card": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardDetail"
-              }
-            ],
-            "nullable": true
+          "payment_method_subtype": {
+            "$ref": "#/components/schemas/PaymentMethodType"
           },
           "metadata": {
             "type": "object",
@@ -12354,44 +12275,11 @@
             "type": "string",
             "description": "The unique identifier of the customer.",
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
             "maxLength": 64,
             "minLength": 1
           },
-          "card_network": {
-            "type": "string",
-            "description": "The card network",
-            "example": "Visa",
-            "nullable": true
-          },
-          "bank_transfer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Bank"
-              }
-            ],
-            "nullable": true
-          },
-          "wallet": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Wallet"
-              }
-            ],
-            "nullable": true
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "For Client based calls, SDK will use the client_secret\nin order to call /payment_methods\nClient secret will be generated whenever a new\npayment method is created",
-            "nullable": true
-          },
           "payment_method_data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PaymentMethodCreateData"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethodCreateData"
           },
           "billing": {
             "allOf": [
@@ -12839,19 +12727,13 @@
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
-          "payment_method_id",
-          "deleted"
+          "payment_method_id"
         ],
         "properties": {
           "payment_method_id": {
             "type": "string",
             "description": "The unique identifier of the Payment method",
             "example": "card_rGK4Vi5iSW70MY7J2mIg"
-          },
-          "deleted": {
-            "type": "boolean",
-            "description": "Whether payment method was deleted or not",
-            "example": true
           }
         }
       },
@@ -12868,6 +12750,32 @@
           "jp_giropay",
           "jp_sepa",
           "jp_bacs"
+        ]
+      },
+      "PaymentMethodListData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank"
+            ],
+            "properties": {
+              "bank": {
+                "$ref": "#/components/schemas/Bank"
+              }
+            }
+          }
         ]
       },
       "PaymentMethodListResponse": {
@@ -12942,9 +12850,8 @@
         "required": [
           "merchant_id",
           "payment_method_id",
-          "payment_method",
-          "recurring_enabled",
-          "installment_payment_enabled"
+          "payment_method_type",
+          "recurring_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -12965,21 +12872,13 @@
             "description": "The unique identifier of the Payment method",
             "example": "card_rGK4Vi5iSW70MY7J2mIg"
           },
-          "payment_method": {
+          "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethod"
           },
-          "payment_method_type": {
+          "payment_method_subtype": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentMethodType"
-              }
-            ],
-            "nullable": true
-          },
-          "card": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardDetailFromLocker"
               }
             ],
             "nullable": true
@@ -12989,40 +12888,11 @@
             "description": "Indicates whether the payment method is eligible for recurring payments",
             "example": true
           },
-          "installment_payment_enabled": {
-            "type": "boolean",
-            "description": "Indicates whether the payment method is eligible for installment payments",
-            "example": true
-          },
-          "payment_experience": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentExperience"
-            },
-            "description": "Type of payment experience enabled with the connector",
-            "example": [
-              "redirect_to_url"
-            ],
-            "nullable": true
-          },
-          "metadata": {
-            "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
-            "nullable": true
-          },
           "created": {
             "type": "string",
             "format": "date-time",
             "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
             "example": "2023-01-18T11:04:09.922Z",
-            "nullable": true
-          },
-          "bank_transfer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Bank"
-              }
-            ],
             "nullable": true
           },
           "last_used_at": {
@@ -13035,8 +12905,31 @@
             "type": "string",
             "description": "For Client based calls",
             "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodResponseData"
+              }
+            ],
+            "nullable": true
           }
         }
+      },
+      "PaymentMethodResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            }
+          }
+        ]
       },
       "PaymentMethodStatus": {
         "type": "string",
@@ -13150,14 +13043,12 @@
       },
       "PaymentMethodUpdate": {
         "type": "object",
+        "required": [
+          "payment_method_data"
+        ],
         "properties": {
-          "card": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CardDetailUpdate"
-              }
-            ],
-            "nullable": true
+          "payment_method_data": {
+            "$ref": "#/components/schemas/PaymentMethodUpdateData"
           },
           "client_secret": {
             "type": "string",
@@ -13169,6 +13060,21 @@
           }
         },
         "additionalProperties": false
+      },
+      "PaymentMethodUpdateData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetailUpdate"
+              }
+            }
+          }
+        ]
       },
       "PaymentMethodsEnabled": {
         "type": "object",
@@ -17624,10 +17530,10 @@
       "ResponsePaymentMethodTypes": {
         "type": "object",
         "required": [
-          "payment_method_type"
+          "payment_method_subtype"
         ],
         "properties": {
-          "payment_method_type": {
+          "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
           },
           "payment_experience": {

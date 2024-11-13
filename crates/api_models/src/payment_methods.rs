@@ -489,6 +489,7 @@ pub struct CardDetail {
     pub nick_name: Option<masking::Secret<String>>,
 
     /// Card Issuing Country
+    #[schema(value_type = CountryAlpha2)]
     pub card_issuing_country: Option<api_enums::CountryAlpha2>,
 
     /// Card's Network
@@ -709,7 +710,7 @@ pub struct PaymentMethodResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
-    #[schema(example = "merchant_1671528864")]
+    #[schema(example = "merchant_1671528864", value_type = String)]
     pub merchant_id: id_type::MerchantId,
 
     /// The unique identifier of the customer.
@@ -852,6 +853,7 @@ pub struct CardDetailFromLocker {
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
+    #[schema(value_type = CountryAlpha2)]
     pub issuer_country: Option<api_enums::CountryAlpha2>,
     pub last4_digits: Option<String>,
     #[serde(skip)]
@@ -1730,6 +1732,7 @@ pub struct CustomerPaymentMethod {
 pub enum PaymentMethodListData {
     Card(CardDetailFromLocker),
     #[cfg(feature = "payouts")]
+    #[schema(value_type = Bank)]
     Bank(payouts::Bank),
 }
 
