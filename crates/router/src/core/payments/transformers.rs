@@ -3602,3 +3602,38 @@ impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenc
         }
     }
 }
+
+impl ForeignFrom<(Self, Option<&api_models::payments::AdditionalPaymentData>)>
+    for Option<enums::PaymentMethodType>
+{
+    fn foreign_from(req: (Self, Option<&api_models::payments::AdditionalPaymentData>)) -> Self {
+        let (payment_method_type, additional_pm_data) = req;
+        additional_pm_data
+            .and_then(|pm_data| {
+                if let api_models::payments::AdditionalPaymentData::Card(card_info) = pm_data {
+                    card_info.card_type.as_ref().and_then(|card_type_str| {
+                        api_models::enums::PaymentMethodType::from_str(&card_type_str.to_lowercase()).map_err(|err| {
+                            crate::logger::error!(
+                                "Err - {:?}\nInvalid card_type value found in BIN DB - {:?}",
+                                err,
+                                card_type_str,
+                            );
+                        }).ok()
+                    })
+                } else {
+                    None
+                }
+            })
+            .map_or(payment_method_type, |card_type_in_bin_store| {
+                if let Some(card_type_in_req) = payment_method_type {
+                    if card_type_in_req != card_type_in_bin_store {
+                        crate::logger::info!(
+                            "Mismatch in card_type\nAPI request - {}; BIN lookup - {}\nOverriding with {}",
+                            card_type_in_req, card_type_in_bin_store, card_type_in_bin_store,
+                        );
+                    }
+                }
+                Some(card_type_in_bin_store)
+            })
+    }
+}
