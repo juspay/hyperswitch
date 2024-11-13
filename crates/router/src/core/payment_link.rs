@@ -7,8 +7,8 @@ use api_models::{
 use common_utils::{
     consts::{
         DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_LOCALE, DEFAULT_MERCHANT_LOGO,
-        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY, DEFAULT_HIDE_CARD_NICKNAME_FIELD
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_HIDE_CARD_NICKNAME_FIELD, DEFAULT_LOCALE,
+        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
     },
     ext_traits::{AsyncExt, OptionExt, ValueExt},
     types::{AmountConvertor, StringMajorUnitForCore},
@@ -610,7 +610,15 @@ pub fn get_payment_link_config_based_on_priority(
             (default_domain_name, None, None)
         };
 
-    let (theme, logo, seller_name, sdk_layout, display_sdk_only, enabled_saved_payment_method,hide_card_nickname_field) = get_payment_link_config_value!(
+    let (
+        theme,
+        logo,
+        seller_name,
+        sdk_layout,
+        display_sdk_only,
+        enabled_saved_payment_method,
+        hide_card_nickname_field,
+    ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
         (theme, DEFAULT_BACKGROUND_COLOR.to_string()),
@@ -622,10 +630,7 @@ pub fn get_payment_link_config_based_on_priority(
             enabled_saved_payment_method,
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
         ),
-        (
-            hide_card_nickname_field,
-            DEFAULT_HIDE_CARD_NICKNAME_FIELD
-        )
+        (hide_card_nickname_field, DEFAULT_HIDE_CARD_NICKNAME_FIELD)
     );
     let payment_link_config = PaymentLinkConfig {
         theme,
