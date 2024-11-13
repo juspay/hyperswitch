@@ -1853,7 +1853,7 @@ pub mod routes {
                     return Err(OpenSearchError::AccessForbiddenError)?;
                 }
                 let user_roles: HashSet<UserRole> = state
-                    .store
+                    .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
                         org_id: Some(&auth.org_id),
@@ -1976,7 +1976,7 @@ pub mod routes {
                     return Err(OpenSearchError::AccessForbiddenError)?;
                 }
                 let user_roles: HashSet<UserRole> = state
-                    .store
+                    .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
                         org_id: Some(&auth.org_id),
