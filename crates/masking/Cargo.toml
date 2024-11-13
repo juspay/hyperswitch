@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["alloc", "serde", "diesel", "time", "cassandra"]
+default = ["alloc", "serde", "diesel", "time"]
 alloc = ["zeroize/alloc"]
 serde = ["dep:serde", "dep:serde_json"]
 time = ["dep:time"]
