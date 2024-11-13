@@ -11953,7 +11953,7 @@
           },
           "hide_card_nickname_field": {
             "type": "boolean",
-            "description": "Hide card nickename field option for payment link",
+            "description": "Hide card nickname field option for payment link",
             "default": false,
             "example": true,
             "nullable": true
