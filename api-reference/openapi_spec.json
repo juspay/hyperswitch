@@ -15937,28 +15937,6 @@
           "jp_bacs"
         ]
       },
-      "PaymentMethodList": {
-        "type": "object",
-        "required": [
-          "payment_method"
-        ],
-        "properties": {
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          },
-          "payment_method_types": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
-            },
-            "description": "This is a sub-category of payment method.",
-            "example": [
-              "credit"
-            ],
-            "nullable": true
-          }
-        }
-      },
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
