@@ -8026,6 +8026,18 @@
             "enum": [
               "browser_ip"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_social_security_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_sort_code"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
