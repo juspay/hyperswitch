@@ -123,7 +123,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     profile: domain::Profile,
     operation: Op,
     req: Req,
-    payment_id: id_type::GlobalPaymentId,
+    get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
@@ -150,27 +150,8 @@ where
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
-    // Validate the request fields
-    let (operation, validate_result) = operation
-        .to_validate_request()?
-        .validate_request(&req, &merchant_account)?;
-
     // Get the trackers related to track the state of the payment
-    let operations::GetTrackerResponse {
-        operation,
-        mut payment_data,
-    } = operation
-        .to_get_tracker()?
-        .get_trackers(
-            state,
-            &payment_id,
-            &req,
-            &merchant_account,
-            &profile,
-            &key_store,
-            &header_payload,
-        )
-        .await?;
+    let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
 
     let (_operation, customer) = operation
         .to_domain()?
@@ -207,7 +188,6 @@ where
                 &mut payment_data,
                 &customer,
                 call_connector_action.clone(),
-                &validate_result,
                 None,
                 header_payload.clone(),
                 #[cfg(feature = "frm")]
@@ -1029,7 +1009,7 @@ where
 
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
 
-    let (operation, _validate_result) = operation
+    let _validate_result = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
@@ -1037,10 +1017,7 @@ where
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
-    let operations::GetTrackerResponse {
-        operation,
-        mut payment_data,
-    } = operation
+    let operations::GetTrackerResponse { mut payment_data } = operation
         .to_get_tracker()?
         .get_trackers(
             state,
@@ -1520,6 +1497,24 @@ where
     RouterData<F, FData, router_types::PaymentsResponseData>:
         hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData>,
 {
+    // Validate the request fields
+    let validate_result = operation
+        .to_validate_request()?
+        .validate_request(&req, &merchant_account)?;
+
+    let get_tracker_response = operation
+        .to_get_tracker()?
+        .get_trackers(
+            &state,
+            &payment_id,
+            &req,
+            &merchant_account,
+            &profile,
+            &key_store,
+            &header_payload,
+        )
+        .await?;
+
     let (payment_data, _req, customer, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -1529,7 +1524,7 @@ where
             profile,
             operation.clone(),
             req,
-            payment_id,
+            get_tracker_response,
             call_connector_action,
             header_payload.clone(),
         )
@@ -1997,22 +1992,23 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             )
             .await?;
 
-        let response = Box::pin(payments_operation_core::<api::PSync, _, _, _, _>(
-            state,
-            req_state,
-            merchant_account,
-            merchant_key_store.clone(),
-            profile.clone(),
-            operation,
-            payment_sync_request,
-            payment_id,
-            CallConnectorAction::Trigger,
-            HeaderPayload::default(),
-        ))
-        .await?;
+        let (payment_data, _, _, _, _) =
+            Box::pin(payments_operation_core::<api::PSync, _, _, _, _>(
+                state,
+                req_state,
+                merchant_account,
+                merchant_key_store.clone(),
+                profile.clone(),
+                operation,
+                payment_sync_request,
+                get_tracker_response,
+                CallConnectorAction::Trigger,
+                HeaderPayload::default(),
+            ))
+            .await?;
 
         Ok(router_types::RedirectPaymentFlowResponse {
-            payment_data: get_tracker_response.payment_data,
+            payment_data,
             profile,
         })
     }
@@ -2565,7 +2561,6 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     payment_data: &mut D,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
-    validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
