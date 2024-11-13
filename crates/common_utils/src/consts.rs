@@ -86,6 +86,9 @@ pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 /// Default bool to enable saved payment method
 pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
 
+/// Default hide card nickname field
+pub const DEFAULT_HIDE_CARD_NICKNAME_FIELD: bool = false;
+
 /// Default allowed domains for payment links
 pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
 

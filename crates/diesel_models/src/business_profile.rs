@@ -542,6 +542,7 @@ pub struct PaymentLinkConfigRequest {
     pub sdk_layout: Option<String>,
     pub display_sdk_only: Option<bool>,
     pub enabled_saved_payment_method: Option<bool>,
+    pub hide_card_nickname_field: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
