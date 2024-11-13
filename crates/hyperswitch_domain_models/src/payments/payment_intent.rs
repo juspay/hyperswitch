@@ -1,5 +1,5 @@
 #[cfg(feature = "v2")]
-use api_models::payments::{Address, OrderDetailsWithAmount};
+use api_models::payments::Address;
 #[cfg(feature = "v2")]
 use common_enums::External3dsAuthenticationRequest;
 use common_enums::{self as storage_enums};
@@ -21,7 +21,6 @@ use common_utils::{
     },
 };
 #[cfg(feature = "v2")]
-use diesel_models::types::OrderDetailsWithAmount;
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
@@ -39,7 +38,7 @@ use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
-    RemoteStorageObject,
+    ApiModelToDieselModelConvertor, RemoteStorageObject,
 };
 
 #[async_trait::async_trait]
@@ -300,8 +299,8 @@ pub enum PaymentIntentUpdate {
         shipping_cost: Option<MinorUnit>,
         // TODO: Check how to handle this
         // tax_details: Option<diesel_models::TaxDetails>,
-        skip_external_tax_calculation: Option<common_enums::TaxCalculationOverride>,
-        skip_surcharge_calculation: Option<common_enums::SurchargeCalculationOverride>,
+        skip_external_tax_calculation: Option<super::TaxCalculationOverride>,
+        skip_surcharge_calculation: Option<super::SurchargeCalculationOverride>,
         surcharge_amount: Option<MinorUnit>,
         tax_on_surcharge: Option<MinorUnit>,
         routing_algorithm_id: Option<id_type::RoutingId>,
@@ -315,11 +314,11 @@ pub enum PaymentIntentUpdate {
         setup_future_usage: Option<storage_enums::FutureUsage>,
         apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
         statement_descriptor: Box<Option<StatementDescriptor>>,
-        order_details: Box<Option<Vec<Secret<OrderDetailsWithAmount>>>>,
-        allowed_payment_method_types: Box<Option<pii::SecretSerdeValue>>,
+        order_details: Box<Option<Vec<Secret<diesel_models::types::OrderDetailsWithAmount>>>>,
+        allowed_payment_method_types: Box<Option<Vec<common_enums::PaymentMethodType>>>,
         metadata: Box<Option<pii::SecretSerdeValue>>,
         connector_metadata: Box<Option<pii::SecretSerdeValue>>,
-        feature_metadata: Box<Option<pii::SecretSerdeValue>>,
+        feature_metadata: Box<Option<diesel_models::types::FeatureMetadata>>,
         enable_payment_link: Option<common_enums::EnablePaymentLinkRequest>,
         // TODO: check how to use this
         // payment_link_config: Box<Option<api_models::admin::PaymentLinkConfigRequest>>,
@@ -528,12 +527,12 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 currency,
                 shipping_cost,
                 skip_external_tax_calculation: skip_external_tax_calculation.map(|val| match val {
-                    common_enums::TaxCalculationOverride::Skip => true,
-                    common_enums::TaxCalculationOverride::Calculate => false,
+                    super::TaxCalculationOverride::Skip => true,
+                    super::TaxCalculationOverride::Calculate => false,
                 }),
                 surcharge_applicable: skip_surcharge_calculation.map(|val| match val {
-                    common_enums::SurchargeCalculationOverride::Skip => true,
-                    common_enums::SurchargeCalculationOverride::Calculate => false,
+                    super::SurchargeCalculationOverride::Skip => true,
+                    super::SurchargeCalculationOverride::Calculate => false,
                 }),
                 surcharge_amount,
                 tax_on_surcharge,
@@ -548,18 +547,26 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 setup_future_usage,
                 apply_mit_exemption: apply_mit_exemption.map(|val| val.as_bool()),
                 statement_descriptor: *statement_descriptor,
-                order_details: order_details
-                    .map(|order_details| {
-                        order_details
-                            .into_iter()
-                            .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
-                            .collect::<Result<Vec<_>, _>>()
+                order_details: *order_details,
+                // .map(|order_details| {
+                //     order_details
+                //         .into_iter()
+                //         .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
+                //         .collect::<Result<Vec<_>, _>>()
+                // })
+                // .and_then(|r| r.ok()),
+                allowed_payment_method_types: allowed_payment_method_types
+                    .map(|allowed_payment_method_types| {
+                        allowed_payment_method_types.encode_to_value()
                     })
-                    .and_then(|r| r.ok()),
-                allowed_payment_method_types: *allowed_payment_method_types,
+                    .and_then(|r| r.ok().map(Secret::new)),
+                // .transpose()
+                // .ok().flatten()
+                // .map(Secret::new),
                 metadata: *metadata,
                 connector_metadata: *connector_metadata,
                 feature_metadata: *feature_metadata,
+                // .map(|val| diesel_models::types::FeatureMetadata::convert_from(val)),
                 enable_payment_link: enable_payment_link.map(|val| val.as_bool()),
                 request_incremental_authorization,
                 session_expiry,

@@ -517,11 +517,11 @@ pub struct PaymentIntentUpdateInternal {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub apply_mit_exemption: Option<bool>,
     pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
     pub enable_payment_link: Option<bool>,
     // TODO: Check this type
     // pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,

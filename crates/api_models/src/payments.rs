@@ -354,7 +354,7 @@ pub struct PaymentsUpdateIntentRequest {
 
     /// Use this parameter to restrict the Payment Method Types to show for a given PaymentIntent
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
-    pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
+    pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
     /// Metadata is useful for storing additional, unstructured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
@@ -366,7 +366,7 @@ pub struct PaymentsUpdateIntentRequest {
 
     /// Additional data that might be required by hyperswitch based on the requested features by the merchants.
     #[schema(value_type = Option<FeatureMetadata>)]
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
 
     /// Whether to generate the payment link for this payment or not (if applicable)
     #[schema(value_type = Option<EnablePaymentLinkRequest>)]

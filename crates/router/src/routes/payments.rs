@@ -219,7 +219,7 @@ pub async fn payments_update_intent(
     json_payload: web::Json<payment_types::PaymentsUpdateIntentRequest>,
     path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
-    use hyperswitch_domain_models::payments::PaymentUpdateData;
+    use hyperswitch_domain_models::payments::PaymentIntentData;
 
     let flow = Flow::PaymentsUpdateIntent;
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
@@ -241,13 +241,13 @@ pub async fn payments_update_intent(
         state,
         &req,
         internal_payload,
-        |state, auth: auth::AuthenticationDataV2, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_intent_core::<
                 api_types::PaymentUpdateIntent,
                 payment_types::PaymentsIntentResponse,
                 _,
                 _,
-                PaymentUpdateData<api_types::PaymentUpdateIntent>,
+                PaymentIntentData<api_types::PaymentUpdateIntent>,
             >(
                 state,
                 req_state,

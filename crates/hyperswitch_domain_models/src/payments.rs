@@ -255,6 +255,20 @@ impl AmountDetails {
             order_tax_amount,
         }
     }
+
+    pub fn update_from_request(self, req: &api_models::payments::AmountDetails) -> Self {
+        Self {
+            order_amount: req.order_amount().into(),
+            currency: req.currency(),
+            shipping_cost: req.shipping_cost().or(self.shipping_cost),
+            tax_details: self.tax_details,
+            skip_external_tax_calculation: self.skip_external_tax_calculation,
+            skip_surcharge_calculation: self.skip_surcharge_calculation,
+            surcharge_amount: req.surcharge_amount().or(self.surcharge_amount),
+            tax_on_surcharge: req.tax_on_surcharge().or(self.tax_on_surcharge),
+            amount_captured: self.amount_captured,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -556,15 +570,4 @@ where
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone)]
-pub struct PaymentUpdateData<F>
-where
-    F: Clone,
-{
-    pub flow: PhantomData<F>,
-    pub payment_intent: PaymentIntent,
-    pub payment_intent_update: PaymentIntentUpdate,
 }

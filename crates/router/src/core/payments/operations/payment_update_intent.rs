@@ -7,8 +7,11 @@ use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     types::MinorUnit,
 };
+use diesel_models::{types::FeatureMetadata, PaymentIntentNew};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate;
+use hyperswitch_domain_models::{
+    payments::payment_intent::PaymentIntentUpdate, ApiModelToDieselModelConvertor,
+};
 use masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -31,7 +34,7 @@ use crate::{
 pub struct PaymentUpdateIntent;
 
 impl<F: Send + Clone> Operation<F, PaymentsUpdateIntentRequest> for &PaymentUpdateIntent {
-    type Data = payments::PaymentUpdateData<F>;
+    type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
     ) -> RouterResult<
@@ -57,7 +60,7 @@ impl<F: Send + Clone> Operation<F, PaymentsUpdateIntentRequest> for &PaymentUpda
 }
 
 impl<F: Send + Clone> Operation<F, PaymentsUpdateIntentRequest> for PaymentUpdateIntent {
-    type Data = payments::PaymentUpdateData<F>;
+    type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
     ) -> RouterResult<
@@ -83,10 +86,10 @@ impl<F: Send + Clone> Operation<F, PaymentsUpdateIntentRequest> for PaymentUpdat
 }
 
 type PaymentsUpdateIntentOperation<'b, F> =
-    BoxedOperation<'b, F, PaymentsUpdateIntentRequest, payments::PaymentUpdateData<F>>;
+    BoxedOperation<'b, F, PaymentsUpdateIntentRequest, payments::PaymentIntentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentUpdateData<F>, PaymentsUpdateIntentRequest>
+impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIntentRequest>
     for PaymentUpdateIntent
 {
     #[instrument(skip_all)]
@@ -104,7 +107,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentUpdateData<F>, PaymentsUpda
             'a,
             F,
             PaymentsUpdateIntentRequest,
-            payments::PaymentUpdateData<F>,
+            payments::PaymentIntentData<F>,
         >,
     > {
         let db = &*state.store;
@@ -115,9 +118,34 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentUpdateData<F>, PaymentsUpda
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        let PaymentsUpdateIntentRequest {
+            amount_details,
+            routing_algorithm_id,
+            capture_method,
+            authentication_type,
+            billing,
+            shipping,
+            customer_present,
+            description,
+            return_url,
+            setup_future_usage,
+            apply_mit_exemption,
+            statement_descriptor,
+            order_details,
+            allowed_payment_method_types,
+            metadata,
+            connector_metadata,
+            feature_metadata,
+            enable_payment_link,
+            payment_link_config,
+            request_incremental_authorization,
+            session_expiry,
+            frm_metadata,
+            request_external_three_ds_authentication,
+        } = request.clone();
+
         // TODO: Use Batch Encryption
-        let billing_address = request
-            .billing
+        let billing_address = billing
             .clone()
             .async_map(|billing_details| {
                 create_encrypted_data(key_manager_state, key_store, billing_details)
@@ -133,8 +161,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentUpdateData<F>, PaymentsUpda
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to deserialize decrypted value to Address")?;
 
-        let shipping_address = request
-            .shipping
+        let shipping_address = shipping
             .clone()
             .async_map(|shipping_details| {
                 create_encrypted_data(key_manager_state, key_store, shipping_details)
@@ -150,77 +177,63 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentUpdateData<F>, PaymentsUpda
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to deserialize decrypted value to Address")?;
 
-        let order_details = request
-            .order_details
-            .clone()
-            .map(|order_details| order_details.into_iter().map(Secret::new).collect());
+        let order_details = order_details.clone().map(|order_details| {
+            order_details
+                .into_iter()
+                .map(|order_detail| {
+                    Secret::new(diesel_models::types::OrderDetailsWithAmount::convert_from(
+                        order_detail,
+                    ))
+                })
+                .collect()
+        });
 
-        // TODO: This should most likely be created_time + session_expiry rather than now + session_expiry
-        let session_expiry = request.session_expiry.map(|expiry| {
-            common_utils::date_time::now()
+        let session_expiry = session_expiry.map(|expiry| {
+            payment_intent
+                .created_at
                 .saturating_add(time::Duration::seconds(i64::from(expiry)))
         });
 
-        let payment_intent_update = PaymentIntentUpdate::UpdateIntent {
-            amount: request
-                .amount_details
-                .as_ref()
-                .map(|details| MinorUnit::from(details.order_amount())),
-            currency: request
-                .amount_details
-                .as_ref()
-                .map(|details| details.currency()),
-            shipping_cost: request
-                .amount_details
-                .as_ref()
-                .and_then(|details| details.shipping_cost()),
-            skip_external_tax_calculation: request
-                .amount_details
-                .as_ref()
-                .map(|details| details.skip_external_tax_calculation()),
-            skip_surcharge_calculation: request
-                .amount_details
-                .as_ref()
-                .map(|details| details.skip_surcharge_calculation()),
-            surcharge_amount: request
-                .amount_details
-                .as_ref()
-                .and_then(|details| details.surcharge_amount()),
-            tax_on_surcharge: request
-                .amount_details
-                .as_ref()
-                .and_then(|details| details.tax_on_surcharge()),
-            routing_algorithm_id: request.routing_algorithm_id.clone(),
-            capture_method: request.capture_method,
-            authentication_type: request.authentication_type,
-            billing_address: Box::new(billing_address),
-            shipping_address: Box::new(shipping_address),
-            customer_present: request.customer_present.clone(),
-            description: Box::new(request.description.clone()),
-            return_url: Box::new(request.return_url.clone()),
-            setup_future_usage: request.setup_future_usage,
-            apply_mit_exemption: request.apply_mit_exemption.clone(),
-            statement_descriptor: Box::new(request.statement_descriptor.clone()),
-            order_details: Box::new(order_details),
-            allowed_payment_method_types: Box::new(request.allowed_payment_method_types.clone()),
-            metadata: Box::new(request.metadata.clone()),
-            connector_metadata: Box::new(request.connector_metadata.clone()),
-            feature_metadata: Box::new(request.feature_metadata.clone()),
-            enable_payment_link: request.enable_payment_link.clone(),
-            request_incremental_authorization: request.request_incremental_authorization,
-            session_expiry,
-            // TODO: Does frm_metadata need more processing?
-            frm_metadata: Box::new(request.frm_metadata.clone()),
-            request_external_three_ds_authentication: request
-                .request_external_three_ds_authentication
-                .clone(),
-            updated_by: Box::new(storage_scheme.to_string()),
+        let updated_amount_details = match amount_details {
+            Some(details) => payment_intent.amount_details.update_from_request(&details),
+            None => payment_intent.amount_details,
         };
 
-        let payment_data = payments::PaymentUpdateData {
+        let payment_intent = hyperswitch_domain_models::payments::PaymentIntent {
+            amount_details: updated_amount_details,
+            description: description.or(payment_intent.description),
+            return_url: return_url.or(payment_intent.return_url),
+            metadata: metadata.or(payment_intent.metadata),
+            statement_descriptor: statement_descriptor.or(payment_intent.statement_descriptor),
+            modified_at: common_utils::date_time::now(),
+            order_details,
+            connector_metadata: connector_metadata.or(payment_intent.connector_metadata),
+            feature_metadata: (feature_metadata
+                .map(FeatureMetadata::convert_from)
+                .or(payment_intent.feature_metadata)),
+            updated_by: storage_scheme.to_string(),
+            request_incremental_authorization: request_incremental_authorization
+                .unwrap_or(payment_intent.request_incremental_authorization),
+            session_expiry: session_expiry.unwrap_or(payment_intent.session_expiry),
+            request_external_three_ds_authentication: request_external_three_ds_authentication
+                .unwrap_or(payment_intent.request_external_three_ds_authentication),
+            frm_metadata: frm_metadata.or(payment_intent.frm_metadata),
+            billing_address,
+            shipping_address,
+            capture_method: capture_method.unwrap_or(payment_intent.capture_method),
+            authentication_type: authentication_type.unwrap_or(payment_intent.authentication_type),
+            enable_payment_link: enable_payment_link.unwrap_or(payment_intent.enable_payment_link),
+            apply_mit_exemption: apply_mit_exemption.unwrap_or(payment_intent.apply_mit_exemption),
+            customer_present: customer_present.unwrap_or(payment_intent.customer_present),
+            routing_algorithm_id: routing_algorithm_id.or(payment_intent.routing_algorithm_id),
+            allowed_payment_method_types: allowed_payment_method_types
+                .or(payment_intent.allowed_payment_method_types),
+            ..payment_intent
+        };
+
+        let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
-            payment_intent_update,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -233,7 +246,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentUpdateData<F>, PaymentsUpda
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentUpdateData<F>, PaymentsUpdateIntentRequest>
+impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIntentRequest>
     for PaymentUpdateIntent
 {
     #[instrument(skip_all)]
@@ -241,7 +254,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentUpdateData<F>, PaymentsUpdateIn
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
-        payment_data: payments::PaymentUpdateData<F>,
+        payment_data: payments::PaymentIntentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
@@ -250,7 +263,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentUpdateData<F>, PaymentsUpdateIn
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
         PaymentsUpdateIntentOperation<'b, F>,
-        payments::PaymentUpdateData<F>,
+        payments::PaymentIntentData<F>,
     )>
     where
         F: 'b + Send,
@@ -258,11 +271,49 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentUpdateData<F>, PaymentsUpdateIn
         let db = &*state.store;
         let key_manager_state = &state.into();
 
+        let intent = payment_data.payment_intent.clone();
+
+        let payment_intent_update = PaymentIntentUpdate::UpdateIntent {
+            amount: Some(intent.amount_details.order_amount),
+            currency: Some(intent.amount_details.currency),
+            shipping_cost: intent.amount_details.shipping_cost,
+            skip_external_tax_calculation: Some(
+                intent.amount_details.skip_external_tax_calculation,
+            ),
+            skip_surcharge_calculation: Some(intent.amount_details.skip_surcharge_calculation),
+            surcharge_amount: intent.amount_details.surcharge_amount,
+            tax_on_surcharge: intent.amount_details.tax_on_surcharge,
+            routing_algorithm_id: intent.routing_algorithm_id,
+            capture_method: Some(intent.capture_method),
+            authentication_type: Some(intent.authentication_type),
+            billing_address: Box::new(intent.billing_address),
+            shipping_address: Box::new(intent.shipping_address),
+            customer_present: Some(intent.customer_present),
+            description: Box::new(intent.description),
+            return_url: Box::new(intent.return_url),
+            setup_future_usage: Some(intent.setup_future_usage),
+            apply_mit_exemption: Some(intent.apply_mit_exemption),
+            statement_descriptor: Box::new(intent.statement_descriptor),
+            order_details: Box::new(intent.order_details),
+            allowed_payment_method_types: Box::new(intent.allowed_payment_method_types),
+            metadata: Box::new(intent.metadata),
+            connector_metadata: Box::new(intent.connector_metadata),
+            feature_metadata: Box::new(intent.feature_metadata),
+            enable_payment_link: Some(intent.enable_payment_link),
+            request_incremental_authorization: Some(intent.request_incremental_authorization),
+            session_expiry: Some(intent.session_expiry),
+            frm_metadata: Box::new(intent.frm_metadata),
+            request_external_three_ds_authentication: Some(
+                intent.request_external_three_ds_authentication,
+            ),
+            updated_by: Box::new(intent.updated_by),
+        };
+
         let new_payment_intent = db
             .update_payment_intent(
                 key_manager_state,
                 payment_data.payment_intent,
-                payment_data.payment_intent_update.clone(),
+                payment_intent_update,
                 key_store,
                 storage_scheme,
             )
@@ -270,10 +321,9 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentUpdateData<F>, PaymentsUpdateIn
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not update Intent")?;
 
-        let payment_data = payments::PaymentUpdateData {
+        let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent: new_payment_intent,
-            payment_intent_update: payment_data.payment_intent_update,
         };
 
         Ok((Box::new(self), payment_data))
@@ -281,7 +331,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentUpdateData<F>, PaymentsUpdateIn
 }
 
 impl<F: Send + Clone>
-    ValidateRequest<F, PaymentsUpdateIntentRequest, payments::PaymentUpdateData<F>>
+    ValidateRequest<F, PaymentsUpdateIntentRequest, payments::PaymentIntentData<F>>
     for PaymentUpdateIntent
 {
     #[instrument(skip_all)]
@@ -305,19 +355,19 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentUpdateData<F>>
+impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentIntentData<F>>
     for PaymentUpdateIntent
 {
     #[instrument(skip_all)]
     async fn get_customer_details<'a>(
         &'a self,
         _state: &SessionState,
-        _payment_data: &mut payments::PaymentUpdateData<F>,
+        _payment_data: &mut payments::PaymentIntentData<F>,
         _merchant_key_store: &domain::MerchantKeyStore,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, PaymentsUpdateIntentRequest, payments::PaymentUpdateData<F>>,
+            BoxedOperation<'a, F, PaymentsUpdateIntentRequest, payments::PaymentIntentData<F>>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -329,7 +379,7 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentUp
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a SessionState,
-        _payment_data: &mut payments::PaymentUpdateData<F>,
+        _payment_data: &mut payments::PaymentIntentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
         _merchant_key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
@@ -348,7 +398,7 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentUp
         _merchant_account: &domain::MerchantAccount,
         _business_profile: &domain::Profile,
         _state: &SessionState,
-        _payment_data: &mut payments::PaymentUpdateData<F>,
+        _payment_data: &mut payments::PaymentIntentData<F>,
         _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         Ok(api::ConnectorCallType::Skip)
@@ -360,7 +410,7 @@ impl<F: Clone + Send> Domain<F, PaymentsUpdateIntentRequest, payments::PaymentUp
         _state: &SessionState,
         _merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
-        _payment_data: &mut payments::PaymentUpdateData<F>,
+        _payment_data: &mut payments::PaymentIntentData<F>,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
