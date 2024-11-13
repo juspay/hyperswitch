@@ -4,6 +4,15 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.13.0-hotfix1
+
+### Bug Fixes
+
+- **payments:** Populate payment_method_type in payment_attempt for cards ([#6557](https://github.com/juspay/hyperswitch/pull/6557)) ([`6230eb4`](https://github.com/juspay/hyperswitch/commit/6230eb49f9023103e4b71270912c14a956be8ca3))
+- Fix(webhooks): add support for updating mandate details in webhooks flow ([#6558](https://github.com/juspay/hyperswitch/pull/6558)) ([`d927598`](https://github.com/juspay/hyperswitch/commit/d927598a5088147a0a2062f12d475144b3b3d6c1))
+
+- - -
+
 ## 2024.11.13.0
 
 ### Features
