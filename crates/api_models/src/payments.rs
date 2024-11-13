@@ -63,6 +63,7 @@ pub struct ConnectorCode {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct BankCodeResponse {
+    #[schema(value_type = Vec<BankNames>)]
     pub bank_name: Vec<common_enums::BankNames>,
     pub eligible_connectors: Vec<String>,
 }

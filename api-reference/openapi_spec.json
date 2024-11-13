@@ -6144,6 +6144,27 @@
         ],
         "description": "Masked payout method details for bank payout method"
       },
+      "BankCodeResponse": {
+        "type": "object",
+        "required": [
+          "bank_name",
+          "eligible_connectors"
+        ],
+        "properties": {
+          "bank_name": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BankNames"
+            }
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "BankDebitAdditionalData": {
         "oneOf": [
           {
@@ -6413,6 +6434,20 @@
             "type": "object"
           }
         ]
+      },
+      "BankDebitTypes": {
+        "type": "object",
+        "required": [
+          "eligible_connectors"
+        ],
+        "properties": {
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "BankHolderType": {
         "type": "string",
@@ -7637,6 +7672,25 @@
           }
         ]
       },
+      "BankTransferTypes": {
+        "type": "object",
+        "required": [
+          "eligible_connectors"
+        ],
+        "properties": {
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The list of eligible connectors for a given payment experience",
+            "example": [
+              "stripe",
+              "adyen"
+            ]
+          }
+        }
+      },
       "BankType": {
         "type": "string",
         "enum": [
@@ -8361,6 +8415,41 @@
           "RuPay",
           "Maestro"
         ]
+      },
+      "CardNetworkTypes": {
+        "type": "object",
+        "required": [
+          "eligible_connectors"
+        ],
+        "properties": {
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The list of eligible connectors for a given card network",
+            "example": [
+              "stripe",
+              "adyen"
+            ]
+          }
+        }
       },
       "CardPayout": {
         "type": "object",
@@ -14973,6 +15062,33 @@
           "display_wait_screen"
         ]
       },
+      "PaymentExperienceTypes": {
+        "type": "object",
+        "required": [
+          "eligible_connectors"
+        ],
+        "properties": {
+          "payment_experience_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentExperience"
+              }
+            ],
+            "nullable": true
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The list of eligible connectors for a given payment experience",
+            "example": [
+              "stripe",
+              "adyen"
+            ]
+          }
+        }
+      },
       "PaymentLinkConfig": {
         "type": "object",
         "required": [
@@ -15960,19 +16076,9 @@
           "payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PaymentMethodList"
+              "$ref": "#/components/schemas/ResponsePaymentMethodsEnabled"
             },
-            "description": "Information about the payment method",
-            "example": [
-              {
-                "payment_experience": null,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ]
-              }
-            ]
+            "description": "Information about the payment method"
           },
           "mandate_payment": {
             "$ref": "#/components/schemas/MandateType"
@@ -22232,6 +22338,97 @@
           "value": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "ResponsePaymentMethodTypes": {
+        "type": "object",
+        "required": [
+          "payment_method_type"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_experience": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentExperienceTypes"
+            },
+            "description": "The list of payment experiences enabled, if applicable for a payment method type",
+            "nullable": true
+          },
+          "card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetworkTypes"
+            },
+            "description": "The list of card networks enabled, if applicable for a payment method type",
+            "nullable": true
+          },
+          "bank_names": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BankCodeResponse"
+            },
+            "description": "The list of banks enabled, if applicable for a payment method type",
+            "nullable": true
+          },
+          "bank_debits": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankDebitTypes"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_transfers": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransferTypes"
+              }
+            ],
+            "nullable": true
+          },
+          "required_fields": {
+            "type": "object",
+            "description": "Required fields for the payment_method_type.",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RequiredFieldInfo"
+            },
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "pm_auth_connector": {
+            "type": "string",
+            "description": "auth service connector label for this payment method type, if exists",
+            "nullable": true
+          }
+        }
+      },
+      "ResponsePaymentMethodsEnabled": {
+        "type": "object",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
+            },
+            "description": "The list of payment method types enabled for a connector account"
           }
         }
       },

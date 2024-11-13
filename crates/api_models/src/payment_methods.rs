@@ -1102,7 +1102,7 @@ pub struct BankDebitTypes {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
-    #[schema(example = "klarna")]
+    #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
 
     /// The list of payment experiences enabled, if applicable for a payment method type
@@ -1541,18 +1541,6 @@ pub struct PaymentMethodListResponse {
     pub currency: Option<api_enums::Currency>,
 
     /// Information about the payment method
-    #[schema(value_type = Vec<PaymentMethodList>,example = json!(
-    [
-        {
-            "payment_method": "wallet",
-            "payment_experience": null,
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ]
-        }
-    ]
-    ))]
     pub payment_methods: Vec<ResponsePaymentMethodsEnabled>,
     /// Value indicating if the current payment is a mandate payment
     #[schema(value_type = MandateType)]
