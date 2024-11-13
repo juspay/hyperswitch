@@ -1131,7 +1131,9 @@ pub async fn create_payment_method_in_db(
     locker_id: Option<domain::VaultId>,
     merchant_id: &id_type::MerchantId,
     customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
-    payment_method_data: crypto::OptionalEncryptableValue,
+    payment_method_data: domain::types::OptionalEncryptableJsonType<
+        api::payment_methods::PaymentMethodsData,
+    >,
     key_store: &domain::MerchantKeyStore,
     connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
     status: Option<enums::PaymentMethodStatus>,
@@ -1726,8 +1728,7 @@ pub async fn retrieve_payment_method(
     let pmd = payment_method
         .payment_method_data
         .clone()
-        .map(|x| x.into_inner().expose())
-        .and_then(|v| serde_json::from_value::<api::PaymentMethodsData>(v).ok())
+        .map(|x| x.into_inner().expose().into_inner())
         .and_then(|pmd| match pmd {
             api::PaymentMethodsData::Card(card) => {
                 Some(api::PaymentMethodResponseData::Card(card.into()))

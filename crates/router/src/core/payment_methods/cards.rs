@@ -5196,6 +5196,10 @@ pub async fn get_lookup_key_from_locker(
 pub async fn get_masked_bank_details(
     pm: &domain::PaymentMethod,
 ) -> errors::RouterResult<Option<MaskedBankDetails>> {
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
     let payment_method_data = pm
         .payment_method_data
         .clone()
@@ -5209,6 +5213,12 @@ pub async fn get_masked_bank_details(
             },
         )
         .transpose()?;
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    let payment_method_data = pm
+        .payment_method_data
+        .clone()
+        .map(|x| x.into_inner().expose().into_inner());
 
     match payment_method_data {
         Some(pmd) => match pmd {
@@ -5225,6 +5235,10 @@ pub async fn get_masked_bank_details(
 pub async fn get_bank_account_connector_details(
     pm: &domain::PaymentMethod,
 ) -> errors::RouterResult<Option<BankAccountTokenData>> {
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
     let payment_method_data = pm
         .payment_method_data
         .clone()
@@ -5238,6 +5252,12 @@ pub async fn get_bank_account_connector_details(
             },
         )
         .transpose()?;
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    let payment_method_data = pm
+        .payment_method_data
+        .clone()
+        .map(|x| x.into_inner().expose().into_inner());
 
     match payment_method_data {
         Some(pmd) => match pmd {

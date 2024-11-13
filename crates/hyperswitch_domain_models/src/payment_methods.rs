@@ -1,3 +1,5 @@
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use common_utils::crypto::Encryptable;
 use common_utils::{
     crypto::OptionalEncryptableValue,
     errors::{CustomResult, ValidationError},
@@ -9,6 +11,8 @@ use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use crate::type_encryption::EncryptedJsonType;
 use crate::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -76,7 +80,9 @@ pub struct PaymentMethod {
     pub last_modified: PrimitiveDateTime,
     pub payment_method_type: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
-    pub payment_method_data: OptionalEncryptableValue,
+    pub payment_method_data: Option<
+        Encryptable<Secret<EncryptedJsonType<api_models::payment_methods::PaymentMethodsData>>>,
+    >,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
     pub connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,

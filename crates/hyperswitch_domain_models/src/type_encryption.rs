@@ -1021,17 +1021,32 @@ mod encrypt {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EncryptedJsonType<T>(T);
 
+impl<T> EncryptedJsonType<T> {
+    pub fn inner(&self) -> &T {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
 impl<T> From<T> for EncryptedJsonType<T> {
     fn from(value: T) -> Self {
         Self(value)
     }
 }
 
-impl<T> EncryptedJsonType<T> {
-    pub(crate) fn inner(&self) -> &T {
-        &self.0
+impl<T> std::ops::Deref for EncryptedJsonType<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner()
     }
 }
+
+/// Type alias for `Option<Encryptable<Secret<EncryptedJsonType<T>>>>`
+pub type OptionalEncryptableJsonType<T> = Option<crypto::Encryptable<Secret<EncryptedJsonType<T>>>>;
 
 pub trait Lift<U> {
     type SelfWrapper<T>;

@@ -552,11 +552,7 @@ pub fn generate_payment_method_response(
     let pmd = pm
         .payment_method_data
         .clone()
-        .map(|data| data.into_inner().expose())
-        .map(|decrypted_value| decrypted_value.parse_value("PaymentMethodsData"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to parse PaymentMethodsData")?
+        .map(|data| data.into_inner().expose().into_inner())
         .and_then(|data| match data {
             api::PaymentMethodsData::Card(card) => {
                 Some(api::PaymentMethodResponseData::Card(card.into()))
