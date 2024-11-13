@@ -47,6 +47,7 @@ pub struct MerchantAccount {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -81,6 +82,7 @@ pub struct MerchantAccountSetter {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool
 }
 
 #[cfg(feature = "v1")]
@@ -115,6 +117,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
             version: item.version,
+            is_platform_account: item.is_platform_account
         }
     }
 }
@@ -233,6 +236,7 @@ pub enum MerchantAccountUpdate {
     },
     UnsetDefaultProfile,
     ModifiedAtUpdate,
+    ToPlatformAccount,  
 }
 
 #[cfg(feature = "v2")]
@@ -308,6 +312,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 organization_id: None,
                 is_recon_enabled: None,
                 recon_status: None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -335,6 +340,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -362,6 +368,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 default_profile: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::UnsetDefaultProfile => Self {
                 default_profile: Some(None),
@@ -389,6 +396,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_platform_account:None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -416,7 +424,36 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
+                is_platform_account: None,
             },
+            MerchantAccountUpdate::ToPlatformAccount => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                return_url: None,
+                webhook_details: None,
+                sub_merchants_enabled: None,
+                parent_merchant_id: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                publishable_key: None,
+                storage_scheme: None,
+                locker_id: None,
+                metadata: None,
+                routing_algorithm: None,
+                primary_business_details: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                organization_id: None,
+                is_recon_enabled: None,
+                default_profile: None,
+                recon_status: None,
+                payment_link_config: None,
+                pm_collect_link_config: None,
+                is_platform_account: Some(true),
+            }
         }
     }
 }
@@ -615,6 +652,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
             version: self.version,
+            is_platform_account: self.is_platform_account
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -692,6 +730,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 payment_link_config: item.payment_link_config,
                 pm_collect_link_config: item.pm_collect_link_config,
                 version: item.version,
+                is_platform_account: item.is_platform_account
             })
         }
         .await
@@ -730,6 +769,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
             version: crate::consts::API_VERSION,
+            is_platform_account: self.is_platform_account,
         })
     }
 }

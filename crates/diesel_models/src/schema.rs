@@ -680,6 +680,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         pm_collect_link_config -> Nullable<Jsonb>,
         version -> ApiVersion,
+        is_platform_account -> Bool,
     }
 }
 

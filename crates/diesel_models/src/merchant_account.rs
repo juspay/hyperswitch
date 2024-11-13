@@ -51,6 +51,7 @@ pub struct MerchantAccount {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool
 }
 
 #[cfg(feature = "v1")]
@@ -83,6 +84,7 @@ pub struct MerchantAccountSetter {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -117,6 +119,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
             version: item.version,
+            is_platform_account: item.is_platform_account
         }
     }
 }
@@ -228,6 +231,7 @@ pub struct MerchantAccountNew {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool
 }
 
 #[cfg(feature = "v2")]
@@ -319,6 +323,7 @@ pub struct MerchantAccountUpdateInternal {
     pub recon_status: Option<storage_enums::ReconStatus>,
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
+    pub is_platform_account: Option<bool>
 }
 
 #[cfg(feature = "v1")]
@@ -350,6 +355,7 @@ impl MerchantAccountUpdateInternal {
             recon_status,
             payment_link_config,
             pm_collect_link_config,
+            is_platform_account,
         } = self;
 
         MerchantAccount {
@@ -385,6 +391,7 @@ impl MerchantAccountUpdateInternal {
             payment_link_config: payment_link_config.or(source.payment_link_config),
             pm_collect_link_config: pm_collect_link_config.or(source.pm_collect_link_config),
             version: source.version,
+            is_platform_account: is_platform_account.unwrap_or(source.is_platform_account)
         }
     }
 }
