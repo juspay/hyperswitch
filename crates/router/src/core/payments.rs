@@ -1951,6 +1951,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
     }
 }
 
+#[cfg(feature = "v2")]
 impl ValidateStatusForOperation for &PaymentRedirectSync {
     fn validate_status_for_operation(
         &self,
