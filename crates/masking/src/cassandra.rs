@@ -28,8 +28,8 @@ impl<'frame, T> DeserializeValue<'frame> for StrongSecret<T>
 where
     T: DeserializeValue<'frame> + zeroize::Zeroize + Clone,
 {
-    fn type_check(_typ: &ColumnType) -> Result<(), scylla::deserialize::TypeCheckError> {
-        Ok(())
+    fn type_check(typ: &ColumnType) -> Result<(), scylla::deserialize::TypeCheckError> {
+        T::type_check(typ)
     }
 
     fn deserialize(
