@@ -225,19 +225,10 @@ function bankRedirectRedirection(
     case "trustpay":
       switch (payment_method_type) {
         case "eps":
-          cy.get("._transactionId__header__iXVd_").should(
-            "contain.text",
-            "Bank suchen ‑ mit eps zahlen."
+          cy.get("#bankname").type(
+            "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
           );
-          cy.get(".BankSearch_searchInput__uX_9l").type(
-            "Allgemeine Sparkasse Oberösterreich Bank AG{enter}"
-          );
-          cy.get(".BankSearch_searchResultItem__lbcKm").click();
-          cy.get("._transactionId__primaryButton__nCa0r").click();
-          cy.get("#loginTitle").should(
-            "contain.text",
-            "eps Online-Überweisung Login"
-          );
+          cy.get("#selectionSubmit").click();
           cy.get("#user")
             .should("be.visible")
             .should("be.enabled")
