@@ -215,8 +215,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
-    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -235,6 +235,36 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
+    }
+
+    #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_txn_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentAttempt::find_by_merchant_id_connector_txn_id(
+            &conn,
+            merchant_id,
+            connector_txn_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(er.current_context());
+            er.change_context(new_err)
+        })?
+        .convert(
+            key_manager_state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[cfg(feature = "v1")]
@@ -933,8 +963,29 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_txn_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        // Ignoring storage scheme for v2 implementation
+        self.router_store
+            .find_payment_attempt_by_merchant_id_connector_txn_id(
+                key_manager_state,
+                merchant_key_store,
+                merchant_id,
+                connector_txn_id,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,

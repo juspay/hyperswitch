@@ -757,7 +757,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub browser_info: Option<serde_json::Value>,
     // payment_token: Option<String>,
     pub error_code: Option<String>,
-    // connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<serde_json::Value>,
     // payment_method_data: Option<serde_json::Value>,
     // payment_experience: Option<storage_enums::PaymentExperience>,
     // preprocessing_step_id: Option<String>,

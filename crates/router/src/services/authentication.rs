@@ -1382,6 +1382,65 @@ where
 
 #[derive(Debug)]
 #[cfg(feature = "v2")]
+pub struct MerchantIdAndProfileIdAuth {
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: id_type::ProfileId,
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAndProfileIdAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &self.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_merchant_id_profile_id(
+                key_manager_state,
+                &key_store,
+                &self.merchant_id,
+                &self.profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(key_manager_state, &self.merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let auth = AuthenticationData {
+            merchant_account: merchant,
+            key_store,
+            profile,
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantId {
+                merchant_id: auth.merchant_account.get_id().clone(),
+            },
+        ))
+    }
+}
+
+#[derive(Debug)]
+#[cfg(feature = "v2")]
 pub struct PublishableKeyAndProfileIdAuth {
     pub publishable_key: String,
     pub profile_id: id_type::ProfileId,
