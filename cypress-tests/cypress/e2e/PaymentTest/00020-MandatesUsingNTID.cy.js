@@ -3,11 +3,13 @@ import State from "../../utils/State";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
+let connector;
 
 describe("Card - Mandates using Network Transaction Id flow test", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      connector = globalState.get("connectorId");
     });
   });
 
@@ -21,7 +23,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       let should_continue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!should_continue || connector !== "cybersource") {
           this.skip();
         }
       });
@@ -44,7 +46,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       let should_continue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!should_continue || connector !== "cybersource") {
           this.skip();
         }
       });
@@ -67,7 +69,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       let should_continue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!should_continue || connector !== "cybersource") {
           this.skip();
         }
       });
@@ -99,7 +101,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       let should_continue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!should_continue || connector !== "cybersource") {
           this.skip();
         }
       });
@@ -168,7 +170,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       let should_continue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!should_continue || connector !== "cybersource") {
           this.skip();
         }
       });
@@ -200,7 +202,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       let should_continue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!should_continue || connector !== "cybersource") {
           this.skip();
         }
       });

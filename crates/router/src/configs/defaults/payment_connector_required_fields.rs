@@ -1424,15 +1424,6 @@ impl Default for settings::RequiredFields {
                                                 value: None,
                                             }
                                         ),
-                                        (
-                                            "billing.address.last_name".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.billing.address.last_name".to_string(),
-                                                display_name: "card_holder_name".to_string(),
-                                                field_type: enums::FieldType::UserFullName,
-                                                value: None,
-                                            }
-                                        ),
                                     ]),
                                     non_mandate: HashMap::new(),
                                     common: HashMap::from(
@@ -4539,15 +4530,6 @@ impl Default for settings::RequiredFields {
                                             "billing.address.first_name".to_string(),
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.first_name".to_string(),
-                                                display_name: "card_holder_name".to_string(),
-                                                field_type: enums::FieldType::UserFullName,
-                                                value: None,
-                                            }
-                                        ),
-                                        (
-                                            "billing.address.last_name".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                 display_name: "card_holder_name".to_string(),
                                                 field_type: enums::FieldType::UserFullName,
                                                 value: None,

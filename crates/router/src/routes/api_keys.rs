@@ -56,8 +56,8 @@ pub async fn api_key_create(
         state,
         &req,
         payload,
-        |state, auth_data, payload, _| async {
-            api_keys::create_api_key(state, payload, auth_data.key_store).await
+        |state, auth::AuthenticationDataWithoutProfile { key_store, .. }, payload, _| async {
+            api_keys::create_api_key(state, payload, key_store).await
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -86,10 +86,15 @@ pub async fn api_key_retrieve(
         state,
         &req,
         &key_id,
-        |state, auth_data, key_id, _| {
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account, ..
+         },
+         key_id,
+         _| {
             api_keys::retrieve_api_key(
                 state,
-                auth_data.merchant_account.get_id().to_owned(),
+                merchant_account.get_id().to_owned(),
                 key_id.to_owned(),
             )
         },
@@ -190,8 +195,13 @@ pub async fn api_key_update(
         state,
         &req,
         payload,
-        |state, authentication_data, mut payload, _| {
-            payload.merchant_id = authentication_data.merchant_account.get_id().to_owned();
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account, ..
+         },
+         mut payload,
+         _| {
+            payload.merchant_id = merchant_account.get_id().to_owned();
             api_keys::update_api_key(state, payload)
         },
         auth::auth_type(
@@ -319,8 +329,13 @@ pub async fn api_key_list(
         state,
         &req,
         payload,
-        |state, authentication_data, payload, _| async move {
-            let merchant_id = authentication_data.merchant_account.get_id().to_owned();
+        |state,
+         auth::AuthenticationDataWithoutProfile {
+             merchant_account, ..
+         },
+         payload,
+         _| async move {
+            let merchant_id = merchant_account.get_id().to_owned();
             api_keys::list_api_keys(state, merchant_id, payload.limit, payload.skip).await
         },
         auth::auth_type(
