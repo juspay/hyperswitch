@@ -48,7 +48,7 @@ use uuid::Uuid;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, PaymentMethodDataType, PaymentsAuthorizeRequestData, RefundsRequestData},
+    utils::{self, PaymentMethodDataType, RefundsRequestData},
 };
 
 #[derive(Clone)]
@@ -429,10 +429,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.connector_mandate_id().is_none() {
-            Ok(format!("{}/orders/3steps/init", self.base_url(connectors)))
-        } else {
+        if req.request.off_session == Some(true) {
             Ok(format!("{}/orders/mit", self.base_url(connectors)))
+        } else {
+            Ok(format!("{}/orders/3steps/init", self.base_url(connectors)))
         }
     }
 
