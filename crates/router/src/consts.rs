@@ -3,9 +3,9 @@ pub mod opensearch;
 pub mod user;
 pub mod user_role;
 
-use common_utils::consts;
 use std::collections::HashSet;
 
+use common_utils::consts;
 pub use hyperswitch_interfaces::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 // ID generation
 pub(crate) const ID_LENGTH: usize = 20;
