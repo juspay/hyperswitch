@@ -39,7 +39,8 @@
         "api-reference/payments/payments--create-intent",
         "api-reference/payments/payments--get-intent",
         "api-reference/payments/payments--session-token",
-        "api-reference/payments/payments--confirm-intent"
+        "api-reference/payments/payments--confirm-intent",
+        "api-reference/payments/payments--get"
       ]
     },
     {
@@ -111,9 +112,7 @@
     },
     {
       "group": "Refunds",
-      "pages": [
-        "api-reference/refunds/refunds--create"
-      ]
+      "pages": ["api-reference/refunds/refunds--create"]
     }
   ],
   "footerSocials": {
