@@ -4,11 +4,17 @@ pub mod helpers;
 pub mod retry;
 pub mod transformers;
 pub mod validator;
-use std::{collections::HashSet, vec::IntoIter};
+use std::{
+    collections::{HashMap, HashSet},
+    vec::IntoIter,
+};
 
 #[cfg(feature = "olap")]
 use api_models::payments as payment_enums;
-use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
+use api_models::{
+    self, enums as api_enums, payment_methods::PaymentsMandateReferenceRecord,
+    payouts::PayoutLinkResponse,
+};
 #[cfg(feature = "payout_retry")]
 use common_enums::PayoutRetryType;
 use common_utils::{
@@ -25,6 +31,7 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
+use hyperswitch_domain_models::payment_methods::PaymentMethod;
 use masking::{PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
@@ -72,6 +79,7 @@ pub struct PayoutData {
     pub should_terminate: bool,
     pub payout_link: Option<PayoutLink>,
     pub current_locale: String,
+    // pub payment_method: storage::PaymentMethod
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -1124,6 +1132,7 @@ pub async fn call_connector_payout(
         merchant_account,
         connector_data,
         payout_data,
+        key_store,
     )
     .await?;
     // Payout creation flow
@@ -1935,6 +1944,7 @@ pub async fn complete_create_recipient_disburse_account(
     merchant_account: &domain::MerchantAccount,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
     if !payout_data.should_terminate
         && payout_data.payout_attempt.status
@@ -1943,9 +1953,15 @@ pub async fn complete_create_recipient_disburse_account(
             .connector_name
             .supports_vendor_disburse_account_create_for_payout()
     {
-        create_recipient_disburse_account(state, merchant_account, connector_data, payout_data)
-            .await
-            .attach_printable("Creation of customer failed")?;
+        create_recipient_disburse_account(
+            state,
+            merchant_account,
+            connector_data,
+            payout_data,
+            key_store,
+        )
+        .await
+        .attach_printable("Creation of customer failed")?;
     }
     Ok(())
 }
@@ -1955,6 +1971,7 @@ pub async fn create_recipient_disburse_account(
     merchant_account: &domain::MerchantAccount,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
     // 1. Form Router data
     let router_data =
@@ -1983,12 +2000,13 @@ pub async fn create_recipient_disburse_account(
     let db = &*state.store;
     match router_data_resp.response {
         Ok(payout_response_data) => {
+            // let payout_resposne_data_copy = payout_response_data.clone();
             let payout_attempt = &payout_data.payout_attempt;
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: payout_response_data.connector_payout_id,
+                connector_payout_id: payout_response_data.connector_payout_id.clone(),
                 status,
                 error_code: None,
                 error_message: None,
@@ -2006,6 +2024,103 @@ pub async fn create_recipient_disburse_account(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_attempt in db")?;
+
+            /*
+            if payouts.recurring is true save the connector_payout_id and transacton_flow,
+            in the payment_method table in connector_mandate_details
+
+            pub struct PaymentsMandateReferenceRecord {
+                pub connector_mandate_id: String,
+                pub payment_method_type: Option<common_enums::PaymentMethodType>,
+                pub original_payment_authorized_amount: Option<i64>,
+                pub original_payment_authorized_currency: Option<common_enums::Currency>,
+            }
+
+            ref: crates/api_models/src/payment_methods.rs     line: 2186
+            */
+
+            match (
+                payout_data.payouts.recurring,
+                payout_data.payout_method_data.clone(),
+                payout_response_data.connector_payout_id,
+                payout_data.customer_details.clone(),
+            ) {
+                (
+                    true,
+                    Some(payout_method_data),
+                    Some(connector_payout_id),
+                    Some(customer_details),
+                ) => {
+                    let connector_mandate_details = HashMap::from([(
+                        connector_data.merchant_connector_id.clone(), // which connector was called  [MCA]
+                        PaymentsMandateReferenceRecord {
+                            connector_mandate_id: connector_payout_id.clone(), // what does the connector return
+                            payment_method_type: Some(api_enums::PaymentMethodType::foreign_from(
+                                payout_method_data,
+                            )),
+                            original_payment_authorized_amount: Some(
+                                payout_data.payouts.amount.get_amount_as_i64(),
+                            ),
+                            original_payment_authorized_currency: Some(
+                                payout_data.payouts.destination_currency,
+                            ),
+                        },
+                    )]);
+
+                    let connector_mandate_details_value =
+                        serde_json::to_value(connector_mandate_details).ok();
+
+                    let current_time = common_utils::date_time::now();
+                    let payment_method = PaymentMethod {
+                        customer_id: customer_details.customer_id, //.as_ref().map(|c|c.customer_id.clone()).unwrap(),
+                        merchant_id: merchant_account.get_id().clone(),
+                        payment_method_id: utils::generate_id(consts::ID_LENGTH, "pm"),
+                        locker_id: None,
+                        payment_method: None,
+                        payment_method_type: None,
+                        payment_method_issuer: None,
+                        scheme: None,
+                        metadata: None,
+                        payment_method_data: None,
+                        connector_mandate_details: connector_mandate_details_value,
+                        customer_acceptance: None,
+                        client_secret: None,
+                        status: common_enums::PaymentMethodStatus::Active,
+                        network_transaction_id: None,
+                        payment_method_issuer_code: None,
+                        accepted_currency: None,
+                        token: None,
+                        cardholder_name: None,
+                        issuer_name: None,
+                        issuer_country: None,
+                        payer_country: None,
+                        is_stored: None,
+                        swift_code: None,
+                        direct_debit_token: None,
+                        created_at: current_time,
+                        last_modified: current_time,
+                        last_used_at: current_time,
+                        payment_method_billing_address: None,
+                        updated_by: None,
+                        version: domain::consts::API_VERSION,
+                        network_token_requestor_reference_id: None,
+                        network_token_locker_id: None,
+                        network_token_payment_method_data: None,
+                        transaction_flow: Some(storage_enums::TransactionFlow::Payouts),
+                    };
+
+                    db.insert_payment_method(
+                        &state.into(),
+                        key_store,
+                        payment_method,
+                        merchant_account.storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to add payment method in db")?;
+                }
+                _ => (),
+            }
         }
         Err(err) => {
             let (error_code, error_message) = (Some(err.code), Some(err.message));
