@@ -5,11 +5,7 @@ use api_models::{
     payments::{PaymentLinkData, PaymentLinkStatusWrap},
 };
 use common_utils::{
-    consts::{
-        DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_HIDE_CARD_NICKNAME_FIELD, DEFAULT_LOCALE,
-        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
-    },
+    consts::{DEFAULT_LOCALE, DEFAULT_SESSION_EXPIRY},
     ext_traits::{AsyncExt, OptionExt, ValueExt},
     types::{AmountConvertor, StringMajorUnitForCore},
 };
@@ -25,7 +21,11 @@ use super::{
     payments::helpers,
 };
 use crate::{
-    consts,
+    consts::{
+        self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT,
+    },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
     headers::ACCEPT_LANGUAGE,
