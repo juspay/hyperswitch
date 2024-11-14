@@ -172,6 +172,61 @@ pub struct PaymentAttempt {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub capture_before: Option<PrimitiveDateTime>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, diesel::expression::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Bool)]
+pub struct ExtendedAuthorizationAppliedBool(bool);
+impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for ExtendedAuthorizationAppliedBool
+where
+    DB: diesel::backend::Backend,
+    bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
+{
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, DB>,
+    ) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
+    for ExtendedAuthorizationAppliedBool
+where
+    DB: diesel::backend::Backend,
+    bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        bool::from_sql(value).map(Self)
+    }
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, diesel::expression::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Bool)]
+pub struct RequestExtendedAuthorizationBool(bool);
+impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for RequestExtendedAuthorizationBool
+where
+    DB: diesel::backend::Backend,
+    bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
+{
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, DB>,
+    ) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
+    for RequestExtendedAuthorizationBool
+where
+    DB: diesel::backend::Backend,
+    bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        bool::from_sql(value).map(Self)
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -351,6 +406,10 @@ pub struct PaymentAttemptNew {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub capture_before: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]

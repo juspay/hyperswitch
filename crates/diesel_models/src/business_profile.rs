@@ -57,6 +57,34 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, diesel::expression::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Bool)]
+pub struct AlwaysRequestExtendedAuthorization(bool);
+impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB>
+    for AlwaysRequestExtendedAuthorization
+where
+    DB: diesel::backend::Backend,
+    bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
+{
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, DB>,
+    ) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
+    for AlwaysRequestExtendedAuthorization
+where
+    DB: diesel::backend::Backend,
+    bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        bool::from_sql(value).map(Self)
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -140,6 +168,7 @@ pub struct ProfileUpdateInternal {
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
 }
 
 #[cfg(feature = "v1")]
@@ -179,6 +208,7 @@ impl ProfileUpdateInternal {
             is_network_tokenization_enabled,
             is_auto_retries_enabled,
             max_auto_retries_enabled,
+            always_request_extended_authorization,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -238,6 +268,8 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_network_tokenization_enabled),
             is_auto_retries_enabled: is_auto_retries_enabled.or(source.is_auto_retries_enabled),
             max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
+            always_request_extended_authorization: always_request_extended_authorization
+                .or(source.always_request_extended_authorization),
         }
     }
 }

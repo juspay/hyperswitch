@@ -7,8 +7,8 @@ use common_utils::{
     types::keymanager,
 };
 use diesel_models::business_profile::{
-    AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
-    ProfileUpdateInternal, WebhookDetails,
+    AlwaysRequestExtendedAuthorization, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
+    BusinessPayoutLinkConfig, ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -58,6 +58,7 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
 }
 
 #[cfg(feature = "v1")]
@@ -98,6 +99,7 @@ pub struct ProfileSetter {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
 }
 
 #[cfg(feature = "v1")]
@@ -145,6 +147,7 @@ impl From<ProfileSetter> for Profile {
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_auto_retries_enabled: value.is_auto_retries_enabled,
             max_auto_retries_enabled: value.max_auto_retries_enabled,
+            always_request_extended_authorization: value.always_request_extended_authorization,
         }
     }
 }
@@ -293,6 +296,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
+                    always_request_extended_authorization: None,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -332,6 +336,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -369,6 +374,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -406,6 +412,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -443,6 +450,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -480,6 +488,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: Some(is_network_tokenization_enabled),
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
             },
         }
     }
@@ -536,6 +545,7 @@ impl super::behaviour::Conversion for Profile {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: Some(self.is_auto_retries_enabled),
             max_auto_retries_enabled: self.max_auto_retries_enabled,
+            always_request_extended_authorization: self.always_request_extended_authorization,
         })
     }
 
@@ -604,6 +614,7 @@ impl super::behaviour::Conversion for Profile {
                 is_network_tokenization_enabled: item.is_network_tokenization_enabled,
                 is_auto_retries_enabled: item.is_auto_retries_enabled.unwrap_or(false),
                 max_auto_retries_enabled: item.max_auto_retries_enabled,
+                always_request_extended_authorization: item.always_request_extended_authorization,
             })
         }
         .await

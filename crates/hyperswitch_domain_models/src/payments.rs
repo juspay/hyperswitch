@@ -11,7 +11,9 @@ use common_utils::{
     id_type, pii,
     types::{keymanager::ToEncryptable, MinorUnit},
 };
-use diesel_models::payment_intent::TaxDetails;
+use diesel_models::{
+    payment_attempt::RequestExtendedAuthorizationBool, payment_intent::TaxDetails,
+};
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
@@ -99,6 +101,7 @@ pub struct PaymentIntent {
     pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
 }
 
 impl PaymentIntent {

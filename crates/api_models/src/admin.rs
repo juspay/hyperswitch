@@ -1989,6 +1989,9 @@ pub struct ProfileCreate {
 
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<u8>,
+
+    /// Bool indicating if extended authentication must be requested for all payments
+    pub always_request_extended_authorization: Option<bool>,
 }
 
 #[nutype::nutype(

@@ -203,6 +203,9 @@ pub struct PaymentAttemptBatchNew {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub request_extended_authorization: Option<crate::RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<crate::ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -282,6 +285,9 @@ impl PaymentAttemptBatchNew {
             shipping_cost: self.shipping_cost,
             order_tax_amount: self.order_tax_amount,
             connector_mandate_detail: self.connector_mandate_detail,
+            request_extended_authorization: self.request_extended_authorization,
+            extended_authorization_applied: self.extended_authorization_applied,
+            capture_before: self.capture_before,
         }
     }
 }
