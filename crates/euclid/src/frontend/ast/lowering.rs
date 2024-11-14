@@ -274,6 +274,8 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
 
         dir::DirKeyKind::CardRedirectType => lower_enum!(CardRedirectType, value),
 
+        dir::DirKeyKind::MobilePaymentType => lower_enum!(MobilePaymentType, value),
+
         dir::DirKeyKind::RealTimePaymentType => lower_enum!(RealTimePaymentType, value),
 
         dir::DirKeyKind::CardBin => {

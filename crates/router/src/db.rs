@@ -146,6 +146,7 @@ pub trait GlobalStorageInterface:
     + user::UserInterface
     + user_role::UserRoleInterface
     + user_key_store::UserKeyStoreInterface
+    + user::theme::ThemeInterface
     + 'static
 {
 }

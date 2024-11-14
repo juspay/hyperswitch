@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.14.0
+
+### Features
+
+- **connector:** [ADYEN] Integrate Paze ([#6545](https://github.com/juspay/hyperswitch/pull/6545)) ([`b82e742`](https://github.com/juspay/hyperswitch/commit/b82e7429e2db8ef1241a3f6ebe782319f9d1d98b))
+- **core:** Add Mobile Payment (Direct Carrier Billing) as a payment method ([#6196](https://github.com/juspay/hyperswitch/pull/6196)) ([`d0a041c`](https://github.com/juspay/hyperswitch/commit/d0a041c361668d0eff6c9b0dde67351b6ed43d19))
+- **openapi:** Add payment get to openapi ([#6539](https://github.com/juspay/hyperswitch/pull/6539)) ([`600cf44`](https://github.com/juspay/hyperswitch/commit/600cf44684912192f0bf1b9566fd0a7daae9f54c))
+- **users:** Add global support in user roles ([#6458](https://github.com/juspay/hyperswitch/pull/6458)) ([`98b141c`](https://github.com/juspay/hyperswitch/commit/98b141c6a00e6435385e1c513b1684d58567ecee))
+
+### Bug Fixes
+
+- **payments:** Populate payment_method_type in payment_attempt for cards ([#6519](https://github.com/juspay/hyperswitch/pull/6519)) ([`574170a`](https://github.com/juspay/hyperswitch/commit/574170a357fdb0a5134354f29e46d57fa4ea5201))
+- **webhooks:** Add support for updating mandate details in webhooks flow ([#6523](https://github.com/juspay/hyperswitch/pull/6523)) ([`6eb72e9`](https://github.com/juspay/hyperswitch/commit/6eb72e923ee05361d018dcdae837b637fad03d88))
+
+### Documentation
+
+- **analytics:** Add setup instructions for currency_conversion service ([#6516](https://github.com/juspay/hyperswitch/pull/6516)) ([`31a38db`](https://github.com/juspay/hyperswitch/commit/31a38db8005e6e566c3c7330bdcfca0cbdca19eb))
+
+**Full Changelog:** [`2024.11.13.0...2024.11.14.0`](https://github.com/juspay/hyperswitch/compare/2024.11.13.0...2024.11.14.0)
+
+- - -
+
 ## 2024.11.13.0
 
 ### Features

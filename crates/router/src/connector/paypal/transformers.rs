@@ -1010,6 +1010,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     | enums::PaymentMethodType::Dana
                     | enums::PaymentMethodType::DanamonVa
                     | enums::PaymentMethodType::Debit
+                    | enums::PaymentMethodType::DirectCarrierBilling
                     | enums::PaymentMethodType::DuitNow
                     | enums::PaymentMethodType::Efecty
                     | enums::PaymentMethodType::Eps
@@ -1089,6 +1090,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
             }
             domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::OpenBanking(_)
