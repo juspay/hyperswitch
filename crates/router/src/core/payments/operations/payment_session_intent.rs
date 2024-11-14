@@ -10,16 +10,17 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, ValidateRequest};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, operations},
+        payments::{self, operations, operations::ValidateStatusForOperation},
     },
     routes::SessionState,
     types::{api, domain, storage::enums},
+    utils::ext_traits::OptionExt,
 };
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentSessionIntent;
 
-impl operations::ValidateStatusForOperation for PaymentSessionIntent {
+impl ValidateStatusForOperation for PaymentSessionIntent {
     /// Validate if the current operation can be performed on the current status of the payment intent
     fn validate_status_for_operation(
         &self,

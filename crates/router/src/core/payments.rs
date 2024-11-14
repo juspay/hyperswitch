@@ -3505,37 +3505,6 @@ where
     Ok(merchant_connector_account)
 }
 
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-pub async fn construct_profile_id_and_get_mca<'a, F, D>(
-    state: &'a SessionState,
-    merchant_account: &domain::MerchantAccount,
-    payment_data: &D,
-    connector_name: &str,
-    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
-    key_store: &domain::MerchantKeyStore,
-    _should_validate: bool,
-) -> RouterResult<helpers::MerchantConnectorAccountType>
-where
-    F: Clone,
-    D: OperationSessionGetters<F> + Send + Sync + Clone,
-{
-    let profile_id = payment_data.get_payment_intent().profile_id.clone();
-
-    let merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        merchant_account.get_id(),
-        None,
-        key_store,
-        &profile_id,
-        connector_name,
-        merchant_connector_id,
-    )
-    .await?;
-
-    Ok(merchant_connector_account)
-}
-
 fn is_payment_method_tokenization_enabled_for_connector(
     state: &SessionState,
     connector_name: &str,
