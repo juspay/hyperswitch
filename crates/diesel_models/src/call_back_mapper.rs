@@ -12,7 +12,7 @@ use crate::schema::call_back_mapper;
 pub struct CallBackMapper {
     pub id: String,
     #[serde(rename = "type")]
-    pub id_type: String,
+    pub type_: String,
     pub data: serde_json::Value,
     pub created_at: time::PrimitiveDateTime,
     pub last_modified_at: time::PrimitiveDateTime,
@@ -23,6 +23,6 @@ pub struct CallBackMapper {
 pub struct CallBackMapperNew {
     pub id: String,
     #[serde(rename = "type")]
-    pub id_type: String,
+    pub type_: String,
     pub data: serde_json::Value,
 }
