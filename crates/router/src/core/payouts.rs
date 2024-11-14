@@ -8,7 +8,7 @@ use std::{collections::HashSet, vec::IntoIter};
 
 #[cfg(feature = "olap")]
 use api_models::payments as payment_enums;
-use api_models::{self, enums as api_enums, payouts::PayoutLinkResponse};
+use api_models::{self, enums as api_enums, payments::ConnectorMandateReferenceId, payouts::PayoutLinkResponse};
 #[cfg(feature = "payout_retry")]
 use common_enums::PayoutRetryType;
 use common_utils::{
@@ -72,6 +72,7 @@ pub struct PayoutData {
     pub should_terminate: bool,
     pub payout_link: Option<PayoutLink>,
     pub current_locale: String,
+    pub payment_method: Option<String>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -2006,6 +2007,14 @@ pub async fn create_recipient_disburse_account(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_attempt in db")?;
+
+            payout_data.payment_method.map(|pm|) {
+                let pmd = HashMap::new()
+                
+            }
+            let payment_method_update = ConnectorMandateDetailsUpdate {
+                connector_mandate_details: Some()
+            }
         }
         Err(err) => {
             let (error_code, error_message) = (Some(err.code), Some(err.message));
@@ -2628,6 +2637,7 @@ pub async fn payout_create_db_entries(
         profile_id: profile_id.to_owned(),
         payout_link,
         current_locale: locale.to_string(),
+        payment_method,
     })
 }
 
@@ -2829,6 +2839,7 @@ pub async fn make_payout_data(
         profile_id,
         payout_link,
         current_locale: locale.to_string(),
+        payment_method,
     })
 }
 

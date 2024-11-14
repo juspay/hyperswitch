@@ -1006,6 +1006,8 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         last_used_at -> Timestamp,
         connector_mandate_details -> Nullable<Jsonb>,
+        #[max_length = 64]
+        transaction_flow -> Nullable<Varchar>,
         customer_acceptance -> Nullable<Jsonb>,
         #[max_length = 64]
         status -> Varchar,
