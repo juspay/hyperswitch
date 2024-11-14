@@ -776,7 +776,6 @@ diesel::table! {
         updated_by -> Varchar,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
-        authentication_data -> Nullable<Json>,
         encoded_data -> Nullable<Text>,
         #[max_length = 255]
         unified_code -> Nullable<Varchar>,
@@ -814,6 +813,7 @@ diesel::table! {
         external_reference_id -> Nullable<Varchar>,
         tax_on_surcharge -> Nullable<Int8>,
         payment_method_billing_address -> Nullable<Bytea>,
+        redirection_data -> Nullable<Jsonb>,
         #[max_length = 512]
         connector_payment_data -> Nullable<Varchar>,
         #[max_length = 64]
@@ -1289,6 +1289,8 @@ diesel::table! {
         #[max_length = 64]
         entity_type -> Nullable<Varchar>,
         version -> UserRoleVersion,
+        #[max_length = 64]
+        tenant_id -> Varchar,
     }
 }
 

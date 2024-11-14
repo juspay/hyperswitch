@@ -51,8 +51,8 @@ pub mod routes {
 
     impl Analytics {
         #[cfg(feature = "v2")]
-        pub fn server(_state: AppState) -> Scope {
-            todo!()
+        pub fn server(state: AppState) -> Scope {
+            web::scope("/analytics").app_data(web::Data::new(state))
         }
         #[cfg(feature = "v1")]
         pub fn server(state: AppState) -> Scope {
@@ -1853,7 +1853,7 @@ pub mod routes {
                     return Err(OpenSearchError::AccessForbiddenError)?;
                 }
                 let user_roles: HashSet<UserRole> = state
-                    .store
+                    .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
                         org_id: Some(&auth.org_id),
@@ -1976,7 +1976,7 @@ pub mod routes {
                     return Err(OpenSearchError::AccessForbiddenError)?;
                 }
                 let user_roles: HashSet<UserRole> = state
-                    .store
+                    .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
                         org_id: Some(&auth.org_id),
