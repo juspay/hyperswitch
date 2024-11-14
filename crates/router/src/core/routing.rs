@@ -1237,7 +1237,7 @@ pub async fn toggle_success_based_routing(
                 success_based_dynamic_routing_algo_ref,
             )
             .await
-        },
+        }
         routing::SuccessBasedRoutingFeatures::None => {
             // disable success based routing for the requested profile
             helpers::disable_dynamic_routing_algorithm(

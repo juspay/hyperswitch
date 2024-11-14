@@ -1092,7 +1092,7 @@ pub async fn success_based_routing_update_configs(
 }
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
-pub async fn toggle_elimination_routing (
+pub async fn toggle_elimination_routing(
     state: web::Data<AppState>,
     req: HttpRequest,
     query: web::Query<api_models::routing::ToggleSuccessBasedRoutingQuery>,

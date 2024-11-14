@@ -1719,35 +1719,33 @@ impl Profile {
             .service(
                 web::scope("/{profile_id}")
                     .service(
-                        web::scope("/dynamic_routing").service(
-                            web::scope("/success_based")
-                                .service(
-                                    web::resource("/toggle").route(
+                        web::scope("/dynamic_routing")
+                            .service(
+                                web::scope("/success_based")
+                                    .service(web::resource("/toggle").route(
                                         web::post().to(routing::toggle_success_based_routing),
-                                    ),
-                                )
-                                .service(web::resource("/config/{algorithm_id}").route(
-                                    web::patch().to(|state, req, path, payload| {
-                                        routing::success_based_routing_update_configs(
-                                            state, req, path, payload,
-                                        )
-                                    }),
-                                )),
-                        ).service(
-                            web::scope("/elimination")
-                                .service(
-                                    web::resource("/toggle").route(
+                                    ))
+                                    .service(web::resource("/config/{algorithm_id}").route(
+                                        web::patch().to(|state, req, path, payload| {
+                                            routing::success_based_routing_update_configs(
+                                                state, req, path, payload,
+                                            )
+                                        }),
+                                    )),
+                            )
+                            .service(
+                                web::scope("/elimination")
+                                    .service(web::resource("/toggle").route(
                                         web::post().to(routing::toggle_success_based_routing),
-                                    ),
-                                )
-                                .service(web::resource("/config/{algorithm_id}").route(
-                                    web::patch().to(|state, req, path, payload| {
-                                        routing::success_based_routing_update_configs(
-                                            state, req, path, payload,
-                                        )
-                                    }),
-                                )),
-                        ),
+                                    ))
+                                    .service(web::resource("/config/{algorithm_id}").route(
+                                        web::patch().to(|state, req, path, payload| {
+                                            routing::success_based_routing_update_configs(
+                                                state, req, path, payload,
+                                            )
+                                        }),
+                                    )),
+                            ),
                     )
                     .service(
                         web::resource("")

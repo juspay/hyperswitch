@@ -921,16 +921,13 @@ pub async fn disable_dynamic_routing_algorithm(
     let timestamp = common_utils::date_time::now_unix_timestamp();
     match success_based_dynamic_routing_algo_ref.success_based_algorithm {
         Some(algorithm_ref) => {
-            if let Some(algorithm_id) =
-                algorithm_ref.algorithm_id_with_timestamp.algorithm_id
-            {
+            if let Some(algorithm_id) = algorithm_ref.algorithm_id_with_timestamp.algorithm_id {
                 let dynamic_routing_algorithm = routing_types::DynamicRoutingAlgorithmRef {
                     success_based_algorithm: Some(routing_types::SuccessBasedAlgorithm {
-                        algorithm_id_with_timestamp:
-                            routing_types::DynamicAlgorithmWithTimestamp {
-                                algorithm_id: None,
-                                timestamp,
-                            },
+                        algorithm_id_with_timestamp: routing_types::DynamicAlgorithmWithTimestamp {
+                            algorithm_id: None,
+                            timestamp,
+                        },
                         enabled_feature: routing_types::SuccessBasedRoutingFeatures::None,
                     }),
                 };
@@ -1014,8 +1011,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 if algo_with_timestamp.enabled_feature == feature_to_enable {
                     // algorithm already has the required feature
                     Err(errors::ApiErrorResponse::PreconditionFailed {
-                        message: "Success rate based routing is already enabled"
-                            .to_string(),
+                        message: "Success rate based routing is already enabled".to_string(),
                     })?
                 } else {
                     // enable the requested feature for the algorithm
@@ -1026,9 +1022,7 @@ pub async fn enable_dynamic_routing_algorithm(
                             &algorithm_id,
                         )
                         .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::ResourceIdNotFound,
-                        )?;
+                        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
                     let response = record.foreign_into();
                     update_business_profile_active_dynamic_algorithm_ref(
                         db,
