@@ -1551,6 +1551,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            sca_exemption_required: self.sca_exemption_required,
         })
     }
 
@@ -1638,6 +1639,7 @@ impl behaviour::Conversion for PaymentIntent {
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
+                sca_exemption_required: storage_model.sca_exemption_required,
             })
         }
         .await

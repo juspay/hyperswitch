@@ -20,7 +20,7 @@ pub mod diesel_exports {
         DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
         DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbScaExemptionType as ScaExemptionType, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 
@@ -1666,6 +1666,32 @@ pub enum PaymentType {
     NewMandate,
     SetupMandate,
     RecurringMandate,
+}
+
+/// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ScaExemptionType {
+    #[default]
+    LowValueExemption,
+    LowRistExemption,
+    SecureCorporateExemption,
+    TrustedBeneficiaryExemption,
+    MerchantInitiatedTransactionExemption,
 }
 
 #[derive(

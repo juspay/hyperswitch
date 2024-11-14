@@ -353,6 +353,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
 
+        payment_intent.sca_exemption_required = request
+            .sca_exemption_required
+            .or(payment_intent.sca_exemption_required);
+
         let browser_info = request
             .browser_info
             .clone()

@@ -931,6 +931,7 @@ diesel::table! {
         organization_id -> Varchar,
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
+        sca_exemption_required -> Nullable<ScaExemptionType>,
     }
 }
 
