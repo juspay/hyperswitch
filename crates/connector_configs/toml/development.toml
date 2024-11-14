@@ -1394,6 +1394,13 @@ api_key="Client ID"
 key1="Merchant ID"
 api_secret="Client Key"
 
+[digitalvirgo]
+[[digitalvirgo.mobile_payment]]
+  payment_method_type = "direct_carrier_billing"
+[digitalvirgo.connector_auth.BodyKey]
+api_key="Password"
+key1="Username"
+
 [dlocal]
 [[dlocal.credit]]
   payment_method_type = "Mastercard"
