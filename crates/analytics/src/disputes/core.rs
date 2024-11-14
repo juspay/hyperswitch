@@ -4,7 +4,9 @@ use api_models::analytics::{
     disputes::{
         DisputeDimensions, DisputeMetrics, DisputeMetricsBucketIdentifier,
         DisputeMetricsBucketResponse,
-    },  DisputeFilterValue, DisputeFiltersResponse, DisputesAnalyticsMetadata, DisputesMetricsResponse, GetDisputeFilterRequest, GetDisputeMetricRequest
+    },
+    DisputeFilterValue, DisputeFiltersResponse, DisputesAnalyticsMetadata, DisputesMetricsResponse,
+    GetDisputeFilterRequest, GetDisputeMetricRequest,
 };
 use error_stack::ResultExt;
 use router_env::{
@@ -14,7 +16,8 @@ use router_env::{
 };
 
 use super::{
-    filters::{get_dispute_filter_for_dimension, DisputeFilterRow}, DisputeMetricsAccumulator
+    filters::{get_dispute_filter_for_dimension, DisputeFilterRow},
+    DisputeMetricsAccumulator,
 };
 use crate::{
     disputes::DisputeMetricAccumulator,
@@ -89,9 +92,9 @@ pub async fn get_metrics(
                     .disputes_status_rate
                     .add_metrics_bucket(&value),
                 DisputeMetrics::TotalAmountDisputed
-                | DisputeMetrics::SessionizedTotalAmountDisputed => metrics_builder
-                    .disputed_amount
-                    .add_metrics_bucket(&value),
+                | DisputeMetrics::SessionizedTotalAmountDisputed => {
+                    metrics_builder.disputed_amount.add_metrics_bucket(&value)
+                }
                 DisputeMetrics::TotalDisputeLostAmount
                 | DisputeMetrics::SessionizedTotalDisputeLostAmount => metrics_builder
                     .dispute_lost_amount
@@ -110,20 +113,19 @@ pub async fn get_metrics(
     let query_data: Vec<DisputeMetricsBucketResponse> = metrics_accumulator
         .into_iter()
         .map(|(id, val)| {
-                let collected_values = val.collect();
-                if let Some(amount) = collected_values.disputed_amount {
-                    total_disputed_amount += amount;
-                }
-                if let Some(amount) = collected_values.dispute_lost_amount {
-                    total_dispute_lost_amount += amount;
-                }
-            
-                DisputeMetricsBucketResponse {
-                    values: collected_values,
-                    dimensions: id,
-                }
+            let collected_values = val.collect();
+            if let Some(amount) = collected_values.disputed_amount {
+                total_disputed_amount += amount;
             }
-        )
+            if let Some(amount) = collected_values.dispute_lost_amount {
+                total_dispute_lost_amount += amount;
+            }
+
+            DisputeMetricsBucketResponse {
+                values: collected_values,
+                dimensions: id,
+            }
+        })
         .collect();
 
     Ok(DisputesMetricsResponse {

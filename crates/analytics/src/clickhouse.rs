@@ -139,7 +139,7 @@ impl AnalyticsDataSource for ClickhouseClient {
             | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
-            | AnalyticsCollection::DisputeSessionized => {
+            AnalyticsCollection::DisputeSessionized => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
             AnalyticsCollection::SdkEvents

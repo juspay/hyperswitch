@@ -39,7 +39,8 @@ where
     where
         T: AnalyticsDataSource + super::DisputeMetricAnalytics,
     {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::DisputeSessionized);
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::DisputeSessionized);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;

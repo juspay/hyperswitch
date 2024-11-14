@@ -1,7 +1,7 @@
 mod dispute_status_metric;
+mod sessionized_metrics;
 mod total_amount_disputed;
 mod total_dispute_lost_amount;
-mod sessionized_metrics;
 
 use std::collections::HashSet;
 
