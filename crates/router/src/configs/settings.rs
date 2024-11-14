@@ -79,6 +79,7 @@ pub struct Settings<S: SecretState> {
     pub secrets_management: SecretsManagementConfig,
     pub tokenization: TokenizationConfig,
     pub connector_customer: ConnectorCustomer,
+    pub some_name: SomeName,
     #[cfg(feature = "dummy_connector")]
     pub dummy_connector: DummyConnector,
     #[cfg(feature = "email")]
@@ -354,6 +355,13 @@ pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMet
 pub struct ConnectorCustomer {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
+    #[cfg(feature = "payouts")]
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub payout_connector_list: HashSet<enums::PayoutConnectors>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct SomeName{
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payout_connector_list: HashSet<enums::PayoutConnectors>,

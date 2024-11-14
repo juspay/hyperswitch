@@ -72,7 +72,7 @@ pub struct PayoutData {
     pub should_terminate: bool,
     pub payout_link: Option<PayoutLink>,
     pub current_locale: String,
-    pub payment_method: Option<String>,
+    pub payment_method: Option<storage::PaymentMethod>, 
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -1989,7 +1989,7 @@ pub async fn create_recipient_disburse_account(
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
-                connector_payout_id: payout_response_data.connector_payout_id,
+                connector_payout_id: payout_response_data.connector_payout_id, // need to store this
                 status,
                 error_code: None,
                 error_message: None,
@@ -2008,13 +2008,25 @@ pub async fn create_recipient_disburse_account(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_attempt in db")?;
 
-            payout_data.payment_method.map(|pm|) {
-                let pmd = HashMap::new()
+
+            /*
+            if recurring need to store
+
+            
+
+ */
+
+                // fetch the id 
+            // payout_data.payment_method.map(|pm|) {
+            //     let pmd = HashMap::new();
+
                 
-            }
-            let payment_method_update = ConnectorMandateDetailsUpdate {
-                connector_mandate_details: Some()
-            }
+            // }
+            // let payment_method_update = ConnectorMandateDetailsUpdate {
+            //     connector_mandate_details: Some()
+            // }
+
+            //
         }
         Err(err) => {
             let (error_code, error_message) = (Some(err.code), Some(err.message));

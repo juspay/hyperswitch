@@ -183,12 +183,15 @@ pub async fn validate_create_request(
         })
         .attach_printable("Profile id is a mandatory parameter")?;
 
-    ////Validate payout_method_id
+    // //Validate payout_method_id //here
     // let payment_method = match req.payout_method_id {
     //     Some(payout_method_id) => {
     //         db.find_payment_method(
 
     //         )
+    //     }
+    //     =>{
+
     //     }
     // }
 
