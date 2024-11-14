@@ -16,7 +16,7 @@ use crate::{
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 #[derive(Default)]
-pub(super) struct RefundProcessedAmount {}
+pub(crate) struct RefundProcessedAmount {}
 
 #[async_trait::async_trait]
 impl<T> super::RefundMetric<T> for RefundProcessedAmount
@@ -40,7 +40,8 @@ where
     where
         T: AnalyticsDataSource + super::RefundMetricAnalytics,
     {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Refund);
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::RefundSessionized);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
@@ -80,6 +81,7 @@ where
         }
 
         query_builder.add_group_by_clause("currency").switch()?;
+
         if let Some(granularity) = granularity.as_ref() {
             granularity
                 .set_group_by_clause(&mut query_builder)

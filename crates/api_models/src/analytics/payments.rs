@@ -271,7 +271,7 @@ pub struct PaymentMetricsBucketValue {
     pub payment_count: Option<u64>,
     pub payment_success_count: Option<u64>,
     pub payment_processed_amount: Option<u64>,
-    pub payment_processed_amount_usd: Option<u64>,
+    pub payment_processed_amount_in_usd: Option<u64>,
     pub payment_processed_count: Option<u64>,
     pub payment_processed_amount_without_smart_retries: Option<u64>,
     pub payment_processed_amount_without_smart_retries_usd: Option<u64>,
