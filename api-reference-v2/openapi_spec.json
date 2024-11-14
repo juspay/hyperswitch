@@ -5348,12 +5348,16 @@
       "CardDetailFromLocker": {
         "type": "object",
         "required": [
-          "issuer_country",
           "saved_to_locker"
         ],
         "properties": {
           "issuer_country": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "last4_digits": {
             "type": "string",
