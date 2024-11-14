@@ -20,7 +20,7 @@ use common_utils::{
         MinorUnit,
     },
 };
-#[cfg(feature = "v2")]
+
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
@@ -38,8 +38,11 @@ use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
-    ApiModelToDieselModelConvertor, RemoteStorageObject,
+    RemoteStorageObject,
 };
+
+#[cfg(feature = "v2")]
+use crate::ApiModelToDieselModelConvertor;
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
