@@ -10,7 +10,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, ValidateRequest};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, operations},
+        payments::{self, operations},
     },
     routes::SessionState,
     types::{api, domain, storage::enums},
@@ -18,6 +18,34 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentSessionIntent;
+
+impl operations::ValidateStatusForOperation for PaymentSessionIntent {
+    /// Validate if the current operation can be performed on the current status of the payment intent
+    fn validate_status_for_operation(
+        &self,
+        intent_status: common_enums::IntentStatus,
+    ) -> Result<(), errors::ApiErrorResponse> {
+        match intent_status {
+            common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => Ok(()),
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed => {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: format!(
+                        "You cannot create session token for this payment because it has status {intent_status}",
+                    ),
+                })
+            }
+        }
+    }
+}
 
 impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for &PaymentSessionIntent {
     type Data = payments::PaymentIntentData<F>;
@@ -71,7 +99,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSess
         merchant_account: &domain::MerchantAccount,
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
-        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -89,14 +117,13 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSess
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
-            &[enums::IntentStatus::Failed, enums::IntentStatus::Succeeded],
-            "create a session token for",
-        )?;
+        self.validate_status_for_operation(payment_intent.status)?;
 
-        // do this in core function
-        // helpers::authenticate_client_secret(Some(&request.client_secret), &payment_intent)?;
+        let client_secret = header_payload
+            .client_secret
+            .as_ref()
+            .get_required_value("client_secret header")?;
+        payment_intent.validate_client_secret(client_secret)?;
 
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
