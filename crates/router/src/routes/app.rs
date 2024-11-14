@@ -1659,6 +1659,7 @@ impl PayoutLink {
     pub fn server(state: AppState) -> Scope {
         web::scope("/payout_link").app_data(web::Data::new(state))
     }
+}
 pub struct Profile;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl Profile {
