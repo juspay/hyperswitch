@@ -5,9 +5,12 @@ use api_models::analytics::{
     refunds::{
         RefundDimensions, RefundMetrics, RefundMetricsBucketIdentifier, RefundMetricsBucketResponse,
     },
-    AnalyticsMetadata, GetRefundFilterRequest, GetRefundMetricRequest, MetricsResponse,
-    RefundFilterValue, RefundFiltersResponse,
+    GetRefundFilterRequest, GetRefundMetricRequest, RefundFilterValue, RefundFiltersResponse,
+    RefundsAnalyticsMetadata, RefundsMetricsResponse,
 };
+use bigdecimal::ToPrimitive;
+use common_enums::Currency;
+use currency_conversion::{conversion::convert, types::ExchangeRates};
 use error_stack::ResultExt;
 use router_env::{
     logger,
@@ -29,9 +32,10 @@ use crate::{
 
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
+    ex_rates: &ExchangeRates,
     auth: &AuthInfo,
     req: GetRefundMetricRequest,
-) -> AnalyticsResult<MetricsResponse<RefundMetricsBucketResponse>> {
+) -> AnalyticsResult<RefundsMetricsResponse<RefundMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<RefundMetricsBucketIdentifier, RefundMetricsAccumulator> =
         HashMap::new();
     let mut set = tokio::task::JoinSet::new();
@@ -86,16 +90,20 @@ pub async fn get_metrics(
             logger::debug!(bucket_id=?id, bucket_value=?value, "Bucket row for metric {metric}");
             let metrics_builder = metrics_accumulator.entry(id).or_default();
             match metric {
-                RefundMetrics::RefundSuccessRate => metrics_builder
-                    .refund_success_rate
-                    .add_metrics_bucket(&value),
-                RefundMetrics::RefundCount => {
+                RefundMetrics::RefundSuccessRate | RefundMetrics::SessionizedRefundSuccessRate => {
+                    metrics_builder
+                        .refund_success_rate
+                        .add_metrics_bucket(&value)
+                }
+                RefundMetrics::RefundCount | RefundMetrics::SessionizedRefundCount => {
                     metrics_builder.refund_count.add_metrics_bucket(&value)
                 }
-                RefundMetrics::RefundSuccessCount => {
+                RefundMetrics::RefundSuccessCount
+                | RefundMetrics::SessionizedRefundSuccessCount => {
                     metrics_builder.refund_success.add_metrics_bucket(&value)
                 }
-                RefundMetrics::RefundProcessedAmount => {
+                RefundMetrics::RefundProcessedAmount
+                | RefundMetrics::SessionizedRefundProcessedAmount => {
                     metrics_builder.processed_amount.add_metrics_bucket(&value)
                 }
             }
@@ -107,18 +115,45 @@ pub async fn get_metrics(
             metrics_accumulator
         );
     }
+    let mut total_refund_processed_amount = 0;
+    let mut total_refund_processed_amount_in_usd = 0;
     let query_data: Vec<RefundMetricsBucketResponse> = metrics_accumulator
         .into_iter()
-        .map(|(id, val)| RefundMetricsBucketResponse {
-            values: val.collect(),
-            dimensions: id,
+        .map(|(id, val)| {
+            let mut collected_values = val.collect();
+            if let Some(amount) = collected_values.refund_processed_amount {
+                let amount_in_usd = id
+                    .currency
+                    .and_then(|currency| {
+                        i64::try_from(amount)
+                            .inspect_err(|e| logger::error!("Amount conversion error: {:?}", e))
+                            .ok()
+                            .and_then(|amount_i64| {
+                                convert(ex_rates, currency, Currency::USD, amount_i64)
+                                    .inspect_err(|e| {
+                                        logger::error!("Currency conversion error: {:?}", e)
+                                    })
+                                    .ok()
+                            })
+                    })
+                    .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
+                    .unwrap_or_default();
+                collected_values.refund_processed_amount_in_usd = amount_in_usd;
+                total_refund_processed_amount += amount;
+                total_refund_processed_amount_in_usd += amount_in_usd.unwrap_or(0);
+            }
+            RefundMetricsBucketResponse {
+                values: collected_values,
+                dimensions: id,
+            }
         })
         .collect();
 
-    Ok(MetricsResponse {
+    Ok(RefundsMetricsResponse {
         query_data,
-        meta_data: [AnalyticsMetadata {
-            current_time_range: req.time_range,
+        meta_data: [RefundsAnalyticsMetadata {
+            total_refund_processed_amount: Some(total_refund_processed_amount),
+            total_refund_processed_amount_in_usd: Some(total_refund_processed_amount_in_usd),
         }],
     })
 }

@@ -387,7 +387,7 @@ impl PaymentMetricsAccumulator {
             payment_processed_count,
             payment_processed_amount_without_smart_retries,
             payment_processed_count_without_smart_retries,
-            payment_processed_amount_usd,
+            payment_processed_amount_in_usd,
             payment_processed_amount_without_smart_retries_usd,
         ) = self.processed_amount.collect();
         let (
@@ -417,7 +417,7 @@ impl PaymentMetricsAccumulator {
             payments_failure_rate_distribution_without_smart_retries,
             failure_reason_count,
             failure_reason_count_without_smart_retries,
-            payment_processed_amount_usd,
+            payment_processed_amount_in_usd,
             payment_processed_amount_without_smart_retries_usd,
         }
     }

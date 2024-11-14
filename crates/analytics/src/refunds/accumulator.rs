@@ -7,7 +7,7 @@ pub struct RefundMetricsAccumulator {
     pub refund_success_rate: SuccessRateAccumulator,
     pub refund_count: CountAccumulator,
     pub refund_success: CountAccumulator,
-    pub processed_amount: SumAccumulator,
+    pub processed_amount: PaymentProcessedAmountAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -22,7 +22,7 @@ pub struct CountAccumulator {
 }
 #[derive(Debug, Default)]
 #[repr(transparent)]
-pub struct SumAccumulator {
+pub struct PaymentProcessedAmountAccumulator {
     pub total: Option<i64>,
 }
 
@@ -50,8 +50,8 @@ impl RefundMetricAccumulator for CountAccumulator {
     }
 }
 
-impl RefundMetricAccumulator for SumAccumulator {
-    type MetricOutput = Option<u64>;
+impl RefundMetricAccumulator for PaymentProcessedAmountAccumulator {
+    type MetricOutput = (Option<u64>, Option<u64>);
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &RefundMetricRow) {
         self.total = match (
@@ -68,7 +68,7 @@ impl RefundMetricAccumulator for SumAccumulator {
     }
     #[inline]
     fn collect(self) -> Self::MetricOutput {
-        self.total.and_then(|i| u64::try_from(i).ok())
+        (self.total.and_then(|i| u64::try_from(i).ok()), Some(0))
     }
 }
 
@@ -98,11 +98,14 @@ impl RefundMetricAccumulator for SuccessRateAccumulator {
 
 impl RefundMetricsAccumulator {
     pub fn collect(self) -> RefundMetricsBucketValue {
+        let (refund_processed_amount, refund_processed_amount_in_usd) =
+            self.processed_amount.collect();
         RefundMetricsBucketValue {
             refund_success_rate: self.refund_success_rate.collect(),
             refund_count: self.refund_count.collect(),
             refund_success_count: self.refund_success.collect(),
-            refund_processed_amount: self.processed_amount.collect(),
+            refund_processed_amount,
+            refund_processed_amount_in_usd,
         }
     }
 }

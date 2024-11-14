@@ -5,7 +5,6 @@ use api_models::analytics::{
     Granularity, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
@@ -16,10 +15,10 @@ use crate::{
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 #[derive(Default)]
-pub(super) struct RefundProcessedAmount {}
+pub(crate) struct RefundSuccessRate {}
 
 #[async_trait::async_trait]
-impl<T> super::RefundMetric<T> for RefundProcessedAmount
+impl<T> super::RefundMetric<T> for RefundSuccessRate
 where
     T: AnalyticsDataSource + super::RefundMetricAnalytics,
     PrimitiveDateTime: ToSql<T>,
@@ -40,19 +39,21 @@ where
     where
         T: AnalyticsDataSource + super::RefundMetricAnalytics,
     {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Refund);
+        let mut query_builder = QueryBuilder::new(AnalyticsCollection::RefundSessionized);
+        let mut dimensions = dimensions.to_vec();
+
+        dimensions.push(RefundDimensions::RefundStatus);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
 
         query_builder
-            .add_select_column(Aggregate::Sum {
-                field: "refund_amount",
-                alias: Some("total"),
+            .add_select_column(Aggregate::Count {
+                field: None,
+                alias: Some("count"),
             })
             .switch()?;
-        query_builder.add_select_column("currency").switch()?;
         query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
@@ -70,28 +71,17 @@ where
 
         auth.set_filter_clause(&mut query_builder).switch()?;
 
-        time_range
-            .set_filter_clause(&mut query_builder)
-            .attach_printable("Error filtering time range")
-            .switch()?;
+        time_range.set_filter_clause(&mut query_builder).switch()?;
 
         for dim in dimensions.iter() {
             query_builder.add_group_by_clause(dim).switch()?;
         }
 
-        query_builder.add_group_by_clause("currency").switch()?;
         if let Some(granularity) = granularity.as_ref() {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .switch()?;
         }
-
-        query_builder
-            .add_filter_clause(
-                RefundDimensions::RefundStatus,
-                storage_enums::RefundStatus::Success,
-            )
-            .switch()?;
 
         query_builder
             .execute_query::<RefundMetricRow, _>(pool)
@@ -121,7 +111,10 @@ where
                     i,
                 ))
             })
-            .collect::<error_stack::Result<HashSet<_>, crate::query::PostProcessingError>>()
+            .collect::<error_stack::Result<
+                HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>,
+                crate::query::PostProcessingError,
+            >>()
             .change_context(MetricsError::PostProcessingFailure)
     }
 }
