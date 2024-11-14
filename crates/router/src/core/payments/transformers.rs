@@ -168,6 +168,7 @@ where
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id,
+        sca_exemption_required: None,
     };
     Ok(router_data)
 }
@@ -723,6 +724,7 @@ where
         }),
         header_payload,
         connector_mandate_request_reference_id,
+        sca_exemption_required: payment_data.payment_intent.sca_exemption_required,
     };
 
     Ok(router_data)

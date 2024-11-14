@@ -86,6 +86,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub header_payload: Option<payments::HeaderPayload>,
 
     pub connector_mandate_request_reference_id: Option<String>,
+
+    /// Contains the type of sca exemption required for the transaction
+    pub sca_exemption_required: Option<common_enums::ScaExemptionType>,
 }
 
 // Different patterns of authentication.

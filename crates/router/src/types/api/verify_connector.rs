@@ -118,6 +118,7 @@ impl VerifyConnectorData {
             additional_merchant_data: None,
             header_payload: None,
             connector_mandate_request_reference_id: None,
+            sca_exemption_required: None,
         }
     }
 }

@@ -940,6 +940,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             connector_mandate_request_reference_id: data
                 .connector_mandate_request_reference_id
                 .clone(),
+            sca_exemption_required: data.sca_exemption_required,
         }
     }
 }
@@ -1005,6 +1006,7 @@ impl<F1, F2>
             additional_merchant_data: data.additional_merchant_data.clone(),
             header_payload: data.header_payload.clone(),
             connector_mandate_request_reference_id: None,
+            sca_exemption_required: None,
         }
     }
 }
