@@ -6,6 +6,7 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
+pub mod call_back_mapper;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
@@ -39,7 +40,6 @@ pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
 pub mod user_role;
-pub mod call_back_mapper;
 
 use std::collections::HashMap;
 
@@ -63,13 +63,13 @@ pub use scheduler::db::process_tracker;
 
 pub use self::{
     address::*, api_keys::*, authentication::*, authorization::*, blocklist::*,
-    blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, capture::*, cards_info::*,
-    configs::*, customers::*, dashboard_metadata::*, dispute::*, ephemeral_key::*, events::*,
-    file::*, fraud_check::*, generic_link::*, gsm::*, locker_mock_up::*, mandate::*,
-    merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
-    payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
-    routing_algorithm::*, unified_translations::*, user::*, user_authentication_method::*,
-    user_role::*, call_back_mapper::*,
+    blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, call_back_mapper::*,
+    capture::*, cards_info::*, configs::*, customers::*, dashboard_metadata::*, dispute::*,
+    ephemeral_key::*, events::*, file::*, fraud_check::*, generic_link::*, gsm::*,
+    locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
+    merchant_key_store::*, payment_link::*, payment_method::*, process_tracker::*, refund::*,
+    reverse_lookup::*, role::*, routing_algorithm::*, unified_translations::*, user::*,
+    user_authentication_method::*, user_role::*,
 };
 use crate::types::api::routing;
 

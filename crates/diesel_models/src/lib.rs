@@ -10,6 +10,7 @@ pub mod authentication;
 pub mod authorization;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
+pub mod call_back_mapper;
 pub mod customers;
 pub mod dispute;
 pub mod enums;
@@ -43,7 +44,6 @@ pub mod role;
 pub mod routing_algorithm;
 pub mod types;
 pub mod unified_translations;
-pub mod call_back_mapper;
 
 #[allow(unused_qualifications)]
 pub mod schema;
