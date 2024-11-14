@@ -225,7 +225,7 @@ diesel::table! {
         id -> Varchar,
         #[sql_name = "type"]
         #[max_length = 64]
-        id_type -> Varchar,
+        type_ -> Varchar,
         data -> Jsonb,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
