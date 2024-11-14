@@ -1688,7 +1688,7 @@ pub enum PaymentType {
 pub enum ScaExemptionType {
     #[default]
     LowValueExemption,
-    LowRistExemption,
+    LowRiskExemption,
     SecureCorporateExemption,
     TrustedBeneficiaryExemption,
     MerchantInitiatedTransactionExemption,
