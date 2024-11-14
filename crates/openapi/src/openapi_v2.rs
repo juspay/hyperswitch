@@ -125,6 +125,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_create_intent,
         routes::payments::payments_get_intent,
         routes::payments::payments_confirm_intent,
+        routes::payments::payment_status,
 
         //Routes for refunds
         routes::refunds::refunds_create,
@@ -394,6 +395,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::MultibancoBillingDetails,
         api_models::payments::DokuBillingDetails,
         api_models::payments::BankTransferInstructions,
+        api_models::payments::MobilePaymentNextStepData,
+        api_models::payments::MobilePaymentConsent,
         api_models::payments::ReceiverDetails,
         api_models::payments::AchTransfer,
         api_models::payments::MultibancoTransferInstructions,
@@ -441,6 +444,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::SurchargePercentage,
         api_models::payment_methods::PaymentMethodCollectLinkRequest,
         api_models::payment_methods::PaymentMethodCollectLinkResponse,
+        api_models::payments::PaymentsRetrieveResponse,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
         api_models::payments::AmountFilter,
@@ -453,6 +457,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
         api_models::payments::GiftCardDetails,
+        api_models::payments::MobilePaymentData,
+        api_models::payments::MobilePaymentResponse,
         api_models::payments::Address,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
@@ -597,6 +603,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ErrorDetails,
         common_utils::types::BrowserInformation,
         api_models::payments::ConfirmIntentAmountDetailsResponse,
+        routes::payments::ForceSync,
     )),
     modifiers(&SecurityAddon)
 )]

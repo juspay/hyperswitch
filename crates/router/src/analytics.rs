@@ -51,8 +51,8 @@ pub mod routes {
 
     impl Analytics {
         #[cfg(feature = "v2")]
-        pub fn server(_state: AppState) -> Scope {
-            todo!()
+        pub fn server(state: AppState) -> Scope {
+            web::scope("/analytics").app_data(web::Data::new(state))
         }
         #[cfg(feature = "v1")]
         pub fn server(state: AppState) -> Scope {
@@ -659,7 +659,8 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                analytics::refunds::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -697,7 +698,8 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                analytics::refunds::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -743,7 +745,8 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                analytics::refunds::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },

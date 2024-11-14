@@ -1469,6 +1469,8 @@ pub enum PaymentExperience {
     InvokePaymentApp,
     /// Contains the data for displaying wait screen
     DisplayWaitScreen,
+    /// Represents that otp needs to be collect and contains if consent is required
+    CollectOtp,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display)]
@@ -1597,6 +1599,7 @@ pub enum PaymentMethodType {
     Mifinity,
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
+    DirectCarrierBilling,
 }
 
 impl masking::SerializableSecret for PaymentMethodType {}
@@ -1637,6 +1640,7 @@ pub enum PaymentMethod {
     Voucher,
     GiftCard,
     OpenBanking,
+    MobilePayment,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
