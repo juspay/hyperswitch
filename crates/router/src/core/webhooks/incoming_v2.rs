@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Instant};
+use std::{marker::PhantomData, str::FromStr, time::Instant};
 
 use actix_web::FromRequest;
 use api_models::webhooks::{self, WebhookResponseTracker};
@@ -7,7 +7,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payments::HeaderPayload,
+    payments::{HeaderPayload, PaymentStatusData},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
@@ -19,7 +19,8 @@ use crate::{
     core::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
-        metrics, payments,
+        metrics,
+        payments::{self, transformers::ToResponse},
         webhooks::utils::construct_webhook_router_data,
     },
     db::StorageInterface,
@@ -389,7 +390,7 @@ async fn payments_incoming_webhook_flow(
     let key_manager_state = &(&state).into();
     let payments_response = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(id) => {
-            let payment_id = get_payment_id(
+            let get_trackers_response = get_trackers_response_for_payment_get_operation(
                 state.store.as_ref(),
                 &id,
                 profile.get_id(),
@@ -398,6 +399,8 @@ async fn payments_incoming_webhook_flow(
                 merchant_account.storage_scheme,
             )
             .await?;
+
+            let payment_id = get_trackers_response.payment_data.get_payment_id();
 
             let lock_action = api_locking::LockAction::Hold {
                 input: api_locking::LockingInput {
@@ -412,26 +415,41 @@ async fn payments_incoming_webhook_flow(
                 .perform_locking_action(&state, merchant_account.get_id().to_owned())
                 .await?;
 
-            let response = Box::pin(payments::payments_core::<
-                api::PSync,
-                api_models::payments::PaymentsRetrieveResponse,
-                _,
-                _,
-                _,
-                hyperswitch_domain_models::payments::PaymentStatusData<api::PSync>,
-            >(
-                state.clone(),
-                req_state,
-                merchant_account.clone(),
-                profile,
-                key_store.clone(),
+            let (payment_data, _req, customer, connector_http_status_code, external_latency) =
+                Box::pin(payments::payments_operation_core::<
+                    api::PSync,
+                    _,
+                    _,
+                    _,
+                    PaymentStatusData<api::PSync>,
+                >(
+                    &state,
+                    req_state,
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    profile,
+                    payments::operations::PaymentGet,
+                    api::PaymentsRetrieveRequest {
+                        force_sync: true,
+                        param: None,
+                    },
+                    get_trackers_response,
+                    consume_or_trigger_flow,
+                    HeaderPayload::default(),
+                ))
+                .await?;
+
+            let response = api_models::payments::PaymentsRetrieveResponse::generate_response(
+                payment_data,
+                customer,
+                &state.base_url,
                 payments::operations::PaymentGet,
-                api::PaymentsRetrieveRequest { force_sync: true },
-                payment_id,
-                consume_or_trigger_flow,
-                HeaderPayload::default(),
-            ))
-            .await;
+                &state.conf.connector_request_reference_id_config,
+                connector_http_status_code,
+                external_latency,
+                None,
+                &merchant_account,
+            );
 
             lock_action
                 .free_lock_action(&state, merchant_account.get_id().to_owned())
@@ -503,44 +521,100 @@ async fn payments_incoming_webhook_flow(
     }
 }
 
-async fn get_payment_id(
+async fn get_trackers_response_for_payment_get_operation<F>(
     db: &dyn StorageInterface,
     payment_id: &api::PaymentIdType,
     profile_id: &common_utils::id_type::ProfileId,
     key_manager_state: &KeyManagerState,
     merchant_key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
-) -> errors::RouterResult<common_utils::id_type::GlobalPaymentId> {
-    Ok(match payment_id {
-        api_models::payments::PaymentIdType::PaymentIntentId(ref id) => id.to_owned(),
-        api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => db
-            .find_payment_attempt_by_profile_id_connector_transaction_id(
-                key_manager_state,
-                merchant_key_store,
-                profile_id,
-                id,
-                storage_scheme,
-            )
-            .await
-            .map(|p| p.payment_id)
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+) -> errors::RouterResult<payments::operations::GetTrackerResponse<PaymentStatusData<F>>>
+where
+    F: Clone,
+{
+    let (payment_intent, payment_attempt) = match payment_id {
+        api_models::payments::PaymentIdType::PaymentIntentId(ref id) => {
+            let payment_intent = db
+                .find_payment_intent_by_id(
+                    key_manager_state,
+                    id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let payment_attempt = db
+                .find_payment_attempt_by_id(
+                    key_manager_state,
+                    merchant_key_store,
+                    &payment_intent
+                        .active_attempt_id
+                        .clone()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("active_attempt_id not present in payment_attempt")?,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            (payment_intent, payment_attempt)
+        }
+        api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => {
+            let payment_attempt = db
+                .find_payment_attempt_by_profile_id_connector_transaction_id(
+                    key_manager_state,
+                    merchant_key_store,
+                    profile_id,
+                    id,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let payment_intent = db
+                .find_payment_intent_by_id(
+                    key_manager_state,
+                    &payment_attempt.payment_id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            (payment_intent, payment_attempt)
+        }
         api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => {
             let global_attempt_id = common_utils::id_type::GlobalAttemptId::try_from(
                 std::borrow::Cow::Owned(id.to_owned()),
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while getting GlobalAttemptId")?;
-            db.find_payment_attempt_by_id(
-                key_manager_state,
-                merchant_key_store,
-                &global_attempt_id,
-                storage_scheme,
-            )
-            .await
-            .map(|p| p.payment_id)
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
+            let payment_attempt = db
+                .find_payment_attempt_by_id(
+                    key_manager_state,
+                    merchant_key_store,
+                    &global_attempt_id,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let payment_intent = db
+                .find_payment_intent_by_id(
+                    key_manager_state,
+                    &payment_attempt.payment_id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            (payment_intent, payment_attempt)
         }
         api_models::payments::PaymentIdType::PreprocessingId(ref _id) => todo!(),
+    };
+    Ok(payments::operations::GetTrackerResponse {
+        payment_data: PaymentStatusData {
+            flow: PhantomData,
+            payment_intent,
+            payment_attempt: Some(payment_attempt),
+            should_sync_with_connector: true,
+        },
     })
 }
 
