@@ -145,9 +145,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             config,
         });
 
-        let mut client = self.clone();
-
-        let response = client
+        let response = self
+            .clone()
             .fetch_success_rate(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
@@ -185,9 +184,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             config,
         });
 
-        let mut client = self.clone();
-
-        let response = client
+        let response = self
+            .clone()
             .update_success_rate_window(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
@@ -204,9 +202,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
     ) -> DynamicRoutingResult<InvalidateWindowsResponse> {
         let request = tonic::Request::new(InvalidateWindowsRequest { id });
 
-        let mut client = self.clone();
-
-        let response = client
+        let response = self
+            .clone()
             .invalidate_windows(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
