@@ -4,9 +4,7 @@ use api_models::analytics::{
     disputes::{
         DisputeDimensions, DisputeMetrics, DisputeMetricsBucketIdentifier,
         DisputeMetricsBucketResponse,
-    },
-    AnalyticsMetadata, DisputeFilterValue, DisputeFiltersResponse, GetDisputeFilterRequest,
-    GetDisputeMetricRequest, MetricsResponse,
+    },  DisputeFilterValue, DisputeFiltersResponse, DisputesAnalyticsMetadata, DisputesMetricsResponse, GetDisputeFilterRequest, GetDisputeMetricRequest
 };
 use error_stack::ResultExt;
 use router_env::{
@@ -16,8 +14,7 @@ use router_env::{
 };
 
 use super::{
-    filters::{get_dispute_filter_for_dimension, DisputeFilterRow},
-    DisputeMetricsAccumulator,
+    filters::{get_dispute_filter_for_dimension, DisputeFilterRow}, DisputeMetricsAccumulator
 };
 use crate::{
     disputes::DisputeMetricAccumulator,
@@ -30,7 +27,7 @@ pub async fn get_metrics(
     pool: &AnalyticsProvider,
     auth: &AuthInfo,
     req: GetDisputeMetricRequest,
-) -> AnalyticsResult<MetricsResponse<DisputeMetricsBucketResponse>> {
+) -> AnalyticsResult<DisputesMetricsResponse<DisputeMetricsBucketResponse>> {
     let mut metrics_accumulator: HashMap<
         DisputeMetricsBucketIdentifier,
         DisputeMetricsAccumulator,
@@ -87,14 +84,17 @@ pub async fn get_metrics(
             logger::debug!(bucket_id=?id, bucket_value=?value, "Bucket row for metric {metric}");
             let metrics_builder = metrics_accumulator.entry(id).or_default();
             match metric {
-                DisputeMetrics::DisputeStatusMetric => metrics_builder
+                DisputeMetrics::DisputeStatusMetric
+                | DisputeMetrics::SessionizedDisputeStatusMetric => metrics_builder
                     .disputes_status_rate
                     .add_metrics_bucket(&value),
-                DisputeMetrics::TotalAmountDisputed => metrics_builder
-                    .total_amount_disputed
+                DisputeMetrics::TotalAmountDisputed
+                | DisputeMetrics::SessionizedTotalAmountDisputed => metrics_builder
+                    .disputed_amount
                     .add_metrics_bucket(&value),
-                DisputeMetrics::TotalDisputeLostAmount => metrics_builder
-                    .total_dispute_lost_amount
+                DisputeMetrics::TotalDisputeLostAmount
+                | DisputeMetrics::SessionizedTotalDisputeLostAmount => metrics_builder
+                    .dispute_lost_amount
                     .add_metrics_bucket(&value),
             }
         }
@@ -105,18 +105,32 @@ pub async fn get_metrics(
             metrics_accumulator
         );
     }
+    let mut total_disputed_amount = 0;
+    let mut total_dispute_lost_amount = 0;
     let query_data: Vec<DisputeMetricsBucketResponse> = metrics_accumulator
         .into_iter()
-        .map(|(id, val)| DisputeMetricsBucketResponse {
-            values: val.collect(),
-            dimensions: id,
-        })
+        .map(|(id, val)| {
+                let collected_values = val.collect();
+                if let Some(amount) = collected_values.disputed_amount {
+                    total_disputed_amount += amount;
+                }
+                if let Some(amount) = collected_values.dispute_lost_amount {
+                    total_dispute_lost_amount += amount;
+                }
+            
+                DisputeMetricsBucketResponse {
+                    values: collected_values,
+                    dimensions: id,
+                }
+            }
+        )
         .collect();
 
-    Ok(MetricsResponse {
+    Ok(DisputesMetricsResponse {
         query_data,
-        meta_data: [AnalyticsMetadata {
-            current_time_range: req.time_range,
+        meta_data: [DisputesAnalyticsMetadata {
+            total_disputed_amount: Some(total_disputed_amount),
+            total_dispute_lost_amount: Some(total_dispute_lost_amount),
         }],
     })
 }

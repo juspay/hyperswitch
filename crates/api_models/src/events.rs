@@ -173,6 +173,12 @@ impl<T> ApiEventMetric for RefundsMetricsResponse<T> {
         Some(ApiEventsType::Miscellaneous)
     }
 }
+
+impl<T> ApiEventMetric for DisputesMetricsResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl ApiEventMetric for PaymentMethodIntentConfirmInternal {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

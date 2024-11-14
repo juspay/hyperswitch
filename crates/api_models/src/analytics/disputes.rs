@@ -24,6 +24,9 @@ pub enum DisputeMetrics {
     DisputeStatusMetric,
     TotalAmountDisputed,
     TotalDisputeLostAmount,
+    SessionizedDisputeStatusMetric,
+    SessionizedTotalAmountDisputed,
+    SessionizedTotalDisputeLostAmount,
 }
 
 #[derive(
