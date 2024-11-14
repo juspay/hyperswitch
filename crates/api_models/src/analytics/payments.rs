@@ -41,8 +41,6 @@ pub struct PaymentFilters {
     pub card_issuer: Vec<String>,
     #[serde(default)]
     pub error_reason: Vec<String>,
-    #[serde(default)]
-    pub first_attempt: Vec<String>,
 }
 
 #[derive(
@@ -84,7 +82,6 @@ pub enum PaymentDimensions {
     CardLast4,
     CardIssuer,
     ErrorReason,
-    FirstAttempt,
 }
 
 #[derive(
