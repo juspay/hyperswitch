@@ -1424,15 +1424,6 @@ impl Default for settings::RequiredFields {
                                                 value: None,
                                             }
                                         ),
-                                        (
-                                            "billing.address.last_name".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.billing.address.last_name".to_string(),
-                                                display_name: "card_holder_name".to_string(),
-                                                field_type: enums::FieldType::UserFullName,
-                                                value: None,
-                                            }
-                                        ),
                                     ]),
                                     non_mandate: HashMap::new(),
                                     common: HashMap::from(
@@ -4539,15 +4530,6 @@ impl Default for settings::RequiredFields {
                                             "billing.address.first_name".to_string(),
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.billing.address.first_name".to_string(),
-                                                display_name: "card_holder_name".to_string(),
-                                                field_type: enums::FieldType::UserFullName,
-                                                value: None,
-                                            }
-                                        ),
-                                        (
-                                            "billing.address.last_name".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.billing.address.last_name".to_string(),
                                                 display_name: "card_holder_name".to_string(),
                                                 field_type: enums::FieldType::UserFullName,
                                                 value: None,
@@ -12919,6 +12901,56 @@ impl Default for settings::RequiredFields {
                                         ),
                                         ]),
                                 },
+                            )
+                        ]))
+                    ),
+                    (
+                        enums::PaymentMethod::MobilePayment,
+                        PaymentMethodType(HashMap::from([
+                            (
+                                enums::PaymentMethodType::DirectCarrierBilling,
+                                ConnectorFields {
+                                    fields: HashMap::from([
+                                        (
+                                            enums::Connector::Digitalvirgo,
+                                            RequiredFieldFinal {
+                                                mandate: HashMap::new(),
+                                                non_mandate: HashMap::new(),
+                                                common: HashMap::from(
+                                                    [
+                                                        (
+                                                            "payment_method_data.mobile_payment.direct_carrier_billing.msisdn".to_string(),
+                                                            RequiredFieldInfo {
+                                                                required_field: "payment_method_data.mobile_payment.direct_carrier_billing.msisdn".to_string(),
+                                                                display_name: "mobile_number".to_string(),
+                                                                field_type: enums::FieldType::UserMsisdn,
+                                                                value: None,
+                                                            }
+                                                        ),
+                                                        (
+                                                            "payment_method_data.mobile_payment.direct_carrier_billing.client_uid".to_string(),
+                                                            RequiredFieldInfo {
+                                                                required_field: "payment_method_data.mobile_payment.direct_carrier_billing.client_uid".to_string(),
+                                                                display_name: "client_identifier".to_string(),
+                                                                field_type: enums::FieldType::UserClientIdentifier,
+                                                                value: None,
+                                                            }
+                                                        ),
+                                                        (
+                                                            "order_details.0.product_name".to_string(),
+                                                            RequiredFieldInfo {
+                                                                required_field: "order_details.0.product_name".to_string(),
+                                                                display_name: "product_name".to_string(),
+                                                                field_type: enums::FieldType::OrderDetailsProductName,
+                                                                value: None,
+                                                            }
+                                                        ),
+                                                    ]
+                                                ),
+                                            }
+                                        ),
+                                    ])
+                                }
                             )
                         ]))
                     )

@@ -94,6 +94,7 @@ pub async fn generate_recon_token(
         &state.conf,
         user.org_id.clone(),
         user.profile_id.clone(),
+        user.tenant_id,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
