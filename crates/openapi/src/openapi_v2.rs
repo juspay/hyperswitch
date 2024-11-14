@@ -386,6 +386,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::MultibancoBillingDetails,
         api_models::payments::DokuBillingDetails,
         api_models::payments::BankTransferInstructions,
+        api_models::payments::MobilePaymentNextStepData,
+        api_models::payments::MobilePaymentConsent,
         api_models::payments::ReceiverDetails,
         api_models::payments::AchTransfer,
         api_models::payments::MultibancoTransferInstructions,
@@ -445,6 +447,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
         api_models::payments::GiftCardDetails,
+        api_models::payments::MobilePaymentData,
+        api_models::payments::MobilePaymentResponse,
         api_models::payments::Address,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
@@ -617,7 +621,7 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "Admin API keys allow you to perform some privileged actions such as \
-                        creating a merchant account and Merchant Connector account."
+                        creating a merchant account and Connector account."
                     ))),
                 ),
                 (

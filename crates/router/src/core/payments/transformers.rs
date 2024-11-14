@@ -1560,6 +1560,8 @@ where
 
         let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
+        let next_action_mobile_payment = mobile_payment_next_steps_check(&payment_attempt)?;
+
         let next_action_containing_qr_code_url = qr_code_next_steps_check(payment_attempt.clone())?;
 
         let papal_sdk_next_action = paypal_sdk_next_steps_check(payment_attempt.clone())?;
@@ -1588,6 +1590,11 @@ where
                         .or(next_action_voucher.map(|voucher_data| {
                             api_models::payments::NextActionData::DisplayVoucherInformation {
                                 voucher_details: voucher_data,
+                            }
+                        }))
+                        .or(next_action_mobile_payment.map(|mobile_payment_data| {
+                            api_models::payments::NextActionData::CollectOtp {
+                                consent_data_required: mobile_payment_data.consent_data_required,
                             }
                         }))
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
@@ -2202,6 +2209,31 @@ pub fn voucher_next_steps_check(
         None
     };
     Ok(voucher_next_step)
+}
+
+#[cfg(feature = "v1")]
+pub fn mobile_payment_next_steps_check(
+    payment_attempt: &storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::MobilePaymentNextStepData>> {
+    let mobile_payment_next_step = if let Some(diesel_models::enums::PaymentMethod::MobilePayment) =
+        payment_attempt.payment_method
+    {
+        let mobile_paymebnt_next_steps: Option<api_models::payments::MobilePaymentNextStepData> =
+            payment_attempt
+                .connector_metadata
+                .clone()
+                .map(|metadata| {
+                    metadata
+                        .parse_value("MobilePaymentNextStepData")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse the Value to NextRequirements struct")
+                })
+                .transpose()?;
+        mobile_paymebnt_next_steps
+    } else {
+        None
+    };
+    Ok(mobile_payment_next_step)
 }
 
 pub fn change_order_details_to_new_type(
@@ -3600,5 +3632,40 @@ impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenc
             connector_mandate_request_reference_id: value
                 .get_connector_mandate_request_reference_id(),
         }
+    }
+}
+
+impl ForeignFrom<(Self, Option<&api_models::payments::AdditionalPaymentData>)>
+    for Option<enums::PaymentMethodType>
+{
+    fn foreign_from(req: (Self, Option<&api_models::payments::AdditionalPaymentData>)) -> Self {
+        let (payment_method_type, additional_pm_data) = req;
+        additional_pm_data
+            .and_then(|pm_data| {
+                if let api_models::payments::AdditionalPaymentData::Card(card_info) = pm_data {
+                    card_info.card_type.as_ref().and_then(|card_type_str| {
+                        api_models::enums::PaymentMethodType::from_str(&card_type_str.to_lowercase()).map_err(|err| {
+                            crate::logger::error!(
+                                "Err - {:?}\nInvalid card_type value found in BIN DB - {:?}",
+                                err,
+                                card_type_str,
+                            );
+                        }).ok()
+                    })
+                } else {
+                    None
+                }
+            })
+            .map_or(payment_method_type, |card_type_in_bin_store| {
+                if let Some(card_type_in_req) = payment_method_type {
+                    if card_type_in_req != card_type_in_bin_store {
+                        crate::logger::info!(
+                            "Mismatch in card_type\nAPI request - {}; BIN lookup - {}\nOverriding with {}",
+                            card_type_in_req, card_type_in_bin_store, card_type_in_bin_store,
+                        );
+                    }
+                }
+                Some(card_type_in_bin_store)
+            })
     }
 }
