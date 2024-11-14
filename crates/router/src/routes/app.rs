@@ -685,13 +685,10 @@ impl Forex {
                 web::resource("/convert_from_minor").route(web::get().to(currency::convert_forex)),
             )
     }
-<<<<<<< HEAD
     #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/forex").app_data(web::Data::new(state.clone()))
     }
-=======
->>>>>>> origin/main
 }
 
 #[cfg(feature = "olap")]
@@ -1068,14 +1065,11 @@ pub struct Payouts;
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
 impl Payouts {
-<<<<<<< HEAD
     #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/payouts").app_data(web::Data::new(state))
     }
     #[cfg(feature = "v1")]
-=======
->>>>>>> origin/main
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payouts").app_data(web::Data::new(state));
         route = route.service(web::resource("/create").route(web::post().to(payouts_create)));
@@ -1590,13 +1584,10 @@ impl Cards {
             .app_data(web::Data::new(state))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
     }
-<<<<<<< HEAD
     #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards").app_data(web::Data::new(state))
     }
-=======
->>>>>>> origin/main
 }
 
 pub struct Files;
@@ -1664,15 +1655,10 @@ impl PayoutLink {
         );
         route
     }
-<<<<<<< HEAD
     #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/payout_link").app_data(web::Data::new(state))
     }
-=======
->>>>>>> origin/main
-}
-
 pub struct Profile;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl Profile {
