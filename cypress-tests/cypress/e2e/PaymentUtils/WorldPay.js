@@ -1,4 +1,3 @@
-
 const billing = {
   address: {
     line1: "1467",
@@ -9,21 +8,23 @@ const billing = {
     zip: "94122",
     country: "US",
     first_name: "John",
-    last_name: "Doe"
-  }
+    last_name: "Doe",
+  },
 };
 
 const browser_info = {
-  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
-  "accept_header": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-  "language": "nl-NL",
-  "color_depth": 24,
-  "screen_height": 723,
-  "screen_width": 1536,
-  "time_zone": 0,
-  "java_enabled": true,
-  "java_script_enabled": true,
-  "ip_address": "127.0.0.1"
+  user_agent:
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+  accept_header:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+  language: "nl-NL",
+  color_depth: 24,
+  screen_height: 723,
+  screen_width: 1536,
+  time_zone: 0,
+  java_enabled: true,
+  java_script_enabled: true,
+  ip_address: "127.0.0.1",
 };
 
 const successfulNoThreeDsCardDetailsRequest = {
@@ -55,9 +56,9 @@ const paymentMethodDataNoThreeDsResponse = {
     card_exp_year: "30",
     card_holder_name: null,
     payment_checks: null,
-    authentication_data: null
+    authentication_data: null,
   },
-  billing: null
+  billing: null,
 };
 
 const payment_method_data_3ds = {
@@ -73,9 +74,9 @@ const payment_method_data_3ds = {
     card_exp_year: "30",
     card_holder_name: null,
     payment_checks: null,
-    authentication_data: null
+    authentication_data: null,
   },
-  billing: null
+  billing: null,
 };
 
 const singleUseMandateData = {
@@ -102,7 +103,8 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-      }, Response: {
+      },
+      Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
@@ -204,10 +206,11 @@ export const connectorDetails = {
       ResponseCustom: {
         body: {
           type: "invalid_request",
-          message: "You cannot cancel this payment because it has status processing",
+          message:
+            "You cannot cancel this payment because it has status processing",
           code: "IR_16",
-        }
-      }
+        },
+      },
     },
     VoidAfterConfirm: {
       Request: {},
@@ -241,8 +244,8 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message: "Missing required param: payment_method_data",
-            code: "IR_04"
-          }
+            code: "IR_04",
+          },
         },
       },
     },
@@ -267,9 +270,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing"
+          status: "processing",
         },
-      }
+      },
     },
     "3DSManualCapture": {
       Request: {
@@ -373,17 +376,19 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14"
-          }
-        }
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
+        },
       },
       ResponseCustom: {
         status: 400,
         body: {
           error: {
             type: "invalid_request",
-            message: "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
             code: "IR_14",
           },
         },
@@ -395,11 +400,12 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14"
-          }
-        }
-      }
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
+        },
+      },
     },
     SyncRefund: {
       Request: {},
@@ -408,10 +414,10 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message: "Refund does not exist in our records.",
-            code: "HE_02"
-          }
-        }
-      }
+            code: "HE_02",
+          },
+        },
+      },
     },
     ZeroAuthMandate: {
       Request: {
@@ -427,10 +433,10 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message: "Setup Mandate flow for Worldpay is not implemented",
-            code: "IR_00"
-          }
+            code: "IR_00",
+          },
         },
       },
     },
   },
-}
+};

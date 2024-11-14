@@ -367,7 +367,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
           .then((otpText) => {
             const otp = otpText.match(/\d+/)[0]; // Extract the numeric OTP
             cy.get("input#otp-input").should("not.be.disabled").type(otp);
-            cy.get('button.pay-btn').click();
+            cy.get("button.pay-btn").click();
           });
       });
   } else {

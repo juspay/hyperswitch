@@ -27,13 +27,12 @@ describe("Card - List and revoke Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateSingleUseNo3DSAutoCapture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        
+
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           req_data,

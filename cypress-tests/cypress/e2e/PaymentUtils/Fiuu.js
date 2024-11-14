@@ -299,7 +299,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -377,9 +377,9 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
-        },      
+        },
         currency: "USD",
         mandate_data: null,
         customer_acceptance: {
@@ -415,7 +415,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -453,7 +453,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -491,7 +491,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         setup_future_usage: "off_session",
@@ -528,7 +528,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         setup_future_usage: "off_session",
@@ -587,7 +587,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -625,7 +625,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -664,7 +664,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         mandate_data: null,
