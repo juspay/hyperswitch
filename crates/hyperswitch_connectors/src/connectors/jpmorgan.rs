@@ -1,6 +1,7 @@
 pub mod transformers;
 //use async_trait::async_trait;
 use std::convert::TryFrom;
+use hyperswitch_interfaces::errors::ConnectorError;
 //use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -24,14 +25,15 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsCancelRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
-
-
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation, ConnectorRedirectResponse},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -41,7 +43,9 @@ use hyperswitch_interfaces::{
 use masking::Mask;
 use transformers as jpmorgan;
 
-use crate::{constants::headers, types::ResponseRouterData, utils, utils::PaymentsAuthorizeRequestData,};
+use crate::{
+    constants::headers, types::ResponseRouterData, utils, utils::PaymentsAuthorizeRequestData,
+};
 
 #[derive(Clone)]
 pub struct Jpmorgan {
@@ -120,16 +124,13 @@ impl ConnectorCommon for Jpmorgan {
         _auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         /*let auth = jpmorgan::JpmorganAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;*/
-        let str_api_key : &str = "eyJ0eXAiOiJKV1QiLCJraWQiOiJJR05rNSthbHVNdy9FeHQ4ejc5Wmg5ZVpZL0U9IiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI1YWE0NmMwZi0xZDRkLTQ3OGMtYmJjOC1mZjA5MWJkZDg1NWIiLCJjdHMiOiJPQVVUSDJfU1RBVEVMRVNTX0dSQU5UIiwiYXVkaXRUcmFja2luZ0lkIjoiMzQ0ZjQ5YzItMGQzNi00YWFiLTg0ZmItODVlOWY3ODMzNTcyLTI1NTY3MDYiLCJzdWJuYW1lIjoiNWFhNDZjMGYtMWQ0ZC00NzhjLWJiYzgtZmYwOTFiZGQ4NTViIiwiaXNzIjoiaHR0cHM6Ly9pZC5wYXltZW50cy5qcG1vcmdhbi5jb206NDQzL2FtL29hdXRoMiIsInRva2VuTmFtZSI6ImFjY2Vzc190b2tlbiIsInRva2VuX3R5cGUiOiJCZWFyZXIiLCJhdXRoR3JhbnRJZCI6Ik5STkhpcnhieU1PWVRfZDB2NS10c0lBYkEybyIsImNsaWVudF9pZCI6IjVhYTQ2YzBmLTFkNGQtNDc4Yy1iYmM4LWZmMDkxYmRkODU1YiIsImF1ZCI6IjVhYTQ2YzBmLTFkNGQtNDc4Yy1iYmM4LWZmMDkxYmRkODU1YiIsIm5iZiI6MTczMTM5ODczNSwiZ3JhbnRfdHlwZSI6ImNsaWVudF9jcmVkZW50aWFscyIsInNjb3BlIjpbImpwbTpwYXltZW50czpzYW5kYm94Il0sImF1dGhfdGltZSI6MTczMTM5ODczNSwicmVhbG0iOiIvYWxwaGEiLCJleHAiOjE3MzE0MDIzMzUsImlhdCI6MTczMTM5ODczNSwiZXhwaXJlc19pbiI6MzYwMCwianRpIjoiUExzekxadjRFUWhKSW1LbTR6WFo5ckd2SktjIn0.VPs_g0y3KzRQAZIBQoS8n7JQsjKWN-Oek_AK-K6W3du7NfFWcefdmDdVjrpIPcJbB4GQyecJmjpyqdC2R0LzUmdyqe5nim4E3tNRxgDfSX9u3f6D4gqYrra5hH-FUU0Cu0JiOZIXN4sMKVtgvG_Ronpd33KuTzk4tmfJCQh1XBLyYGMfLoV9yrQZ0lEtUd5lKuS8Kq7isF5uyaB962nqznZhSOx0LIein2ZAN0dc-Q-u7Pe_0Hs1TFlUNP-cwC0IRMqyRfRNALO9_Q_P-uGPjoyNqUhRzvZEnIZToTzWjaPHCXCD1YjzhWnT-QzuLFr_ddMjiRTL5m2ghuTOc4_FXA";
-        let api_key : String = str_api_key.to_string();
+        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;*/
+        let str_api_key : &str = "eyJ0eXAiOiJKV1QiLCJraWQiOiJJR05rNSthbHVNdy9FeHQ4ejc5Wmg5ZVpZL0U9IiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI1YWE0NmMwZi0xZDRkLTQ3OGMtYmJjOC1mZjA5MWJkZDg1NWIiLCJjdHMiOiJPQVVUSDJfU1RBVEVMRVNTX0dSQU5UIiwiYXVkaXRUcmFja2luZ0lkIjoiMTA4NTg1ZjUtNTlmMC00M2YyLWI0MzEtNjI2ZWI0ZDM0NmJlLTUyNDAxMiIsInN1Ym5hbWUiOiI1YWE0NmMwZi0xZDRkLTQ3OGMtYmJjOC1mZjA5MWJkZDg1NWIiLCJpc3MiOiJodHRwczovL2lkLnBheW1lbnRzLmpwbW9yZ2FuLmNvbTo0NDMvYW0vb2F1dGgyIiwidG9rZW5OYW1lIjoiYWNjZXNzX3Rva2VuIiwidG9rZW5fdHlwZSI6IkJlYXJlciIsImF1dGhHcmFudElkIjoieEVhWGJmb1U1QTJJMWV5aVJnbVVGbkN6T1BRIiwiY2xpZW50X2lkIjoiNWFhNDZjMGYtMWQ0ZC00NzhjLWJiYzgtZmYwOTFiZGQ4NTViIiwiYXVkIjoiNWFhNDZjMGYtMWQ0ZC00NzhjLWJiYzgtZmYwOTFiZGQ4NTViIiwibmJmIjoxNzMxNDc4OTYxLCJncmFudF90eXBlIjoiY2xpZW50X2NyZWRlbnRpYWxzIiwic2NvcGUiOlsianBtOnBheW1lbnRzOnNhbmRib3giXSwiYXV0aF90aW1lIjoxNzMxNDc4OTYxLCJyZWFsbSI6Ii9hbHBoYSIsImV4cCI6MTczMTQ4MjU2MSwiaWF0IjoxNzMxNDc4OTYxLCJleHBpcmVzX2luIjozNjAwLCJqdGkiOiJ6a0NVZFFwZUFpdHUweGFWWmlyNTdlcjZ1Y3MifQ.kcJqY7zYo8d9Peo9ifBqqEJfJY2iYLUYDQmvGDXzhQvpIzqDxZ_WbwbdyUpcbNpapjpEZsgSFfsQI792TpcOfHAu93Uwb97bVstm50CUCG94Ms2QOxdWYqyQ9svgD3zYsm6Z6e7D7fK42wS4EcA62sgTev8hmwyDEoBMv9MZgGnt8uWKdgDa-nuzVgqRIgB6-qSQB3ZoqHC8zGkscheKE6BKk4PojjCGuzrNc50MCdKtZGWb4AkPcUgIhNOdxQlRiLSMJEWsEvZBcLelekqO_SuOU363zwnVm-JgKAfLFDTPoDmAPavtJe1wpkytCBdwHI8sF4u36NN-FI8ns87Y4A";
+        let api_key: String = str_api_key.to_string();
         let masked_api_key = api_key.into_masked();
 
         //sending the hardcoded access token in the api key (just for testing flows)
-        Ok(vec![(
-            headers::X_NN_ACCESS_KEY.to_string(),
-            masked_api_key,
-        )])
+        Ok(vec![(headers::X_NN_ACCESS_KEY.to_string(), masked_api_key)])
     }
 
     fn build_error_response(
@@ -219,6 +220,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = jpmorgan::JpmorganRouterData::from((amount, req));
         let connector_req = jpmorgan::JpmorganPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    println!("$$$$$req {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -291,7 +295,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Jpm
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-        }
+    }
 
     fn build_request(
         &self,
