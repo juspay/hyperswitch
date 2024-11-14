@@ -5,8 +5,8 @@ use super::metrics::DisputeMetricRow;
 #[derive(Debug, Default)]
 pub struct DisputeMetricsAccumulator {
     pub disputes_status_rate: RateAccumulator,
-    pub total_amount_disputed: SumAccumulator,
-    pub total_dispute_lost_amount: SumAccumulator,
+    pub disputed_amount: PaymentProcessedAmountAccumulator,
+    pub dispute_lost_amount: PaymentProcessedAmountAccumulator,
 }
 #[derive(Debug, Default)]
 pub struct RateAccumulator {
@@ -17,7 +17,7 @@ pub struct RateAccumulator {
 }
 #[derive(Debug, Default)]
 #[repr(transparent)]
-pub struct SumAccumulator {
+pub struct PaymentProcessedAmountAccumulator {
     pub total: Option<i64>,
 }
 
@@ -29,7 +29,7 @@ pub trait DisputeMetricAccumulator {
     fn collect(self) -> Self::MetricOutput;
 }
 
-impl DisputeMetricAccumulator for SumAccumulator {
+impl DisputeMetricAccumulator for PaymentProcessedAmountAccumulator {
     type MetricOutput = Option<u64>;
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &DisputeMetricRow) {
@@ -92,8 +92,8 @@ impl DisputeMetricsAccumulator {
             disputes_challenged: challenge_rate,
             disputes_won: won_rate,
             disputes_lost: lost_rate,
-            total_amount_disputed: self.total_amount_disputed.collect(),
-            total_dispute_lost_amount: self.total_dispute_lost_amount.collect(),
+            disputed_amount: self.disputed_amount.collect(),
+            dispute_lost_amount: self.dispute_lost_amount.collect(),
             total_dispute,
         }
     }
