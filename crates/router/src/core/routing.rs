@@ -917,10 +917,9 @@ pub async fn retrieve_default_routing_config(
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
-    let id = profile_id.map(|profile_id| 
-        profile_id.get_string_repr().to_owned())
-        .unwrap_or_else(|| 
-            merchant_account.get_id().get_string_repr().to_string());
+    let id = profile_id
+        .map(|profile_id| profile_id.get_string_repr().to_owned())
+        .unwrap_or_else(|| merchant_account.get_id().get_string_repr().to_string());
 
     helpers::get_merchant_default_config(db, &id, transaction_type)
         .await
