@@ -46,13 +46,13 @@ describe("Card - Sync Refund flow test", () => {
   });
 
   it("confirm-call-test", () => {
-    console.log("confirm -> " + globalState.get("connectorId"));
+    
     let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "No3DSAutoCapture"
     ];
     let req_data = data["Request"];
     let res_data = data["Response"];
-    console.log("det -> " + data.card);
+    
     cy.confirmCallTest(
       fixtures.confirmBody,
       req_data,

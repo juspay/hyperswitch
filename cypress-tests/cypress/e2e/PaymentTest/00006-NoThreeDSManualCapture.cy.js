@@ -48,13 +48,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("confirm-call-test", () => {
-        console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSManualCapture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+
         cy.confirmCallTest(
           fixtures.confirmBody,
           req_data,
@@ -76,7 +75,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         ]["Capture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+
         cy.captureCallTest(
           fixtures.captureBody,
           req_data,
@@ -103,13 +102,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSManualCapture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           req_data,
@@ -132,7 +130,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         ]["Capture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+
         cy.captureCallTest(
           fixtures.captureBody,
           req_data,
@@ -185,13 +183,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("confirm-call-test", () => {
-          console.log("confirm -> " + globalState.get("connectorId"));
           let data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSManualCapture"];
           let req_data = data["Request"];
           let res_data = data["Response"];
-          console.log("det -> " + data.card);
+
           cy.confirmCallTest(
             fixtures.confirmBody,
             req_data,
@@ -239,13 +236,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("create+confirm-payment-call-test", () => {
-          console.log("confirm -> " + globalState.get("connectorId"));
           let data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSManualCapture"];
           let req_data = data["Request"];
           let res_data = data["Response"];
-          console.log("det -> " + data.card);
+
           cy.createConfirmPaymentTest(
             fixtures.createConfirmPaymentBody,
             req_data,
@@ -268,7 +264,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           ]["PartialCapture"];
           let req_data = data["Request"];
           let res_data = data["Response"];
-          console.log("det -> " + data.card);
+
           cy.captureCallTest(
             fixtures.captureBody,
             req_data,

@@ -47,13 +47,12 @@ describe("Card - Refund flow - No 3DS", () => {
     });
 
     it("confirm-call-test", () => {
-      console.log("confirm -> " + globalState.get("connectorId"));
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSAutoCapture"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,
@@ -130,13 +129,12 @@ describe("Card - Refund flow - No 3DS", () => {
     });
 
     it("confirm-call-test", () => {
-      console.log("confirm -> " + globalState.get("connectorId"));
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSAutoCapture"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,
@@ -210,7 +208,6 @@ describe("Card - Refund flow - No 3DS", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
@@ -274,7 +271,6 @@ describe("Card - Refund flow - No 3DS", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        console.log("confirm -> " + globalState.get("connectorId"));
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSAutoCapture"];
@@ -375,13 +371,12 @@ describe("Card - Refund flow - No 3DS", () => {
     });
 
     it("confirm-call-test", () => {
-      console.log("confirm -> " + globalState.get("connectorId"));
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSManualCapture"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,
@@ -403,7 +398,7 @@ describe("Card - Refund flow - No 3DS", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.captureCallTest(
         fixtures.captureBody,
         req_data,
@@ -480,13 +475,12 @@ describe("Card - Refund flow - No 3DS", () => {
     });
 
     it("confirm-call-test", () => {
-      console.log("confirm -> " + globalState.get("connectorId"));
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSManualCapture"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,
@@ -508,7 +502,7 @@ describe("Card - Refund flow - No 3DS", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.captureCallTest(
         fixtures.captureBody,
         req_data,
@@ -604,13 +598,12 @@ describe("Card - Refund flow - No 3DS", () => {
     });
 
     it("confirm-call-test", () => {
-      console.log("confirm -> " + globalState.get("connectorId"));
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSManualCapture"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,
@@ -632,7 +625,7 @@ describe("Card - Refund flow - No 3DS", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.captureCallTest(
         fixtures.captureBody,
         req_data,
@@ -709,13 +702,12 @@ describe("Card - Refund flow - No 3DS", () => {
     });
 
     it("confirm-call-test", () => {
-      console.log("confirm -> " + globalState.get("connectorId"));
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSManualCapture"
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,
@@ -737,7 +729,7 @@ describe("Card - Refund flow - No 3DS", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.captureCallTest(
         fixtures.captureBody,
         req_data,
@@ -799,7 +791,7 @@ describe("Card - Refund flow - No 3DS", () => {
         ]["MandateMultiUseNo3DSAutoCapture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + req_data.card);
+
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           req_data,
@@ -999,7 +991,7 @@ describe("Card - Refund flow - 3DS", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,
@@ -1253,7 +1245,7 @@ describe("Card - Refund flow - 3DS", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,
@@ -1361,7 +1353,7 @@ describe("Card - Refund flow - 3DS", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,
@@ -1485,7 +1477,7 @@ describe("Card - Refund flow - 3DS", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,
@@ -1593,7 +1585,7 @@ describe("Card - Refund flow - 3DS", () => {
       ];
       let req_data = data["Request"];
       let res_data = data["Response"];
-      console.log("det -> " + data.card);
+
       cy.confirmCallTest(
         fixtures.confirmBody,
         req_data,

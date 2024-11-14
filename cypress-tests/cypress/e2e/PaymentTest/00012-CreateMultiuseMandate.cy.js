@@ -27,13 +27,13 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        console.log("confirm -> " + globalState.get("connectorId"));
+        
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateMultiUseNo3DSAutoCapture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+        
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           req_data,
@@ -81,13 +81,13 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        console.log("confirm -> " + globalState.get("connectorId"));
+        
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateMultiUseNo3DSManualCapture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+        
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           req_data,
@@ -108,7 +108,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         ]["Capture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+        
         cy.captureCallTest(
           fixtures.captureBody,
           req_data,
@@ -136,7 +136,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         ]["Capture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+        
         cy.captureCallTest(
           fixtures.captureBody,
           req_data,
@@ -164,7 +164,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         ]["Capture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+        
         cy.captureCallTest(
           fixtures.captureBody,
           req_data,
@@ -190,13 +190,13 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        console.log("confirm -> " + globalState.get("connectorId"));
+        
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateMultiUseNo3DSManualCapture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+        
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
           req_data,
@@ -217,7 +217,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         ]["Capture"];
         let req_data = data["Request"];
         let res_data = data["Response"];
-        console.log("det -> " + data.card);
+        
         cy.captureCallTest(
           fixtures.captureBody,
           req_data,

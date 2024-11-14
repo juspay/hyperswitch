@@ -78,7 +78,6 @@ describe("Card - NoThreeDS payment flow test", () => {
     });
 
     it("create+confirm-payment-call-test", () => {
-      console.log("confirm -> " + globalState.get("connectorId"));
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSAutoCapture"
       ];
