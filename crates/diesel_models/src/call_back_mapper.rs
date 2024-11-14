@@ -1,4 +1,4 @@
-use diesel::{ Identifiable, Insertable, Queryable, Selectable};
+use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
 
@@ -20,7 +20,7 @@ pub struct CallBackMapper {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Insertable)]
 #[diesel(table_name = call_back_mapper)]
-pub struct CallBackMapperNew{
+pub struct CallBackMapperNew {
     pub id: String,
     #[serde(rename = "type")]
     pub id_type: String,
