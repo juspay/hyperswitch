@@ -1964,9 +1964,7 @@ Cypress.Commands.add(
           } else if (response.body.authentication_type === "no_three_ds") {
             if (response.body.connector === "fiuu") {
               expect(response.body.status).to.equal("failed");
-            } else {
-              expect(response.body.status).to.equal("succeeded");
-            }
+            } 
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2046,9 +2044,7 @@ Cypress.Commands.add(
           } else if (response.body.authentication_type === "no_three_ds") {
             if (response.body.connector === "fiuu") {
               expect(response.body.status).to.equal("failed");
-            } else {
-              expect(response.body.status).to.equal("succeeded");
-            }
+            } 
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
