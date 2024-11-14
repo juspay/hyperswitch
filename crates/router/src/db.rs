@@ -37,6 +37,7 @@ pub mod user;
 pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
+pub mod call_back_mapper;
 use common_utils::id_type;
 use diesel_models::{
     fraud_check::{FraudCheck, FraudCheckUpdate},

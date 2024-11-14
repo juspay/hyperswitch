@@ -39,6 +39,7 @@ pub mod unified_translations;
 pub mod user;
 pub mod user_authentication_method;
 pub mod user_role;
+pub mod call_back_mapper;
 
 use std::collections::HashMap;
 
@@ -68,7 +69,7 @@ pub use self::{
     merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
     payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
     routing_algorithm::*, unified_translations::*, user::*, user_authentication_method::*,
-    user_role::*,
+    user_role::*, call_back_mapper::*,
 };
 use crate::types::api::routing;
 

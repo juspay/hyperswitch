@@ -43,6 +43,7 @@ pub mod role;
 pub mod routing_algorithm;
 pub mod types;
 pub mod unified_translations;
+pub mod call_back_mapper;
 
 #[allow(unused_qualifications)]
 pub mod schema;
