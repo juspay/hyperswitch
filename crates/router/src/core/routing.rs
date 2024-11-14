@@ -1245,6 +1245,7 @@ pub async fn toggle_success_based_routing(
                 key_store,
                 business_profile,
                 feature_to_enable,
+                success_based_dynamic_routing_algo_ref,
             )
             .await
         }

@@ -914,11 +914,13 @@ pub async fn disable_dynamic_routing_algorithm(
     key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
     feature_to_enable: routing_types::SuccessBasedRoutingFeatures,
+    success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     // disable success based routing for the requested profile
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
     let timestamp = common_utils::date_time::now_unix_timestamp();
+    let profile_id = business_profile.get_id().clone().get_string_repr().to_owned();
     match success_based_dynamic_routing_algo_ref.success_based_algorithm {
         Some(algorithm_ref) => {
             if let Some(algorithm_id) = algorithm_ref.algorithm_id_with_timestamp.algorithm_id {
@@ -972,7 +974,7 @@ pub async fn disable_dynamic_routing_algorithm(
                     1,
                     &add_attributes([(
                         "profile_id",
-                        business_profile.get_id().get_string_repr().to_owned(),
+                        profile_id,
                     )]),
                 );
 
@@ -998,6 +1000,7 @@ pub async fn enable_dynamic_routing_algorithm(
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
+    let profile_id = business_profile.get_id().clone().get_string_repr().to_owned();
     if let Some(ref mut algo_with_timestamp) =
         success_based_dynamic_routing_algo_ref.success_based_algorithm
     {
@@ -1038,7 +1041,7 @@ pub async fn enable_dynamic_routing_algorithm(
                         1,
                         &add_attributes([(
                             "profile_id",
-                            business_profile.get_id().get_string_repr().to_owned(),
+                            profile_id,
                         )]),
                     );
                     Ok(ApplicationResponse::Json(response))
@@ -1056,6 +1059,16 @@ pub async fn enable_dynamic_routing_algorithm(
                 .await
             }
         }
+    } else {
+            // algorithm isn't present in profile
+            default_success_based_routing_setup(
+                &state,
+                key_store,
+                business_profile,
+                feature_to_enable,
+                success_based_dynamic_routing_algo_ref,
+            )
+            .await
     }
 }
 
@@ -1071,8 +1084,8 @@ pub async fn default_success_based_routing_setup(
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
-    let profile_id = business_profile.get_id().to_owned();
-    let merchant_id = business_profile.merchant_id;
+    let profile_id = business_profile.get_id().clone();
+    let merchant_id = business_profile.merchant_id.clone();
     let default_success_based_routing_config = routing_types::SuccessBasedRoutingConfig::default();
     let algorithm_id = common_utils::generate_routing_id_of_default_length();
     let timestamp = common_utils::date_time::now();
