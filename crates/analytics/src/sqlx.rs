@@ -927,6 +927,9 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
             Self::Dispute => Ok("dispute".to_string()),
+            Self::DisputeSessionized => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("DisputeSessionized table is not implemented for Sqlx"))?,
+
         }
     }
 }
