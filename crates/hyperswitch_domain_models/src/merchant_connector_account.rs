@@ -567,8 +567,7 @@ common_utils::create_list_wrapper!(
         pub fn get_connector_and_supporting_payment_method_type_for_session_call(
             &self,
         ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType)> {
-            let mut connector_and_supporting_payment_method_type = Vec::new();
-            self.iter().for_each(|connector_account| {
+            let connector_and_supporting_payment_method_type = self.iter().flat_map(|connector_account| {
                 let res = connector_account
                     .get_parsed_payment_methods_enabled()
                     .into_iter()
@@ -597,7 +596,7 @@ common_utils::create_list_wrapper!(
                             .collect::<Vec<_>>()
                     })
                     .collect::<Vec<_>>();
-                connector_and_supporting_payment_method_type.extend(res);
+                res
             });
             connector_and_supporting_payment_method_type
         }
