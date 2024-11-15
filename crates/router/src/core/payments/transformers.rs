@@ -371,6 +371,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
+        sca_exemption_required: None,
     };
 
     Ok(router_data)
@@ -503,6 +504,7 @@ pub async fn construct_router_data_for_psync<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
+        sca_exemption_required: None,
     };
 
     Ok(router_data)
