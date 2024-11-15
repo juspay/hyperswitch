@@ -66,9 +66,14 @@ pub enum ApiEventsType {
     },
     Routing,
     ResourceListAPI,
+    #[cfg(feature = "v1")]
     PaymentRedirectionResponse {
         connector: Option<String>,
         payment_id: Option<id_type::PaymentId>,
+    },
+    #[cfg(feature = "v2")]
+    PaymentRedirectionResponse {
+        payment_id: id_type::GlobalPaymentId,
     },
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
