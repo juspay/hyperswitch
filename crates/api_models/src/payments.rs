@@ -4517,6 +4517,7 @@ pub struct PaymentsResponse {
 /// Request for Payment Intent Confirm
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PaymentsConfirmIntentRequest {
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     /// If this url is not passed, the url configured in the business profile will be used
@@ -4557,6 +4558,10 @@ pub struct PaymentsRetrieveRequest {
     /// If this is set to true, the status will be fetched from the connector
     #[serde(default)]
     pub force_sync: bool,
+
+    /// These are the query params that are sent in case of redirect response.
+    /// These can be ingested by the connector to take necessary actions.
+    pub param: Option<String>,
 }
 
 /// Error details for the payment
@@ -5208,6 +5213,7 @@ pub struct PgRedirectResponse {
     pub amount: Option<MinorUnit>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
 pub struct RedirectionResponse {
     pub return_url: String,
@@ -5215,6 +5221,12 @@ pub struct RedirectionResponse {
     pub return_url_with_query_params: String,
     pub http_method: String,
     pub headers: Vec<(String, String)>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
+pub struct RedirectionResponse {
+    pub return_url_with_query_params: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
