@@ -2252,6 +2252,9 @@ pub fn change_order_details_to_new_type(
         brand: order_details.brand,
         product_type: order_details.product_type,
         product_tax_code: order_details.product_tax_code,
+        tax_rate:order_details.tax_rate,
+        // total_amount: Some(order_details.total_amount),
+        total_tax_amount: order_details.total_tax_amount
     }])
 }
 
@@ -2438,6 +2441,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
+            // order_tax_amount:order_tax_amount.get_amount_as_i64(),
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
@@ -2474,6 +2478,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             integrity_object: None,
             additional_payment_method_data,
             shipping_cost,
+            merchant_urls:None,
+
         })
     }
 }

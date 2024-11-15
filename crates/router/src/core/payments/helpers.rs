@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
         payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
         PaymentIntent,
     },
-    router_data::KlarnaSdkResponse,
+    router_data::{KlarnaCheckoutResponse, KlarnaSdkResponse},
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
@@ -2694,6 +2694,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Alma
                 | api_enums::PaymentMethodType::AfterpayClearpay
                 | api_enums::PaymentMethodType::Klarna
+                | api_enums::PaymentMethodType::KlarnaCheckout
                 | api_enums::PaymentMethodType::PayBright
                 | api_enums::PaymentMethodType::Atome
                 | api_enums::PaymentMethodType::Walley
@@ -4537,9 +4538,27 @@ pub async fn get_additional_payment_data(
                 google_pay: None,
             })),
         },
-        domain::PaymentMethodData::PayLater(_) => Ok(Some(
-            api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None },
-        )),
+        // domain::PaymentMethodData::PayLater(_) => Ok(Some(
+        //     api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None },
+        // )),
+        domain::PaymentMethodData::PayLater(pay_later) => match pay_later {
+            domain::PayLaterData::KlarnaSdk{token} => {
+                Ok(Some(api_models::payments::AdditionalPaymentData::PayLater {
+                    klarna_sdk: None,
+                    klarna_checkout: None,
+                }))
+            }
+            domain::PayLaterData::KlarnaCheckout{} => {
+                Ok(Some(api_models::payments::AdditionalPaymentData::PayLater {
+                    klarna_sdk: None,
+                    klarna_checkout: None,
+                }))
+            }
+            _ => Ok(Some(api_models::payments::AdditionalPaymentData::PayLater {
+                klarna_sdk: None,
+                klarna_checkout: None,
+            })),
+        },
         domain::PaymentMethodData::BankTransfer(bank_transfer) => Ok(Some(
             api_models::payments::AdditionalPaymentData::BankTransfer {
                 details: Some((*(bank_transfer.to_owned())).into()),
@@ -5611,9 +5630,21 @@ pub fn add_connector_response_to_additional_payment_data(
             api_models::payments::AdditionalPaymentData::PayLater { .. },
             AdditionalPaymentMethodConnectorResponse::PayLater {
                 klarna_sdk: Some(KlarnaSdkResponse { payment_type }),
+                klarna_checkout,
             },
         ) => api_models::payments::AdditionalPaymentData::PayLater {
             klarna_sdk: Some(api_models::payments::KlarnaSdkPaymentMethod { payment_type }),
+            klarna_checkout:None
+        },
+        (
+            api_models::payments::AdditionalPaymentData::PayLater { .. },
+            AdditionalPaymentMethodConnectorResponse::PayLater {
+                klarna_sdk: None,
+                klarna_checkout: Some(KlarnaCheckoutResponse { payment_type }),
+            },
+        ) => api_models::payments::AdditionalPaymentData::PayLater {
+            klarna_sdk:None,
+            klarna_checkout: Some(api_models::payments::KlarnaCheckoutPaymentMethod { payment_type }),
         },
 
         _ => additional_payment_data,

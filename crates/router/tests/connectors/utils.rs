@@ -950,6 +950,7 @@ impl Default for PaymentAuthorizeType {
             merchant_order_reference_id: None,
             additional_payment_method_data: None,
             shipping_cost: None,
+            merchant_urls: None,
         };
         Self(data)
     }

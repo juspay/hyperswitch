@@ -32,6 +32,7 @@ pub struct PaymentsAuthorizeData {
     /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
     /// ```
     pub amount: i64,
+    // pub order_tax_amount: i64,
     pub email: Option<pii::Email>,
     pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
@@ -70,6 +71,7 @@ pub struct PaymentsAuthorizeData {
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
+    pub merchant_urls: Option<MerchantURLs>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
     pub shipping_cost: Option<MinorUnit>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
@@ -100,6 +102,13 @@ pub struct AuthoriseIntegrityObject {
     pub currency: storage_enums::Currency,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct MerchantURLs {
+    pub terms: String,
+    pub checkout: String,
+    pub confirmation: String,
+    pub push: String,
+}
 #[derive(Debug, Clone, PartialEq)]
 pub struct SyncIntegrityObject {
     /// Sync amount

@@ -580,6 +580,9 @@ pub struct PaymentsRequest {
     // Makes the field mandatory in PaymentsCreateRequest
     pub amount: Option<Amount>,
 
+    #[schema(value_type = Option<i64>, example = 6540)]
+    pub order_tax_amount: Option<MinorUnit>,
+
     /// The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars
     #[schema(example = "USD", value_type = Option<Currency>)]
     #[mandatory_in(PaymentsCreateRequest = Currency)]
@@ -858,6 +861,8 @@ pub struct PaymentsRequest {
 
     /// Whether to calculate tax for this payment intent
     pub skip_external_tax_calculation: Option<bool>,
+    pub merchant_urls: Option<MerchantURLs>,
+
 }
 
 #[cfg(feature = "v1")]
@@ -1692,6 +1697,7 @@ pub enum PayLaterData {
         /// The token for the sdk workflow
         token: String,
     },
+    KlarnaCheckout {},
     /// For Affirm redirect as PayLater Option
     AffirmRedirect {},
     /// For AfterpayClearpay redirect as PayLater Option
@@ -1749,6 +1755,7 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
             | Self::WalleyRedirect {}
             | Self::AlmaRedirect {}
             | Self::KlarnaSdk { .. }
+            | Self::KlarnaCheckout {}
             | Self::AffirmRedirect {}
             | Self::AtomeRedirect {} => None,
         }
@@ -2195,6 +2202,7 @@ impl GetPaymentMethodType for PayLaterData {
         match self {
             Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
             Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
+            Self::KlarnaCheckout { .. } => api_enums::PaymentMethodType::KlarnaCheckout,
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
@@ -2402,6 +2410,7 @@ pub enum AdditionalPaymentData {
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
+        klarna_checkout: Option<KlarnaCheckoutPaymentMethod>,
     },
     BankTransfer {
         #[serde(flatten)]
@@ -2454,6 +2463,12 @@ pub enum AdditionalPaymentData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 
 pub struct KlarnaSdkPaymentMethod {
+    pub payment_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+
+pub struct KlarnaCheckoutPaymentMethod {
     pub payment_type: Option<String>,
 }
 
@@ -3658,6 +3673,7 @@ pub struct VoucherResponse {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaylaterResponse {
     klarna_sdk: Option<KlarnaSdkPaymentMethodResponse>,
+    klarna_checkout: Option<KlarnaCheckoutPaymentMethodResponse>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -3679,6 +3695,12 @@ pub enum WalletResponseData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 
 pub struct KlarnaSdkPaymentMethodResponse {
+    pub payment_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+
+pub struct KlarnaCheckoutPaymentMethodResponse {
     pub payment_type: Option<String>,
 }
 
@@ -3743,6 +3765,16 @@ pub struct Address {
     #[schema(value_type = Option<String>)]
     pub email: Option<Email>,
 }
+
+#[derive(Default, Clone, Debug, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MerchantURLs {
+    terms: String,
+    checkout: String,
+    confirmation: String,
+    push: String,
+}
+
 
 impl masking::SerializableSecret for Address {}
 
@@ -5120,6 +5152,17 @@ impl From<KlarnaSdkPaymentMethod> for PaylaterResponse {
             klarna_sdk: Some(KlarnaSdkPaymentMethodResponse {
                 payment_type: klarna_sdk.payment_type,
             }),
+            klarna_checkout: None,
+        }
+    }
+}
+impl From<KlarnaCheckoutPaymentMethod> for PaylaterResponse {
+    fn from(klarna_checkout: KlarnaCheckoutPaymentMethod) -> Self {
+        Self {
+            klarna_checkout: Some(KlarnaCheckoutPaymentMethodResponse {
+                payment_type: klarna_checkout.payment_type,
+            }),
+            klarna_sdk: None,
         }
     }
 }
@@ -5128,10 +5171,19 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
-            AdditionalPaymentData::PayLater { klarna_sdk } => match klarna_sdk {
-                Some(sdk) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
-                None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
+            // AdditionalPaymentData::PayLater { klarna_sdk } => match klarna_sdk {
+            //     Some(sdk) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
+            //     None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
+            // },
+            AdditionalPaymentData::PayLater { klarna_sdk,
+                klarna_checkout
+             } => 
+            match (klarna_sdk, klarna_checkout) {
+                (Some(sdk),_) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
+                (_,Some(checkout)) => Self::PayLater(Box::new(PaylaterResponse::from(checkout))),
+                (None,None) => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None, klarna_checkout: None })),
             },
+            
             AdditionalPaymentData::Wallet {
                 apple_pay,
                 google_pay,
@@ -5261,6 +5313,8 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: MinorUnit,
+    pub tax_rate: Option<i64>,
+    pub total_tax_amount: Option<i64>,
     // Does the order includes shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product
@@ -5289,6 +5343,8 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
+    pub tax_rate:Option<i64>,
+    pub total_tax_amount:Option<i64>,
     // Does the order include shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product

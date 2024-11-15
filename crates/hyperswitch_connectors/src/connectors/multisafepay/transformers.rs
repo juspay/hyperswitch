@@ -745,7 +745,8 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 Some(GatewayInfo::PayLater(PayLaterInfo {
                     email: Some(match paylater {
                         PayLaterData::KlarnaRedirect {} => item.router_data.get_billing_email()?,
-                        PayLaterData::KlarnaSdk { token: _ }
+                        PayLaterData::KlarnaCheckout {}
+                        | PayLaterData::KlarnaSdk { .. }
                         | PayLaterData::AffirmRedirect {}
                         | PayLaterData::AfterpayClearpayRedirect {}
                         | PayLaterData::PayBrightRedirect {}

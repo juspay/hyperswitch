@@ -30,6 +30,9 @@ pub struct OrderDetailsWithAmount {
     pub product_type: Option<common_enums::ProductType>,
     /// The tax code for the product
     pub product_tax_code: Option<String>,
+    pub tax_rate: Option<i64>,
+    pub total_tax_amount: Option<i64>,
+
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}

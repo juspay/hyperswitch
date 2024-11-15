@@ -84,6 +84,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,
 
     pub header_payload: Option<payments::HeaderPayload>,
+    // pub html_snippet: Option<String>,
+
 
     pub connector_mandate_request_reference_id: Option<String>,
 }
@@ -346,12 +348,19 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
+        klarna_checkout: Option<KlarnaCheckoutResponse>,
     },
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KlarnaSdkResponse {
     pub payment_type: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KlarnaCheckoutResponse {
+    pub payment_type: Option<String>,
+    // pub html_snippet: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]

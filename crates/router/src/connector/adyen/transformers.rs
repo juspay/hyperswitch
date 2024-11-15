@@ -2252,6 +2252,12 @@ impl<'a>
 
                 Ok(AdyenPaymentMethod::AdyenKlarna(Box::new(klarna)))
             }
+            domain::payments::PayLaterData::KlarnaCheckout { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                )
+                .into())
+            }
             domain::payments::PayLaterData::AffirmRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;

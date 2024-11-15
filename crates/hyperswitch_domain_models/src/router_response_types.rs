@@ -164,6 +164,9 @@ pub enum RedirectForm {
     Mifinity {
         initialization_token: String,
     },
+    // KlarnaCheckout{
+    //     form: String,
+    // },
     WorldpayDDCForm {
         endpoint: url::Url,
         method: Method,

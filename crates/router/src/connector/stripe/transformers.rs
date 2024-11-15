@@ -659,6 +659,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::Credit => Ok(Self::Card),
             enums::PaymentMethodType::Debit => Ok(Self::Card),
             enums::PaymentMethodType::Klarna => Ok(Self::Klarna),
+            enums::PaymentMethodType::KlarnaCheckout => Ok(Self::Klarna),
             enums::PaymentMethodType::Affirm => Ok(Self::Affirm),
             enums::PaymentMethodType::AfterpayClearpay => Ok(Self::AfterpayClearpay),
             enums::PaymentMethodType::Eps => Ok(Self::Eps),
@@ -990,6 +991,7 @@ impl TryFrom<&domain::payments::PayLaterData> for StripePaymentMethodType {
             }
 
             domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::KlarnaCheckout {}
             | domain::PayLaterData::PayBrightRedirect {}
             | domain::PayLaterData::WalleyRedirect {}
             | domain::PayLaterData::AlmaRedirect {}

@@ -1080,6 +1080,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                             utils::get_unimplemented_payment_method_error_message("paypal"),
                         ))
                     }
+                    enums::PaymentMethodType::KlarnaCheckout => todo!(),
                 };
 
                 Ok(Self {
@@ -1129,6 +1130,7 @@ impl TryFrom<&domain::PayLaterData> for PaypalPaymentsRequest {
         match value {
             domain::PayLaterData::KlarnaRedirect { .. }
             | domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::KlarnaCheckout {}
             | domain::PayLaterData::AffirmRedirect {}
             | domain::PayLaterData::AfterpayClearpayRedirect { .. }
             | domain::PayLaterData::PayBrightRedirect {}
