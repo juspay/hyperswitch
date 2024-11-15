@@ -2,8 +2,8 @@ use diesel::{associations::HasTable, ExpressionMethods};
 
 use super::generics;
 use crate::{
-    call_back_mapper::{CallBackMapper, CallBackMapperNew},
-    schema::call_back_mapper::dsl,
+    callback_mapper::{CallBackMapper, CallBackMapperNew},
+    schema::callback_mapper::dsl,
     PgPooledConn, StorageResult,
 };
 

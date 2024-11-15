@@ -10,7 +10,7 @@ pub mod authentication;
 pub mod authorization;
 pub mod blocklist;
 pub mod blocklist_fingerprint;
-pub mod call_back_mapper;
+pub mod callback_mapper;
 pub mod customers;
 pub mod dashboard_metadata;
 pub mod dispute;

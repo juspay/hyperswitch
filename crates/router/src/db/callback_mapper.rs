@@ -1,5 +1,4 @@
 use error_stack::report;
-// use diesel_models::call_back_mapper;
 use router_env::{instrument, tracing};
 
 use super::Store;

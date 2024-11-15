@@ -228,7 +228,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    call_back_mapper (id) {
+    callback_mapper (id) {
         #[max_length = 128]
         id -> Varchar,
         #[sql_name = "type"]
@@ -1362,7 +1362,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     blocklist_fingerprint,
     blocklist_lookup,
     business_profile,
-    call_back_mapper,
+    callback_mapper,
     captures,
     cards_info,
     configs,

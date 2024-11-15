@@ -1,2 +1,2 @@
 -- This file should undo anything in `up.sql`
-DROP TABLE IF EXISTS call_back_mapper;
+DROP TABLE IF EXISTS callback_mapper;

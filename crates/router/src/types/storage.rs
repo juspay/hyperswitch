@@ -6,7 +6,7 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod blocklist_lookup;
 pub mod business_profile;
-pub mod call_back_mapper;
+pub mod callback_mapper;
 pub mod capture;
 pub mod cards_info;
 pub mod configs;
@@ -63,7 +63,7 @@ pub use scheduler::db::process_tracker;
 
 pub use self::{
     address::*, api_keys::*, authentication::*, authorization::*, blocklist::*,
-    blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, call_back_mapper::*,
+    blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, callback_mapper::*,
     capture::*, cards_info::*, configs::*, customers::*, dashboard_metadata::*, dispute::*,
     ephemeral_key::*, events::*, file::*, fraud_check::*, generic_link::*, gsm::*,
     locker_mock_up::*, mandate::*, merchant_account::*, merchant_connector_account::*,
