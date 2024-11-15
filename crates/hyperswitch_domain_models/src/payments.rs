@@ -113,13 +113,14 @@ impl PaymentIntent {
     }
 
     #[cfg(feature = "v2")]
+    /// This is the url to which the customer will be redirected to, to complete the redirection flow
     pub fn create_start_redirection_url(
         &self,
         base_url: &str,
         publishable_key: String,
     ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
         let start_redirection_url = &format!(
-            "{}/v2/payments/{}/start_redirection?publishable_key={}&profile_id={}",
+            "{}/v2/payments/{}/start-redirection?publishable_key={}&profile_id={}",
             base_url,
             self.get_id().get_string_repr(),
             publishable_key,
@@ -128,6 +129,24 @@ impl PaymentIntent {
         url::Url::parse(start_redirection_url)
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error creating start redirection url")
+    }
+
+    #[cfg(feature = "v2")]
+    /// This is the url to which the customer will be redirected to, after completing the redirection flow
+    pub fn create_finish_redirection_url(
+        &self,
+        base_url: &str,
+        publishable_key: &str,
+    ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
+        let finish_redirection_url = format!(
+            "{base_url}/v2/payments/{}/finish-redirection/{publishable_key}/{}",
+            self.id.get_string_repr(),
+            self.profile_id.get_string_repr()
+        );
+
+        url::Url::parse(&finish_redirection_url)
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error creating finish redirection url")
     }
 }
 

@@ -472,7 +472,7 @@ impl Health {
 #[cfg(feature = "dummy_connector")]
 pub struct DummyConnector;
 
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
         let mut routes_with_restricted_access = web::scope("");
@@ -538,12 +538,16 @@ impl Payments {
                 )
                 .service(web::resource("").route(web::get().to(payments::payment_status)))
                 .service(
-                    web::resource("/start_redirection")
+                    web::resource("/start-redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
                     web::resource("/saved-payment-methods")
                         .route(web::get().to(list_customer_payment_method_for_payment)),
+                )
+                .service(
+                    web::resource("/finish-redirection/{publishable_key}/{profile_id}")
+                        .route(web::get().to(payments::payments_finish_redirection)),
                 ),
         );
 

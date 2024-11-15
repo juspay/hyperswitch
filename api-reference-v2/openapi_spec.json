@@ -6149,6 +6149,7 @@
           "cybersource",
           "datatrans",
           "deutschebank",
+          "digitalvirgo",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -8347,13 +8348,19 @@
           {
             "type": "string",
             "enum": [
-              "browser_language"
+              "user_msisdn"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "browser_ip"
+              "user_client_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "order_details_product_name"
             ]
           }
         ],
@@ -10807,6 +10814,71 @@
       "MobilePayRedirection": {
         "type": "object"
       },
+      "MobilePaymentConsent": {
+        "type": "string",
+        "enum": [
+          "consent_required",
+          "consent_not_required",
+          "consent_optional"
+        ]
+      },
+      "MobilePaymentData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "direct_carrier_billing"
+            ],
+            "properties": {
+              "direct_carrier_billing": {
+                "type": "object",
+                "required": [
+                  "msisdn"
+                ],
+                "properties": {
+                  "msisdn": {
+                    "type": "string",
+                    "description": "The phone number of the user",
+                    "example": "1234567890"
+                  },
+                  "client_uid": {
+                    "type": "string",
+                    "description": "Unique user id",
+                    "example": "02iacdYXGI9CnyJdoN8c7",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MobilePaymentNextStepData": {
+        "type": "object",
+        "required": [
+          "consent_data_required"
+        ],
+        "properties": {
+          "consent_data_required": {
+            "$ref": "#/components/schemas/MobilePaymentConsent"
+          }
+        }
+      },
+      "MobilePaymentResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "MomoRedirection": {
         "type": "object"
       },
@@ -11107,6 +11179,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains consent to collect otp for mobile payment",
+            "required": [
+              "consent_data_required",
+              "type"
+            ],
+            "properties": {
+              "consent_data_required": {
+                "$ref": "#/components/schemas/MobilePaymentConsent"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "collect_otp"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -11121,7 +11212,8 @@
           "invoke_sdk_client",
           "trigger_api",
           "display_bank_transfer_information",
-          "display_wait_screen"
+          "display_wait_screen",
+          "collect_otp"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -12133,7 +12225,8 @@
           "one_click",
           "link_wallet",
           "invoke_payment_app",
-          "display_wait_screen"
+          "display_wait_screen",
+          "collect_otp"
         ]
       },
       "PaymentLinkConfig": {
@@ -12425,7 +12518,8 @@
           "upi",
           "voucher",
           "gift_card",
-          "open_banking"
+          "open_banking",
+          "mobile_payment"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -12775,6 +12869,18 @@
                 "$ref": "#/components/schemas/OpenBankingData"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "MobilePayment",
+            "required": [
+              "mobile_payment"
+            ],
+            "properties": {
+              "mobile_payment": {
+                "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            }
           }
         ]
       },
@@ -12979,6 +13085,17 @@
             "properties": {
               "open_banking": {
                 "$ref": "#/components/schemas/OpenBankingResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mobile_payment"
+            ],
+            "properties": {
+              "mobile_payment": {
+                "$ref": "#/components/schemas/MobilePaymentResponse"
               }
             }
           }
@@ -13489,7 +13606,8 @@
           "pay_easy",
           "local_bank_transfer",
           "mifinity",
-          "open_banking_pis"
+          "open_banking_pis",
+          "direct_carrier_billing"
         ]
       },
       "PaymentMethodUpdate": {
@@ -13776,7 +13894,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentsConfirmIntentResponse": {
         "type": "object",
@@ -15510,6 +15629,11 @@
           "force_sync": {
             "type": "boolean",
             "description": "A boolean used to indicate if the payment status should be fetched from the connector\nIf this is set to true, the status will be fetched from the connector"
+          },
+          "param": {
+            "type": "string",
+            "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
+            "nullable": true
           }
         }
       },
@@ -18305,6 +18429,7 @@
           "cybersource",
           "datatrans",
           "deutschebank",
+          "digitalvirgo",
           "dlocal",
           "ebanx",
           "fiserv",

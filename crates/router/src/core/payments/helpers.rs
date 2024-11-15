@@ -2821,6 +2821,10 @@ pub fn validate_payment_method_type_against_payment_method(
             payment_method_type,
             api_enums::PaymentMethodType::OpenBankingPIS
         ),
+        api_enums::PaymentMethod::MobilePayment => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::DirectCarrierBilling
+        ),
     }
 }
 
@@ -2900,6 +2904,7 @@ pub(super) fn validate_payment_list_request_for_joins(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub fn get_handle_response_url(
     payment_id: id_type::PaymentId,
     business_profile: &domain::Profile,
@@ -2922,6 +2927,7 @@ pub fn get_handle_response_url(
     make_url_with_signature(&return_url, business_profile)
 }
 
+#[cfg(feature = "v1")]
 pub fn make_merchant_url_with_response(
     business_profile: &domain::Profile,
     redirection_response: api::PgRedirectResponse,
@@ -3030,6 +3036,7 @@ pub fn make_pg_redirect_response(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn make_url_with_signature(
     redirect_url: &str,
     business_profile: &domain::Profile,
@@ -4696,6 +4703,11 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
+        domain::PaymentMethodData::MobilePayment(mobile_payment) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::MobilePayment {
+                details: Some(mobile_payment.to_owned().into()),
+            },
+        )),
         domain::PaymentMethodData::NetworkToken(_) => Ok(None),
     }
 }
@@ -5388,6 +5400,11 @@ pub fn get_key_params_for_surcharge_details(
         domain::PaymentMethodData::OpenBanking(ob_data) => Some((
             common_enums::PaymentMethod::OpenBanking,
             ob_data.get_payment_method_type(),
+            None,
+        )),
+        domain::PaymentMethodData::MobilePayment(mobile_payment) => Some((
+            common_enums::PaymentMethod::MobilePayment,
+            mobile_payment.get_payment_method_type(),
             None,
         )),
         domain::PaymentMethodData::CardToken(_)
