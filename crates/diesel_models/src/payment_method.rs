@@ -500,7 +500,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
-                transaction_flow:None,
+                transaction_flow: None,
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
@@ -616,7 +616,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
-                transaction_flow
+                transaction_flow,
             } => Self {
                 metadata: None,
                 payment_method_data: None,
@@ -805,7 +805,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             payment_method_data: payment_method_new.payment_method_data.clone(),
             last_used_at: payment_method_new.last_used_at,
             connector_mandate_details: payment_method_new.connector_mandate_details.clone(),
-            transaction_flow: payment_method_new.transaction_flow.clone(),   //here
+            transaction_flow: payment_method_new.transaction_flow.clone(), //here
             customer_acceptance: payment_method_new.customer_acceptance.clone(),
             status: payment_method_new.status,
             network_transaction_id: payment_method_new.network_transaction_id.clone(),

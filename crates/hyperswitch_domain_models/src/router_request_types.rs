@@ -793,7 +793,7 @@ pub struct PayoutsData {
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,
     pub priority: Option<storage_enums::PayoutSendPriority>,
-    pub transfer_method_id:  Option<String>, // will be using as destination_id: item.request.clone().connector_payout_id,
+    pub transfer_method_id: Option<String>, // will be using as destination_id: item.request.clone().connector_payout_id,
 }
 
 #[derive(Debug, Default, Clone)]

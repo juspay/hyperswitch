@@ -8,7 +8,9 @@ use std::{collections::HashSet, vec::IntoIter};
 
 #[cfg(feature = "olap")]
 use api_models::payments as payment_enums;
-use api_models::{self, enums as api_enums, payments::ConnectorMandateReferenceId, payouts::PayoutLinkResponse};
+use api_models::{
+    self, enums as api_enums, payments::ConnectorMandateReferenceId, payouts::PayoutLinkResponse,
+};
 #[cfg(feature = "payout_retry")]
 use common_enums::PayoutRetryType;
 use common_utils::{
@@ -72,7 +74,7 @@ pub struct PayoutData {
     pub should_terminate: bool,
     pub payout_link: Option<PayoutLink>,
     pub current_locale: String,
-    pub payment_method: Option<storage::PaymentMethod>, 
+    pub payment_method: Option<storage::PaymentMethod>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -2008,19 +2010,17 @@ pub async fn create_recipient_disburse_account(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error updating payout_attempt in db")?;
 
-
             /*
-            if recurring need to store
+                       if recurring need to store
 
-            
 
- */
 
-                // fetch the id 
+            */
+
+            // fetch the id
             // payout_data.payment_method.map(|pm|) {
             //     let pmd = HashMap::new();
 
-                
             // }
             // let payment_method_update = ConnectorMandateDetailsUpdate {
             //     connector_mandate_details: Some()

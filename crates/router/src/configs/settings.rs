@@ -361,7 +361,7 @@ pub struct ConnectorCustomer {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct SomeName{
+pub struct SomeName {
     #[cfg(feature = "payouts")]
     #[serde(deserialize_with = "deserialize_hashset")]
     pub payout_connector_list: HashSet<enums::PayoutConnectors>,
