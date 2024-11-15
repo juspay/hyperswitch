@@ -555,6 +555,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                     | PaymentMethodData::Reward
                     | PaymentMethodData::RealTimePayment(_)
                     | PaymentMethodData::Upi(_)
+                    | PaymentMethodData::MobilePayment(_)
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
