@@ -2929,6 +2929,7 @@ where
             .get_required_value("merchant_connector_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("connector id is not set")?;
+        // TODO: make this DB call parallel
         let merchant_connector_account = state
             .store
             .find_merchant_connector_account_by_id(&state.into(), merchant_connector_id, key_store)
