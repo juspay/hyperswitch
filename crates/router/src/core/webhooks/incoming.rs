@@ -963,7 +963,7 @@ async fn get_or_update_dispute_object(
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
                 organization_id: organization_id.clone(),
-                dispute_currency: dispute_details.currency,
+                dispute_currency: Some(dispute_details.currency),
             };
             state
                 .store

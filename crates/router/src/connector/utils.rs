@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
         SyncIntegrityObject,
     },
 };
-use masking::{ExposeInterface, Secret, Deserialize};
+use masking::{Deserialize, ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;

@@ -309,9 +309,12 @@ impl DisputeInterface for MockDb {
                         .currency
                         .as_ref()
                         .map_or(true, |currencies| {
-                            currencies
-                                .iter()
-                                .any(|currency| &dispute.dispute_currency == currency)
+                            currencies.iter().any(|currency| {
+                                dispute
+                                    .dispute_currency
+                                    .map(|dispute_currency| &dispute_currency == currency)
+                                    .unwrap_or(dispute.currency.as_str() == currency.to_string())
+                            })
                         })
                     && dispute_constraints
                         .time_range
@@ -503,7 +506,7 @@ mod tests {
                 merchant_connector_id: None,
                 dispute_amount: 1040,
                 organization_id: common_utils::id_type::OrganizationId::default(),
-                dispute_currency: common_enums::Currency::default(),
+                dispute_currency: Some(common_enums::Currency::default()),
             }
         }
 

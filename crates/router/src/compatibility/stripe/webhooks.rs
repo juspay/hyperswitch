@@ -1,7 +1,7 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts as payout_models;
 use api_models::{
-    enums::{DisputeStatus, MandateStatus, Currency},
+    enums::{Currency, DisputeStatus, MandateStatus},
     webhooks::{self as api},
 };
 #[cfg(feature = "payouts")]

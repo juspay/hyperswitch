@@ -6,7 +6,7 @@ use serde::de::Error;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use super::enums::{DisputeStage, DisputeStatus, Currency};
+use super::enums::{Currency, DisputeStage, DisputeStatus};
 use crate::{admin::MerchantConnectorInfo, files};
 
 #[derive(Clone, Debug, Serialize, ToSchema, Eq, PartialEq)]
