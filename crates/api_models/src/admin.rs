@@ -1313,10 +1313,6 @@ pub struct MerchantConnectorListResponse {
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 
-    /// Metadata is useful for storing additional, unstructured information on an object.
-    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
-
     /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
     #[schema(default = false, example = false)]
     pub test_mode: Option<bool>,
@@ -1349,13 +1345,6 @@ pub struct MerchantConnectorListResponse {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
-
-    #[schema(value_type = Option<AdditionalMerchantData>)]
-    pub additional_merchant_data: Option<AdditionalMerchantData>,
-
-    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
-    #[schema(value_type = Option<ConnectorWalletDetails>)]
-    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1423,10 +1412,6 @@ pub struct MerchantConnectorListResponse {
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 
-    /// Metadata is useful for storing additional, unstructured information on an object.
-    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
-
     /// A boolean value to indicate if the connector is disabled. By default, its value is false.
     #[schema(default = false, example = false)]
     pub disabled: Option<bool>,
@@ -1443,13 +1428,6 @@ pub struct MerchantConnectorListResponse {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
-
-    #[schema(value_type = Option<AdditionalMerchantData>)]
-    pub additional_merchant_data: Option<AdditionalMerchantData>,
-
-    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
-    #[schema(value_type = Option<ConnectorWalletDetails>)]
-    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v2")]
