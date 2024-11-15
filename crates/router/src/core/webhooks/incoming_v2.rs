@@ -284,6 +284,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .attach_printable("There was an issue in incoming webhook source verification")?
         };
 
+        logger::info!(source_verified=?source_verified);
+
         if source_verified {
             metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
                 &metrics::CONTEXT,
@@ -293,60 +295,64 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     merchant_account.get_id().clone(),
                 )],
             );
-        } else if connector.is_webhook_source_verification_mandatory() {
-            // if webhook consumption is mandatory for connector, fail webhook
-            // so that merchant can retrigger it after updating merchant_secret
-            return Err(errors::ApiErrorResponse::WebhookAuthenticationFailed.into());
         }
 
-        logger::info!(source_verified=?source_verified);
+        // If source verification is mandatory and source is not verified, fail with webhook authentication error
+        // else continue the flow
+        match (
+            connector.is_webhook_source_verification_mandatory(),
+            source_verified,
+        ) {
+            (true, false) => Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)?,
+            _ => {
+                event_object = connector
+                    .get_webhook_resource_object(&request_details)
+                    .switch()
+                    .attach_printable("Could not find resource object in incoming webhook body")?;
 
-        event_object = connector
-            .get_webhook_resource_object(&request_details)
-            .switch()
-            .attach_printable("Could not find resource object in incoming webhook body")?;
+                let webhook_details = api::IncomingWebhookDetails {
+                    object_reference_id: object_ref_id.clone(),
+                    resource_object: serde_json::to_vec(&event_object)
+                        .change_context(errors::ParsingError::EncodeError("byte-vec"))
+                        .attach_printable("Unable to convert webhook payload to a value")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "There was an issue when encoding the incoming webhook body to bytes",
+                        )?,
+                };
 
-        let webhook_details = api::IncomingWebhookDetails {
-            object_reference_id: object_ref_id.clone(),
-            resource_object: serde_json::to_vec(&event_object)
-                .change_context(errors::ParsingError::EncodeError("byte-vec"))
-                .attach_printable("Unable to convert webhook payload to a value")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "There was an issue when encoding the incoming webhook body to bytes",
-                )?,
-        };
+                match flow_type {
+                    api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow(
+                        state.clone(),
+                        req_state,
+                        merchant_account,
+                        profile,
+                        key_store,
+                        webhook_details,
+                        source_verified,
+                    ))
+                    .await
+                    .attach_printable("Incoming webhook flow for payments failed")?,
 
-        match flow_type {
-            api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow(
-                state.clone(),
-                req_state,
-                merchant_account,
-                profile,
-                key_store,
-                webhook_details,
-                source_verified,
-            ))
-            .await
-            .attach_printable("Incoming webhook flow for payments failed")?,
+                    api::WebhookFlow::Refund => todo!(),
 
-            api::WebhookFlow::Refund => todo!(),
+                    api::WebhookFlow::Dispute => todo!(),
 
-            api::WebhookFlow::Dispute => todo!(),
+                    api::WebhookFlow::BankTransfer => todo!(),
 
-            api::WebhookFlow::BankTransfer => todo!(),
+                    api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoEffect,
 
-            api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoEffect,
+                    api::WebhookFlow::Mandate => todo!(),
 
-            api::WebhookFlow::Mandate => todo!(),
+                    api::WebhookFlow::ExternalAuthentication => todo!(),
+                    api::WebhookFlow::FraudCheck => todo!(),
 
-            api::WebhookFlow::ExternalAuthentication => todo!(),
-            api::WebhookFlow::FraudCheck => todo!(),
+                    #[cfg(feature = "payouts")]
+                    api::WebhookFlow::Payout => todo!(),
 
-            #[cfg(feature = "payouts")]
-            api::WebhookFlow::Payout => todo!(),
-
-            api::WebhookFlow::Subscription => todo!(),
+                    api::WebhookFlow::Subscription => todo!(),
+                }
+            }
         }
     } else {
         metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
