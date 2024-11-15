@@ -166,23 +166,30 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "createBusinessProfileTest",
-  (createBusinessProfile, globalState) => {
+  (createBusinessProfile, globalState, profile_prefix = "profile") => {
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
+    const connector_id = globalState.get("connectorId");
     const merchant_id = globalState.get("merchantId");
-    const randomProfileName = `profile_${Math.random().toString(36).substring(7)}`;
-    createBusinessProfile.profile_name = randomProfileName;
+    const profile_name = `${connector_id}_${profile_prefix}_${Math.random().toString(36).substring(7)}`;
+    const url = `${base_url}/account/${merchant_id}/business_profile`;
+
+    createBusinessProfile.profile_name = profile_name;
+
     cy.request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/account/${merchant_id}/business_profile`,
+      url: url,
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
+        "api-key": api_key,
       },
       body: createBusinessProfile,
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-      globalState.set("profileId", response.body.profile_id);
+      globalState.set(`${profile_prefix}Id`, response.body.profile_id);
+
       if (response.status === 200) {
         expect(response.body.profile_id).to.not.to.be.null;
       } else {
@@ -403,21 +410,31 @@ Cypress.Commands.add(
     connectorType,
     createConnectorBody,
     payment_methods_enabled,
-    globalState
+    globalState,
+    profile_prefix = "profile",
+    mca_prefix = "merchantConnector"
   ) => {
-    const merchantId = globalState.get("merchantId");
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
+    const connector_id = globalState.get("connectorId");
+    const merchant_id = globalState.get("merchantId");
+    const profile_id = globalState.get(`${profile_prefix}Id`);
+    const url = `${base_url}/account/${merchant_id}/connectors`;
+
     createConnectorBody.connector_type = connectorType;
-    createConnectorBody.profile_id = globalState.get("profileId");
-    createConnectorBody.connector_name = globalState.get("connectorId");
+    createConnectorBody.profile_id = profile_id;
+    createConnectorBody.connector_name = connector_id;
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
+
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
       (jsonContent) => {
         const authDetails = getValueByKey(
           JSON.stringify(jsonContent),
-          globalState.get("connectorId")
+          connector_id
         );
+
         createConnectorBody.connector_account_details =
           authDetails.connector_account_details;
 
@@ -430,11 +447,11 @@ Cypress.Commands.add(
 
         cy.request({
           method: "POST",
-          url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
+          url: url,
           headers: {
-            "Content-Type": "application/json",
             Accept: "application/json",
-            "api-key": globalState.get("adminApiKey"),
+            "Content-Type": "application/json",
+            "api-key": api_key,
           },
           body: createConnectorBody,
           failOnStatusCode: false,
@@ -445,9 +462,8 @@ Cypress.Commands.add(
             expect(globalState.get("connectorId")).to.equal(
               response.body.connector_name
             );
-            globalState.set("profileId", response.body.profile_id);
             globalState.set(
-              "merchantConnectorId",
+              `${mca_prefix}Id`,
               response.body.merchant_connector_id
             );
           } else {
@@ -587,18 +603,22 @@ Cypress.Commands.add("connectorDeleteCall", (globalState) => {
 Cypress.Commands.add(
   "connectorUpdateCall",
   (connectorType, updateConnectorBody, globalState) => {
-    const merchant_id = globalState.get("merchantId");
+    const api_key = globalState.get("adminApiKey");
+    const base_url = globalState.get("baseUrl");
     const connector_id = globalState.get("connectorId");
+    const merchant_id = globalState.get("merchantId");
     const merchant_connector_id = globalState.get("merchantConnectorId");
+    const url = `${base_url}/account/${merchant_id}/connectors/${merchant_connector_id}`;
+
     updateConnectorBody.connector_type = connectorType;
 
     cy.request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/account/${merchant_id}/connectors/${merchant_connector_id}`,
+      url: url,
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
+        "api-key": api_key,
         "x-merchant-id": merchant_id,
       },
       body: updateConnectorBody,
