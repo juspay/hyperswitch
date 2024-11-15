@@ -2149,7 +2149,7 @@
           "Payment Methods"
         ],
         "summary": "Payment Method - Create Intent",
-        "description": "TODO: Description Here",
+        "description": "Creates a payment method for customer with billing information and other metadata.",
         "operationId": "Create Payment Method Intent",
         "requestBody": {
           "content": {
@@ -2189,7 +2189,7 @@
           "Payment Methods"
         ],
         "summary": "Payment Method - Confirm Intent",
-        "description": "TODO: Description Here",
+        "description": "Update a payment method with customer's payment method related information.",
         "operationId": "Confirm Payment Method Intent",
         "requestBody": {
           "content": {
@@ -13299,6 +13299,7 @@
       "PaymentMethodResponse": {
         "type": "object",
         "required": [
+          "merchant_id",
           "payment_method_id",
           "payment_method",
           "recurring_enabled"
@@ -13307,8 +13308,7 @@
           "merchant_id": {
             "type": "string",
             "description": "Unique identifier for a merchant",
-            "example": "merchant_1671528864",
-            "nullable": true
+            "example": "merchant_1671528864"
           },
           "customer_id": {
             "type": "string",

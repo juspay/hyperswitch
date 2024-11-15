@@ -200,7 +200,7 @@ pub async fn default_payment_method_set_api() {}
 
 /// Payment Method - Create Intent
 ///
-/// TODO: Description Here
+/// Creates a payment method for customer with billing information and other metadata.
 #[utoipa::path(
     post,
     path = "/v2/payment-methods/create-intent",
@@ -221,7 +221,7 @@ pub async fn create_payment_method_intent_api() {}
 
 /// Payment Method - Confirm Intent
 ///
-/// TODO: Description Here
+/// Update a payment method with customer's payment method related information.
 #[utoipa::path(
     post,
     path = "/v2/payment-methods/{id}/confirm-intent",
