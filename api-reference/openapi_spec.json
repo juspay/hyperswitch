@@ -16957,6 +16957,14 @@
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
             "nullable": true
+          },
+          "sca_exemption_required": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17326,6 +17334,14 @@
           "skip_external_tax_calculation": {
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
+          },
+          "sca_exemption_required": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -18521,6 +18537,14 @@
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
             "nullable": true
+          },
+          "sca_exemption_required": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19553,6 +19577,14 @@
           "skip_external_tax_calculation": {
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
+          },
+          "sca_exemption_required": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -23129,6 +23161,17 @@
             "$ref": "#/components/schemas/SamsungPayTokenData"
           }
         }
+      },
+      "ScaExemptionType": {
+        "type": "string",
+        "description": "The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.",
+        "enum": [
+          "low_value_exemption",
+          "low_risk_exemption",
+          "secure_corporate_exemption",
+          "trusted_beneficiary_exemption",
+          "merchant_initiated_transaction_exemption"
+        ]
       },
       "SdkInformation": {
         "type": "object",

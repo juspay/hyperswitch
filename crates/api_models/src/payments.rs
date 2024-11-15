@@ -860,6 +860,7 @@ pub struct PaymentsRequest {
     pub skip_external_tax_calculation: Option<bool>,
 
     /// Choose what kind of sca exemption is required for this payment
+    #[schema(value_type = Option<ScaExemptionType>)]
     pub sca_exemption_required: Option<api_enums::ScaExemptionType>,
 }
 

@@ -18575,6 +18575,17 @@
           }
         }
       },
+      "ScaExemptionType": {
+        "type": "string",
+        "description": "The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.",
+        "enum": [
+          "low_value_exemption",
+          "low_risk_exemption",
+          "secure_corporate_exemption",
+          "trusted_beneficiary_exemption",
+          "merchant_initiated_transaction_exemption"
+        ]
+      },
       "SdkInformation": {
         "type": "object",
         "description": "SDK Information if request is from SDK",
