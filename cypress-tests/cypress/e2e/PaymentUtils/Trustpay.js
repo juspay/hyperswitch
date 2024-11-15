@@ -104,6 +104,11 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
+      Configs: {
+        delay: {
+          status: true,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -138,6 +143,11 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        delay: {
+          status: true,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -154,6 +164,11 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Configs: {
+        delay: {
+          status: true,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -171,6 +186,11 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
+      Configs: {
+        delay: {
+          status: true,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {

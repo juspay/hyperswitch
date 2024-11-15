@@ -127,9 +127,9 @@ export function getValueByKey(jsonObject, key, increment = false) {
   }
 }
 
-export const should_continue_further = (res_data) => {
-  if (res_data.trigger_skip !== undefined) {
-    return !res_data.trigger_skip;
+export const should_continue_further = (res_data, config_data) => {
+  if (config_data?.trigger_skip !== undefined) {
+    return !config_data.trigger_skip;
   }
 
   if (
