@@ -570,6 +570,7 @@ common_utils::create_list_wrapper!(
             let connector_and_supporting_payment_method_type = self.iter().flat_map(|connector_account| {
                 let res = connector_account
                     .get_parsed_payment_methods_enabled()
+                    // TODO: make payment_methods_enabled strict type in DB
                     .into_iter()
                     .filter_map(|parsed_payment_method_result| {
                         parsed_payment_method_result
