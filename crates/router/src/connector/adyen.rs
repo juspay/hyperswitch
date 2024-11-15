@@ -209,6 +209,7 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::CardRedirect
+                | PaymentMethodType::DirectCarrierBilling
                 | PaymentMethodType::Fps
                 | PaymentMethodType::DuitNow
                 | PaymentMethodType::Interac

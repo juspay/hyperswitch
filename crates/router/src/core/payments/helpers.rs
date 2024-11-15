@@ -2821,6 +2821,10 @@ pub fn validate_payment_method_type_against_payment_method(
             payment_method_type,
             api_enums::PaymentMethodType::OpenBankingPIS
         ),
+        api_enums::PaymentMethod::MobilePayment => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::DirectCarrierBilling
+        ),
     }
 }
 
@@ -4699,6 +4703,11 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
+        domain::PaymentMethodData::MobilePayment(mobile_payment) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::MobilePayment {
+                details: Some(mobile_payment.to_owned().into()),
+            },
+        )),
         domain::PaymentMethodData::NetworkToken(_) => Ok(None),
     }
 }
@@ -5391,6 +5400,11 @@ pub fn get_key_params_for_surcharge_details(
         domain::PaymentMethodData::OpenBanking(ob_data) => Some((
             common_enums::PaymentMethod::OpenBanking,
             ob_data.get_payment_method_type(),
+            None,
+        )),
+        domain::PaymentMethodData::MobilePayment(mobile_payment) => Some((
+            common_enums::PaymentMethod::MobilePayment,
+            mobile_payment.get_payment_method_type(),
             None,
         )),
         domain::PaymentMethodData::CardToken(_)
