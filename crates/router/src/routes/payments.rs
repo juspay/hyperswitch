@@ -1901,6 +1901,23 @@ impl GetLockingInput for payments::PaymentsRedirectResponseData {
     }
 }
 
+#[cfg(feature = "v2")]
+impl GetLockingInput for payments::PaymentsRedirectResponseData {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsCompleteAuthorizeRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
@@ -2311,5 +2328,56 @@ pub async fn payment_status(
         ),
         locking_action,
     ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
+pub async fn payments_finish_redirection(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: Option<web::Form<serde_json::Value>>,
+    path: web::Path<(
+        common_utils::id_type::GlobalPaymentId,
+        String,
+        common_utils::id_type::ProfileId,
+    )>,
+) -> impl Responder {
+    let flow = Flow::PaymentsRedirect;
+    let (payment_id, publishable_key, profile_id) = path.into_inner();
+    let param_string = req.query_string();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let payload = payments::PaymentsRedirectResponseData {
+        payment_id,
+        json_payload: json_payload.map(|payload| payload.0),
+        query_params: param_string.to_string(),
+    };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, req_state| {
+            <payments::PaymentRedirectSync as PaymentRedirectFlow>::handle_payments_redirect_response(
+                &payments::PaymentRedirectSync {},
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.key_store,
+                auth.profile,
+                req,
+            )
+        },
+        &auth::PublishableKeyAndProfileIdAuth {
+            publishable_key: publishable_key.clone(),
+            profile_id: profile_id.clone(),
+        },
+        locking_action,
+    )
     .await
 }
