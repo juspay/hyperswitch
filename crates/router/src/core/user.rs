@@ -2223,6 +2223,7 @@ pub async fn list_user_authentication_methods(
     ))
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_sso_auth_url(
     state: SessionState,
     request: user_api::GetSsoAuthUrlRequest,

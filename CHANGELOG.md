@@ -4,6 +4,19 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.15.0
+
+### Features
+
+- **analytics:** Add `sessionized_metrics` and `currency_conversion` for refunds analytics ([#6419](https://github.com/juspay/hyperswitch/pull/6419)) ([`afd7f7d`](https://github.com/juspay/hyperswitch/commit/afd7f7d20980f6f39673008c86b89b1e501f05f2))
+- **connector:** [Novalnet] Add supported currencies ([#6547](https://github.com/juspay/hyperswitch/pull/6547)) ([`a35a4f3`](https://github.com/juspay/hyperswitch/commit/a35a4f314242af3c11a27c031388049c8fe4e72d))
+- **themes:** Setup themes table ([#6533](https://github.com/juspay/hyperswitch/pull/6533)) ([`29be1d4`](https://github.com/juspay/hyperswitch/commit/29be1d4fadc55948c99cc8bd33b3b8e8d341ae11))
+- Implement scylla traits for StrongSecret ([#6500](https://github.com/juspay/hyperswitch/pull/6500)) ([`7d73e90`](https://github.com/juspay/hyperswitch/commit/7d73e9095a532aa5c2bb4bf8806fc678460cf8d4))
+
+**Full Changelog:** [`2024.11.14.0...2024.11.15.0`](https://github.com/juspay/hyperswitch/compare/2024.11.14.0...2024.11.15.0)
+
+- - -
+
 ## 2024.11.14.0
 
 ### Features

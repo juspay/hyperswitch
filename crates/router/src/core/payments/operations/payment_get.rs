@@ -109,14 +109,14 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsRetrieveRequest, PaymentStatusD
         &'b self,
         request: &PaymentsRetrieveRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(BoxedConfirmOperation<'b, F>, operations::ValidateResult)> {
+    ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
             merchant_id: merchant_account.get_id().to_owned(),
             storage_scheme: merchant_account.storage_scheme,
             requeue: false,
         };
 
-        Ok((Box::new(self), validate_result))
+        Ok(validate_result)
     }
 }
 
@@ -132,9 +132,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveReques
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<
-        operations::GetTrackerResponse<'a, F, PaymentsRetrieveRequest, PaymentStatusData<F>>,
-    > {
+    ) -> RouterResult<operations::GetTrackerResponse<PaymentStatusData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
@@ -172,10 +170,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveReques
             should_sync_with_connector,
         };
 
-        let get_trackers_response = operations::GetTrackerResponse {
-            operation: Box::new(self),
-            payment_data,
-        };
+        let get_trackers_response = operations::GetTrackerResponse { payment_data };
 
         Ok(get_trackers_response)
     }
