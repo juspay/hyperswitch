@@ -8,9 +8,9 @@ const globalState = new State({
   connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
 });
 
-const connectorName = normalise(globalState.get("connectorId"));
+const connectorName = normalize(globalState.get("connectorId"));
 
-function normalise(input) {
+function normalize(input) {
   const exceptions = {
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",
