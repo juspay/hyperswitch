@@ -94,11 +94,33 @@ function mergeConnectorDetails(source, fallback) {
   return merged;
 }
 
-export function getValueByKey(jsonObject, key) {
+export function getValueByKey(jsonObject, key, increment = false) {
   const data =
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
   if (data && typeof data === "object" && key in data) {
+    // Connector object has multiple keys
+    if (typeof data[key].connector_account_details === "undefined") {
+      const keys = Object.keys(data[key]);
+
+      for (let i = 0; i < keys.length; i++) {
+        const currentItem = data[key][keys[i]];
+
+        if (currentItem.hasOwnProperty("connector_account_details")) {
+          if (increment) {
+            i++;
+          }
+
+          Cypress.env("MULTIPLE_CONNECTORS", {
+            status: true,
+            count: keys.length,
+          });
+
+          return currentItem;
+        }
+      }
+    }
+
     return data[key];
   } else {
     return null;
