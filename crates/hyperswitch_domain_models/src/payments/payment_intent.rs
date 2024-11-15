@@ -20,7 +20,6 @@ use common_utils::{
         MinorUnit,
     },
 };
-
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
 };
@@ -34,15 +33,14 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::payment_attempt::PaymentAttempt;
 use super::PaymentIntent;
+#[cfg(feature = "v2")]
+use crate::ApiModelToDieselModelConvertor;
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
     RemoteStorageObject,
 };
-
-#[cfg(feature = "v2")]
-use crate::ApiModelToDieselModelConvertor;
 
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
