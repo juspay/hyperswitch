@@ -165,3 +165,9 @@ pub const PUBLISHABLE_KEY_LENGTH: u16 = 39;
 /// The number of bytes allocated for the hashed connector transaction ID.
 /// Total number of characters equals CONNECTOR_TRANSACTION_ID_HASH_BYTES times 2.
 pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;
+
+/// Error message for Authentication Error from the connector
+pub const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
+
+/// Error message when Refund request has been voided.
+pub const REFUND_VOIDED: &str = "Refund request has been voided.";
