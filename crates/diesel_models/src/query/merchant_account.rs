@@ -130,7 +130,13 @@ impl MerchantAccount {
             _,
             <<Self as HasTable>::Table as Table>::PrimaryKey,
             _,
-        >(conn, dsl_identifier.ne_all(vec![""]), None, None, None)
+        >(
+            conn,
+            dsl_identifier.ne_all(vec![""]),
+            limit.map(i64::from),
+            offset.map(i64::from),
+            None,
+        )
         .await
     }
 

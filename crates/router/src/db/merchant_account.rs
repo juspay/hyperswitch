@@ -430,7 +430,7 @@ impl MerchantAccountInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
 
         let encrypted_merchant_accounts =
-            storage::MerchantAccount::list_all_merchant_accounts(&conn, None, None)
+            storage::MerchantAccount::list_all_merchant_accounts(&conn, limit, offset)
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))?;
 

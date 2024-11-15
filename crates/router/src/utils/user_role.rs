@@ -221,14 +221,7 @@ pub async fn get_single_merchant_id(
     match user_role.entity_type {
         Some(EntityType::Tenant) | Some(EntityType::Organization) => Ok(state
             .store
-            .list_merchant_accounts_by_organization_id(
-                &state.into(),
-                user_role
-                    .org_id
-                    .as_ref()
-                    .ok_or(UserErrors::InternalServerError)
-                    .attach_printable("org_id not found")?,
-            )
+            .list_merchant_accounts_by_organization_id(&state.into(), &org_id)
             .await
             .to_not_found_response(UserErrors::InvalidRoleOperationWithMessage(
                 "Invalid Org Id".to_string(),

@@ -1,7 +1,11 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::id_type;
 use diesel::{
-    associations::HasTable, debug_query, pg::Pg, result::Error as DieselError,
+    associations::HasTable,
+    debug_query,
+    pg::Pg,
+    result::Error as DieselError,
+    sql_types::{Bool, Nullable},
     BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
@@ -22,30 +26,65 @@ impl UserRoleNew {
 }
 
 impl UserRole {
+    fn check_user_in_lineage(
+        tenant_id: String,
+        org_id: Option<id_type::OrganizationId>,
+        merchant_id: Option<id_type::MerchantId>,
+        profile_id: Option<id_type::ProfileId>,
+    ) -> Box<
+        dyn diesel::BoxableExpression<<Self as HasTable>::Table, Pg, SqlType = Nullable<Bool>> + 'static,
+    > {
+
+        // Checking in user roles, for a user in token hierarchy, only one of the relations will be true:
+        // either tenant level, org level, merchant level, or profile level
+        // Tenant-level: (tenant_id = ? && org_id = null && merchant_id = null && profile_id = null)
+        // Org-level: (org_id = ? && merchant_id = null && profile_id = null)
+        // Merchant-level: (org_id = ? && merchant_id = ? && profile_id = null)
+        // Profile-level: (org_id = ? && merchant_id = ? && profile_id = ?)
+        Box::new(
+            dsl::tenant_id
+                .eq(tenant_id.clone())
+                .and(dsl::org_id.is_null())
+                .and(dsl::merchant_id.is_null())
+                .and(dsl::profile_id.is_null())
+                .or(
+                    // Org-level condition
+                    dsl::tenant_id
+                        .eq(tenant_id.clone())
+                        .and(dsl::org_id.eq(org_id.clone()))
+                        .and(dsl::merchant_id.is_null())
+                        .and(dsl::profile_id.is_null()),
+                )
+                .or(
+                    // Merchant-level condition
+                    dsl::tenant_id
+                        .eq(tenant_id.clone())
+                        .and(dsl::org_id.eq(org_id.clone()))
+                        .and(dsl::merchant_id.eq(merchant_id.clone()))
+                        .and(dsl::profile_id.is_null()),
+                )
+                .or(
+                    // Profile-level condition
+                    dsl::tenant_id
+                        .eq(tenant_id)
+                        .and(dsl::org_id.eq(org_id))
+                        .and(dsl::merchant_id.eq(merchant_id))
+                        .and(dsl::profile_id.eq(profile_id)),
+                ),
+        )
+    }    
+
     pub async fn find_by_user_id_org_id_merchant_id_profile_id(
         conn: &PgPooledConn,
         user_id: String,
+        tenant_id: String,
         org_id: id_type::OrganizationId,
         merchant_id: id_type::MerchantId,
         profile_id: Option<id_type::ProfileId>,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
-        // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
-        // (org_id = ? && merchant_id = null && profile_id = null)  || (org_id = ? && merchant_id = ? && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = ?)
-        let check_lineage = dsl::org_id
-            .eq(org_id.clone())
-            .and(dsl::merchant_id.is_null().and(dsl::profile_id.is_null()))
-            .or(dsl::org_id.eq(org_id.clone()).and(
-                dsl::merchant_id
-                    .eq(merchant_id.clone())
-                    .and(dsl::profile_id.is_null()),
-            ))
-            .or(dsl::org_id.eq(org_id).and(
-                dsl::merchant_id
-                    .eq(merchant_id)
-                    //TODO: In case of None, profile_id = NULL its unexpected behaviour, after V1 profile id will not be option
-                    .and(dsl::profile_id.eq(profile_id)),
-            ));
+
+        let check_lineage = Self::check_user_in_lineage(tenant_id, Some(org_id), Some(merchant_id), profile_id);
 
         let predicate = dsl::user_id
             .eq(user_id)
@@ -58,28 +97,43 @@ impl UserRole {
     pub async fn update_by_user_id_org_id_merchant_id_profile_id(
         conn: &PgPooledConn,
         user_id: String,
+        tenant_id: String,
         org_id: id_type::OrganizationId,
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
         update: UserRoleUpdate,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
-        // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
-        // (org_id = ? && merchant_id = null && profile_id = null)  || (org_id = ? && merchant_id = ? && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = ?)
-        let check_lineage = dsl::org_id
-            .eq(org_id.clone())
-            .and(dsl::merchant_id.is_null().and(dsl::profile_id.is_null()))
-            .or(dsl::org_id.eq(org_id.clone()).and(
-                dsl::merchant_id
-                    .eq(merchant_id.clone())
+
+        let check_lineage = dsl::tenant_id
+            .eq(tenant_id.clone())
+            .and(dsl::org_id.is_null())
+            .and(dsl::merchant_id.is_null())
+            .and(dsl::profile_id.is_null())
+            .or(
+                // Org-level condition
+                dsl::tenant_id
+                    .eq(tenant_id.clone())
+                    .and(dsl::org_id.eq(org_id.clone()))
+                    .and(dsl::merchant_id.is_null())
                     .and(dsl::profile_id.is_null()),
-            ))
-            .or(dsl::org_id.eq(org_id).and(
-                dsl::merchant_id
-                    .eq(merchant_id)
-                    //TODO: In case of None, profile_id = NULL its unexpected behaviour, after V1 profile id will not be option
+            )
+            .or(
+                // Merchant-level condition
+                dsl::tenant_id
+                    .eq(tenant_id.clone())
+                    .and(dsl::org_id.eq(org_id.clone()))
+                    .and(dsl::merchant_id.eq(merchant_id.clone()))
+                    .and(dsl::profile_id.is_null()),
+            )
+            .or(
+                // Profile-level condition
+                dsl::tenant_id
+                    .eq(tenant_id)
+                    .and(dsl::org_id.eq(org_id))
+                    .and(dsl::merchant_id.eq(merchant_id))
                     .and(dsl::profile_id.eq(profile_id)),
-            ));
+            );
 
         let predicate = dsl::user_id
             .eq(user_id)
@@ -95,31 +149,53 @@ impl UserRole {
         .await
     }
 
-    pub async fn delete_by_user_id_org_id_merchant_id_profile_id(
+    pub async fn delete_by_user_id_tenant_id_org_id_merchant_id_profile_id(
         conn: &PgPooledConn,
         user_id: String,
+        tenant_id: String,
         org_id: id_type::OrganizationId,
         merchant_id: id_type::MerchantId,
         profile_id: Option<id_type::ProfileId>,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
-        // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
-        // (org_id = ? && merchant_id = null && profile_id = null)  || (org_id = ? && merchant_id = ? && profile_id = null) || (org_id = ? && merchant_id = ? && profile_id = ?)
-        let check_lineage = dsl::org_id
-            .eq(org_id.clone())
-            .and(dsl::merchant_id.is_null().and(dsl::profile_id.is_null()))
-            .or(dsl::org_id.eq(org_id.clone()).and(
-                dsl::merchant_id
-                    .eq(merchant_id.clone())
-                    .and(dsl::profile_id.is_null()),
-            ))
-            .or(dsl::org_id.eq(org_id).and(
-                dsl::merchant_id
-                    .eq(merchant_id)
-                    //TODO: In case of None, profile_id = NULL its unexpected behaviour, after V1 profile id will not be option
-                    .and(dsl::profile_id.eq(profile_id)),
-            ));
+        // Checking in user roles, for a user in token hierarchy, only one of the relations will be true:
+        // either tenant level, org level, merchant level, or profile level
+        // Tenant-level: (tenant_id = ? && org_id = null && merchant_id = null && profile_id = null)
+        // Org-level: (org_id = ? && merchant_id = null && profile_id = null)
+        // Merchant-level: (org_id = ? && merchant_id = ? && profile_id = null)
+        // Profile-level: (org_id = ? && merchant_id = ? && profile_id = ?)
 
+        let check_lineage = dsl::tenant_id
+            .eq(tenant_id.clone())
+            .and(dsl::org_id.is_null())
+            .and(dsl::merchant_id.is_null())
+            .and(dsl::profile_id.is_null())
+            .or(
+                // Org-level condition
+                dsl::tenant_id
+                    .eq(tenant_id.clone())
+                    .and(dsl::org_id.eq(org_id.clone()))
+                    .and(dsl::merchant_id.is_null())
+                    .and(dsl::profile_id.is_null()),
+            )
+            .or(
+                // Merchant-level condition
+                dsl::tenant_id
+                    .eq(tenant_id.clone())
+                    .and(dsl::org_id.eq(org_id.clone()))
+                    .and(dsl::merchant_id.eq(merchant_id.clone()))
+                    .and(dsl::profile_id.is_null()),
+            )
+            .or(
+                // Profile-level condition
+                dsl::tenant_id
+                    .eq(tenant_id)
+                    .and(dsl::org_id.eq(org_id))
+                    .and(dsl::merchant_id.eq(merchant_id))
+                    .and(dsl::profile_id.eq(profile_id)),
+            );
+
+        // Combine lineage check with user_id and version
         let predicate = dsl::user_id
             .eq(user_id)
             .and(check_lineage)
@@ -133,6 +209,7 @@ impl UserRole {
     pub async fn generic_user_roles_list_for_user(
         conn: &PgPooledConn,
         user_id: String,
+        tenant_id: Option<String>,
         org_id: Option<id_type::OrganizationId>,
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
@@ -144,6 +221,10 @@ impl UserRole {
         let mut query = <Self as HasTable>::table()
             .filter(dsl::user_id.eq(user_id))
             .into_boxed();
+
+        if let Some(tenant_id) = tenant_id {
+            query = query.filter(dsl::tenant_id.eq(tenant_id));
+        }
 
         if let Some(org_id) = org_id {
             query = query.filter(dsl::org_id.eq(org_id));
@@ -194,6 +275,7 @@ impl UserRole {
     pub async fn generic_user_roles_list_for_org_and_extra(
         conn: &PgPooledConn,
         user_id: Option<String>,
+        tenant_id: Option<String>,
         org_id: id_type::OrganizationId,
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
@@ -206,6 +288,10 @@ impl UserRole {
 
         if let Some(user_id) = user_id {
             query = query.filter(dsl::user_id.eq(user_id));
+        }
+
+        if let Some(tenant_id) = tenant_id {
+            query = query.filter(dsl::tenant_id.eq(tenant_id));
         }
 
         if let Some(merchant_id) = merchant_id {

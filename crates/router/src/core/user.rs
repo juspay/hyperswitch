@@ -711,6 +711,12 @@ async fn handle_existing_user_invitation(
     {
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let entity = match role_info.get_entity_type() {
+            EntityType::Tenant => {
+                return Err(UserErrors::InvalidRoleOperationWithMessage(
+                    "Tenant roles are not allowed for this operation".to_string(),
+                )
+                .into());
+            }
             EntityType::Organization => email_types::Entity {
                 entity_id: user_from_token.org_id.get_string_repr().to_owned(),
                 entity_type: EntityType::Organization,
@@ -860,6 +866,12 @@ async fn handle_new_user_invitation(
         let _ = req_state.clone();
         let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
         let entity = match role_info.get_entity_type() {
+            EntityType::Tenant => {
+                return Err(UserErrors::InvalidRoleOperationWithMessage(
+                    "Tenant roles are not allowed for this operation".to_string(),
+                )
+                .into());
+            }
             EntityType::Organization => email_types::Entity {
                 entity_id: user_from_token.org_id.get_string_repr().to_owned(),
                 entity_type: EntityType::Organization,
@@ -957,7 +969,10 @@ pub async fn resend_invite(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user.get_user_id(),
-            &user_from_token.tenant_id.unwrap_or(state.tenant.tenant_id),
+            &user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             user_from_token.profile_id.as_ref(),
@@ -1071,6 +1086,10 @@ pub async fn accept_invite_from_email_token_only_flow(
     let (update_v1_result, update_v2_result) = utils::user_role::update_v1_and_v2_user_roles_in_db(
         &state,
         user_from_db.get_user_id(),
+        &user_token
+            .tenant_id
+            .clone()
+            .unwrap_or(state.tenant.tenant_id.clone()),
         &org_id,
         merchant_id.as_ref(),
         profile_id.as_ref(),
@@ -1211,65 +1230,6 @@ pub async fn create_tenant_user(
     state: SessionState,
     request: user_api::CreateTenantRequest,
 ) -> UserResponse<()> {
-    // let key_manager_state = &(&state).into();
-    // let key_store = state
-    //     .store
-    //     .get_merchant_key_store_by_merchant_id(
-    //         key_manager_state,
-    //         &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-    //             consts::user_role::INTERNAL_USER_MERCHANT_ID,
-    //         ),
-    //         &state.store.get_master_key().to_vec().into(),
-    //     )
-    //     .await
-    //     .map_err(|e| {
-    //         if e.current_context().is_db_not_found() {
-    //             e.change_context(UserErrors::MerchantIdNotFound)
-    //         } else {
-    //             e.change_context(UserErrors::InternalServerError)
-    //         }
-    //     })?;
-
-    // let default_tenant_id = common_utils::consts::DEFAULT_TENANT.to_string();
-
-    // if state.tenant.tenant_id != default_tenant_id {
-    //     return Err(UserErrors::ForbiddenTenantId)
-    //         .attach_printable("Operation allowed only for the default tenant.");
-    // }
-
-    // let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-    //     consts::user_role::INTERNAL_USER_MERCHANT_ID,
-    // );
-
-    // let internal_merchant = state
-    //     .store
-    //     .find_merchant_account_by_merchant_id(key_manager_state, &internal_merchant_id, &key_store)
-    //     .await
-    //     .map_err(|e| {
-    //         if e.current_context().is_db_not_found() {
-    //             e.change_context(UserErrors::MerchantIdNotFound)
-    //         } else {
-    //             e.change_context(UserErrors::InternalServerError)
-    //         }
-    //     })?;
-
-    // let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id.clone()))?;
-
-    // let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
-    // store_user.set_is_verified(true);
-
-    // state
-    //     .global_store
-    //     .insert_user(store_user)
-    //     .await
-    //     .map_err(|e| {
-    //         if e.current_context().is_db_unique_violation() {
-    //             e.change_context(UserErrors::UserExists)
-    //         } else {
-    //             e.change_context(UserErrors::InternalServerError)
-    //         }
-    //     })
-    //     .map(domain::user::UserFromStorage::from)?;
     let new_user = domain::NewUser::try_from(request)?;
     new_user
         .get_new_merchant()
