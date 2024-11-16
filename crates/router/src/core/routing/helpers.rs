@@ -936,13 +936,16 @@ pub async fn disable_dynamic_routing_algorithm(
                         },
                         enabled_feature: routing_types::DynamicRoutingFeatures::None,
                     }),
-                    elimination_routing_algorithm: Some(routing_types::EliminationRoutingAlgorithm {
-                        algorithm_id_with_timestamp: routing_types::DynamicAlgorithmWithTimestamp {
-                            algorithm_id: None,
-                            timestamp,
+                    elimination_routing_algorithm: Some(
+                        routing_types::EliminationRoutingAlgorithm {
+                            algorithm_id_with_timestamp:
+                                routing_types::DynamicAlgorithmWithTimestamp {
+                                    algorithm_id: None,
+                                    timestamp,
+                                },
+                            enabled_feature: routing_types::DynamicRoutingFeatures::None,
                         },
-                        enabled_feature: routing_types::DynamicRoutingFeatures::None,
-                    })
+                    ),
                 };
 
                 // redact cache for success based routing configs

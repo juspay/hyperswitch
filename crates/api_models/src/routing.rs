@@ -615,12 +615,10 @@ impl Default for EliminationRoutingConfig {
     fn default() -> Self {
         Self {
             params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod]),
-            elimination_analyser_config: Some(
-                EliminationAnalyserConfig { 
-                    bucket_size: Some(5),
-                    bucket_ttl_in_mins: Some(2.0), 
-                }
-            )
+            elimination_analyser_config: Some(EliminationAnalyserConfig {
+                bucket_size: Some(5),
+                bucket_ttl_in_mins: Some(2.0),
+            }),
         }
     }
 }
