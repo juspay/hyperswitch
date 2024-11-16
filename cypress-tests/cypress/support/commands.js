@@ -887,6 +887,7 @@ Cypress.Commands.add("sessionTokenCall", (apiKeyCreateBody, globalState) => {
 Cypress.Commands.add(
   "createPaymentIntentTest",
   (
+    configs,
     createPaymentBody,
     req_data,
     res_data,
@@ -1028,7 +1029,7 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 
 Cypress.Commands.add(
   "createPaymentMethodTest",
-  (globalState, req_data, res_data) => {
+  (configs, globalState, req_data, res_data) => {
     req_data.customer_id = globalState.get("customerId");
     const merchant_id = globalState.get("merchantId");
 
@@ -1121,7 +1122,7 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
 
 Cypress.Commands.add(
   "confirmCallTest",
-  (confirmBody, req_data, res_data, confirm, globalState) => {
+  (configs, confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
     confirmBody.confirm = confirm;
     confirmBody.client_secret = globalState.get("clientSecret");
@@ -1222,7 +1223,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "confirmBankRedirectCallTest",
-  (confirmBody, req_data, res_data, confirm, globalState) => {
+  (configs, confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentId = globalState.get("paymentID");
     const connectorId = globalState.get("connectorId");
     for (const key in req_data) {
@@ -1316,7 +1317,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "confirmBankTransferCallTest",
-  (confirmBody, req_data, res_data, confirm, globalState) => {
+  (configs, confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
@@ -1386,7 +1387,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "confirmUpiCall",
-  (confirmBody, req_data, res_data, confirm, globalState) => {
+  (configs, confirmBody, req_data, res_data, confirm, globalState) => {
     const paymentId = globalState.get("paymentID");
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
@@ -1444,6 +1445,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createConfirmPaymentTest",
   (
+    configs,
     createConfirmPaymentBody,
     req_data,
     res_data,
@@ -1550,7 +1552,7 @@ Cypress.Commands.add(
 // This is consequent saved card payment confirm call test(Using payment token)
 Cypress.Commands.add(
   "saveCardConfirmCallTest",
-  (saveCardConfirmBody, req_data, res_data, globalState) => {
+  (configs, saveCardConfirmBody, req_data, res_data, globalState) => {
     const paymentIntentID = globalState.get("paymentID");
     if (req_data.setup_future_usage === "on_session") {
       saveCardConfirmBody.card_cvc = req_data.payment_method_data.card.card_cvc;
@@ -1648,7 +1650,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "captureCallTest",
-  (requestBody, req_data, res_data, amount_to_capture, globalState) => {
+  (configs, requestBody, req_data, res_data, amount_to_capture, globalState) => {
     const payment_id = globalState.get("paymentID");
     requestBody.amount_to_capture = amount_to_capture;
     cy.request({
@@ -1678,7 +1680,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "voidCallTest",
-  (requestBody, req_data, res_data, globalState) => {
+  (configs, requestBody, req_data, res_data, globalState) => {
     const payment_id = globalState.get("paymentID");
     cy.request({
       method: "POST",
@@ -1775,7 +1777,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "refundCallTest",
-  (requestBody, req_data, res_data, refund_amount, globalState) => {
+  (configs, requestBody, req_data, res_data, refund_amount, globalState) => {
     const payment_id = globalState.get("paymentID");
     requestBody.payment_id = payment_id;
     requestBody.amount = refund_amount;
@@ -1807,7 +1809,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "syncRefundCallTest",
-  (req_data, res_data, globalState) => {
+  (configs, req_data, res_data, globalState) => {
     const refundId = globalState.get("refundId");
     cy.request({
       method: "GET",
@@ -1831,6 +1833,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "citForMandatesCallTest",
   (
+    configs,
     requestBody,
     req_data,
     res_data,

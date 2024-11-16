@@ -1,5 +1,6 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
+import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -32,9 +33,12 @@ describe("Payment Methods Tests", () => {
 
     it("Create Payment Method", () => {
       let data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.createPaymentMethodTest(globalState, req_data, res_data);
+
+      cy.createPaymentMethodTest(configs, globalState, req_data, res_data);
     });
 
     it("List PM for customer", () => {
@@ -57,18 +61,25 @@ describe("Payment Methods Tests", () => {
 
     it("Create Payment Method", () => {
       let data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
-      cy.createPaymentMethodTest(globalState, req_data, res_data);
+
+      cy.createPaymentMethodTest(configs,globalState, req_data, res_data);
     });
 
     it("create-payment-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "PaymentIntentOffSession"
       ];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.createPaymentIntentTest(
+        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
@@ -84,9 +95,13 @@ describe("Payment Methods Tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "SaveCardUseNo3DSAutoCaptureOffSession"
       ];
+      
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.confirmCallTest(
+        configs,
         fixtures.confirmBody,
         req_data,
         res_data,

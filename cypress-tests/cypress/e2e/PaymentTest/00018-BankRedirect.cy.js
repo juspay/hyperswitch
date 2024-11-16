@@ -28,9 +28,13 @@ describe("Bank Redirect tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["BlikPaymentIntent"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.createPaymentIntentTest(
+        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
@@ -50,9 +54,13 @@ describe("Bank Redirect tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["Blik"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.confirmBankRedirectCallTest(
+        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
@@ -83,9 +91,13 @@ describe("Bank Redirect tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.createPaymentIntentTest(
+        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
@@ -105,9 +117,13 @@ describe("Bank Redirect tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["Eps"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.confirmBankRedirectCallTest(
+        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
@@ -122,6 +138,7 @@ describe("Bank Redirect tests", () => {
       // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
       let expected_redirection = fixtures.confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
+
       cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,
@@ -149,9 +166,13 @@ describe("Bank Redirect tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.createPaymentIntentTest(
+        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
@@ -171,9 +192,13 @@ describe("Bank Redirect tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["Ideal"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.confirmBankRedirectCallTest(
+        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
@@ -214,9 +239,13 @@ describe("Bank Redirect tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.createPaymentIntentTest(
+        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
@@ -236,9 +265,13 @@ describe("Bank Redirect tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["Sofort"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.confirmBankRedirectCallTest(
+        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
@@ -279,9 +312,13 @@ describe("Bank Redirect tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.createPaymentIntentTest(
+        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
@@ -301,9 +338,13 @@ describe("Bank Redirect tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["Przelewy24"];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.confirmBankRedirectCallTest(
+        configs,
         fixtures.confirmBody,
         req_data,
         res_data,

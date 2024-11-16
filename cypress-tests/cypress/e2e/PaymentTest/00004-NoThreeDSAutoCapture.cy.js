@@ -1,5 +1,6 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
+import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -28,9 +29,13 @@ describe("Card - NoThreeDS payment flow test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "PaymentIntent"
       ];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.createPaymentIntentTest(
+        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
@@ -38,6 +43,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         "automatic",
         globalState
       );
+      
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
@@ -50,15 +56,20 @@ describe("Card - NoThreeDS payment flow test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSAutoCapture"
       ];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.confirmCallTest(
+        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
         true,
         globalState
       );
+      
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
@@ -81,9 +92,13 @@ describe("Card - NoThreeDS payment flow test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "No3DSAutoCapture"
       ];
+
+      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.createConfirmPaymentTest(
+        configs,
         fixtures.createConfirmPaymentBody,
         req_data,
         res_data,
@@ -91,6 +106,8 @@ describe("Card - NoThreeDS payment flow test", () => {
         "automatic",
         globalState
       );
+      
+      
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
