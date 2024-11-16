@@ -1185,7 +1185,7 @@ pub async fn toggle_success_based_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    feature_to_enable: routing::SuccessBasedRoutingFeatures,
+    feature_to_enable: routing::DynamicRoutingFeatures,
     profile_id: common_utils::id_type::ProfileId,
     dynamic_routing_type: routing::DynamicRoutingType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
@@ -1223,8 +1223,8 @@ pub async fn toggle_success_based_routing(
             .unwrap_or_default();
 
     match feature_to_enable {
-        routing::SuccessBasedRoutingFeatures::Metrics
-        | routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection => {
+        routing::DynamicRoutingFeatures::Metrics
+        | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
             // occurs when algorithm is already present in the db
             // 1. If present with same feature then return response as already enabled
             // 2. Else update the feature and preserve the same on database
@@ -1238,7 +1238,7 @@ pub async fn toggle_success_based_routing(
             )
             .await
         }
-        routing::SuccessBasedRoutingFeatures::None => {
+        routing::DynamicRoutingFeatures::None => {
             // disable success based routing for the requested profile
             helpers::disable_dynamic_routing_algorithm(
                 &state,

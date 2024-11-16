@@ -662,7 +662,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("success_based_algorithm not found in dynamic_routing_algorithm from business_profile table")?;
 
-    if success_based_algo_ref.enabled_feature != routing_types::SuccessBasedRoutingFeatures::None {
+    if success_based_algo_ref.enabled_feature != routing_types::DynamicRoutingFeatures::None {
         let client = state
             .grpc_client
             .dynamic_routing
@@ -913,7 +913,7 @@ pub async fn disable_dynamic_routing_algorithm(
     state: &SessionState,
     key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
-    feature_to_enable: routing_types::SuccessBasedRoutingFeatures,
+    feature_to_enable: routing_types::DynamicRoutingFeatures,
     success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     // disable success based routing for the requested profile
@@ -930,8 +930,15 @@ pub async fn disable_dynamic_routing_algorithm(
                             algorithm_id: None,
                             timestamp,
                         },
-                        enabled_feature: routing_types::SuccessBasedRoutingFeatures::None,
+                        enabled_feature: routing_types::DynamicRoutingFeatures::None,
                     }),
+                    elimination_routing_algorithm: Some(routing_types::EliminationRoutingAlgorithm {
+                        algorithm_id_with_timestamp: routing_types::DynamicAlgorithmWithTimestamp {
+                            algorithm_id: None,
+                            timestamp,
+                        },
+                        enabled_feature: routing_types::DynamicRoutingFeatures::None,
+                    })
                 };
 
                 // redact cache for success based routing configs
@@ -995,7 +1002,7 @@ pub async fn enable_dynamic_routing_algorithm(
     state: &SessionState,
     key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
-    feature_to_enable: routing_types::SuccessBasedRoutingFeatures,
+    feature_to_enable: routing_types::DynamicRoutingFeatures,
     mut success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
@@ -1079,7 +1086,7 @@ pub async fn default_success_based_routing_setup(
     state: &SessionState,
     key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
-    feature_to_enable: routing_types::SuccessBasedRoutingFeatures,
+    feature_to_enable: routing_types::DynamicRoutingFeatures,
     mut success_based_dynamic_routing_algo: routing_types::DynamicRoutingAlgorithmRef,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
