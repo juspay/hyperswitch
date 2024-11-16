@@ -920,7 +920,11 @@ pub async fn disable_dynamic_routing_algorithm(
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
     let timestamp = common_utils::date_time::now_unix_timestamp();
-    let profile_id = business_profile.get_id().clone().get_string_repr().to_owned();
+    let profile_id = business_profile
+        .get_id()
+        .clone()
+        .get_string_repr()
+        .to_owned();
     match success_based_dynamic_routing_algo_ref.success_based_algorithm {
         Some(algorithm_ref) => {
             if let Some(algorithm_id) = algorithm_ref.algorithm_id_with_timestamp.algorithm_id {
@@ -979,10 +983,7 @@ pub async fn disable_dynamic_routing_algorithm(
                 core_metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
                     &metrics::CONTEXT,
                     1,
-                    &add_attributes([(
-                        "profile_id",
-                        profile_id,
-                    )]),
+                    &add_attributes([("profile_id", profile_id)]),
                 );
 
                 Ok(ApplicationResponse::Json(response))
@@ -1007,7 +1008,11 @@ pub async fn enable_dynamic_routing_algorithm(
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
-    let profile_id = business_profile.get_id().clone().get_string_repr().to_owned();
+    let profile_id = business_profile
+        .get_id()
+        .clone()
+        .get_string_repr()
+        .to_owned();
     if let Some(ref mut algo_with_timestamp) =
         success_based_dynamic_routing_algo_ref.success_based_algorithm
     {
@@ -1046,10 +1051,7 @@ pub async fn enable_dynamic_routing_algorithm(
                     core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
                         &metrics::CONTEXT,
                         1,
-                        &add_attributes([(
-                            "profile_id",
-                            profile_id,
-                        )]),
+                        &add_attributes([("profile_id", profile_id)]),
                     );
                     Ok(ApplicationResponse::Json(response))
                 }
@@ -1067,15 +1069,15 @@ pub async fn enable_dynamic_routing_algorithm(
             }
         }
     } else {
-            // algorithm isn't present in profile
-            default_success_based_routing_setup(
-                &state,
-                key_store,
-                business_profile,
-                feature_to_enable,
-                success_based_dynamic_routing_algo_ref,
-            )
-            .await
+        // algorithm isn't present in profile
+        default_success_based_routing_setup(
+            &state,
+            key_store,
+            business_profile,
+            feature_to_enable,
+            success_based_dynamic_routing_algo_ref,
+        )
+        .await
     }
 }
 
