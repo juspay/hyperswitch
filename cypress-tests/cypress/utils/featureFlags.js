@@ -1,11 +1,4 @@
-// Function to update config
-export function setConfig(config, value) {
-  if (Configs.hasOwnProperty(config)) {
-    Configs[config] = value;
-  } else {
-    console.error(`Config ${config} not found or invalid.`);
-  }
-}
+const config_fields = [CONNECTOR_CREDENTIAL, DELAY, TRIGGER_SKIP];
 
 // Helper function for type and range validation
 function validateType(value, type) {
@@ -22,43 +15,49 @@ function validateType(value, type) {
 function validateConfigValue(key, value) {
   // At present, there are only 2 api keys for connectors. Will be scaled based on the need
   const CONNECTOR_CREDENTIAL = ["connector_1", "connector_2"];
-  switch (key) {
-    case "DELAY":
-      if (typeof value !== "object" || value === null) {
-        console.error("DELAY must be an object.");
-        return false;
-      }
-      if (!validateType(value.STATUS, "boolean")) return false;
-      if (
-        value.STATUS &&
-        typeof value.TIMEOUT !== "number" ||
-        value.TIMEOUT < 0 ||
-        value.TIMEOUT > 30000
-      ) {
-        console.error("DELAY.TIMEOUT must be an integer between 0 and 30000.");
-        return false;
-      }
-      break;
 
-    case "CONNECTOR_CREDENTIAL":
-      if (!CONNECTOR_CREDENTIAL.includes(value)) {
-        console.error(
-          `Config ${key} is invalid. Value should be one of ${CONNECTOR_CREDENTIAL.join(", ")}.`
-        );
+  if (config_fields.includes(key)) {
+    switch (key) {
+      case "DELAY":
+        if (typeof value !== "object" || value === null) {
+          console.error("DELAY must be an object.");
+          return false;
+        }
+        if (!validateType(value.STATUS, "boolean")) return false;
+        if (
+          !value.STATUS ||
+          typeof value.TIMEOUT !== "number" ||
+          value.TIMEOUT < 0 ||
+          value.TIMEOUT > 30000
+        ) {
+          console.error(
+            "DELAY.TIMEOUT must be an integer between 0 and 30000 and DELAY.STATUS must be enabled."
+          );
+          return false;
+        }
+        break;
+
+      case "CONNECTOR_CREDENTIAL":
+        if (!CONNECTOR_CREDENTIAL.includes(value)) {
+          console.error(
+            `Config ${key} is invalid. Value should be one of ${CONNECTOR_CREDENTIAL.join(", ")}.`
+          );
+          return false;
+        }
+        break;
+
+      case "TRIGGER_SKIP":
+      case "DELAY.STATUS":
+        if (!validateType(value, "boolean")) return false;
+        break;
+
+      default:
+        console.error(`Config key ${key} is invalid.`);
         return false;
-      }
-      break;
-
-    case "TRIGGER_SKIP":
-    case "DELAY.STATUS":
-      if (!validateType(value, "boolean")) return false;
-      break;
-
-    default:
-      console.error(`Config key ${key} is invalid.`);
-      return false;
+    }
+  } else {
+    console.error(`Config key ${key} is invalid.`);
   }
-
   return true;
 }
 
