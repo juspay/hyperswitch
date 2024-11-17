@@ -66,7 +66,7 @@ describe("Payment Methods Tests", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
 
-      cy.createPaymentMethodTest(configs,globalState, req_data, res_data);
+      cy.createPaymentMethodTest(configs, globalState, req_data, res_data);
     });
 
     it("create-payment-call-test", () => {
@@ -95,7 +95,7 @@ describe("Payment Methods Tests", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "SaveCardUseNo3DSAutoCaptureOffSession"
       ];
-      
+
       let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];

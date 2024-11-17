@@ -40,8 +40,8 @@ describe("Card - Sync payment flow test", () => {
       "automatic",
       globalState
     );
-      
-      if (should_continue)
+
+    if (should_continue)
       should_continue = utils.should_continue_further(res_data);
   });
 
@@ -59,15 +59,15 @@ describe("Card - Sync payment flow test", () => {
     let res_data = data["Response"];
 
     cy.confirmCallTest(
-      configs, 
+      configs,
       fixtures.confirmBody,
       req_data,
       res_data,
       true,
       globalState
     );
-      
-      if (should_continue)
+
+    if (should_continue)
       should_continue = utils.should_continue_further(res_data);
   });
 

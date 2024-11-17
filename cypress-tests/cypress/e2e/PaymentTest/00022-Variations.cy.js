@@ -523,7 +523,13 @@ describe("Corner cases", () => {
         commonData,
         "ResponseCustom"
       );
-      cy.voidCallTest(configs, fixtures.voidBody, req_data, res_data, globalState);
+      cy.voidCallTest(
+        configs,
+        fixtures.voidBody,
+        req_data,
+        res_data,
+        globalState
+      );
 
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);

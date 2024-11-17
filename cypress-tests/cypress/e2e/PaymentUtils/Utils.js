@@ -1,12 +1,14 @@
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
+import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import {
   connectorDetails as CommonConnectorDetails,
   updateDefaultStatusCode,
 } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
+import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
@@ -21,8 +23,6 @@ import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
-import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
-import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -95,7 +95,7 @@ function mergeConnectorDetails(source, fallback) {
   return merged;
 }
 
-export function getValueByKey(jsonObject, key, increment = false) {
+export function getValueByKey(jsonObject, key) {
   const data =
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
@@ -108,10 +108,6 @@ export function getValueByKey(jsonObject, key, increment = false) {
         const currentItem = data[key][keys[i]];
 
         if (currentItem.hasOwnProperty("connector_account_details")) {
-          if (increment) {
-            i++;
-          }
-
           Cypress.env("MULTIPLE_CONNECTORS", {
             status: true,
             count: keys.length,
@@ -164,7 +160,10 @@ export function defaultErrorHandler(response, response_data) {
       // Check if the error message is a Json deserialize error
       let apiResponseContent = response.body.error[key];
       let expectedContent = response_data.body.error[key];
-      if (typeof apiResponseContent === "string" && apiResponseContent.includes("Json deserialize error")) {
+      if (
+        typeof apiResponseContent === "string" &&
+        apiResponseContent.includes("Json deserialize error")
+      ) {
         expect(apiResponseContent).to.include(expectedContent);
       } else {
         expect(apiResponseContent).to.equal(expectedContent);

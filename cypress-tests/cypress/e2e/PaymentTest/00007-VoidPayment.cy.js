@@ -83,7 +83,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
 
-      cy.voidCallTest(configs, fixtures.voidBody, req_data, res_data, globalState);
+      cy.voidCallTest(
+        configs,
+        fixtures.voidBody,
+        req_data,
+        res_data,
+        globalState
+      );
 
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
@@ -119,8 +125,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           "manual",
           globalState
         );
-  
-      if (should_continue)
+
+        if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
 
@@ -137,9 +143,15 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         let req_data = data["Request"];
         let res_data = data["Response"];
 
-        cy.voidCallTest(configs, fixtures.voidBody, req_data, res_data, globalState);
-  
-      if (should_continue)
+        cy.voidCallTest(
+          configs,
+          fixtures.voidBody,
+          req_data,
+          res_data,
+          globalState
+        );
+
+        if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
     }
@@ -212,7 +224,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       let req_data = data["Request"];
       let res_data = data["Response"];
 
-      cy.voidCallTest(configs, fixtures.voidBody, req_data, res_data, globalState);
+      cy.voidCallTest(
+        configs,
+        fixtures.voidBody,
+        req_data,
+        res_data,
+        globalState
+      );
 
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);

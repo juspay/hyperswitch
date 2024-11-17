@@ -28,7 +28,7 @@ describe("Bank Transfers", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["PaymentIntent"];
-      
+
       let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
@@ -76,7 +76,7 @@ describe("Bank Transfers", () => {
     it("Handle bank transfer redirection", () => {
       let expected_redirection = fixtures.confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
-      
+
       cy.handleBankTransferRedirection(
         globalState,
         payment_method_type,

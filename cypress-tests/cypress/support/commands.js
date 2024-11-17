@@ -868,7 +868,7 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("sessionTokenCall", (apiKeyCreateBody, globalState) => {
+Cypress.Commands.add("sessionTokenCall", (globalState) => {
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/payments/session_tokens`,
@@ -1650,7 +1650,14 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "captureCallTest",
-  (configs, requestBody, req_data, res_data, amount_to_capture, globalState) => {
+  (
+    configs,
+    requestBody,
+    req_data,
+    res_data,
+    amount_to_capture,
+    globalState
+  ) => {
     const payment_id = globalState.get("paymentID");
     requestBody.amount_to_capture = amount_to_capture;
     cy.request({

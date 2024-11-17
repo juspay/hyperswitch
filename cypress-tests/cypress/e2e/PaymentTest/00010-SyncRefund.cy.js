@@ -40,8 +40,8 @@ describe("Card - Sync Refund flow test", () => {
       "automatic",
       globalState
     );
-      
-      if (should_continue)
+
+    if (should_continue)
       should_continue = utils.should_continue_further(res_data);
   });
 
@@ -65,8 +65,8 @@ describe("Card - Sync Refund flow test", () => {
       true,
       globalState
     );
-      
-      if (should_continue)
+
+    if (should_continue)
       should_continue = utils.should_continue_further(res_data);
   });
 
@@ -90,8 +90,8 @@ describe("Card - Sync Refund flow test", () => {
       6500,
       globalState
     );
-      
-      if (should_continue)
+
+    if (should_continue)
       should_continue = utils.should_continue_further(res_data);
   });
 
@@ -105,8 +105,8 @@ describe("Card - Sync Refund flow test", () => {
     let res_data = data["Response"];
 
     cy.syncRefundCallTest(configs, req_data, res_data, globalState);
-      
-      if (should_continue)
+
+    if (should_continue)
       should_continue = utils.should_continue_further(res_data);
   });
 });

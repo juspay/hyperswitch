@@ -221,7 +221,7 @@ describe("Connector Agnostic Tests", () => {
         true,
         globalState
       );
-      
+
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
