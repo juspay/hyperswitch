@@ -7,6 +7,8 @@ pub struct Address {
     pub email: Option<common_utils::pii::Email>,
 }
 
+impl masking::SerializableSecret for Address {}
+
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both
     pub fn unify_address(self, other: Option<&Self>) -> Self {
