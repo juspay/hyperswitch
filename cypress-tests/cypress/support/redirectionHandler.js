@@ -3,7 +3,6 @@ import jsQR from "jsqr";
 // Define constants for wait times
 const TIMEOUT = 20000; // 20 seconds
 const WAIT_TIME = 10000; // 10 seconds
-const WAIT_TIME_IATAPAY = 20000; // 20 seconds
 
 export function handleRedirection(
   redirection_type,
@@ -358,7 +357,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
           });
       });
   } else if (connectorId === "fiuu") {
-    cy.get('form[id="cc_form"]', { timeout: WAIT_TIME_IATAPAY })
+    cy.get('form[id="cc_form"]', { timeout: TIMEOUT })
       .should("exist")
       .then((form) => {
         cy.get('button.pay-btn[name="pay"]').click();
@@ -391,7 +390,7 @@ function upiRedirection(
     switch (payment_method_type) {
       case "upi_collect":
         cy.visit(redirection_url.href);
-        cy.wait(WAIT_TIME_IATAPAY).then(() => {
+        cy.wait(TIMEOUT).then(() => {
           verifyUrl = true;
         });
         break;
