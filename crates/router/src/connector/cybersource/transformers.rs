@@ -1,9 +1,10 @@
 use api_models::payments;
 #[cfg(feature = "payouts")]
-use api_models::{
-    payments::{AddressDetails, PhoneDetails},
-    payouts::PayoutMethodData,
-};
+use api_models::payouts::PayoutMethodData;
+
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::address::{AddressDetails, PhoneDetails};
+
 use base64::Engine;
 use common_enums::FutureUsage;
 use common_utils::{
@@ -1102,7 +1103,7 @@ impl
 // }
 
 fn build_bill_to(
-    address_details: Option<&payments::Address>,
+    address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let default_address = BillTo {

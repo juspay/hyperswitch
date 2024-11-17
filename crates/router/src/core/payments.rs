@@ -6566,7 +6566,7 @@ pub trait OperationSessionGetters<F> {
     fn get_currency(&self) -> storage_enums::Currency;
     fn get_amount(&self) -> api::Amount;
     fn get_payment_attempt_connector(&self) -> Option<&str>;
-    fn get_billing_address(&self) -> Option<api_models::payments::Address>;
+    fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address>;
     fn get_payment_method_data(&self) -> Option<&domain::PaymentMethodData>;
     fn get_sessions_token(&self) -> Vec<api::SessionToken>;
     fn get_token_data(&self) -> Option<&storage::PaymentTokenData>;
@@ -6720,7 +6720,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.payment_attempt.connector.as_deref()
     }
 
-    fn get_billing_address(&self) -> Option<api_models::payments::Address> {
+    fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         self.address.get_payment_method_billing().cloned()
     }
 
@@ -6962,7 +6962,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_billing_address(&self) -> Option<api_models::payments::Address> {
+    fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
 
@@ -7176,7 +7176,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_billing_address(&self) -> Option<api_models::payments::Address> {
+    fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
 
@@ -7392,7 +7392,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_billing_address(&self) -> Option<api_models::payments::Address> {
+    fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
 

@@ -527,7 +527,9 @@ pub struct PaypalPaymentsRequest {
     payment_source: Option<PaymentSourceItem>,
 }
 
-fn get_address_info(payment_address: Option<&api_models::payments::Address>) -> Option<Address> {
+fn get_address_info(
+    payment_address: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<Address> {
     let address = payment_address.and_then(|payment_address| payment_address.address.as_ref());
     match address {
         Some(address) => address.get_optional_country().map(|country| Address {

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments::{Address, MandateIds, MandateReferenceId};
+use api_models::payments::{MandateIds, MandateReferenceId};
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -8,6 +8,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    address,
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{Authorize, SetupMandate},
@@ -70,7 +71,7 @@ impl TryFrom<Option<&pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject
 
 fn fetch_payment_instrument(
     payment_method: PaymentMethodData,
-    billing_address: Option<&Address>,
+    billing_address: Option<&address::Address>,
     mandate_ids: Option<MandateIds>,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
@@ -232,7 +233,7 @@ trait WorldpayPaymentsRequestData {
     fn get_off_session(&self) -> Option<bool>;
     fn get_mandate_id(&self) -> Option<MandateIds>;
     fn get_currency(&self) -> enums::Currency;
-    fn get_optional_billing_address(&self) -> Option<&Address>;
+    fn get_optional_billing_address(&self) -> Option<&address::Address>;
     fn get_connector_meta_data(&self) -> Option<&pii::SecretSerdeValue>;
     fn get_payment_method(&self) -> enums::PaymentMethod;
     fn get_payment_method_type(&self) -> Option<enums::PaymentMethodType>;
@@ -278,7 +279,7 @@ impl WorldpayPaymentsRequestData
         self.request.currency
     }
 
-    fn get_optional_billing_address(&self) -> Option<&Address> {
+    fn get_optional_billing_address(&self) -> Option<&address::Address> {
         self.get_optional_billing()
     }
 
@@ -338,7 +339,7 @@ impl WorldpayPaymentsRequestData
         self.request.currency
     }
 
-    fn get_optional_billing_address(&self) -> Option<&Address> {
+    fn get_optional_billing_address(&self) -> Option<&address::Address> {
         self.get_optional_billing()
     }
 

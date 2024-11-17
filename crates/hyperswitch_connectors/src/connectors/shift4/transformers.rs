@@ -555,7 +555,9 @@ where
     }
 }
 
-fn get_address_details(address_details: Option<&AddressDetails>) -> Option<Address> {
+fn get_address_details(
+    address_details: Option<&hyperswitch_domain_models::address::AddressDetails>,
+) -> Option<Address> {
     address_details.map(|address| Address {
         line1: address.line1.clone(),
         line2: address.line1.clone(),

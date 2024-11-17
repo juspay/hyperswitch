@@ -494,7 +494,7 @@ impl<F, T>
 // }
 
 fn build_bill_to(
-    address_details: Option<&payments::Address>,
+    address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let default_address = BillTo {

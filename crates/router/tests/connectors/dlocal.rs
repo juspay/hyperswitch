@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use api_models::payments::Address;
+use hyperswitch_domain_models::address::Address;
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums, PaymentAddress};
 

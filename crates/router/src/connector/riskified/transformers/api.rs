@@ -572,9 +572,11 @@ pub struct ErrorData {
     pub message: String,
 }
 
-impl TryFrom<&api_models::payments::Address> for OrderAddress {
+impl TryFrom<&hyperswitch_domain_models::address::Address> for OrderAddress {
     type Error = Error;
-    fn try_from(address_info: &api_models::payments::Address) -> Result<Self, Self::Error> {
+    fn try_from(
+        address_info: &hyperswitch_domain_models::address::Address,
+    ) -> Result<Self, Self::Error> {
         let address =
             address_info
                 .clone()

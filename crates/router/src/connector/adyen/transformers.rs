@@ -1757,7 +1757,7 @@ fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) 
 }
 
 pub fn get_address_info(
-    address: Option<&payments::Address>,
+    address: Option<&hyperswitch_domain_models::address::Address>,
 ) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>> {
     address.and_then(|add| {
         add.address.as_ref().map(
@@ -1819,7 +1819,9 @@ fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Sec
     })
 }
 
-fn get_shopper_name(address: Option<&payments::Address>) -> Option<ShopperName> {
+fn get_shopper_name(
+    address: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<ShopperName> {
     let billing = address.and_then(|billing| billing.address.as_ref());
     Some(ShopperName {
         first_name: billing.and_then(|a| a.first_name.clone()),
@@ -1827,7 +1829,9 @@ fn get_shopper_name(address: Option<&payments::Address>) -> Option<ShopperName> 
     })
 }
 
-fn get_country_code(address: Option<&payments::Address>) -> Option<api_enums::CountryAlpha2> {
+fn get_country_code(
+    address: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<api_enums::CountryAlpha2> {
     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
@@ -4824,7 +4828,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     })?,
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
-                let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
+                let address = item.router_data.get_billing_address()?;
                 Ok(Self {
                     amount: Amount {
                         value: item.amount.to_owned(),
@@ -4866,7 +4870,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         })?
                     }
                 };
-                let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
+                let address = item.router_data.get_billing_address()?;
                 let payout_wallet = PayoutWalletData {
                     selected_brand: PayoutBrand::Paypal,
                     additional_data,

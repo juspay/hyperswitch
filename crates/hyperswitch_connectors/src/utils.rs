@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::payments::{self, Address, AddressDetails, PhoneDetails};
+use api_models::payments;
 use base64::Engine;
 use common_enums::{
     enums,
@@ -16,6 +16,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    address::{Address, AddressDetails, PhoneDetails},
     payment_method_data::{Card, PaymentMethodData},
     router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,

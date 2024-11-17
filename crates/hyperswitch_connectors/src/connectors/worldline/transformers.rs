@@ -418,15 +418,18 @@ fn make_bank_redirect_request(
 }
 
 fn get_address(
-    billing: &payments::Address,
-) -> Option<(&payments::Address, &payments::AddressDetails)> {
+    billing: &hyperswitch_domain_models::address::Address,
+) -> Option<(
+    &hyperswitch_domain_models::address::Address,
+    &hyperswitch_domain_models::address::AddressDetails,
+)> {
     let address = billing.address.as_ref()?;
     address.country.as_ref()?;
     Some((billing, address))
 }
 
 fn build_customer_info(
-    billing_address: &payments::Address,
+    billing_address: &hyperswitch_domain_models::address::Address,
     email: &Option<Email>,
 ) -> Result<Customer, error_stack::Report<errors::ConnectorError>> {
     let (billing, address) =
@@ -454,8 +457,8 @@ fn build_customer_info(
     })
 }
 
-impl From<payments::AddressDetails> for BillingAddress {
-    fn from(value: payments::AddressDetails) -> Self {
+impl From<hyperswitch_domain_models::address::AddressDetails> for BillingAddress {
+    fn from(value: hyperswitch_domain_models::address::AddressDetails) -> Self {
         Self {
             city: value.city,
             country_code: value.country,
@@ -466,8 +469,8 @@ impl From<payments::AddressDetails> for BillingAddress {
     }
 }
 
-impl From<payments::AddressDetails> for Shipping {
-    fn from(value: payments::AddressDetails) -> Self {
+impl From<hyperswitch_domain_models::address::AddressDetails> for Shipping {
+    fn from(value: hyperswitch_domain_models::address::AddressDetails) -> Self {
         Self {
             city: value.city,
             country_code: value.country,
