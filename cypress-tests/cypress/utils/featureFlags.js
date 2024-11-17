@@ -30,6 +30,7 @@ function validateConfigValue(key, value) {
       }
       if (!validateType(value.STATUS, "boolean")) return false;
       if (
+        value.STATUS &&
         typeof value.TIMEOUT !== "number" ||
         value.TIMEOUT < 0 ||
         value.TIMEOUT > 30000

@@ -125,8 +125,8 @@ export function getValueByKey(jsonObject, key) {
 }
 
 export const should_continue_further = (res_data, config_data) => {
-  if (config_data?.trigger_skip !== undefined) {
-    return !config_data.trigger_skip;
+  if (config_data?.TRIGGER_SKIP !== undefined) {
+    return !config_data.TRIGGER_SKIP;
   }
 
   if (
