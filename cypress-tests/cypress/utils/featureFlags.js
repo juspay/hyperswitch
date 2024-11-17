@@ -83,3 +83,24 @@ export function validateConfig(configObject) {
 
   return configObject;
 }
+
+export function execConfig(configs) {
+  if (typeof configs !== "undefined" && typeof configs === "object") {
+    if (configs?.DELAY?.STATUS) {
+      cy.wait(configs.DELAY.TIMEOUT);
+    }
+
+    if (
+      typeof configs?.CONNECTOR_CREDENTIAL === "undefined" ||
+      typeof configs?.CONNECTOR_CREDENTIAL === "null"
+    ) {
+      return "profileId";
+    } else {
+      if (configs.CONNECTOR_CREDENTIAL === "connector_1") {
+        return "profileId";
+      } else if (configs.CONNECTOR_CREDENTIAL === "connector_2") {
+        return "profile1Id";
+      }
+    }
+  }
+}
