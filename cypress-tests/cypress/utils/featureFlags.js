@@ -1,13 +1,3 @@
-export const Configs = {
-  TRIGGER_SKIP: false,
-  DELAY: {
-    STATUS: false,
-    TIMEOUT: 5000, // Default timeout value
-  },
-  // At present, there are only 2 api keys for connectors. Will be scaled based on the need
-  CONNECTOR_CREDENTIAL: ["connector_1", "connector_2"],
-};
-
 // Function to update config
 export function setConfig(config, value) {
   if (Configs.hasOwnProperty(config)) {
@@ -30,6 +20,8 @@ function validateType(value, type) {
 
 // Helper function to validate specific config keys based on schema rules
 function validateConfigValue(key, value) {
+  // At present, there are only 2 api keys for connectors. Will be scaled based on the need
+  const CONNECTOR_CREDENTIAL = ["connector_1", "connector_2"];
   switch (key) {
     case "DELAY":
       if (typeof value !== "object" || value === null) {
@@ -48,9 +40,9 @@ function validateConfigValue(key, value) {
       break;
 
     case "CONNECTOR_CREDENTIAL":
-      if (!Configs[key].includes(value)) {
+      if (!CONNECTOR_CREDENTIAL.includes(value)) {
         console.error(
-          `Config ${key} is invalid. Value should be one of ${Configs[key].join(", ")}.`
+          `Config ${key} is invalid. Value should be one of ${CONNECTOR_CREDENTIAL.join(", ")}.`
         );
         return false;
       }
