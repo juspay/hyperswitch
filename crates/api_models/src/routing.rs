@@ -526,6 +526,39 @@ pub struct DynamicRoutingAlgorithmRef {
     pub elimination_routing_algorithm: Option<EliminationRoutingAlgorithm>,
 }
 
+impl EliminationRoutingAlgorithm {
+    pub fn new(
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>,
+    ) -> Self {
+        EliminationRoutingAlgorithm {
+            algorithm_id_with_timestamp,
+            enabled_feature: DynamicRoutingFeatures::None,
+        }
+    }
+}
+
+impl SuccessBasedAlgorithm {
+    pub fn new(
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>,
+    ) -> Self {
+        SuccessBasedAlgorithm {
+            algorithm_id_with_timestamp,
+            enabled_feature: DynamicRoutingFeatures::None,
+        }
+    }
+}
+
+impl DynamicRoutingAlgorithmRef {
+    pub fn update(&mut self, new: Self) {
+        if let Some(elimination_routing_algorithm) = new.elimination_routing_algorithm {
+            self.elimination_routing_algorithm = Some(elimination_routing_algorithm)
+        }
+        if let Some(success_based_algorithm) = new.success_based_algorithm {
+            self.success_based_algorithm = Some(success_based_algorithm)
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuccessBasedAlgorithm {
     pub algorithm_id_with_timestamp:
@@ -542,6 +575,12 @@ pub struct EliminationRoutingAlgorithm {
     pub enabled_feature: DynamicRoutingFeatures,
 }
 
+impl EliminationRoutingAlgorithm {
+    pub fn update_enabled_features(&mut self, feature_to_enable: DynamicRoutingFeatures) {
+        self.enabled_feature = feature_to_enable
+    }
+}
+
 impl SuccessBasedAlgorithm {
     pub fn update_enabled_features(&mut self, feature_to_enable: DynamicRoutingFeatures) {
         self.enabled_feature = feature_to_enable
@@ -553,14 +592,28 @@ impl DynamicRoutingAlgorithmRef {
         &mut self,
         new_id: common_utils::id_type::RoutingId,
         enabled_feature: DynamicRoutingFeatures,
+        dynamic_routing_type: DynamicRoutingType,
     ) {
-        self.success_based_algorithm = Some(SuccessBasedAlgorithm {
-            algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
-                algorithm_id: Some(new_id),
-                timestamp: common_utils::date_time::now_unix_timestamp(),
+        match dynamic_routing_type {
+            DynamicRoutingType::SuccessRateBasedRouting => {
+                self.success_based_algorithm = Some(SuccessBasedAlgorithm {
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
+                        algorithm_id: Some(new_id),
+                        timestamp: common_utils::date_time::now_unix_timestamp(),
+                    },
+                    enabled_feature,
+                })
             },
-            enabled_feature,
-        })
+            DynamicRoutingType::EliminationRouting => {
+                self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
+                        algorithm_id: Some(new_id),
+                        timestamp: common_utils::date_time::now_unix_timestamp(),
+                    },
+                    enabled_feature,
+                })
+            },
+        };
     }
 }
 

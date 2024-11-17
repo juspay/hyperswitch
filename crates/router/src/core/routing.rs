@@ -449,6 +449,16 @@ pub async fn link_routing_config(
                         },
                         enabled_feature: _
                     }) if id == &algorithm_id
+                ) || matches!(
+                    dynamic_routing_ref.elimination_routing_algorithm,
+                    Some(routing::EliminationRoutingAlgorithm {
+                        algorithm_id_with_timestamp:
+                        routing_types::DynamicAlgorithmWithTimestamp {
+                            algorithm_id: Some(ref id),
+                            timestamp: _
+                        },
+                        enabled_feature: _
+                    }) if id == &algorithm_id
                 ),
                 || {
                     Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -467,7 +477,9 @@ pub async fn link_routing_config(
                         "missing success_based_algorithm in dynamic_algorithm_ref from business_profile table",
                     )?
                     .enabled_feature,
+                routing_types::DynamicRoutingType::SuccessRateBasedRouting,
             );
+
             helpers::update_business_profile_active_dynamic_algorithm_ref(
                 db,
                 key_manager_state,
@@ -1197,6 +1209,7 @@ pub async fn toggle_success_based_routing(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
+    println!(">>>>>>>>>> {:?}", dynamic_routing_type);
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
@@ -1210,7 +1223,7 @@ pub async fn toggle_success_based_routing(
         id: profile_id.get_string_repr().to_owned(),
     })?;
 
-    let mut success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
+    let mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
         business_profile
             .dynamic_routing_algorithm
             .clone()
@@ -1234,7 +1247,8 @@ pub async fn toggle_success_based_routing(
                 key_store,
                 business_profile,
                 feature_to_enable,
-                success_based_dynamic_routing_algo_ref,
+                dynamic_routing_algo_ref,
+                dynamic_routing_type,
             )
             .await
         }
@@ -1245,7 +1259,7 @@ pub async fn toggle_success_based_routing(
                 key_store,
                 business_profile,
                 feature_to_enable,
-                success_based_dynamic_routing_algo_ref,
+                dynamic_routing_algo_ref,
             )
             .await
         }
