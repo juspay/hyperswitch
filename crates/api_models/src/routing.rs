@@ -528,7 +528,9 @@ pub struct DynamicRoutingAlgorithmRef {
 
 impl EliminationRoutingAlgorithm {
     pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>,
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
+            common_utils::id_type::RoutingId,
+        >,
     ) -> Self {
         EliminationRoutingAlgorithm {
             algorithm_id_with_timestamp,
@@ -539,7 +541,9 @@ impl EliminationRoutingAlgorithm {
 
 impl SuccessBasedAlgorithm {
     pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>,
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
+            common_utils::id_type::RoutingId,
+        >,
     ) -> Self {
         SuccessBasedAlgorithm {
             algorithm_id_with_timestamp,
@@ -603,7 +607,7 @@ impl DynamicRoutingAlgorithmRef {
                     },
                     enabled_feature,
                 })
-            },
+            }
             DynamicRoutingType::EliminationRouting => {
                 self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
                     algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
@@ -612,7 +616,7 @@ impl DynamicRoutingAlgorithmRef {
                     },
                     enabled_feature,
                 })
-            },
+            }
         };
     }
 }
