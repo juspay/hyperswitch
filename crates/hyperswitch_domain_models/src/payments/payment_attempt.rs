@@ -262,7 +262,7 @@ pub struct PaymentAttempt {
     /// The result of the routing algorithm.
     /// This will store the list of connectors and other related information that was used to route the payment.
     // TODO: change this to type instead of serde_json::Value
-    pub routing_result: Option<serde_json::Value>,
+    pub routing_result: Option<Value>,
     pub preprocessing_step_id: Option<String>,
     /// Number of captures that have happened for the payment attempt
     pub multiple_capture_count: Option<i16>,
