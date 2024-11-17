@@ -45,7 +45,7 @@ describe("UPI Payments - Hyperswitch", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("List Merchant payment methods", () => {
@@ -71,7 +71,7 @@ describe("UPI Payments - Hyperswitch", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle UPI Redirection", () => {
@@ -107,7 +107,7 @@ describe("UPI Payments - Hyperswitch", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -151,7 +151,7 @@ describe("UPI Payments - Hyperswitch", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("List Merchant payment methods", () => {
@@ -177,7 +177,7 @@ describe("UPI Payments - Hyperswitch", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle UPI Redirection", () => {

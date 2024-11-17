@@ -42,7 +42,7 @@ describe("Card - Sync Refund flow test", () => {
     );
 
     if (should_continue)
-      should_continue = utils.should_continue_further(res_data);
+      should_continue = utils.should_continue_further(res_data, configs);
   });
 
   it("payment_methods-call-test", () => {
@@ -67,7 +67,7 @@ describe("Card - Sync Refund flow test", () => {
     );
 
     if (should_continue)
-      should_continue = utils.should_continue_further(res_data);
+      should_continue = utils.should_continue_further(res_data, configs);
   });
 
   it("retrieve-payment-call-test", () => {
@@ -92,7 +92,7 @@ describe("Card - Sync Refund flow test", () => {
     );
 
     if (should_continue)
-      should_continue = utils.should_continue_further(res_data);
+      should_continue = utils.should_continue_further(res_data, configs);
   });
 
   it("sync-refund-call-test", () => {
@@ -107,6 +107,6 @@ describe("Card - Sync Refund flow test", () => {
     cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
     if (should_continue)
-      should_continue = utils.should_continue_further(res_data);
+      should_continue = utils.should_continue_further(res_data, configs);
   });
 });

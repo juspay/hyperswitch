@@ -49,7 +49,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -96,7 +96,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -149,7 +149,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Confirm No 3DS payment", () => {
@@ -171,7 +171,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Retrieve Payment Call Test", () => {
@@ -202,7 +202,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Confirm Recurring Payment", () => {
@@ -223,7 +223,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 });

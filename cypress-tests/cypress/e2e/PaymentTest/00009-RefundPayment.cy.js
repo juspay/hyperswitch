@@ -45,7 +45,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -71,7 +71,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -97,7 +97,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -112,7 +112,7 @@ describe("Card - Refund flow - No 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -145,7 +145,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -171,7 +171,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -197,7 +197,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("refund-call-test", () => {
@@ -219,7 +219,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -234,7 +234,7 @@ describe("Card - Refund flow - No 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -269,7 +269,7 @@ describe("Card - Refund flow - No 3DS", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -295,7 +295,7 @@ describe("Card - Refund flow - No 3DS", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("sync-refund-call-test", () => {
@@ -310,7 +310,7 @@ describe("Card - Refund flow - No 3DS", () => {
         cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -346,7 +346,7 @@ describe("Card - Refund flow - No 3DS", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -372,7 +372,7 @@ describe("Card - Refund flow - No 3DS", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("refund-call-test", () => {
@@ -394,7 +394,7 @@ describe("Card - Refund flow - No 3DS", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("sync-refund-call-test", () => {
@@ -409,7 +409,7 @@ describe("Card - Refund flow - No 3DS", () => {
         cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -443,7 +443,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -469,7 +469,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -495,7 +495,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -521,7 +521,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -536,7 +536,7 @@ describe("Card - Refund flow - No 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -569,7 +569,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -595,7 +595,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -621,7 +621,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -647,7 +647,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
@@ -668,7 +668,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -683,7 +683,7 @@ describe("Card - Refund flow - No 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
     it("list-refund-call-test", () => {
       cy.listRefundCallTest(fixtures.listRefundCall, globalState);
@@ -719,7 +719,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -745,7 +745,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -771,7 +771,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -797,7 +797,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -812,7 +812,7 @@ describe("Card - Refund flow - No 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -845,7 +845,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -871,7 +871,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -897,7 +897,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -923,7 +923,7 @@ describe("Card - Refund flow - No 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -938,7 +938,7 @@ describe("Card - Refund flow - No 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -975,7 +975,7 @@ describe("Card - Refund flow - No 3DS", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -1017,7 +1017,7 @@ describe("Card - Refund flow - No 3DS", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("sync-refund-call-test", () => {
@@ -1032,7 +1032,7 @@ describe("Card - Refund flow - No 3DS", () => {
         cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -1078,7 +1078,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -1104,7 +1104,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle redirection", () => {
@@ -1135,7 +1135,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -1150,7 +1150,7 @@ describe("Card - Refund flow - 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -1183,7 +1183,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -1209,7 +1209,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle redirection", () => {
@@ -1240,7 +1240,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("refund-call-test", () => {
@@ -1262,7 +1262,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -1277,7 +1277,7 @@ describe("Card - Refund flow - 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -1310,7 +1310,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle redirection", () => {
@@ -1341,7 +1341,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -1356,7 +1356,7 @@ describe("Card - Refund flow - 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -1391,7 +1391,7 @@ describe("Card - Refund flow - 3DS", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Handle redirection", () => {
@@ -1422,7 +1422,7 @@ describe("Card - Refund flow - 3DS", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("refund-call-test", () => {
@@ -1444,7 +1444,7 @@ describe("Card - Refund flow - 3DS", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("sync-refund-call-test", () => {
@@ -1459,7 +1459,7 @@ describe("Card - Refund flow - 3DS", () => {
         cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -1493,7 +1493,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -1519,7 +1519,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle redirection", () => {
@@ -1550,7 +1550,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -1576,7 +1576,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -1591,7 +1591,7 @@ describe("Card - Refund flow - 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -1624,7 +1624,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -1650,7 +1650,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle redirection", () => {
@@ -1681,7 +1681,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -1707,7 +1707,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
     it("refund-call-test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
@@ -1728,7 +1728,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -1743,7 +1743,7 @@ describe("Card - Refund flow - 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -1776,7 +1776,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -1802,7 +1802,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle redirection", () => {
@@ -1833,7 +1833,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -1859,7 +1859,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -1874,7 +1874,7 @@ describe("Card - Refund flow - 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -1907,7 +1907,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -1933,7 +1933,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle redirection", () => {
@@ -1964,7 +1964,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -1990,7 +1990,7 @@ describe("Card - Refund flow - 3DS", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("sync-refund-call-test", () => {
@@ -2005,7 +2005,7 @@ describe("Card - Refund flow - 3DS", () => {
       cy.syncRefundCallTest(configs, req_data, res_data, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 });

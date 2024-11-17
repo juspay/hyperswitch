@@ -88,7 +88,7 @@ describe("Payment Methods Tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("confirm-payment-call-test", () => {
@@ -109,7 +109,7 @@ describe("Payment Methods Tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("List PM for customer", () => {

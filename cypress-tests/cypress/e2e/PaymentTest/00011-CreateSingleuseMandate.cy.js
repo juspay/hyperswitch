@@ -48,7 +48,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -96,7 +96,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("cit-capture-call-test", () => {
@@ -118,7 +118,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -150,7 +150,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("list-mandate-call-test", () => {
@@ -192,7 +192,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("cit-capture-call-test", () => {
@@ -214,7 +214,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {

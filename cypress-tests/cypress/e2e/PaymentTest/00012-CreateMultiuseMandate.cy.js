@@ -48,7 +48,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -105,7 +105,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("cit-capture-call-test", () => {
@@ -127,7 +127,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT 1", () => {
@@ -159,7 +159,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT 2", () => {
@@ -191,7 +191,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -229,7 +229,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("cit-capture-call-test", () => {
@@ -251,7 +251,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {

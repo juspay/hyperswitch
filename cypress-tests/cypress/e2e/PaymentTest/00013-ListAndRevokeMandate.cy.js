@@ -48,7 +48,7 @@ describe("Card - List and revoke Mandates flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {

@@ -46,7 +46,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS CIT", () => {
@@ -71,7 +71,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -117,7 +117,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS CIT", () => {
@@ -142,7 +142,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("cit-capture-call-test", () => {
@@ -164,7 +164,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -212,7 +212,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -269,7 +269,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("cit-capture-call-test", () => {
@@ -291,7 +291,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT 1", () => {
@@ -323,7 +323,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT 2", () => {
@@ -355,7 +355,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -393,7 +393,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Handle redirection", () => {
@@ -455,7 +455,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Handle redirection", () => {
@@ -482,7 +482,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm No 3DS MIT", () => {

@@ -298,7 +298,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Capture call", () => {
@@ -320,7 +320,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -363,7 +363,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Retrieve payment", () => {
@@ -389,7 +389,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -432,7 +432,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Retrieve payment", () => {
@@ -458,7 +458,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -501,7 +501,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Retrieve payment", () => {
@@ -532,7 +532,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -575,7 +575,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Retrieve payment", () => {
@@ -610,7 +610,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -653,7 +653,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Retrieve payment", () => {
@@ -684,7 +684,7 @@ describe("Corner cases", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -727,7 +727,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Retrieve payment", () => {
@@ -760,7 +760,7 @@ describe("Corner cases", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -804,7 +804,7 @@ describe("Corner cases", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("cit-capture-call-test", () => {
@@ -825,7 +825,7 @@ describe("Corner cases", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Retrieve payment", () => {

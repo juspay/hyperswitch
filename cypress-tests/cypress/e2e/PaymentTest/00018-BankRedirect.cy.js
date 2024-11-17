@@ -43,7 +43,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -68,7 +68,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
   });
 
@@ -106,7 +106,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -131,7 +131,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle bank redirect redirection", () => {
@@ -181,7 +181,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -206,7 +206,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle bank redirect redirection", () => {
@@ -254,7 +254,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -279,7 +279,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle bank redirect redirection", () => {
@@ -327,7 +327,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("payment_methods-call-test", () => {
@@ -352,7 +352,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Handle bank redirect redirection", () => {

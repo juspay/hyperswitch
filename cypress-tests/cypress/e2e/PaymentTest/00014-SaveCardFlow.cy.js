@@ -52,7 +52,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue) {
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
         }
       });
 
@@ -84,7 +84,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -105,7 +105,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -146,7 +146,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -177,7 +177,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -198,7 +198,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -224,7 +224,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -265,7 +265,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -296,7 +296,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -317,7 +317,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
       it("retrieve-payment-call-test", () => {
         cy.retrievePaymentCallTest(globalState);
@@ -342,7 +342,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -383,7 +383,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -414,7 +414,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -435,7 +435,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -476,7 +476,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -501,7 +501,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -528,7 +528,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -549,7 +549,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -575,7 +575,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -620,7 +620,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("confirm-payment-call-test", () => {
@@ -642,7 +642,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -673,7 +673,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -694,7 +694,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );
@@ -734,7 +734,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("confirm-payment-call-test", () => {
@@ -756,7 +756,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -783,7 +783,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("confirm-save-card-payment-call-test-without-billing", () => {
@@ -804,7 +804,7 @@ describe("Card - SaveCard payment flow test", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
     }
   );

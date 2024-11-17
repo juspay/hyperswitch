@@ -65,7 +65,7 @@ describe("Connector Agnostic Tests", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("Confirm Payment", () => {
@@ -87,7 +87,7 @@ describe("Connector Agnostic Tests", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("List Payment Method for Customer using Client Secret", () => {
@@ -138,7 +138,7 @@ describe("Connector Agnostic Tests", () => {
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+          should_continue = utils.should_continue_further(res_data, configs);
       });
 
       it("List Payment Method for Customer", () => {
@@ -201,7 +201,7 @@ describe("Connector Agnostic Tests", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("Confirm Payment", () => {
@@ -223,7 +223,7 @@ describe("Connector Agnostic Tests", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("List Payment Method for Customer using Client Secret", () => {
@@ -271,7 +271,7 @@ describe("Connector Agnostic Tests", () => {
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(res_data, configs);
     });
 
     it("List Payment Method for Customer", () => {

@@ -43,7 +43,7 @@ describe("Card - ThreeDS payment flow test", () => {
     );
 
     if (should_continue)
-      should_continue = utils.should_continue_further(res_data);
+      should_continue = utils.should_continue_further(res_data, configs);
   });
 
   it("payment_methods-call-test", () => {
@@ -69,7 +69,7 @@ describe("Card - ThreeDS payment flow test", () => {
     );
 
     if (should_continue)
-      should_continue = utils.should_continue_further(res_data);
+      should_continue = utils.should_continue_further(res_data, configs);
   });
 
   it("Handle redirection", () => {
