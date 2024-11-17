@@ -1,4 +1,7 @@
 //! Types interface
+use std::collections::HashMap;
+
+use common_enums::{PaymentMethod, PaymentMethodStage, PaymentMethodType};
 use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_flow_types::{
@@ -185,3 +188,19 @@ pub type RetrieveFileType =
 /// Type alias for `ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse>`
 pub type DefendDisputeType =
     dyn ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeResponse>;
+
+/// Represents details of a payment method.
+#[derive(Debug, Clone)]
+pub struct PaymentMethodDetails {
+    /// The availability status of the payment method based on the environment (e.g., live, beta, upcoming).
+    pub availability_status: PaymentMethodStage,
+
+    /// Indicates whether mandates are supported by this payment method.
+    pub supports_mandates: bool,
+}
+
+/// list of payment method types and metadata related to them
+pub type PaymentMethodTypeMetada = HashMap<PaymentMethodType, PaymentMethodDetails>;
+
+/// list of payment methods, payment method types and metadata related to them
+pub type SupportedPaymentMethods = HashMap<PaymentMethod, PaymentMethodTypeMetada>;

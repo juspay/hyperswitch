@@ -16,7 +16,11 @@ pub mod payouts;
 pub mod payouts_v2;
 pub mod refunds;
 pub mod refunds_v2;
-use common_enums::enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType};
+
+use common_enums::{
+    enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType},
+    PaymentMethod, PaymentMethodStage,
+};
 use common_utils::{
     errors::CustomResult,
     request::{Method, Request, RequestContent},
@@ -40,8 +44,12 @@ use serde_json::json;
 
 pub use self::{payments::*, refunds::*};
 use crate::{
-    configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, consts, errors,
-    events::connector_api_logs::ConnectorEvent, metrics, types,
+    configs::Connectors,
+    connector_integration_v2::ConnectorIntegrationV2,
+    consts, errors,
+    events::connector_api_logs::ConnectorEvent,
+    metrics,
+    types::{self, SupportedPaymentMethods},
 };
 
 /// type BoxedConnectorIntegration
@@ -255,6 +263,11 @@ pub trait ConnectorCommon {
     /// The base URL for interacting with the connector's API.
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str;
 
+    /// Details related to payment method supported by the connector
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        None
+    }
+
     /// common error response for a connector if it is same in all case
     fn build_error_response(
         &self,
@@ -338,6 +351,64 @@ pub trait ConnectorVerifyWebhookSourceV2:
 
 /// trait ConnectorValidation
 pub trait ConnectorValidation: ConnectorCommon {
+    /// fn validate_payment_method
+    fn validate_payment_method(
+        &self,
+        payment_method_type: &Option<PaymentMethodType>,
+        payment_method: &PaymentMethod,
+        is_mandate_payment: bool,
+        test_mode: bool,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match self.get_supported_payment_methods() {
+            Some(supported_payment_methods) => {
+                // Check if the payment method exists
+                let payment_method_information = supported_payment_methods
+                    .get(payment_method)
+                    .ok_or_else(|| errors::ConnectorError::NotSupported {
+                        message: payment_method.to_string(),
+                        connector: self.id(),
+                    })?;
+
+                match payment_method_type {
+                    Some(pmt) => {
+                        // Check if the payment method type exists
+                        let payment_method_type_information = payment_method_information
+                            .get(pmt)
+                            .ok_or_else(|| {
+                            errors::ConnectorError::NotSupported {
+                                message: format!("{:?}, {:?}", pmt, payment_method),
+                                connector: self.id(),
+                            }
+                        })?;
+                        // Validate the payment method type based on its availability and mandate support
+                        match (
+                            test_mode,
+                            is_mandate_payment,
+                            payment_method_type_information.availability_status.clone(),
+                            payment_method_type_information.supports_mandates,
+                        ) {
+                            // Test mode mandate payment
+                            (true, true, PaymentMethodStage::Live | PaymentMethodStage::Beta, true) |
+                            // Test mode payment
+                            (true, false, PaymentMethodStage::Live | PaymentMethodStage::Beta, _) |
+                            // Live mode mandate payment
+                            (false, true, PaymentMethodStage::Live, true) |
+                            // Live mode payment
+                            (false, false, PaymentMethodStage::Live, _) => Ok(()),
+                            // If none of the cases match, return an unsupported error
+                            _ => Err(errors::ConnectorError::NotSupported {
+                                message: format!("{:?}, {:?}", payment_method_type, payment_method),
+                                connector: self.id(),
+                            }.into()),
+                        }
+                    }
+                    None => Ok(()),
+                }
+            }
+            None => Ok(()),
+        }
+    }
+
     /// fn validate_capture_method
     fn validate_capture_method(
         &self,

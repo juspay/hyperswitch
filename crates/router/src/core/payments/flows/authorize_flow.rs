@@ -317,9 +317,21 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     )
                     .to_payment_failed_response()?;
 
-                if crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
+                let is_customer_initiated_mandate_payment = crate::connector::utils::PaymentsAuthorizeRequestData::is_customer_initiated_mandate_payment(
                     &self.request,
-                ) {
+                );
+
+                connector
+                    .connector
+                    .validate_payment_method(
+                        &self.request.payment_method_type,
+                        &self.payment_method,
+                        is_customer_initiated_mandate_payment,
+                        self.test_mode.unwrap_or(false),
+                    )
+                    .to_payment_failed_response()?;
+
+                if is_customer_initiated_mandate_payment {
                     connector
                         .connector
                         .validate_mandate_payment(

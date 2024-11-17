@@ -3308,3 +3308,14 @@ pub enum ConnectorMandateStatus {
     /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
     Inactive,
 }
+
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
+pub enum PaymentMethodStage {
+    /// Payment Method available in production
+    #[default]
+    Live,
+    /// Payment Method available in sandbox
+    Beta,
+    /// Payment Method not available
+    Upcoming,
+}

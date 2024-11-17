@@ -38,8 +38,9 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        self, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
-        PaymentsSyncType, PaymentsVoidType, Response,
+        self, PaymentMethodDetails, PaymentMethodTypeMetada, PaymentsAuthorizeType,
+        PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsSyncType, PaymentsVoidType,
+        Response, SupportedPaymentMethods,
     },
     webhooks,
 };
@@ -117,6 +118,27 @@ impl ConnectorCommon for Bambora {
             headers::AUTHORIZATION.to_string(),
             auth.api_key.into_masked(),
         )])
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        let mut supported_payment_methods = SupportedPaymentMethods::new();
+        let mut card_payment_method = PaymentMethodTypeMetada::new();
+        card_payment_method.insert(
+            enums::PaymentMethodType::Credit,
+            PaymentMethodDetails {
+                availability_status: enums::PaymentMethodStage::Live,
+                supports_mandates: false,
+            },
+        );
+        card_payment_method.insert(
+            enums::PaymentMethodType::Debit,
+            PaymentMethodDetails {
+                availability_status: enums::PaymentMethodStage::Live,
+                supports_mandates: false,
+            },
+        );
+        supported_payment_methods.insert(enums::PaymentMethod::Card, card_payment_method);
+        Some(supported_payment_methods)
     }
 
     fn build_error_response(

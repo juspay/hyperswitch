@@ -335,6 +335,29 @@ impl ConnectorRedirectResponse for ConnectorEnum {
 }
 
 impl ConnectorValidation for ConnectorEnum {
+    fn validate_payment_method(
+        &self,
+        payment_method_type: &Option<common_enums::PaymentMethodType>,
+        payment_method: &common_enums::PaymentMethod,
+        is_mandate_payment: bool,
+        test_mode: bool,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.validate_payment_method(
+                payment_method_type,
+                payment_method,
+                is_mandate_payment,
+                test_mode,
+            ),
+            Self::New(connector) => connector.validate_payment_method(
+                payment_method_type,
+                payment_method,
+                is_mandate_payment,
+                test_mode,
+            ),
+        }
+    }
+
     fn validate_capture_method(
         &self,
         capture_method: Option<common_enums::CaptureMethod>,
