@@ -309,7 +309,7 @@ export const connectorDetails = {
     PaymentMethodIdMandate3DSAutoCapture: {
       Configs: {
         // Skipping redirection here for mandate 3ds auto capture as it requires changes from the core
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -329,7 +329,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Configs: {
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method_data: {

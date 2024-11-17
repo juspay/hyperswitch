@@ -69,7 +69,7 @@ export const connectorDetails = {
     },
     "3DSManualCapture": {
       Configs: {
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -89,7 +89,7 @@ export const connectorDetails = {
     },
     "3DSAutoCapture": {
       Configs: {
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -232,7 +232,7 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSAutoCapture: {
       Configs: {
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -252,7 +252,7 @@ export const connectorDetails = {
     },
     MandateSingleUse3DSManualCapture: {
       Configs: {
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -336,7 +336,7 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSAutoCapture: {
       Configs: {
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -356,7 +356,7 @@ export const connectorDetails = {
     },
     MandateMultiUse3DSManualCapture: {
       Configs: {
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -488,7 +488,7 @@ export const connectorDetails = {
     },
     PaymentMethodIdMandate3DSAutoCapture: {
       Configs: {
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",

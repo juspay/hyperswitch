@@ -105,8 +105,9 @@ export const connectorDetails = {
     },
     PartialCapture: {
       Configs: {
-        delay: {
-          status: true,
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000
         },
       },
       Request: {
@@ -144,8 +145,9 @@ export const connectorDetails = {
     },
     Refund: {
       Configs: {
-        delay: {
-          status: true,
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000
         },
       },
       Request: {
@@ -165,8 +167,9 @@ export const connectorDetails = {
     },
     PartialRefund: {
       Configs: {
-        delay: {
-          status: true,
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000
         },
       },
       Request: {
@@ -187,8 +190,9 @@ export const connectorDetails = {
     },
     SyncRefund: {
       Configs: {
-        delay: {
-          status: true,
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000
         },
       },
       Request: {

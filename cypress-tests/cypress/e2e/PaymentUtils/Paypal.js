@@ -50,7 +50,7 @@ export const connectorDetails = {
     },
     "3DSManualCapture": {
       Configs: {
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
@@ -70,7 +70,7 @@ export const connectorDetails = {
     },
     "3DSAutoCapture": {
       Configs: {
-        trigger_skip: true,
+        TRIGGER_SKIP: true,
       },
       Request: {
         payment_method: "card",
