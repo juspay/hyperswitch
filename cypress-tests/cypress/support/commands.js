@@ -893,13 +893,13 @@ Cypress.Commands.add("sessionTokenCall", (globalState) => {
 Cypress.Commands.add(
   "createPaymentIntentTest",
   (
-    configs = null,
     createPaymentBody,
     req_data,
     res_data,
     authentication_type,
     capture_method,
-    globalState
+    globalState,
+    configs = null
   ) => {
     if (
       !createPaymentBody ||
@@ -1134,7 +1134,7 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
 
 Cypress.Commands.add(
   "confirmCallTest",
-  (configs = null, confirmBody, req_data, res_data, confirm, globalState) => {
+  (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = execConfig(configs);
 
@@ -1240,7 +1240,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "confirmBankRedirectCallTest",
-  (configs = null, confirmBody, req_data, res_data, confirm, globalState) => {
+  (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
     const connectorId = globalState.get("connectorId");
     const paymentIntentId = globalState.get("paymentID");
     const profile_id = execConfig(configs);
@@ -1337,7 +1337,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "confirmBankTransferCallTest",
-  (configs = null, confirmBody, req_data, res_data, confirm, globalState) => {
+  (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = execConfig(configs);
 
@@ -1411,7 +1411,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "confirmUpiCall",
-  (configs = null, confirmBody, req_data, res_data, confirm, globalState) => {
+  (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
     const paymentId = globalState.get("paymentID");
     const profile_id = execConfig(configs);
 
@@ -1473,13 +1473,13 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createConfirmPaymentTest",
   (
-    configs = null,
     createConfirmPaymentBody,
     req_data,
     res_data,
     authentication_type,
     capture_method,
-    globalState
+    globalState,
+    configs = null
   ) => {
     const profile_id = execConfig(configs);
 
@@ -1583,7 +1583,7 @@ Cypress.Commands.add(
 // This is consequent saved card payment confirm call test(Using payment token)
 Cypress.Commands.add(
   "saveCardConfirmCallTest",
-  (configs = null, saveCardConfirmBody, req_data, res_data, globalState) => {
+  (saveCardConfirmBody, req_data, res_data, globalState, configs = null) => {
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = execConfig(configs);
 
@@ -1686,12 +1686,12 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "captureCallTest",
   (
-    configs = null,
     requestBody,
     req_data,
     res_data,
     amount_to_capture,
-    globalState
+    globalState,
+    configs = null
   ) => {
     const payment_id = globalState.get("paymentID");
     const profile_id = execConfig(configs);
@@ -1726,7 +1726,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "voidCallTest",
-  (configs = null, requestBody, req_data, res_data, globalState) => {
+  (requestBody, req_data, res_data, globalState, configs = null) => {
     const payment_id = globalState.get("paymentID");
     const profile_id = execConfig(configs);
 
@@ -1827,20 +1827,14 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "refundCallTest",
-  (
-    configs = null,
-    requestBody,
-    req_data,
-    res_data,
-    refund_amount,
-    globalState
-  ) => {
+  (requestBody, req_data, res_data, refund_amount, globalState, configs) => {
     const payment_id = globalState.get("paymentID");
-    const profile_id = execConfig(configs);
+
+    // we only need this to set the delay. We don't need the return value
+    let _ = execConfig(configs);
 
     requestBody.amount = refund_amount;
     requestBody.payment_id = payment_id;
-    requestBody.profile_id = globalState.get(profile_id);
 
     cy.request({
       method: "POST",
@@ -1870,7 +1864,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "syncRefundCallTest",
-  (configs = null, req_data, res_data, globalState) => {
+  (req_data, res_data, globalState) => {
     const refundId = globalState.get("refundId");
 
     cy.request({
@@ -1895,7 +1889,6 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "citForMandatesCallTest",
   (
-    configs = null,
     requestBody,
     req_data,
     res_data,
@@ -1903,7 +1896,8 @@ Cypress.Commands.add(
     confirm,
     capture_method,
     payment_type,
-    globalState
+    globalState,
+    configs = null
   ) => {
     const profile_id = execConfig(configs);
 
@@ -2016,12 +2010,16 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitForMandatesCallTest",
-  (requestBody, amount, confirm, capture_method, globalState) => {
+  (requestBody, amount, confirm, capture_method, globalState, configs) => {
+    const profile_id = execConfig(configs);
+
     requestBody.amount = amount;
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
-    requestBody.mandate_id = globalState.get("mandateId");
     requestBody.customer_id = globalState.get("customerId");
+    requestBody.mandate_id = globalState.get("mandateId");
+    requestBody.profile_id = globalState.get(profile_id);
+
     globalState.set("paymentAmount", requestBody.amount);
     cy.request({
       method: "POST",
@@ -2109,12 +2107,16 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitUsingPMId",
-  (requestBody, amount, confirm, capture_method, globalState) => {
+  (requestBody, amount, confirm, capture_method, globalState, configs) => {
+    const profile_id = execConfig(configs);
+
     requestBody.amount = amount;
-    requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
-    requestBody.recurring_details.data = globalState.get("paymentMethodId");
+    requestBody.confirm = confirm;
     requestBody.customer_id = globalState.get("customerId");
+    requestBody.profile_id = globalState.get(profile_id);
+    requestBody.recurring_details.data = globalState.get("paymentMethodId");
+
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
