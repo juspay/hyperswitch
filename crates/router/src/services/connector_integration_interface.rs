@@ -306,6 +306,19 @@ impl api::IncomingWebhook for ConnectorEnum {
             Self::New(connector) => connector.get_external_authentication_details(request),
         }
     }
+
+    fn get_mandate_details(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_mandate_details(request),
+            Self::New(connector) => connector.get_mandate_details(request),
+        }
+    }
 }
 
 impl api::ConnectorTransactionId for ConnectorEnum {
@@ -435,71 +448,6 @@ impl api::ConnectorCommon for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.build_error_response(res, event_builder),
             Self::New(connector) => connector.build_error_response(res, event_builder),
-        }
-    }
-}
-
-impl<T, ResourceCommonData, Req, Resp> api::ConnectorCommon
-    for ConnectorIntegrationEnum<'_, T, ResourceCommonData, Req, Resp>
-{
-    fn id(&self) -> &'static str {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => old_integration.id(),
-            ConnectorIntegrationEnum::New(new_integration) => new_integration.id(),
-        }
-    }
-
-    fn get_currency_unit(&self) -> CurrencyUnit {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => old_integration.get_currency_unit(),
-            ConnectorIntegrationEnum::New(new_integration) => new_integration.get_currency_unit(),
-        }
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => {
-                old_integration.get_auth_header(auth_type)
-            }
-            ConnectorIntegrationEnum::New(new_integration) => {
-                new_integration.get_auth_header(auth_type)
-            }
-        }
-    }
-
-    fn common_get_content_type(&self) -> &'static str {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => {
-                old_integration.common_get_content_type()
-            }
-            ConnectorIntegrationEnum::New(new_integration) => {
-                new_integration.common_get_content_type()
-            }
-        }
-    }
-
-    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => old_integration.base_url(connectors),
-            ConnectorIntegrationEnum::New(new_integration) => new_integration.base_url(connectors),
-        }
-    }
-
-    fn build_error_response(
-        &self,
-        res: types::Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        match self {
-            ConnectorIntegrationEnum::Old(old_integration) => {
-                old_integration.build_error_response(res, event_builder)
-            }
-            ConnectorIntegrationEnum::New(new_integration) => {
-                new_integration.build_error_response(res, event_builder)
-            }
         }
     }
 }

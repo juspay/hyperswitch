@@ -46,8 +46,10 @@ pub use diesel_models::{
     process_tracker::business_status, ProcessTracker, ProcessTrackerNew, ProcessTrackerRunner,
     ProcessTrackerUpdate,
 };
+#[cfg(feature = "v1")]
+pub use hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptNew;
 pub use hyperswitch_domain_models::payments::{
-    payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
+    payment_attempt::{PaymentAttempt, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
     PaymentIntent,
 };

@@ -131,6 +131,7 @@ impl_api_event_type!(
         GetDisputeFilterRequest,
         DisputeFiltersResponse,
         GetDisputeMetricRequest,
+        SankeyResponse,
         OrganizationResponse,
         OrganizationCreateRequest,
         OrganizationUpdateRequest,
@@ -155,6 +156,23 @@ impl<T> ApiEventMetric for MetricsResponse<T> {
     }
 }
 
+impl<T> ApiEventMetric for PaymentsMetricsResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
+impl<T> ApiEventMetric for PaymentIntentsMetricsResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
+impl<T> ApiEventMetric for RefundsMetricsResponse<T> {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 impl ApiEventMetric for PaymentMethodIntentConfirmInternal {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

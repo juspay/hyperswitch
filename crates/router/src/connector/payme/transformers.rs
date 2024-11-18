@@ -246,12 +246,15 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
         };
         Ok(Self::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(value.payme_sale_id.clone()),
-            redirection_data,
-            mandate_reference: value.buyer_key.clone().map(|buyer_key| MandateReference {
-                connector_mandate_id: Some(buyer_key.expose()),
-                payment_method_id: None,
-                mandate_metadata: None,
-            }),
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(value.buyer_key.clone().map(|buyer_key| {
+                MandateReference {
+                    connector_mandate_id: Some(buyer_key.expose()),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                }
+            })),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
@@ -316,9 +319,9 @@ impl From<&SaleQuery> for types::PaymentsResponseData {
     fn from(value: &SaleQuery) -> Self {
         Self::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(value.sale_payme_id.clone()),
-            redirection_data: None,
+            redirection_data: Box::new(None),
             // mandate reference will be updated with webhooks only. That has been handled with PaymePaySaleResponse struct
-            mandate_reference: None,
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: None,
@@ -403,6 +406,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | domain::WalletData::MobilePayRedirect(_)
                 | domain::WalletData::PaypalRedirect(_)
                 | domain::WalletData::PaypalSdk(_)
+                | domain::WalletData::Paze(_)
                 | domain::WalletData::SamsungPay(_)
                 | domain::WalletData::TwintRedirect {}
                 | domain::WalletData::VippsRedirect {}
@@ -426,13 +430,15 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => {
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
@@ -534,8 +540,8 @@ impl<F>
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                 item.response.payme_sale_id.to_owned(),
                             ),
-                            redirection_data: Some(services::RedirectForm::Payme),
-                            mandate_reference: None,
+                            redirection_data: Box::new(Some(services::RedirectForm::Payme)),
+                            mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
                             connector_response_reference_id: None,
@@ -673,14 +679,18 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("payme"),
-            ))?,
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("payme"),
+                ))?
+            }
         }
     }
 }
@@ -715,6 +725,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     types::PaymentMethodToken::ApplePayDecrypt(_) => Err(
                         unimplemented_payment_method!("Apple Pay", "Simplified", "Payme"),
                     )?,
+                    types::PaymentMethodToken::PazeDecrypt(_) => {
+                        Err(unimplemented_payment_method!("Paze", "Payme"))?
+                    }
                 };
                 Ok(Self {
                     buyer_email,
@@ -734,12 +747,14 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(PaymentMethodData::MandatePayment)
             | Some(PaymentMethodData::Reward)
             | Some(PaymentMethodData::RealTimePayment(_))
+            | Some(PaymentMethodData::MobilePayment(_))
             | Some(PaymentMethodData::Upi(_))
             | Some(PaymentMethodData::Voucher(_))
             | Some(PaymentMethodData::GiftCard(_))
             | Some(PaymentMethodData::OpenBanking(_))
             | Some(PaymentMethodData::CardToken(_))
             | Some(PaymentMethodData::NetworkToken(_))
+            | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | None => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
@@ -775,12 +790,14 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_) => {
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
             }
         }
@@ -1100,8 +1117,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymeVoidResponse>>
             // Since we are not receiving payme_sale_id, we are not populating the transaction response
             Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,

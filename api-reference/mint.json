@@ -32,7 +32,6 @@
     {
       "group": "Essentials",
       "pages": [
-        "essentials/webhooks",
         "essentials/error_codes",
         "essentials/rate_limit",
         "essentials/go-live"

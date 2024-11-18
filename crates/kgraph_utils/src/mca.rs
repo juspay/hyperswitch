@@ -146,6 +146,10 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::OpenBankingPIS => {
             Ok(dirval!(OpenBankingType = OpenBankingPIS))
         }
+        api_enums::PaymentMethodType::Paze => Ok(dirval!(WalletType = Paze)),
+        api_enums::PaymentMethodType::DirectCarrierBilling => {
+            Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
+        }
     }
 }
 
@@ -420,6 +424,7 @@ fn global_vec_pmt(
     global_vector.append(collect_global_variants!(BankTransferType));
     global_vector.append(collect_global_variants!(CardRedirectType));
     global_vector.append(collect_global_variants!(OpenBankingType));
+    global_vector.append(collect_global_variants!(MobilePaymentType));
     global_vector.push(dir::DirValue::PaymentMethod(
         dir::enums::PaymentMethod::Card,
     ));

@@ -359,7 +359,6 @@ pub struct AdyenplatformIncomingWebhook {
 pub struct AdyenplatformIncomingWebhookData {
     pub status: AdyenplatformWebhookStatus,
     pub reference: String,
-    pub priority: AdyenPayoutPriority,
     pub tracking: Option<AdyenplatformInstantStatus>,
 }
 
@@ -367,7 +366,8 @@ pub struct AdyenplatformIncomingWebhookData {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenplatformInstantStatus {
-    status: InstantPriorityStatus,
+    status: Option<InstantPriorityStatus>,
+    estimated_arrival_time: Option<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -416,20 +416,14 @@ impl
     ) -> Self {
         match (event_type, status, instant_status) {
             (AdyenplatformWebhookEventType::PayoutCreated, _, _) => Self::PayoutCreated,
-            (
-                AdyenplatformWebhookEventType::PayoutUpdated,
-                _,
-                Some(AdyenplatformInstantStatus {
-                    status: InstantPriorityStatus::Credited,
-                }),
-            ) => Self::PayoutSuccess,
-            (
-                AdyenplatformWebhookEventType::PayoutUpdated,
-                _,
-                Some(AdyenplatformInstantStatus {
-                    status: InstantPriorityStatus::Pending,
-                }),
-            ) => Self::PayoutProcessing,
+            (AdyenplatformWebhookEventType::PayoutUpdated, _, Some(instant_status)) => {
+                match (instant_status.status, instant_status.estimated_arrival_time) {
+                    (Some(InstantPriorityStatus::Credited), _) | (None, Some(_)) => {
+                        Self::PayoutSuccess
+                    }
+                    _ => Self::PayoutProcessing,
+                }
+            }
             (AdyenplatformWebhookEventType::PayoutUpdated, status, _) => match status {
                 AdyenplatformWebhookStatus::Authorised
                 | AdyenplatformWebhookStatus::Booked

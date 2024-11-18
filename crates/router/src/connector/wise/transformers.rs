@@ -2,6 +2,7 @@
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
+use common_utils::types::MinorUnit;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +17,20 @@ use crate::{
     },
 };
 use crate::{core::errors, types};
+#[derive(Debug, Serialize)]
+pub struct WiseRouterData<T> {
+    pub amount: MinorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(MinorUnit, T)> for WiseRouterData<T> {
+    fn from((amount, router_data): (MinorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
 
 pub struct WiseAuthType {
     pub(super) api_key: Secret<String>,
@@ -156,8 +171,8 @@ pub struct WiseRecipientCreateResponse {
 pub struct WisePayoutQuoteRequest {
     source_currency: String,
     target_currency: String,
-    source_amount: Option<i64>,
-    target_amount: Option<i64>,
+    source_amount: Option<MinorUnit>,
+    target_amount: Option<MinorUnit>,
     pay_out: WisePayOutOption,
 }
 
@@ -348,9 +363,12 @@ fn get_payout_bank_details(
 
 // Payouts recipient create request transform
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
+impl<F> TryFrom<&WiseRouterData<&types::PayoutsRouterData<F>>> for WiseRecipientCreateRequest {
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &WiseRouterData<&types::PayoutsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data;
         let request = item.request.to_owned();
         let customer_details = request.customer_details.to_owned();
         let payout_method_data = item.get_payout_method_data()?;
@@ -420,14 +438,17 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseRecipientCreateResponse>
 
 // Payouts quote request transform
 #[cfg(feature = "payouts")]
-impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutQuoteRequest {
+impl<F> TryFrom<&WiseRouterData<&types::PayoutsRouterData<F>>> for WisePayoutQuoteRequest {
     type Error = Error;
-    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item_data: &WiseRouterData<&types::PayoutsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        let item = item_data.router_data;
         let request = item.request.to_owned();
         let payout_type = request.get_payout_type()?;
         match payout_type {
             storage_enums::PayoutType::Bank => Ok(Self {
-                source_amount: Some(request.amount),
+                source_amount: Some(item_data.amount),
                 source_currency: request.source_currency.to_string(),
                 target_amount: None,
                 target_currency: request.destination_currency.to_string(),

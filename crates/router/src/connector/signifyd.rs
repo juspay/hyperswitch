@@ -237,7 +237,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/sales"
+            "v3/orders/events/sales"
         ))
     }
 
@@ -325,7 +325,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/checkouts"
+            "v3/orders/events/checkouts"
         ))
     }
 
@@ -413,7 +413,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/transactions"
+            "v3/orders/events/transactions"
         ))
     }
 
@@ -503,7 +503,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/fulfillments"
+            "v3/orders/events/fulfillments"
         ))
     }
 
@@ -593,7 +593,7 @@ impl
         Ok(format!(
             "{}{}",
             self.base_url(connectors),
-            "/v3/orders/events/returns/records"
+            "v3/orders/events/returns/records"
         ))
     }
 

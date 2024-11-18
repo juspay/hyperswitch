@@ -112,14 +112,14 @@ pub fn check_permission(
         )
 }
 
-pub fn check_entity(
-    required_minimum_entity: common_enums::EntityType,
-    role_info: &roles::RoleInfo,
-) -> RouterResult<()> {
-    if required_minimum_entity > role_info.get_entity_type() {
-        Err(ApiErrorResponse::AccessForbidden {
-            resource: required_minimum_entity.to_string(),
-        })?;
+pub fn check_tenant(token_tenant_id: Option<String>, header_tenant_id: &str) -> RouterResult<()> {
+    if let Some(tenant_id) = token_tenant_id {
+        if tenant_id != header_tenant_id {
+            return Err(ApiErrorResponse::InvalidJwtToken).attach_printable(format!(
+                "Token tenant ID: '{}' does not match Header tenant ID: '{}'",
+                tenant_id, header_tenant_id
+            ));
+        }
     }
     Ok(())
 }

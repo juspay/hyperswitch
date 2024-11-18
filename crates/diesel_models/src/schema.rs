@@ -248,6 +248,8 @@ diesel::table! {
         capture_sequence -> Int2,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
+        #[max_length = 512]
+        connector_capture_data -> Nullable<Varchar>,
     }
 }
 
@@ -846,6 +848,9 @@ diesel::table! {
         card_network -> Nullable<Varchar>,
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
+        #[max_length = 512]
+        connector_transaction_data -> Nullable<Varchar>,
+        connector_mandate_detail -> Nullable<Jsonb>,
     }
 }
 
@@ -1183,6 +1188,10 @@ diesel::table! {
         charges -> Nullable<Jsonb>,
         #[max_length = 32]
         organization_id -> Varchar,
+        #[max_length = 512]
+        connector_refund_data -> Nullable<Varchar>,
+        #[max_length = 512]
+        connector_transaction_data -> Nullable<Varchar>,
     }
 }
 
@@ -1226,7 +1235,7 @@ diesel::table! {
         #[max_length = 64]
         last_modified_by -> Varchar,
         #[max_length = 64]
-        entity_type -> Nullable<Varchar>,
+        entity_type -> Varchar,
     }
 }
 
@@ -1250,6 +1259,26 @@ diesel::table! {
         created_at -> Timestamp,
         modified_at -> Timestamp,
         algorithm_for -> TransactionType,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    themes (theme_id) {
+        #[max_length = 64]
+        theme_id -> Varchar,
+        #[max_length = 64]
+        tenant_id -> Varchar,
+        #[max_length = 64]
+        org_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
     }
 }
 
@@ -1334,6 +1363,8 @@ diesel::table! {
         #[max_length = 64]
         entity_type -> Nullable<Varchar>,
         version -> UserRoleVersion,
+        #[max_length = 64]
+        tenant_id -> Varchar,
     }
 }
 
@@ -1397,6 +1428,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     reverse_lookup,
     roles,
     routing_algorithm,
+    themes,
     unified_translations,
     user_authentication_methods,
     user_key_store,

@@ -1,5 +1,4 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -52,8 +51,7 @@ pub async fn organization_update(
             &auth::AdminApiAuth,
             &auth::JWTAuthOrganizationFromRoute {
                 organization_id,
-                required_permission: Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Organization,
+                required_permission: Permission::OrganizationAccountWrite,
             },
             req.headers(),
         ),
@@ -85,8 +83,7 @@ pub async fn organization_retrieve(
             &auth::AdminApiAuth,
             &auth::JWTAuthOrganizationFromRoute {
                 organization_id,
-                required_permission: Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Organization,
+                required_permission: Permission::OrganizationAccountRead,
             },
             req.headers(),
         ),
@@ -95,7 +92,7 @@ pub async fn organization_retrieve(
     .await
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
 pub async fn merchant_account_create(
     state: web::Data<AppState>,
@@ -108,6 +105,43 @@ pub async fn merchant_account_create(
         state,
         &req,
         json_payload.into_inner(),
+        |state, _, req, _| create_merchant_account(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantsAccountCreate))]
+pub async fn merchant_account_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<api_models::admin::MerchantAccountCreateWithoutOrgId>,
+) -> HttpResponse {
+    let flow = Flow::MerchantsAccountCreate;
+    let headers = req.headers();
+
+    let org_id = match auth::HeaderMapStruct::new(headers).get_organization_id_from_header() {
+        Ok(org_id) => org_id,
+        Err(e) => return api::log_and_return_error_response(e),
+    };
+
+    // Converting from MerchantAccountCreateWithoutOrgId to MerchantAccountCreate so we can use the existing
+    // `create_merchant_account` function for v2 as well
+    let json_payload = json_payload.into_inner();
+    let new_request_payload_with_org_id = api_models::admin::MerchantAccountCreate {
+        merchant_name: json_payload.merchant_name,
+        merchant_details: json_payload.merchant_details,
+        metadata: json_payload.metadata,
+        organization_id: org_id,
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        new_request_payload_with_org_id,
         |state, _, req, _| create_merchant_account(state, req),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
@@ -139,8 +173,11 @@ pub async fn retrieve_merchant_account(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Profile,
+                // This should ideally be MerchantAccountRead, but since FE is calling this API for
+                // profile level users currently keeping this as ProfileAccountRead. FE is removing
+                // this API call for profile level users.
+                // TODO: Convert this to MerchantAccountRead once FE changes are done.
+                required_permission: Permission::ProfileAccountRead,
             },
             req.headers(),
         ),
@@ -172,7 +209,6 @@ pub async fn merchant_account_list(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -200,7 +236,6 @@ pub async fn merchant_account_list(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -232,7 +267,6 @@ pub async fn update_merchant_account(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),
@@ -298,8 +332,7 @@ pub async fn connector_create(
             &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
-                required_permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Profile,
+                required_permission: Permission::ProfileConnectorWrite,
             },
             req.headers(),
         ),
@@ -324,7 +357,7 @@ pub async fn connector_create(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
+        |state, auth_data: auth::AuthenticationData, req, _| {
             create_connector(
                 state,
                 req,
@@ -336,8 +369,7 @@ pub async fn connector_create(
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
-                required_permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantConnectorWrite,
             },
             req.headers(),
         ),
@@ -399,8 +431,7 @@ pub async fn connector_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::MerchantConnectorAccountRead,
-                minimum_entity_level: EntityType::Profile,
+                required_permission: Permission::ProfileConnectorRead,
             },
             req.headers(),
         ),
@@ -427,19 +458,18 @@ pub async fn connector_retrieve(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
-            retrieve_connector(
-                state,
-                auth_data.merchant_account,
-                auth_data.key_store,
-                req.id.clone(),
-            )
-        },
+        |state,
+         auth::AuthenticationData {
+             merchant_account,
+             key_store,
+             ..
+         },
+         req,
+         _| { retrieve_connector(state, merchant_account, key_store, req.id.clone()) },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
-                required_permission: Permission::MerchantConnectorAccountRead,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantConnectorRead,
             },
             req.headers(),
         ),
@@ -463,14 +493,13 @@ pub async fn connector_list(
         state,
         &req,
         profile_id.to_owned(),
-        |state, auth, _, _| {
-            list_connectors_for_a_profile(state, auth.merchant_account.clone(), profile_id.clone())
+        |state, auth::AuthenticationData { key_store, .. }, _, _| {
+            list_connectors_for_a_profile(state, key_store, profile_id.clone())
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
-                required_permission: Permission::MerchantConnectorAccountRead,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantConnectorRead,
             },
             req.headers(),
         ),
@@ -517,8 +546,7 @@ pub async fn connector_list(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::MerchantConnectorAccountRead,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantConnectorRead,
             },
             req.headers(),
         ),
@@ -526,6 +554,8 @@ pub async fn connector_list(
     )
     .await
 }
+
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Merchant Connector - List
 ///
 /// List Merchant Connector Details for the merchant
@@ -569,8 +599,7 @@ pub async fn connector_list_profile(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::MerchantConnectorAccountRead,
-                minimum_entity_level: EntityType::Profile,
+                required_permission: Permission::ProfileConnectorRead,
             },
             req.headers(),
         ),
@@ -631,8 +660,7 @@ pub async fn connector_update(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
-                required_permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Profile,
+                required_permission: Permission::ProfileConnectorWrite,
             },
             req.headers(),
         ),
@@ -683,8 +711,7 @@ pub async fn connector_update(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
-                required_permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantConnectorWrite,
             },
             req.headers(),
         ),
@@ -739,8 +766,7 @@ pub async fn connector_delete(
             &auth::AdminApiAuth,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantConnectorWrite,
             },
             req.headers(),
         ),
@@ -767,19 +793,18 @@ pub async fn connector_delete(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
-            delete_connector(
-                state,
-                auth_data.merchant_account,
-                auth_data.key_store,
-                req.id,
-            )
-        },
+        |state,
+         auth::AuthenticationData {
+             merchant_account,
+             key_store,
+             ..
+         },
+         req,
+         _| { delete_connector(state, merchant_account, key_store, req.id) },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
-                required_permission: Permission::MerchantConnectorAccountWrite,
-                minimum_entity_level: EntityType::Merchant,
+                required_permission: Permission::MerchantConnectorWrite,
             },
             req.headers(),
         ),

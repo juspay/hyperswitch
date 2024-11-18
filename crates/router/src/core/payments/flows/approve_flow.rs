@@ -16,6 +16,22 @@ impl
     ConstructFlowSpecificData<api::Approve, types::PaymentsApproveData, types::PaymentsResponseData>
     for PaymentData<api::Approve>
 {
+    #[cfg(feature = "v2")]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsApproveRouterData> {
+        todo!()
+    }
+
+    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -25,7 +41,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
-        header_payload: Option<api_models::payments::HeaderPayload>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<types::PaymentsApproveRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Approve,
@@ -67,7 +83,7 @@ impl Feature<api::Approve, types::PaymentsApproveData>
         _call_connector_action: payments::CallConnectorAction,
         _connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
-        _header_payload: api_models::payments::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         Err(ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason("Flow not supported".to_string()),

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::payments::{self, Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails};
+use api_models::payments::{self, Address, AddressDetails, PhoneDetails};
 use base64::Engine;
 use common_enums::{
     enums,
@@ -17,19 +17,27 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
-    router_data::{PaymentMethodToken, RecurringMandatePaymentData},
+    router_data::{
+        ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
+    },
     router_request_types::{
         AuthenticationData, BrowserInformation, CompleteAuthorizeData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
+        SetupMandateRequestData,
     },
+    types::OrderDetailsWithAmount,
 };
-use hyperswitch_interfaces::{api, errors};
+use hyperswitch_interfaces::{api, consts, errors, types::Response};
 use image::Luma;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use router_env::{logger, metrics::add_attributes};
 use serde::Serializer;
+use serde_json::Value;
+
+use crate::{constants::UNSUPPORTED_ERROR_MESSAGE, types::RefreshTokenRouterData};
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -42,6 +50,15 @@ pub(crate) fn construct_not_supported_error_report(
         connector: connector_name,
     }
     .into()
+}
+
+pub(crate) fn to_currency_base_unit_with_zero_decimal_check(
+    amount: i64,
+    currency: enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    currency
+        .to_currency_base_unit_with_zero_decimal_check(amount)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
 pub(crate) fn get_amount_as_string(
@@ -89,7 +106,7 @@ pub(crate) fn to_currency_base_unit_asf64(
 }
 
 pub(crate) fn to_connector_meta_from_secret<T>(
-    connector_meta: Option<Secret<serde_json::Value>>,
+    connector_meta: Option<Secret<Value>>,
 ) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
@@ -109,6 +126,39 @@ pub(crate) fn missing_field_err(
         }
         .into()
     })
+}
+
+pub(crate) fn handle_json_response_deserialization_failure(
+    res: Response,
+    connector: &'static str,
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    crate::metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE.add(
+        &crate::metrics::CONTEXT,
+        1,
+        &add_attributes([("connector", connector)]),
+    );
+
+    let response_data = String::from_utf8(res.response.to_vec())
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    // check for whether the response is in json format
+    match serde_json::from_str::<Value>(&response_data) {
+        // in case of unexpected response but in json format
+        Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        // in case of unexpected response but in html or string format
+        Err(error_msg) => {
+            logger::error!(deserialization_error=?error_msg);
+            logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: UNSUPPORTED_ERROR_MESSAGE.to_string(),
+                reason: Some(response_data),
+                attempt_status: None,
+                connector_transaction_id: None,
+            })
+        }
+    }
 }
 
 pub(crate) fn construct_not_implemented_error_report(
@@ -135,7 +185,7 @@ pub(crate) fn get_unimplemented_payment_method_error_message(connector: &str) ->
     format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
 }
 
-pub(crate) fn to_connector_meta<T>(connector_meta: Option<serde_json::Value>) -> Result<T, Error>
+pub(crate) fn to_connector_meta<T>(connector_meta: Option<Value>) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
 {
@@ -192,6 +242,16 @@ pub(crate) fn is_payment_failure(status: AttemptStatus) -> bool {
     }
 }
 
+pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
+    match status {
+        common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure => {
+            true
+        }
+        common_enums::RefundStatus::ManualReview
+        | common_enums::RefundStatus::Pending
+        | common_enums::RefundStatus::Success => false,
+    }
+}
 // TODO: Make all traits as `pub(crate) trait` once all connectors are moved.
 pub trait RouterData {
     fn get_billing(&self) -> Result<&Address, Error>;
@@ -721,6 +781,43 @@ impl<Flow, Request, Response> RouterData
     }
 }
 
+pub trait AccessTokenRequestInfo {
+    fn get_request_id(&self) -> Result<Secret<String>, Error>;
+}
+
+impl AccessTokenRequestInfo for RefreshTokenRouterData {
+    fn get_request_id(&self) -> Result<Secret<String>, Error> {
+        self.request
+            .id
+            .clone()
+            .ok_or_else(missing_field_err("request.id"))
+    }
+}
+pub trait ApplePayDecrypt {
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error>;
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error>;
+}
+
+impl ApplePayDecrypt for Box<ApplePayPredecryptData> {
+    fn get_four_digit_expiry_year(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(format!(
+            "20{}",
+            self.application_expiration_date
+                .get(0..2)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+        )))
+    }
+
+    fn get_expiry_month(&self) -> Result<Secret<String>, Error> {
+        Ok(Secret::new(
+            self.application_expiration_date
+                .get(2..4)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_owned(),
+        ))
+    }
+}
+
 #[derive(Debug, Copy, Clone, strum::Display, Eq, Hash, PartialEq)]
 pub enum CardIssuer {
     AmericanExpress,
@@ -744,6 +841,7 @@ pub trait CardData {
     fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
     fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, errors::ConnectorError>;
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
 }
@@ -802,6 +900,11 @@ impl CardData for Card {
         let year = self.get_card_expiry_year_2_digit()?.expose();
         let month = self.card_exp_month.clone().expose();
         Ok(Secret::new(format!("{year}{month}")))
+    }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month = self.card_exp_month.clone().expose();
+        Ok(Secret::new(format!("{month}{year}")))
     }
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
         self.card_exp_month
@@ -1051,6 +1154,10 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_total_surcharge_amount(&self) -> Option<i64>;
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
+    fn get_customer_name(&self) -> Result<Secret<String>, Error>;
+    fn get_card_holder_name_from_additional_payment_method_data(
+        &self,
+    ) -> Result<Secret<String>, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1061,6 +1168,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
+
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
@@ -1104,7 +1212,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.connector_mandate_id.clone()
+                    connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
                 | None
@@ -1191,12 +1299,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
 
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue> {
         self.metadata.clone().and_then(|meta_data| match meta_data {
-            serde_json::Value::Null
-            | serde_json::Value::Bool(_)
-            | serde_json::Value::Number(_)
-            | serde_json::Value::String(_)
-            | serde_json::Value::Array(_) => None,
-            serde_json::Value::Object(_) => Some(meta_data.into()),
+            Value::Null
+            | Value::Bool(_)
+            | Value::Number(_)
+            | Value::String(_)
+            | Value::Array(_) => None,
+            Value::Object(_) => Some(meta_data.into()),
         })
     }
 
@@ -1204,6 +1312,29 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         self.authentication_data
             .clone()
             .ok_or_else(missing_field_err("authentication_data"))
+    }
+
+    fn get_customer_name(&self) -> Result<Secret<String>, Error> {
+        self.customer_name
+            .clone()
+            .ok_or_else(missing_field_err("customer_name"))
+    }
+
+    fn get_card_holder_name_from_additional_payment_method_data(
+        &self,
+    ) -> Result<Secret<String>, Error> {
+        match &self.additional_payment_method_data {
+            Some(payments::AdditionalPaymentData::Card(card_data)) => Ok(card_data
+                .card_holder_name
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "card_holder_name",
+                })?),
+            _ => Err(errors::ConnectorError::MissingRequiredFields {
+                field_names: vec!["card_holder_name"],
+            }
+            .into()),
+        }
     }
 }
 
@@ -1323,6 +1454,7 @@ impl RefundsRequestData for RefundsData {
 pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_email(&self) -> Result<Email, Error>;
+    fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_card(&self) -> bool;
 }
 
@@ -1334,6 +1466,11 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     }
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    fn get_router_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("router_return_url"))
     }
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
@@ -1397,6 +1534,40 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                 .as_ref()
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
+    }
+}
+pub trait AddressData {
+    fn get_optional_full_name(&self) -> Option<Secret<String>>;
+}
+
+impl AddressData for Address {
+    fn get_optional_full_name(&self) -> Option<Secret<String>> {
+        self.address
+            .as_ref()
+            .and_then(|billing_address| billing_address.get_optional_full_name())
+    }
+}
+pub trait PaymentsPreProcessingRequestData {
+    fn get_amount(&self) -> Result<i64, Error>;
+    fn get_currency(&self) -> Result<enums::Currency, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+}
+
+impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Manual) => Ok(false),
+            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
+                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
+            }
+        }
+    }
+    fn get_amount(&self) -> Result<i64, Error> {
+        self.amount.ok_or_else(missing_field_err("amount"))
+    }
+    fn get_currency(&self) -> Result<enums::Currency, Error> {
+        self.currency.ok_or_else(missing_field_err("currency"))
     }
 }
 
@@ -1733,6 +1904,7 @@ pub enum PaymentMethodDataType {
     MobilePayRedirect,
     PaypalRedirect,
     PaypalSdk,
+    Paze,
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
@@ -1812,6 +1984,8 @@ pub enum PaymentMethodDataType {
     VietQr,
     OpenBanking,
     NetworkToken,
+    NetworkTransactionIdAndCardDetails,
+    DirectCarrierBilling,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -1819,6 +1993,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
+            PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::NetworkTransactionIdAndCardDetails,
             PaymentMethodData::CardRedirect(card_redirect_data) => {
                 match card_redirect_data {
                    hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => Self::Knet,
@@ -1850,6 +2025,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                  hyperswitch_domain_models::payment_method_data::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                 hyperswitch_domain_models::payment_method_data::WalletData::Paze(_) => Self::Paze,
                  hyperswitch_domain_models::payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                  hyperswitch_domain_models::payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                  hyperswitch_domain_models::payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
@@ -1996,6 +2172,72 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::OpenBanking(data) => match data {
                 hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
             },
+            PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
+                hyperswitch_domain_models::payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => Self::DirectCarrierBilling,
+            },
+        }
+    }
+}
+pub trait ApplePay {
+    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
+}
+
+impl ApplePay for hyperswitch_domain_models::payment_method_data::ApplePayWalletData {
+    fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
+        let token = Secret::new(
+            String::from_utf8(BASE64_ENGINE.decode(&self.payment_data).change_context(
+                errors::ConnectorError::InvalidWalletToken {
+                    wallet_name: "Apple Pay".to_string(),
+                },
+            )?)
+            .change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Apple Pay".to_string(),
+            })?,
+        );
+        Ok(token)
+    }
+}
+
+pub trait WalletData {
+    fn get_wallet_token(&self) -> Result<Secret<String>, Error>;
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned;
+    fn get_encoded_wallet_token(&self) -> Result<String, Error>;
+}
+
+impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
+    fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
+        match self {
+            Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
+            Self::ApplePay(data) => Ok(data.get_applepay_decoded_payment_data()?),
+            Self::PaypalSdk(data) => Ok(Secret::new(data.token.clone())),
+            _ => Err(errors::ConnectorError::InvalidWallet.into()),
+        }
+    }
+    fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_str::<T>(self.get_wallet_token()?.peek())
+            .change_context(errors::ConnectorError::InvalidWalletToken { wallet_name })
+    }
+
+    fn get_encoded_wallet_token(&self) -> Result<String, Error> {
+        match self {
+            Self::GooglePay(_) => {
+                let json_token: Value = self.get_wallet_token_as_json("Google Pay".to_owned())?;
+                let token_as_vec = serde_json::to_vec(&json_token).change_context(
+                    errors::ConnectorError::InvalidWalletToken {
+                        wallet_name: "Google Pay".to_string(),
+                    },
+                )?;
+                let encoded_token = BASE64_ENGINE.encode(token_as_vec);
+                Ok(encoded_token)
+            }
+            _ => Err(
+                errors::ConnectorError::NotImplemented("SELECTED PAYMENT METHOD".to_owned()).into(),
+            ),
         }
     }
 }

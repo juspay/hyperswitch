@@ -118,6 +118,10 @@ pub const CELL_IDENTIFIER_LENGTH: u8 = 5;
 
 /// General purpose base64 engine
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+
+/// URL Safe base64 engine
+pub const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::URL_SAFE;
 /// Regex for matching a domain
 /// Eg -
 /// http://www.example.com
@@ -154,3 +158,10 @@ pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
 pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 22;
 /// Payout flow identifier used for performing GSM operations
 pub const PAYOUT_FLOW_STR: &str = "payout_flow";
+
+/// length of the publishable key
+pub const PUBLISHABLE_KEY_LENGTH: u16 = 39;
+
+/// The number of bytes allocated for the hashed connector transaction ID.
+/// Total number of characters equals CONNECTOR_TRANSACTION_ID_HASH_BYTES times 2.
+pub const CONNECTOR_TRANSACTION_ID_HASH_BYTES: usize = 25;

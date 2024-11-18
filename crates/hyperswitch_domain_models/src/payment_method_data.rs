@@ -1,4 +1,7 @@
-use api_models::payments::{additional_info as payment_additional_types, ExtendedCardInfo};
+use api_models::{
+    mandates,
+    payments::{additional_info as payment_additional_types, ExtendedCardInfo},
+};
 use common_enums::enums as api_enums;
 use common_utils::{
     id_type,
@@ -16,6 +19,7 @@ use time::Date;
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData {
     Card(Card),
+    CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
@@ -32,6 +36,7 @@ pub enum PaymentMethodData {
     CardToken(CardToken),
     OpenBanking(OpenBankingData),
     NetworkToken(NetworkTokenData),
+    MobilePayment(MobilePaymentData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,7 +48,9 @@ pub enum ApplePayFlow {
 impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
-            Self::Card(_) | Self::NetworkToken(_) => Some(common_enums::PaymentMethod::Card),
+            Self::Card(_) | Self::NetworkToken(_) | Self::CardDetailsForNetworkTransactionId(_) => {
+                Some(common_enums::PaymentMethod::Card)
+            }
             Self::CardRedirect(_) => Some(common_enums::PaymentMethod::CardRedirect),
             Self::Wallet(_) => Some(common_enums::PaymentMethod::Wallet),
             Self::PayLater(_) => Some(common_enums::PaymentMethod::PayLater),
@@ -57,6 +64,7 @@ impl PaymentMethodData {
             Self::Voucher(_) => Some(common_enums::PaymentMethod::Voucher),
             Self::GiftCard(_) => Some(common_enums::PaymentMethod::GiftCard),
             Self::OpenBanking(_) => Some(common_enums::PaymentMethod::OpenBanking),
+            Self::MobilePayment(_) => Some(common_enums::PaymentMethod::MobilePayment),
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
@@ -74,6 +82,62 @@ pub struct Card {
     pub card_issuing_country: Option<String>,
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardDetailsForNetworkTransactionId {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+}
+
+impl CardDetailsForNetworkTransactionId {
+    pub fn get_nti_and_card_details_for_mit_flow(
+        recurring_details: mandates::RecurringDetails,
+    ) -> Option<(api_models::payments::MandateReferenceId, Self)> {
+        let network_transaction_id_and_card_details = match recurring_details {
+            mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(
+                network_transaction_id_and_card_details,
+            ) => Some(network_transaction_id_and_card_details),
+            mandates::RecurringDetails::MandateId(_)
+            | mandates::RecurringDetails::PaymentMethodId(_)
+            | mandates::RecurringDetails::ProcessorPaymentToken(_) => None,
+        }?;
+
+        let mandate_reference_id = api_models::payments::MandateReferenceId::NetworkMandateId(
+            network_transaction_id_and_card_details
+                .network_transaction_id
+                .peek()
+                .to_string(),
+        );
+
+        Some((
+            mandate_reference_id,
+            network_transaction_id_and_card_details.clone().into(),
+        ))
+    }
+}
+
+impl From<mandates::NetworkTransactionIdAndCardDetails> for CardDetailsForNetworkTransactionId {
+    fn from(card_details_for_nti: mandates::NetworkTransactionIdAndCardDetails) -> Self {
+        Self {
+            card_number: card_details_for_nti.card_number,
+            card_exp_month: card_details_for_nti.card_exp_month,
+            card_exp_year: card_details_for_nti.card_exp_year,
+            card_issuer: card_details_for_nti.card_issuer,
+            card_network: card_details_for_nti.card_network,
+            card_type: card_details_for_nti.card_type,
+            card_issuing_country: card_details_for_nti.card_issuing_country,
+            bank_code: card_details_for_nti.bank_code,
+            nick_name: card_details_for_nti.nick_name,
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
@@ -117,6 +181,7 @@ pub enum WalletData {
     MobilePayRedirect(Box<MobilePayRedirection>),
     PaypalRedirect(PaypalRedirection),
     PaypalSdk(PayPalWalletData),
+    Paze(PazeWalletData),
     SamsungPay(Box<SamsungPayWalletData>),
     TwintRedirect {},
     VippsRedirect {},
@@ -136,6 +201,12 @@ pub struct MifinityData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
+pub struct PazeWalletData {
+    pub complete_response: Secret<String>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct SamsungPayWalletData {
     pub payment_credential: SamsungPayWalletCredentials,
 }
@@ -145,7 +216,8 @@ pub struct SamsungPayWalletData {
 pub struct SamsungPayWalletCredentials {
     pub method: Option<String>,
     pub recurring_payment: Option<bool>,
-    pub card_brand: String,
+    pub card_brand: common_enums::SamsungPayCardBrand,
+    pub dpan_last_four_digits: Option<String>,
     #[serde(rename = "card_last4digits")]
     pub card_last_four_digits: String,
     #[serde(rename = "3_d_s")]
@@ -528,6 +600,17 @@ pub struct NetworkTokenData {
     pub nick_name: Option<Secret<String>>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MobilePaymentData {
+    DirectCarrierBilling {
+        /// The phone number of the user
+        msisdn: String,
+        /// Unique user identifier
+        client_uid: Option<String>,
+    },
+}
+
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::PaymentMethodData) -> Self {
         match api_model_payment_method_data {
@@ -574,6 +657,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             }
             api_models::payments::PaymentMethodData::OpenBanking(ob_data) => {
                 Self::OpenBanking(From::from(ob_data))
+            }
+            api_models::payments::PaymentMethodData::MobilePayment(mobile_payment_data) => {
+                Self::MobilePayment(From::from(mobile_payment_data))
             }
         }
     }
@@ -689,6 +775,9 @@ impl From<api_models::payments::WalletData> for WalletData {
                     token: paypal_sdk_data.token,
                 })
             }
+            api_models::payments::WalletData::Paze(paze_data) => {
+                Self::Paze(PazeWalletData::from(paze_data))
+            }
             api_models::payments::WalletData::SamsungPay(samsung_pay_data) => {
                 Self::SamsungPay(Box::new(SamsungPayWalletData::from(samsung_pay_data)))
             }
@@ -754,18 +843,49 @@ impl From<api_models::payments::ApplePayWalletData> for ApplePayWalletData {
     }
 }
 
+impl From<api_models::payments::SamsungPayTokenData> for SamsungPayTokenData {
+    fn from(samsung_pay_token_data: api_models::payments::SamsungPayTokenData) -> Self {
+        Self {
+            three_ds_type: samsung_pay_token_data.three_ds_type,
+            version: samsung_pay_token_data.version,
+            data: samsung_pay_token_data.data,
+        }
+    }
+}
+
+impl From<api_models::payments::PazeWalletData> for PazeWalletData {
+    fn from(value: api_models::payments::PazeWalletData) -> Self {
+        Self {
+            complete_response: value.complete_response,
+        }
+    }
+}
+
 impl From<Box<api_models::payments::SamsungPayWalletData>> for SamsungPayWalletData {
     fn from(value: Box<api_models::payments::SamsungPayWalletData>) -> Self {
-        Self {
-            payment_credential: SamsungPayWalletCredentials {
-                method: value.payment_credential.method,
-                recurring_payment: value.payment_credential.recurring_payment,
-                card_brand: value.payment_credential.card_brand,
-                card_last_four_digits: value.payment_credential.card_last_four_digits,
-                token_data: SamsungPayTokenData {
-                    three_ds_type: value.payment_credential.token_data.three_ds_type,
-                    version: value.payment_credential.token_data.version,
-                    data: value.payment_credential.token_data.data,
+        match value.payment_credential {
+            api_models::payments::SamsungPayWalletCredentials::SamsungPayWalletDataForApp(
+                samsung_pay_app_wallet_data,
+            ) => Self {
+                payment_credential: SamsungPayWalletCredentials {
+                    method: samsung_pay_app_wallet_data.method,
+                    recurring_payment: samsung_pay_app_wallet_data.recurring_payment,
+                    card_brand: samsung_pay_app_wallet_data.payment_card_brand.into(),
+                    dpan_last_four_digits: samsung_pay_app_wallet_data.payment_last4_dpan,
+                    card_last_four_digits: samsung_pay_app_wallet_data.payment_last4_fpan,
+                    token_data: samsung_pay_app_wallet_data.token_data.into(),
+                },
+            },
+            api_models::payments::SamsungPayWalletCredentials::SamsungPayWalletDataForWeb(
+                samsung_pay_web_wallet_data,
+            ) => Self {
+                payment_credential: SamsungPayWalletCredentials {
+                    method: samsung_pay_web_wallet_data.method,
+                    recurring_payment: samsung_pay_web_wallet_data.recurring_payment,
+                    card_brand: samsung_pay_web_wallet_data.card_brand.into(),
+                    dpan_last_four_digits: None,
+                    card_last_four_digits: samsung_pay_web_wallet_data.card_last_four_digits,
+                    token_data: samsung_pay_web_wallet_data.token_data.into(),
                 },
             },
         }
@@ -1293,6 +1413,27 @@ impl From<OpenBankingData> for api_models::payments::OpenBankingData {
     }
 }
 
+impl From<api_models::payments::MobilePaymentData> for MobilePaymentData {
+    fn from(value: api_models::payments::MobilePaymentData) -> Self {
+        match value {
+            api_models::payments::MobilePaymentData::DirectCarrierBilling {
+                msisdn,
+                client_uid,
+            } => Self::DirectCarrierBilling { msisdn, client_uid },
+        }
+    }
+}
+
+impl From<MobilePaymentData> for api_models::payments::MobilePaymentData {
+    fn from(value: MobilePaymentData) -> Self {
+        match value {
+            MobilePaymentData::DirectCarrierBilling { msisdn, client_uid } => {
+                Self::DirectCarrierBilling { msisdn, client_uid }
+            }
+        }
+    }
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCardValue1 {
@@ -1388,6 +1529,7 @@ impl GetPaymentMethodType for WalletData {
             Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
             Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
             Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,
+            Self::Paze(_) => api_enums::PaymentMethodType::Paze,
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
@@ -1538,6 +1680,14 @@ impl GetPaymentMethodType for OpenBankingData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::OpenBankingPIS {} => api_enums::PaymentMethodType::OpenBankingPIS,
+        }
+    }
+}
+
+impl GetPaymentMethodType for MobilePaymentData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::DirectCarrierBilling { .. } => api_enums::PaymentMethodType::DirectCarrierBilling,
         }
     }
 }

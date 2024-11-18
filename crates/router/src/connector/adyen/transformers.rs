@@ -14,7 +14,7 @@ use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 use crate::{connector::utils::PayoutsData, types::api::payouts, utils::OptionExt};
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, CardData, MandateReferenceData,
+        self, missing_field_err, AddressDetailsData, BrowserInformationData, CardData,
         PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
     },
     consts,
@@ -143,6 +143,8 @@ pub struct AdyenPaymentRequest<'a> {
     amount: Amount,
     merchant_account: Secret<String>,
     payment_method: AdyenPaymentMethod<'a>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mpi_data: Option<AdyenMpiData>,
     reference: String,
     return_url: String,
     browser_info: Option<AdyenBrowserInfo>,
@@ -166,6 +168,16 @@ pub struct AdyenPaymentRequest<'a> {
     channel: Option<Channel>,
     metadata: Option<pii::SecretSerdeValue>,
     merchant_order_reference: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AdyenMpiData {
+    directory_response: String,
+    authentication_response: String,
+    token_authentication_verification_value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1112,6 +1124,38 @@ pub enum CardBrand {
     Visa,
     MC,
     Amex,
+    Argencard,
+    Bcmc,
+    Bijcard,
+    Cabal,
+    Cartebancaire,
+    Codensa,
+    Cup,
+    Dankort,
+    Diners,
+    Discover,
+    Electron,
+    Elo,
+    Forbrugsforeningen,
+    Hiper,
+    Hipercard,
+    Jcb,
+    Karenmillen,
+    Laser,
+    Maestro,
+    Maestrouk,
+    Mcalphabankbonus,
+    Mir,
+    Naranja,
+    Oasis,
+    Rupay,
+    Shopping,
+    Solo,
+    Troy,
+    Uatp,
+    Visaalphabankbonus,
+    Visadankort,
+    Warehouse,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -1553,10 +1597,12 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::PaymentMethodData::MandatePayment
                 | domain::PaymentMethodData::Reward
                 | domain::PaymentMethodData::RealTimePayment(_)
+                | domain::PaymentMethodData::MobilePayment(_)
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::OpenBanking(_)
                 | domain::PaymentMethodData::CardToken(_)
-                | domain::PaymentMethodData::NetworkToken(_) => {
+                | domain::PaymentMethodData::NetworkToken(_)
+                | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
                     ))?
@@ -1730,15 +1776,14 @@ pub fn get_address_info(
 }
 
 fn get_line_items(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) -> Vec<LineItem> {
-    let order_details: Option<Vec<payments::OrderDetailsWithAmount>> =
-        item.router_data.request.order_details.clone();
+    let order_details = item.router_data.request.order_details.clone();
     match order_details {
         Some(od) => od
             .iter()
             .enumerate()
             .map(|(i, data)| LineItem {
-                amount_including_tax: Some(MinorUnit::new(data.amount)),
-                amount_excluding_tax: Some(MinorUnit::new(data.amount)),
+                amount_including_tax: Some(data.amount),
+                amount_excluding_tax: Some(data.amount),
                 description: Some(data.product_name.clone()),
                 id: Some(format!("Items #{i}")),
                 tax_amount: None,
@@ -1931,6 +1976,22 @@ impl<'a> TryFrom<&domain::GiftCardData> for AdyenPaymentMethod<'a> {
     }
 }
 
+fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<CardBrand> {
+    match card_network {
+        common_enums::CardNetwork::Visa => Some(CardBrand::Visa),
+        common_enums::CardNetwork::Mastercard => Some(CardBrand::MC),
+        common_enums::CardNetwork::CartesBancaires => Some(CardBrand::Cartebancaire),
+        common_enums::CardNetwork::AmericanExpress => Some(CardBrand::Amex),
+        common_enums::CardNetwork::JCB => Some(CardBrand::Jcb),
+        common_enums::CardNetwork::DinersClub => Some(CardBrand::Diners),
+        common_enums::CardNetwork::Discover => Some(CardBrand::Discover),
+        common_enums::CardNetwork::UnionPay => Some(CardBrand::Cup),
+        common_enums::CardNetwork::RuPay => Some(CardBrand::Rupay),
+        common_enums::CardNetwork::Maestro => Some(CardBrand::Maestro),
+        common_enums::CardNetwork::Interac => None,
+    }
+}
+
 impl<'a> TryFrom<(&domain::Card, Option<Secret<String>>)> for AdyenPaymentMethod<'a> {
     type Error = Error;
     fn try_from(
@@ -1943,7 +2004,7 @@ impl<'a> TryFrom<(&domain::Card, Option<Secret<String>>)> for AdyenPaymentMethod
             expiry_year: card.get_expiry_year_4_digit(),
             cvc: Some(card.card_cvc.clone()),
             holder_name: card_holder_name,
-            brand: None,
+            brand: card.card_network.clone().and_then(get_adyen_card_network),
             network_payment_reference: None,
         };
         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
@@ -1998,7 +2059,11 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
             utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
             utils::CardIssuer::Master => Ok(Self::MC),
             utils::CardIssuer::Visa => Ok(Self::Visa),
-            _ => Err(errors::ConnectorError::NotImplemented("CardBrand".to_string()).into()),
+            utils::CardIssuer::Maestro => Ok(Self::Maestro),
+            utils::CardIssuer::Discover => Ok(Self::Discover),
+            utils::CardIssuer::DinersClub => Ok(Self::Diners),
+            utils::CardIssuer::JCB => Ok(Self::Jcb),
+            utils::CardIssuer::CarteBlanche => Ok(Self::Cartebancaire),
         }
     }
 }
@@ -2087,6 +2152,29 @@ impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
                 };
                 Ok(AdyenPaymentMethod::SamsungPay(Box::new(data)))
             }
+            domain::WalletData::Paze(_) => match item.payment_method_token.clone() {
+                Some(types::PaymentMethodToken::PazeDecrypt(paze_decrypted_data)) => {
+                    let data = AdyenCard {
+                        payment_type: PaymentType::NetworkToken,
+                        number: paze_decrypted_data.token.payment_token,
+                        expiry_month: paze_decrypted_data.token.token_expiration_month,
+                        expiry_year: paze_decrypted_data.token.token_expiration_year,
+                        cvc: None,
+                        holder_name: paze_decrypted_data
+                            .billing_address
+                            .name
+                            .or(item.get_optional_billing_full_name()),
+                        brand: Some(paze_decrypted_data.payment_card_network.clone())
+                            .and_then(get_adyen_card_network),
+                        network_payment_reference: None,
+                    };
+                    Ok(AdyenPaymentMethod::AdyenCard(Box::new(data)))
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                )
+                .into()),
+            },
             domain::WalletData::TwintRedirect { .. } => Ok(AdyenPaymentMethod::Twint),
             domain::WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
             domain::WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
@@ -2519,7 +2607,9 @@ impl<'a>
                         None => PaymentType::Scheme,
                     },
                     stored_payment_method_id: Secret::new(
-                        connector_mandate_ids.get_connector_mandate_id()?,
+                        connector_mandate_ids
+                            .get_connector_mandate_id()
+                            .ok_or_else(missing_field_err("mandate_id"))?,
                     ),
                 };
                 Ok::<AdyenPaymentMethod<'_>, Self::Error>(AdyenPaymentMethod::Mandate(Box::new(
@@ -2528,15 +2618,30 @@ impl<'a>
             }
             payments::MandateReferenceId::NetworkMandateId(network_mandate_id) => {
                 match item.router_data.request.payment_method_data {
-                    domain::PaymentMethodData::Card(ref card) => {
-                        let card_issuer = card.get_card_issuer()?;
-                        let brand = CardBrand::try_from(&card_issuer)?;
+                    domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
+                        ref card_details_for_network_transaction_id,
+                    ) => {
+                        let brand = match card_details_for_network_transaction_id
+                            .card_network
+                            .clone()
+                            .and_then(get_adyen_card_network)
+                        {
+                            Some(card_network) => card_network,
+                            None => CardBrand::try_from(
+                                &card_details_for_network_transaction_id.get_card_issuer()?,
+                            )?,
+                        };
+
                         let card_holder_name = item.router_data.get_optional_billing_full_name();
                         let adyen_card = AdyenCard {
                             payment_type: PaymentType::Scheme,
-                            number: card.card_number.clone(),
-                            expiry_month: card.card_exp_month.clone(),
-                            expiry_year: card.card_exp_year.clone(),
+                            number: card_details_for_network_transaction_id.card_number.clone(),
+                            expiry_month: card_details_for_network_transaction_id
+                                .card_exp_month
+                                .clone(),
+                            expiry_year: card_details_for_network_transaction_id
+                                .card_exp_year
+                                .clone(),
                             cvc: None,
                             holder_name: card_holder_name,
                             brand: Some(brand),
@@ -2554,12 +2659,14 @@ impl<'a>
                     | domain::PaymentMethodData::MandatePayment
                     | domain::PaymentMethodData::Reward
                     | domain::PaymentMethodData::RealTimePayment(_)
+                    | domain::PaymentMethodData::MobilePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
                     | domain::PaymentMethodData::CardToken(_)
-                    | domain::PaymentMethodData::NetworkToken(_) => {
+                    | domain::PaymentMethodData::NetworkToken(_)
+                    | domain::PaymentMethodData::Card(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
@@ -2584,6 +2691,7 @@ impl<'a>
             recurring_processing_model,
             browser_info,
             additional_data,
+            mpi_data: None,
             telephone_number: None,
             shopper_name: None,
             shopper_email: None,
@@ -2647,6 +2755,7 @@ impl<'a>
             recurring_processing_model,
             browser_info,
             additional_data,
+            mpi_data: None,
             telephone_number: None,
             shopper_name,
             shopper_email,
@@ -2702,6 +2811,7 @@ impl<'a>
             shopper_interaction,
             recurring_processing_model,
             additional_data,
+            mpi_data: None,
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
@@ -2765,6 +2875,7 @@ impl<'a>
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
             social_security_number,
+            mpi_data: None,
             telephone_number: None,
             billing_address,
             delivery_address: None,
@@ -2812,6 +2923,7 @@ impl<'a>
             shopper_interaction,
             recurring_processing_model: None,
             additional_data: None,
+            mpi_data: None,
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
@@ -2863,6 +2975,7 @@ impl<'a>
             shopper_interaction,
             recurring_processing_model: None,
             additional_data: None,
+            mpi_data: None,
             shopper_name: None,
             shopper_locale: None,
             shopper_email: item.router_data.get_optional_billing_email(),
@@ -2926,6 +3039,7 @@ impl<'a>
             recurring_processing_model,
             browser_info,
             additional_data,
+            mpi_data: None,
             telephone_number: None,
             shopper_name: None,
             shopper_email: item.router_data.get_optional_billing_email(),
@@ -3015,6 +3129,23 @@ impl<'a>
         let shopper_email = get_shopper_email(item.router_data, store_payment_method.is_some())?;
         let billing_address =
             get_address_info(item.router_data.get_optional_billing()).and_then(Result::ok);
+        let mpi_data = if let domain::WalletData::Paze(_) = wallet_data {
+            match item.router_data.payment_method_token.clone() {
+                Some(types::PaymentMethodToken::PazeDecrypt(paze_decrypted_data)) => {
+                    Some(AdyenMpiData {
+                        directory_response: "Y".to_string(),
+                        authentication_response: "Y".to_string(),
+                        token_authentication_verification_value: paze_decrypted_data
+                            .token
+                            .payment_account_reference,
+                        eci: paze_decrypted_data.eci,
+                    })
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
         Ok(AdyenPaymentRequest {
             amount,
             merchant_account: auth_type.merchant_account,
@@ -3025,6 +3156,7 @@ impl<'a>
             recurring_processing_model,
             browser_info,
             additional_data,
+            mpi_data,
             telephone_number: None,
             shopper_name: None,
             shopper_email,
@@ -3103,6 +3235,7 @@ impl<'a>
             telephone_number,
             shopper_name,
             shopper_email,
+            mpi_data: None,
             shopper_locale: None,
             social_security_number: None,
             billing_address,
@@ -3159,6 +3292,7 @@ impl<'a>
             recurring_processing_model: None,
             browser_info: None,
             additional_data: None,
+            mpi_data: None,
             telephone_number,
             shopper_name,
             shopper_email,
@@ -3203,8 +3337,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.payment_psp_reference,
                 ),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),
@@ -3238,8 +3372,8 @@ impl<F>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.psp_reference),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -3295,6 +3429,7 @@ pub fn get_adyen_response(
             connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
             mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
         });
     let network_txn_id = response.additional_data.and_then(|additional_data| {
         additional_data
@@ -3304,8 +3439,8 @@ pub fn get_adyen_response(
 
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.psp_reference),
-        redirection_data: None,
-        mandate_reference,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(mandate_reference),
         connector_metadata: None,
         network_txn_id,
         connector_response_reference_id: Some(response.merchant_reference),
@@ -3368,8 +3503,8 @@ pub fn get_webhook_response(
                     .payment_reference
                     .unwrap_or(response.transaction_id),
             ),
-            redirection_data: None,
-            mandate_reference: None,
+            redirection_data: Box::new(None),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(response.merchant_reference_id),
@@ -3438,8 +3573,8 @@ pub fn get_redirection_response(
             Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
             None => types::ResponseId::NoResponseId,
         },
-        redirection_data,
-        mandate_reference: None,
+        redirection_data: Box::new(redirection_data),
+        mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3496,8 +3631,8 @@ pub fn get_present_to_shopper_response(
             Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
             None => types::ResponseId::NoResponseId,
         },
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3553,8 +3688,8 @@ pub fn get_qr_code_response(
             Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
             None => types::ResponseId::NoResponseId,
         },
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3596,8 +3731,8 @@ pub fn get_redirection_error_response(
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: response
@@ -3966,8 +4101,8 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
             status: storage_enums::AttemptStatus::Pending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(connector_transaction_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.reference),

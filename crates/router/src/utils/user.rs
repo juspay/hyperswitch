@@ -5,8 +5,7 @@ use common_enums::UserAuthType;
 use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
-use diesel_models::user_role::UserRole;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 
@@ -86,45 +85,6 @@ impl UserFromToken {
     }
 }
 
-pub async fn generate_jwt_auth_token_without_profile(
-    state: &SessionState,
-    user: &UserFromStorage,
-    user_role: &UserRole,
-) -> UserResult<Secret<String>> {
-    let token = AuthToken::new_token(
-        user.get_user_id().to_string(),
-        user_role
-            .merchant_id
-            .as_ref()
-            .ok_or(report!(UserErrors::InternalServerError))
-            .attach_printable("merchant_id not found for user_role")?
-            .clone(),
-        user_role.role_id.clone(),
-        &state.conf,
-        user_role
-            .org_id
-            .as_ref()
-            .ok_or(report!(UserErrors::InternalServerError))
-            .attach_printable("org_id not found for user_role")?
-            .clone(),
-        None,
-    )
-    .await?;
-    Ok(Secret::new(token))
-}
-
-pub async fn generate_jwt_auth_token_with_attributes_without_profile(
-    state: &SessionState,
-    user_id: String,
-    merchant_id: id_type::MerchantId,
-    org_id: id_type::OrganizationId,
-    role_id: String,
-) -> UserResult<Secret<String>> {
-    let token =
-        AuthToken::new_token(user_id, merchant_id, role_id, &state.conf, org_id, None).await?;
-    Ok(Secret::new(token))
-}
-
 pub async fn generate_jwt_auth_token_with_attributes(
     state: &SessionState,
     user_id: String,
@@ -132,6 +92,7 @@ pub async fn generate_jwt_auth_token_with_attributes(
     org_id: id_type::OrganizationId,
     role_id: String,
     profile_id: id_type::ProfileId,
+    tenant_id: Option<String>,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user_id,
@@ -140,6 +101,7 @@ pub async fn generate_jwt_auth_token_with_attributes(
         &state.conf,
         org_id,
         Some(profile_id),
+        tenant_id,
     )
     .await?;
     Ok(Secret::new(token))

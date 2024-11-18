@@ -15,12 +15,23 @@ pub enum ApiEventsType {
     Payout {
         payout_id: String,
     },
+    #[cfg(feature = "v1")]
     Payment {
         payment_id: id_type::PaymentId,
     },
+    #[cfg(feature = "v2")]
+    Payment {
+        payment_id: id_type::GlobalPaymentId,
+    },
+    #[cfg(feature = "v1")]
     Refund {
         payment_id: Option<id_type::PaymentId>,
         refund_id: String,
+    },
+    #[cfg(feature = "v2")]
+    Refund {
+        payment_id: id_type::GlobalPaymentId,
+        refund_id: id_type::GlobalRefundId,
     },
     PaymentMethod {
         payment_method_id: String,
@@ -40,6 +51,9 @@ pub enum ApiEventsType {
     BusinessProfile {
         profile_id: id_type::ProfileId,
     },
+    ApiKey {
+        key_id: id_type::ApiKeyId,
+    },
     User {
         user_id: String,
     },
@@ -52,9 +66,14 @@ pub enum ApiEventsType {
     },
     Routing,
     ResourceListAPI,
+    #[cfg(feature = "v1")]
     PaymentRedirectionResponse {
         connector: Option<String>,
         payment_id: Option<id_type::PaymentId>,
+    },
+    #[cfg(feature = "v2")]
+    PaymentRedirectionResponse {
+        payment_id: id_type::GlobalPaymentId,
     },
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
@@ -82,7 +101,17 @@ pub enum ApiEventsType {
 impl ApiEventMetric for serde_json::Value {}
 impl ApiEventMetric for () {}
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for id_type::PaymentId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for id_type::GlobalPaymentId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.clone(),
@@ -124,10 +153,6 @@ impl_api_event_type!(
     (
         String,
         id_type::MerchantId,
-        (id_type::MerchantId, String),
-        (id_type::MerchantId, &String),
-        (&id_type::MerchantId, &String),
-        (&String, &String),
         (Option<i64>, Option<i64>, String),
         (Option<i64>, Option<i64>, id_type::MerchantId),
         bool

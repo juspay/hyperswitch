@@ -1,4 +1,8 @@
-use std::{collections::HashSet, ops, str::FromStr};
+use std::{
+    collections::HashSet,
+    ops::{Deref, Not},
+    str::FromStr,
+};
 
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
@@ -30,9 +34,9 @@ use crate::{
         admin,
         errors::{UserErrors, UserResult},
     },
-    db::{user_role::InsertUserRolePayload, GlobalStorageInterface},
+    db::GlobalStorageInterface,
     routes::SessionState,
-    services::{self, authentication::UserFromToken, authorization::info},
+    services::{self, authentication::UserFromToken},
     types::transformers::ForeignFrom,
     utils::user::password,
 };
@@ -153,7 +157,7 @@ impl TryFrom<pii::Email> for UserEmail {
     }
 }
 
-impl ops::Deref for UserEmail {
+impl Deref for UserEmail {
     type Target = Secret<String, pii::EmailStrategy>;
 
     fn deref(&self) -> &Self::Target {
@@ -565,8 +569,22 @@ pub struct NewUser {
     user_id: String,
     name: UserName,
     email: UserEmail,
-    password: Option<UserPassword>,
+    password: Option<NewUserPassword>,
     new_merchant: NewUserMerchant,
+}
+
+#[derive(Clone)]
+pub struct NewUserPassword {
+    password: UserPassword,
+    is_temporary: bool,
+}
+
+impl Deref for NewUserPassword {
+    type Target = UserPassword;
+
+    fn deref(&self) -> &Self::Target {
+        &self.password
+    }
 }
 
 impl NewUser {
@@ -587,7 +605,9 @@ impl NewUser {
     }
 
     pub fn get_password(&self) -> Option<UserPassword> {
-        self.password.clone()
+        self.password
+            .as_ref()
+            .map(|password| password.deref().clone())
     }
 
     pub async fn insert_user_in_db(
@@ -661,26 +681,20 @@ impl NewUser {
         state: SessionState,
         role_id: String,
         user_status: UserStatus,
-        version: Option<UserRoleVersion>,
     ) -> UserResult<UserRole> {
         let org_id = self
             .get_new_merchant()
             .get_new_organization()
             .get_organization_id();
-        let merchant_id = self.get_new_merchant().get_merchant_id();
 
         let org_user_role = self
             .get_no_level_user_role(role_id, user_status)
             .add_entity(OrganizationLevel {
+                tenant_id: state.tenant.tenant_id.clone(),
                 org_id,
-                merchant_id,
             });
 
-        match version {
-            Some(UserRoleVersion::V1) => org_user_role.insert_in_v1(&state).await,
-            Some(UserRoleVersion::V2) => org_user_role.insert_in_v2(&state).await,
-            None => org_user_role.insert_in_v1_and_v2(&state).await,
-        }
+        org_user_role.insert_in_v2(&state).await
     }
 }
 
@@ -706,7 +720,9 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
-            last_password_modified_at: value.password.is_some().then_some(now),
+            last_password_modified_at: value
+                .password
+                .and_then(|password_inner| password_inner.is_temporary.not().then_some(now)),
         })
     }
 }
@@ -717,7 +733,10 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let user_id = uuid::Uuid::new_v4().to_string();
         let new_merchant = NewUserMerchant::try_from(value)?;
 
@@ -738,7 +757,10 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -779,7 +801,10 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let new_merchant = NewUserMerchant::try_from((value, org_id))?;
 
         Ok(Self {
@@ -798,16 +823,21 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
     fn try_from(value: UserMerchantCreateRequestWithToken) -> Result<Self, Self::Error> {
         let user = value.0.clone();
         let new_merchant = NewUserMerchant::try_from(value)?;
+        let password = user
+            .0
+            .password
+            .map(UserPassword::new_password_without_validation)
+            .transpose()?
+            .map(|password| NewUserPassword {
+                password,
+                is_temporary: false,
+            });
 
         Ok(Self {
             user_id: user.0.user_id,
             name: UserName::new(user.0.name)?,
             email: user.0.email.clone().try_into()?,
-            password: user
-                .0
-                .password
-                .map(UserPassword::new_password_without_validation)
-                .transpose()?,
+            password,
             new_merchant,
         })
     }
@@ -819,8 +849,10 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = cfg!(not(feature = "email"))
-            .then_some(UserPassword::new(password::get_temp_password())?);
+        let password = cfg!(not(feature = "email")).then_some(NewUserPassword {
+            password: UserPassword::new(password::get_temp_password())?,
+            is_temporary: true,
+        });
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -1019,37 +1051,6 @@ impl UserFromStorage {
     }
 }
 
-impl From<info::ModuleInfo> for user_role_api::ModuleInfo {
-    fn from(value: info::ModuleInfo) -> Self {
-        Self {
-            module: value.module.into(),
-            description: value.description,
-            permissions: value.permissions.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-
-impl From<info::PermissionModule> for user_role_api::PermissionModule {
-    fn from(value: info::PermissionModule) -> Self {
-        match value {
-            info::PermissionModule::Payments => Self::Payments,
-            info::PermissionModule::Refunds => Self::Refunds,
-            info::PermissionModule::MerchantAccount => Self::MerchantAccount,
-            info::PermissionModule::Connectors => Self::Connectors,
-            info::PermissionModule::Routing => Self::Routing,
-            info::PermissionModule::Analytics => Self::Analytics,
-            info::PermissionModule::Mandates => Self::Mandates,
-            info::PermissionModule::Customer => Self::Customer,
-            info::PermissionModule::Disputes => Self::Disputes,
-            info::PermissionModule::ThreeDsDecisionManager => Self::ThreeDsDecisionManager,
-            info::PermissionModule::SurchargeDecisionManager => Self::SurchargeDecisionManager,
-            info::PermissionModule::AccountCreate => Self::AccountCreate,
-            info::PermissionModule::Payouts => Self::Payouts,
-            info::PermissionModule::Recon => Self::Recon,
-        }
-    }
-}
-
 impl ForeignFrom<UserStatus> for user_role_api::UserStatus {
     fn foreign_from(value: UserStatus) -> Self {
         match value {
@@ -1118,19 +1119,20 @@ pub struct NoLevel;
 
 #[derive(Clone)]
 pub struct OrganizationLevel {
+    pub tenant_id: String,
     pub org_id: id_type::OrganizationId,
-    // Keeping this to allow insertion of org_admins in V1
-    pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
 pub struct MerchantLevel {
+    pub tenant_id: String,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
 pub struct ProfileLevel {
+    pub tenant_id: String,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
@@ -1167,6 +1169,7 @@ impl NewUserRole<NoLevel> {
 }
 
 pub struct EntityInfo {
+    tenant_id: String,
     org_id: id_type::OrganizationId,
     merchant_id: Option<id_type::MerchantId>,
     profile_id: Option<id_type::ProfileId>,
@@ -1174,32 +1177,49 @@ pub struct EntityInfo {
     entity_type: EntityType,
 }
 
-impl<E> NewUserRole<E>
-where
-    E: Clone,
-{
-    fn convert_to_new_v1_role(
-        self,
-        org_id: id_type::OrganizationId,
-        merchant_id: id_type::MerchantId,
-    ) -> UserRoleNew {
-        UserRoleNew {
-            user_id: self.user_id,
-            role_id: self.role_id,
-            status: self.status,
-            created_by: self.created_by,
-            last_modified_by: self.last_modified_by,
-            created_at: self.created_at,
-            last_modified: self.last_modified,
-            org_id: Some(org_id),
-            merchant_id: Some(merchant_id),
+impl From<OrganizationLevel> for EntityInfo {
+    fn from(value: OrganizationLevel) -> Self {
+        Self {
+            entity_id: value.org_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Organization,
+            tenant_id: value.tenant_id,
+            org_id: value.org_id,
+            merchant_id: None,
             profile_id: None,
-            entity_id: None,
-            entity_type: None,
-            version: UserRoleVersion::V1,
         }
     }
+}
 
+impl From<MerchantLevel> for EntityInfo {
+    fn from(value: MerchantLevel) -> Self {
+        Self {
+            entity_id: value.merchant_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Merchant,
+            tenant_id: value.tenant_id,
+            org_id: value.org_id,
+            profile_id: None,
+            merchant_id: Some(value.merchant_id),
+        }
+    }
+}
+
+impl From<ProfileLevel> for EntityInfo {
+    fn from(value: ProfileLevel) -> Self {
+        Self {
+            entity_id: value.profile_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Profile,
+            tenant_id: value.tenant_id,
+            org_id: value.org_id,
+            merchant_id: Some(value.merchant_id),
+            profile_id: Some(value.profile_id),
+        }
+    }
+}
+
+impl<E> NewUserRole<E>
+where
+    E: Clone + Into<EntityInfo>,
+{
     fn convert_to_new_v2_role(self, entity: EntityInfo) -> UserRoleNew {
         UserRoleNew {
             user_id: self.user_id,
@@ -1215,119 +1235,19 @@ where
             entity_id: Some(entity.entity_id),
             entity_type: Some(entity.entity_type),
             version: UserRoleVersion::V2,
+            tenant_id: entity.tenant_id,
         }
     }
 
-    async fn insert_v1_and_v2_in_db_and_get_v2(
-        state: &SessionState,
-        v1_role: UserRoleNew,
-        v2_role: UserRoleNew,
-    ) -> UserResult<UserRole> {
-        let inserted_roles = state
-            .store
-            .insert_user_role(InsertUserRolePayload::V1AndV2(Box::new([v1_role, v2_role])))
-            .await
-            .change_context(UserErrors::InternalServerError)?;
-
-        inserted_roles
-            .into_iter()
-            .find(|role| role.version == UserRoleVersion::V2)
-            .ok_or(report!(UserErrors::InternalServerError))
-    }
-}
-
-impl NewUserRole<OrganizationLevel> {
-    pub async fn insert_in_v1(self, state: &SessionState) -> UserResult<UserRole> {
-        let entity = self.entity.clone();
-
-        let new_v1_role = self
-            .clone()
-            .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
-
-        state
-            .store
-            .insert_user_role(InsertUserRolePayload::OnlyV1(new_v1_role))
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .pop()
-            .ok_or(report!(UserErrors::InternalServerError))
-    }
-
     pub async fn insert_in_v2(self, state: &SessionState) -> UserResult<UserRole> {
         let entity = self.entity.clone();
 
-        let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
-            org_id: entity.org_id.clone(),
-            merchant_id: None,
-            profile_id: None,
-            entity_id: entity.org_id.get_string_repr().to_owned(),
-            entity_type: EntityType::Organization,
-        });
+        let new_v2_role = self.convert_to_new_v2_role(entity.into());
+
         state
-            .store
-            .insert_user_role(InsertUserRolePayload::OnlyV2(new_v2_role))
+            .global_store
+            .insert_user_role(new_v2_role)
             .await
-            .change_context(UserErrors::InternalServerError)?
-            .pop()
-            .ok_or(report!(UserErrors::InternalServerError))
-    }
-
-    pub async fn insert_in_v1_and_v2(self, state: &SessionState) -> UserResult<UserRole> {
-        let entity = self.entity.clone();
-
-        let new_v1_role = self
-            .clone()
-            .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
-
-        let new_v2_role = self.clone().convert_to_new_v2_role(EntityInfo {
-            org_id: entity.org_id.clone(),
-            merchant_id: None,
-            profile_id: None,
-            entity_id: entity.org_id.get_string_repr().to_owned(),
-            entity_type: EntityType::Organization,
-        });
-
-        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
-    }
-}
-
-impl NewUserRole<MerchantLevel> {
-    pub async fn insert_in_v1_and_v2(self, state: &SessionState) -> UserResult<UserRole> {
-        let entity = self.entity.clone();
-
-        let new_v1_role = self
-            .clone()
-            .convert_to_new_v1_role(entity.org_id.clone(), entity.merchant_id.clone());
-
-        let new_v2_role = self.clone().convert_to_new_v2_role(EntityInfo {
-            org_id: entity.org_id.clone(),
-            merchant_id: Some(entity.merchant_id.clone()),
-            profile_id: None,
-            entity_id: entity.merchant_id.get_string_repr().to_owned(),
-            entity_type: EntityType::Merchant,
-        });
-
-        Self::insert_v1_and_v2_in_db_and_get_v2(state, new_v1_role, new_v2_role).await
-    }
-}
-
-impl NewUserRole<ProfileLevel> {
-    pub async fn insert_in_v2(self, state: &SessionState) -> UserResult<UserRole> {
-        let entity = self.entity.clone();
-
-        let new_v2_role = self.convert_to_new_v2_role(EntityInfo {
-            org_id: entity.org_id.clone(),
-            merchant_id: Some(entity.merchant_id.clone()),
-            profile_id: Some(entity.profile_id.clone()),
-            entity_id: entity.profile_id.get_string_repr().to_owned(),
-            entity_type: EntityType::Profile,
-        });
-        state
-            .store
-            .insert_user_role(InsertUserRolePayload::OnlyV2(new_v2_role))
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .pop()
-            .ok_or(report!(UserErrors::InternalServerError))
+            .change_context(UserErrors::InternalServerError)
     }
 }

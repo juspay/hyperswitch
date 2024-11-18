@@ -353,6 +353,7 @@ dependencies = [
  "bigdecimal",
  "common_enums",
  "common_utils",
+ "currency_conversion",
  "diesel_models",
  "error-stack",
  "futures 0.3.30",
@@ -363,6 +364,7 @@ dependencies = [
  "opensearch",
  "reqwest 0.11.27",
  "router_env",
+ "rust_decimal",
  "serde",
  "serde_json",
  "sqlx",
@@ -1846,6 +1848,8 @@ dependencies = [
  "common_utils",
  "error-stack",
  "masking",
+ "once_cell",
+ "regex",
  "router_env",
  "serde",
  "serde_json",
@@ -2046,6 +2050,7 @@ name = "common_enums"
 version = "0.1.0"
 dependencies = [
  "diesel",
+ "masking",
  "router_derive",
  "serde",
  "serde_json",
@@ -3124,8 +3129,10 @@ dependencies = [
  "dyn-clone",
  "error-stack",
  "hex",
+ "http-body-util",
  "hyper 0.14.30",
  "hyper-proxy",
+ "hyper-util",
  "hyperswitch_interfaces",
  "masking",
  "once_cell",
@@ -3693,6 +3700,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "histogram"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12cb882ccb290b8646e554b157ab0b71e64e8d5bef775cd66b6531e52d302669"
+
+[[package]]
 name = "hkdf"
 version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3957,9 +3970,9 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.7"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cde7055719c54e36e95e8719f95883f22072a48ede39db7fc17a4e1d5281e9b9"
+checksum = "df2dcfbe0677734ab2f3ffa7fa7bfd4706bfdc1ef393f2ee30184aed67e631b4"
 dependencies = [
  "bytes 1.7.1",
  "futures-channel",
@@ -3970,7 +3983,6 @@ dependencies = [
  "pin-project-lite",
  "socket2",
  "tokio 1.40.0",
- "tower",
  "tower-service",
  "tracing",
 ]
@@ -3995,6 +4007,7 @@ dependencies = [
  "hyperswitch_interfaces",
  "image",
  "masking",
+ "mime",
  "once_cell",
  "qrcode",
  "rand",
@@ -4005,9 +4018,11 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "serde_with",
  "strum 0.26.3",
  "time",
  "url",
+ "urlencoding",
  "uuid",
 ]
 
@@ -4302,6 +4317,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4559,12 +4583,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "lz4_flex"
+version = "0.11.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75761162ae2b0e580d7e7c390558127e5f01b4194debd6221fd8c207fc80e3f5"
+dependencies = [
+ "twox-hash",
+]
+
+[[package]]
 name = "masking"
 version = "0.1.0"
 dependencies = [
  "bytes 1.7.1",
  "diesel",
  "erased-serde 0.4.5",
+ "scylla",
  "serde",
  "serde_json",
  "subtle",
@@ -5963,6 +5997,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_pcg"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59cad018caf63deb318e5a4586d99a24424a364f40f1e5778c29aca23f4fc73e"
+dependencies = [
+ "rand_core",
+]
+
+[[package]]
 name = "rand_xorshift"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6436,6 +6479,7 @@ dependencies = [
  "unicode-segmentation",
  "unidecode",
  "url",
+ "urlencoding",
  "utoipa",
  "uuid",
  "validator",
@@ -6883,6 +6927,66 @@ dependencies = [
 ]
 
 [[package]]
+name = "scylla"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8139623d3fb0c8205b15e84fa587f3aa0ba61f876c19a9157b688f7c1763a7c5"
+dependencies = [
+ "arc-swap",
+ "async-trait",
+ "byteorder",
+ "bytes 1.7.1",
+ "chrono",
+ "dashmap",
+ "futures 0.3.30",
+ "hashbrown 0.14.5",
+ "histogram",
+ "itertools 0.13.0",
+ "lazy_static",
+ "lz4_flex",
+ "rand",
+ "rand_pcg",
+ "scylla-cql",
+ "scylla-macros",
+ "smallvec 1.13.2",
+ "snap",
+ "socket2",
+ "thiserror",
+ "tokio 1.40.0",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "scylla-cql"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de7020bcd1f6fdbeaed356cd426bf294b2071bd7120d48d2e8e319295e2acdcd"
+dependencies = [
+ "async-trait",
+ "byteorder",
+ "bytes 1.7.1",
+ "lz4_flex",
+ "scylla-macros",
+ "snap",
+ "thiserror",
+ "tokio 1.40.0",
+ "uuid",
+]
+
+[[package]]
+name = "scylla-macros"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3859b6938663fc5062e3b26f3611649c9bd26fb252e85f6fdfa581e0d2ce74b6"
+dependencies = [
+ "darling 0.20.10",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
+]
+
+[[package]]
 name = "sdd"
 version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7306,6 +7410,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "snap"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
+
+[[package]]
 name = "socket2"
 version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7558,6 +7668,12 @@ name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage_impl"
@@ -8659,6 +8775,16 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
+[[package]]
+name = "twox-hash"
+version = "1.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
+dependencies = [
+ "cfg-if 1.0.0",
+ "static_assertions",
+]
 
 [[package]]
 name = "typeid"

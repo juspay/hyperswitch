@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState};
+use common_utils::{
+    errors::CustomResult,
+    id_type, pii,
+    types::{keymanager::KeyManagerState, theme::ThemeLineage},
+};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -34,13 +38,10 @@ use time::PrimitiveDateTime;
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
-    user::{sample_data::BatchSampleDataInterface, UserInterface},
+    user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
-    user_role::{
-        InsertUserRolePayload, ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload,
-        UserRoleInterface,
-    },
+    user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload, UserRoleInterface},
 };
 #[cfg(feature = "payouts")]
 use crate::services::kafka::payout::KafkaPayout;
@@ -76,7 +77,7 @@ use crate::{
         unified_translations::UnifiedTranslationsInterface,
         CommonStorageInterface, GlobalStorageInterface, MasterKeyInterface, StorageInterface,
     },
-    services::{authentication, kafka::KafkaProducer, Store},
+    services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
 };
 
@@ -229,7 +230,7 @@ impl ApiKeyInterface for KafkaStore {
     async fn update_api_key(
         &self,
         merchant_id: id_type::MerchantId,
-        key_id: String,
+        key_id: id_type::ApiKeyId,
         api_key: storage::ApiKeyUpdate,
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         self.diesel_store
@@ -240,7 +241,7 @@ impl ApiKeyInterface for KafkaStore {
     async fn revoke_api_key(
         &self,
         merchant_id: &id_type::MerchantId,
-        key_id: &str,
+        key_id: &id_type::ApiKeyId,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store.revoke_api_key(merchant_id, key_id).await
     }
@@ -248,7 +249,7 @@ impl ApiKeyInterface for KafkaStore {
     async fn find_api_key_by_merchant_id_key_id_optional(
         &self,
         merchant_id: &id_type::MerchantId,
-        key_id: &str,
+        key_id: &id_type::ApiKeyId,
     ) -> CustomResult<Option<storage::ApiKey>, errors::StorageError> {
         self.diesel_store
             .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
@@ -1010,7 +1011,8 @@ impl MerchantAccountInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         publishable_key: &str,
-    ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
+    ) -> CustomResult<(domain::MerchantAccount, domain::MerchantKeyStore), errors::StorageError>
+    {
         self.diesel_store
             .find_merchant_account_by_publishable_key(state, publishable_key)
             .await
@@ -1419,7 +1421,7 @@ impl PaymentAttemptInterface for KafkaStore {
     }
 
     #[cfg(feature = "v2")]
-    async fn update_payment_attempt_with_attempt_id(
+    async fn update_payment_attempt(
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -1429,7 +1431,7 @@ impl PaymentAttemptInterface for KafkaStore {
     ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
         let attempt = self
             .diesel_store
-            .update_payment_attempt_with_attempt_id(
+            .update_payment_attempt(
                 key_manager_state,
                 merchant_key_store,
                 this.clone(),
@@ -1518,7 +1520,7 @@ impl PaymentAttemptInterface for KafkaStore {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
-        attempt_id: &str,
+        attempt_id: &id_type::GlobalAttemptId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<storage::PaymentAttempt, errors::DataStorageError> {
         self.diesel_store
@@ -1604,8 +1606,7 @@ impl PaymentAttemptInterface for KafkaStore {
         payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<common_enums::AuthenticationType>>,
         merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
-        time_range: Option<common_utils::types::TimeRange>,
-        profile_id_list: Option<Vec<id_type::ProfileId>>,
+        card_network: Option<Vec<common_enums::CardNetwork>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::DataStorageError> {
         self.diesel_store
@@ -1617,8 +1618,7 @@ impl PaymentAttemptInterface for KafkaStore {
                 payment_method_type,
                 authentication_type,
                 merchant_connector_id,
-                time_range,
-                profile_id_list,
+                card_network,
                 storage_scheme,
             )
             .await
@@ -3020,40 +3020,9 @@ impl RedisConnInterface for KafkaStore {
 impl UserRoleInterface for KafkaStore {
     async fn insert_user_role(
         &self,
-        user_role: InsertUserRolePayload,
-    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
+        user_role: storage::UserRoleNew,
+    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
         self.diesel_store.insert_user_role(user_role).await
-    }
-
-    async fn find_user_role_by_user_id(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .find_user_role_by_user_id(user_id, version)
-            .await
-    }
-
-    async fn find_user_role_by_user_id_merchant_id(
-        &self,
-        user_id: &str,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<user_storage::UserRole, errors::StorageError> {
-        self.diesel_store
-            .find_user_role_by_user_id_merchant_id(user_id, merchant_id, version)
-            .await
-    }
-
-    async fn list_user_roles_by_user_id_and_version(
-        &self,
-        user_id: &str,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
-        self.diesel_store
-            .list_user_roles_by_user_id_and_version(user_id, version)
-            .await
     }
 
     async fn find_user_role_by_user_id_and_lineage(
@@ -3079,7 +3048,7 @@ impl UserRoleInterface for KafkaStore {
         &self,
         user_id: &str,
         org_id: &id_type::OrganizationId,
-        merchant_id: &id_type::MerchantId,
+        merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
         update: user_storage::UserRoleUpdate,
         version: enums::UserRoleVersion,
@@ -3112,16 +3081,6 @@ impl UserRoleInterface for KafkaStore {
                 profile_id,
                 version,
             )
-            .await
-    }
-
-    async fn list_user_roles_by_merchant_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        version: enums::UserRoleVersion,
-    ) -> CustomResult<Vec<user_storage::UserRole>, errors::StorageError> {
-        self.diesel_store
-            .list_user_roles_by_merchant_id(merchant_id, version)
             .await
     }
 
@@ -3286,6 +3245,26 @@ impl BatchSampleDataInterface for KafkaStore {
     }
 
     #[cfg(feature = "v1")]
+    async fn insert_disputes_batch_for_sample_data(
+        &self,
+        batch: Vec<diesel_models::DisputeNew>,
+    ) -> CustomResult<Vec<diesel_models::Dispute>, hyperswitch_domain_models::errors::StorageError>
+    {
+        let disputes_list = self
+            .diesel_store
+            .insert_disputes_batch_for_sample_data(batch)
+            .await?;
+
+        for dispute in disputes_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_dispute(dispute, None, self.tenant_id.clone())
+                .await;
+        }
+        Ok(disputes_list)
+    }
+
+    #[cfg(feature = "v1")]
     async fn delete_payment_intents_for_sample_data(
         &self,
         state: &KeyManagerState,
@@ -3351,6 +3330,27 @@ impl BatchSampleDataInterface for KafkaStore {
         }
 
         Ok(refunds_list)
+    }
+
+    #[cfg(feature = "v1")]
+    async fn delete_disputes_for_sample_data(
+        &self,
+        merchant_id: &id_type::MerchantId,
+    ) -> CustomResult<Vec<diesel_models::Dispute>, hyperswitch_domain_models::errors::StorageError>
+    {
+        let disputes_list = self
+            .diesel_store
+            .delete_disputes_for_sample_data(merchant_id)
+            .await?;
+
+        for dispute in disputes_list.iter() {
+            let _ = self
+                .kafka_producer
+                .log_dispute_delete(dispute, self.tenant_id.clone())
+                .await;
+        }
+
+        Ok(disputes_list)
     }
 }
 
@@ -3684,6 +3684,33 @@ impl UserAuthenticationMethodInterface for KafkaStore {
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
         self.diesel_store
             .update_user_authentication_method(id, user_authentication_method_update)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl ThemeInterface for KafkaStore {
+    async fn insert_theme(
+        &self,
+        theme: storage::theme::ThemeNew,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.insert_theme(theme).await
+    }
+
+    async fn find_theme_by_lineage(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.find_theme_by_lineage(lineage).await
+    }
+
+    async fn delete_theme_by_lineage_and_theme_id(
+        &self,
+        theme_id: String,
+        lineage: ThemeLineage,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .delete_theme_by_lineage_and_theme_id(theme_id, lineage)
             .await
     }
 }

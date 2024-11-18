@@ -48,6 +48,48 @@ const multiUseMandateData = {
   },
 };
 
+const payment_method_data_no3ds = {
+  card: {
+    last4: "4242",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "STRIPE PAYMENTS UK LIMITED",
+    card_issuing_country: "UNITEDKINGDOM",
+    card_isin: "424242",
+    card_extended_bin: null,
+    card_exp_month: "01",
+    card_exp_year: "25",
+    card_holder_name: null,
+    payment_checks: {
+      avs_response: {
+        code: "Y",
+        codeRaw: "Y",
+      },
+      card_verification: null,
+    },
+    authentication_data: null,
+  },
+  billing: null,
+};
+
+const payment_method_data_3ds = {
+  card: {
+    last4: "1091",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "INTL HDQTRS-CENTER OWNED",
+    card_issuing_country: "UNITEDSTATES",
+    card_isin: "400000",
+    card_extended_bin: null,
+    card_exp_month: "01",
+    card_exp_year: "25",
+    card_holder_name: null,
+    payment_checks: null,
+    authentication_data: null,
+  },
+  billing: null,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -60,12 +102,15 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "on_session",
         },
       },
     },
     PaymentIntentOffSession: {
       Request: {
         currency: "USD",
+        amount: 6500,
+        authentication_type: "no_three_ds",
         customer_acceptance: null,
         setup_future_usage: "off_session",
       },
@@ -73,6 +118,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          setup_future_usage: "off_session",
         },
       },
     },
@@ -89,7 +135,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -107,6 +155,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
         },
       },
     },
@@ -124,6 +174,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -141,6 +194,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -197,6 +253,48 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
+        },
+      },
+    },
+    manualPaymentRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
         },
       },
     },
@@ -376,9 +474,41 @@ export const connectorDetails = {
         },
       },
     },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
     SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -403,6 +533,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -426,6 +557,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCaptureOffSession: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },

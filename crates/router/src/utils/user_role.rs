@@ -1,6 +1,5 @@
 use std::{cmp, collections::HashSet};
 
-use api_models::user_role as user_role_api;
 use common_enums::{EntityType, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
@@ -16,48 +15,9 @@ use crate::{
     core::errors::{UserErrors, UserResult},
     db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::SessionState,
-    services::authorization::{self as authz, permissions::Permission, roles},
+    services::authorization::{self as authz, roles},
     types::domain,
 };
-
-impl From<Permission> for user_role_api::Permission {
-    fn from(value: Permission) -> Self {
-        match value {
-            Permission::PaymentRead => Self::PaymentRead,
-            Permission::PaymentWrite => Self::PaymentWrite,
-            Permission::RefundRead => Self::RefundRead,
-            Permission::RefundWrite => Self::RefundWrite,
-            Permission::ApiKeyRead => Self::ApiKeyRead,
-            Permission::ApiKeyWrite => Self::ApiKeyWrite,
-            Permission::MerchantAccountRead => Self::MerchantAccountRead,
-            Permission::MerchantAccountWrite => Self::MerchantAccountWrite,
-            Permission::MerchantConnectorAccountRead => Self::MerchantConnectorAccountRead,
-            Permission::MerchantConnectorAccountWrite => Self::MerchantConnectorAccountWrite,
-            Permission::RoutingRead => Self::RoutingRead,
-            Permission::RoutingWrite => Self::RoutingWrite,
-            Permission::DisputeRead => Self::DisputeRead,
-            Permission::DisputeWrite => Self::DisputeWrite,
-            Permission::MandateRead => Self::MandateRead,
-            Permission::MandateWrite => Self::MandateWrite,
-            Permission::CustomerRead => Self::CustomerRead,
-            Permission::CustomerWrite => Self::CustomerWrite,
-            Permission::Analytics => Self::Analytics,
-            Permission::ThreeDsDecisionManagerWrite => Self::ThreeDsDecisionManagerWrite,
-            Permission::ThreeDsDecisionManagerRead => Self::ThreeDsDecisionManagerRead,
-            Permission::SurchargeDecisionManagerWrite => Self::SurchargeDecisionManagerWrite,
-            Permission::SurchargeDecisionManagerRead => Self::SurchargeDecisionManagerRead,
-            Permission::UsersRead => Self::UsersRead,
-            Permission::UsersWrite => Self::UsersWrite,
-            Permission::MerchantAccountCreate => Self::MerchantAccountCreate,
-            Permission::WebhookEventRead => Self::WebhookEventRead,
-            Permission::WebhookEventWrite => Self::WebhookEventWrite,
-            Permission::PayoutRead => Self::PayoutRead,
-            Permission::PayoutWrite => Self::PayoutWrite,
-            Permission::GenerateReport => Self::GenerateReport,
-            Permission::ReconAdmin => Self::ReconAdmin,
-        }
-    }
-}
 
 pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
     if groups.is_empty() {
@@ -174,7 +134,7 @@ pub async fn update_v1_and_v2_user_roles_in_db(
     state: &SessionState,
     user_id: &str,
     org_id: &id_type::OrganizationId,
-    merchant_id: &id_type::MerchantId,
+    merchant_id: Option<&id_type::MerchantId>,
     profile_id: Option<&id_type::ProfileId>,
     update: UserRoleUpdate,
 ) -> (
@@ -182,7 +142,7 @@ pub async fn update_v1_and_v2_user_roles_in_db(
     Result<UserRole, Report<StorageError>>,
 ) {
     let updated_v1_role = state
-        .store
+        .global_store
         .update_user_role_by_user_id_and_lineage(
             user_id,
             org_id,
@@ -198,7 +158,7 @@ pub async fn update_v1_and_v2_user_roles_in_db(
         });
 
     let updated_v2_role = state
-        .store
+        .global_store
         .update_user_role_by_user_id_and_lineage(
             user_id,
             org_id,
@@ -255,19 +215,64 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
 ) -> UserResult<
     Option<(
         id_type::OrganizationId,
-        id_type::MerchantId,
+        Option<id_type::MerchantId>,
         Option<id_type::ProfileId>,
     )>,
 > {
     match entity_type {
-        EntityType::Organization => Err(UserErrors::InvalidRoleOperation.into()),
+        EntityType::Organization => {
+            let Ok(org_id) =
+                id_type::OrganizationId::try_from(std::borrow::Cow::from(entity_id.clone()))
+            else {
+                return Ok(None);
+            };
+
+            let user_roles = state
+                .global_store
+                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                    user_id,
+                    org_id: Some(&org_id),
+                    merchant_id: None,
+                    profile_id: None,
+                    entity_id: None,
+                    version: None,
+                    status: Some(UserStatus::InvitationSent),
+                    limit: None,
+                })
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .collect::<HashSet<_>>();
+
+            if user_roles.len() > 1 {
+                return Ok(None);
+            }
+
+            if let Some(user_role) = user_roles.into_iter().next() {
+                let (_entity_id, entity_type) = user_role
+                    .get_entity_id_and_type()
+                    .ok_or(UserErrors::InternalServerError)?;
+
+                if entity_type != EntityType::Organization {
+                    return Ok(None);
+                }
+
+                return Ok(Some((
+                    user_role.org_id.ok_or(UserErrors::InternalServerError)?,
+                    None,
+                    None,
+                )));
+            }
+
+            Ok(None)
+        }
         EntityType::Merchant => {
             let Ok(merchant_id) = id_type::MerchantId::wrap(entity_id) else {
                 return Ok(None);
             };
 
             let user_roles = state
-                .store
+                .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id,
                     org_id: None,
@@ -298,7 +303,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
 
                 return Ok(Some((
                     user_role.org_id.ok_or(UserErrors::InternalServerError)?,
-                    merchant_id,
+                    Some(merchant_id),
                     None,
                 )));
             }
@@ -312,7 +317,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
             };
 
             let user_roles = state
-                .store
+                .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id,
                     org_id: None,
@@ -343,9 +348,11 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
 
                 return Ok(Some((
                     user_role.org_id.ok_or(UserErrors::InternalServerError)?,
-                    user_role
-                        .merchant_id
-                        .ok_or(UserErrors::InternalServerError)?,
+                    Some(
+                        user_role
+                            .merchant_id
+                            .ok_or(UserErrors::InternalServerError)?,
+                    ),
                     Some(profile_id),
                 )));
             }
@@ -400,7 +407,7 @@ pub async fn fetch_user_roles_by_payload(
     request_entity_type: Option<EntityType>,
 ) -> UserResult<HashSet<UserRole>> {
     Ok(state
-        .store
+        .global_store
         .list_user_roles_by_org_id(payload)
         .await
         .change_context(UserErrors::InternalServerError)?

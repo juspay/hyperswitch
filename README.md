@@ -10,24 +10,19 @@ The single API to access payment ecosystems across 130+ countries</div>
 
 <p align="center">
   <a href="#try-a-payment">Try a Payment</a> •
-  <a href="#for-enterprises">For Enterprises</a> •
-  <a href="#for-contributors">For Contributors</a> •
   <a href="#quick-setup">Quick Setup</a> •
   <a href="/docs/try_local_system.md">Local Setup Guide (Hyperswitch App Server)</a> •
-  <a href="#fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
   <a href="https://api-reference.hyperswitch.io/introduction"> API Docs </a> 
    <br>
-  <a href="#supported-features">Supported Features</a> •
-  <a href="#community">Community</a> •
+  <a href="#community-contributions">Community and Contributions</a> •
   <a href="#bugs-and-feature-requests">Bugs and feature requests</a> •
   <a href="#versioning">Versioning</a> •
-  <a href="#FAQs">FAQs</a> •
   <a href="#copyright-and-license">Copyright and License</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/juspay/hyperswitch/actions?query=workflow%3ACI+branch%3Amain">
-    <img src="https://github.com/juspay/hyperswitch/workflows/CI/badge.svg" />
+    <img src="https://github.com/juspay/hyperswitch/workflows/CI-push/badge.svg" />
   </a>
   <a href="https://github.com/juspay/hyperswitch/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/juspay/hyperswitch" />
@@ -49,55 +44,40 @@ The single API to access payment ecosystems across 130+ countries</div>
 </p>
 
 <hr>
+
+Hyperswitch is a community-led, open payments switch designed to empower digital businesses by providing fast, reliable, and affordable access to the best payments infrastructure.
+
+Here are the components of Hyperswitch that deliver the whole solution:
+
+* [Hyperswitch Backend](https://github.com/juspay/hyperswitch): Powering Payment Processing
+
+* [SDK (Frontend)](https://github.com/juspay/hyperswitch-web): Simplifying Integration and Powering the UI
+
+* [Control Centre](https://github.com/juspay/hyperswitch-control-center): Managing Operations with Ease
+
+Jump in and contribute to these repositories to help improve and expand Hyperswitch!
+
 <img src="./docs/imgs/switch.png" />
 
-Hyperswitch is a community-led, open payments switch to enable access to the best payments infrastructure for every digital business.
-
-Using Hyperswitch, you can:
-
-- ⬇️ **Reduce dependency** on a single processor like Stripe or Braintree
-- 🧑‍💻 **Reduce Dev effort** by 90% to add & maintain integrations
-- 🚀 **Improve success rates** with seamless failover and auto-retries
-- 💸 **Reduce processing fees** with smart routing
-- 🎨 **Customize payment flows** with full visibility and control
-- 🌐 **Increase business reach** with local/alternate payment methods
-
-<br>
-<img src="./docs/imgs/hyperswitch-product.png" alt="Hyperswitch-Product" width="50%"/>
-
-<a href="https://app.hyperswitch.io/">
-  <h2 id="try-a-payment">⚡️ Try a Payment</h2>
-</a>
-
-To quickly experience the ease that Hyperswitch provides while handling the payment, you can signup on [hyperswitch-control-center][dashboard-link], and try a payment.
-
-Congratulations 🎉 on making your first payment with Hyperswitch. 
-
-<a href="#Get Started with Hyperswitch">
-  <h2 id="get-started-with-hyperswitch">Get Started with Hyperswitch</h2>
-</a>
-
-### [For Enterprises][docs-link-for-enterprise]
-  Hyperswitch helps enterprises in -  
-  - Improving profitability
-  - Increasing conversion rates
-  - Lowering payment costs
-  - Streamlining payment operations 
-  
-  Hyperswitch has ample features for businesses of all domains and sizes. [**Check out our offerings**][website-link]. 
-
-### [For Contributors][contributing-guidelines]
-  
-  Hyperswitch is an open-source project that aims to make digital payments accessible to people across the globe like a basic utility. With the vision of developing Hyperswitch as the **Linux of Payments**, we seek support from developers worldwide.
-
-  Utilise the following resources to quickstart your journey with Hyperswitch -
-  - [Guide for contributors][contributing-guidelines]
-  - [Developer Docs][docs-link-for-developers]
-  - [Learning Resources][learning-resources]
 
 <a href="#Quick Setup">
   <h2 id="quick-setup">⚡️ Quick Setup</h2>
 </a>
+
+### Docker Compose
+
+You can run Hyperswitch on your system using Docker Compose after cloning this repository:
+
+```shell
+git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
+cd hyperswitch
+docker compose up -d
+```
+
+This will start the app server, web client/SDK and control center.
+
+Check out the [local setup guide][local-setup-guide] for a more comprehensive
+setup, which includes the [scheduler and monitoring services][docker-compose-scheduler-monitoring].
 
 ### One-click deployment on AWS cloud
 
@@ -112,21 +92,6 @@ The fastest and easiest way to try Hyperswitch is via our CDK scripts
 
 3. Follow the instructions provided on the console to successfully deploy Hyperswitch
 
-### Run it on your system
-
-You can run Hyperswitch on your system using Docker Compose after cloning this repository:
-
-```shell
-git clone --depth 1 --branch latest https://github.com/juspay/hyperswitch
-cd hyperswitch
-docker compose up -d
-```
-
-This will start the app server, web client and control center.
-
-Check out the [local setup guide][local-setup-guide] for a more comprehensive
-setup, which includes the [scheduler and monitoring services][docker-compose-scheduler-monitoring].
-
 [docs-link-for-enterprise]: https://docs.hyperswitch.io/hyperswitch-cloud/quickstart
 [docs-link-for-developers]: https://docs.hyperswitch.io/hyperswitch-open-source/overview
 [contributing-guidelines]: docs/CONTRIBUTING.md
@@ -134,78 +99,24 @@ setup, which includes the [scheduler and monitoring services][docker-compose-sch
 [website-link]: https://hyperswitch.io/
 [learning-resources]: https://docs.hyperswitch.io/learn-more/payment-flows
 [local-setup-guide]: /docs/try_local_system.md
-[docker-compose-scheduler-monitoring]: /docs/try_local_system.md#run-the-scheduler-and-monitoring-services
-<a href="#Fast-Integration-for-Stripe-Users">
-  <h2 id="fast-integration-for-stripe-users">🔌 Fast Integration for Stripe Users</h2>
+[docker-compose-scheduler-monitoring]: /docs/try_local_system.md#running-additional-services
+
+<a href="https://app.hyperswitch.io/">
+  <h2 id="try-a-payment">⚡️ Try a Payment</h2>
 </a>
 
-If you are already using Stripe, integrating with Hyperswitch is fun, fast & easy.
-Try the steps below to get a feel for how quick the setup is:
+To quickly experience the ease of Hyperswitch, sign up on the [Hyperswitch Control Center](https://app.hyperswitch.io/) and try a payment. Once you've completed your first transaction, you’ve successfully made your first payment with Hyperswitch!
 
-1. Get API keys from our [dashboard].
-2. Follow the instructions detailed on our
-   [documentation page][migrate-from-stripe].
-
-[dashboard]: https://app.hyperswitch.io/register
-[migrate-from-stripe]: https://hyperswitch.io/docs/migrateFromStripe
-
-<a href="#Supported-Features">
-  <h2 id="supported-features">✅ Supported Features</h2>
+<a href="#community-contributions">
+  <h2 id="community-contributions">✅ Community & Contributions</h2>
 </a>
 
-### 🌟 Supported Payment Processors and Methods
+The community and core team are available in [GitHub Discussions](https://github.com/juspay/hyperswitch/discussions), where you can ask for support, discuss roadmap, and share ideas.
 
-As of Aug 2024, Hyperswitch supports 50+ payment processors and multiple global payment methods.
-In addition, we are continuously integrating new processors based on their reach and community requests.
-Our target is to support 100+ processors by H2 2024.
-You can find the latest list of payment processors, supported methods, and features [here][supported-connectors-and-features].
+Our [Contribution Guide](https://github.com/juspay/hyperswitch/blob/main/docs/CONTRIBUTING.md) describes how to contribute to the codebase and Docs.
 
-[supported-connectors-and-features]: https://hyperswitch.io/pm-list
+Join our Conversation in [Slack](https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2jqxmpsbm-WXUENx022HjNEy~Ark7Orw), [Discord](https://discord.gg/wJZ7DVW8mm), [Twitter](https://x.com/hyperswitchio)
 
-### 🌟 Hosted Version
-
-In addition to all the features of the open-source product, our hosted version
-provides features and support to manage your payment infrastructure, compliance,
-analytics, and operations end-to-end:
-
-- **System Performance & Reliability**
-
-  - Scalable to support 50000 tps
-  - System uptime of up to 99.99%
-  - Deployment with very low latency
-  - Hosting option with AWS or GCP
-
-- **Value Added Services**
-
-  - Compliance Support, incl. PCI, GDPR, Card Vault etc
-  - Customise the integration or payment experience
-  - Control Center with elaborate analytics and reporting
-  - Integration with Risk Management Solutions
-  - Integration with other platforms like Subscription, E-commerce, Accounting,
-    etc.
-
-- **Enterprise Support**
-
-  - 24x7 Email / On-call Support
-  - Dedicated Relationship Manager
-  - Custom dashboards with deep analytics, alerts, and reporting
-  - Expert team to consult and improve business metrics
-
-You can [try the hosted version in our sandbox][dashboard].
-
-<!--
-## Documentation
-
-Please refer to the following documentation pages:
-
-- Getting Started Guide [Link]
-- API Reference [Link]
-- Payments Fundamentals [Link]
-- Installation Support [Link]
-- Router Architecture [Link]
- -->
-
-<!-- ### Sub-Crates -->
 
 <a href="#Join-us-in-building-Hyperswitch">
   <h2 id="join-us-in-building-hyperswitch">💪 Join us in building Hyperswitch</h2>
@@ -237,61 +148,7 @@ reusable core and let companies build and customise it as per their specific req
    Security and Performance SLAs.
 5. Maximise Value Creation: For developers, customers & partners.
 
-### 🤍 Contributing
-
-This project is being created and maintained by [Juspay](https://juspay.in),
-South Asia's largest payments orchestrator/switch, processing more than 50
-Million transactions per day. The solution has 1Mn+ lines of Haskell code built
-over ten years.
-Hyperswitch leverages our experience in building large-scale, enterprise-grade &
-frictionless payment solutions.
-It is built afresh for the global markets as an open-source product in Rust.
-We are long-term committed to building and making it useful for the community.
-
-The product roadmap is open for the community's feedback.
-We shall evolve a prioritisation process that is open and community-driven.
-We welcome contributions from the community. Please read through our
-[contributing guidelines](/docs/CONTRIBUTING.md).
-Included are directions for opening issues, coding standards, and notes on
-development.
-
-- We appreciate all types of contributions: code, documentation, demo creation, or some new way you want to contribute to us.
-  We will reward every contribution with a Hyperswitch branded t-shirt.
-- 🦀 **Important note for Rust developers**: We aim for contributions from the community across a broad range of tracks.
-  Hence, we have prioritised simplicity and code readability over purely idiomatic code.
-  For example, some of the code in core functions (e.g., `payments_core`) is written to be more readable than pure-idiomatic.
-
-<a href="#Community">
-  <h2 id="community">👥 Community</h2>
-</a>
-
-Get updates on Hyperswitch development and chat with the community:
-
-- [Discord server][discord] for questions related to contributing to hyperswitch, questions about the architecture, components, etc.
-- [Slack workspace][slack] for questions related to integrating hyperswitch, integrating a connector in hyperswitch, etc.
-- [GitHub Discussions][github-discussions] to drop feature requests or suggest anything payments-related you need for your stack.
-
-[discord]: https://discord.gg/wJZ7DVW8mm
-[slack]: https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg
-[github-discussions]: https://github.com/juspay/hyperswitch/discussions
-
-<div style="display: flex;  justify-content: center;">
-    <div style="margin-right:10px">
-    <a href="https://www.producthunt.com/posts/hyperswitch-2?utm_source=badge-top-post-badge&utm_medium=badge&utm_souce=badge-hyperswitch&#0045;2" target="_blank">
-        <img src="https://api.producthunt.com/widgets/embed-image/v1/top-post-badge.svg?post_id=375220&theme=light&period=weekly" alt="Hyperswitch - Fast, reliable, and affordable open source payments switch | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" />
-    </a>
-    </div>
-    <div style="margin-right:10px">
-    <a href="https://www.producthunt.com/posts/hyperswitch-2?utm_source=badge-top-post-topic-badge&utm_medium=badge&utm_souce=badge-hyperswitch&#0045;2" target="_blank">
-        <img src="https://api.producthunt.com/widgets/embed-image/v1/top-post-topic-badge.svg?post_id=375220&theme=light&period=weekly&topic_id=267" alt="Hyperswitch - Fast, reliable, and affordable open source payments switch | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" />
-    </a>
-  </div>
-  <div style="margin-right:10px">
-    <a href="https://www.producthunt.com/posts/hyperswitch-2?utm_source=badge-top-post-topic-badge&utm_medium=badge&utm_souce=badge-hyperswitch&#0045;2" target="_blank">
-        <img src="https://api.producthunt.com/widgets/embed-image/v1/top-post-topic-badge.svg?post_id=375220&theme=light&period=weekly&topic_id=93" alt="Hyperswitch - Fast, reliable, and affordable open source payments switch | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" />
-    </a>
-  </div>
-</div>
+This project is being created and maintained by [Juspay](https://juspay.io)
 
 <a href="#Bugs and feature requests">
   <h2 id="bugs-and-feature-requests">🐞 Bugs and feature requests</h2>
@@ -308,15 +165,6 @@ If your problem or idea is not addressed yet, please [open a new issue].
 </a>
 
 Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
-
-<a href="#FAQs">
-  <h2 id="FAQs">🤔 FAQs</h2>
-</a>
-
-Got more questions?
-Please refer to our [FAQs page][faqs].
-
-[faqs]: https://hyperswitch.io/docs/devSupport
 
 <a href="#©Copyright and License">
   <h2 id="copyright-and-license">©️ Copyright and License</h2>

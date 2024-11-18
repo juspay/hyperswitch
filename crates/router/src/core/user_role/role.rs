@@ -1,5 +1,7 @@
+use std::collections::HashSet;
+
 use api_models::user_role::role::{self as role_api};
-use common_enums::{EntityType, RoleScope};
+use common_enums::{EntityType, ParentGroup, PermissionGroup, RoleScope};
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
@@ -9,7 +11,10 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services::{
         authentication::{blacklist, UserFromToken},
-        authorization::roles::{self, predefined_roles::PREDEFINED_ROLES},
+        authorization::{
+            permission_groups::{ParentGroupExt, PermissionGroupExt},
+            roles::{self, predefined_roles::PREDEFINED_ROLES},
+        },
         ApplicationResponse,
     },
     types::domain::user::RoleName,
@@ -19,7 +24,7 @@ use crate::{
 pub async fn get_role_from_token_with_groups(
     state: SessionState,
     user_from_token: UserFromToken,
-) -> UserResponse<Vec<role_api::PermissionGroup>> {
+) -> UserResponse<Vec<PermissionGroup>> {
     let role_info = user_from_token
         .get_role_info_from_db(&state)
         .await
@@ -28,6 +33,29 @@ pub async fn get_role_from_token_with_groups(
     let permissions = role_info.get_permission_groups().to_vec();
 
     Ok(ApplicationResponse::Json(permissions))
+}
+
+pub async fn get_groups_and_resources_for_role_from_token(
+    state: SessionState,
+    user_from_token: UserFromToken,
+) -> UserResponse<role_api::GroupsAndResources> {
+    let role_info = user_from_token.get_role_info_from_db(&state).await?;
+
+    let groups = role_info
+        .get_permission_groups()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let resources = groups
+        .iter()
+        .flat_map(|group| group.resources())
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    Ok(ApplicationResponse::Json(role_api::GroupsAndResources {
+        groups,
+        resources,
+    }))
 }
 
 pub async fn create_role(
@@ -64,7 +92,7 @@ pub async fn create_role(
             org_id: user_from_token.org_id,
             groups: req.groups,
             scope: req.role_scope,
-            entity_type: Some(EntityType::Merchant),
+            entity_type: EntityType::Merchant,
             created_by: user_from_token.user_id.clone(),
             last_modified_by: user_from_token.user_id,
             created_at: now,
@@ -81,45 +109,6 @@ pub async fn create_role(
             role_scope: role.scope,
         },
     ))
-}
-
-pub async fn list_invitable_roles_with_groups(
-    state: SessionState,
-    user_from_token: UserFromToken,
-) -> UserResponse<role_api::ListRolesResponse> {
-    let predefined_roles_map = PREDEFINED_ROLES
-        .iter()
-        .filter(|(_, role_info)| role_info.is_invitable())
-        .map(
-            |(role_id, role_info)| role_api::RoleInfoWithGroupsResponse {
-                groups: role_info.get_permission_groups().to_vec(),
-                role_id: role_id.to_string(),
-                role_name: role_info.get_role_name().to_string(),
-                role_scope: role_info.get_scope(),
-            },
-        );
-
-    let custom_roles_map = state
-        .store
-        .list_all_roles(&user_from_token.merchant_id, &user_from_token.org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .into_iter()
-        .filter_map(|role| {
-            let role_info = roles::RoleInfo::from(role);
-            role_info
-                .is_invitable()
-                .then_some(role_api::RoleInfoWithGroupsResponse {
-                    groups: role_info.get_permission_groups().to_vec(),
-                    role_id: role_info.get_role_id().to_string(),
-                    role_name: role_info.get_role_name().to_string(),
-                    role_scope: role_info.get_scope(),
-                })
-        });
-
-    Ok(ApplicationResponse::Json(role_api::ListRolesResponse(
-        predefined_roles_map.chain(custom_roles_map).collect(),
-    )))
 }
 
 pub async fn get_role_with_groups(
@@ -148,6 +137,52 @@ pub async fn get_role_with_groups(
             role_scope: role_info.get_scope(),
         },
     ))
+}
+
+pub async fn get_parent_info_for_role(
+    state: SessionState,
+    user_from_token: UserFromToken,
+    role: role_api::GetRoleRequest,
+) -> UserResponse<role_api::RoleInfoWithParents> {
+    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+        &state,
+        &role.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
+
+    if role_info.is_internal() {
+        return Err(UserErrors::InvalidRoleId.into());
+    }
+
+    let parent_groups = ParentGroup::get_descriptions_for_groups(
+        role_info.get_entity_type(),
+        role_info.get_permission_groups().to_vec(),
+    )
+    .into_iter()
+    .map(|(parent_group, description)| role_api::ParentGroupInfo {
+        name: parent_group.clone(),
+        description,
+        scopes: role_info
+            .get_permission_groups()
+            .iter()
+            .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+            // TODO: Remove this hashset conversion when merhant access
+            // and organization access groups are removed
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect(),
+    })
+    .collect();
+
+    Ok(ApplicationResponse::Json(role_api::RoleInfoWithParents {
+        role_id: role.role_id,
+        parent_groups,
+        role_name: role_info.get_role_name().to_string(),
+        role_scope: role_info.get_scope(),
+    }))
 }
 
 pub async fn update_role(

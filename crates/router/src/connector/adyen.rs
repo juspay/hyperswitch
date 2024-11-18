@@ -131,6 +131,7 @@ impl ConnectorValidation for Adyen {
                 },
                 PaymentMethodType::Ach
                 | PaymentMethodType::SamsungPay
+                | PaymentMethodType::Paze
                 | PaymentMethodType::Alma
                 | PaymentMethodType::Bacs
                 | PaymentMethodType::Givex
@@ -208,6 +209,7 @@ impl ConnectorValidation for Adyen {
                     }
                 },
                 PaymentMethodType::CardRedirect
+                | PaymentMethodType::DirectCarrierBilling
                 | PaymentMethodType::Fps
                 | PaymentMethodType::DuitNow
                 | PaymentMethodType::Interac
