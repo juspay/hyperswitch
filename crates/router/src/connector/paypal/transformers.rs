@@ -534,7 +534,6 @@ pub struct PaypalZeroMandateRequest {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
-// #[serde(untagged)]
 pub enum ZeroMandateSourceItem {
     Card(CardMandateRequest),
     Paypal(PaypalMandateStruct),
@@ -555,11 +554,9 @@ pub struct CardMandateRequest {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-// #[serde(rename_all = "camelCase")]
 pub struct PaypalSetupMandatesResponse {
     id: String,
     customer: Customer,
-    // status: PaypalOrderStatus,
     payment_source: ZeroMandateSourceItem,
     links: Vec<PaypalLinks>,
 }
@@ -608,10 +605,7 @@ impl<F, T>
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(info_response.id.clone()),
-                incremental_authorization_allowed: Some(
-                    // mandate_status == enums::AttemptStatus::Authorized,
-                    false,
-                ),
+                incremental_authorization_allowed: None,
                 charge_id: None,
             }),
             ..item.data
