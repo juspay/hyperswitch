@@ -34,11 +34,10 @@ describe("Payment Methods Tests", () => {
     it("Create Payment Method", () => {
       let data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
 
-      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
 
-      cy.createPaymentMethodTest(configs, globalState, req_data, res_data);
+      cy.createPaymentMethodTest(globalState, req_data, res_data);
     });
 
     it("List PM for customer", () => {
@@ -62,11 +61,10 @@ describe("Payment Methods Tests", () => {
     it("Create Payment Method", () => {
       let data = getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
 
-      let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];
 
-      cy.createPaymentMethodTest(configs, globalState, req_data, res_data);
+      cy.createPaymentMethodTest(globalState, req_data, res_data);
     });
 
     it("create-payment-call-test", () => {
@@ -79,13 +77,13 @@ describe("Payment Methods Tests", () => {
       let res_data = data["Response"];
 
       cy.createPaymentIntentTest(
-        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
         "no_three_ds",
         "automatic",
-        globalState
+        globalState,
+        configs
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data, configs);
@@ -101,12 +99,12 @@ describe("Payment Methods Tests", () => {
       let res_data = data["Response"];
 
       cy.confirmCallTest(
-        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
         true,
-        globalState
+        globalState,
+        configs
       );
       if (should_continue)
         should_continue = utils.should_continue_further(res_data, configs);

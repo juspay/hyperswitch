@@ -1,5 +1,6 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
+import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -42,13 +43,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createConfirmPaymentTest(
-          configs,
           fixtures.createConfirmPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue) {
@@ -74,13 +75,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -97,11 +98,11 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.saveCardConfirmCallTest(
-          configs,
           saveCardBody,
           req_data,
           res_data,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -136,13 +137,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createConfirmPaymentTest(
-          configs,
           fixtures.createConfirmPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -167,13 +168,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "manual",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -190,11 +191,11 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.saveCardConfirmCallTest(
-          configs,
           saveCardBody,
           req_data,
           res_data,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -215,12 +216,12 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -255,13 +256,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createConfirmPaymentTest(
-          configs,
           fixtures.createConfirmPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -286,13 +287,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "manual",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -309,11 +310,11 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.saveCardConfirmCallTest(
-          configs,
           saveCardBody,
           req_data,
           res_data,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -333,12 +334,12 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           100,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -373,13 +374,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createConfirmPaymentTest(
-          configs,
           fixtures.createConfirmPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -404,13 +405,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -427,11 +428,11 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.saveCardConfirmCallTest(
-          configs,
           saveCardBody,
           req_data,
           res_data,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -466,13 +467,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createConfirmPaymentTest(
-          configs,
           fixtures.createConfirmPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "manual",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -492,12 +493,12 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -518,13 +519,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "manual",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -541,11 +542,11 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.saveCardConfirmCallTest(
-          configs,
           saveCardBody,
           req_data,
           res_data,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -566,12 +567,12 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -610,13 +611,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -633,12 +634,12 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.confirmCallTest(
-          configs,
           fixtures.confirmBody,
           req_data,
           res_data,
           true,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -663,13 +664,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -686,11 +687,11 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.saveCardConfirmCallTest(
-          configs,
           saveCardBody,
           req_data,
           res_data,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -724,13 +725,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -747,12 +748,12 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.confirmCallTest(
-          configs,
           fixtures.confirmBody,
           req_data,
           res_data,
           true,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -773,13 +774,13 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -796,11 +797,11 @@ describe("Card - SaveCard payment flow test", () => {
         let res_data = data["Response"];
 
         cy.saveCardConfirmCallTest(
-          configs,
           saveCardBody,
           req_data,
           res_data,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)

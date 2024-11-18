@@ -1,5 +1,6 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
+import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -34,13 +35,13 @@ describe("Bank Transfers", () => {
       let res_data = data["Response"];
 
       cy.createPaymentIntentTest(
-        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
         "three_ds",
         "automatic",
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -61,12 +62,12 @@ describe("Bank Transfers", () => {
       let res_data = data["Response"];
 
       cy.confirmBankTransferCallTest(
-        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
         true,
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)

@@ -1,4 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
+import { validateConfig } from "../../utils/featureFlags";
 import State from "../../utils/State";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
@@ -33,13 +34,13 @@ describe("Card - ThreeDS payment flow test", () => {
     let res_data = data["Response"];
 
     cy.createPaymentIntentTest(
-      configs,
       fixtures.createPaymentBody,
       req_data,
       res_data,
       "three_ds",
       "automatic",
-      globalState
+      globalState,
+      configs
     );
 
     if (should_continue)
@@ -60,12 +61,12 @@ describe("Card - ThreeDS payment flow test", () => {
     let res_data = data["Response"];
 
     cy.confirmCallTest(
-      configs,
       fixtures.confirmBody,
       req_data,
       res_data,
       true,
-      globalState
+      globalState,
+      configs
     );
 
     if (should_continue)

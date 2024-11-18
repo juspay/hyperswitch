@@ -35,13 +35,13 @@ describe("UPI Payments - Hyperswitch", () => {
       let res_data = data["Response"];
 
       cy.createPaymentIntentTest(
-        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
         "three_ds",
         "automatic",
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -62,12 +62,12 @@ describe("UPI Payments - Hyperswitch", () => {
       let res_data = data["Response"];
 
       cy.confirmUpiCall(
-        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
         true,
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -98,12 +98,12 @@ describe("UPI Payments - Hyperswitch", () => {
       let res_data = data["Response"];
 
       cy.refundCallTest(
-        configs,
         fixtures.refundBody,
         req_data,
         res_data,
         6500,
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -141,13 +141,13 @@ describe("UPI Payments - Hyperswitch", () => {
       let res_data = data["Response"];
 
       cy.createPaymentIntentTest(
-        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
         "three_ds",
         "automatic",
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -168,12 +168,12 @@ describe("UPI Payments - Hyperswitch", () => {
       let res_data = data["Response"];
 
       cy.confirmUpiCall(
-        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
         true,
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)

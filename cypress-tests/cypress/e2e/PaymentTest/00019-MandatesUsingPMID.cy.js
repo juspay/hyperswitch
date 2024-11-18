@@ -1,4 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
+import { validateConfig } from "../../utils/featureFlags";
 import State from "../../utils/State";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
@@ -36,13 +37,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "automatic",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -59,7 +60,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -67,7 +67,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           true,
           "automatic",
           "new_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -75,12 +76,19 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
     }
@@ -107,13 +115,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "manual",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -130,7 +138,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -138,7 +145,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -155,12 +163,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -168,12 +176,19 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
     }
@@ -200,7 +215,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -208,7 +222,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           true,
           "automatic",
           "new_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -216,21 +231,35 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
     }
@@ -257,7 +286,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -265,7 +293,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -282,12 +311,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -295,12 +324,19 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT 1", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           6500,
           true,
           "manual",
-          globalState
+          globalState,
+          configs
         );
       });
 
@@ -314,12 +350,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -327,12 +363,19 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT 2", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           6500,
           true,
           "manual",
-          globalState
+          globalState,
+          configs
         );
       });
 
@@ -346,12 +389,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -381,7 +424,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -389,7 +431,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           true,
           "automatic",
           "new_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -402,21 +445,35 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandate3DSAutoCapture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentMethodIdMandate3DSAutoCapture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
     }
@@ -443,7 +500,6 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -451,7 +507,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -473,12 +530,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -486,12 +543,19 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
     }

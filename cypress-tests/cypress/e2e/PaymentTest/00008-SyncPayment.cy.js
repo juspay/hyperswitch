@@ -1,4 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
+import { validateConfig } from "../../utils/featureFlags";
 import State from "../../utils/State";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
@@ -32,13 +33,13 @@ describe("Card - Sync payment flow test", () => {
     let res_data = data["Response"];
 
     cy.createPaymentIntentTest(
-      configs,
       fixtures.createPaymentBody,
       req_data,
       res_data,
       "no_three_ds",
       "automatic",
-      globalState
+      globalState,
+      configs
     );
 
     if (should_continue)
@@ -54,17 +55,17 @@ describe("Card - Sync payment flow test", () => {
       "No3DSAutoCapture"
     ];
 
-    let configs = utils.validateConfig(data["Configs"]);
+    let configs = validateConfig(data["Configs"]);
     let req_data = data["Request"];
     let res_data = data["Response"];
 
     cy.confirmCallTest(
-      configs,
       fixtures.confirmBody,
       req_data,
       res_data,
       true,
-      globalState
+      globalState,
+      configs
     );
 
     if (should_continue)

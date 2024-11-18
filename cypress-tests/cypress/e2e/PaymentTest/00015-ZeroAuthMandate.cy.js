@@ -37,7 +37,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -45,7 +44,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "automatic",
           "setup_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -53,12 +53,19 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ZeroAuthMandate"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
     }
@@ -84,7 +91,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -92,7 +98,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "automatic",
           "setup_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -100,21 +107,35 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ZeroAuthMandate"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ZeroAuthMandate"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
     }
@@ -139,13 +160,13 @@ describe("Card - SingleUse Mandates flow test", () => {
       let res_data = data["Response"];
 
       cy.createPaymentIntentTest(
-        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
         "no_three_ds",
         "automatic",
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -162,12 +183,12 @@ describe("Card - SingleUse Mandates flow test", () => {
       let res_data = data["Response"];
 
       cy.confirmCallTest(
-        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
         true,
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -192,13 +213,13 @@ describe("Card - SingleUse Mandates flow test", () => {
       let res_data = data["Response"];
 
       cy.createPaymentIntentTest(
-        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
         "no_three_ds",
         "automatic",
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -215,11 +236,11 @@ describe("Card - SingleUse Mandates flow test", () => {
       let res_data = data["Response"];
 
       cy.saveCardConfirmCallTest(
-        configs,
         fixtures.saveCardConfirmBody,
         req_data,
         res_data,
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)

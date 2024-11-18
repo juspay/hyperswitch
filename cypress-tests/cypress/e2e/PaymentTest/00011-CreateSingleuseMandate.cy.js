@@ -1,5 +1,6 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
+import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -36,7 +37,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -44,7 +44,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "automatic",
           "new_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -52,12 +53,19 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MandateSingleUseNo3DSAutoCapture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
     }
@@ -84,7 +92,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -92,7 +99,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -109,12 +117,12 @@ describe("Card - SingleUse Mandates flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -122,12 +130,19 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           6500,
           true,
           "manual",
-          globalState
+          globalState,
+          configs
         );
       });
 
@@ -141,12 +156,12 @@ describe("Card - SingleUse Mandates flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -180,7 +195,6 @@ describe("Card - SingleUse Mandates flow test", () => {
         let res_data = data["Response"];
 
         cy.citForMandatesCallTest(
-          configs,
           fixtures.citConfirmBody,
           req_data,
           res_data,
@@ -188,7 +202,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           true,
           "manual",
           "new_mandate",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -205,12 +220,12 @@ describe("Card - SingleUse Mandates flow test", () => {
         let res_data = data["Response"];
 
         cy.captureCallTest(
-          configs,
           fixtures.captureBody,
           req_data,
           res_data,
           6500,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -218,12 +233,19 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        let configs = validateConfig(data["Configs"]);
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
-          globalState
+          globalState,
+          configs
         );
       });
 

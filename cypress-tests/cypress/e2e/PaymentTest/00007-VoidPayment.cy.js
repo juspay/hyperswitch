@@ -35,13 +35,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       let res_data = data["Response"];
 
       cy.createPaymentIntentTest(
-        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
         "no_three_ds",
         "manual",
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -62,12 +62,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       let res_data = data["Response"];
 
       cy.confirmCallTest(
-        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
         true,
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -84,11 +84,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       let res_data = data["Response"];
 
       cy.voidCallTest(
-        configs,
         fixtures.voidBody,
         req_data,
         res_data,
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -117,13 +117,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         let res_data = data["Response"];
 
         cy.createPaymentIntentTest(
-          configs,
           fixtures.createPaymentBody,
           req_data,
           res_data,
           "no_three_ds",
           "manual",
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -144,11 +144,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         let res_data = data["Response"];
 
         cy.voidCallTest(
-          configs,
           fixtures.voidBody,
           req_data,
           res_data,
-          globalState
+          globalState,
+          configs
         );
 
         if (should_continue)
@@ -176,13 +176,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       let res_data = data["Response"];
 
       cy.createPaymentIntentTest(
-        configs,
         fixtures.createPaymentBody,
         req_data,
         res_data,
         "no_three_ds",
         "manual",
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -203,12 +203,12 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       let res_data = data["Response"];
 
       cy.confirmCallTest(
-        configs,
         fixtures.confirmBody,
         req_data,
         res_data,
         false,
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
@@ -225,11 +225,11 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       let res_data = data["Response"];
 
       cy.voidCallTest(
-        configs,
         fixtures.voidBody,
         req_data,
         res_data,
-        globalState
+        globalState,
+        configs
       );
 
       if (should_continue)
