@@ -667,9 +667,8 @@ impl
         _req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("audit vaulting");
         Ok(format!(
-            "{}v3/vault/setup-tokens/",
+            "{}v3/vault/payment-tokens/",
             self.base_url(connectors)
         ))
     }
@@ -679,7 +678,6 @@ impl
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = paypal::PaypalZeroMandateRequest::try_from(req)?;
-        println!("audit {:?}", connector_req);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -707,11 +705,6 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
-        println!("audit vaulting 2");
-
-        let k = res.clone().response;
-        let s = String::from_utf8(k.to_vec()).unwrap();
-        println!("result: {}", s);
         let response: paypal::PaypalSetupMandatesResponse = res
             .response
             .parse_struct("PaypalSetupMandatesResponse")

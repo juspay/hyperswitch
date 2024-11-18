@@ -550,7 +550,7 @@ pub struct PaypalMandateStruct {
 pub struct CardMandateRequest {
     billing_address: Option<Address>,
     expiry: Option<Secret<String>>,
-    name: Secret<String>,
+    name: Option<Secret<String>>,
     number: Option<cards::CardNumber>,
 }
 
@@ -559,7 +559,7 @@ pub struct CardMandateRequest {
 pub struct PaypalSetupMandatesResponse {
     id: String,
     customer: Customer,
-    status: PaypalOrderStatus,
+    // status: PaypalOrderStatus,
     payment_source: ZeroMandateSourceItem,
     links: Vec<PaypalLinks>,
 }
@@ -591,8 +591,15 @@ impl<F, T>
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
         });
+        // https://developer.paypal.com/docs/api/payment-tokens/v3/#payment-tokens_create
+        // If 201 status code, then order is captured, other status codes are handled by the error handler
+        let status = if item.http_code == 201 {
+            enums::AttemptStatus::Charged
+        } else {
+            enums::AttemptStatus::Failure
+        };
         Ok(Self {
-            status: enums::AttemptStatus::Charged,
+            status,
             return_url: None,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
@@ -614,67 +621,18 @@ impl<F, T>
 impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
-        println!("audit vaulting 3");
-
         let payment_source = match item.request.payment_method_data.clone() {
             domain::PaymentMethodData::Card(ccard) => {
                 ZeroMandateSourceItem::Card(CardMandateRequest {
                     billing_address: get_address_info(item.get_optional_billing()),
                     expiry: Some(ccard.get_expiry_date_as_yyyymm("-")),
-                    name: ccard.nick_name.unwrap_or_default(),
+                    name: item.get_optional_billing_full_name(),
                     number: Some(ccard.card_number),
                 })
             }
 
-            domain::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                domain::WalletData::PaypalRedirect(_) => {
-                    let payment_source = ZeroMandateSourceItem::Paypal(PaypalMandateStruct {
-                        experience_context: Some(ContextStruct {
-                            return_url: item.request.return_url.clone(),
-                            cancel_url: item.request.return_url.clone(),
-                            shipping_preference: if item.get_optional_shipping().is_some() {
-                                ShippingPreference::SetProvidedAddress
-                            } else {
-                                ShippingPreference::GetFromFile
-                            },
-                            user_action: Some(UserAction::PayNow),
-                        }),
-                        usage_type: UsageType::Merchant,
-                    });
-
-                    payment_source
-                }
-                domain::WalletData::ApplePay(_)
-                | domain::WalletData::GooglePay(_)
-                | domain::WalletData::AliPayQr(_)
-                | domain::WalletData::AliPayRedirect(_)
-                | domain::WalletData::AliPayHkRedirect(_)
-                | domain::WalletData::MomoRedirect(_)
-                | domain::WalletData::KakaoPayRedirect(_)
-                | domain::WalletData::GoPayRedirect(_)
-                | domain::WalletData::GcashRedirect(_)
-                | domain::WalletData::ApplePayRedirect(_)
-                | domain::WalletData::ApplePayThirdPartySdk(_)
-                | domain::WalletData::DanaRedirect {}
-                | domain::WalletData::GooglePayRedirect(_)
-                | domain::WalletData::GooglePayThirdPartySdk(_)
-                | domain::WalletData::MbWayRedirect(_)
-                | domain::WalletData::MobilePayRedirect(_)
-                | domain::WalletData::PaypalSdk(_)
-                | domain::WalletData::SamsungPay(_)
-                | domain::WalletData::TwintRedirect {}
-                | domain::WalletData::VippsRedirect {}
-                | domain::WalletData::TouchNGoRedirect(_)
-                | domain::WalletData::WeChatPayRedirect(_)
-                | domain::WalletData::WeChatPayQr(_)
-                | domain::WalletData::CashappQr(_)
-                | domain::WalletData::SwishQr(_)
-                | domain::WalletData::Mifinity(_)
-                | domain::WalletData::Paze(_) => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                ))?,
-            },
-            domain::PaymentMethodData::CardRedirect(_)
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
             | domain::PaymentMethodData::PayLater(_)
             | domain::PaymentMethodData::BankRedirect(_)
             | domain::PaymentMethodData::BankDebit(_)
@@ -695,7 +653,6 @@ impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
                 ))?
             }
         };
-        println!("audit vaulting 4");
 
         Ok(Self { payment_source })
     }
