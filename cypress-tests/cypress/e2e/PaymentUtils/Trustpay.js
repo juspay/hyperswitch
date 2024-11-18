@@ -107,7 +107,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000
+          TIMEOUT: 10000,
         },
       },
       Request: {
@@ -147,7 +147,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000
+          TIMEOUT: 10000,
         },
       },
       Request: {
@@ -169,7 +169,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000
+          TIMEOUT: 10000,
         },
       },
       Request: {
@@ -192,7 +192,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000
+          TIMEOUT: 10000,
         },
       },
       Request: {
