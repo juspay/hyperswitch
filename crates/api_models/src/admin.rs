@@ -2007,7 +2007,7 @@ pub struct ProfileCreate {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<url::Url>,
+    pub return_url: Option<common_utils::types::Url>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]
@@ -2244,7 +2244,7 @@ pub struct ProfileResponse {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]
@@ -2474,7 +2474,7 @@ pub struct ProfileUpdate {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<url::Url>,
+    pub return_url: Option<common_utils::types::Url>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]

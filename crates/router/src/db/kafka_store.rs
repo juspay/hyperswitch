@@ -3030,7 +3030,7 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&id_type::ProfileId>,
+        profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
@@ -3070,7 +3070,7 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&id_type::ProfileId>,
+        profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
