@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.18.0
+
+### Features
+
+- **payments_v2:** Add finish redirection endpoint ([#6549](https://github.com/juspay/hyperswitch/pull/6549)) ([`0805a93`](https://github.com/juspay/hyperswitch/commit/0805a937b1bc12ac1dfb23922036733ed971a87a))
+
+**Full Changelog:** [`2024.11.15.0...2024.11.18.0`](https://github.com/juspay/hyperswitch/compare/2024.11.15.0...2024.11.18.0)
+
+- - -
+
 ## 2024.11.15.0
 
 ### Features
