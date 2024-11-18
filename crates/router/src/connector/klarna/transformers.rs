@@ -3,6 +3,7 @@ use common_utils::{pii, types::MinorUnit};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_data::KlarnaSdkResponse;
 use hyperswitch_domain_models::router_data::KlarnaCheckoutResponse;
+use hyperswitch_domain_models::router_response_types::RedirectForm;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -94,8 +95,6 @@ pub struct AuthorizedPaymentMethod {
 
 impl From<AuthorizedPaymentMethod> for types::AdditionalPaymentMethodConnectorResponse {
     fn from(item: AuthorizedPaymentMethod) -> Self {
-        println!("in authorize payment additional method {:?}",item);
-        
         match item.payment_type.as_str(){
             "klarna_sdk"=> Self::PayLater {
                 klarna_sdk: Some(KlarnaSdkResponse {
@@ -110,18 +109,12 @@ impl From<AuthorizedPaymentMethod> for types::AdditionalPaymentMethodConnectorRe
                 klarna_sdk: None,
             },
             _ => {
-                println!("nothing matched in additional AdditionalPaymentMethodConnectorResponse");
                 Self::PayLater { 
                 klarna_sdk: None, 
                 klarna_checkout: None,
             }
         }
         }
-        // Self::PayLater {
-        //     klarna_sdk: Some(KlarnaSdkResponse {
-        //         payment_type: Some(item.payment_type),
-        //     }),
-        // }
     }
 }
 
@@ -169,8 +162,6 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
         item: &KlarnaRouterData<&types::PaymentsSessionRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        println!("1 request of auth {:?} ",request);
-        println!("2 item {:?} ",item);
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
                 intent: KlarnaSessionIntent::Buy,
@@ -231,26 +222,18 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
         item: &KlarnaRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        println!("klarna auth request {:?} ",request);
-        println!("klarna auth router data {:?} ",item.router_data);
-
-        println!("klarna auth item {:?} ",item);
-
         let payment_method_data = request.payment_method_data.clone();
         let payment_experience = request.payment_experience;
         let payment_method_type = request.payment_method_type;
         let optionalShipping=item.router_data.get_optional_shipping();
-        println!("optional shipping {:?}",optionalShipping);
         let shipping=get_address_info(item.router_data.get_optional_shipping(),);
-        println!("shipping in klarna {:?}",shipping);
         let transposedShipping= get_address_info(item.router_data.get_optional_shipping(),).transpose();
-        println!("transposed shipping in klarna {:?}",transposedShipping);
+     
         
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
                 match request.order_details.clone() {
                    Some(order_details)=> {
-                        println!("klarna payments called");
 
                         Ok(Self{
                             purchase_country: item.router_data.get_billing_country()?,
@@ -263,7 +246,6 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                                     name: data.product_name.clone(),
                                     quantity: data.quantity,
                                     unit_price: data.amount,
-                                    // total_amount: i64::from(data.quantity) * (data.amount),
                                     total_amount: data.amount * data.quantity,
                                     tax_amount:data.total_tax_amount,
                                     total_tax_amount:None,
@@ -294,7 +276,6 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
                 match request.order_details.clone() {
                     Some(order_details)=> {
-                        println!("klarna Checkout called, order details: {:?}", order_details);
                       
                         Ok(Self{
                             purchase_country: item.router_data.get_billing_country()?,
@@ -311,20 +292,9 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                                     tax_amount:None,
                                     tax_rate:data.tax_rate,
                                     total_amount: data.amount * data.quantity,
-
-                                    // total_amount: i64::from(data.quantity) * (data.amount),
-
-                                    // total_amount: i64::from(data.quantity) * (data.amount),
                                 })          
                                 .collect(),
-                            
-                            // merchant_urls: request.merchant_urls,
-                            // merchant_urls: Some(Ok(MerchantURLs{
-                            //     terms: "https://www.example.com/terms.html".to_owned(),
-                            //     checkout: "https://www.example.com/checkout.html?order_id={checkout.order.id}".to_owned(),
-                            //     confirmation: "https://www.example.com/confirmation.html?order_id={checkout.order.id}".to_owned(),
-                            //     push: "https://www.example.com/api/push?order_id={checkout.order.id}".to_owned()
-                            // })),
+                           
                             merchant_urls: Some(MerchantURLs {
                                 terms: String::from("https://www.example.com/terms.html"),
                                 checkout: String::from("https://www.example.com/checkout.html?order_id={checkout.order.id}"),
@@ -401,11 +371,6 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        println!("in response of auth ${:?}", item.data);
-        // println!("in response of auth 2 ${:?}", item.request);
-        println!("in response of auth 3 ${:?}", item.response);
-
-        // println!("{:?} ",item);
         let connector_response = types::ConnectorResponseData::with_additional_payment_method_data(
             match item.response.authorized_payment_method {
                 Some(authorized_payment_method) => {
@@ -416,16 +381,10 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 }
             },
         );
-        // let idata=&item.response;
-        println!("2 response of auth {:?} ",connector_response);
-        // println!("3 response of auth {:?} ",idata);
         let payment_method_data=item.data.request.payment_method_data.clone();
 
         match payment_method_data{
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
-                    println!("html present ");
-                    // let html=html_snippet.clone();
-                    // println!("{:?}",html);
                     Ok(Self {
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
@@ -450,17 +409,16 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                     })
                 },
                 domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {})  => {
-                    println!("no html present ");
                     let html_data=item.response.html_snippet.clone().unwrap_or_default();
+
                     Ok(Self {
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
                                             item.response.order_id.clone(),
                                         ),
-                            // redirection_data: Some(RedirectForm::Html {
-                            //     html_data: item.response.html_snippet.clone().unwrap_or_default(), 
-                            // }),
-                            redirection_data: Box::new(None),
+                            redirection_data: Box::new(Some(RedirectForm::KlarnaCheckout {
+                                html_snippet: item.response.html_snippet.clone().unwrap_or_default(), 
+                            })),
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
@@ -469,7 +427,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                             charge_id: None,
                         }),
                         status: enums::AttemptStatus::foreign_from((
-                            item.response.fraud_status.unwrap_or(KlarnaFraudStatus::Accepted),
+                            item.response.fraud_status.unwrap_or(KlarnaFraudStatus::AuthenticationPending),
                             item.data.request.is_auto_capture()?,
                         )),
                         connector_response: Some(connector_response),
@@ -497,156 +455,6 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::MobilePayment(mobile_payment_data) => todo!(),
             }
     
-            
-
-        // let fraud_status = item.response.fraud_status.unwrap_or(KlarnaFraudStatus::Accepted);
-        // Ok(Self {
-        //     response: Ok(types::PaymentsResponseData::TransactionResponse {
-        //         resource_id: types::ResponseId::ConnectorTransactionId(
-        //             item.response.order_id.clone(),
-        //         ),
-        //         redirection_data: None,
-        //         mandate_reference: None,
-        //         connector_metadata: None,
-        //         network_txn_id: None,
-        //         connector_response_reference_id: Some(item.response.order_id.clone()),
-        //         incremental_authorization_allowed: None,
-        //         charge_id: None,
-        //     }),
-        //     status: enums::AttemptStatus::foreign_from((
-        //         // item.response.fraud_status,
-        //         KlarnaFraudStatus::Accepted,
-        //         item.data.request.is_auto_capture()?,
-        //     )),
-        //     connector_response: Some(connector_response),
-        //     ..item.data
-        // })
-
-        // match item.response.html_snippet {
-        //     Some(ref html_snippet) => {
-        //         println!("html present ");
-        //         let html=html_snippet.clone();
-        //         println!("{:?}",html);
-        //         Ok(Self {
-        //             response: Ok(types::PaymentsResponseData::TransactionResponse {
-        //                 resource_id: types::ResponseId::ConnectorTransactionId(
-        //                     item.response.order_id.clone(),
-        //                 ),
-        //                 redirection_data: Some(RedirectForm::Html {
-        //                     html_data: html, 
-        //                 }),
-        //                 mandate_reference: None,
-        //                 connector_metadata: None,
-        //                 network_txn_id: None,
-        //                 connector_response_reference_id: Some(item.response.order_id.clone()),
-        //                 incremental_authorization_allowed: None,
-        //                 charge_id: None,
-        //                 // html_snippet:item.response.html_snippet.clone(),
-        //             }),
-        //             status: enums::AttemptStatus::foreign_from((
-        //                 item.response.fraud_status.unwrap_or(KlarnaFraudStatus::Accepted),
-        //                 item.data.request.is_auto_capture()?,
-        //             )),
-        //             connector_response: Some(connector_response),
-        //             // html_snippet: html,
-        //             ..item.data
-        //         })
-        //     },
-        //     None => {
-        //         println!("no html present ");
-
-        //         Ok(Self {
-        //             response: Ok(types::PaymentsResponseData::TransactionResponse {
-        //                 resource_id: types::ResponseId::ConnectorTransactionId(
-        //                                 item.response.order_id.clone(),
-        //                             ),
-        //                 redirection_data: None, 
-        //                 mandate_reference: None,
-        //                 connector_metadata: None,
-        //                 network_txn_id: None,
-        //                 connector_response_reference_id: None,
-        //                 incremental_authorization_allowed: None,
-        //                 charge_id: None,
-        //             }),
-        //             status: enums::AttemptStatus::foreign_from((
-        //                 item.response.fraud_status.unwrap_or(KlarnaFraudStatus::Accepted),
-        //                 item.data.request.is_auto_capture()?,
-        //             )),
-        //             connector_response: Some(connector_response),
-        //             ..item.data
-        //         })
-        //     },
-        // }
-
-        
-
-        // match item.response.payment_method_data.as_str() {
-        //     domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk {token})=>{
-        //         Ok(Self {
-        //             response: Ok(types::PaymentsResponseData::TransactionResponse {
-        //                 resource_id: types::ResponseId::ConnectorTransactionId(
-        //                     item.response.order_id.clone(),
-        //                 ),
-        //                 redirection_data: None,
-        //                 mandate_reference: None,
-        //                 connector_metadata: None,
-        //                 network_txn_id: None,
-        //                 connector_response_reference_id: Some(item.response.order_id.clone()),
-        //                 incremental_authorization_allowed: None,
-        //                 charge_id: None,
-        //             }),
-        //             status: enums::AttemptStatus::foreign_from((
-        //                 item.response.fraud_status,
-        //                 item.data.request.is_auto_capture()?,
-        //             )),
-        //             connector_response: Some(connector_response),
-        //             ..item.data
-        //         })
-            
-        //     },
-        //     domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {})=>{
-        //         Ok(Self {
-        //             response: Ok(types::PaymentsResponseData::TransactionResponse {
-        //                 resource_id: types::ResponseId::NoResponseId,
-        //                 redirection_data: Some(RedirectForm::Html {
-        //                     html_data: data.peek().to_string(),
-        //                 }),
-        //                 mandate_reference: None,
-        //                 connector_metadata: None,
-        //                 network_txn_id: None,
-        //                 connector_response_reference_id: None,
-        //                 incremental_authorization_allowed: None,
-        //                 charge_id: None,   
-        //             }),
-        //             status: enums::AttemptStatus::foreign_from((
-        //                 item.response.fraud_status,
-        //                 item.data.request.is_auto_capture()?,
-        //             )),
-        //             connector_response: Some(connector_response),
-        //             ..item.data
-        //         })
-            
-        //     }
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(card_details_for_network_transaction_id) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(card_redirect_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(wallet_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(pay_later_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(bank_redirect_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(bank_debit_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(bank_transfer_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(crypto_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(real_time_payment_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(upi_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(voucher_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(gift_card_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(card_token) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(open_banking_data) => todo!(),
-        //     hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(network_token_data) => todo!(),
-        // }
-     
         
     }
 }
@@ -696,6 +504,7 @@ pub enum KlarnaFraudStatus {
     Accepted,
     Pending,
     Rejected,
+    AuthenticationPending
 }
 
 impl ForeignFrom<(KlarnaFraudStatus, bool)> for enums::AttemptStatus {
@@ -710,6 +519,8 @@ impl ForeignFrom<(KlarnaFraudStatus, bool)> for enums::AttemptStatus {
             }
             KlarnaFraudStatus::Pending => Self::Pending,
             KlarnaFraudStatus::Rejected => Self::Failure,
+            KlarnaFraudStatus::AuthenticationPending => Self::AuthenticationPending,
+
         }
     }
 }

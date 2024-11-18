@@ -891,6 +891,8 @@ pub struct PaymentSyncType(pub types::PaymentsSyncData);
 pub struct PaymentRefundType(pub types::RefundsData);
 pub struct CCardType(pub types::domain::Card);
 pub struct BrowserInfoType(pub types::BrowserInformation);
+pub struct MerchantURLType(pub types::MerchantURLs);
+
 pub struct CustomerType(pub types::ConnectorCustomerData);
 pub struct TokenType(pub types::PaymentMethodTokenizationData);
 
@@ -916,6 +918,7 @@ impl Default for PaymentAuthorizeType {
         let data = types::PaymentsAuthorizeData {
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
+            order_tax_amount:0,
             minor_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,
             confirm: true,
@@ -950,7 +953,7 @@ impl Default for PaymentAuthorizeType {
             merchant_order_reference_id: None,
             additional_payment_method_data: None,
             shipping_cost: None,
-            merchant_urls: None,
+            merchant_urls: Some(MerchantURLType::default().0),
         };
         Self(data)
     }
@@ -991,6 +994,18 @@ impl Default for BrowserInfoType {
             java_enabled: Some(true),
             java_script_enabled: Some(true),
             ip_address: Some("127.0.0.1".parse().unwrap()),
+        };
+        Self(data)
+    }
+}
+
+impl Default for MerchantURLType {
+    fn default() -> Self {
+        let data = types::MerchantURLs {
+            terms: Some("".to_string()),
+            checkout: Some("".to_string()),
+            confirmation: Some("".to_string()),
+            push: Some("".to_string()),
         };
         Self(data)
     }

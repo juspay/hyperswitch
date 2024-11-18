@@ -32,7 +32,7 @@ pub struct PaymentsAuthorizeData {
     /// get_total_surcharge_amount() // returns surcharge_amount + tax_on_surcharge_amount
     /// ```
     pub amount: i64,
-    // pub order_tax_amount: i64,
+    pub order_tax_amount: i64,
     pub email: Option<pii::Email>,
     pub customer_name: Option<Secret<String>>,
     pub currency: storage_enums::Currency,
@@ -102,13 +102,6 @@ pub struct AuthoriseIntegrityObject {
     pub currency: storage_enums::Currency,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct MerchantURLs {
-    pub terms: String,
-    pub checkout: String,
-    pub confirmation: String,
-    pub push: String,
-}
 #[derive(Debug, Clone, PartialEq)]
 pub struct SyncIntegrityObject {
     /// Sync amount
@@ -506,6 +499,15 @@ pub struct BrowserInformation {
     pub accept_header: Option<String>,
     pub user_agent: Option<String>,
 }
+
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct MerchantURLs {
+    pub terms: Option<String>,
+    pub checkout  : Option<String>,
+    pub confirmation: Option<String>,
+    pub push: Option<String>,
+}
+
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub enum ResponseId {

@@ -164,14 +164,14 @@ pub enum RedirectForm {
     Mifinity {
         initialization_token: String,
     },
-    // KlarnaCheckout{
-    //     form: String,
-    // },
     WorldpayDDCForm {
         endpoint: url::Url,
         method: Method,
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
+    },
+    KlarnaCheckout{
+        html_snippet: String,
     },
 }
 
@@ -267,6 +267,9 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::KlarnaCheckout { html_snippet } =>Self::KlarnaCheckout {
+                html_snippet
+            },
         }
     }
 }
@@ -346,6 +349,20 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 form_fields,
                 collection_id,
             },
+            diesel_models::RedirectForm::KlarnaCheckout { html_snippet } => {
+                Self::KlarnaCheckout { html_snippet}
+            },
+
+            diesel_models::RedirectForm::Form { endpoint, method, form_fields } => todo!(),
+            diesel_models::RedirectForm::Html { html_data } => todo!(),
+            diesel_models::RedirectForm::BlueSnap { payment_fields_token } => todo!(),
+            diesel_models::RedirectForm::CybersourceAuthSetup { access_token, ddc_url, reference_id } => todo!(),
+            diesel_models::RedirectForm::CybersourceConsumerAuth { access_token, step_up_url } => todo!(),
+            diesel_models::RedirectForm::Payme => todo!(),
+            diesel_models::RedirectForm::Braintree { client_token, card_token, bin } => todo!(),
+            diesel_models::RedirectForm::Nmi { amount, currency, public_key, customer_vault_id, order_id } => todo!(),
+            diesel_models::RedirectForm::Mifinity { initialization_token } => todo!(),
+            diesel_models::RedirectForm::WorldpayDDCForm { endpoint, method, form_fields, collection_id } => todo!(),
         }
     }
 }

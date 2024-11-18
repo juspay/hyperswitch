@@ -27,7 +27,7 @@ impl VerifyConnectorData {
             email: None,
             customer_name: None,
             amount: 1000,
-            // order_tax_amount:0,
+            order_tax_amount:0,
             minor_amount: common_utils::types::MinorUnit::new(1000),
             confirm: true,
             currency: storage_enums::Currency::USD,
@@ -61,6 +61,7 @@ impl VerifyConnectorData {
             additional_payment_method_data: None,
             shipping_cost: None,
             merchant_urls:None
+
         }
     }
 

@@ -963,6 +963,7 @@ where
         }
         Ok(ApplicationResponse::Form(redirection_data)) => {
             let config = state.conf();
+            println!("calling build redirection form");
             build_redirection_form(
                 &redirection_data.redirect_form,
                 redirection_data.payment_method_data,
@@ -1272,6 +1273,7 @@ pub fn build_redirection_form(
     use maud::PreEscaped;
     let logging_template =
         include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
+        println!("in build redirection form ");
     match form {
         RedirectForm::Form {
             endpoint,
@@ -1930,6 +1932,22 @@ pub fn build_redirection_form(
                             }.into_string()
                         )
                         {}
+                }
+            }
+        },
+        RedirectForm::KlarnaCheckout { html_snippet } => {
+            // Assuming 'html_snippet' is a string containing the Klarna HTML snippet.
+            println!("in forming the redirect_url {:?}", html_snippet);
+            maud::html! {
+                (maud::DOCTYPE)
+                html {
+                    head {
+                        title { "Redirecting to Klarna Checkout" }
+                    }
+                    body {
+                        // Directly passing the Klarna HTML snippet
+                        (PreEscaped(html_snippet))
+                    }
                 }
             }
         },

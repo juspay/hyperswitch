@@ -172,7 +172,6 @@ where
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
-        println!("int build_header {:?}", header);
         Ok(header)
     }
 }
@@ -507,12 +506,10 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        println!("in klarna set headers ");
         self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
-        println!("in klarna get content type ");
         self.common_get_content_type()
     }
 
@@ -521,7 +518,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        println!("in klarna get url ");
         let payment_method_data = &req.request.payment_method_data;
         let payment_experience = req
             .request
@@ -536,9 +532,6 @@ impl
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
-        println!("payment_method_data : {:?} ", payment_method_data);
-        println!("payment_experience : {:?} ", payment_experience);
-        println!("payment_method_type : {:?} ", payment_method_type);
 
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
@@ -547,7 +540,6 @@ impl
                         common_enums::PaymentExperience::InvokeSdkClient,
                         common_enums::PaymentMethodType::Klarna,
                     ) => {
-                        println!("klarna SDK endpoint hit");
 
                         Ok(format!(
                             "{endpoint}payments/v1/authorizations/{token}/order",
@@ -666,14 +658,11 @@ impl
             }
 
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
-                println!("inside klarna Checkout endpoint");
-
                 match (payment_experience, payment_method_type) {
                     (
                         common_enums::PaymentExperience::InvokeSdkClient,
                         common_enums::PaymentMethodType::KlarnaCheckout,
                     ) => {
-                        println!("klarna Checkout endpoint hit");
 
                         Ok(format!(
                             "https://api.playground.klarna.com/checkout/v3/orders",
@@ -824,7 +813,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        println!("in klarna get request body ");
         let amount = connector_utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
@@ -832,8 +820,6 @@ impl
         )?;
         let connector_router_data = klarna::KlarnaRouterData::from((amount, req));
         let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
-
-        println!("in klarna get request body {:?}", connector_req);
 
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -843,7 +829,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        println!("in klarna build request ");
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -867,24 +852,14 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        println!("in handle response of klarna  ");
-        println!("klarna response data {:?} ", data);
-        println!("$$$klarna response {:?} ", res.response);
 
         let response: klarna::KlarnaPaymentsResponse = res
             .response
             .parse_struct("KlarnaPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        println!("klarna response 2 {:?}", response);
-
-        println!("in handle response of klarna 2 ");
-
         event_builder.map(|i| i.set_response_body(&response));
-        println!("in handle response of klarna 3 ");
-
         router_env::logger::info!(connector_response=?response);
-        println!("in handle response of klarna 4 ");
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -899,7 +874,6 @@ impl
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        println!("in klarna error response ");
         self.build_error_response(res, event_builder)
     }
 }

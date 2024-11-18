@@ -2441,7 +2441,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
-            // order_tax_amount:order_tax_amount.get_amount_as_i64(),
+            order_tax_amount:0,
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
