@@ -526,9 +526,28 @@ pub struct DynamicRoutingAlgorithmRef {
     pub elimination_routing_algorithm: Option<EliminationRoutingAlgorithm>,
 }
 
+pub trait DynamicRoutingAlgoAccessor<T> {
+    fn get_algorithm(&self) -> &Option<T>;
+    fn get_algorithm_mut(&mut self) -> &mut Option<T>;
+}
+
+impl DynamicRoutingAlgoAccessor<SuccessBasedAlgorithm> for DynamicRoutingAlgorithmRef {
+    fn get_algorithm(&self) -> &Option<SuccessBasedAlgorithm> {
+        &self.success_based_algorithm
+    }
+
+    fn get_algorithm_mut(&mut self) -> &mut Option<SuccessBasedAlgorithm> {
+        &mut self.success_based_algorithm
+    }
+}
+
+impl DynamicRoutingAlgoAccessor<EliminationRoutingAlgorithm> for DynamicRoutingAlgorithmRef {}
+
 impl EliminationRoutingAlgorithm {
     pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>,
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
+            common_utils::id_type::RoutingId,
+        >,
     ) -> Self {
         EliminationRoutingAlgorithm {
             algorithm_id_with_timestamp,
@@ -539,7 +558,9 @@ impl EliminationRoutingAlgorithm {
 
 impl SuccessBasedAlgorithm {
     pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>,
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
+            common_utils::id_type::RoutingId,
+        >,
     ) -> Self {
         SuccessBasedAlgorithm {
             algorithm_id_with_timestamp,
@@ -603,7 +624,7 @@ impl DynamicRoutingAlgorithmRef {
                     },
                     enabled_feature,
                 })
-            },
+            }
             DynamicRoutingType::EliminationRouting => {
                 self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
                     algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
@@ -612,7 +633,7 @@ impl DynamicRoutingAlgorithmRef {
                     },
                     enabled_feature,
                 })
-            },
+            }
         };
     }
 }

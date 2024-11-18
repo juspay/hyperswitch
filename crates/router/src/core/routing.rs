@@ -1209,7 +1209,6 @@ pub async fn toggle_success_based_routing(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    println!(">>>>>>>>>> {:?}", dynamic_routing_type);
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
         key_manager_state,
@@ -1223,17 +1222,16 @@ pub async fn toggle_success_based_routing(
         id: profile_id.get_string_repr().to_owned(),
     })?;
 
-    let mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
-        business_profile
-            .dynamic_routing_algorithm
-            .clone()
-            .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "unable to deserialize dynamic routing algorithm ref from business profile",
-            )?
-            .unwrap_or_default();
+    let mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to deserialize dynamic routing algorithm ref from business profile",
+        )?
+        .unwrap_or_default();
 
     match feature_to_enable {
         routing::DynamicRoutingFeatures::Metrics
