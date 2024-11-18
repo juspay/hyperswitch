@@ -32,15 +32,15 @@ impl UserRole {
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
     ) -> Box<
-        dyn diesel::BoxableExpression<<Self as HasTable>::Table, Pg, SqlType = Nullable<Bool>> + 'static,
+        dyn diesel::BoxableExpression<<Self as HasTable>::Table, Pg, SqlType = Nullable<Bool>>
+            + 'static,
     > {
-
         // Checking in user roles, for a user in token hierarchy, only one of the relations will be true:
         // either tenant level, org level, merchant level, or profile level
         // Tenant-level: (tenant_id = ? && org_id = null && merchant_id = null && profile_id = null)
-        // Org-level: (org_id = ? && merchant_id = null && profile_id = null)
-        // Merchant-level: (org_id = ? && merchant_id = ? && profile_id = null)
-        // Profile-level: (org_id = ? && merchant_id = ? && profile_id = ?)
+        // Org-level: (tenant_id = ? && org_id = ? && merchant_id = null && profile_id = null)
+        // Merchant-level: (tenant_id = ? && org_id = ? && merchant_id = ? && profile_id = null)
+        // Profile-level: (tenant_id = ? && org_id = ? && merchant_id = ? && profile_id = ?)
         Box::new(
             dsl::tenant_id
                 .eq(tenant_id.clone())
@@ -72,7 +72,7 @@ impl UserRole {
                         .and(dsl::profile_id.eq(profile_id)),
                 ),
         )
-    }    
+    }
 
     pub async fn find_by_user_id_org_id_merchant_id_profile_id(
         conn: &PgPooledConn,
@@ -83,8 +83,8 @@ impl UserRole {
         profile_id: Option<id_type::ProfileId>,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
-
-        let check_lineage = Self::check_user_in_lineage(tenant_id, Some(org_id), Some(merchant_id), profile_id);
+        let check_lineage =
+            Self::check_user_in_lineage(tenant_id, Some(org_id), Some(merchant_id), profile_id);
 
         let predicate = dsl::user_id
             .eq(user_id)
@@ -104,7 +104,6 @@ impl UserRole {
         update: UserRoleUpdate,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
-
         let check_lineage = dsl::tenant_id
             .eq(tenant_id.clone())
             .and(dsl::org_id.is_null())
@@ -158,42 +157,8 @@ impl UserRole {
         profile_id: Option<id_type::ProfileId>,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
-        // Checking in user roles, for a user in token hierarchy, only one of the relations will be true:
-        // either tenant level, org level, merchant level, or profile level
-        // Tenant-level: (tenant_id = ? && org_id = null && merchant_id = null && profile_id = null)
-        // Org-level: (org_id = ? && merchant_id = null && profile_id = null)
-        // Merchant-level: (org_id = ? && merchant_id = ? && profile_id = null)
-        // Profile-level: (org_id = ? && merchant_id = ? && profile_id = ?)
-
-        let check_lineage = dsl::tenant_id
-            .eq(tenant_id.clone())
-            .and(dsl::org_id.is_null())
-            .and(dsl::merchant_id.is_null())
-            .and(dsl::profile_id.is_null())
-            .or(
-                // Org-level condition
-                dsl::tenant_id
-                    .eq(tenant_id.clone())
-                    .and(dsl::org_id.eq(org_id.clone()))
-                    .and(dsl::merchant_id.is_null())
-                    .and(dsl::profile_id.is_null()),
-            )
-            .or(
-                // Merchant-level condition
-                dsl::tenant_id
-                    .eq(tenant_id.clone())
-                    .and(dsl::org_id.eq(org_id.clone()))
-                    .and(dsl::merchant_id.eq(merchant_id.clone()))
-                    .and(dsl::profile_id.is_null()),
-            )
-            .or(
-                // Profile-level condition
-                dsl::tenant_id
-                    .eq(tenant_id)
-                    .and(dsl::org_id.eq(org_id))
-                    .and(dsl::merchant_id.eq(merchant_id))
-                    .and(dsl::profile_id.eq(profile_id)),
-            );
+        let check_lineage =
+            Self::check_user_in_lineage(tenant_id, Some(org_id), Some(merchant_id), profile_id);
 
         // Combine lineage check with user_id and version
         let predicate = dsl::user_id
