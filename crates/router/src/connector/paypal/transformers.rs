@@ -641,7 +641,8 @@ impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
             | domain::PaymentMethodData::CardToken(_)
             | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::OpenBanking(_) => {
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::MobilePayment(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
                 ))?
