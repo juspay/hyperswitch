@@ -1,7 +1,6 @@
 {
   "connector_name": "stripe",
-  "business_country": "US",
-  "business_label": "default",
+  "profile_id": "{{profile_id}}",
   "connector_account_details": {
     "auth_type": "BodyKey",
     "api_key": "api-key",

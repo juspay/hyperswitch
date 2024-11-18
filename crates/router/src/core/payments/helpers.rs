@@ -2821,6 +2821,10 @@ pub fn validate_payment_method_type_against_payment_method(
             payment_method_type,
             api_enums::PaymentMethodType::OpenBankingPIS
         ),
+        api_enums::PaymentMethod::MobilePayment => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::DirectCarrierBilling
+        ),
     }
 }
 
@@ -4696,6 +4700,11 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
+        domain::PaymentMethodData::MobilePayment(mobile_payment) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::MobilePayment {
+                details: Some(mobile_payment.to_owned().into()),
+            },
+        )),
         domain::PaymentMethodData::NetworkToken(_) => Ok(None),
     }
 }
@@ -4788,32 +4797,17 @@ pub fn validate_customer_access(
 
 pub fn is_apple_pay_simplified_flow(
     connector_metadata: Option<pii::SecretSerdeValue>,
-    connector_wallets_details: Option<pii::SecretSerdeValue>,
     connector_name: Option<&String>,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
-    let connector_apple_pay_wallet_details =
-        get_applepay_metadata(connector_wallets_details)
-            .map_err(|error| {
-                logger::debug!(
-                    "Apple pay connector wallets details parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
-                    connector_name,
-                    error
-                )
-            })
-            .ok();
-
-    let option_apple_pay_metadata = match connector_apple_pay_wallet_details {
-        Some(apple_pay_wallet_details) => Some(apple_pay_wallet_details),
-        None => get_applepay_metadata(connector_metadata)
-            .map_err(|error| {
-                logger::debug!(
-                "Apple pay metadata parsing failed for {:?} in is_apple_pay_simplified_flow {:?}",
+    let option_apple_pay_metadata = get_applepay_metadata(connector_metadata)
+        .map_err(|error| {
+            logger::info!(
+                "Apple pay metadata parsing for {:?} in is_apple_pay_simplified_flow {:?}",
                 connector_name,
                 error
             )
-            })
-            .ok(),
-    };
+        })
+        .ok();
 
     // return true only if the apple flow type is simplified
     Ok(matches!(
@@ -4999,7 +4993,6 @@ where
 
     let connector_data_list = if is_apple_pay_simplified_flow(
         merchant_connector_account_type.get_metadata(),
-        merchant_connector_account_type.get_connector_wallets_details(),
         merchant_connector_account_type
             .get_connector_name()
             .as_ref(),
@@ -5027,10 +5020,6 @@ where
         for merchant_connector_account in profile_specific_merchant_connector_account_list {
             if is_apple_pay_simplified_flow(
                 merchant_connector_account.metadata.clone(),
-                merchant_connector_account
-                    .connector_wallets_details
-                    .as_deref()
-                    .cloned(),
                 Some(&merchant_connector_account.connector_name),
             )? {
                 let connector_data = api::ConnectorData::get_connector_by_name(
@@ -5408,6 +5397,11 @@ pub fn get_key_params_for_surcharge_details(
         domain::PaymentMethodData::OpenBanking(ob_data) => Some((
             common_enums::PaymentMethod::OpenBanking,
             ob_data.get_payment_method_type(),
+            None,
+        )),
+        domain::PaymentMethodData::MobilePayment(mobile_payment) => Some((
+            common_enums::PaymentMethod::MobilePayment,
+            mobile_payment.get_payment_method_type(),
             None,
         )),
         domain::PaymentMethodData::CardToken(_)

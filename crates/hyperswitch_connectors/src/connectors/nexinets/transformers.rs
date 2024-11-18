@@ -618,6 +618,7 @@ fn get_payment_details_and_product(
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)

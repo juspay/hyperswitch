@@ -7,7 +7,7 @@ use std::{
 use api_models::payouts::{self, PayoutVendorAccountDetails};
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, OrderDetailsWithAmount},
+    payments,
 };
 use base64::Engine;
 use common_utils::{
@@ -18,7 +18,7 @@ use common_utils::{
     pii::{self, Email, IpAddress},
     types::{AmountConvertor, MinorUnit},
 };
-use diesel_models::enums;
+use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates,
@@ -2823,6 +2823,7 @@ pub enum PaymentMethodDataType {
     VietQr,
     OpenBanking,
     NetworkToken,
+    DirectCarrierBilling,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -3008,6 +3009,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::CardToken(_) => Self::CardToken,
             domain::payments::PaymentMethodData::OpenBanking(data) => match data {
                 hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
+            },
+            domain::payments::PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
+                hyperswitch_domain_models::payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => Self::DirectCarrierBilling,
             },
         }
     }

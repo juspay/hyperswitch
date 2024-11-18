@@ -57,6 +57,9 @@ pub mod prelude {
 #[cfg(feature = "diesel")]
 mod diesel;
 
+#[cfg(feature = "cassandra")]
+mod cassandra;
+
 pub mod maskable;
 
 pub use maskable::*;

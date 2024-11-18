@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::payments::Address;
+use api_models::payments::{Address, MandateIds, MandateReferenceId};
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -10,9 +10,11 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::Authorize,
-    router_request_types::{PaymentsAuthorizeData, ResponseId},
-    router_response_types::{PaymentsResponseData, RedirectForm},
+    router_flow_types::{Authorize, SetupMandate},
+    router_request_types::{
+        BrowserInformation, PaymentsAuthorizeData, ResponseId, SetupMandateRequestData,
+    },
+    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm},
     types,
 };
 use hyperswitch_interfaces::{api, errors};
@@ -22,7 +24,10 @@ use serde::{Deserialize, Serialize};
 use super::{requests::*, response::*};
 use crate::{
     types::ResponseRouterData,
-    utils::{self, AddressData, ForeignTryFrom, PaymentsAuthorizeRequestData, RouterData as _},
+    utils::{
+        self, AddressData, ForeignTryFrom, PaymentsAuthorizeRequestData,
+        PaymentsSetupMandateRequestData, RouterData as RouterDataTrait,
+    },
 };
 
 #[derive(Debug, Serialize)]
@@ -47,18 +52,15 @@ impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, MinorUnit, T)> for Worldpa
     }
 }
 
-/// Worldpay's unique reference ID for a request
-pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";
-
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct WorldpayConnectorMetadataObject {
     pub merchant_name: Option<Secret<String>>,
 }
 
-impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject {
+impl TryFrom<Option<&pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+    fn try_from(meta_data: Option<&pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.cloned())
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
                 config: "metadata",
             })?;
@@ -69,6 +71,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for WorldpayConnectorMetadataObject
 fn fetch_payment_instrument(
     payment_method: PaymentMethodData,
     billing_address: Option<&Address>,
+    mandate_ids: Option<MandateIds>,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
     match payment_method {
         PaymentMethodData::Card(card) => Ok(PaymentInstrument::Card(CardPayment {
@@ -103,6 +106,29 @@ fn fetch_payment_instrument(
                 None
             },
         })),
+        PaymentMethodData::MandatePayment => mandate_ids
+            .and_then(|mandate_ids| {
+                mandate_ids
+                    .mandate_reference_id
+                    .and_then(|mandate_id| match mandate_id {
+                        MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
+                            connector_mandate_id.get_connector_mandate_id().map(|href| {
+                                PaymentInstrument::CardToken(CardToken {
+                                    payment_type: PaymentType::Token,
+                                    href,
+                                    cvc: None,
+                                })
+                            })
+                        }
+                        _ => None,
+                    })
+            })
+            .ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_mandate_id",
+                }
+                .into(),
+            ),
         PaymentMethodData::Wallet(wallet) => match wallet {
             WalletData::GooglePay(data) => Ok(PaymentInstrument::Googlepay(WalletPayment {
                 payment_type: PaymentType::Encrypted,
@@ -149,9 +175,9 @@ fn fetch_payment_instrument(
         | PaymentMethodData::BankDebit(_)
         | PaymentMethodData::BankTransfer(_)
         | PaymentMethodData::Crypto(_)
-        | PaymentMethodData::MandatePayment
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::CardRedirect(_)
@@ -196,109 +222,300 @@ impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for Payme
     }
 }
 
-impl
-    TryFrom<(
-        &WorldpayRouterData<&RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>>,
-        &Secret<String>,
-    )> for WorldpayPaymentsRequest
+// Trait to abstract common functionality between Authorize and SetupMandate
+trait WorldpayPaymentsRequestData {
+    fn get_return_url(&self) -> Result<String, error_stack::Report<errors::ConnectorError>>;
+    fn get_auth_type(&self) -> &enums::AuthenticationType;
+    fn get_browser_info(&self) -> Option<&BrowserInformation>;
+    fn get_payment_method_data(&self) -> &PaymentMethodData;
+    fn get_setup_future_usage(&self) -> Option<enums::FutureUsage>;
+    fn get_off_session(&self) -> Option<bool>;
+    fn get_mandate_id(&self) -> Option<MandateIds>;
+    fn get_currency(&self) -> enums::Currency;
+    fn get_optional_billing_address(&self) -> Option<&Address>;
+    fn get_connector_meta_data(&self) -> Option<&pii::SecretSerdeValue>;
+    fn get_payment_method(&self) -> enums::PaymentMethod;
+    fn get_payment_method_type(&self) -> Option<enums::PaymentMethodType>;
+    fn get_connector_request_reference_id(&self) -> String;
+    fn get_is_mandate_payment(&self) -> bool;
+    fn get_settlement_info(&self, _amount: i64) -> Option<AutoSettlement> {
+        None
+    }
+}
+
+impl WorldpayPaymentsRequestData
+    for RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+{
+    fn get_return_url(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+        self.request.get_router_return_url()
+    }
+
+    fn get_auth_type(&self) -> &enums::AuthenticationType {
+        &self.auth_type
+    }
+
+    fn get_browser_info(&self) -> Option<&BrowserInformation> {
+        self.request.browser_info.as_ref()
+    }
+
+    fn get_payment_method_data(&self) -> &PaymentMethodData {
+        &self.request.payment_method_data
+    }
+
+    fn get_setup_future_usage(&self) -> Option<enums::FutureUsage> {
+        self.request.setup_future_usage
+    }
+
+    fn get_off_session(&self) -> Option<bool> {
+        self.request.off_session
+    }
+
+    fn get_mandate_id(&self) -> Option<MandateIds> {
+        self.request.mandate_id.clone()
+    }
+
+    fn get_currency(&self) -> enums::Currency {
+        self.request.currency
+    }
+
+    fn get_optional_billing_address(&self) -> Option<&Address> {
+        self.get_optional_billing()
+    }
+
+    fn get_connector_meta_data(&self) -> Option<&pii::SecretSerdeValue> {
+        self.connector_meta_data.as_ref()
+    }
+
+    fn get_payment_method(&self) -> enums::PaymentMethod {
+        self.payment_method
+    }
+
+    fn get_payment_method_type(&self) -> Option<enums::PaymentMethodType> {
+        self.request.payment_method_type
+    }
+
+    fn get_connector_request_reference_id(&self) -> String {
+        self.connector_request_reference_id.clone()
+    }
+
+    fn get_is_mandate_payment(&self) -> bool {
+        true
+    }
+}
+
+impl WorldpayPaymentsRequestData
+    for RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
+{
+    fn get_return_url(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+        self.request.get_complete_authorize_url()
+    }
+
+    fn get_auth_type(&self) -> &enums::AuthenticationType {
+        &self.auth_type
+    }
+
+    fn get_browser_info(&self) -> Option<&BrowserInformation> {
+        self.request.browser_info.as_ref()
+    }
+
+    fn get_payment_method_data(&self) -> &PaymentMethodData {
+        &self.request.payment_method_data
+    }
+
+    fn get_setup_future_usage(&self) -> Option<enums::FutureUsage> {
+        self.request.setup_future_usage
+    }
+
+    fn get_off_session(&self) -> Option<bool> {
+        self.request.off_session
+    }
+
+    fn get_mandate_id(&self) -> Option<MandateIds> {
+        self.request.mandate_id.clone()
+    }
+
+    fn get_currency(&self) -> enums::Currency {
+        self.request.currency
+    }
+
+    fn get_optional_billing_address(&self) -> Option<&Address> {
+        self.get_optional_billing()
+    }
+
+    fn get_connector_meta_data(&self) -> Option<&pii::SecretSerdeValue> {
+        self.connector_meta_data.as_ref()
+    }
+
+    fn get_payment_method(&self) -> enums::PaymentMethod {
+        self.payment_method
+    }
+
+    fn get_payment_method_type(&self) -> Option<enums::PaymentMethodType> {
+        self.request.payment_method_type
+    }
+
+    fn get_connector_request_reference_id(&self) -> String {
+        self.connector_request_reference_id.clone()
+    }
+
+    fn get_is_mandate_payment(&self) -> bool {
+        self.request.is_mandate_payment()
+    }
+
+    fn get_settlement_info(&self, amount: i64) -> Option<AutoSettlement> {
+        match (self.request.capture_method.unwrap_or_default(), amount) {
+            (_, 0) => None,
+            (enums::CaptureMethod::Automatic, _) => Some(AutoSettlement { auto: true }),
+            (enums::CaptureMethod::Manual, _) | (enums::CaptureMethod::ManualMultiple, _) => {
+                Some(AutoSettlement { auto: false })
+            }
+            _ => None,
+        }
+    }
+}
+
+// Dangling helper function to create ThreeDS request
+fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
+    router_data: &T,
+    is_mandate_payment: bool,
+) -> Result<Option<ThreeDSRequest>, error_stack::Report<errors::ConnectorError>> {
+    match router_data.get_auth_type() {
+        enums::AuthenticationType::ThreeDs => {
+            let browser_info = router_data.get_browser_info().ok_or(
+                errors::ConnectorError::MissingRequiredField {
+                    field_name: "browser_info",
+                },
+            )?;
+
+            let accept_header = browser_info
+                .accept_header
+                .clone()
+                .get_required_value("accept_header")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "accept_header",
+                })?;
+
+            let user_agent_header = browser_info
+                .user_agent
+                .clone()
+                .get_required_value("user_agent")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "user_agent",
+                })?;
+
+            Ok(Some(ThreeDSRequest {
+                three_ds_type: THREE_DS_TYPE.to_string(),
+                mode: THREE_DS_MODE.to_string(),
+                device_data: ThreeDSRequestDeviceData {
+                    accept_header,
+                    user_agent_header,
+                    browser_language: browser_info.language.clone(),
+                    browser_screen_width: browser_info.screen_width,
+                    browser_screen_height: browser_info.screen_height,
+                    browser_color_depth: browser_info.color_depth.map(|depth| depth.to_string()),
+                    time_zone: browser_info.time_zone.map(|tz| tz.to_string()),
+                    browser_java_enabled: browser_info.java_enabled,
+                    browser_javascript_enabled: browser_info.java_script_enabled,
+                    channel: Some(ThreeDSRequestChannel::Browser),
+                },
+                challenge: ThreeDSRequestChallenge {
+                    return_url: router_data.get_return_url()?,
+                    preference: if is_mandate_payment {
+                        Some(ThreeDsPreference::ChallengeMandated)
+                    } else {
+                        None
+                    },
+                },
+            }))
+        }
+        _ => Ok(None),
+    }
+}
+
+// Dangling helper function to determine token and agreement settings
+fn get_token_and_agreement(
+    payment_method_data: &PaymentMethodData,
+    setup_future_usage: Option<enums::FutureUsage>,
+    off_session: Option<bool>,
+) -> (Option<TokenCreation>, Option<CustomerAgreement>) {
+    match (payment_method_data, setup_future_usage, off_session) {
+        // CIT
+        (PaymentMethodData::Card(_), Some(enums::FutureUsage::OffSession), _) => (
+            Some(TokenCreation {
+                token_type: TokenCreationType::Worldpay,
+            }),
+            Some(CustomerAgreement {
+                agreement_type: CustomerAgreementType::Subscription,
+                stored_card_usage: StoredCardUsageType::First,
+            }),
+        ),
+        // MIT
+        (PaymentMethodData::Card(_), _, Some(true)) => (
+            None,
+            Some(CustomerAgreement {
+                agreement_type: CustomerAgreementType::Subscription,
+                stored_card_usage: StoredCardUsageType::Subsequent,
+            }),
+        ),
+        _ => (None, None),
+    }
+}
+
+// Implementation for WorldpayPaymentsRequest using abstracted request
+impl<T: WorldpayPaymentsRequestData> TryFrom<(&WorldpayRouterData<&T>, &Secret<String>)>
+    for WorldpayPaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        req: (
-            &WorldpayRouterData<
-                &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
-            >,
-            &Secret<String>,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(req: (&WorldpayRouterData<&T>, &Secret<String>)) -> Result<Self, Self::Error> {
         let (item, entity_id) = req;
         let worldpay_connector_metadata_object: WorldpayConnectorMetadataObject =
-            WorldpayConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+            WorldpayConnectorMetadataObject::try_from(item.router_data.get_connector_meta_data())?;
+
         let merchant_name = worldpay_connector_metadata_object.merchant_name.ok_or(
             errors::ConnectorError::InvalidConnectorConfig {
                 config: "metadata.merchant_name",
             },
         )?;
-        let three_ds = match item.router_data.auth_type {
-            enums::AuthenticationType::ThreeDs => {
-                let browser_info = item
-                    .router_data
-                    .request
-                    .browser_info
-                    .clone()
-                    .get_required_value("browser_info")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "browser_info",
-                    })?;
-                let accept_header = browser_info
-                    .accept_header
-                    .get_required_value("accept_header")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "accept_header",
-                    })?;
-                let user_agent_header = browser_info
-                    .user_agent
-                    .get_required_value("user_agent")
-                    .change_context(errors::ConnectorError::MissingRequiredField {
-                        field_name: "user_agent",
-                    })?;
-                Some(ThreeDSRequest {
-                    three_ds_type: "integrated".to_string(),
-                    mode: "always".to_string(),
-                    device_data: ThreeDSRequestDeviceData {
-                        accept_header,
-                        user_agent_header,
-                        browser_language: browser_info.language.clone(),
-                        browser_screen_width: browser_info.screen_width,
-                        browser_screen_height: browser_info.screen_height,
-                        browser_color_depth: browser_info
-                            .color_depth
-                            .map(|depth| depth.to_string()),
-                        time_zone: browser_info.time_zone.map(|tz| tz.to_string()),
-                        browser_java_enabled: browser_info.java_enabled,
-                        browser_javascript_enabled: browser_info.java_script_enabled,
-                        channel: Some(ThreeDSRequestChannel::Browser),
-                    },
-                    challenge: ThreeDSRequestChallenge {
-                        return_url: item.router_data.request.get_complete_authorize_url()?,
-                    },
-                })
-            }
-            _ => None,
-        };
+
+        let is_mandate_payment = item.router_data.get_is_mandate_payment();
+        let three_ds = create_three_ds_request(item.router_data, is_mandate_payment)?;
+
+        let (token_creation, customer_agreement) = get_token_and_agreement(
+            item.router_data.get_payment_method_data(),
+            item.router_data.get_setup_future_usage(),
+            item.router_data.get_off_session(),
+        );
+
         Ok(Self {
             instruction: Instruction {
-                settlement: item
-                    .router_data
-                    .request
-                    .capture_method
-                    .map(|capture_method| AutoSettlement {
-                        auto: capture_method == enums::CaptureMethod::Automatic,
-                    }),
+                settlement: item.router_data.get_settlement_info(item.amount),
                 method: PaymentMethod::try_from((
-                    item.router_data.payment_method,
-                    item.router_data.request.payment_method_type,
+                    item.router_data.get_payment_method(),
+                    item.router_data.get_payment_method_type(),
                 ))?,
                 payment_instrument: fetch_payment_instrument(
-                    item.router_data.request.payment_method_data.clone(),
-                    item.router_data.get_optional_billing(),
+                    item.router_data.get_payment_method_data().clone(),
+                    item.router_data.get_optional_billing_address(),
+                    item.router_data.get_mandate_id(),
                 )?,
                 narrative: InstructionNarrative {
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
                     amount: item.amount,
-                    currency: item.router_data.request.currency,
+                    currency: item.router_data.get_currency(),
                 },
                 debt_repayment: None,
                 three_ds,
+                token_creation,
+                customer_agreement,
             },
             merchant: Merchant {
                 entity: entity_id.clone(),
                 ..Default::default()
             },
-            transaction_reference: item.router_data.connector_request_reference_id.clone(),
+            transaction_reference: item.router_data.get_connector_request_reference_id(),
             customer: None,
         })
     }
@@ -409,14 +626,22 @@ impl<F, T>
         ),
     ) -> Result<Self, Self::Error> {
         let (router_data, optional_correlation_id) = item;
-        let (description, redirection_data, error) = router_data
+        let (description, redirection_data, mandate_reference, error) = router_data
             .response
             .other_fields
             .as_ref()
             .map(|other_fields| match other_fields {
-                WorldpayPaymentResponseFields::AuthorizedResponse(res) => {
-                    (res.description.clone(), None, None)
-                }
+                WorldpayPaymentResponseFields::AuthorizedResponse(res) => (
+                    res.description.clone(),
+                    None,
+                    res.token.as_ref().map(|mandate_token| MandateReference {
+                        connector_mandate_id: Some(mandate_token.href.clone().expose()),
+                        payment_method_id: Some(mandate_token.token_id.clone()),
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    }),
+                    None,
+                ),
                 WorldpayPaymentResponseFields::DDCResponse(res) => (
                     None,
                     Some(RedirectForm::WorldpayDDCForm {
@@ -435,6 +660,7 @@ impl<F, T>
                         ]),
                     }),
                     None,
+                    None,
                 ),
                 WorldpayPaymentResponseFields::ThreeDsChallenged(res) => (
                     None,
@@ -447,15 +673,17 @@ impl<F, T>
                         )]),
                     }),
                     None,
+                    None,
                 ),
                 WorldpayPaymentResponseFields::RefusedResponse(res) => (
                     None,
                     None,
+                    None,
                     Some((res.refusal_code.clone(), res.refusal_description.clone())),
                 ),
-                WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None),
+                WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None, None),
             })
-            .unwrap_or((None, None, None));
+            .unwrap_or((None, None, None, None));
         let worldpay_status = router_data.response.outcome.clone();
         let optional_error_message = match worldpay_status {
             PaymentOutcome::ThreeDsAuthenticationFailed => {
@@ -475,7 +703,7 @@ impl<F, T>
                     optional_correlation_id.clone(),
                 ))?,
                 redirection_data: Box::new(redirection_data),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: optional_correlation_id.clone(),

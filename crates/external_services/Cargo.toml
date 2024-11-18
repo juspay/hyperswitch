@@ -13,7 +13,7 @@ email = ["dep:aws-config"]
 aws_s3 = ["dep:aws-config", "dep:aws-sdk-s3"]
 hashicorp-vault = ["dep:vaultrs"]
 v1 = ["hyperswitch_interfaces/v1", "common_utils/v1"]
-dynamic_routing = ["dep:prost", "dep:tonic", "dep:tonic-reflection", "dep:tonic-types", "dep:api_models", "tokio/macros", "tokio/rt-multi-thread", "dep:tonic-build", "dep:router_env"]
+dynamic_routing = ["dep:prost", "dep:tonic", "dep:tonic-reflection", "dep:tonic-types", "dep:api_models", "tokio/macros", "tokio/rt-multi-thread", "dep:tonic-build", "dep:router_env", "dep:hyper-util", "dep:http-body-util"]
 
 [dependencies]
 async-trait = "0.1.79"
@@ -38,6 +38,8 @@ tokio = "1.37.0"
 tonic = { version = "0.12.2", optional = true }
 tonic-reflection = { version = "0.12.2", optional = true }
 tonic-types = { version = "0.12.2", optional = true }
+hyper-util = { version = "0.1.9", optional = true }
+http-body-util = { version = "0.1.2", optional = true }
 
 
 # First party crates

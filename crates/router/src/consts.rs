@@ -180,6 +180,3 @@ pub const VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
 /// Vault Fingerprint fetch flow type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
-
-/// Worldpay's unique reference ID for a request TODO: Move to hyperswitch_connectors/constants once Worldpay is moved to connectors crate
-pub const WP_CORRELATION_ID: &str = "WP-CorrelationId";

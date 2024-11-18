@@ -54,6 +54,7 @@ pub enum Connector {
     Aci,
     Adyen,
     Airwallex,
+    // Amazonpay,
     Authorizedotnet,
     Bambora,
     Bamboraapac,
@@ -70,7 +71,7 @@ pub enum Connector {
     Cybersource,
     Datatrans,
     Deutschebank,
-    // Digitalvirgo, template code for future usage
+    Digitalvirgo,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -84,6 +85,7 @@ pub enum Connector {
     Helcim,
     Iatapay,
     Itaubank,
+    //Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,
@@ -92,6 +94,7 @@ pub enum Connector {
     Nexinets,
     Nexixpay,
     Nmi,
+    // Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -195,6 +198,7 @@ impl Connector {
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
+            // | Self::Amazonpay
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bamboraapac
@@ -208,6 +212,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Deutschebank
+            | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
             | Self::Fiserv
@@ -221,12 +226,14 @@ impl Connector {
             | Self::Helcim
             | Self::Iatapay
             | Self::Itaubank
+            //| Self::Jpmorgan
             | Self::Klarna
             | Self::Mifinity
             | Self::Mollie
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
+            // | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode

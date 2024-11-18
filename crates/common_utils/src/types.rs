@@ -3,6 +3,8 @@ pub mod keymanager;
 
 /// Enum for Authentication Level
 pub mod authentication;
+/// Enum for Theme Lineage
+pub mod theme;
 
 use std::{
     borrow::Cow,
@@ -626,6 +628,16 @@ impl Url {
     /// Get string representation of the url
     pub fn get_string_repr(&self) -> &str {
         self.0.as_str()
+    }
+
+    /// wrap the url::Url in Url type
+    pub fn wrap(url: url::Url) -> Self {
+        Self(url)
+    }
+
+    /// Get the inner url
+    pub fn into_inner(self) -> url::Url {
+        self.0
     }
 }
 

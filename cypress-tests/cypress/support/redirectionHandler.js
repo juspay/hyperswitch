@@ -225,19 +225,10 @@ function bankRedirectRedirection(
     case "trustpay":
       switch (payment_method_type) {
         case "eps":
-          cy.get("._transactionId__header__iXVd_").should(
-            "contain.text",
-            "Bank suchen ‑ mit eps zahlen."
+          cy.get("#bankname").type(
+            "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
           );
-          cy.get(".BankSearch_searchInput__uX_9l").type(
-            "Allgemeine Sparkasse Oberösterreich Bank AG{enter}"
-          );
-          cy.get(".BankSearch_searchResultItem__lbcKm").click();
-          cy.get("._transactionId__primaryButton__nCa0r").click();
-          cy.get("#loginTitle").should(
-            "contain.text",
-            "eps Online-Überweisung Login"
-          );
+          cy.get("#selectionSubmit").click();
           cy.get("#user")
             .should("be.visible")
             .should("be.enabled")
@@ -352,10 +343,22 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
           .then(() => {
             cy.get('input[name="challengeDataEntry"]').click().type("1234");
             cy.get('input[value="SUBMIT"]').click();
-          })
+          });
       });
-  }
-  else {
+  } else if (connectorId === "fiuu") {
+    cy.get('form[id="cc_form"]', { timeout: WAIT_TIME_IATAPAY })
+      .should("exist")
+      .then((form) => {
+        cy.get('button.pay-btn[name="pay"]').click();
+        cy.get("div.otp")
+          .invoke("text")
+          .then((otpText) => {
+            const otp = otpText.match(/\d+/)[0]; // Extract the numeric OTP
+            cy.get("input#otp-input").should("not.be.disabled").type(otp);
+            cy.get('button.pay-btn').click();
+          });
+      });
+  } else {
     // If connectorId is neither of adyen, trustpay, nmi, stripe, bankofamerica or cybersource, wait for 10 seconds
     cy.wait(WAIT_TIME);
   }

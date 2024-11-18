@@ -375,7 +375,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        attempt_id: &str,
+        attempt_id: &common_utils::id_type::GlobalAttemptId,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -1132,7 +1132,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        attempt_id: &str,
+        attempt_id: &common_utils::id_type::GlobalAttemptId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         // Ignoring storage scheme for v2 implementation
