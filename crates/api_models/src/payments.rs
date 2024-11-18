@@ -6556,6 +6556,7 @@ pub struct PaymentLinkDetails {
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
     pub display_sdk_only: bool,
+    pub hide_card_nickname_field: bool,
     pub locale: Option<String>,
     pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
 }
@@ -6563,6 +6564,7 @@ pub struct PaymentLinkDetails {
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct SecurePaymentLinkDetails {
     pub enabled_saved_payment_method: bool,
+    pub hide_card_nickname_field: bool,
     #[serde(flatten)]
     pub payment_link_details: PaymentLinkDetails,
 }

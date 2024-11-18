@@ -15075,7 +15075,8 @@
           "seller_name",
           "sdk_layout",
           "display_sdk_only",
-          "enabled_saved_payment_method"
+          "enabled_saved_payment_method",
+          "hide_card_nickname_field"
         ],
         "properties": {
           "theme": {
@@ -15101,6 +15102,10 @@
           "enabled_saved_payment_method": {
             "type": "boolean",
             "description": "Enable saved payment method option for payment link"
+          },
+          "hide_card_nickname_field": {
+            "type": "boolean",
+            "description": "Hide card nickname field option for payment link"
           },
           "allowed_domains": {
             "type": "array",
@@ -15162,6 +15167,13 @@
           "enabled_saved_payment_method": {
             "type": "boolean",
             "description": "Enable saved payment method option for payment link",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "hide_card_nickname_field": {
+            "type": "boolean",
+            "description": "Hide card nickname field option for payment link",
             "default": false,
             "example": true,
             "nullable": true
