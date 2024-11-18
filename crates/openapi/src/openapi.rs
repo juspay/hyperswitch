@@ -357,6 +357,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CardResponse,
         api_models::payments::PaylaterResponse,
         api_models::payments::KlarnaSdkPaymentMethodResponse,
+        api_models::payments::KlarnaCheckoutPaymentMethodResponse,
         api_models::payments::SwishQrData,
         api_models::payments::AirwallexData,
         api_models::payments::NoonData,

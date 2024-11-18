@@ -11916,6 +11916,15 @@
           }
         }
       },
+      "KlarnaCheckoutPaymentMethodResponse": {
+        "type": "object",
+        "properties": {
+          "payment_type": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "KlarnaSessionTokenResponse": {
         "type": "object",
         "required": [
