@@ -1453,7 +1453,8 @@ where
         billing: payment_data
             .get_address()
             .get_request_payment_method_billing()
-            .cloned(),
+            .cloned()
+            .map(From::from),
     });
 
     let mut headers = connector_http_status_code
@@ -1815,8 +1816,16 @@ where
             payment_method: payment_attempt.payment_method,
             payment_method_data: payment_method_data_response,
             payment_token: payment_attempt.payment_token,
-            shipping: payment_data.get_address().get_shipping().cloned(),
-            billing: payment_data.get_address().get_payment_billing().cloned(),
+            shipping: payment_data
+                .get_address()
+                .get_shipping()
+                .cloned()
+                .map(From::from),
+            billing: payment_data
+                .get_address()
+                .get_payment_billing()
+                .cloned()
+                .map(From::from),
             order_details: payment_intent.order_details,
             email: customer
                 .as_ref()

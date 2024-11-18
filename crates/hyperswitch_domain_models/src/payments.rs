@@ -1,7 +1,6 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
 
-#[cfg(feature = "v2")]
 use common_utils::{
     self,
     crypto::Encryptable,

@@ -78,7 +78,7 @@ pub async fn save_payment_method<FData>(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
     billing_name: Option<Secret<String>>,
-    payment_method_billing_address: Option<&api::Address>,
+    payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
     business_profile: &domain::Profile,
     mut original_connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
 ) -> RouterResult<SavePaymentMethodDataResponse>

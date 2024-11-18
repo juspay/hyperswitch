@@ -1219,7 +1219,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     _business_profile: &domain::Profile,
     _payment_attempt: &storage::PaymentAttempt,
     _payment_intent: &storage::PaymentIntent,
-    _billing_address: Option<api_models::payments::Address>,
+    _billing_address: Option<hyperswitch_domain_models::address::Address>,
     _session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>> {
     todo!()
@@ -1233,7 +1233,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     _business_profile: &domain::Profile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-    billing_address: Option<api_models::payments::Address>,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>> {
     if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {
@@ -4134,7 +4134,7 @@ where
 
 #[derive(Clone, serde::Serialize, Debug)]
 pub struct TaxData {
-    pub shipping_details: api_models::payments::Address,
+    pub shipping_details: hyperswitch_domain_models::address::Address,
     pub payment_method_type: enums::PaymentMethodType,
 }
 
