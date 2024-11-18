@@ -909,26 +909,30 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
 }
 
 #[cfg(feature = "v1")]
-
 pub async fn retrieve_default_routing_config(
     state: SessionState,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     merchant_account: domain::MerchantAccount,
     transaction_type: &enums::TransactionType,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();
+    let id = profile_id
+        .map(|profile_id| profile_id.get_string_repr().to_owned())
+        .unwrap_or_else(|| merchant_account.get_id().get_string_repr().to_string());
 
-    helpers::get_merchant_default_config(
-        db,
-        merchant_account.get_id().get_string_repr(),
-        transaction_type,
-    )
-    .await
-    .map(|conn_choice| {
-        metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(&metrics::CONTEXT, 1, &[]);
-        service_api::ApplicationResponse::Json(conn_choice)
-    })
+    helpers::get_merchant_default_config(db, &id, transaction_type)
+        .await
+        .map(|conn_choice| {
+            metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG_SUCCESS_RESPONSE.add(
+                &metrics::CONTEXT,
+                1,
+                &[],
+            );
+            service_api::ApplicationResponse::Json(conn_choice)
+        })
 }
+
 #[cfg(feature = "v2")]
 pub async fn retrieve_routing_config_under_profile(
     state: SessionState,
