@@ -1038,12 +1038,9 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 
 Cypress.Commands.add(
   "createPaymentMethodTest",
-  (configs = null, globalState, req_data, res_data) => {
+  (globalState, req_data, res_data) => {
     req_data.customer_id = globalState.get("customerId");
     const merchant_id = globalState.get("merchantId");
-    const profile_id = execConfig(configs);
-    
-    req_data.profile_id = globalState.get(profile_id);
 
     cy.request({
       method: "POST",
