@@ -1283,6 +1283,7 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present: Some(customer_present.as_bool()),
             payment_link_config,
             routing_algorithm_id,
+            sca_exemption_required: None,
         })
     }
     async fn convert_back(

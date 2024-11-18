@@ -72,6 +72,7 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
+    pub sca_exemption_required: Option<storage_enums::ScaExemptionType>,
 }
 
 #[cfg(feature = "v1")]
