@@ -861,8 +861,7 @@ pub struct PaymentsRequest {
 
     /// Whether to calculate tax for this payment intent
     pub skip_external_tax_calculation: Option<bool>,
-    pub merchant_urls: Option<MerchantURLs>,
-
+    // pub merchant_urls: Option<MerchantURLs>,
 }
 
 #[cfg(feature = "v1")]
@@ -3775,7 +3774,6 @@ pub struct MerchantURLs {
     push: String,
 }
 
-
 impl masking::SerializableSecret for Address {}
 
 impl Address {
@@ -5180,15 +5178,18 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             //     Some(sdk) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
             //     None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
             // },
-            AdditionalPaymentData::PayLater { klarna_sdk,
-                klarna_checkout
-             } => 
-            match (klarna_sdk, klarna_checkout) {
-                (Some(sdk),_) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
-                (_,Some(checkout)) => Self::PayLater(Box::new(PaylaterResponse::from(checkout))),
-                (None,None) => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None, klarna_checkout: None })),
+            AdditionalPaymentData::PayLater {
+                klarna_sdk,
+                klarna_checkout,
+            } => match (klarna_sdk, klarna_checkout) {
+                (Some(sdk), _) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
+                (_, Some(checkout)) => Self::PayLater(Box::new(PaylaterResponse::from(checkout))),
+                (None, None) => Self::PayLater(Box::new(PaylaterResponse {
+                    klarna_sdk: None,
+                    klarna_checkout: None,
+                })),
             },
-            
+
             AdditionalPaymentData::Wallet {
                 apple_pay,
                 google_pay,
@@ -5355,8 +5356,8 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
-    pub tax_rate:Option<i64>,
-    pub total_tax_amount:Option<i64>,
+    pub tax_rate: Option<i64>,
+    pub total_tax_amount: Option<i64>,
     // Does the order include shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product

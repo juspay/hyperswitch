@@ -192,6 +192,10 @@ fn build_region_specific_endpoint(
     Ok(base_url.replace("{{klarna_region}}", &klarna_region))
 }
 
+fn get_klarna_checkout_endpoint(base_url: &str) -> String {
+    base_url.replace("{{klarna_region}}", "")
+}
+
 impl
     services::ConnectorIntegration<
         api::Session,
@@ -531,7 +535,8 @@ impl
             .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-
+        let checkout_endpoint = get_klarna_checkout_endpoint(self.base_url(connectors));
+        build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { token }) => {
@@ -539,12 +544,9 @@ impl
                     (
                         common_enums::PaymentExperience::InvokeSdkClient,
                         common_enums::PaymentMethodType::Klarna,
-                    ) => {
-
-                        Ok(format!(
-                            "{endpoint}payments/v1/authorizations/{token}/order",
-                        ))
-                    }
+                    ) => Ok(format!(
+                        "{endpoint}payments/v1/authorizations/{token}/order",
+                    )),
                     (
                         common_enums::PaymentExperience::DisplayQrCode
                         | common_enums::PaymentExperience::DisplayWaitScreen
@@ -662,12 +664,7 @@ impl
                     (
                         common_enums::PaymentExperience::InvokeSdkClient,
                         common_enums::PaymentMethodType::KlarnaCheckout,
-                    ) => {
-
-                        Ok(format!(
-                            "https://api.playground.klarna.com/checkout/v3/orders",
-                        ))
-                    }
+                    ) => Ok(format!("{checkout_endpoint}checkout/v3/orders",)),
                     (
                         common_enums::PaymentExperience::DisplayQrCode
                         | common_enums::PaymentExperience::DisplayWaitScreen
@@ -852,7 +849,6 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-
         let response: klarna::KlarnaPaymentsResponse = res
             .response
             .parse_struct("KlarnaPaymentsResponse")
@@ -901,7 +897,6 @@ impl
         let order_id = req.request.connector_transaction_id.clone();
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-
         Ok(format!(
             "{endpoint}ordermanagement/v1/orders/{order_id}/cancel"
         ))

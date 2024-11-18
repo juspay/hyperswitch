@@ -4545,22 +4545,24 @@ pub async fn get_additional_payment_data(
         //     api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None },
         // )),
         domain::PaymentMethodData::PayLater(pay_later) => match pay_later {
-            domain::PayLaterData::KlarnaSdk{token} => {
-                Ok(Some(api_models::payments::AdditionalPaymentData::PayLater {
+            domain::PayLaterData::KlarnaSdk { token: _ } => Ok(Some(
+                api_models::payments::AdditionalPaymentData::PayLater {
                     klarna_sdk: None,
                     klarna_checkout: None,
-                }))
-            }
-            domain::PayLaterData::KlarnaCheckout{} => {
-                Ok(Some(api_models::payments::AdditionalPaymentData::PayLater {
+                },
+            )),
+            domain::PayLaterData::KlarnaCheckout {} => Ok(Some(
+                api_models::payments::AdditionalPaymentData::PayLater {
                     klarna_sdk: None,
                     klarna_checkout: None,
-                }))
-            }
-            _ => Ok(Some(api_models::payments::AdditionalPaymentData::PayLater {
-                klarna_sdk: None,
-                klarna_checkout: None,
-            })),
+                },
+            )),
+            _ => Ok(Some(
+                api_models::payments::AdditionalPaymentData::PayLater {
+                    klarna_sdk: None,
+                    klarna_checkout: None,
+                },
+            )),
         },
         domain::PaymentMethodData::BankTransfer(bank_transfer) => Ok(Some(
             api_models::payments::AdditionalPaymentData::BankTransfer {
@@ -5633,11 +5635,11 @@ pub fn add_connector_response_to_additional_payment_data(
             api_models::payments::AdditionalPaymentData::PayLater { .. },
             AdditionalPaymentMethodConnectorResponse::PayLater {
                 klarna_sdk: Some(KlarnaSdkResponse { payment_type }),
-                klarna_checkout,
+                klarna_checkout: None,
             },
         ) => api_models::payments::AdditionalPaymentData::PayLater {
             klarna_sdk: Some(api_models::payments::KlarnaSdkPaymentMethod { payment_type }),
-            klarna_checkout:None
+            klarna_checkout: None,
         },
         (
             api_models::payments::AdditionalPaymentData::PayLater { .. },
@@ -5646,8 +5648,10 @@ pub fn add_connector_response_to_additional_payment_data(
                 klarna_checkout: Some(KlarnaCheckoutResponse { payment_type }),
             },
         ) => api_models::payments::AdditionalPaymentData::PayLater {
-            klarna_sdk:None,
-            klarna_checkout: Some(api_models::payments::KlarnaCheckoutPaymentMethod { payment_type }),
+            klarna_sdk: None,
+            klarna_checkout: Some(api_models::payments::KlarnaCheckoutPaymentMethod {
+                payment_type,
+            }),
         },
 
         _ => additional_payment_data,

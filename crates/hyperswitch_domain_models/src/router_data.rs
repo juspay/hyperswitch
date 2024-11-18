@@ -85,8 +85,6 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub header_payload: Option<payments::HeaderPayload>,
     // pub html_snippet: Option<String>,
-
-
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
