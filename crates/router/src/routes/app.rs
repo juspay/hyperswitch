@@ -758,22 +758,14 @@ impl Routing {
                 },
             )))
             .service(
-                web::resource("/default")
-                    .route(web::get().to(|state, req| {
-                        routing::routing_retrieve_default_config(
-                            state,
-                            req,
-                            &TransactionType::Payment,
-                        )
-                    }))
-                    .route(web::post().to(|state, req, payload| {
-                        routing::routing_update_default_config(
-                            state,
-                            req,
-                            payload,
-                            &TransactionType::Payment,
-                        )
-                    })),
+                web::resource("/default").route(web::post().to(|state, req, payload| {
+                    routing::routing_update_default_config(
+                        state,
+                        req,
+                        payload,
+                        &TransactionType::Payment,
+                    )
+                })),
             )
             .service(
                 web::resource("/deactivate").route(web::post().to(|state, req, payload| {
@@ -807,11 +799,7 @@ impl Routing {
             )
             .service(
                 web::resource("/default/profile").route(web::get().to(|state, req| {
-                    routing::routing_retrieve_default_config_for_profiles(
-                        state,
-                        req,
-                        &TransactionType::Payment,
-                    )
+                    routing::routing_retrieve_default_config(state, req, &TransactionType::Payment)
                 })),
             );
 
