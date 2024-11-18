@@ -520,10 +520,18 @@ impl Default for PollConfig {
     }
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub struct RedirectPaymentFlowResponse {
     pub payments_response: api_models::payments::PaymentsResponse,
     pub business_profile: domain::Profile,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct RedirectPaymentFlowResponse<D> {
+    pub payment_data: D,
+    pub profile: domain::Profile,
 }
 
 #[derive(Clone, Debug)]

@@ -2905,6 +2905,7 @@ pub(super) fn validate_payment_list_request_for_joins(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub fn get_handle_response_url(
     payment_id: id_type::PaymentId,
     business_profile: &domain::Profile,
@@ -2927,6 +2928,7 @@ pub fn get_handle_response_url(
     make_url_with_signature(&return_url, business_profile)
 }
 
+#[cfg(feature = "v1")]
 pub fn make_merchant_url_with_response(
     business_profile: &domain::Profile,
     redirection_response: api::PgRedirectResponse,
@@ -3035,6 +3037,7 @@ pub fn make_pg_redirect_response(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn make_url_with_signature(
     redirect_url: &str,
     business_profile: &domain::Profile,
