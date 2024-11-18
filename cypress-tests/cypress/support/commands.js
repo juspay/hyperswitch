@@ -353,9 +353,14 @@ Cypress.Commands.add(
     payment_methods_enabled,
     globalState,
     connectorName,
-    connectorLabel
+    connectorLabel,
+    profile_prefix = "profile",
+    mca_prefix = "merchantConnector"
   ) => {
     const merchantId = globalState.get("merchantId");
+    const profile_id = globalState.get(`${profile_prefix}Id`);
+
+    createConnectorBody.profile_id = profile_id;
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
     createConnectorBody.connector_label = connectorLabel;
@@ -386,7 +391,7 @@ Cypress.Commands.add(
           if (response.status === 200) {
             expect(connectorName).to.equal(response.body.connector_name);
             globalState.set(
-              "merchantConnectorId",
+              `${mca_prefix}Id`,
               response.body.merchant_connector_id
             );
           } else {
