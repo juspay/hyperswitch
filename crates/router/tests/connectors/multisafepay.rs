@@ -54,7 +54,8 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
             }),
             phone: None,
             email: None,
-        }),
+        })
+        .map(From::from),
         None,
         None,
     ));

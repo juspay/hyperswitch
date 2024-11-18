@@ -70,7 +70,8 @@ impl AdyenTest {
                         country_code: Some("+351".to_string()),
                     }),
                     email: None,
-                }),
+                })
+                .map(From::from),
                 None,
                 None,
             )),
@@ -98,7 +99,8 @@ impl AdyenTest {
                     }),
                     phone: None,
                     email: None,
-                }),
+                })
+                .map(From::from),
                 None,
                 None,
             )),

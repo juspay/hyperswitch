@@ -54,7 +54,8 @@ impl WorldlineTest {
                     }),
                     phone: None,
                     email: None,
-                }),
+                })
+                .map(From::from),
                 None,
                 None,
             )),

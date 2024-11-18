@@ -66,7 +66,8 @@ impl Globalpay {
                     }),
                     phone: None,
                     ..Default::default()
-                }),
+                })
+                .map(From::from),
                 None,
                 None,
             )),

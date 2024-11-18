@@ -53,7 +53,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     country_code: Some("+91".to_string()),
                 }),
                 email: None,
-            }),
+            })
+            .map(From::from),
             None,
             None,
         )),

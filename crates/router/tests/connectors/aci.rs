@@ -96,7 +96,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                     country_code: Some("+351".to_string()),
                 }),
                 email: None,
-            }),
+            })
+            .map(From::from),
             None,
         ),
         connector_meta_data: None,

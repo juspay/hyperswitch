@@ -65,7 +65,8 @@ impl WiseTest {
                     }),
                     phone: None,
                     email: None,
-                }),
+                })
+                .map(From::from),
                 None,
                 None,
             )),

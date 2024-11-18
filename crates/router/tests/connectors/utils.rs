@@ -86,7 +86,8 @@ impl PaymentInfo {
                     }),
                     phone: None,
                     email: None,
-                }),
+                })
+                .map(From::from),
                 None,
             )),
             ..Default::default()

@@ -436,7 +436,8 @@ pub fn get_payment_info() -> PaymentInfo {
                     state: None,
                     first_name: None,
                     last_name: None,
-                }),
+                })
+                .map(From::from),
                 email: None,
             }),
             None,
