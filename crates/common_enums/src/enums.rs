@@ -2796,9 +2796,15 @@ pub enum PermissionGroup {
     MerchantDetailsManage,
     // TODO: To be deprecated, make sure DB is migrated before removing
     OrganizationManage,
-    ReconOps,
     AccountView,
     AccountManage,
+    // Recon reports and analytics
+    ReconReportsView,
+    ReconReportsManage,
+    // Recon operations
+    ReconOpsView,
+    #[serde(alias = "recon_ops")]
+    ReconOpsManage,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -2831,7 +2837,12 @@ pub enum Resource {
     WebhookEvent,
     Payout,
     Report,
-    Recon,
+    ReconFiles,
+    ReconAndSettlementAnalytics,
+    ReconUpload,
+    ReconReports,
+    RunRecon,
+    ReconConfig,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
@@ -2839,6 +2850,23 @@ pub enum Resource {
 pub enum PermissionScope {
     Read = 0,
     Write = 1,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
+pub enum ReconPermissionScope {
+    #[serde(rename = "R")]
+    Read = 0,
+    #[serde(rename = "RW")]
+    Write = 1,
+}
+
+impl From<PermissionScope> for ReconPermissionScope {
+    fn from(scope: PermissionScope) -> Self {
+        match scope {
+            PermissionScope::Read => Self::Read,
+            PermissionScope::Write => Self::Write,
+        }
+    }
 }
 
 /// Name of banks supported by Hyperswitch

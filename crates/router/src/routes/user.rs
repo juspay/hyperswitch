@@ -497,7 +497,7 @@ pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpReques
         (),
         |state, user, _req, _| user_core::verify_token(state, user),
         &auth::JWTAuth {
-            permission: Permission::MerchantReconWrite,
+            permission: Permission::MerchantAccountRead,
         },
         api_locking::LockAction::NotApplicable,
     ))

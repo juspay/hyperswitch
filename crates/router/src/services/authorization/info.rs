@@ -40,7 +40,10 @@ fn get_group_description(group: PermissionGroup) -> &'static str {
         PermissionGroup::MerchantDetailsView | PermissionGroup::AccountView => "View Merchant Details",
         PermissionGroup::MerchantDetailsManage | PermissionGroup::AccountManage => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
         PermissionGroup::OrganizationManage => "Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
-        PermissionGroup::ReconOps => "View and manage reconciliation reports",
+        PermissionGroup::ReconReportsView => "View and access reconciliation reports and analytics",
+        PermissionGroup::ReconReportsManage => "Manage reconciliation reports",
+        PermissionGroup::ReconOpsView => "View and access reconciliation operations",
+        PermissionGroup::ReconOpsManage => "Manage reconciliation operations",
     }
 }
 

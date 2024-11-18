@@ -67,8 +67,28 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Merchant]
         },
-        Recon: {
-            scopes: [Write],
+        ReconFiles: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        ReconAndSettlementAnalytics: {
+            scopes: [Read],
+            entities: [Merchant]
+        },
+        ReconUpload: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        ReconReports: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        RunRecon: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        ReconConfig: {
+            scopes: [Read, Write],
             entities: [Merchant]
         },
     ]
@@ -91,7 +111,12 @@ pub fn get_resource_name(resource: &Resource, entity_type: &EntityType) -> &'sta
         (Resource::Report, _) => "Operation Reports",
         (Resource::User, _) => "Users",
         (Resource::WebhookEvent, _) => "Webhook Events",
-        (Resource::Recon, _) => "Reconciliation Reports",
+        (Resource::ReconUpload, _) => "Reconciliation File Upload",
+        (Resource::RunRecon, _) => "Run Reconciliation Process",
+        (Resource::ReconConfig, _) => "Reconciliation Configurations",
+        (Resource::ReconFiles, _) => "Reconciliation Process Manager",
+        (Resource::ReconReports, _) => "Reconciliation Reports",
+        (Resource::ReconAndSettlementAnalytics, _) => "Reconciliation Analytics",
         (Resource::Account, EntityType::Profile) => "Business Profile Account",
         (Resource::Account, EntityType::Merchant) => "Merchant Account",
         (Resource::Account, EntityType::Organization) => "Organization Account",

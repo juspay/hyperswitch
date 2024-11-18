@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["common_default", "v1"]
+default = ["common_default", "v1", "recon"]
 common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
@@ -31,7 +31,7 @@ external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
 payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_connectors/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts"]
 payout_retry = ["payouts"]
-recon = ["email", "api_models/recon"]
+recon = ["api_models/recon"]
 retry = []
 v2 = ["customer_v2", "payment_methods_v2", "common_default", "api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2", "common_utils/v2"]
 v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1", "common_utils/v1"]

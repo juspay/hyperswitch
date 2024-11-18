@@ -21,7 +21,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AnalyticsView
             | Self::UsersView
             | Self::MerchantDetailsView
-            | Self::AccountView => PermissionScope::Read,
+            | Self::AccountView
+            | Self::ReconOpsView
+            | Self::ReconReportsView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -29,8 +31,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::UsersManage
             | Self::MerchantDetailsManage
             | Self::OrganizationManage
-            | Self::ReconOps
-            | Self::AccountManage => PermissionScope::Write,
+            | Self::AccountManage
+            | Self::ReconOpsManage
+            | Self::ReconReportsManage => PermissionScope::Write,
         }
     }
 
@@ -41,17 +44,24 @@ impl PermissionGroupExt for PermissionGroup {
             Self::WorkflowsView | Self::WorkflowsManage => ParentGroup::Workflows,
             Self::AnalyticsView => ParentGroup::Analytics,
             Self::UsersView | Self::UsersManage => ParentGroup::Users,
-            Self::ReconOps => ParentGroup::Recon,
             Self::MerchantDetailsView
             | Self::OrganizationManage
             | Self::MerchantDetailsManage
             | Self::AccountView
             | Self::AccountManage => ParentGroup::Account,
+            Self::ReconOpsView
+            | Self::ReconOpsManage
+            | Self::ReconReportsView
+            | Self::ReconReportsManage => ParentGroup::Recon,
         }
     }
 
     fn resources(&self) -> Vec<Resource> {
-        self.parent().resources()
+        match self {
+            Self::ReconOpsView | Self::ReconOpsManage => RECON_OPS.to_vec(),
+            Self::ReconReportsView | Self::ReconReportsManage => RECON_REPORTS.to_vec(),
+            _ => self.parent().resources(),
+        }
     }
 
     fn accessible_groups(&self) -> Vec<Self> {
@@ -76,7 +86,11 @@ impl PermissionGroupExt for PermissionGroup {
                 vec![Self::UsersView, Self::UsersManage]
             }
 
-            Self::ReconOps => vec![Self::ReconOps],
+            Self::ReconOpsView => vec![Self::ReconOpsView],
+            Self::ReconOpsManage => vec![Self::ReconOpsView, Self::ReconOpsManage],
+
+            Self::ReconReportsView => vec![Self::ReconReportsView],
+            Self::ReconReportsManage => vec![Self::ReconReportsView, Self::ReconReportsManage],
 
             Self::MerchantDetailsView => vec![Self::MerchantDetailsView],
             Self::MerchantDetailsManage => {
@@ -167,4 +181,23 @@ pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
 pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
 
-pub static RECON: [Resource; 1] = [Resource::Recon];
+pub static RECON: [Resource; 6] = [
+    Resource::ReconFiles,
+    Resource::ReconAndSettlementAnalytics,
+    Resource::ReconUpload,
+    Resource::ReconReports,
+    Resource::RunRecon,
+    Resource::ReconConfig,
+];
+
+pub static RECON_OPS: [Resource; 4] = [
+    Resource::ReconFiles,
+    Resource::ReconUpload,
+    Resource::RunRecon,
+    Resource::ReconConfig,
+];
+
+pub static RECON_REPORTS: [Resource; 2] = [
+    Resource::ReconAndSettlementAnalytics,
+    Resource::ReconReports,
+];
