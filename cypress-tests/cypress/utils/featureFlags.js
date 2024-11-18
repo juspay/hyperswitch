@@ -1,4 +1,4 @@
-const config_fields = [CONNECTOR_CREDENTIAL, DELAY, TRIGGER_SKIP];
+const config_fields = ["CONNECTOR_CREDENTIAL", "DELAY", "TRIGGER_SKIP"];
 
 // Helper function for type and range validation
 function validateType(value, type) {
