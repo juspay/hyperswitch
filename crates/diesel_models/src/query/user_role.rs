@@ -87,7 +87,7 @@ impl UserRole {
         user_id: String,
         org_id: id_type::OrganizationId,
         merchant_id: id_type::MerchantId,
-        profile_id: Option<id_type::ProfileId>,
+        profile_id: id_type::ProfileId,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
         // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
@@ -103,7 +103,6 @@ impl UserRole {
             .or(dsl::org_id.eq(org_id).and(
                 dsl::merchant_id
                     .eq(merchant_id)
-                    //TODO: In case of None, profile_id = NULL its unexpected behaviour, after V1 profile id will not be option
                     .and(dsl::profile_id.eq(profile_id)),
             ));
 
@@ -137,7 +136,6 @@ impl UserRole {
             .or(dsl::org_id.eq(org_id).and(
                 dsl::merchant_id
                     .eq(merchant_id)
-                    //TODO: In case of None, profile_id = NULL its unexpected behaviour, after V1 profile id will not be option
                     .and(dsl::profile_id.eq(profile_id)),
             ));
 
@@ -160,7 +158,7 @@ impl UserRole {
         user_id: String,
         org_id: id_type::OrganizationId,
         merchant_id: id_type::MerchantId,
-        profile_id: Option<id_type::ProfileId>,
+        profile_id: id_type::ProfileId,
         version: UserRoleVersion,
     ) -> StorageResult<Self> {
         // Checking in user roles, for a user in token hierarchy, only one of the relation will be true, either org level, merchant level or profile level
@@ -176,7 +174,6 @@ impl UserRole {
             .or(dsl::org_id.eq(org_id).and(
                 dsl::merchant_id
                     .eq(merchant_id)
-                    //TODO: In case of None, profile_id = NULL its unexpected behaviour, after V1 profile id will not be option
                     .and(dsl::profile_id.eq(profile_id)),
             ));
 

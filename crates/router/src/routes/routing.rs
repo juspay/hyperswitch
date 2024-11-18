@@ -565,17 +565,13 @@ pub async fn routing_retrieve_default_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            routing::retrieve_default_routing_config(state, auth.merchant_account, transaction_type)
+            routing::retrieve_default_routing_config(
+                state,
+                auth.profile_id,
+                auth.merchant_account,
+                transaction_type,
+            )
         },
-        #[cfg(not(feature = "release"))]
-        auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth {
-                permission: Permission::ProfileRoutingRead,
-            },
-            req.headers(),
-        ),
-        #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingRead,
         },
