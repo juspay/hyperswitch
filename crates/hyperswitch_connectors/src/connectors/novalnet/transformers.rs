@@ -1294,6 +1294,8 @@ pub enum WebhookEventType {
     TransactionCapture,
     TransactionCancel,
     TransactionRefund,
+    Chargeback,
+    Credit,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1356,9 +1358,30 @@ pub fn get_incoming_webhook_event(
             }
             _ => IncomingWebhookEvent::RefundFailure,
         },
+        WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
+        WebhookEventType::Credit => IncomingWebhookEvent::DisputeWon,
     }
 }
 
 pub fn reverse_string(s: &str) -> String {
     s.chars().rev().collect()
+}
+
+#[derive(Display, Debug, Serialize, Deserialize)]
+pub enum WebhookDisputeStatus {
+    DisputeOpened,
+    DisputeWon,
+    Unknown,
+}
+
+pub fn get_novalnet_dispute_status(status: WebhookEventType) -> WebhookDisputeStatus {
+    match status {
+        WebhookEventType::Chargeback => WebhookDisputeStatus::DisputeOpened,
+        WebhookEventType::Credit => WebhookDisputeStatus::DisputeWon,
+        _ => WebhookDisputeStatus::Unknown,
+    }
+}
+
+pub fn option_to_result<T>(opt: Option<T>) -> Result<T, errors::ConnectorError> {
+    opt.ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)
 }
