@@ -57,6 +57,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch"
 base_url = "http://localhost:8080"
 force_two_factor_auth = false
+use_cookies_only = true
 
 [locker]
 host = ""

@@ -850,6 +850,47 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
+#[derive(Debug)]
+pub struct AnyPurposeOrLoginTokenAuth;
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserIdFromAuth, A> for AnyPurposeOrLoginTokenAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserIdFromAuth, AuthenticationType)> {
+        let payload =
+            parse_jwt_payload::<A, SinglePurposeOrLoginToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let purpose_exists = payload.purpose.is_some();
+        let role_id_exists = payload.role_id.is_some();
+
+        if purpose_exists ^ role_id_exists {
+            Ok((
+                UserIdFromAuth {
+                    user_id: payload.user_id.clone(),
+                },
+                AuthenticationType::SinglePurposeOrLoginJwt {
+                    user_id: payload.user_id,
+                    purpose: payload.purpose,
+                    role_id: payload.role_id,
+                },
+            ))
+        } else {
+            Err(errors::ApiErrorResponse::InvalidJwtToken.into())
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct AdminApiAuth;
 
@@ -2180,17 +2221,25 @@ where
     T: serde::de::DeserializeOwned,
     A: SessionStateInfo + Sync,
 {
-    let token = match get_cookie_from_header(headers).and_then(cookies::parse_cookie) {
-        Ok(cookies) => cookies,
-        Err(error) => {
-            let token = get_jwt_from_authorization_header(headers);
-            if token.is_err() {
-                logger::error!(?error);
-            }
-            token?.to_owned()
-        }
+    let cookie_token_result = get_cookie_from_header(headers).and_then(cookies::parse_cookie);
+    let auth_header_token_result = get_jwt_from_authorization_header(headers);
+    let use_cookie_only = state.conf().user.use_cookies_only;
+
+    logger::info!(
+        user_agent = ?headers.get(headers::USER_AGENT),
+        header_names = ?headers.keys().collect::<Vec<_>>(),
+        is_token_equal =
+            auth_header_token_result.as_deref().ok() == cookie_token_result.as_deref().ok(),
+        use_cookie_only,
+    );
+
+    let final_token = if use_cookie_only {
+        cookie_token_result?
+    } else {
+        cookie_token_result.unwrap_or(auth_header_token_result?.to_owned())
     };
-    decode_jwt(&token, state).await
+
+    decode_jwt(&final_token, state).await
 }
 
 #[cfg(feature = "v1")]
