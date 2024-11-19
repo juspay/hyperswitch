@@ -1485,6 +1485,26 @@ impl PaymentAttemptInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        profile_id: &id_type::ProfileId,
+        connector_transaction_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
+        self.diesel_store
+            .find_payment_attempt_by_profile_id_connector_transaction_id(
+                key_manager_state,
+                merchant_key_store,
+                profile_id,
+                connector_transaction_id,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
