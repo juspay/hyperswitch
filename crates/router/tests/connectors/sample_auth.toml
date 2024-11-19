@@ -295,3 +295,6 @@ api_key="API Key"
 
 [nomupay]
 api_key="API Key"
+
+[paymentwall]
+api_key="API Key"

@@ -66,6 +66,7 @@ pub struct Connectors {
     pub paybox: ConnectorParamsWithSecondaryBaseUrl,
     pub payeezy: ConnectorParams,
     pub payme: ConnectorParams,
+    pub paymentwall: ConnectorParams,
     pub payone: ConnectorParams,
     pub paypal: ConnectorParams,
     pub payu: ConnectorParams,

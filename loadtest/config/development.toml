@@ -138,6 +138,7 @@ paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
 paybox.secondary_base_url="https://preprod-tpeweb.paybox.com/"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
+paymentwall.base_url = "https://api.paymentwall.com/"
 payone.base_url = "https://payment.preprod.payone.com/"
 paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
@@ -231,6 +232,7 @@ cards = [
     "paybox",
     "payeezy",
     "payme",
+    "paymentwall",
     "payone",
     "paypal",
     "payu",

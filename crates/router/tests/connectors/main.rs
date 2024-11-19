@@ -63,6 +63,7 @@ mod paybox;
 #[cfg(feature = "dummy_connector")]
 mod payeezy;
 mod payme;
+mod paymentwall;
 mod payone;
 mod paypal;
 mod payu;
