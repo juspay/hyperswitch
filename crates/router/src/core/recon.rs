@@ -1,3 +1,10 @@
+use api_models::recon as recon_api;
+#[cfg(feature = "email")]
+use common_utils::ext_traits::AsyncExt;
+use error_stack::ResultExt;
+#[cfg(feature = "email")]
+use masking::{ExposeInterface, PeekInterface, Secret};
+
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
 #[cfg(feature = "email")]
@@ -12,12 +19,6 @@ use crate::{
     },
     SessionState,
 };
-use api_models::recon as recon_api;
-#[cfg(feature = "email")]
-use common_utils::ext_traits::AsyncExt;
-use error_stack::ResultExt;
-#[cfg(feature = "email")]
-use masking::{ExposeInterface, PeekInterface, Secret};
 
 pub async fn send_recon_request(
     #[allow(unused_variables)] state: SessionState,
