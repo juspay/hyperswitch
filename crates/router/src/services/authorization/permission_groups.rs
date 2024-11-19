@@ -22,6 +22,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::UsersView
             | Self::MerchantDetailsView
             | Self::AccountView
+            | Self::ReconTokenView
             | Self::ReconOpsView
             | Self::ReconReportsView => PermissionScope::Read,
 
@@ -49,19 +50,16 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::MerchantDetailsManage
             | Self::AccountView
             | Self::AccountManage => ParentGroup::Account,
-            Self::ReconOpsView
-            | Self::ReconOpsManage
-            | Self::ReconReportsView
-            | Self::ReconReportsManage => ParentGroup::Recon,
+            Self::ReconTokenView => ParentGroup::Recon,
+            Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
+            Self::ReconReportsView | Self::ReconReportsManage => {
+                ParentGroup::ReconReports
+            }
         }
     }
 
     fn resources(&self) -> Vec<Resource> {
-        match self {
-            Self::ReconOpsView | Self::ReconOpsManage => RECON_OPS.to_vec(),
-            Self::ReconReportsView | Self::ReconReportsManage => RECON_REPORTS.to_vec(),
-            _ => self.parent().resources(),
-        }
+        self.parent().resources()
     }
 
     fn accessible_groups(&self) -> Vec<Self> {
@@ -85,6 +83,8 @@ impl PermissionGroupExt for PermissionGroup {
             Self::UsersManage => {
                 vec![Self::UsersView, Self::UsersManage]
             }
+
+            Self::ReconTokenView => vec![Self::ReconTokenView],
 
             Self::ReconOpsView => vec![Self::ReconOpsView],
             Self::ReconOpsManage => vec![Self::ReconOpsView, Self::ReconOpsManage],
@@ -123,6 +123,8 @@ impl ParentGroupExt for ParentGroup {
             Self::Users => USERS.to_vec(),
             Self::Account => ACCOUNT.to_vec(),
             Self::Recon => RECON.to_vec(),
+            Self::ReconOps => RECON_OPS.to_vec(),
+            Self::ReconReports => RECON_REPORTS.to_vec(),
         }
     }
 
@@ -181,23 +183,18 @@ pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
 pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
 
-pub static RECON: [Resource; 6] = [
-    Resource::ReconFiles,
-    Resource::ReconAndSettlementAnalytics,
-    Resource::ReconUpload,
-    Resource::ReconReports,
-    Resource::RunRecon,
-    Resource::ReconConfig,
-];
+pub static RECON: [Resource; 1] = [Resource::ReconToken];
 
-pub static RECON_OPS: [Resource; 4] = [
+pub static RECON_OPS: [Resource; 5] = [
+    Resource::ReconToken,
     Resource::ReconFiles,
     Resource::ReconUpload,
     Resource::RunRecon,
     Resource::ReconConfig,
 ];
 
-pub static RECON_REPORTS: [Resource; 2] = [
+pub static RECON_REPORTS: [Resource; 3] = [
+    Resource::ReconToken,
     Resource::ReconAndSettlementAnalytics,
     Resource::ReconReports,
 ];

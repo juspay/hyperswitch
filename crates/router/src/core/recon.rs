@@ -20,9 +20,10 @@ use crate::{
     SessionState,
 };
 
+#[allow(unused_variables)]
 pub async fn send_recon_request(
-    #[allow(unused_variables)] state: SessionState,
-    #[allow(unused_variables)] auth_data: authentication::AuthenticationDataWithUser,
+    state: SessionState,
+    auth_data: authentication::AuthenticationDataWithUser,
 ) -> RouterResponse<recon_api::ReconStatusResponse> {
     #[cfg(not(feature = "email"))]
     return Ok(service_api::ApplicationResponse::Json(

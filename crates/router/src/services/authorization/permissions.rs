@@ -67,6 +67,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Merchant]
         },
+        ReconToken: {
+            scopes: [Read],
+            entities: [Merchant]
+        },
         ReconFiles: {
             scopes: [Read, Write],
             entities: [Merchant]
@@ -114,6 +118,7 @@ pub fn get_resource_name(resource: &Resource, entity_type: &EntityType) -> &'sta
         (Resource::ReconUpload, _) => "Reconciliation File Upload",
         (Resource::RunRecon, _) => "Run Reconciliation Process",
         (Resource::ReconConfig, _) => "Reconciliation Configurations",
+        (Resource::ReconToken, _) => "Generate & Verify Reconciliation Token",
         (Resource::ReconFiles, _) => "Reconciliation Process Manager",
         (Resource::ReconReports, _) => "Reconciliation Reports",
         (Resource::ReconAndSettlementAnalytics, _) => "Reconciliation Analytics",

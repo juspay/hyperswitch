@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 #[cfg(feature = "recon")]
-use common_enums::ReconPermissionScope;
+use api_models::enums::ReconPermissionScope;
 use common_enums::{EntityType, PermissionGroup, Resource, RoleScope};
 use common_utils::{errors::CustomResult, id_type};
 
