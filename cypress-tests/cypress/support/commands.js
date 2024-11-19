@@ -911,7 +911,8 @@ Cypress.Commands.add(
       );
     }
 
-    const profile_id = execConfig(configs);
+    const config_info = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
 
     for (const key in req_data) {
       createPaymentBody[key] = req_data[key];
@@ -919,7 +920,7 @@ Cypress.Commands.add(
     createPaymentBody.authentication_type = authentication_type;
     createPaymentBody.capture_method = capture_method;
     createPaymentBody.customer_id = globalState.get("customerId");
-    createPaymentBody.profile_id = globalState.get(profile_id);
+    createPaymentBody.profile_id = profile_id;
     globalState.set("paymentAmount", createPaymentBody.amount);
 
     cy.request({
@@ -1132,13 +1133,16 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
 Cypress.Commands.add(
   "confirmCallTest",
   (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
+    const config_info = execConfig(configs);
+    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
     const paymentIntentID = globalState.get("paymentID");
-    const profile_id = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
 
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
-    confirmBody.profile_id = globalState.get(profile_id);
+    confirmBody.profile_id = profile_id;
 
+    console.log(config_info, confirmBody.profile_id);
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
     }
@@ -1166,12 +1170,13 @@ Cypress.Commands.add(
         );
         expect(response.body.payment_method_data, "payment_method_data").to.not
           .be.empty;
-        expect(globalState.get("merchantConnectorId"), "connector_id").to.equal(
+        expect(merchant_connector_id, "connector_id").to.equal(
           response.body.merchant_connector_id
         );
         expect(response.body.customer, "customer").to.not.be.empty;
         expect(response.body.billing, "billing_address").to.not.be.empty;
-        expect(response.body.profile_id, "profile_id").to.not.be.null;
+        expect(response.body.profile_id, "profile_id").to.equal(profile_id).and
+          .to.not.be.null;
 
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
@@ -1238,16 +1243,17 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmBankRedirectCallTest",
   (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
+    const config_info = execConfig(configs);
     const connectorId = globalState.get("connectorId");
     const paymentIntentId = globalState.get("paymentID");
-    const profile_id = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
 
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
     }
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
-    confirmBody.profile_id = globalState.get(profile_id);
+    confirmBody.profile_id = profile_id;
 
     cy.request({
       method: "POST",
@@ -1335,8 +1341,9 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmBankTransferCallTest",
   (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
+    const config_info = execConfig(configs);
     const paymentIntentID = globalState.get("paymentID");
-    const profile_id = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
 
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
@@ -1409,15 +1416,16 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "confirmUpiCall",
   (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
+    const config_info = execConfig(configs);
     const paymentId = globalState.get("paymentID");
-    const profile_id = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
 
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
     }
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
-    confirmBody.profile_id = globalState.get(profile_id);
+    confirmBody.profile_id = profile_id;
 
     globalState.set("paymentMethodType", confirmBody.payment_method_type);
 
@@ -1478,12 +1486,14 @@ Cypress.Commands.add(
     globalState,
     configs = null
   ) => {
-    const profile_id = execConfig(configs);
+    const config_info = execConfig(configs);
+    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
+    const profile_id = globalState.get(config_info.profile_id);
 
     createConfirmPaymentBody.authentication_type = authentication_type;
     createConfirmPaymentBody.capture_method = capture_method;
     createConfirmPaymentBody.customer_id = globalState.get("customerId");
-    createConfirmPaymentBody.profile_id = globalState.get(profile_id);
+    createConfirmPaymentBody.profile_id = profile_id;
     for (const key in req_data) {
       createConfirmPaymentBody[key] = req_data[key];
     }
@@ -1513,7 +1523,7 @@ Cypress.Commands.add(
         expect(response.body.payment_method_data, "payment_method_data").to.not
           .be.empty;
         expect(response.body.merchant_connector_id, "connector_id").to.equal(
-          globalState.get("merchantConnectorId")
+          merchant_connector_id
         );
         expect(response.body.customer, "customer").to.not.be.empty;
         expect(response.body.billing, "billing_address").to.not.be.empty;
@@ -1581,15 +1591,17 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "saveCardConfirmCallTest",
   (saveCardConfirmBody, req_data, res_data, globalState, configs = null) => {
+    const config_info = execConfig(configs);
+    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
     const paymentIntentID = globalState.get("paymentID");
-    const profile_id = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
 
     if (req_data.setup_future_usage === "on_session") {
       saveCardConfirmBody.card_cvc = req_data.payment_method_data.card.card_cvc;
     }
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
-    saveCardConfirmBody.profile_id = globalState.get(profile_id);
+    saveCardConfirmBody.profile_id = profile_id;
     for (const key in req_data) {
       saveCardConfirmBody[key] = req_data[key];
     }
@@ -1620,7 +1632,7 @@ Cypress.Commands.add(
         );
         expect(response.body.payment_method_data, "payment_method_data").to.not
           .be.empty;
-        expect(globalState.get("merchantConnectorId"), "connector_id").to.equal(
+        expect(merchant_connector_id, "connector_id").to.equal(
           response.body.merchant_connector_id
         );
         expect(response.body.customer, "customer").to.not.be.empty;
@@ -1635,7 +1647,6 @@ Cypress.Commands.add(
             expect(response.body)
               .to.have.property("next_action")
               .to.have.property("redirect_to_url");
-            const nextActionUrl = response.body.next_action.redirect_to_url;
           } else if (response.body.authentication_type === "no_three_ds") {
             for (const key in res_data.body) {
               expect(res_data.body[key]).to.equal(response.body[key]);
@@ -1690,11 +1701,12 @@ Cypress.Commands.add(
     globalState,
     configs = null
   ) => {
+    const config_info = execConfig(configs);
     const payment_id = globalState.get("paymentID");
-    const profile_id = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
 
     requestBody.amount_to_capture = amount_to_capture;
-    requestBody.profile_id = globalState.get(profile_id);
+    requestBody.profile_id = profile_id;
 
     cy.request({
       method: "POST",
@@ -1724,10 +1736,11 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "voidCallTest",
   (requestBody, req_data, res_data, globalState, configs = null) => {
+    const config_info = execConfig(configs);
     const payment_id = globalState.get("paymentID");
-    const profile_id = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
 
-    requestBody.profile_id = globalState.get(profile_id);
+    requestBody.profile_id = profile_id;
 
     cy.request({
       method: "POST",
@@ -1896,7 +1909,9 @@ Cypress.Commands.add(
     globalState,
     configs = null
   ) => {
-    const profile_id = execConfig(configs);
+    const config_info = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
+    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
 
     for (const key in req_data) {
       requestBody[key] = req_data[key];
@@ -2008,7 +2023,9 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitForMandatesCallTest",
   (requestBody, amount, confirm, capture_method, globalState, configs) => {
-    const profile_id = execConfig(configs);
+    const config_info = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
+    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
 
     requestBody.amount = amount;
     requestBody.confirm = confirm;
@@ -2105,7 +2122,9 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitUsingPMId",
   (requestBody, amount, confirm, capture_method, globalState, configs) => {
-    const profile_id = execConfig(configs);
+    const config_info = execConfig(configs);
+    const profile_id = globalState.get(config_info.profile_id);
+    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
 
     requestBody.amount = amount;
     requestBody.capture_method = capture_method;

@@ -97,9 +97,15 @@ export function execConfig(configs) {
       return "profileId";
     } else {
       if (configs.CONNECTOR_CREDENTIAL === "connector_1") {
-        return "profileId";
+        return {
+          profile_id: "profileId",
+          merchant_connector_id: "merchantConnectorId",
+        };
       } else if (configs.CONNECTOR_CREDENTIAL === "connector_2") {
-        return "profile1Id";
+        return {
+          profile_id: "profile1Id",
+          merchant_connector_id: "merchantConnector1Id",
+        };
       }
     }
   }
