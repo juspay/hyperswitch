@@ -1,11 +1,11 @@
+#[cfg(feature = "recon")]
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 #[cfg(feature = "recon")]
 use common_enums::ReconPermissionScope;
 use common_enums::{EntityType, PermissionGroup, Resource, RoleScope};
 use common_utils::{errors::CustomResult, id_type};
-#[cfg(feature = "recon")]
-use std::collections::HashMap;
 
 use super::{permission_groups::PermissionGroupExt, permissions::Permission};
 use crate::{core::errors, routes::SessionState};
