@@ -37,7 +37,7 @@ pub enum ApiIdentifier {
     Recon,
     Poll,
     ApplePayCertificatesMigration,
-    Documentation
+    Documentation,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -291,7 +291,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ReconVerifyToken => Self::Recon,
 
             Flow::RetrievePollStatus => Self::Poll,
-            
+
             Flow::FeatureMatrix => Self::Documentation,
         }
     }

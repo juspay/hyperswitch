@@ -328,7 +328,8 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                         &self.payment_method,
                         is_customer_initiated_mandate_payment,
                         self.test_mode.unwrap_or(false),
-                    ).to_payment_failed_response()?;
+                    )
+                    .to_payment_failed_response()?;
 
                 if is_customer_initiated_mandate_payment {
                     connector

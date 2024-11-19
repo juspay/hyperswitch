@@ -8,7 +8,6 @@ pub mod blocklist;
 pub mod cache;
 pub mod cards_info;
 pub mod configs;
-pub mod feature_matrix;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -18,6 +17,7 @@ pub mod disputes;
 #[cfg(feature = "dummy_connector")]
 pub mod dummy_connector;
 pub mod ephemeral_key;
+pub mod feature_matrix;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;
@@ -65,9 +65,9 @@ pub use self::app::DummyConnector;
 pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Cache, Cards, Configs, ConnectorOnboarding,
-    Customers, Disputes, EphemeralKey, Files, Forex, Gsm, Health, Mandates, MerchantAccount,
-    MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll, Profile, ProfileNew,
-    Refunds, SessionState, User, Webhooks, FeatureMatrix,
+    Customers, Disputes, EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Mandates,
+    MerchantAccount, MerchantConnectorAccount, PaymentLink, PaymentMethods, Payments, Poll,
+    Profile, ProfileNew, Refunds, SessionState, User, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Verify, WebhookEvents};

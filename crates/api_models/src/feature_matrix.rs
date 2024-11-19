@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize} ;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::enums;
@@ -13,7 +13,7 @@ pub struct FeatureMatrixRequest {
 #[derive(Clone, Debug, Serialize)]
 pub struct SupportedPaymentMethod {
     pub payment_method: enums::PaymentMethodType,
-    pub availability_status:  enums::PaymentMethodStage,
+    pub availability_status: enums::PaymentMethodStage,
     pub supports_mandates: bool,
 }
 
@@ -21,14 +21,14 @@ pub struct SupportedPaymentMethod {
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct SupportedPaymentMethodTypes {
     pub payment_method_type: enums::PaymentMethod,
-    pub payment_methods:  Vec<SupportedPaymentMethod>
+    pub payment_methods: Vec<SupportedPaymentMethod>,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, ToSchema, Serialize)]
 pub struct FeatureMatrixResponse {
     pub connector: enums::Connector,
-    pub payment_method_types: Vec<SupportedPaymentMethodTypes>
+    pub payment_method_types: Vec<SupportedPaymentMethodTypes>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, ToSchema)]

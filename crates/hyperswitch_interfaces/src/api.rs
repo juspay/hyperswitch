@@ -374,14 +374,13 @@ pub trait ConnectorValidation: ConnectorCommon {
                 match payment_method_type {
                     Some(pmt) => {
                         // Check if the payment method type exists
-                        let payment_method_type_information = payment_method_information
-                            .get(pmt)
-                            .ok_or_else(|| {
-                            errors::ConnectorError::NotSupported {
-                                message: format!("{:?}, {:?}", pmt, payment_method),
-                                connector: self.id(),
-                            }
-                        })?;
+                        let payment_method_type_information =
+                            payment_method_information.get(pmt).ok_or_else(|| {
+                                errors::ConnectorError::NotSupported {
+                                    message: format!("{:?}, {:?}", pmt, payment_method),
+                                    connector: self.id(),
+                                }
+                            })?;
                         // Validate the payment method type based on its availability and mandate support
                         match (
                             test_mode,
