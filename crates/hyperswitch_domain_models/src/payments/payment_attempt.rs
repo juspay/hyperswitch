@@ -481,7 +481,7 @@ pub struct PaymentAttempt {
     pub organization_id: id_type::OrganizationId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub request_extended_authentication: Option<RequestExtendedAuthorizationBool>,
-    pub extended_authentication_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
 }
 
@@ -1422,7 +1422,7 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
             request_extended_authorization: self.request_extended_authentication,
-            extended_authorization_applied: self.extended_authentication_applied,
+            extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
         })
     }
@@ -1506,7 +1506,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 organization_id: storage_model.organization_id,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
                 request_extended_authentication: storage_model.request_extended_authorization,
-                extended_authentication_applied: storage_model.extended_authorization_applied,
+                extended_authorization_applied: storage_model.extended_authorization_applied,
                 capture_before: storage_model.capture_before,
             })
         }
@@ -1591,7 +1591,7 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost: self.net_amount.get_shipping_cost(),
             connector_mandate_detail: self.connector_mandate_detail,
             request_extended_authorization: self.request_extended_authentication,
-            extended_authorization_applied: self.extended_authentication_applied,
+            extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
         })
     }

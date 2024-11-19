@@ -183,7 +183,7 @@ impl PaymentAttemptInterface for MockDb {
             profile_id: payment_attempt.profile_id,
             connector_mandate_detail: payment_attempt.connector_mandate_detail,
             request_extended_authentication: payment_attempt.request_extended_authorization,
-            extended_authentication_applied: payment_attempt.extended_authorization_applied,
+            extended_authorization_applied: payment_attempt.extended_authorization_applied,
             capture_before: payment_attempt.capture_before,
         };
         payment_attempts.push(payment_attempt.clone());

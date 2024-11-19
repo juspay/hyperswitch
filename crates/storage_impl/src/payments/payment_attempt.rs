@@ -537,7 +537,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     request_extended_authentication: payment_attempt
                         .request_extended_authorization
                         .clone(),
-                    extended_authentication_applied: payment_attempt
+                    extended_authorization_applied: payment_attempt
                         .extended_authorization_applied
                         .clone(),
                     capture_before: payment_attempt.capture_before.clone(),
@@ -1467,7 +1467,7 @@ impl DataModelExt for PaymentAttempt {
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             connector_mandate_detail: self.connector_mandate_detail,
             request_extended_authorization: self.request_extended_authentication,
-            extended_authorization_applied: self.extended_authentication_applied,
+            extended_authorization_applied: self.extended_authorization_applied,
             capture_before: self.capture_before,
         }
     }
@@ -1546,7 +1546,7 @@ impl DataModelExt for PaymentAttempt {
             profile_id: storage_model.profile_id,
             connector_mandate_detail: storage_model.connector_mandate_detail,
             request_extended_authentication: storage_model.request_extended_authorization,
-            extended_authentication_applied: storage_model.extended_authorization_applied,
+            extended_authorization_applied: storage_model.extended_authorization_applied,
             capture_before: storage_model.capture_before,
         }
     }
