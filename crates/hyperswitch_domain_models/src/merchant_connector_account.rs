@@ -598,7 +598,7 @@ common_utils::create_list_wrapper!(
                     })
                     .collect::<Vec<_>>();
                 res
-            });
+            }).collect();
             connector_and_supporting_payment_method_type
         }
         pub fn filter_based_on_profile_and_connector_type(
