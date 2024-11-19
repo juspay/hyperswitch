@@ -60,3 +60,20 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
     ))
     .await
 }
+
+#[cfg(feature = "recon")]
+pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
+    let flow = Flow::ReconVerifyToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        (),
+        |state, user, _req, _| recon::verify_recon_token(state, user),
+        &authentication::JWTAuth {
+            permission: Permission::MerchantReconTokenRead,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

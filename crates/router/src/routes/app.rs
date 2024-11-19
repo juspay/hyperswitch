@@ -1194,7 +1194,7 @@ impl Recon {
             .service(
                 web::resource("/request").route(web::post().to(recon_routes::request_for_recon)),
             )
-            .service(web::resource("/verify_token").route(web::get().to(user::verify_recon_token)))
+            .service(web::resource("/verify_token").route(web::get().to(recon_routes::verify_recon_token)))
     }
 }
 

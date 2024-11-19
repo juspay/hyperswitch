@@ -1,16 +1,7 @@
-use api_models::recon as recon_api;
 #[cfg(feature = "email")]
-use common_utils::ext_traits::AsyncExt;
-use error_stack::ResultExt;
-#[cfg(feature = "email")]
-use masking::{ExposeInterface, PeekInterface, Secret};
-
-#[cfg(feature = "email")]
-use crate::services::email::types as email_types;
-#[cfg(feature = "email")]
-use crate::{consts, core::errors::UserErrors, types::domain};
+use crate::{consts, services::email::types as email_types, types::domain};
 use crate::{
-    core::errors::{self, RouterResponse},
+    core::errors::{self, RouterResponse, UserErrors, UserResponse},
     services::{api as service_api, authentication},
     types::{
         api::{self as api_types, enums},
@@ -19,6 +10,12 @@ use crate::{
     },
     SessionState,
 };
+use api_models::{recon as recon_api, user as user_api};
+#[cfg(feature = "email")]
+use common_utils::ext_traits::AsyncExt;
+use error_stack::ResultExt;
+#[cfg(feature = "email")]
+use masking::{ExposeInterface, PeekInterface, Secret};
 
 #[allow(unused_variables)]
 pub async fn send_recon_request(
@@ -188,5 +185,35 @@ pub async fn recon_merchant_account_update(
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "merchant_account",
             })?,
+    ))
+}
+
+pub async fn verify_recon_token(
+    state: SessionState,
+    user_with_role: authentication::UserFromTokenWithRoleInfo,
+) -> UserResponse<user_api::VerifyTokenResponse> {
+    let user = user_with_role.user;
+    let user_in_db = user
+        .get_user_from_db(&state)
+        .await
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed to fetch the user from DB for user_id - {}",
+                user.user_id
+            )
+        })?;
+
+    let acl = user_with_role.role_info.get_recon_acl();
+    let optional_acl_str = serde_json::to_string(&acl)
+        .map_err(|_| UserErrors::InternalServerError)
+        .attach_printable("Failed to serialize acl to string. Using empty ACL")
+        .ok();
+
+    Ok(service_api::ApplicationResponse::Json(
+        user_api::VerifyTokenResponse {
+            merchant_id: user.merchant_id.to_owned(),
+            user_email: user_in_db.0.email,
+            acl: optional_acl_str,
+        },
     ))
 }

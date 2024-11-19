@@ -3274,7 +3274,7 @@ pub struct ReconToken {
     pub role_id: String,
     pub exp: u64,
     pub org_id: id_type::OrganizationId,
-    pub profile_id: Option<id_type::ProfileId>,
+    pub profile_id: id_type::ProfileId,
     pub tenant_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acl: Option<String>,
@@ -3287,7 +3287,7 @@ impl ReconToken {
         merchant_id: id_type::MerchantId,
         settings: &Settings,
         org_id: id_type::OrganizationId,
-        profile_id: Option<id_type::ProfileId>,
+        profile_id: id_type::ProfileId,
         tenant_id: Option<String>,
         role_info: authorization::roles::RoleInfo,
     ) -> UserResult<String> {

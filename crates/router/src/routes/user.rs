@@ -487,23 +487,6 @@ pub async fn verify_email_request(
     .await
 }
 
-#[cfg(feature = "recon")]
-pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
-    let flow = Flow::ReconVerifyToken;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &http_req,
-        (),
-        |state, user, _req, _| user_core::verify_token(state, user),
-        &auth::JWTAuth {
-            permission: Permission::MerchantReconTokenRead,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
 pub async fn update_user_account_details(
     state: web::Data<AppState>,
     req: HttpRequest,
