@@ -7,6 +7,12 @@ use serde::Deserialize;
 /// Implementation of aws ses client
 pub mod ses;
 
+/// Implementation of SMTP server client
+pub mod smtp;
+
+/// Implementation of Email client when email support is disabled
+pub mod no_email;
+
 /// Custom Result type alias for Email operations.
 pub type EmailResult<T> = CustomResult<T, EmailError>;
 
@@ -114,14 +120,40 @@ dyn_clone::clone_trait_object!(EmailClient<RichText = Body>);
 
 /// List of available email clients to choose from
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AvailableEmailClients {
+    /// Default Email client to use when no client is specified
     #[default]
+    NoEmailClient,
     /// AWS ses email client
-    SES,
+    Ses,
+    /// Other Simple SMTP server
+    Smtp,
+}
+
+/// List of available email clients to choose from
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(tag = "active_email_client")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum EmailClientConfigs {
+    #[default]
+    /// Default Email client to use when no client is specified
+    NoEmailClient,
+    /// AWS ses email client
+    Ses {
+        /// AWS SES client configuration
+        aws_ses : ses::SESConfig
+    },
+    /// Other Simple SMTP server
+    Smtp{
+        /// SMTP server configuration
+        smtp: smtp::SmtpServerConfig
+    },
 }
 
 /// Struct that contains the settings required to construct an EmailClient.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
 pub struct EmailSettings {
     /// The AWS region to send SES requests to.
     pub aws_region: String,
@@ -132,17 +164,26 @@ pub struct EmailSettings {
     /// Sender email
     pub sender_email: String,
 
-    /// Configs related to AWS Simple Email Service
-    pub aws_ses: Option<ses::SESConfig>,
-
-    /// The active email client to use
-    pub active_email_client: AvailableEmailClients,
+    #[serde(flatten)]
+    /// The client specific configurations
+    pub client_config: EmailClientConfigs,
 
     /// Recipient email for recon emails
     pub recon_recipient_email: pii::Email,
 
     /// Recipient email for recon emails
     pub prod_intent_recipient_email: pii::Email,
+}
+
+impl EmailSettings {
+    /// Validation for the Email client specific configurations
+    pub fn validate(&self) -> Result<(), &'static str> {
+        match &self.client_config {
+            EmailClientConfigs::Ses{ref aws_ses} => aws_ses.validate(),
+            EmailClientConfigs::Smtp{ref smtp} => smtp.validate(),
+            EmailClientConfigs::NoEmailClient => Ok(()),
+        }
+    }
 }
 
 /// Errors that could occur from EmailClient.

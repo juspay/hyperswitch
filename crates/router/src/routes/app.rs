@@ -8,7 +8,7 @@ use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
 #[cfg(feature = "email")]
-use external_services::email::{ses::AwsSes, EmailService};
+use external_services::email::{ EmailClientConfigs, ses::AwsSes, smtp::SmtpServer, no_email::NoEmailClient, EmailService};
 use external_services::{file_storage::FileStorageInterface, grpc_client::GrpcClients};
 use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
@@ -97,7 +97,7 @@ pub struct SessionState {
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
-    pub email_client: Arc<dyn EmailService>,
+    pub email_client: Arc<Box<dyn EmailService>>,
     #[cfg(feature = "olap")]
     pub pool: AnalyticsProvider,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
@@ -195,7 +195,7 @@ pub struct AppState {
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
-    pub email_client: Arc<dyn EmailService>,
+    pub email_client: Arc<Box<dyn EmailService>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pools: HashMap<String, AnalyticsProvider>,
@@ -215,7 +215,7 @@ pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings<RawSecret>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailService>;
+    fn email_client(&self) -> Arc<Box<dyn EmailService>>;
     fn add_request_id(&mut self, request_id: RequestId);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
@@ -232,7 +232,7 @@ impl AppStateInfo for AppState {
         self.conf.as_ref().to_owned()
     }
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailService> {
+    fn email_client(&self) -> Arc<Box<dyn EmailService>> {
         self.email_client.to_owned()
     }
     fn event_handler(&self) -> EventsHandler {
@@ -258,11 +258,15 @@ impl AsRef<Self> for AppState {
 }
 
 #[cfg(feature = "email")]
-pub async fn create_email_client(settings: &settings::Settings<RawSecret>) -> impl EmailService {
-    match settings.email.active_email_client {
-        external_services::email::AvailableEmailClients::SES => {
-            AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await
+pub async fn create_email_client(settings: &settings::Settings<RawSecret>) -> Box<dyn EmailService> {
+    match &settings.email.client_config {
+        EmailClientConfigs::Ses{aws_ses} => {
+            Box::new(AwsSes::create(&settings.email, &aws_ses, settings.proxy.https_url.to_owned()).await)
         }
+        EmailClientConfigs::Smtp{smtp} => {
+            Box::new(SmtpServer::create(&settings.email, smtp.clone()).await)
+        }
+        EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
     }
 }
 
