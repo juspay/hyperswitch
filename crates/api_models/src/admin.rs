@@ -1994,6 +1994,7 @@ pub struct ProfileCreate {
     pub max_auto_retries_enabled: Option<u8>,
 
     /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
     pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
 }
 
@@ -2233,6 +2234,7 @@ pub struct ProfileResponse {
     pub max_auto_retries_enabled: Option<i16>,
 
     /// Bool indicating if extended authentication must be requested for all payments
+    #[schema(value_type = Option<bool>)]
     pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
 }
 

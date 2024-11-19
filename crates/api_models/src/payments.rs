@@ -853,7 +853,7 @@ pub struct PaymentsRequest {
     /// Optional boolean value to extent authorization period of this payment
     ///
     /// capture method must be manual or manual_multiple
-    #[schema(value_type = Option<Boolean>, default = false)]
+    #[schema(value_type = Option<bool>, default = false)]
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
 
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
