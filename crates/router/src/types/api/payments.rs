@@ -16,8 +16,9 @@ pub use api_models::payments::{
     PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsResponse, PaymentsResponseForm,
     PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
     PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
-    VerifyResponse, WalletData,
+    VerifyResponse, WalletData
 };
+pub use api_models::feature_matrix::{FeatureMatrixRequest, FeatureMatrixListResponse, FeatureMatrixResponse};
 #[cfg(feature = "v2")]
 pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsIntentResponse};
 use error_stack::ResultExt;

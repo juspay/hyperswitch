@@ -72,6 +72,9 @@ use crate::routes::cards_info::card_iin_info;
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "recon", feature = "olap"))]
 use crate::routes::recon as recon_routes;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::routes::feature_matrix; 
+
 pub use crate::{
     configs::settings,
     db::{CommonStorageInterface, GlobalStorageInterface, StorageImpl, StorageInterface},
@@ -2147,3 +2150,17 @@ impl WebhookEvents {
             )
     }
 }
+
+#[cfg(feature = "olap")]
+pub struct FeatureMatrix; 
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl FeatureMatrix {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/feature_matrix").app_data(web::Data::new(state))
+        .service(
+            web::resource("").route(web::get().to(feature_matrix::fetch_connector_feature_matrix)))
+    }
+}
+
+

@@ -2,6 +2,7 @@ use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{router_data::RouterData, router_data_v2::RouterDataV2};
 use hyperswitch_interfaces::{
     authentication::ExternalAuthenticationPayload, connector_integration_v2::ConnectorIntegrationV2,
+    types::SupportedPaymentMethods,
 };
 
 use super::{BoxedConnectorIntegrationV2, ConnectorValidation};
@@ -423,6 +424,13 @@ impl api::ConnectorCommon for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.get_currency_unit(),
             Self::New(connector) => connector.get_currency_unit(),
+        }
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        match self {
+            Self::Old(connector) => connector.get_supported_payment_methods(),
+            Self::New(connector) => connector.get_supported_payment_methods(),
         }
     }
 

@@ -17,7 +17,6 @@ use crate::{
 pub async fn generate_access_token(state: SessionState) -> RouterResult<types::AccessToken> {
     let connector = enums::Connector::Paypal;
     let boxed_connector = types::api::ConnectorData::convert_connector(
-        &state.conf.connectors,
         connector.to_string().as_str(),
     )?;
     let connector_auth =

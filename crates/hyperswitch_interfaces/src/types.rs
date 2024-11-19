@@ -200,7 +200,7 @@ pub struct PaymentMethodDetails {
 }
 
 /// list of payment method types and metadata related to them
-pub type PaymentMethodTypeMetada = HashMap<PaymentMethodType, PaymentMethodDetails>;
+pub type PaymentMethodTypeMetadata = HashMap<PaymentMethodType, PaymentMethodDetails>;
 
 /// list of payment methods, payment method types and metadata related to them
-pub type SupportedPaymentMethods = HashMap<PaymentMethod, PaymentMethodTypeMetada>;
+pub type SupportedPaymentMethods = HashMap<PaymentMethod, PaymentMethodTypeMetadata>;

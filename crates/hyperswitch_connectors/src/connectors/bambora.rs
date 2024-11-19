@@ -38,7 +38,7 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        self, PaymentMethodDetails, PaymentMethodTypeMetada, PaymentsAuthorizeType,
+        self, PaymentMethodDetails, PaymentMethodTypeMetadata, PaymentsAuthorizeType,
         PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsSyncType, PaymentsVoidType,
         Response, SupportedPaymentMethods,
     },
@@ -122,7 +122,7 @@ impl ConnectorCommon for Bambora {
 
     fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
         let mut supported_payment_methods = SupportedPaymentMethods::new();
-        let mut card_payment_method = PaymentMethodTypeMetada::new();
+        let mut card_payment_method = PaymentMethodTypeMetadata::new();
         card_payment_method.insert(
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
