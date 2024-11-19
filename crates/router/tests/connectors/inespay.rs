@@ -1,6 +1,6 @@
 use hyperswitch_domain_models::payment_method_data::{Card, PaymentMethodData};
 use masking::Secret;
-use router::types::{self, api, domain, storage::enums};
+use router::types::{self, api, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
