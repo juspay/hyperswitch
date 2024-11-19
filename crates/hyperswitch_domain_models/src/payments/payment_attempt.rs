@@ -37,10 +37,11 @@ use crate::{address::Address, merchant_key_store::MerchantKeyStore, router_respo
 use crate::{
     behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
-    router_request_types,
-    type_encryption::{crypto_operation, CryptoOperation},
-    ForeignIDRef,
+    router_request_types, ForeignIDRef,
 };
+
+#[cfg(feature = "v2")]
+use crate::type_encryption::{crypto_operation, CryptoOperation};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {

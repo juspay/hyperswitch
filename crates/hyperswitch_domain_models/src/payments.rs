@@ -6,10 +6,13 @@ use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
-    ext_traits::ValueExt,
     id_type, pii,
     types::{keymanager::ToEncryptable, MinorUnit},
 };
+
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::ValueExt;
+
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
@@ -27,6 +30,8 @@ use common_enums as storage_enums;
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
+
+#[cfg(feature = "v1")]
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::{
