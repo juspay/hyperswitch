@@ -90,7 +90,7 @@ pub struct AuthenticationDataWithUser {
     pub profile_id: Option<id_type::ProfileId>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct UserFromTokenWithRoleInfo {
     pub user: UserFromToken,
     pub role_info: authorization::roles::RoleInfo,
@@ -267,7 +267,7 @@ impl AuthToken {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct UserFromToken {
     pub user_id: String,
     pub merchant_id: id_type::MerchantId,
@@ -3257,7 +3257,7 @@ impl ReconToken {
         let acl = role_info.get_recon_acl();
         let optional_acl_str = serde_json::to_string(&acl)
             .map_err(|_| errors::UserErrors::InternalServerError)
-            .attach_printable("Failed to serialize acl to string\nUsing empty ACL")
+            .attach_printable("Failed to serialize acl to string. Using empty ACL")
             .ok();
         let token_payload = Self {
             user_id,

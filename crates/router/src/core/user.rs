@@ -1566,7 +1566,7 @@ pub async fn verify_token(
     let acl = user_with_role.role_info.get_recon_acl();
     let optional_acl_str = serde_json::to_string(&acl)
         .map_err(|_| UserErrors::InternalServerError)
-        .attach_printable("Failed to serialize acl to string.\nUsing empty ACL")
+        .attach_printable("Failed to serialize acl to string. Using empty ACL")
         .ok();
 
     Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
