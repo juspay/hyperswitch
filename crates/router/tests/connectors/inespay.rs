@@ -7,12 +7,12 @@ use crate::utils::{self, ConnectorActions};
 
 #[derive(Clone, Copy)]
 struct InespayTest;
-impl InespayTest {
-    #[allow(dead_code)]
-    fn new() -> Self {
-        Self
-    }
-}
+// impl InespayTest {
+//     #[allow(dead_code)]
+//     fn new() -> Self {
+//         Self
+//     }
+// }
 impl ConnectorActions for InespayTest {}
 impl utils::Connector for InespayTest {
     fn get_data(&self) -> api::ConnectorData {
