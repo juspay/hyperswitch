@@ -165,7 +165,9 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        currency: "AED",
         customer_acceptance: null,
+        connector_metadata: connectorMetadata,
         setup_future_usage: "on_session",
       },
       Response: {
