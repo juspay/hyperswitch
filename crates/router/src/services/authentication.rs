@@ -11,7 +11,7 @@ use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_enums::TokenPurpose;
-use common_utils::{date_time, id_type};
+use common_utils::{date_time, ext_traits::AsyncExt, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
@@ -57,6 +57,7 @@ mod detached;
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
+    // pub platform_merchant_account: Option<domain::MerchantAccount>,
     pub key_store: domain::MerchantKeyStore,
     pub profile_id: Option<id_type::ProfileId>,
 }
@@ -539,6 +540,10 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
+        // let (merchant, platform_merchant_account) =
+        //     get_platform_merchant_account(state, request_headers, merchant).await?;
 
         let auth = AuthenticationData {
             merchant_account: merchant,
@@ -1068,6 +1073,34 @@ impl<'a> HeaderMapStruct<'a> {
                     },
                 )
             })
+    }
+
+    pub fn get_id_type_from_header_if_present<T>(&self, key: &str) -> RouterResult<Option<T>>
+    where
+        T: TryFrom<
+            std::borrow::Cow<'static, str>,
+            Error = error_stack::Report<errors::ValidationError>,
+        >,
+    {
+        self.headers
+            .get(key)
+            .map(|value| value.to_str())
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "`{key}` in headers",
+            })
+            .attach_printable(format!(
+                "Failed to convert header value to string for header key: {}",
+                key
+            ))?
+            .map(|value| {
+                T::try_from(std::borrow::Cow::Owned(value.to_owned())).change_context(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("`{}` header is invalid", key),
+                    },
+                )
+            })
+            .transpose()
     }
 }
 
@@ -2954,5 +2987,70 @@ where
         };
 
         Ok((auth, auth_type))
+    }
+}
+
+async fn get_connected_merchant_account<A>(
+    state: &A,
+    connected_merchant_id: id_type::MerchantId,
+    platform_org_id: id_type::OrganizationId,
+) -> RouterResult<domain::MerchantAccount>
+where
+    A: SessionStateInfo + Sync,
+{
+    let key_manager_state = &(&state.session_state()).into();
+    let key_store = state
+        .store()
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &connected_merchant_id,
+            &state.store().get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
+        .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+    let connected_merchant_account = state
+        .store()
+        .find_merchant_account_by_merchant_id(key_manager_state, &connected_merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
+        .attach_printable("Failed to fetch merchant account for the merchant id")?;
+
+    if platform_org_id != connected_merchant_account.organization_id {
+        return Err(errors::ApiErrorResponse::Unauthorized)
+            .attach_printable("Access for merchant id Unauthorized");
+    }
+
+    Ok(connected_merchant_account)
+}
+
+async fn get_platform_merchant_account<A>(
+    state: &A,
+    request_headers: &HeaderMap,
+    merchant_account: domain::MerchantAccount,
+) -> RouterResult<(domain::MerchantAccount, Option<domain::MerchantAccount>)>
+where
+    A: SessionStateInfo + Sync,
+{
+    let connected_merchant_account = HeaderMapStruct::new(request_headers)
+        .get_id_type_from_header_if_present::<id_type::MerchantId>(
+            headers::X_CONNECTED_MERCHANT_ID,
+        )?
+        .filter(|_| merchant_account.is_platform_account)
+        .async_map(|merchant_id| {
+            get_connected_merchant_account(
+                state,
+                merchant_id,
+                merchant_account.organization_id.clone(),
+            )
+        })
+        .await
+        .transpose()?;
+
+    if let Some(connected_merchant_account) = connected_merchant_account {
+        Ok((connected_merchant_account, Some(merchant_account)))
+    } else {
+        Ok((merchant_account, None))
     }
 }

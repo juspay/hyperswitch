@@ -82,7 +82,7 @@ pub struct MerchantAccountSetter {
     pub payment_link_config: Option<serde_json::Value>,
     pub pm_collect_link_config: Option<serde_json::Value>,
     pub version: common_enums::ApiVersion,
-    pub is_platform_account: bool
+    pub is_platform_account: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -117,7 +117,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             payment_link_config: item.payment_link_config,
             pm_collect_link_config: item.pm_collect_link_config,
             version: item.version,
-            is_platform_account: item.is_platform_account
+            is_platform_account: item.is_platform_account,
         }
     }
 }
@@ -236,7 +236,7 @@ pub enum MerchantAccountUpdate {
     },
     UnsetDefaultProfile,
     ModifiedAtUpdate,
-    ToPlatformAccount,  
+    ToPlatformAccount,
 }
 
 #[cfg(feature = "v2")]
@@ -396,7 +396,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 recon_status: None,
                 payment_link_config: None,
                 pm_collect_link_config: None,
-                is_platform_account:None,
+                is_platform_account: None,
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -453,7 +453,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 payment_link_config: None,
                 pm_collect_link_config: None,
                 is_platform_account: Some(true),
-            }
+            },
         }
     }
 }
@@ -652,7 +652,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             payment_link_config: self.payment_link_config,
             pm_collect_link_config: self.pm_collect_link_config,
             version: self.version,
-            is_platform_account: self.is_platform_account
+            is_platform_account: self.is_platform_account,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -730,7 +730,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 payment_link_config: item.payment_link_config,
                 pm_collect_link_config: item.pm_collect_link_config,
                 version: item.version,
-                is_platform_account: item.is_platform_account
+                is_platform_account: item.is_platform_account,
             })
         }
         .await
