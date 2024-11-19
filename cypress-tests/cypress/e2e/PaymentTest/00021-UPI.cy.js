@@ -77,6 +77,7 @@ describe("UPI Payments - Hyperswitch", () => {
     it("Handle UPI Redirection", () => {
       let expected_redirection = fixtures.confirmBody["return_url"];
       let payment_method_type = globalState.get("paymentMethodType");
+
       cy.handleUpiRedirection(
         globalState,
         payment_method_type,
@@ -85,7 +86,13 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Retrieve payment", () => {
-      cy.retrievePaymentCallTest(globalState);
+      let data = getConnectorDetails(globalState.get("connectorId"))["upi_pm"][
+        "UpiCollect"
+      ];
+
+      let configs = validateConfig(data["Configs"]);
+
+      cy.retrievePaymentCallTest(globalState, configs);
     });
 
     it("Refund payment", () => {
@@ -192,7 +199,13 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Retrieve payment", () => {
-      cy.retrievePaymentCallTest(globalState);
+      let data = getConnectorDetails(globalState.get("connectorId"))["upi_pm"][
+        "UpiIntent"
+      ];
+
+      let configs = validateConfig(data["Configs"]);
+
+      cy.retrievePaymentCallTest(globalState, configs);
     });
   });
 });

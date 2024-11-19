@@ -159,7 +159,7 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      cy.retrievePaymentCallTest(globalState, null);
     });
 
     it("create-payment-routing-test for bank redirect", () => {
@@ -327,7 +327,7 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      cy.retrievePaymentCallTest(globalState, null);
     });
 
     it("create-payment-call-test-with-EUR", () => {
@@ -359,7 +359,7 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      cy.retrievePaymentCallTest(globalState, null);
     });
   });
 
@@ -505,7 +505,7 @@ describe("Rule Based Routing Test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        cy.retrievePaymentCallTest(globalState, null);
       });
 
       it("create-payment-call-test-with-amount-9", () => {
@@ -537,7 +537,7 @@ describe("Rule Based Routing Test", () => {
         );
 
         it("retrieve-payment-call-test", () => {
-          cy.retrievePaymentCallTest(globalState);
+          cy.retrievePaymentCallTest(globalState, null);
         });
       });
     }

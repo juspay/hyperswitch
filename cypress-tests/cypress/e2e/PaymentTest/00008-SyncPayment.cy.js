@@ -73,6 +73,12 @@ describe("Card - Sync payment flow test", () => {
   });
 
   it("retrieve-payment-call-test", () => {
-    cy.retrievePaymentCallTest(globalState);
+    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+      "No3DSAutoCapture"
+    ];
+
+    let configs = validateConfig(data["Configs"]);
+
+    cy.retrievePaymentCallTest(globalState, configs);
   });
 });

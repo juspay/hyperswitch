@@ -196,7 +196,13 @@ describe("Card - SingleUse Mandates flow test", () => {
     });
 
     it("Retrieve Payment Call Test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "ZeroAuthConfirmPayment"
+      ];
+
+      let configs = validateConfig(data["Configs"]);
+
+      cy.retrievePaymentCallTest(globalState, configs);
     });
 
     it("Retrieve CustomerPM Call Test", () => {

@@ -143,6 +143,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -198,6 +199,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -252,6 +254,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -357,6 +360,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -412,6 +416,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -467,6 +472,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               it("Payment retrieve call", () => {
                 cy.retrievePaymentCallTest(
                   globalState,
+                  null,
                   true,
                   max_auto_retries + 1
                 );
@@ -537,7 +543,12 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(globalState, true, max_auto_retries + 1);
+            cy.retrievePaymentCallTest(
+              globalState,
+              null,
+              true,
+              max_auto_retries + 1
+            );
           });
         });
       });
@@ -593,7 +604,7 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(globalState, true);
+            cy.retrievePaymentCallTest(globalState, null, true);
           });
         });
 
@@ -632,7 +643,7 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment retrieve call", () => {
-            cy.retrievePaymentCallTest(globalState, true);
+            cy.retrievePaymentCallTest(globalState, null, true);
           });
         });
       });

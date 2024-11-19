@@ -76,7 +76,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSManualCapture"];
+
+        let configs = validateConfig(data["Configs"]);
+
+        cy.retrievePaymentCallTest(globalState, configs);
       });
 
       it("capture-call-test", () => {
@@ -102,7 +108,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        let configs = validateConfig(data["Configs"]);
+
+        cy.retrievePaymentCallTest(globalState, configs);
       });
     });
 
@@ -139,7 +151,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSManualCapture"];
+
+        let configs = validateConfig(data["Configs"]);
+
+        cy.retrievePaymentCallTest(globalState, configs);
       });
 
       it("capture-call-test", () => {
@@ -165,7 +183,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        let configs = validateConfig(data["Configs"]);
+
+        cy.retrievePaymentCallTest(globalState, configs);
       });
     });
   });
@@ -232,7 +256,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("retrieve-payment-call-test", () => {
-          cy.retrievePaymentCallTest(globalState);
+          let data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSManualCapture"];
+
+          let configs = validateConfig(data["Configs"]);
+
+          cy.retrievePaymentCallTest(globalState, configs);
         });
 
         it("capture-call-test", () => {
@@ -258,7 +288,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("retrieve-payment-call-test", () => {
-          cy.retrievePaymentCallTest(globalState);
+          let data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PartialCapture"];
+
+          let configs = validateConfig(data["Configs"]);
+
+          cy.retrievePaymentCallTest(globalState, configs);
         });
       });
 
@@ -295,7 +331,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("retrieve-payment-call-test", () => {
-          cy.retrievePaymentCallTest(globalState);
+          let data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSManualCapture"];
+
+          let configs = validateConfig(data["Configs"]);
+
+          cy.retrievePaymentCallTest(globalState, configs);
         });
 
         it("capture-call-test", () => {
@@ -321,7 +363,13 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("retrieve-payment-call-test", () => {
-          cy.retrievePaymentCallTest(globalState);
+          let data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PartialCapture"];
+
+          let configs = validateConfig(data["Configs"]);
+
+          cy.retrievePaymentCallTest(globalState, configs);
         });
       });
     }

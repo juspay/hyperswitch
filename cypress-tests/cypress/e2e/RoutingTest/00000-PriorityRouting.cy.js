@@ -101,6 +101,7 @@ describe("Priority Based Routing Test", () => {
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
       let req_data = data["Request"];
       let res_data = data["Response"];
+
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         req_data,
@@ -109,12 +110,13 @@ describe("Priority Based Routing Test", () => {
         "automatic",
         globalState
       );
+
       if (should_continue)
         should_continue = utils.should_continue_further(res_data);
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      cy.retrievePaymentCallTest(globalState, null);
     });
   });
 
@@ -203,7 +205,7 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      cy.retrievePaymentCallTest(globalState, null);
     });
   });
 });
