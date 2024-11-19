@@ -89,14 +89,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsGetI
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<
-        operations::GetTrackerResponse<
-            'a,
-            F,
-            PaymentsGetIntentRequest,
-            payments::PaymentIntentData<F>,
-        >,
-    > {
+    ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
         let storage_scheme = merchant_account.storage_scheme;
@@ -110,10 +103,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsGetI
             payment_intent,
         };
 
-        let get_trackers_response = operations::GetTrackerResponse {
-            operation: Box::new(self),
-            payment_data,
-        };
+        let get_trackers_response = operations::GetTrackerResponse { payment_data };
 
         Ok(get_trackers_response)
     }
@@ -154,18 +144,12 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsGetIntentRequest, payments::Pay
         &'b self,
         _request: &PaymentsGetIntentRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(
-        PaymentsGetIntentOperation<'b, F>,
-        operations::ValidateResult,
-    )> {
-        Ok((
-            Box::new(self),
-            operations::ValidateResult {
-                merchant_id: merchant_account.get_id().to_owned(),
-                storage_scheme: merchant_account.storage_scheme,
-                requeue: false,
-            },
-        ))
+    ) -> RouterResult<operations::ValidateResult> {
+        Ok(operations::ValidateResult {
+            merchant_id: merchant_account.get_id().to_owned(),
+            storage_scheme: merchant_account.storage_scheme,
+            requeue: false,
+        })
     }
 }
 

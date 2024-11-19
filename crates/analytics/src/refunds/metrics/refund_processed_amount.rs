@@ -52,6 +52,7 @@ where
                 alias: Some("total"),
             })
             .switch()?;
+        query_builder.add_select_column("currency").switch()?;
         query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
@@ -78,6 +79,7 @@ where
             query_builder.add_group_by_clause(dim).switch()?;
         }
 
+        query_builder.add_group_by_clause("currency").switch()?;
         if let Some(granularity) = granularity.as_ref() {
             granularity
                 .set_group_by_clause(&mut query_builder)

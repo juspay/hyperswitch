@@ -48,7 +48,7 @@ use super::poll;
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
-#[cfg(all(feature = "oltp", feature = "v1"))]
+#[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
@@ -472,7 +472,7 @@ impl Health {
 #[cfg(feature = "dummy_connector")]
 pub struct DummyConnector;
 
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
         let mut routes_with_restricted_access = web::scope("");
@@ -540,6 +540,10 @@ impl Payments {
                 .service(
                     web::resource("/start_redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
+                )
+                .service(
+                    web::resource("/finish_redirection/{publishable_key}/{profile_id}")
+                        .route(web::get().to(payments::payments_finish_redirection)),
                 ),
         );
 
@@ -754,22 +758,14 @@ impl Routing {
                 },
             )))
             .service(
-                web::resource("/default")
-                    .route(web::get().to(|state, req| {
-                        routing::routing_retrieve_default_config(
-                            state,
-                            req,
-                            &TransactionType::Payment,
-                        )
-                    }))
-                    .route(web::post().to(|state, req, payload| {
-                        routing::routing_update_default_config(
-                            state,
-                            req,
-                            payload,
-                            &TransactionType::Payment,
-                        )
-                    })),
+                web::resource("/default").route(web::post().to(|state, req, payload| {
+                    routing::routing_update_default_config(
+                        state,
+                        req,
+                        payload,
+                        &TransactionType::Payment,
+                    )
+                })),
             )
             .service(
                 web::resource("/deactivate").route(web::post().to(|state, req, payload| {
@@ -803,11 +799,7 @@ impl Routing {
             )
             .service(
                 web::resource("/default/profile").route(web::get().to(|state, req| {
-                    routing::routing_retrieve_default_config_for_profiles(
-                        state,
-                        req,
-                        &TransactionType::Payment,
-                    )
+                    routing::routing_retrieve_default_config(state, req, &TransactionType::Payment)
                 })),
             );
 
@@ -1440,6 +1432,29 @@ impl Webhooks {
                     .route(web::post().to(frm_routes::frm_fulfillment)),
             );
         }
+
+        route
+    }
+}
+
+#[cfg(all(feature = "oltp", feature = "v2"))]
+impl Webhooks {
+    pub fn server(config: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+
+        #[allow(unused_mut)]
+        let mut route = web::scope("/v2/webhooks")
+            .app_data(web::Data::new(config))
+            .service(
+                web::resource("/{merchant_id}/{profile_id}/{connector_id}")
+                    .route(
+                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    )
+                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
+                    .route(
+                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    ),
+            );
 
         route
     }

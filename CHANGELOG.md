@@ -4,6 +4,45 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.19.0
+
+### Features
+
+- **connector:** [Novalnet] Add support for disputes ([#6560](https://github.com/juspay/hyperswitch/pull/6560)) ([`6881ce2`](https://github.com/juspay/hyperswitch/commit/6881ce2ed3d11006c33fef9863107f0d823ebddb))
+- **payments:** [Payment links] add hide card nickname field config for secure payment links ([#6554](https://github.com/juspay/hyperswitch/pull/6554)) ([`0e026b7`](https://github.com/juspay/hyperswitch/commit/0e026b70b6502c4e82f3e8cccc5441deb472119e))
+
+### Refactors
+
+- **core:** Add profile_id for default_fallback api ([#6546](https://github.com/juspay/hyperswitch/pull/6546)) ([`053f810`](https://github.com/juspay/hyperswitch/commit/053f8109302a98e6b6d30d957b2af618ea73055f))
+- **users:** Make `profile_id` in the JWT non-optional ([#6537](https://github.com/juspay/hyperswitch/pull/6537)) ([`d32397f`](https://github.com/juspay/hyperswitch/commit/d32397f060731f51a15634e221117a554b8b3721))
+
+**Full Changelog:** [`2024.11.18.0...2024.11.19.0`](https://github.com/juspay/hyperswitch/compare/2024.11.18.0...2024.11.19.0)
+
+- - -
+
+## 2024.11.18.0
+
+### Features
+
+- **payments_v2:** Add finish redirection endpoint ([#6549](https://github.com/juspay/hyperswitch/pull/6549)) ([`0805a93`](https://github.com/juspay/hyperswitch/commit/0805a937b1bc12ac1dfb23922036733ed971a87a))
+
+**Full Changelog:** [`2024.11.15.0...2024.11.18.0`](https://github.com/juspay/hyperswitch/compare/2024.11.15.0...2024.11.18.0)
+
+- - -
+
+## 2024.11.15.0
+
+### Features
+
+- **analytics:** Add `sessionized_metrics` and `currency_conversion` for refunds analytics ([#6419](https://github.com/juspay/hyperswitch/pull/6419)) ([`afd7f7d`](https://github.com/juspay/hyperswitch/commit/afd7f7d20980f6f39673008c86b89b1e501f05f2))
+- **connector:** [Novalnet] Add supported currencies ([#6547](https://github.com/juspay/hyperswitch/pull/6547)) ([`a35a4f3`](https://github.com/juspay/hyperswitch/commit/a35a4f314242af3c11a27c031388049c8fe4e72d))
+- **themes:** Setup themes table ([#6533](https://github.com/juspay/hyperswitch/pull/6533)) ([`29be1d4`](https://github.com/juspay/hyperswitch/commit/29be1d4fadc55948c99cc8bd33b3b8e8d341ae11))
+- Implement scylla traits for StrongSecret ([#6500](https://github.com/juspay/hyperswitch/pull/6500)) ([`7d73e90`](https://github.com/juspay/hyperswitch/commit/7d73e9095a532aa5c2bb4bf8806fc678460cf8d4))
+
+**Full Changelog:** [`2024.11.14.0...2024.11.15.0`](https://github.com/juspay/hyperswitch/compare/2024.11.14.0...2024.11.15.0)
+
+- - -
+
 ## 2024.11.14.0
 
 ### Features

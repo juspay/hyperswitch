@@ -224,8 +224,6 @@ pub enum FieldType {
     UserCpf,
     UserCnpj,
     UserIban,
-    BrowserLanguage,
-    BrowserIp,
     UserMsisdn,
     UserClientIdentifier,
     OrderDetailsProductName,

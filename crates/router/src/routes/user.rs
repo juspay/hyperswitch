@@ -691,6 +691,7 @@ pub async fn check_two_factor_auth_status_with_attempts(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_sso_auth_url(
     state: web::Data<AppState>,
     req: HttpRequest,

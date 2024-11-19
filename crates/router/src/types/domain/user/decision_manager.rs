@@ -132,7 +132,7 @@ impl JWTFlow {
                 .clone()
                 .ok_or(report!(UserErrors::InternalServerError))
                 .attach_printable("org_id not found")?,
-            Some(profile_id),
+            profile_id,
             Some(user_role.tenant_id.clone()),
         )
         .await

@@ -3691,6 +3691,7 @@ pub struct PaymentMethodDataResponseWithBilling {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[cfg(feature = "v1")]
 pub enum PaymentIdType {
     /// The identifier for payment intent
     PaymentIntentId(id_type::PaymentId),
@@ -3702,6 +3703,20 @@ pub enum PaymentIdType {
     PreprocessingId(String),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[cfg(feature = "v2")]
+pub enum PaymentIdType {
+    /// The identifier for payment intent
+    PaymentIntentId(id_type::GlobalPaymentId),
+    /// The identifier for connector transaction
+    ConnectorTransactionId(String),
+    /// The identifier for payment attempt
+    PaymentAttemptId(String),
+    /// The identifier for preprocessing step
+    PreprocessingId(String),
+}
+
+#[cfg(feature = "v1")]
 impl fmt::Display for PaymentIdType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -3726,6 +3741,7 @@ impl fmt::Display for PaymentIdType {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Default for PaymentIdType {
     fn default() -> Self {
         Self::PaymentIntentId(Default::default())
@@ -4517,6 +4533,7 @@ pub struct PaymentsResponse {
 /// Request for Payment Intent Confirm
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PaymentsConfirmIntentRequest {
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     /// If this url is not passed, the url configured in the business profile will be used
@@ -4557,11 +4574,15 @@ pub struct PaymentsRetrieveRequest {
     /// If this is set to true, the status will be fetched from the connector
     #[serde(default)]
     pub force_sync: bool,
+
+    /// These are the query params that are sent in case of redirect response.
+    /// These can be ingested by the connector to take necessary actions.
+    pub param: Option<String>,
 }
 
 /// Error details for the payment
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct ErrorDetails {
     /// The error code
     pub code: String,
@@ -4646,7 +4667,7 @@ pub struct PaymentsConfirmIntentResponse {
 // TODO: have a separate response for detailed, summarized
 /// Response for Payment Intent Confirm
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsRetrieveResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -5208,6 +5229,7 @@ pub struct PgRedirectResponse {
     pub amount: Option<MinorUnit>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
 pub struct RedirectionResponse {
     pub return_url: String,
@@ -5215,6 +5237,12 @@ pub struct RedirectionResponse {
     pub return_url_with_query_params: String,
     pub http_method: String,
     pub headers: Vec<(String, String)>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
+pub struct RedirectionResponse {
+    pub return_url_with_query_params: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -6295,6 +6323,85 @@ pub struct FrmMessage {
     pub frm_error: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+mod payment_id_type {
+    use std::{borrow::Cow, fmt};
+
+    use serde::{
+        de::{self, Visitor},
+        Deserializer,
+    };
+
+    use super::PaymentIdType;
+
+    struct PaymentIdVisitor;
+    struct OptionalPaymentIdVisitor;
+
+    impl<'de> Visitor<'de> for PaymentIdVisitor {
+        type Value = PaymentIdType;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("payment id")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            common_utils::id_type::GlobalPaymentId::try_from(Cow::Owned(value.to_string()))
+                .map_err(de::Error::custom)
+                .map(PaymentIdType::PaymentIntentId)
+        }
+    }
+
+    impl<'de> Visitor<'de> for OptionalPaymentIdVisitor {
+        type Value = Option<PaymentIdType>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("payment id")
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(PaymentIdVisitor).map(Some)
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_unit<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(None)
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn deserialize<'a, D>(deserializer: D) -> Result<PaymentIdType, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        deserializer.deserialize_any(PaymentIdVisitor)
+    }
+
+    pub(crate) fn deserialize_option<'a, D>(
+        deserializer: D,
+    ) -> Result<Option<PaymentIdType>, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        deserializer.deserialize_option(OptionalPaymentIdVisitor)
+    }
+}
+
+#[cfg(feature = "v1")]
 mod payment_id_type {
     use std::{borrow::Cow, fmt};
 
@@ -6544,6 +6651,7 @@ pub struct PaymentLinkDetails {
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
     pub display_sdk_only: bool,
+    pub hide_card_nickname_field: bool,
     pub locale: Option<String>,
     pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
 }
@@ -6551,6 +6659,7 @@ pub struct PaymentLinkDetails {
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct SecurePaymentLinkDetails {
     pub enabled_saved_payment_method: bool,
+    pub hide_card_nickname_field: bool,
     #[serde(flatten)]
     pub payment_link_details: PaymentLinkDetails,
 }

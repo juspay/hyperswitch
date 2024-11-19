@@ -190,6 +190,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout: item.sdk_layout,
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
+            hide_card_nickname_field: item.hide_card_nickname_field,
             transaction_details: item.transaction_details.map(|transaction_details| {
                 transaction_details
                     .into_iter()
@@ -210,6 +211,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout,
             display_sdk_only,
             enabled_saved_payment_method,
+            hide_card_nickname_field,
             transaction_details,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
@@ -219,6 +221,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout,
             display_sdk_only,
             enabled_saved_payment_method,
+            hide_card_nickname_field,
             transaction_details: transaction_details.map(|transaction_details| {
                 transaction_details
                     .into_iter()
