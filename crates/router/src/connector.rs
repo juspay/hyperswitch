@@ -53,11 +53,11 @@ pub use hyperswitch_connectors::connectors::{
     fiuu::Fiuu, forte, forte::Forte, globepay, globepay::Globepay, helcim, helcim::Helcim,
     jpmorgan, jpmorgan::Jpmorgan, mollie, mollie::Mollie, multisafepay, multisafepay::Multisafepay,
     nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay,
-    novalnet, novalnet::Novalnet, payeezy, payeezy::Payeezy, paymentwall, paymentwall::Paymentwall, payu, payu::Payu, powertranz,
-    powertranz::Powertranz, razorpay, razorpay::Razorpay, shift4, shift4::Shift4, square,
-    square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys,
-    tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline, worldpay, worldpay::Worldpay,
-    zen, zen::Zen, zsl, zsl::Zsl,
+    novalnet, novalnet::Novalnet, payeezy, payeezy::Payeezy, paymentwall, paymentwall::Paymentwall,
+    payu, payu::Payu, powertranz, powertranz::Powertranz, razorpay, razorpay::Razorpay, shift4,
+    shift4::Shift4, square, square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes,
+    thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline, worldpay,
+    worldpay::Worldpay, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]
