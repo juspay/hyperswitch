@@ -788,3 +788,7 @@ card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
 connector_list = "cybersource"
+
+[grpc_client.dynamic_routing_client] 
+host = "localhost" 
+port = 7000       
