@@ -170,6 +170,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,
             is_auto_retries_enabled: item.is_auto_retries_enabled,
             max_auto_retries_enabled: item.max_auto_retries_enabled,
+            always_request_extended_authorization: item.always_request_extended_authorization,
         })
     }
 }
