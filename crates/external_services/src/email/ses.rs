@@ -83,7 +83,11 @@ pub enum AwsSesError {
 
 impl AwsSes {
     /// Constructs a new AwsSes client
-    pub async fn create(conf: &EmailSettings, ses_config: &SESConfig, proxy_url: Option<impl AsRef<str>>) -> Self {
+    pub async fn create(
+        conf: &EmailSettings,
+        ses_config: &SESConfig,
+        proxy_url: Option<impl AsRef<str>>,
+    ) -> Self {
         // Build the client initially which will help us know if the email configuration is correct
         Self::create_client(conf, ses_config, proxy_url)
             .await
@@ -92,7 +96,7 @@ impl AwsSes {
 
         Self {
             sender: conf.sender_email.clone(),
-            ses_config: ses_config.clone(), 
+            ses_config: ses_config.clone(),
             settings: conf.clone(),
         }
     }

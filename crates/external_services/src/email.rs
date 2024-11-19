@@ -142,12 +142,12 @@ pub enum EmailClientConfigs {
     /// AWS ses email client
     Ses {
         /// AWS SES client configuration
-        aws_ses : ses::SESConfig
+        aws_ses: ses::SESConfig,
     },
     /// Other Simple SMTP server
-    Smtp{
+    Smtp {
         /// SMTP server configuration
-        smtp: smtp::SmtpServerConfig
+        smtp: smtp::SmtpServerConfig,
     },
 }
 
@@ -179,8 +179,8 @@ impl EmailSettings {
     /// Validation for the Email client specific configurations
     pub fn validate(&self) -> Result<(), &'static str> {
         match &self.client_config {
-            EmailClientConfigs::Ses{ref aws_ses} => aws_ses.validate(),
-            EmailClientConfigs::Smtp{ref smtp} => smtp.validate(),
+            EmailClientConfigs::Ses { ref aws_ses } => aws_ses.validate(),
+            EmailClientConfigs::Smtp { ref smtp } => smtp.validate(),
             EmailClientConfigs::NoEmailClient => Ok(()),
         }
     }

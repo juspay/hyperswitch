@@ -883,8 +883,8 @@ impl Settings<SecuredSecret> {
         self.key_manager.get_inner().validate()?;
         #[cfg(feature = "email")]
         self.email
-        .validate()
-        .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
 
         Ok(())
     }

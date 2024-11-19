@@ -1,4 +1,5 @@
-use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
+use std::time::Duration;
+
 use common_utils::{errors::CustomResult, pii};
 use error_stack::ResultExt;
 use lettre::{
@@ -9,7 +10,8 @@ use lettre::{
     Message, SmtpTransport, Transport,
 };
 use masking::PeekInterface;
-use std::time::Duration;
+
+use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
 
 /// Client for SMTP server operation
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -113,14 +115,17 @@ impl SmtpServerConfig {
         when(self.host.is_default_or_empty(), || {
             Err("email.smtp.host must not be empty")
         })?;
-        self.username.clone().zip(self.password.clone()).map_or(Ok(()), |(username, password)| {
-            when(username.is_default_or_empty(), || {
-                Err("email.smtp.username must not be empty")
-            })?;
-            when(password.is_default_or_empty(), || {
-                Err("email.smtp.password must not be empty")
-            })
-        })?;
+        self.username.clone().zip(self.password.clone()).map_or(
+            Ok(()),
+            |(username, password)| {
+                when(username.is_default_or_empty(), || {
+                    Err("email.smtp.username must not be empty")
+                })?;
+                when(password.is_default_or_empty(), || {
+                    Err("email.smtp.password must not be empty")
+                })
+            },
+        )?;
         Ok(())
     }
 }

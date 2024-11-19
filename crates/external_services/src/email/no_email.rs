@@ -1,16 +1,15 @@
-use crate::email::{EmailClient, EmailError, EmailResult, IntermediateString};
 use common_utils::{errors::CustomResult, pii};
+
+use crate::email::{EmailClient, EmailError, EmailResult, IntermediateString};
 
 /// Client when email support is disabled
 #[derive(Debug, Clone, Default, serde::Deserialize)]
-pub struct NoEmailClient {
-}
+pub struct NoEmailClient {}
 
 impl NoEmailClient {
     /// Constructs a new client when email is disabled
     pub async fn create() -> Self {
-        Self {
-        }
+        Self {}
     }
 }
 

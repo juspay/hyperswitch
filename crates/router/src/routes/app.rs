@@ -8,7 +8,9 @@ use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
 #[cfg(feature = "email")]
-use external_services::email::{ EmailClientConfigs, ses::AwsSes, smtp::SmtpServer, no_email::NoEmailClient, EmailService};
+use external_services::email::{
+    no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
+};
 use external_services::{file_storage::FileStorageInterface, grpc_client::GrpcClients};
 use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
@@ -258,12 +260,19 @@ impl AsRef<Self> for AppState {
 }
 
 #[cfg(feature = "email")]
-pub async fn create_email_client(settings: &settings::Settings<RawSecret>) -> Box<dyn EmailService> {
+pub async fn create_email_client(
+    settings: &settings::Settings<RawSecret>,
+) -> Box<dyn EmailService> {
     match &settings.email.client_config {
-        EmailClientConfigs::Ses{aws_ses} => {
-            Box::new(AwsSes::create(&settings.email, &aws_ses, settings.proxy.https_url.to_owned()).await)
-        }
-        EmailClientConfigs::Smtp{smtp} => {
+        EmailClientConfigs::Ses { aws_ses } => Box::new(
+            AwsSes::create(
+                &settings.email,
+                &aws_ses,
+                settings.proxy.https_url.to_owned(),
+            )
+            .await,
+        ),
+        EmailClientConfigs::Smtp { smtp } => {
             Box::new(SmtpServer::create(&settings.email, smtp.clone()).await)
         }
         EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
