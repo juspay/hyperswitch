@@ -3,6 +3,8 @@ pub mod keymanager;
 
 /// Enum for Authentication Level
 pub mod authentication;
+/// Enum for Theme Lineage
+pub mod theme;
 
 use std::{
     borrow::Cow,

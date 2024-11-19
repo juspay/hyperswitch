@@ -69,11 +69,21 @@ pub async fn get_sankey(
                     i.refunds_status.unwrap_or_default().as_ref(),
                     i.attempt_count,
                 ) {
+                    (IntentStatus::Succeeded, SessionizerRefundStatus::FullRefunded, 1) => {
+                        sankey_response.refunded += i.count;
+                        sankey_response.normal_success += i.count
+                    }
+                    (IntentStatus::Succeeded, SessionizerRefundStatus::PartialRefunded, 1) => {
+                        sankey_response.partial_refunded += i.count;
+                        sankey_response.normal_success += i.count
+                    }
                     (IntentStatus::Succeeded, SessionizerRefundStatus::FullRefunded, _) => {
-                        sankey_response.refunded += i.count
+                        sankey_response.refunded += i.count;
+                        sankey_response.smart_retried_success += i.count
                     }
                     (IntentStatus::Succeeded, SessionizerRefundStatus::PartialRefunded, _) => {
-                        sankey_response.partial_refunded += i.count
+                        sankey_response.partial_refunded += i.count;
+                        sankey_response.smart_retried_success += i.count
                     }
                     (
                         IntentStatus::Succeeded
