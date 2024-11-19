@@ -60,9 +60,15 @@ pub enum ApiEventsType {
     PaymentMethodList {
         payment_id: Option<String>,
     },
+    #[cfg(feature = "v1")]
     Webhooks {
         connector: String,
         payment_id: Option<id_type::PaymentId>,
+    },
+    #[cfg(feature = "v2")]
+    Webhooks {
+        connector: id_type::MerchantConnectorAccountId,
+        payment_id: Option<id_type::GlobalPaymentId>,
     },
     Routing,
     ResourceListAPI,

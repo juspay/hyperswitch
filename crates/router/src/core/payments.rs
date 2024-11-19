@@ -1642,10 +1642,15 @@ pub trait PaymentRedirectFlow: Sync {
 
         let query_params = req.param.clone().get_required_value("param")?;
 
+        #[cfg(feature = "v1")]
         let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_id",
             })?;
+
+        #[cfg(feature = "v2")]
+        //TODO: Will get the global payment id from the resource id, we need to handle this in the further flow
+        let resource_id: id_type::PaymentId = todo!();
 
         // This connector data is ephemeral, the call payment flow will get new connector data
         // with merchant account details, so the connector_id can be safely set to None here

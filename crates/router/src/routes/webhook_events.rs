@@ -92,6 +92,7 @@ pub async fn list_webhook_delivery_attempts(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::WebhookEventDeliveryRetry))]
+#[cfg(feature = "v1")]
 pub async fn retry_webhook_delivery_attempt(
     state: web::Data<AppState>,
     req: HttpRequest,
