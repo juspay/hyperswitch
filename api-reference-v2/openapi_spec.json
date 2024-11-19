@@ -5799,6 +5799,7 @@
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
         "enum": [
+          "inespay",
           "adyenplatform",
           "phonypay",
           "fauxpay",
@@ -18018,6 +18019,7 @@
         "type": "string",
         "description": "Connectors eligible for payments routing",
         "enum": [
+          "inespay",
           "adyenplatform",
           "phonypay",
           "fauxpay",
