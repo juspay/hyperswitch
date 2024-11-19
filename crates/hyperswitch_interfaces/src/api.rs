@@ -42,6 +42,8 @@ use masking::Maskable;
 use router_env::metrics::add_attributes;
 use serde_json::json;
 
+#[cfg(feature = "payouts")]
+pub use self::payouts::*;
 pub use self::{payments::*, refunds::*};
 use crate::{
     configs::Connectors,
@@ -481,3 +483,7 @@ pub trait ConnectorRedirectResponse {
         Ok(CallConnectorAction::Avoid)
     }
 }
+
+/// Empty trait for when payouts feature is disabled
+#[cfg(not(feature = "payouts"))]
+pub trait Payouts {}

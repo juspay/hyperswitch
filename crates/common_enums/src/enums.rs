@@ -1297,6 +1297,28 @@ pub enum IntentStatus {
     PartiallyCapturedAndCapturable,
 }
 
+impl IntentStatus {
+    /// Indicates whether the syncing with the connector should be allowed or not
+    pub fn should_force_sync_with_connector(&self) -> bool {
+        match self {
+            // Confirm has not happened yet
+            Self::RequiresConfirmation
+            | Self::RequiresPaymentMethod
+            // Once the status is success, failed or cancelled need not force sync with the connector
+            | Self::Succeeded
+            | Self::Failed
+            | Self::Cancelled
+            |  Self::PartiallyCaptured
+            |  Self::RequiresCapture => false,
+            Self::Processing
+            | Self::RequiresCustomerAction
+            | Self::RequiresMerchantAction
+            | Self::PartiallyCapturedAndCapturable
+            => true,
+        }
+    }
+}
+
 /// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
 /// - On_session - Payment method saved only at hyperswitch when consent is provided by the user. CVV will asked during the returning user payment
 /// - Off_session - Payment method saved at both hyperswitch and Processor when consent is provided by the user. No input is required during the returning user payment.
@@ -1447,6 +1469,8 @@ pub enum PaymentExperience {
     InvokePaymentApp,
     /// Contains the data for displaying wait screen
     DisplayWaitScreen,
+    /// Represents that otp needs to be collect and contains if consent is required
+    CollectOtp,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display)]
@@ -1575,6 +1599,7 @@ pub enum PaymentMethodType {
     Mifinity,
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
+    DirectCarrierBilling,
 }
 
 impl masking::SerializableSecret for PaymentMethodType {}
@@ -1615,6 +1640,7 @@ pub enum PaymentMethod {
     Voucher,
     GiftCard,
     OpenBanking,
+    MobilePayment,
 }
 
 #[derive(

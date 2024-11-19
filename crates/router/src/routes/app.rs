@@ -48,7 +48,7 @@ use super::poll;
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
-#[cfg(all(feature = "oltp", feature = "v1"))]
+#[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
@@ -475,7 +475,7 @@ impl Health {
 #[cfg(feature = "dummy_connector")]
 pub struct DummyConnector;
 
-#[cfg(feature = "dummy_connector")]
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
         let mut routes_with_restricted_access = web::scope("");
@@ -539,9 +539,14 @@ impl Payments {
                     web::resource("/create-external-sdk-tokens")
                         .route(web::post().to(payments::payments_connector_session)),
                 )
+                .service(web::resource("").route(web::get().to(payments::payment_status)))
                 .service(
                     web::resource("/start_redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
+                )
+                .service(
+                    web::resource("/finish_redirection/{publishable_key}/{profile_id}")
+                        .route(web::get().to(payments::payments_finish_redirection)),
                 ),
         );
 
@@ -676,9 +681,8 @@ impl Payments {
 #[cfg(any(feature = "olap", feature = "oltp"))]
 pub struct Forex;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 impl Forex {
-    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/forex")
             .app_data(web::Data::new(state.clone()))
@@ -687,10 +691,6 @@ impl Forex {
             .service(
                 web::resource("/convert_from_minor").route(web::get().to(currency::convert_forex)),
             )
-    }
-    #[cfg(feature = "v2")]
-    pub fn server(state: AppState) -> Scope {
-        todo!()
     }
 }
 
@@ -761,22 +761,14 @@ impl Routing {
                 },
             )))
             .service(
-                web::resource("/default")
-                    .route(web::get().to(|state, req| {
-                        routing::routing_retrieve_default_config(
-                            state,
-                            req,
-                            &TransactionType::Payment,
-                        )
-                    }))
-                    .route(web::post().to(|state, req, payload| {
-                        routing::routing_update_default_config(
-                            state,
-                            req,
-                            payload,
-                            &TransactionType::Payment,
-                        )
-                    })),
+                web::resource("/default").route(web::post().to(|state, req, payload| {
+                    routing::routing_update_default_config(
+                        state,
+                        req,
+                        payload,
+                        &TransactionType::Payment,
+                    )
+                })),
             )
             .service(
                 web::resource("/deactivate").route(web::post().to(|state, req, payload| {
@@ -810,11 +802,7 @@ impl Routing {
             )
             .service(
                 web::resource("/default/profile").route(web::get().to(|state, req| {
-                    routing::routing_retrieve_default_config_for_profiles(
-                        state,
-                        req,
-                        &TransactionType::Payment,
-                    )
+                    routing::routing_retrieve_default_config(state, req, &TransactionType::Payment)
                 })),
             );
 
@@ -1066,13 +1054,8 @@ impl Refunds {
 #[cfg(feature = "payouts")]
 pub struct Payouts;
 
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 impl Payouts {
-    #[cfg(feature = "v2")]
-    pub fn server(state: AppState) -> Scope {
-        todo!()
-    }
-    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payouts").app_data(web::Data::new(state));
         route = route.service(web::resource("/create").route(web::post().to(payouts_create)));
@@ -1457,6 +1440,29 @@ impl Webhooks {
     }
 }
 
+#[cfg(all(feature = "oltp", feature = "v2"))]
+impl Webhooks {
+    pub fn server(config: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+
+        #[allow(unused_mut)]
+        let mut route = web::scope("/v2/webhooks")
+            .app_data(web::Data::new(config))
+            .service(
+                web::resource("/{merchant_id}/{profile_id}/{connector_id}")
+                    .route(
+                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    )
+                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
+                    .route(
+                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    ),
+            );
+
+        route
+    }
+}
+
 pub struct Configs;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1580,16 +1586,12 @@ impl Disputes {
 
 pub struct Cards;
 
+#[cfg(feature = "v1")]
 impl Cards {
-    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         web::scope("/cards")
             .app_data(web::Data::new(state))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
-    }
-    #[cfg(feature = "v2")]
-    pub fn server(state: AppState) -> Scope {
-        todo!()
     }
 }
 
@@ -1649,19 +1651,14 @@ impl PaymentLink {
 #[cfg(feature = "payouts")]
 pub struct PayoutLink;
 
-#[cfg(feature = "payouts")]
+#[cfg(all(feature = "payouts", feature = "v1"))]
 impl PayoutLink {
-    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payout_link").app_data(web::Data::new(state));
         route = route.service(
             web::resource("/{merchant_id}/{payout_id}").route(web::get().to(render_payout_link)),
         );
         route
-    }
-    #[cfg(feature = "v2")]
-    pub fn server(state: AppState) -> Scope {
-        todo!()
     }
 }
 
@@ -1791,7 +1788,7 @@ impl ProfileNew {
     }
     #[cfg(feature = "v2")]
     pub fn server(state: AppState) -> Scope {
-        todo!()
+        web::scope("/account/{account_id}/profile").app_data(web::Data::new(state))
     }
 }
 

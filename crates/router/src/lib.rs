@@ -113,7 +113,7 @@ pub fn mk_app(
 > {
     let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
 
-    #[cfg(feature = "dummy_connector")]
+    #[cfg(all(feature = "dummy_connector", feature = "v1"))]
     {
         use routes::DummyConnector;
         server_app = server_app.service(DummyConnector::server(state.clone()));
@@ -125,16 +125,21 @@ pub fn mk_app(
         {
             // This is a more specific route as compared to `MerchantConnectorAccount`
             // so it is registered before `MerchantConnectorAccount`.
-            server_app = server_app
-                .service(routes::ProfileNew::server(state.clone()))
-                .service(routes::Profile::server(state.clone()))
+            #[cfg(feature = "v1")]
+            {
+                server_app = server_app
+                    .service(routes::ProfileNew::server(state.clone()))
+                    .service(routes::Forex::server(state.clone()));
+            }
+
+            server_app = server_app.service(routes::Profile::server(state.clone()))
         }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
-            .service(routes::Forex::server(state.clone()))
-            .service(routes::MerchantConnectorAccount::server(state.clone()));
+            .service(routes::MerchantConnectorAccount::server(state.clone()))
+            .service(routes::Webhooks::server(state.clone()));
 
         #[cfg(feature = "v1")]
         {
@@ -163,7 +168,6 @@ pub fn mk_app(
             .service(routes::Organization::server(state.clone()))
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
-            .service(routes::Analytics::server(state.clone()))
             .service(routes::Routing::server(state.clone()));
 
         #[cfg(feature = "v1")]
@@ -178,12 +182,13 @@ pub fn mk_app(
                 .service(routes::User::server(state.clone()))
                 .service(routes::ConnectorOnboarding::server(state.clone()))
                 .service(routes::Verify::server(state.clone()))
+                .service(routes::Analytics::server(state.clone()))
                 .service(routes::WebhookEvents::server(state.clone()))
                 .service(routes::FeatureMatrix::server(state.clone()));
         }
     }
 
-    #[cfg(feature = "payouts")]
+    #[cfg(all(feature = "payouts", feature = "v1"))]
     {
         server_app = server_app
             .service(routes::Payouts::server(state.clone()))
@@ -196,7 +201,9 @@ pub fn mk_app(
         not(feature = "customer_v2")
     ))]
     {
-        server_app = server_app.service(routes::StripeApis::server(state.clone()));
+        server_app = server_app
+            .service(routes::StripeApis::server(state.clone()))
+            .service(routes::Cards::server(state.clone()));
     }
 
     #[cfg(all(feature = "recon", feature = "v1"))]
@@ -204,7 +211,6 @@ pub fn mk_app(
         server_app = server_app.service(routes::Recon::server(state.clone()));
     }
 
-    server_app = server_app.service(routes::Cards::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
 
