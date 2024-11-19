@@ -26,9 +26,7 @@ use euclid::{
 use external_services::grpc_client::dynamic_routing::{
     success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
 };
-
 use hyperswitch_domain_models::address::Address;
-
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},

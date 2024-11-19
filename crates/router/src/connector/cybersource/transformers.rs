@@ -1,10 +1,6 @@
 use api_models::payments;
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutMethodData;
-
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::address::{AddressDetails, PhoneDetails};
-
 use base64::Engine;
 use common_enums::FutureUsage;
 use common_utils::{
@@ -13,6 +9,8 @@ use common_utils::{
     types::SemanticVersion,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::address::{AddressDetails, PhoneDetails};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

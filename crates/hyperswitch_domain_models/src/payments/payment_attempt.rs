@@ -33,15 +33,14 @@ use time::PrimitiveDateTime;
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
+use crate::type_encryption::{crypto_operation, CryptoOperation};
+#[cfg(feature = "v2")]
 use crate::{address::Address, merchant_key_store::MerchantKeyStore, router_response_types};
 use crate::{
     behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
     router_request_types, ForeignIDRef,
 };
-
-#[cfg(feature = "v2")]
-use crate::type_encryption::{crypto_operation, CryptoOperation};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
