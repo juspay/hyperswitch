@@ -66,3 +66,16 @@ impl GlobalAttemptId {
         self.0.get_string_repr()
     }
 }
+
+impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptId {
+    type Error = error_stack::Report<errors::ValidationError>;
+    fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
+        let global_attempt_id = super::GlobalId::from_string(value).change_context(
+            errors::ValidationError::IncorrectValueProvided {
+                field_name: "payment_id",
+            },
+        )?;
+        Ok(Self(global_attempt_id))
+    }
+}

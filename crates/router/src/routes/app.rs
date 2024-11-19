@@ -48,7 +48,7 @@ use super::poll;
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
-#[cfg(all(feature = "oltp", feature = "v1"))]
+#[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
@@ -1432,6 +1432,29 @@ impl Webhooks {
                     .route(web::post().to(frm_routes::frm_fulfillment)),
             );
         }
+
+        route
+    }
+}
+
+#[cfg(all(feature = "oltp", feature = "v2"))]
+impl Webhooks {
+    pub fn server(config: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+
+        #[allow(unused_mut)]
+        let mut route = web::scope("/v2/webhooks")
+            .app_data(web::Data::new(config))
+            .service(
+                web::resource("/{merchant_id}/{profile_id}/{connector_id}")
+                    .route(
+                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    )
+                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
+                    .route(
+                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    ),
+            );
 
         route
     }
