@@ -12,8 +12,8 @@ pub struct RefundMetricsAccumulator {
 
 #[derive(Debug, Default)]
 pub struct SuccessRateAccumulator {
-    pub success: i64,
-    pub total: i64,
+    pub success: u32,
+    pub total: u32,
 }
 #[derive(Debug, Default)]
 #[repr(transparent)]
@@ -73,35 +73,49 @@ impl RefundMetricAccumulator for PaymentProcessedAmountAccumulator {
 }
 
 impl RefundMetricAccumulator for SuccessRateAccumulator {
-    type MetricOutput = Option<f64>;
+    type MetricOutput = (Option<u32>, Option<u32>, Option<f64>);
 
     fn add_metrics_bucket(&mut self, metrics: &RefundMetricRow) {
         if let Some(ref refund_status) = metrics.refund_status {
             if refund_status.as_ref() == &storage_enums::RefundStatus::Success {
-                self.success += metrics.count.unwrap_or_default();
+                if let Some(success) = metrics
+                    .count
+                    .and_then(|success| u32::try_from(success).ok())
+                {
+                    self.success += success;
+                }
             }
         };
-        self.total += metrics.count.unwrap_or_default();
+        if let Some(total) = metrics.count.and_then(|total| u32::try_from(total).ok()) {
+            self.total += total;
+        }
     }
 
     fn collect(self) -> Self::MetricOutput {
         if self.total <= 0 {
-            None
+            (None, None, None)
         } else {
-            Some(
-                f64::from(u32::try_from(self.success).ok()?) * 100.0
-                    / f64::from(u32::try_from(self.total).ok()?),
-            )
+            let success = Some(self.success);
+            let total = Some(self.total);
+            let success_rate = match (success, total) {
+                (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
+                _ => None,
+            };
+            (success, total, success_rate)
         }
     }
 }
 
 impl RefundMetricsAccumulator {
     pub fn collect(self) -> RefundMetricsBucketValue {
+        let (successful_refunds, total_refunds, refund_success_rate) =
+            self.refund_success_rate.collect();
         let (refund_processed_amount, refund_processed_amount_in_usd) =
             self.processed_amount.collect();
         RefundMetricsBucketValue {
-            refund_success_rate: self.refund_success_rate.collect(),
+            successful_refunds,
+            total_refunds,
+            refund_success_rate,
             refund_count: self.refund_count.collect(),
             refund_success_count: self.refund_success.collect(),
             refund_processed_amount,

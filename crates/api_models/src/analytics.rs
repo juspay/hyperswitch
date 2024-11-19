@@ -230,6 +230,7 @@ pub struct PaymentIntentsAnalyticsMetadata {
 
 #[derive(Debug, serde::Serialize)]
 pub struct RefundsAnalyticsMetadata {
+    pub total_refund_success_rate: Option<f64>,
     pub total_refund_processed_amount: Option<u64>,
     pub total_refund_processed_amount_in_usd: Option<u64>,
 }

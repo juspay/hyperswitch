@@ -176,6 +176,8 @@ impl RefundMetricsBucketIdentifier {
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketValue {
+    pub successful_refunds: Option<u32>,
+    pub total_refunds: Option<u32>,
     pub refund_success_rate: Option<f64>,
     pub refund_count: Option<u64>,
     pub refund_success_count: Option<u64>,
