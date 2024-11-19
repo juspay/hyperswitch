@@ -427,7 +427,7 @@ async fn payments_incoming_webhook_flow(
                     req_state,
                     merchant_account.clone(),
                     key_store.clone(),
-                    profile,
+                    profile.clone(),
                     payments::operations::PaymentGet,
                     api::PaymentsRetrieveRequest {
                         force_sync: true,
@@ -493,22 +493,22 @@ async fn payments_incoming_webhook_flow(
             let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
-            if let Some(_outgoing_event_type) = event_type {
-                let _primary_object_created_at = payments_response.created;
+            if let Some(outgoing_event_type) = event_type {
+                let primary_object_created_at = payments_response.created;
                 // TODO: trigger an outgoing webhook to merchant
-                // Box::pin(super::create_event_and_trigger_outgoing_webhook(
-                //     state,
-                //     merchant_account,
-                //     profile,
-                //     &key_store,
-                //     outgoing_event_type,
-                //     enums::EventClass::Payments,
-                //     payment_id.get_string_repr().to_owned(),
-                //     enums::EventObjectType::PaymentDetails,
-                //     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
-                //     Some(primary_object_created_at),
-                // ))
-                // .await?;
+                Box::pin(super::create_event_and_trigger_outgoing_webhook(
+                    state,
+                    merchant_account,
+                    profile,
+                    &key_store,
+                    outgoing_event_type,
+                    enums::EventClass::Payments,
+                    payment_id.get_string_repr().to_owned(),
+                    enums::EventObjectType::PaymentDetails,
+                    api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
+                    Some(primary_object_created_at),
+                ))
+                .await?;
             };
 
             let response = WebhookResponseTracker::Payment { payment_id, status };

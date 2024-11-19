@@ -49,11 +49,19 @@ pub enum OutgoingWebhookEventContent {
     #[cfg(feature = "v2")]
     Refund {
         payment_id: common_utils::id_type::GlobalPaymentId,
-        refund_id: String,
+        refund_id: common_utils::id_type::GlobalRefundId,
         content: Value,
     },
+    #[cfg(feature = "v1")]
     Dispute {
         payment_id: common_utils::id_type::PaymentId,
+        attempt_id: String,
+        dispute_id: String,
+        content: Value,
+    },
+    #[cfg(feature = "v2")]
+    Dispute {
+        payment_id: common_utils::id_type::GlobalPaymentId,
         attempt_id: String,
         dispute_id: String,
         content: Value,
@@ -117,17 +125,14 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
             }),
             Self::RefundDetails(refund_payload) => Some(OutgoingWebhookEventContent::Refund {
                 payment_id: refund_payload.payment_id.clone(),
-                refund_id: refund_payload.get_refund_id_as_string(),
+                refund_id: refund_payload.id.clone(),
                 content: masking::masked_serialize(&refund_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
-            Self::DisputeDetails(dispute_payload) => Some(OutgoingWebhookEventContent::Dispute {
-                payment_id: dispute_payload.payment_id.clone(),
-                attempt_id: dispute_payload.attempt_id.clone(),
-                dispute_id: dispute_payload.dispute_id.clone(),
-                content: masking::masked_serialize(&dispute_payload)
-                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
-            }),
+            Self::DisputeDetails(dispute_payload) => {
+                //TODO: add support for dispute outgoing webhook
+                todo!()
+            }
             Self::MandateDetails(mandate_payload) => Some(OutgoingWebhookEventContent::Mandate {
                 payment_method_id: mandate_payload.payment_method_id.clone(),
                 mandate_id: mandate_payload.mandate_id.clone(),

@@ -717,6 +717,7 @@ mod tests {
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
+    #[cfg(feature = "v1")]
     async fn test_mockdb_event_interface() {
         #[allow(clippy::expect_used)]
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
@@ -795,6 +796,118 @@ mod tests {
                     delivery_attempt: Some(enums::WebhookDeliveryAttempt::InitialAttempt),
                     metadata: Some(EventMetadata::Payment {
                         payment_id: common_utils::id_type::PaymentId::try_from(
+                            std::borrow::Cow::Borrowed(payment_id),
+                        )
+                        .unwrap(),
+                    }),
+                },
+                &merchant_key_store,
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(event1.event_id, event_id);
+
+        let updated_event = mockdb
+            .update_event_by_merchant_id_event_id(
+                key_manager_state,
+                &merchant_id,
+                event_id,
+                domain::EventUpdate::UpdateResponse {
+                    is_webhook_notified: true,
+                    response: None,
+                },
+                &merchant_key_store,
+            )
+            .await
+            .unwrap();
+
+        assert!(updated_event.is_webhook_notified);
+        assert_eq!(updated_event.primary_object_id, payment_id);
+        assert_eq!(updated_event.event_id, event_id);
+    }
+
+    #[allow(clippy::unwrap_used)]
+    #[tokio::test]
+    #[cfg(feature = "v2")]
+    async fn test_mockdb_event_interface() {
+        #[allow(clippy::expect_used)]
+        let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create Mock store");
+        let event_id = "test_event_id";
+        let (tx, _) = tokio::sync::oneshot::channel();
+        let app_state = Box::pin(routes::AppState::with_storage(
+            Settings::default(),
+            StorageImpl::PostgresqlTest,
+            tx,
+            Box::new(services::MockApiClient),
+        ))
+        .await;
+        let state = &Arc::new(app_state)
+            .get_session_state("public", || {})
+            .unwrap();
+        let merchant_id =
+            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant_1"))
+                .unwrap();
+        let business_profile_id =
+            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from("profile1")).unwrap();
+        let payment_id = "test_payment_id";
+        let key_manager_state = &state.into();
+        let master_key = mockdb.get_master_key();
+        mockdb
+            .insert_merchant_key_store(
+                key_manager_state,
+                domain::MerchantKeyStore {
+                    merchant_id: merchant_id.clone(),
+                    key: domain::types::crypto_operation(
+                        key_manager_state,
+                        type_name!(domain::MerchantKeyStore),
+                        domain::types::CryptoOperation::Encrypt(
+                            services::generate_aes256_key().unwrap().to_vec().into(),
+                        ),
+                        Identifier::Merchant(merchant_id.to_owned()),
+                        master_key,
+                    )
+                    .await
+                    .and_then(|val| val.try_into_operation())
+                    .unwrap(),
+                    created_at: datetime!(2023-02-01 0:00),
+                },
+                &master_key.to_vec().into(),
+            )
+            .await
+            .unwrap();
+        let merchant_key_store = mockdb
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &master_key.to_vec().into(),
+            )
+            .await
+            .unwrap();
+
+        let event1 = mockdb
+            .insert_event(
+                key_manager_state,
+                domain::Event {
+                    event_id: event_id.into(),
+                    event_type: enums::EventType::PaymentSucceeded,
+                    event_class: enums::EventClass::Payments,
+                    is_webhook_notified: false,
+                    primary_object_id: payment_id.into(),
+                    primary_object_type: enums::EventObjectType::PaymentDetails,
+                    created_at: common_utils::date_time::now(),
+                    merchant_id: Some(merchant_id.to_owned()),
+                    business_profile_id: Some(business_profile_id.to_owned()),
+                    primary_object_created_at: Some(common_utils::date_time::now()),
+                    idempotent_event_id: Some(event_id.into()),
+                    initial_attempt_id: Some(event_id.into()),
+                    request: None,
+                    response: None,
+                    delivery_attempt: Some(enums::WebhookDeliveryAttempt::InitialAttempt),
+                    metadata: Some(EventMetadata::Payment {
+                        payment_id: common_utils::id_type::GlobalPaymentId::try_from(
                             std::borrow::Cow::Borrowed(payment_id),
                         )
                         .unwrap(),
