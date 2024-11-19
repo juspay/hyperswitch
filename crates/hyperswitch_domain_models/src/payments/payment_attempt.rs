@@ -6,13 +6,14 @@ use common_utils::{
     id_type, pii,
     types::{
         keymanager::{self, KeyManagerState},
-        ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
+        ConnectorTransactionId, ConnectorTransactionIdTrait, ExtendedAuthorizationAppliedBool,
+        MinorUnit, RequestExtendedAuthorizationBool,
     },
 };
 use diesel_models::{
-    ConnectorMandateReferenceId, ExtendedAuthorizationAppliedBool,
-    PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
-    PaymentAttemptUpdate as DieselPaymentAttemptUpdate, RequestExtendedAuthorizationBool,
+    ConnectorMandateReferenceId, PaymentAttempt as DieselPaymentAttempt,
+    PaymentAttemptNew as DieselPaymentAttemptNew,
+    PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]

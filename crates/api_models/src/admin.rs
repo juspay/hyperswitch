@@ -8,7 +8,10 @@ use common_utils::{
     id_type, link_utils, pii,
 };
 #[cfg(feature = "v1")]
-use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
+use common_utils::{
+    crypto::OptionalEncryptableName, ext_traits::ValueExt,
+    types::AlwaysRequestExtendedAuthorization,
+};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
 use masking::Secret;
@@ -1991,7 +1994,7 @@ pub struct ProfileCreate {
     pub max_auto_retries_enabled: Option<u8>,
 
     /// Bool indicating if extended authentication must be requested for all payments
-    pub always_request_extended_authorization: Option<bool>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
 }
 
 #[nutype::nutype(

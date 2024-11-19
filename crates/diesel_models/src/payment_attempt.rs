@@ -1,6 +1,9 @@
 use common_utils::{
     id_type, pii,
-    types::{ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit},
+    types::{
+        ConnectorTransactionId, ConnectorTransactionIdTrait, ExtendedAuthorizationAppliedBool,
+        MinorUnit, RequestExtendedAuthorizationBool,
+    },
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
@@ -176,57 +179,6 @@ pub struct PaymentAttempt {
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_before: Option<PrimitiveDateTime>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, diesel::expression::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Bool)]
-pub struct ExtendedAuthorizationAppliedBool(bool);
-impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for ExtendedAuthorizationAppliedBool
-where
-    DB: diesel::backend::Backend,
-    bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
-{
-    fn to_sql<'b>(
-        &'b self,
-        out: &mut diesel::serialize::Output<'b, '_, DB>,
-    ) -> diesel::serialize::Result {
-        self.0.to_sql(out)
-    }
-}
-impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
-    for ExtendedAuthorizationAppliedBool
-where
-    DB: diesel::backend::Backend,
-    bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
-{
-    fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        bool::from_sql(value).map(Self)
-    }
-}
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, diesel::expression::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Bool)]
-pub struct RequestExtendedAuthorizationBool(bool);
-impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for RequestExtendedAuthorizationBool
-where
-    DB: diesel::backend::Backend,
-    bool: diesel::serialize::ToSql<diesel::sql_types::Bool, DB>,
-{
-    fn to_sql<'b>(
-        &'b self,
-        out: &mut diesel::serialize::Output<'b, '_, DB>,
-    ) -> diesel::serialize::Result {
-        self.0.to_sql(out)
-    }
-}
-impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
-    for RequestExtendedAuthorizationBool
-where
-    DB: diesel::backend::Backend,
-    bool: diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>,
-{
-    fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        bool::from_sql(value).map(Self)
-    }
 }
 
 #[cfg(feature = "v1")]

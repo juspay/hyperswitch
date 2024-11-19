@@ -9,11 +9,9 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit},
+    types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
 };
-use diesel_models::{
-    payment_attempt::RequestExtendedAuthorizationBool, payment_intent::TaxDetails,
-};
+use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;

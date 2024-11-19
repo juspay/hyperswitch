@@ -4,11 +4,11 @@ use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     pii, type_name,
-    types::keymanager,
+    types::{keymanager, AlwaysRequestExtendedAuthorization},
 };
 use diesel_models::business_profile::{
-    AlwaysRequestExtendedAuthorization, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
-    BusinessPayoutLinkConfig, ProfileUpdateInternal, WebhookDetails,
+    AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
+    ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};

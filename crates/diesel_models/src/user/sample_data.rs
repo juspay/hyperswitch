@@ -2,7 +2,10 @@ use common_enums::{
     AttemptStatus, AuthenticationType, CaptureMethod, Currency, PaymentExperience, PaymentMethod,
     PaymentMethodType,
 };
-use common_utils::types::{ConnectorTransactionId, MinorUnit};
+use common_utils::types::{
+    ConnectorTransactionId, ExtendedAuthorizationAppliedBool, MinorUnit,
+    RequestExtendedAuthorizationBool,
+};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -203,8 +206,8 @@ pub struct PaymentAttemptBatchNew {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
-    pub request_extended_authorization: Option<crate::RequestExtendedAuthorizationBool>,
-    pub extended_authorization_applied: Option<crate::ExtendedAuthorizationAppliedBool>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
     pub capture_before: Option<PrimitiveDateTime>,
 }
 
