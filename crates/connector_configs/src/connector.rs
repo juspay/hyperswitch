@@ -239,6 +239,7 @@ pub struct ConnectorConfig {
     pub zen: Option<ConnectorTomlConfig>,
     pub zsl: Option<ConnectorTomlConfig>,
     pub taxjar: Option<ConnectorTomlConfig>,
+    pub uas: Option<ConnectorTomlConfig>
 }
 
 impl ConnectorConfig {
@@ -406,6 +407,7 @@ impl ConnectorConfig {
             #[cfg(feature = "dummy_connector")]
             Connector::DummyConnector7 => Ok(connector_data.paypal_test),
             Connector::Netcetera => Ok(connector_data.netcetera),
+            Connector::Uas => Ok(connector_data.uas)
         }
     }
 }

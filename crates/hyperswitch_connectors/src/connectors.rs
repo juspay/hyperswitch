@@ -37,6 +37,5 @@ pub use self::{
     forte::Forte, globepay::Globepay, helcim::Helcim, mollie::Mollie, nexinets::Nexinets,
     nexixpay::Nexixpay, novalnet::Novalnet, payeezy::Payeezy, payu::Payu, powertranz::Powertranz,
     square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt,
-    worldline::Worldline, zen::Zen,
-, uas::Uas,
+    worldline::Worldline, zen::Zen, uas::Uas
 };

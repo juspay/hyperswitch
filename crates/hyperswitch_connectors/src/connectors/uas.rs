@@ -107,10 +107,7 @@ impl ConnectorCommon for Uas {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        todo!()
-    //    TODO! Check connector documentation, on which unit they are processing the currency.
-    //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-    //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -185,142 +182,12 @@ impl
         Authorize,
         PaymentsAuthorizeData,
         PaymentsResponseData,
-    > for Uas {
-    fn get_headers(&self, req: &PaymentsAuthorizeRouterData, connectors: &Connectors,) -> CustomResult<Vec<(String, masking::Maskable<String>)>,errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(&self, _req: &PaymentsAuthorizeRouterData, _connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(&self, req: &PaymentsAuthorizeRouterData, _connectors: &Connectors,) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data =
-            uas::UasRouterData::from((
-                amount,
-                req,
-            ));
-        let connector_req = uas::UasPaymentsRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsAuthorizeRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
-                .attach_default_headers()
-                .headers(types::PaymentsAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsAuthorizeRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsAuthorizeRouterData,errors::ConnectorError> {
-        let response: uas::UasPaymentsResponse = res.response.parse_struct("Uas PaymentsAuthorizeResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(&self, res: Response, event_builder: Option<&mut ConnectorEvent>) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
+    > for Uas {}
 
 impl
     ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
     for Uas
-{
-    fn get_headers(
-        &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: uas:: UasPaymentsResponse = res
-            .response
-            .parse_struct("uas PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
+{}
 
 impl
     ConnectorIntegration<
@@ -328,80 +195,7 @@ impl
         PaymentsCaptureData,
         PaymentsResponseData,
     > for Uas
-{
-    fn get_headers(
-        &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsCaptureRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::PaymentsCaptureType::get_request_body(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsCaptureRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: uas::UasPaymentsResponse = res
-            .response
-            .parse_struct("Uas PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
+{}
 
 impl
     ConnectorIntegration<
@@ -416,115 +210,148 @@ impl
         Execute,
         RefundsData,
         RefundsResponseData,
-    > for Uas {
-    fn get_headers(&self, req: &RefundsRouterData<Execute>, connectors: &Connectors,) -> CustomResult<Vec<(String,masking::Maskable<String>)>,errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(&self, _req: &RefundsRouterData<Execute>, _connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(&self, req: &RefundsRouterData<Execute>, _connectors: &Connectors,) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = utils::convert_amount(
-            self.amount_converter,
-            req.request.minor_refund_amount,
-            req.request.currency,
-        )?;
-
-        let connector_router_data =
-            uas::UasRouterData::from((
-                refund_amount,
-                req,
-            ));
-        let connector_req = uas::UasRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::Json(Box::new(connector_req)))
-    }
-
-    fn build_request(&self, req: &RefundsRouterData<Execute>, connectors: &Connectors,) -> CustomResult<Option<Request>,errors::ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
-            .attach_default_headers()
-            .headers(types::RefundExecuteType::get_headers(self, req, connectors)?)
-            .set_body(types::RefundExecuteType::get_request_body(self, req, connectors)?)
-            .build();
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &RefundsRouterData<Execute>,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundsRouterData<Execute>,errors::ConnectorError> {
-        let response: uas::RefundResponse = res.response.parse_struct("uas RefundResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(&self, res: Response, event_builder: Option<&mut ConnectorEvent>) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
+    > for Uas 
+{}
 
 impl
-    ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Uas {
-    fn get_headers(&self, req: &RefundSyncRouterData,connectors: &Connectors,) -> CustomResult<Vec<(String, masking::Maskable<String>)>,errors::ConnectorError> {
-        self.build_headers(req, connectors)
+    ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Uas 
+{}
+
+impl api::ConnectorPreAuthentication for Uas {}
+impl api::ConnectorPreAuthenticationVersionCall for Uas {}
+impl api::ExternalAuthentication for Uas {}
+impl api::ConnectorAuthentication for Uas {}
+impl api::ConnectorPostAuthentication for Uas {}
+
+impl ConnectorIntegration<
+    api::PreAuthentication,
+    types::authentication::PreAuthNRequestData,
+    types::authentication::AuthenticationResponseData,
+> for Uas {
+    fn get_headers(
+        &self,
+        _req: &RouterData<api::PreAuthentication, types::authentication::PreAuthNRequestData, types::authentication::AuthenticationResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        Ok(std::vec![])
     }
 
     fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+        mime::APPLICATION_JSON.essence_str()
     }
 
-    fn get_url(&self, _req: &RefundSyncRouterData,_connectors: &Connectors,) -> CustomResult<String,errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    fn get_http_method(&self) -> Method {
+        Method::Post
+    }
+
+    fn get_url(
+        &self,
+        _req: &RouterData<api::PreAuthentication, types::authentication::PreAuthNRequestData, types::authentication::AuthenticationResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(String::new())
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &RouterData<api::PreAuthentication, types::authentication::PreAuthNRequestData, types::authentication::AuthenticationResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        Ok(RequestContent::Json(Box::new(serde_json::json!(r#"{}"#))))
+    }
+
+    fn get_request_form_data(
+        &self,
+        _req: &RouterData<api::PreAuthentication, types::authentication::PreAuthNRequestData, types::authentication::AuthenticationResponseData>,
+    ) -> CustomResult<Option<reqwest::multipart::Form>, errors::ConnectorError> {
+        Ok(None)
     }
 
     fn build_request(
         &self,
-        req: &RefundSyncRouterData,
-        connectors: &Connectors,
+        req: &RouterData<api::PreAuthentication, types::authentication::PreAuthNRequestData, types::authentication::AuthenticationResponseData>,
+        _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .set_body(types::RefundSyncType::get_request_body(self, req, connectors)?)
-                .build(),
-        ))
+        hyperswitch_interfaces::metrics::UNIMPLEMENTED_FLOW.add(
+            &hyperswitch_interfaces::metrics::CONTEXT,
+            1,
+            &router_env::metrics::add_attributes([("connector", req.connector.clone())]),
+        );
+        Ok(None)
     }
 
     fn handle_response(
         &self,
-        data: &RefundSyncRouterData,
+        data: &RouterData<api::PreAuthentication, types::authentication::PreAuthNRequestData, types::authentication::AuthenticationResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<RefundSyncRouterData,errors::ConnectorError,> {
-        let response: uas::RefundResponse = res.response.parse_struct("uas RefundSyncResponse").change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
+        _res: types::Response,
+    ) -> CustomResult<RouterData<api::PreAuthentication, types::authentication::PreAuthNRequestData, types::authentication::AuthenticationResponseData>, errors::ConnectorError>
+    where
+        api::PreAuthentication: Clone,
+        types::authentication::PreAuthNRequestData: Clone,
+        types::authentication::AuthenticationResponseData: Clone,
+    {
+        event_builder.map(|e| e.set_error(serde_json::json!({"error": "Not Implemented"})));
+        Ok(data.clone())
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+        Ok(ErrorResponse::get_not_implemented())
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        event_builder.map(|event| event.set_error(serde_json::json!({"error": res.response.escape_ascii().to_string(), "status_code": res.status_code})));
+        let error_message = match res.status_code {
+            500 => "internal_server_error",
+            501 => "not_implemented",
+            502 => "bad_gateway",
+            503 => "service_unavailable",
+            504 => "gateway_timeout",
+            505 => "http_version_not_supported",
+            506 => "variant_also_negotiates",
+            507 => "insufficient_storage",
+            508 => "loop_detected",
+            510 => "not_extended",
+            511 => "network_authentication_required",
+            _ => "unknown_error",
+        };
+        Ok(ErrorResponse {
+            code: res.status_code.to_string(),
+            message: error_message.to_string(),
+            reason: String::from_utf8(res.response.to_vec()).ok(),
+            status_code: res.status_code,
+            attempt_status: None,
+            connector_transaction_id: None,
         })
     }
 
-    fn get_error_response(&self, res: Response, event_builder: Option<&mut ConnectorEvent>) -> CustomResult<ErrorResponse,errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+    fn get_multiple_capture_sync_method(
+        &self,
+    ) -> CustomResult<api::CaptureSyncMethod, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("multiple capture sync".into()).into())
+    }
+
+    fn get_certificate(
+        &self,
+        _req: &RouterData<api::PreAuthentication, types::authentication::PreAuthNRequestData, types::authentication::AuthenticationResponseData>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(None)
+    }
+
+    fn get_certificate_key(
+        &self,
+        _req: &RouterData<api::PreAuthentication, types::authentication::PreAuthNRequestData, types::authentication::AuthenticationResponseData>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(None)
     }
 }
 
