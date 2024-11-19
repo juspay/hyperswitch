@@ -1134,7 +1134,9 @@ Cypress.Commands.add(
   "confirmCallTest",
   (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
     const config_info = execConfig(configs);
-    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
+    const merchant_connector_id = globalState.get(
+      config_info.merchant_connector_id
+    );
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = globalState.get(config_info.profile_id);
 
@@ -1487,7 +1489,9 @@ Cypress.Commands.add(
     configs = null
   ) => {
     const config_info = execConfig(configs);
-    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
+    const merchant_connector_id = globalState.get(
+      config_info.merchant_connector_id
+    );
     const profile_id = globalState.get(config_info.profile_id);
 
     createConfirmPaymentBody.authentication_type = authentication_type;
@@ -1592,7 +1596,9 @@ Cypress.Commands.add(
   "saveCardConfirmCallTest",
   (saveCardConfirmBody, req_data, res_data, globalState, configs = null) => {
     const config_info = execConfig(configs);
-    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
+    const merchant_connector_id = globalState.get(
+      config_info.merchant_connector_id
+    );
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = globalState.get(config_info.profile_id);
 
@@ -1911,7 +1917,9 @@ Cypress.Commands.add(
   ) => {
     const config_info = execConfig(configs);
     const profile_id = globalState.get(config_info.profile_id);
-    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
+    const merchant_connector_id = globalState.get(
+      config_info.merchant_connector_id
+    );
 
     for (const key in req_data) {
       requestBody[key] = req_data[key];
@@ -2025,7 +2033,9 @@ Cypress.Commands.add(
   (requestBody, amount, confirm, capture_method, globalState, configs) => {
     const config_info = execConfig(configs);
     const profile_id = globalState.get(config_info.profile_id);
-    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
+    const merchant_connector_id = globalState.get(
+      config_info.merchant_connector_id
+    );
 
     requestBody.amount = amount;
     requestBody.confirm = confirm;
@@ -2124,7 +2134,9 @@ Cypress.Commands.add(
   (requestBody, amount, confirm, capture_method, globalState, configs) => {
     const config_info = execConfig(configs);
     const profile_id = globalState.get(config_info.profile_id);
-    const merchant_connector_id = globalState.get(config_info.merchant_connector_id);
+    const merchant_connector_id = globalState.get(
+      config_info.merchant_connector_id
+    );
 
     requestBody.amount = amount;
     requestBody.capture_method = capture_method;
