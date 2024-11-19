@@ -54,7 +54,7 @@ pub async fn get_recon_token(state: web::Data<AppState>, req: HttpRequest) -> Ht
         (),
         |state, user, _, _| recon::generate_recon_token(state, user),
         &authentication::JWTAuth {
-            permission: Permission::MerchantAccountRead,
+            permission: Permission::MerchantReconTokenRead,
         },
         api_locking::LockAction::NotApplicable,
     ))
