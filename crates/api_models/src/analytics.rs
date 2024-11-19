@@ -233,6 +233,7 @@ pub struct RefundsAnalyticsMetadata {
     pub total_refund_success_rate: Option<f64>,
     pub total_refund_processed_amount: Option<u64>,
     pub total_refund_processed_amount_in_usd: Option<u64>,
+    pub total_refund_processed_count: Option<u64>,
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]

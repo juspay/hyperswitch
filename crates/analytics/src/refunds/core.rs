@@ -120,6 +120,7 @@ pub async fn get_metrics(
     let mut total = 0;
     let mut total_refund_processed_amount = 0;
     let mut total_refund_processed_amount_in_usd = 0;
+    let mut total_refund_processed_count = 0;
     let query_data: Vec<RefundMetricsBucketResponse> = metrics_accumulator
         .into_iter()
         .map(|(id, val)| {
@@ -151,6 +152,9 @@ pub async fn get_metrics(
                 total_refund_processed_amount += amount;
                 total_refund_processed_amount_in_usd += amount_in_usd.unwrap_or(0);
             }
+            if let Some(count) = collected_values.refund_processed_count {
+                total_refund_processed_count += count;
+            }
             RefundMetricsBucketResponse {
                 values: collected_values,
                 dimensions: id,
@@ -167,6 +171,7 @@ pub async fn get_metrics(
             total_refund_success_rate,
             total_refund_processed_amount: Some(total_refund_processed_amount),
             total_refund_processed_amount_in_usd: Some(total_refund_processed_amount_in_usd),
+            total_refund_processed_count: Some(total_refund_processed_count),
         }],
     })
 }

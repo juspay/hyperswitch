@@ -7,7 +7,7 @@ pub struct RefundMetricsAccumulator {
     pub refund_success_rate: SuccessRateAccumulator,
     pub refund_count: CountAccumulator,
     pub refund_success: CountAccumulator,
-    pub processed_amount: PaymentProcessedAmountAccumulator,
+    pub processed_amount: RefundProcessedAmountAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -21,8 +21,8 @@ pub struct CountAccumulator {
     pub count: Option<i64>,
 }
 #[derive(Debug, Default)]
-#[repr(transparent)]
-pub struct PaymentProcessedAmountAccumulator {
+pub struct RefundProcessedAmountAccumulator {
+    pub count: Option<i64>,
     pub total: Option<i64>,
 }
 
@@ -50,8 +50,8 @@ impl RefundMetricAccumulator for CountAccumulator {
     }
 }
 
-impl RefundMetricAccumulator for PaymentProcessedAmountAccumulator {
-    type MetricOutput = (Option<u64>, Option<u64>);
+impl RefundMetricAccumulator for RefundProcessedAmountAccumulator {
+    type MetricOutput = (Option<u64>, Option<u64>, Option<u64>);
     #[inline]
     fn add_metrics_bucket(&mut self, metrics: &RefundMetricRow) {
         self.total = match (
@@ -64,11 +64,20 @@ impl RefundMetricAccumulator for PaymentProcessedAmountAccumulator {
             (None, None) => None,
             (None, i @ Some(_)) | (i @ Some(_), None) => i,
             (Some(a), Some(b)) => Some(a + b),
-        }
+        };
+
+        self.count = match (self.count, metrics.count) {
+            (None, None) => None,
+            (None, i @ Some(_)) | (i @ Some(_), None) => i,
+            (Some(a), Some(b)) => Some(a + b),
+        };
     }
     #[inline]
     fn collect(self) -> Self::MetricOutput {
-        (self.total.and_then(|i| u64::try_from(i).ok()), Some(0))
+        let total = u64::try_from(self.total.unwrap_or(0)).ok();
+        let count = self.count.and_then(|i| u64::try_from(i).ok());
+
+        (total, count, Some(0))
     }
 }
 
@@ -110,7 +119,7 @@ impl RefundMetricsAccumulator {
     pub fn collect(self) -> RefundMetricsBucketValue {
         let (successful_refunds, total_refunds, refund_success_rate) =
             self.refund_success_rate.collect();
-        let (refund_processed_amount, refund_processed_amount_in_usd) =
+        let (refund_processed_amount, refund_processed_count, refund_processed_amount_in_usd) =
             self.processed_amount.collect();
         RefundMetricsBucketValue {
             successful_refunds,
@@ -120,6 +129,7 @@ impl RefundMetricsAccumulator {
             refund_success_count: self.refund_success.collect(),
             refund_processed_amount,
             refund_processed_amount_in_usd,
+            refund_processed_count,
         }
     }
 }

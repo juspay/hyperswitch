@@ -48,6 +48,12 @@ where
         }
 
         query_builder
+            .add_select_column(Aggregate::Count {
+                field: None,
+                alias: Some("count"),
+            })
+            .switch()?;
+        query_builder
             .add_select_column(Aggregate::Sum {
                 field: "refund_amount",
                 alias: Some("total"),

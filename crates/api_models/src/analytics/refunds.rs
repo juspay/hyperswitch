@@ -183,6 +183,7 @@ pub struct RefundMetricsBucketValue {
     pub refund_success_count: Option<u64>,
     pub refund_processed_amount: Option<u64>,
     pub refund_processed_amount_in_usd: Option<u64>,
+    pub refund_processed_count: Option<u64>,
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketResponse {
