@@ -71,7 +71,8 @@ impl PaymentMethodData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
-pub struct Card {
+pub struct 
+Card {
     pub card_number: cards::CardNumber,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,
