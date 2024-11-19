@@ -52,9 +52,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AccountManage => ParentGroup::Account,
             Self::ReconTokenView => ParentGroup::Recon,
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
-            Self::ReconReportsView | Self::ReconReportsManage => {
-                ParentGroup::ReconReports
-            }
+            Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
         }
     }
 
