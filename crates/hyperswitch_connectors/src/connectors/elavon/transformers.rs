@@ -241,7 +241,7 @@ impl<F>
                         })),
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: Some(response.ssl_txn_id.clone()),
                         incremental_authorization_allowed: None,
                         charge_id: None,
                     })
@@ -447,7 +447,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<ElavonPaymentsResponse>>
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: Some(response.ssl_txn_id.clone()),
                         incremental_authorization_allowed: None,
                         charge_id: None,
                     })
