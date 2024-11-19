@@ -484,6 +484,7 @@ export const connectorDetails = {
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
+        currency: "AED",
       },
       Response: {
         status: 200,
