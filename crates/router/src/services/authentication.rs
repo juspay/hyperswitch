@@ -10,7 +10,7 @@ use api_models::payment_methods::PaymentMethodIntentConfirm;
 use api_models::payouts;
 use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
-use common_enums::{self as enums, PermissionGroup, TokenPurpose};
+use common_enums::TokenPurpose;
 use common_utils::{date_time, id_type};
 use error_stack::{report, ResultExt};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -41,7 +41,7 @@ use crate::{
     },
     headers,
     routes::app::SessionStateInfo,
-    services::{api, authorization::permission_groups::PermissionGroupExt},
+    services::api,
     types::{domain, storage},
     utils::OptionExt,
 };
@@ -3237,7 +3237,8 @@ pub struct ReconToken {
     pub org_id: id_type::OrganizationId,
     pub profile_id: Option<id_type::ProfileId>,
     pub tenant_id: Option<String>,
-    pub acl: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acl: Option<String>,
 }
 
 #[cfg(all(feature = "olap", feature = "recon"))]
@@ -3251,49 +3252,22 @@ impl ReconToken {
         tenant_id: Option<String>,
         role_info: authorization::roles::RoleInfo,
     ) -> UserResult<String> {
-        use std::collections::HashMap;
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
-        let mut acl: HashMap<enums::Resource, enums::ReconPermissionScope> = HashMap::new();
-        role_info.get_permission_groups().iter().for_each(
-            |permission_group| match permission_group {
-                PermissionGroup::ReconOpsView
-                | PermissionGroup::ReconOpsManage
-                | PermissionGroup::ReconReportsView
-                | PermissionGroup::ReconReportsManage => {
-                    permission_group.resources().iter().for_each(|resource| {
-                        let scope = match resource {
-                            enums::Resource::ReconAndSettlementAnalytics => {
-                                enums::ReconPermissionScope::Read
-                            }
-                            _ => enums::ReconPermissionScope::from(permission_group.scope()),
-                        };
-                        acl.entry(*resource)
-                            .and_modify(|curr_scope| {
-                                *curr_scope = if (*curr_scope) < scope {
-                                    scope
-                                } else {
-                                    *curr_scope
-                                }
-                            })
-                            .or_insert(scope);
-                    })
-                }
-                _ => (),
-            },
-        );
-        let acl_str = serde_json::to_string(&acl)
+        let acl = role_info.get_recon_acl();
+        let optional_acl_str = serde_json::to_string(&acl)
             .map_err(|_| errors::UserErrors::InternalServerError)
-            .attach_printable("Failed to serialize acl to string")?;
+            .attach_printable("Failed to serialize acl to string\nUsing empty ACL")
+            .ok();
         let token_payload = Self {
             user_id,
             merchant_id,
-            role_id: role_info.get_role_name().to_string(),
+            role_id: role_info.get_role_id().to_string(),
             exp,
             org_id,
             profile_id,
             tenant_id,
-            acl: acl_str,
+            acl: optional_acl_str,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }

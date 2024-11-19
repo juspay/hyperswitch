@@ -2798,11 +2798,11 @@ pub enum PermissionGroup {
     OrganizationManage,
     AccountView,
     AccountManage,
-    // Recon reports and analytics
     ReconReportsView,
     ReconReportsManage,
-    // Recon operations
     ReconOpsView,
+    // Alias is added for backward compatibility with database
+    // TODO: Remove alias post migration
     #[serde(alias = "recon_ops")]
     ReconOpsManage,
 }

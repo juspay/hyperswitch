@@ -1,7 +1,11 @@
 use std::collections::HashSet;
 
+#[cfg(feature = "recon")]
+use common_enums::ReconPermissionScope;
 use common_enums::{EntityType, PermissionGroup, Resource, RoleScope};
 use common_utils::{errors::CustomResult, id_type};
+#[cfg(feature = "recon")]
+use std::collections::HashMap;
 
 use super::{permission_groups::PermissionGroupExt, permissions::Permission};
 use crate::{core::errors, routes::SessionState};
@@ -76,6 +80,37 @@ impl RoleInfo {
                 required_permission.scope() <= group.scope()
                     && group.resources().contains(&required_permission.resource())
             })
+    }
+
+    #[cfg(feature = "recon")]
+    pub fn get_recon_acl(&self) -> HashMap<Resource, ReconPermissionScope> {
+        let mut acl: HashMap<Resource, ReconPermissionScope> = HashMap::new();
+        self.get_permission_groups()
+            .iter()
+            .for_each(|permission_group| match permission_group {
+                PermissionGroup::ReconOpsView
+                | PermissionGroup::ReconOpsManage
+                | PermissionGroup::ReconReportsView
+                | PermissionGroup::ReconReportsManage => {
+                    permission_group.resources().iter().for_each(|resource| {
+                        let scope = match resource {
+                            Resource::ReconAndSettlementAnalytics => ReconPermissionScope::Read,
+                            _ => ReconPermissionScope::from(permission_group.scope()),
+                        };
+                        acl.entry(*resource)
+                            .and_modify(|curr_scope| {
+                                *curr_scope = if (*curr_scope) < scope {
+                                    scope
+                                } else {
+                                    *curr_scope
+                                }
+                            })
+                            .or_insert(scope);
+                    })
+                }
+                _ => (),
+            });
+        acl
     }
 
     pub async fn from_role_id_in_merchant_scope(

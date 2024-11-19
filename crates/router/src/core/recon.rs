@@ -101,7 +101,6 @@ pub async fn generate_recon_token(
     state: SessionState,
     user_with_role: authentication::UserFromTokenWithRoleInfo,
 ) -> RouterResponse<recon_api::ReconTokenResponse> {
-    router_env::logger::info!("[DEBUGG] {:?}", user_with_role.clone());
     let user = user_with_role.user;
     let token = authentication::ReconToken::new_token(
         user.user_id.clone(),
