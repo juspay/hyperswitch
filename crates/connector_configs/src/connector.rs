@@ -191,7 +191,7 @@ pub struct ConnectorConfig {
     pub gocardless: Option<ConnectorTomlConfig>,
     pub gpayments: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
-    pub inespay: Option<ConnectorTomlConfig>,
+    // pub inespay: Option<ConnectorTomlConfig>,
     pub klarna: Option<ConnectorTomlConfig>,
     pub mifinity: Option<ConnectorTomlConfig>,
     pub mollie: Option<ConnectorTomlConfig>,
