@@ -26,23 +26,23 @@ const browser_info = {
   "ip_address": "127.0.0.1"
 };
 
-const successfulNo3DSCardDetails = {
+const successfulNoThreeDsCardDetailsRequest = {
   card_number: "4242424242424242",
   card_exp_month: "10",
-  card_exp_year: "2030",
+  card_exp_year: "30",
   card_holder_name: "morino",
   card_cvc: "737",
 };
 
-const successfulThreeDSTestCardDetails = {
+const successfulThreeDsTestCardDetailsRequest = {
   card_number: "4000000000001091",
   card_exp_month: "10",
-  card_exp_year: "2030",
+  card_exp_year: "30",
   card_holder_name: "morino",
   card_cvc: "737",
 };
 
-const payment_method_data_no3ds = {
+const paymentMethodDataNoThreeDsResponse = {
   card: {
     last4: "4242",
     card_type: "CREDIT",
@@ -52,7 +52,7 @@ const payment_method_data_no3ds = {
     card_isin: "424242",
     card_extended_bin: null,
     card_exp_month: "10",
-    card_exp_year: "2030",
+    card_exp_year: "30",
     card_holder_name: null,
     payment_checks: null,
     authentication_data: null
@@ -70,7 +70,7 @@ const payment_method_data_3ds = {
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "10",
-    card_exp_year: "2030",
+    card_exp_year: "30",
     card_holder_name: null,
     payment_checks: null,
     authentication_data: null
@@ -115,7 +115,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulNoThreeDsCardDetailsRequest,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -129,7 +129,7 @@ export const connectorDetails = {
           payment_method: "card",
           payment_method_type: "debit",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
+          payment_method_data: paymentMethodDataNoThreeDsResponse,
         },
       },
     },
@@ -138,7 +138,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulNoThreeDsCardDetailsRequest,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -151,7 +151,7 @@ export const connectorDetails = {
           payment_method: "card",
           payment_method_type: "debit",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
+          payment_method_data: paymentMethodDataNoThreeDsResponse,
         },
       },
     },
@@ -160,7 +160,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulNoThreeDsCardDetailsRequest,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -179,7 +179,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulNoThreeDsCardDetailsRequest,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -222,7 +222,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulNoThreeDsCardDetailsRequest,
         },
         currency: "USD",
         setup_future_usage: "on_session",
@@ -250,7 +250,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulNoThreeDsCardDetailsRequest,
         },
         currency: "USD",
         setup_future_usage: "on_session",
@@ -276,7 +276,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulThreeDsTestCardDetailsRequest,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -297,7 +297,7 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
+          card: successfulThreeDsTestCardDetailsRequest,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -322,7 +322,7 @@ export const connectorDetails = {
         Request: {
           payment_method: "card",
           payment_method_data: {
-            card: successfulNo3DSCardDetails,
+            card: successfulNoThreeDsCardDetailsRequest,
           },
           currency: "EUR",
           customer_acceptance: null,
@@ -344,7 +344,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulNoThreeDsCardDetailsRequest,
         },
         currency: "USD",
         customer_acceptance: null,
@@ -417,7 +417,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: successfulNoThreeDsCardDetailsRequest,
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
