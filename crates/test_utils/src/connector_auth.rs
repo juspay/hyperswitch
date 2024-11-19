@@ -49,6 +49,7 @@ pub struct ConnectorAuthentication {
     pub gpayments: Option<HeaderKey>,
     pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
+    pub inespay: Option<HeaderKey>,
     pub itaubank: Option<MultiAuthKey>,
     pub jpmorgan: Option<HeaderKey>,
     pub mifinity: Option<HeaderKey>,

@@ -449,6 +449,7 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Inespay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -1734,6 +1735,7 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
+    connector::Inespay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2398,6 +2400,7 @@ impl<const T: u8>
 {
 }
 default_imp_for_connector_authentication!(
+    connector::Inespay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,

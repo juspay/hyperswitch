@@ -1107,6 +1107,7 @@ macro_rules! default_imp_for_new_connector_integration_payouts {
 }
 
 default_imp_for_new_connector_integration_payouts!(
+    connector::Inespay,
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
@@ -1754,6 +1755,7 @@ macro_rules! default_imp_for_new_connector_integration_frm {
 }
 
 default_imp_for_new_connector_integration_frm!(
+    connector::Inespay,
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
@@ -2249,6 +2251,7 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
 }
 
 default_imp_for_new_connector_integration_connector_authentication!(
+    connector::Inespay,
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
