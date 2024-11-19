@@ -4010,6 +4010,7 @@ dependencies = [
  "mime",
  "once_cell",
  "qrcode",
+ "quick-xml",
  "rand",
  "regex",
  "reqwest 0.11.27",

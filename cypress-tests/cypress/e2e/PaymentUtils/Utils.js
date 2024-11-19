@@ -21,6 +21,7 @@ import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js"
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
+import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -43,6 +44,7 @@ const connectorDetails = {
   wellsfargo: wellsfargoConnectorDetails,
   fiuu: fiuuConnectorDetails,
   worldpay: worldpayConnectorDetails,
+  elavon: elavonConnectorDetails
 };
 
 export default function getConnectorDetails(connectorId) {
