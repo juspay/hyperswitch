@@ -68,11 +68,11 @@ pub struct NovalnetPaymentsRequestMerchant {
 
 #[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetPaymentsRequestBilling {
-    house_no: Secret<String>,
-    street: Secret<String>,
-    city: Secret<String>,
-    zip: Secret<String>,
-    country_code: api_enums::CountryAlpha2,
+    house_no: Option<Secret<String>>,
+    street: Option<Secret<String>>,
+    city: Option<Secret<String>>,
+    zip: Option<Secret<String>>,
+    country_code: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Default, Debug, Serialize, Clone)]
@@ -81,8 +81,9 @@ pub struct NovalnetPaymentsRequestCustomer {
     last_name: Secret<String>,
     email: Email,
     mobile: Option<Secret<String>>,
-    billing: NovalnetPaymentsRequestBilling,
-    customer_ip: Secret<String, IpAddress>,
+    billing: Option<NovalnetPaymentsRequestBilling>,
+    customer_ip: Option<Secret<String, IpAddress>>,
+    no_nc: i64,
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 
@@ -183,26 +184,32 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         };
 
         let billing = NovalnetPaymentsRequestBilling {
-            house_no: item.router_data.get_billing_line1()?,
-            street: item.router_data.get_billing_line2()?,
-            city: Secret::new(item.router_data.get_billing_city()?),
-            zip: item.router_data.get_billing_zip()?,
-            country_code: item.router_data.get_billing_country()?,
+            house_no: item.router_data.get_optional_billing_line1(),
+            street: item.router_data.get_optional_billing_line2(),
+            city: item
+                .router_data
+                .get_optional_billing_city()
+                .map(Secret::new),
+            zip: item.router_data.get_optional_billing_zip(),
+            country_code: item.router_data.get_optional_billing_country(),
         };
 
         let customer_ip = item
             .router_data
             .request
             .get_browser_info()?
-            .get_ip_address()?;
+            .get_ip_address()
+            .ok();
 
         let customer = NovalnetPaymentsRequestCustomer {
             first_name: item.router_data.get_billing_first_name()?,
             last_name: item.router_data.get_billing_last_name()?,
             email: item.router_data.get_billing_email()?,
             mobile: item.router_data.get_optional_billing_phone_number(),
-            billing,
+            billing: Some(billing),
             customer_ip,
+            // no_nc is used to indicate if minimal customer data is passed or not
+            no_nc: 1,
         };
 
         let lang = item
@@ -637,11 +644,11 @@ pub struct NovalnetResponseCustomer {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseBilling {
-    pub city: Secret<String>,
-    pub country_code: Secret<String>,
+    pub city: Option<Secret<String>>,
+    pub country_code: Option<Secret<String>>,
     pub house_no: Option<Secret<String>>,
-    pub street: Secret<String>,
-    pub zip: Secret<String>,
+    pub street: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
 }
 
