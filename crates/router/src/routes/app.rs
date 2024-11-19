@@ -267,7 +267,7 @@ pub async fn create_email_client(
         EmailClientConfigs::Ses { aws_ses } => Box::new(
             AwsSes::create(
                 &settings.email,
-                &aws_ses,
+                aws_ses,
                 settings.proxy.https_url.to_owned(),
             )
             .await,

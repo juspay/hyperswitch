@@ -27,7 +27,7 @@ impl SmtpServer {
     pub fn create_client(&self) -> Result<SmtpTransport, SmtpError> {
         let host = self.smtp_config.host.clone();
         let port = self.smtp_config.port;
-        let timeout = Some(Duration::from_secs(10));
+        let timeout = Some(Duration::from_secs(self.smtp_config.timeout));
         let credentials = self
             .smtp_config
             .username
@@ -87,7 +87,8 @@ pub struct SmtpServerConfig {
     pub host: String,
     /// portname of the SMTP server eg: 25
     pub port: u16,
-
+    /// timeout for the SMTP server connection eg: 10
+    pub timeout: u64,
     /// Username name of the SMTP server
     pub username: Option<String>,
     /// Password of the SMTP server
