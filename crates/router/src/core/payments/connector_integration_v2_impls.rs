@@ -1107,7 +1107,6 @@ macro_rules! default_imp_for_new_connector_integration_payouts {
 }
 
 default_imp_for_new_connector_integration_payouts!(
-    connector::Inespay,
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
@@ -1143,6 +1142,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Inespay,
     connector::Itaubank,
     connector::Jpmorgan,
     connector::Klarna,
@@ -1755,7 +1755,6 @@ macro_rules! default_imp_for_new_connector_integration_frm {
 }
 
 default_imp_for_new_connector_integration_frm!(
-    connector::Inespay,
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
@@ -1791,6 +1790,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Inespay,
     connector::Itaubank,
     connector::Jpmorgan,
     connector::Klarna,
@@ -2251,7 +2251,6 @@ macro_rules! default_imp_for_new_connector_integration_connector_authentication 
 }
 
 default_imp_for_new_connector_integration_connector_authentication!(
-    connector::Inespay,
     connector::Aci,
     connector::Adyen,
     connector::Adyenplatform,
@@ -2287,6 +2286,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Inespay,
     connector::Itaubank,
     connector::Jpmorgan,
     connector::Klarna,

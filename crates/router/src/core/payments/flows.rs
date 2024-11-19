@@ -449,7 +449,6 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Inespay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -484,6 +483,7 @@ default_imp_for_connector_request_id!(
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
+    connector::Inespay,
     connector::Itaubank,
     connector::Jpmorgan,
     connector::Klarna,
@@ -1735,7 +1735,6 @@ macro_rules! default_imp_for_fraud_check {
 impl<const T: u8> api::FraudCheck for connector::DummyConnector<T> {}
 
 default_imp_for_fraud_check!(
-    connector::Inespay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -1771,6 +1770,7 @@ default_imp_for_fraud_check!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Inespay,
     connector::Itaubank,
     connector::Jpmorgan,
     connector::Klarna,
@@ -2400,7 +2400,6 @@ impl<const T: u8>
 {
 }
 default_imp_for_connector_authentication!(
-    connector::Inespay,
     connector::Adyenplatform,
     connector::Aci,
     connector::Adyen,
@@ -2435,6 +2434,7 @@ default_imp_for_connector_authentication!(
     connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
+    connector::Inespay,
     connector::Itaubank,
     connector::Jpmorgan,
     connector::Klarna,

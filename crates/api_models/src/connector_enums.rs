@@ -22,7 +22,6 @@ use utoipa::ToSchema;
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
-    Inespay,
     Adyenplatform,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
@@ -84,6 +83,7 @@ pub enum Connector {
     Gocardless,
     Gpayments,
     Helcim,
+    // Inespay,
     Iatapay,
     Itaubank,
     //Jpmorgan,
@@ -196,7 +196,6 @@ impl Connector {
             | Self::DummyConnector7 => false,
             Self::Aci
             // Add Separate authentication support for connectors
-			| Self::Inespay
             | Self::Adyen
             | Self::Adyenplatform
             | Self::Airwallex
@@ -227,6 +226,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
+			// | Self::Inespay
             | Self::Itaubank
             //| Self::Jpmorgan
             | Self::Klarna
