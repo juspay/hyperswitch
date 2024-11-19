@@ -266,6 +266,7 @@ where
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
@@ -479,6 +480,7 @@ impl<T> TryFrom<&Shift4RouterData<&RouterData<T, CompleteAuthorizeData, Payments
             | Some(PaymentMethodData::Voucher(_))
             | Some(PaymentMethodData::Reward)
             | Some(PaymentMethodData::RealTimePayment(_))
+            | Some(PaymentMethodData::MobilePayment(_))
             | Some(PaymentMethodData::Upi(_))
             | Some(PaymentMethodData::OpenBanking(_))
             | Some(PaymentMethodData::CardToken(_))

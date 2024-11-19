@@ -79,11 +79,10 @@ pub struct PaymentMethod {
     pub last_modified: PrimitiveDateTime,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub metadata: Option<pii::SecretSerdeValue>,
     pub payment_method_data: OptionalEncryptableValue,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
-    pub connector_mandate_details: Option<pii::SecretSerdeValue>,
+    pub connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -314,7 +313,6 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified: self.last_modified,
             payment_method: self.payment_method,
             payment_method_type: self.payment_method_type,
-            metadata: self.metadata,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
             locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,
@@ -355,7 +353,6 @@ impl super::behaviour::Conversion for PaymentMethod {
                 last_modified: item.last_modified,
                 payment_method: item.payment_method,
                 payment_method_type: item.payment_method_type,
-                metadata: item.metadata,
                 payment_method_data: item
                     .payment_method_data
                     .async_lift(|inner| async {
@@ -427,7 +424,6 @@ impl super::behaviour::Conversion for PaymentMethod {
             last_modified: self.last_modified,
             payment_method: self.payment_method,
             payment_method_type: self.payment_method_type,
-            metadata: self.metadata,
             payment_method_data: self.payment_method_data.map(|val| val.into()),
             locker_id: self.locker_id.map(|id| id.get_string_repr().clone()),
             last_used_at: self.last_used_at,

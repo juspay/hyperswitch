@@ -213,8 +213,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Merchant Connector - Create",
-        "description": "Creates a new Merchant Connector for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
+        "summary": "Connector Account - Create",
+        "description": "Creates a new Connector Account for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
         "requestBody": {
           "content": {
@@ -290,7 +290,7 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Merchant Connector - Retrieve",
+        "summary": "Connector Account - Retrieve",
         "description": "Retrieves details of a Connector account",
         "operationId": "Retrieve a Merchant Connector",
         "parameters": [
@@ -333,8 +333,8 @@
         "tags": [
           "Merchant Connector Account"
         ],
-        "summary": "Merchant Connector - Update",
-        "description": "To update an existing Merchant Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
+        "summary": "Connector Account - Update",
+        "description": "To update an existing Connector account. Helpful in enabling/disabling different payment methods and other settings for the connector",
         "operationId": "Update a Merchant Connector",
         "parameters": [
           {
@@ -573,7 +573,7 @@
         "operationId": "Update a Merchant Account",
         "parameters": [
           {
-            "name": "account_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the merchant account",
             "required": true,
@@ -630,17 +630,17 @@
         ]
       }
     },
-    "/v2/merchant_accounts/{account_id}/profiles": {
+    "/v2/merchant_accounts/{id}/profiles": {
       "get": {
         "tags": [
           "Merchant Account"
         ],
-        "summary": "Profile - List",
+        "summary": "Merchant Account - Profile List",
         "description": "List profiles for an Merchant",
         "operationId": "List Profiles",
         "parameters": [
           {
-            "name": "account_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the Merchant",
             "required": true,
@@ -682,6 +682,17 @@
         "summary": "Payments - Session token",
         "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
         "operationId": "Create Session tokens for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -775,7 +786,7 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}": {
+    "/v2/profiles/{id}": {
       "get": {
         "tags": [
           "Profile"
@@ -785,7 +796,7 @@
         "operationId": "Retrieve a Profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -836,7 +847,7 @@
         "operationId": "Update a Profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -896,17 +907,17 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}/connector_accounts": {
+    "/v2/profiles/{id}/connector_accounts": {
       "get": {
         "tags": [
           "Business Profile"
         ],
-        "summary": "Merchant Connector - List",
-        "description": "List Merchant Connector Details for the business profile",
+        "summary": "Profile - Connector Accounts List",
+        "description": "List Connector Accounts for the profile",
         "operationId": "List all Merchant Connectors",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the business profile",
             "required": true,
@@ -955,7 +966,7 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}/activate_routing_algorithm": {
+    "/v2/profiles/{id}/activate_routing_algorithm": {
       "patch": {
         "tags": [
           "Profile"
@@ -965,7 +976,7 @@
         "operationId": "Activates a routing algorithm under a profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -1022,7 +1033,7 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}/deactivate_routing_algorithm": {
+    "/v2/profiles/{id}/deactivate_routing_algorithm": {
       "patch": {
         "tags": [
           "Profile"
@@ -1032,7 +1043,7 @@
         "operationId": " Deactivates a routing algorithm under a profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -1075,7 +1086,7 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}/fallback_routing": {
+    "/v2/profiles/{id}/fallback_routing": {
       "patch": {
         "tags": [
           "Profile"
@@ -1085,7 +1096,7 @@
         "operationId": "Update the default fallback routing algorithm for the profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -1149,7 +1160,7 @@
         "operationId": "Retrieve the default fallback routing algorithm for the profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -1186,7 +1197,7 @@
         ]
       }
     },
-    "/v2/profiles/{profile_id}/routing_algorithm": {
+    "/v2/profiles/{id}/routing_algorithm": {
       "get": {
         "tags": [
           "Profile"
@@ -1196,7 +1207,7 @@
         "operationId": "Retrieve the active routing algorithm under the profile",
         "parameters": [
           {
-            "name": "profile_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the profile",
             "required": true,
@@ -1315,7 +1326,7 @@
         ]
       }
     },
-    "/v2/routing_algorithm/{routing_algorithm_id}": {
+    "/v2/routing_algorithm/{id}": {
       "get": {
         "tags": [
           "Routing"
@@ -1325,7 +1336,7 @@
         "operationId": "Retrieve a routing algorithm with its algorithm id",
         "parameters": [
           {
-            "name": "routing_algorithm_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for a routing algorithm",
             "required": true,
@@ -1405,7 +1416,7 @@
         ]
       }
     },
-    "/v2/api_keys/{key_id}": {
+    "/v2/api_keys/{id}": {
       "get": {
         "tags": [
           "API Key"
@@ -1415,7 +1426,7 @@
         "operationId": "Retrieve an API Key",
         "parameters": [
           {
-            "name": "key_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the API Key",
             "required": true,
@@ -1454,7 +1465,7 @@
         "operationId": "Update an API Key",
         "parameters": [
           {
-            "name": "key_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the API Key",
             "required": true,
@@ -1503,7 +1514,7 @@
         "operationId": "Revoke an API Key",
         "parameters": [
           {
-            "name": "key_id",
+            "name": "id",
             "in": "path",
             "description": "The unique identifier for the API Key",
             "required": true,
@@ -1952,6 +1963,56 @@
         "security": [
           {
             "publisable_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payments/{id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Get",
+        "description": "Retrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "operationId": "Retrieve a Payment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "force_sync",
+            "in": "query",
+            "description": "A boolean to indicate whether to force sync the payment status. Value can be true or false",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ForceSync"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gets the payment with final status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsRetrieveResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment found with the given id"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
           }
         ]
       }
@@ -5765,6 +5826,7 @@
           "cybersource",
           "datatrans",
           "deutschebank",
+          "digitalvirgo",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -8007,17 +8069,30 @@
           {
             "type": "string",
             "enum": [
-              "browser_language"
+              "user_msisdn"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "browser_ip"
+              "user_client_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "order_details_product_name"
             ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
+      },
+      "ForceSync": {
+        "type": "string",
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "FrmAction": {
         "type": "string",
@@ -10460,6 +10535,71 @@
       "MobilePayRedirection": {
         "type": "object"
       },
+      "MobilePaymentConsent": {
+        "type": "string",
+        "enum": [
+          "consent_required",
+          "consent_not_required",
+          "consent_optional"
+        ]
+      },
+      "MobilePaymentData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "direct_carrier_billing"
+            ],
+            "properties": {
+              "direct_carrier_billing": {
+                "type": "object",
+                "required": [
+                  "msisdn"
+                ],
+                "properties": {
+                  "msisdn": {
+                    "type": "string",
+                    "description": "The phone number of the user",
+                    "example": "1234567890"
+                  },
+                  "client_uid": {
+                    "type": "string",
+                    "description": "Unique user id",
+                    "example": "02iacdYXGI9CnyJdoN8c7",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MobilePaymentNextStepData": {
+        "type": "object",
+        "required": [
+          "consent_data_required"
+        ],
+        "properties": {
+          "consent_data_required": {
+            "$ref": "#/components/schemas/MobilePaymentConsent"
+          }
+        }
+      },
+      "MobilePaymentResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "MomoRedirection": {
         "type": "object"
       },
@@ -10760,6 +10900,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains consent to collect otp for mobile payment",
+            "required": [
+              "consent_data_required",
+              "type"
+            ],
+            "properties": {
+              "consent_data_required": {
+                "$ref": "#/components/schemas/MobilePaymentConsent"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "collect_otp"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -10774,7 +10933,8 @@
           "invoke_sdk_client",
           "trigger_api",
           "display_bank_transfer_information",
-          "display_wait_screen"
+          "display_wait_screen",
+          "collect_otp"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -11776,7 +11936,8 @@
           "one_click",
           "link_wallet",
           "invoke_payment_app",
-          "display_wait_screen"
+          "display_wait_screen",
+          "collect_otp"
         ]
       },
       "PaymentLinkConfig": {
@@ -11787,7 +11948,8 @@
           "seller_name",
           "sdk_layout",
           "display_sdk_only",
-          "enabled_saved_payment_method"
+          "enabled_saved_payment_method",
+          "hide_card_nickname_field"
         ],
         "properties": {
           "theme": {
@@ -11813,6 +11975,10 @@
           "enabled_saved_payment_method": {
             "type": "boolean",
             "description": "Enable saved payment method option for payment link"
+          },
+          "hide_card_nickname_field": {
+            "type": "boolean",
+            "description": "Hide card nickname field option for payment link"
           },
           "allowed_domains": {
             "type": "array",
@@ -11874,6 +12040,13 @@
           "enabled_saved_payment_method": {
             "type": "boolean",
             "description": "Enable saved payment method option for payment link",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "hide_card_nickname_field": {
+            "type": "boolean",
+            "description": "Hide card nickname field option for payment link",
             "default": false,
             "example": true,
             "nullable": true
@@ -12068,7 +12241,8 @@
           "upi",
           "voucher",
           "gift_card",
-          "open_banking"
+          "open_banking",
+          "mobile_payment"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -12475,6 +12649,18 @@
                 "$ref": "#/components/schemas/OpenBankingData"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "MobilePayment",
+            "required": [
+              "mobile_payment"
+            ],
+            "properties": {
+              "mobile_payment": {
+                "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            }
           }
         ]
       },
@@ -12679,6 +12865,17 @@
             "properties": {
               "open_banking": {
                 "$ref": "#/components/schemas/OpenBankingResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mobile_payment"
+            ],
+            "properties": {
+              "mobile_payment": {
+                "$ref": "#/components/schemas/MobilePaymentResponse"
               }
             }
           }
@@ -13050,7 +13247,8 @@
           "pay_easy",
           "local_bank_transfer",
           "mifinity",
-          "open_banking_pis"
+          "open_banking_pis",
+          "direct_carrier_billing"
         ]
       },
       "PaymentMethodUpdate": {
@@ -13324,7 +13522,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PaymentsConfirmIntentResponse": {
         "type": "object",
@@ -13382,6 +13581,14 @@
           },
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "next_action": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NextActionData"
+              }
+            ],
+            "nullable": true
           },
           "connector_transaction_id": {
             "type": "string",
@@ -14306,6 +14513,7 @@
         "type": "object",
         "required": [
           "id",
+          "status",
           "amount_details",
           "client_secret",
           "capture_method",
@@ -14322,6 +14530,9 @@
           "id": {
             "type": "string",
             "description": "Global Payment Id for the payment"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
           },
           "amount_details": {
             "$ref": "#/components/schemas/AmountDetailsResponse"
@@ -15041,55 +15252,114 @@
       },
       "PaymentsRetrieveRequest": {
         "type": "object",
-        "required": [
-          "resource_id",
-          "force_sync"
-        ],
+        "description": "Request for Payment Status",
         "properties": {
-          "resource_id": {
-            "type": "string",
-            "description": "The type of ID (ex: payment intent id, payment attempt id or connector txn id)"
-          },
-          "merchant_id": {
-            "type": "string",
-            "description": "The identifier for the Merchant Account.",
-            "nullable": true
-          },
           "force_sync": {
             "type": "boolean",
-            "description": "Decider to enable or disable the connector call for retrieve request"
+            "description": "A boolean used to indicate if the payment status should be fetched from the connector\nIf this is set to true, the status will be fetched from the connector"
           },
           "param": {
             "type": "string",
-            "description": "The parameters passed to a retrieve request",
+            "description": "These are the query params that are sent in case of redirect response.\nThese can be ingested by the connector to take necessary actions.",
             "nullable": true
+          }
+        }
+      },
+      "PaymentsRetrieveResponse": {
+        "type": "object",
+        "description": "Response for Payment Intent Confirm",
+        "required": [
+          "id",
+          "status",
+          "amount",
+          "client_secret",
+          "created"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
+            "example": "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
           },
           "connector": {
             "type": "string",
-            "description": "The name of the connector",
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
+            "description": "The connector used for the payment",
+            "example": "stripe",
             "nullable": true
           },
           "client_secret": {
             "type": "string",
-            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "description": "It's a token used for client side verification."
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time when the payment was created",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataResponseWithBilling"
+              }
+            ],
             "nullable": true
           },
-          "expand_captures": {
-            "type": "boolean",
-            "description": "If enabled provides list of captures linked to latest attempt",
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              }
+            ],
             "nullable": true
           },
-          "expand_attempts": {
-            "type": "boolean",
-            "description": "If enabled provides list of attempts linked to payment intent",
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "A unique identifier for a payment provided by the connector",
+            "example": "993672945374576J",
+            "nullable": true
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "reference(Identifier) to the payment at connector side",
+            "example": "993672945374576J",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -16623,7 +16893,7 @@
           },
           "is_network_tokenization_enabled": {
             "type": "boolean",
-            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
+            "description": "Indicates if network tokenization is enabled or not."
           }
         },
         "additionalProperties": false
@@ -16655,7 +16925,8 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "is_tax_connector_enabled",
-          "is_network_tokenization_enabled"
+          "is_network_tokenization_enabled",
+          "should_collect_cvv_during_payment"
         ],
         "properties": {
           "merchant_id": {
@@ -16828,9 +17099,13 @@
           },
           "is_network_tokenization_enabled": {
             "type": "boolean",
-            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
+            "description": "Indicates if network tokenization is enabled or not.",
             "default": false,
             "example": false
+          },
+          "should_collect_cvv_during_payment": {
+            "type": "boolean",
+            "description": "Indicates if CVV should be collected during payment or not."
           }
         }
       },
@@ -17782,6 +18057,7 @@
           "cybersource",
           "datatrans",
           "deutschebank",
+          "digitalvirgo",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -20082,7 +20358,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "api-key",
-        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Merchant Connector account."
+        "description": "Admin API keys allow you to perform some privileged actions such as creating a merchant account and Connector account."
       },
       "api_key": {
         "type": "apiKey",

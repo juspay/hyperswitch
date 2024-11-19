@@ -8651,6 +8651,7 @@
           "cybersource",
           "datatrans",
           "deutschebank",
+          "digitalvirgo",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -10821,13 +10822,19 @@
           {
             "type": "string",
             "enum": [
-              "browser_language"
+              "user_msisdn"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "browser_ip"
+              "user_client_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "order_details_product_name"
             ]
           }
         ],
@@ -13661,6 +13668,71 @@
       "MobilePayRedirection": {
         "type": "object"
       },
+      "MobilePaymentConsent": {
+        "type": "string",
+        "enum": [
+          "consent_required",
+          "consent_not_required",
+          "consent_optional"
+        ]
+      },
+      "MobilePaymentData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "direct_carrier_billing"
+            ],
+            "properties": {
+              "direct_carrier_billing": {
+                "type": "object",
+                "required": [
+                  "msisdn"
+                ],
+                "properties": {
+                  "msisdn": {
+                    "type": "string",
+                    "description": "The phone number of the user",
+                    "example": "1234567890"
+                  },
+                  "client_uid": {
+                    "type": "string",
+                    "description": "Unique user id",
+                    "example": "02iacdYXGI9CnyJdoN8c7",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MobilePaymentNextStepData": {
+        "type": "object",
+        "required": [
+          "consent_data_required"
+        ],
+        "properties": {
+          "consent_data_required": {
+            "$ref": "#/components/schemas/MobilePaymentConsent"
+          }
+        }
+      },
+      "MobilePaymentResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "MomoRedirection": {
         "type": "object"
       },
@@ -13961,6 +14033,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains consent to collect otp for mobile payment",
+            "required": [
+              "consent_data_required",
+              "type"
+            ],
+            "properties": {
+              "consent_data_required": {
+                "$ref": "#/components/schemas/MobilePaymentConsent"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "collect_otp"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -13975,7 +14066,8 @@
           "invoke_sdk_client",
           "trigger_api",
           "display_bank_transfer_information",
-          "display_wait_screen"
+          "display_wait_screen",
+          "collect_otp"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -14970,7 +15062,8 @@
           "one_click",
           "link_wallet",
           "invoke_payment_app",
-          "display_wait_screen"
+          "display_wait_screen",
+          "collect_otp"
         ]
       },
       "PaymentLinkConfig": {
@@ -14981,7 +15074,8 @@
           "seller_name",
           "sdk_layout",
           "display_sdk_only",
-          "enabled_saved_payment_method"
+          "enabled_saved_payment_method",
+          "hide_card_nickname_field"
         ],
         "properties": {
           "theme": {
@@ -15007,6 +15101,10 @@
           "enabled_saved_payment_method": {
             "type": "boolean",
             "description": "Enable saved payment method option for payment link"
+          },
+          "hide_card_nickname_field": {
+            "type": "boolean",
+            "description": "Hide card nickname field option for payment link"
           },
           "allowed_domains": {
             "type": "array",
@@ -15068,6 +15166,13 @@
           "enabled_saved_payment_method": {
             "type": "boolean",
             "description": "Enable saved payment method option for payment link",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "hide_card_nickname_field": {
+            "type": "boolean",
+            "description": "Hide card nickname field option for payment link",
             "default": false,
             "example": true,
             "nullable": true
@@ -15262,7 +15367,8 @@
           "upi",
           "voucher",
           "gift_card",
-          "open_banking"
+          "open_banking",
+          "mobile_payment"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -15669,6 +15775,18 @@
                 "$ref": "#/components/schemas/OpenBankingData"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "MobilePayment",
+            "required": [
+              "mobile_payment"
+            ],
+            "properties": {
+              "mobile_payment": {
+                "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            }
           }
         ]
       },
@@ -15873,6 +15991,17 @@
             "properties": {
               "open_banking": {
                 "$ref": "#/components/schemas/OpenBankingResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mobile_payment"
+            ],
+            "properties": {
+              "mobile_payment": {
+                "$ref": "#/components/schemas/MobilePaymentResponse"
               }
             }
           }
@@ -16244,7 +16373,8 @@
           "pay_easy",
           "local_bank_transfer",
           "mifinity",
-          "open_banking_pis"
+          "open_banking_pis",
+          "direct_carrier_billing"
         ]
       },
       "PaymentMethodUpdate": {
@@ -21368,7 +21498,7 @@
           },
           "is_network_tokenization_enabled": {
             "type": "boolean",
-            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked."
+            "description": "Indicates if network tokenization is enabled or not."
           },
           "is_auto_retries_enabled": {
             "type": "boolean",
@@ -21595,7 +21725,7 @@
           },
           "is_network_tokenization_enabled": {
             "type": "boolean",
-            "description": "Indicates if is_network_tokenization_enabled is enabled or not.\nIf set to `true` is_network_tokenization_enabled will be checked.",
+            "description": "Indicates if network tokenization is enabled or not.",
             "default": false,
             "example": false
           },
@@ -22485,6 +22615,7 @@
           "cybersource",
           "datatrans",
           "deutschebank",
+          "digitalvirgo",
           "dlocal",
           "ebanx",
           "fiserv",

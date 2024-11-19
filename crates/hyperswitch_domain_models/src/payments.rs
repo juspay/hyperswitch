@@ -111,6 +111,43 @@ impl PaymentIntent {
     pub fn get_id(&self) -> &id_type::GlobalPaymentId {
         &self.id
     }
+
+    #[cfg(feature = "v2")]
+    /// This is the url to which the customer will be redirected to, to complete the redirection flow
+    pub fn create_start_redirection_url(
+        &self,
+        base_url: &str,
+        publishable_key: String,
+    ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
+        let start_redirection_url = &format!(
+            "{}/v2/payments/{}/start_redirection?publishable_key={}&profile_id={}",
+            base_url,
+            self.get_id().get_string_repr(),
+            publishable_key,
+            self.profile_id.get_string_repr()
+        );
+        url::Url::parse(start_redirection_url)
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error creating start redirection url")
+    }
+
+    #[cfg(feature = "v2")]
+    /// This is the url to which the customer will be redirected to, after completing the redirection flow
+    pub fn create_finish_redirection_url(
+        &self,
+        base_url: &str,
+        publishable_key: &str,
+    ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
+        let finish_redirection_url = format!(
+            "{base_url}/v2/payments/{}/finish_redirection/{publishable_key}/{}",
+            self.id.get_string_repr(),
+            self.profile_id.get_string_repr()
+        );
+
+        url::Url::parse(&finish_redirection_url)
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error creating finish redirection url")
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -273,7 +310,7 @@ pub struct PaymentIntent {
     /// The client secret that is generated for the payment. This is used to authenticate the payment from client facing apis.
     pub client_secret: common_utils::types::ClientSecret,
     /// The active attempt for the payment intent. This is the payment attempt that is currently active for the payment intent.
-    pub active_attempt: Option<RemoteStorageObject<PaymentAttempt>>,
+    pub active_attempt_id: Option<id_type::GlobalAttemptId>,
     /// The order details for the payment.
     pub order_details: Option<Vec<Secret<OrderDetailsWithAmount>>>,
     /// This is the list of payment method types that are allowed for the payment intent.
@@ -421,7 +458,7 @@ impl PaymentIntent {
             last_synced: None,
             setup_future_usage: request.setup_future_usage.unwrap_or_default(),
             client_secret,
-            active_attempt: None,
+            active_attempt_id: None,
             order_details,
             allowed_payment_method_types,
             connector_metadata,
@@ -522,4 +559,18 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone)]
+pub struct PaymentStatusData<F>
+where
+    F: Clone,
+{
+    pub flow: PhantomData<F>,
+    pub payment_intent: PaymentIntent,
+    pub payment_attempt: Option<PaymentAttempt>,
+    /// Should the payment status be synced with connector
+    /// This will depend on the payment status and the force sync flag in the request
+    pub should_sync_with_connector: bool,
 }

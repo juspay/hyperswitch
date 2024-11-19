@@ -84,8 +84,7 @@ pub async fn routing_create_config(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::RoutingWrite,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileRoutingWrite,
             },
             req.headers(),
         ),
@@ -255,8 +254,7 @@ pub async fn routing_retrieve_config(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::RoutingRead,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileRoutingRead,
             },
             req.headers(),
         ),
@@ -567,17 +565,13 @@ pub async fn routing_retrieve_default_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            routing::retrieve_default_routing_config(state, auth.merchant_account, transaction_type)
+            routing::retrieve_default_routing_config(
+                state,
+                auth.profile_id,
+                auth.merchant_account,
+                transaction_type,
+            )
         },
-        #[cfg(not(feature = "release"))]
-        auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth {
-                permission: Permission::ProfileRoutingRead,
-            },
-            req.headers(),
-        ),
-        #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingRead,
         },

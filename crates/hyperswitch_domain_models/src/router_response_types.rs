@@ -82,7 +82,7 @@ pub struct TaxCalculationResponseData {
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
-    pub mandate_metadata: Option<serde_json::Value>,
+    pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
     pub connector_mandate_request_reference_id: Option<String>,
 }
 
@@ -187,6 +187,162 @@ impl From<(url::Url, Method)> for RedirectForm {
             endpoint: redirect_url.to_string(),
             method,
             form_fields,
+        }
+    }
+}
+
+impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
+    fn from(redirect_form: RedirectForm) -> Self {
+        match redirect_form {
+            RedirectForm::Form {
+                endpoint,
+                method,
+                form_fields,
+            } => Self::Form {
+                endpoint,
+                method,
+                form_fields,
+            },
+            RedirectForm::Html { html_data } => Self::Html { html_data },
+            RedirectForm::BlueSnap {
+                payment_fields_token,
+            } => Self::BlueSnap {
+                payment_fields_token,
+            },
+            RedirectForm::CybersourceAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            } => Self::CybersourceAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            },
+            RedirectForm::CybersourceConsumerAuth {
+                access_token,
+                step_up_url,
+            } => Self::CybersourceConsumerAuth {
+                access_token,
+                step_up_url,
+            },
+            RedirectForm::Payme => Self::Payme,
+            RedirectForm::Braintree {
+                client_token,
+                card_token,
+                bin,
+            } => Self::Braintree {
+                client_token,
+                card_token,
+                bin,
+            },
+            RedirectForm::Nmi {
+                amount,
+                currency,
+                public_key,
+                customer_vault_id,
+                order_id,
+            } => Self::Nmi {
+                amount,
+                currency,
+                public_key,
+                customer_vault_id,
+                order_id,
+            },
+            RedirectForm::Mifinity {
+                initialization_token,
+            } => Self::Mifinity {
+                initialization_token,
+            },
+            RedirectForm::WorldpayDDCForm {
+                endpoint,
+                method,
+                form_fields,
+                collection_id,
+            } => Self::WorldpayDDCForm {
+                endpoint: common_utils::types::Url::wrap(endpoint),
+                method,
+                form_fields,
+                collection_id,
+            },
+        }
+    }
+}
+
+impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
+    fn from(redirect_form: diesel_models::payment_attempt::RedirectForm) -> Self {
+        match redirect_form {
+            diesel_models::payment_attempt::RedirectForm::Form {
+                endpoint,
+                method,
+                form_fields,
+            } => Self::Form {
+                endpoint,
+                method,
+                form_fields,
+            },
+            diesel_models::payment_attempt::RedirectForm::Html { html_data } => {
+                Self::Html { html_data }
+            }
+            diesel_models::payment_attempt::RedirectForm::BlueSnap {
+                payment_fields_token,
+            } => Self::BlueSnap {
+                payment_fields_token,
+            },
+            diesel_models::payment_attempt::RedirectForm::CybersourceAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            } => Self::CybersourceAuthSetup {
+                access_token,
+                ddc_url,
+                reference_id,
+            },
+            diesel_models::payment_attempt::RedirectForm::CybersourceConsumerAuth {
+                access_token,
+                step_up_url,
+            } => Self::CybersourceConsumerAuth {
+                access_token,
+                step_up_url,
+            },
+            diesel_models::payment_attempt::RedirectForm::Payme => Self::Payme,
+            diesel_models::payment_attempt::RedirectForm::Braintree {
+                client_token,
+                card_token,
+                bin,
+            } => Self::Braintree {
+                client_token,
+                card_token,
+                bin,
+            },
+            diesel_models::payment_attempt::RedirectForm::Nmi {
+                amount,
+                currency,
+                public_key,
+                customer_vault_id,
+                order_id,
+            } => Self::Nmi {
+                amount,
+                currency,
+                public_key,
+                customer_vault_id,
+                order_id,
+            },
+            diesel_models::payment_attempt::RedirectForm::Mifinity {
+                initialization_token,
+            } => Self::Mifinity {
+                initialization_token,
+            },
+            diesel_models::payment_attempt::RedirectForm::WorldpayDDCForm {
+                endpoint,
+                method,
+                form_fields,
+                collection_id,
+            } => Self::WorldpayDDCForm {
+                endpoint: endpoint.into_inner(),
+                method,
+                form_fields,
+                collection_id,
+            },
         }
     }
 }

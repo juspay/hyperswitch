@@ -13,6 +13,8 @@ use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use super::behaviour;
+#[cfg(feature = "v2")]
+use crate::router_data;
 use crate::type_encryption::{crypto_operation, CryptoOperation};
 
 #[cfg(feature = "v1")]
@@ -86,6 +88,22 @@ pub struct MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        self.disabled.unwrap_or(false)
+    }
+
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        use common_utils::ext_traits::ValueExt;
+
+        self.connector_account_details
+            .get_inner()
+            .clone()
+            .parse_value("ConnectorAuthType")
     }
 }
 
@@ -509,5 +527,34 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 additional_merchant_data: None,
             },
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct MerchantConnectorAccounts(Vec<MerchantConnectorAccount>);
+
+impl MerchantConnectorAccounts {
+    pub fn new(merchant_connector_accounts: Vec<MerchantConnectorAccount>) -> Self {
+        Self(merchant_connector_accounts)
+    }
+
+    pub fn is_merchant_connector_account_id_in_connector_mandate_details(
+        &self,
+        profile_id: Option<&id_type::ProfileId>,
+        connector_mandate_details: &diesel_models::PaymentsMandateReference,
+    ) -> bool {
+        let mca_ids = self
+            .0
+            .iter()
+            .filter(|mca| {
+                mca.disabled.is_some_and(|disabled| !disabled)
+                    && profile_id.is_some_and(|profile_id| *profile_id == mca.profile_id)
+            })
+            .map(|mca| mca.get_id())
+            .collect::<std::collections::HashSet<_>>();
+
+        connector_mandate_details
+            .keys()
+            .any(|mca_id| mca_ids.contains(mca_id))
     }
 }

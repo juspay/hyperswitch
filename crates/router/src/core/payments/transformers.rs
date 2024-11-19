@@ -182,7 +182,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
     customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsAuthorizeRouterData> {
@@ -192,9 +192,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
     })?;
 
-    let auth_type: types::ConnectorAuthType = merchant_connector_account
+    let auth_type = merchant_connector_account
         .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while parsing value for ConnectorAuthType")?;
 
@@ -227,12 +226,12 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_id,
     ));
 
-    let router_return_url = Some(helpers::create_redirect_url(
-        router_base_url,
-        attempt,
-        connector_id,
-        None,
-    ));
+    let router_return_url = payment_data
+        .payment_intent
+        .create_finish_redirection_url(router_base_url, &merchant_account.publishable_key)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to construct finish redirection url")?
+        .to_string();
 
     let connector_request_reference_id = payment_data
         .payment_intent
@@ -270,7 +269,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         enrolled_for_3ds: true,
         related_transaction_id: None,
         payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
-        router_return_url,
+        router_return_url: Some(router_return_url),
         webhook_url,
         complete_authorize_url,
         customer_id: None,
@@ -371,6 +370,138 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
+    };
+
+    Ok(router_data)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn construct_router_data_for_psync<'a>(
+    state: &'a SessionState,
+    payment_data: hyperswitch_domain_models::payments::PaymentStatusData<api::PSync>,
+    connector_id: &str,
+    merchant_account: &domain::MerchantAccount,
+    _key_store: &domain::MerchantKeyStore,
+    customer: &'a Option<domain::Customer>,
+    merchant_connector_account: &domain::MerchantConnectorAccount,
+    _merchant_recipient_data: Option<types::MerchantRecipientData>,
+    header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+) -> RouterResult<types::PaymentsSyncRouterData> {
+    use masking::ExposeOptionInterface;
+
+    fp_utils::when(merchant_connector_account.is_disabled(), || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
+    })?;
+
+    // TODO: Take Globalid / CustomerReferenceId and convert to connector reference id
+    let customer_id = None;
+
+    let payment_intent = payment_data.payment_intent;
+
+    let auth_type: types::ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while parsing value for ConnectorAuthType")?;
+
+    let attempt = &payment_data
+        .payment_attempt
+        .get_required_value("attempt")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Payment Attempt is not available in payment data")?;
+
+    let connector_request_reference_id = payment_intent
+        .merchant_reference_id
+        .map(|id| id.get_string_repr().to_owned())
+        .unwrap_or(attempt.id.get_string_repr().to_owned());
+
+    let request = types::PaymentsSyncData {
+        amount: attempt.amount_details.net_amount,
+        integrity_object: None,
+        mandate_id: None,
+        connector_transaction_id: match attempt.get_connector_payment_id() {
+            Some(connector_txn_id) => {
+                types::ResponseId::ConnectorTransactionId(connector_txn_id.to_owned())
+            }
+            None => types::ResponseId::NoResponseId,
+        },
+        encoded_data: attempt.encoded_data.clone().expose_option(),
+        capture_method: Some(payment_intent.capture_method),
+        connector_meta: attempt.connector_metadata.clone().expose_option(),
+        sync_type: types::SyncRequestType::SinglePaymentSync,
+        payment_method_type: Some(attempt.payment_method_subtype),
+        currency: payment_intent.amount_details.currency,
+        // TODO: Get the charges object from
+        charges: None,
+        payment_experience: None,
+    };
+
+    // TODO: evaluate the fields in router data, if they are required or not
+    let router_data = types::RouterData {
+        flow: PhantomData,
+        merchant_id: merchant_account.get_id().clone(),
+        // TODO: evaluate why we need customer id at the connector level. We already have connector customer id.
+        customer_id,
+        connector: connector_id.to_owned(),
+        // TODO: evaluate why we need payment id at the connector level. We already have connector reference id
+        payment_id: payment_intent.id.get_string_repr().to_owned(),
+        // TODO: evaluate why we need attempt id at the connector level. We already have connector reference id
+        attempt_id: attempt.get_id().get_string_repr().to_owned(),
+        status: attempt.status,
+        payment_method: attempt.payment_method_type,
+        connector_auth_type: auth_type,
+        description: payment_intent
+            .description
+            .as_ref()
+            .map(|description| description.get_string_repr())
+            .map(ToOwned::to_owned),
+        // TODO: evaluate why we need to send merchant's return url here
+        // This should be the return url of application, since application takes care of the redirection
+        return_url: payment_intent
+            .return_url
+            .as_ref()
+            .map(|description| description.get_string_repr())
+            .map(ToOwned::to_owned),
+        // TODO: Create unified address
+        address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
+        auth_type: attempt.authentication_type,
+        connector_meta_data: None,
+        connector_wallets_details: None,
+        request,
+        response: Err(hyperswitch_domain_models::router_data::ErrorResponse::default()),
+        amount_captured: None,
+        minor_amount_captured: None,
+        access_token: None,
+        session_token: None,
+        reference_id: None,
+        payment_method_status: None,
+        payment_method_token: None,
+        connector_customer: None,
+        recurring_mandate_payment_data: None,
+        // TODO: This has to be generated as the reference id based on the connector configuration
+        // Some connectros might not accept accept the global id. This has to be done when generating the reference id
+        connector_request_reference_id,
+        preprocessing_id: attempt.preprocessing_step_id.clone(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        // TODO: take this based on the env
+        test_mode: Some(true),
+        payment_method_balance: None,
+        connector_api_version: None,
+        connector_http_status_code: None,
+        external_latency: None,
+        apple_pay_flow: None,
+        frm_metadata: None,
+        refund_id: None,
+        dispute_id: None,
+        connector_response: None,
+        integrity_check: Ok(()),
+        additional_merchant_data: None,
+        header_payload,
+        connector_mandate_request_reference_id: None,
     };
 
     Ok(router_data)
@@ -628,6 +759,7 @@ where
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self>;
 }
 
@@ -793,11 +925,13 @@ where
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
+        _merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 id: payment_intent.id.clone(),
+                status: payment_intent.status,
                 amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
                     payment_intent.amount_details.clone(),
                 ),
@@ -862,12 +996,13 @@ where
     fn generate_response(
         payment_data: D,
         _customer: Option<domain::Customer>,
-        _base_url: &str,
+        base_url: &str,
         operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
+        merchant_account: &domain::MerchantAccount,
     ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         let payment_attempt = payment_data.get_payment_attempt();
@@ -896,6 +1031,14 @@ where
             .clone()
             .map(api_models::payments::ErrorDetails::foreign_from);
 
+        // TODO: Add support for other next actions, currently only supporting redirect to url
+        let redirect_to_url = payment_intent
+            .create_start_redirection_url(base_url, merchant_account.publishable_key.clone())?;
+        let next_action = payment_attempt
+            .redirection_data
+            .as_ref()
+            .map(|_| api_models::payments::NextActionData::RedirectToUrl { redirect_to_url });
+
         let response = Self {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -906,7 +1049,70 @@ where
             payment_method_data: None,
             payment_method_type: payment_attempt.payment_method_type,
             payment_method_subtype: payment_attempt.payment_method_subtype,
+            next_action,
             connector_transaction_id: payment_attempt.connector_payment_id.clone(),
+            connector_reference_id: None,
+            merchant_connector_id,
+            browser_info: None,
+            error,
+        };
+
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            response,
+            vec![],
+        )))
+    }
+}
+
+#[cfg(feature = "v2")]
+impl<F, Op, D> ToResponse<F, D, Op> for api_models::payments::PaymentsRetrieveResponse
+where
+    F: Clone,
+    Op: Debug,
+    D: OperationSessionGetters<F>,
+{
+    #[allow(clippy::too_many_arguments)]
+    fn generate_response(
+        payment_data: D,
+        _customer: Option<domain::Customer>,
+        _base_url: &str,
+        operation: Op,
+        _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
+        _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
+        _merchant_account: &domain::MerchantAccount,
+    ) -> RouterResponse<Self> {
+        let payment_intent = payment_data.get_payment_intent();
+        let payment_attempt = payment_data.get_optional_payment_attempt();
+
+        let amount = api_models::payments::ConfirmIntentAmountDetailsResponse::foreign_from((
+            &payment_intent.amount_details,
+            payment_attempt.map(|payment_attempt| &payment_attempt.amount_details),
+        ));
+
+        let connector =
+            payment_attempt.and_then(|payment_attempt| payment_attempt.connector.clone());
+
+        let merchant_connector_id = payment_attempt
+            .and_then(|payment_attempt| payment_attempt.merchant_connector_id.clone());
+
+        let error = payment_attempt
+            .and_then(|payment_attempt| payment_attempt.error.clone())
+            .map(api_models::payments::ErrorDetails::foreign_from);
+
+        let response = Self {
+            id: payment_intent.id.clone(),
+            status: payment_intent.status,
+            amount,
+            connector,
+            client_secret: payment_intent.client_secret.clone(),
+            created: payment_intent.created_at,
+            payment_method_data: None,
+            payment_method_type: payment_attempt.map(|attempt| attempt.payment_method_type),
+            payment_method_subtype: payment_attempt.map(|attempt| attempt.payment_method_subtype),
+            connector_transaction_id: payment_attempt
+                .and_then(|attempt| attempt.connector_payment_id.clone()),
             connector_reference_id: None,
             merchant_connector_id,
             browser_info: None,
@@ -1354,6 +1560,8 @@ where
 
         let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
+        let next_action_mobile_payment = mobile_payment_next_steps_check(&payment_attempt)?;
+
         let next_action_containing_qr_code_url = qr_code_next_steps_check(payment_attempt.clone())?;
 
         let papal_sdk_next_action = paypal_sdk_next_steps_check(payment_attempt.clone())?;
@@ -1382,6 +1590,11 @@ where
                         .or(next_action_voucher.map(|voucher_data| {
                             api_models::payments::NextActionData::DisplayVoucherInformation {
                                 voucher_details: voucher_data,
+                            }
+                        }))
+                        .or(next_action_mobile_payment.map(|mobile_payment_data| {
+                            api_models::payments::NextActionData::CollectOtp {
+                                consent_data_required: mobile_payment_data.consent_data_required,
                             }
                         }))
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
@@ -1996,6 +2209,31 @@ pub fn voucher_next_steps_check(
         None
     };
     Ok(voucher_next_step)
+}
+
+#[cfg(feature = "v1")]
+pub fn mobile_payment_next_steps_check(
+    payment_attempt: &storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::MobilePaymentNextStepData>> {
+    let mobile_payment_next_step = if let Some(diesel_models::enums::PaymentMethod::MobilePayment) =
+        payment_attempt.payment_method
+    {
+        let mobile_paymebnt_next_steps: Option<api_models::payments::MobilePaymentNextStepData> =
+            payment_attempt
+                .connector_metadata
+                .clone()
+                .map(|metadata| {
+                    metadata
+                        .parse_value("MobilePaymentNextStepData")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse the Value to NextRequirements struct")
+                })
+                .transpose()?;
+        mobile_paymebnt_next_steps
+    } else {
+        None
+    };
+    Ok(mobile_payment_next_step)
 }
 
 pub fn change_order_details_to_new_type(
@@ -3111,6 +3349,57 @@ impl
     }
 }
 
+/// The response amount details in the confirm intent response will have the combined fields from
+/// intent amount details and attempt amount details.
+#[cfg(feature = "v2")]
+impl
+    ForeignFrom<(
+        &hyperswitch_domain_models::payments::AmountDetails,
+        Option<&hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails>,
+    )> for api_models::payments::ConfirmIntentAmountDetailsResponse
+{
+    fn foreign_from(
+        (intent_amount_details, attempt_amount_details): (
+            &hyperswitch_domain_models::payments::AmountDetails,
+            Option<&hyperswitch_domain_models::payments::payment_attempt::AttemptAmountDetails>,
+        ),
+    ) -> Self {
+        Self {
+            order_amount: intent_amount_details.order_amount,
+            currency: intent_amount_details.currency,
+            shipping_cost: attempt_amount_details
+                .and_then(|attempt_amount| attempt_amount.shipping_cost)
+                .or(intent_amount_details.shipping_cost),
+            order_tax_amount: attempt_amount_details
+                .and_then(|attempt_amount| attempt_amount.order_tax_amount)
+                .or(intent_amount_details
+                    .tax_details
+                    .as_ref()
+                    .and_then(|tax_details| tax_details.get_default_tax_amount())),
+            skip_external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
+                intent_amount_details.skip_external_tax_calculation,
+            ),
+            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
+                intent_amount_details.skip_surcharge_calculation,
+            ),
+            surcharge_amount: attempt_amount_details
+                .and_then(|attempt| attempt.surcharge_amount)
+                .or(intent_amount_details.surcharge_amount),
+            tax_on_surcharge: attempt_amount_details
+                .and_then(|attempt| attempt.tax_on_surcharge)
+                .or(intent_amount_details.tax_on_surcharge),
+            net_amount: attempt_amount_details
+                .map(|attempt| attempt.net_amount)
+                .unwrap_or(intent_amount_details.calculate_net_amount()),
+            amount_to_capture: attempt_amount_details.and_then(|attempt| attempt.amount_to_capture),
+            amount_capturable: attempt_amount_details
+                .map(|attempt| attempt.amount_capturable)
+                .unwrap_or(MinorUnit::zero()),
+            amount_captured: intent_amount_details.amount_captured,
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 impl ForeignFrom<hyperswitch_domain_models::payments::payment_attempt::ErrorDetails>
     for api_models::payments::ErrorDetails
@@ -3229,6 +3518,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout: config.sdk_layout,
             display_sdk_only: config.display_sdk_only,
             enabled_saved_payment_method: config.enabled_saved_payment_method,
+            hide_card_nickname_field: config.hide_card_nickname_field,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
@@ -3281,6 +3571,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             sdk_layout: config.sdk_layout,
             display_sdk_only: config.display_sdk_only,
             enabled_saved_payment_method: config.enabled_saved_payment_method,
+            hide_card_nickname_field: config.hide_card_nickname_field,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
@@ -3343,5 +3634,40 @@ impl ForeignFrom<ConnectorMandateReferenceId> for DieselConnectorMandateReferenc
             connector_mandate_request_reference_id: value
                 .get_connector_mandate_request_reference_id(),
         }
+    }
+}
+
+impl ForeignFrom<(Self, Option<&api_models::payments::AdditionalPaymentData>)>
+    for Option<enums::PaymentMethodType>
+{
+    fn foreign_from(req: (Self, Option<&api_models::payments::AdditionalPaymentData>)) -> Self {
+        let (payment_method_type, additional_pm_data) = req;
+        additional_pm_data
+            .and_then(|pm_data| {
+                if let api_models::payments::AdditionalPaymentData::Card(card_info) = pm_data {
+                    card_info.card_type.as_ref().and_then(|card_type_str| {
+                        api_models::enums::PaymentMethodType::from_str(&card_type_str.to_lowercase()).map_err(|err| {
+                            crate::logger::error!(
+                                "Err - {:?}\nInvalid card_type value found in BIN DB - {:?}",
+                                err,
+                                card_type_str,
+                            );
+                        }).ok()
+                    })
+                } else {
+                    None
+                }
+            })
+            .map_or(payment_method_type, |card_type_in_bin_store| {
+                if let Some(card_type_in_req) = payment_method_type {
+                    if card_type_in_req != card_type_in_bin_store {
+                        crate::logger::info!(
+                            "Mismatch in card_type\nAPI request - {}; BIN lookup - {}\nOverriding with {}",
+                            card_type_in_req, card_type_in_bin_store, card_type_in_bin_store,
+                        );
+                    }
+                }
+                Some(card_type_in_bin_store)
+            })
     }
 }

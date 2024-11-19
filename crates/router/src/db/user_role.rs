@@ -45,7 +45,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&id_type::ProfileId>,
+        profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
@@ -64,7 +64,7 @@ pub trait UserRoleInterface {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&id_type::ProfileId>,
+        profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError>;
 
@@ -100,7 +100,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&id_type::ProfileId>,
+        profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -109,7 +109,7 @@ impl UserRoleInterface for Store {
             user_id.to_owned(),
             org_id.to_owned(),
             merchant_id.to_owned(),
-            profile_id.cloned(),
+            profile_id.to_owned(),
             version,
         )
         .await
@@ -146,7 +146,7 @@ impl UserRoleInterface for Store {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&id_type::ProfileId>,
+        profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
@@ -155,7 +155,7 @@ impl UserRoleInterface for Store {
             user_id.to_owned(),
             org_id.to_owned(),
             merchant_id.to_owned(),
-            profile_id.cloned(),
+            profile_id.to_owned(),
             version,
         )
         .await
@@ -234,6 +234,7 @@ impl UserRoleInterface for MockDb {
             entity_id: None,
             entity_type: None,
             version: enums::UserRoleVersion::V1,
+            tenant_id: user_role.tenant_id,
         };
         db_user_roles.push(user_role.clone());
         Ok(user_role)
@@ -244,7 +245,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&id_type::ProfileId>,
+        profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let user_roles = self.user_roles.lock().await;
@@ -260,7 +261,7 @@ impl UserRoleInterface for MockDb {
 
             let profile_level_check = user_role.org_id.as_ref() == Some(org_id)
                 && user_role.merchant_id.as_ref() == Some(merchant_id)
-                && user_role.profile_id.as_ref() == profile_id;
+                && user_role.profile_id.as_ref() == Some(profile_id);
 
             // Check if any condition matches and the version matches
             if user_role.user_id == user_id
@@ -337,7 +338,7 @@ impl UserRoleInterface for MockDb {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&id_type::ProfileId>,
+        profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         let mut user_roles = self.user_roles.lock().await;
@@ -354,7 +355,7 @@ impl UserRoleInterface for MockDb {
 
             let profile_level_check = role.org_id.as_ref() == Some(org_id)
                 && role.merchant_id.as_ref() == Some(merchant_id)
-                && role.profile_id.as_ref() == profile_id;
+                && role.profile_id.as_ref() == Some(profile_id);
 
             // Check if the user role matches the conditions and the version matches
             role.user_id == user_id
