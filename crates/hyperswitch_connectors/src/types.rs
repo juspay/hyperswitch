@@ -7,6 +7,10 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_request_types::PayoutsData, router_response_types::PayoutsResponseData,
+};
 
 pub(crate) type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<PSync, R, PaymentsSyncData, PaymentsResponseData>;
@@ -26,6 +30,10 @@ pub(crate) type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<Session, R, PaymentsSessionData, PaymentsResponseData>;
 
 // TODO: Remove `ResponseRouterData` from router crate after all the related type aliases are moved to this crate.
+#[cfg(feature = "payouts")]
+pub(crate) type PayoutsResponseRouterData<F, R> =
+    ResponseRouterData<F, R, PayoutsData, PayoutsResponseData>;
+
 pub struct ResponseRouterData<Flow, R, Request, Response> {
     pub response: R,
     pub data: RouterData<Flow, Request, Response>,

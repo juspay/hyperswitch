@@ -23,6 +23,8 @@ use crate::{
         PaymentsResponseData, RefundsResponseData, TaxCalculationResponseData,
     },
 };
+#[cfg(feature = "payouts")]
+use crate::{router_request_types::PayoutsData, router_response_types::PayoutsResponseData};
 
 pub type PaymentsAuthorizeRouterData =
     RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
@@ -50,6 +52,9 @@ pub type RefreshTokenRouterData = RouterData<AccessTokenAuth, AccessTokenRequest
 pub type PaymentsPostSessionTokensRouterData =
     RouterData<PostSessionTokens, PaymentsPostSessionTokensData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
+
+#[cfg(feature = "payouts")]
+pub type PayoutsRouterData<F> = RouterData<F, PayoutsData, PayoutsResponseData>;
 
 pub type UasPostAuthenticationRouterData =
     RouterData<PostAuthenticate, UasPostAuthenticationRequestData, UasAuthenticationResponseData>;
