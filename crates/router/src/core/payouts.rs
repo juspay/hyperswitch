@@ -1336,6 +1336,39 @@ pub async fn create_recipient(
 
                     // Helps callee functions skip the execution
                     payout_data.should_terminate = true;
+                } else if let Some(status) = recipient_create_data.status {
+                    let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
+                        connector_payout_id: payout_data
+                            .payout_attempt
+                            .connector_payout_id
+                            .to_owned(),
+                        status,
+                        error_code: None,
+                        error_message: None,
+                        is_eligible: recipient_create_data.payout_eligible,
+                        unified_code: None,
+                        unified_message: None,
+                    };
+                    payout_data.payout_attempt = db
+                        .update_payout_attempt(
+                            &payout_data.payout_attempt,
+                            updated_payout_attempt,
+                            &payout_data.payouts,
+                            merchant_account.storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error updating payout_attempt in db")?;
+                    payout_data.payouts = db
+                        .update_payout(
+                            &payout_data.payouts,
+                            storage::PayoutsUpdate::StatusUpdate { status },
+                            &payout_data.payout_attempt,
+                            merchant_account.storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Error updating payouts in db")?;
                 }
             }
             Err(err) => Err(errors::ApiErrorResponse::PayoutFailed {
@@ -1937,8 +1970,11 @@ pub async fn complete_create_recipient_disburse_account(
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
     if !payout_data.should_terminate
-        && payout_data.payout_attempt.status
-            == storage_enums::PayoutStatus::RequiresVendorAccountCreation
+        && matches!(
+            payout_data.payout_attempt.status,
+            storage_enums::PayoutStatus::RequiresVendorAccountCreation
+                | storage_enums::PayoutStatus::RequiresCreation
+        )
         && connector_data
             .connector_name
             .supports_vendor_disburse_account_create_for_payout()
