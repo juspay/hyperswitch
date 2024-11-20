@@ -204,7 +204,10 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         let customer = NovalnetPaymentsRequestCustomer {
             first_name: item.router_data.get_billing_first_name()?,
             last_name: item.router_data.get_billing_last_name()?,
-            email: item.router_data.get_billing_email()?,
+            email: item
+                .router_data
+                .get_billing_email()
+                .or(item.router_data.request.get_email())?,
             mobile: item.router_data.get_optional_billing_phone_number(),
             billing: Some(billing),
             customer_ip,
