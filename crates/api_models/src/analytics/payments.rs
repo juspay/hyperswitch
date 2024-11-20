@@ -283,8 +283,10 @@ pub struct PaymentMetricsBucketValue {
     pub connector_success_rate: Option<f64>,
     pub payments_success_rate_distribution: Option<f64>,
     pub payments_success_rate_distribution_without_smart_retries: Option<f64>,
+    pub payments_success_rate_distribution_with_only_retries: Option<f64>,
     pub payments_failure_rate_distribution: Option<f64>,
     pub payments_failure_rate_distribution_without_smart_retries: Option<f64>,
+    pub payments_failure_rate_distribution_with_only_retries: Option<f64>,
     pub failure_reason_count: Option<u64>,
     pub failure_reason_count_without_smart_retries: Option<u64>,
 }

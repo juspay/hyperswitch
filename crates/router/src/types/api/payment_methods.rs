@@ -6,7 +6,7 @@ pub use api_models::payment_methods::{
     PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
     PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
     PaymentMethodIntentConfirm, PaymentMethodIntentConfirmInternal, PaymentMethodIntentCreate,
-    PaymentMethodList, PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
+    PaymentMethodListData, PaymentMethodListRequest, PaymentMethodListResponse,
     PaymentMethodMigrate, PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate,
     PaymentMethodUpdateData, PaymentMethodsData, TokenizePayloadEncrypted, TokenizePayloadRequest,
     TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
@@ -20,7 +20,7 @@ pub use api_models::payment_methods::{
     CustomerPaymentMethodsListResponse, DefaultPaymentMethod, DeleteTokenizeByTokenRequest,
     GetTokenizePayloadRequest, GetTokenizePayloadResponse, ListCountriesCurrenciesRequest,
     PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
-    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList,
+    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
     PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodMigrate,
     PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData, TokenizePayloadEncrypted,
     TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
@@ -65,8 +65,8 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         utils::when(
             !validate_payment_method_type_against_payment_method(
-                self.payment_method,
                 self.payment_method_type,
+                self.payment_method_subtype,
             ),
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -78,7 +78,7 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
 
         utils::when(
             !Self::validate_payment_method_data_against_payment_method(
-                self.payment_method,
+                self.payment_method_type,
                 self.payment_method_data.clone(),
             ),
             || {
@@ -97,8 +97,8 @@ impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
     fn validate(&self) -> RouterResult<()> {
         utils::when(
             !validate_payment_method_type_against_payment_method(
-                self.payment_method,
                 self.payment_method_type,
+                self.payment_method_subtype,
             ),
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -110,7 +110,7 @@ impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
 
         utils::when(
             !Self::validate_payment_method_data_against_payment_method(
-                self.payment_method,
+                self.payment_method_type,
                 self.payment_method_data.clone(),
             ),
             || {

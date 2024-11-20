@@ -101,8 +101,8 @@ impl
             merchant_id: item.merchant_id.to_owned(),
             customer_id: Some(item.customer_id.to_owned()),
             payment_method_id: item.get_id().clone(),
-            payment_method: item.payment_method,
-            payment_method_type: item.payment_method_type,
+            payment_method: item.get_payment_method_type(),
+            payment_method_type: item.get_payment_method_subtype(),
             card: card_details,
             recurring_enabled: false,
             installment_payment_enabled: false,
@@ -1935,6 +1935,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout: item.sdk_layout,
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
+            hide_card_nickname_field: item.hide_card_nickname_field,
         }
     }
 }
@@ -1950,6 +1951,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             sdk_layout: item.sdk_layout,
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
+            hide_card_nickname_field: item.hide_card_nickname_field,
             transaction_details: None,
         }
     }
