@@ -11907,7 +11907,7 @@
       "KakaoPayRedirection": {
         "type": "object"
       },
-      "KlarnaSdkPaymentMethodResponse": {
+      "KlarnaCheckoutPaymentMethodResponse": {
         "type": "object",
         "properties": {
           "payment_type": {
@@ -11916,7 +11916,7 @@
           }
         }
       },
-      "KlarnaCheckoutPaymentMethodResponse": {
+      "KlarnaSdkPaymentMethodResponse": {
         "type": "object",
         "properties": {
           "payment_type": {
@@ -14254,6 +14254,16 @@
             "example": 1,
             "minimum": 0
           },
+          "tax_rate": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "total_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
           "requires_shipping": {
             "type": "boolean",
             "nullable": true
@@ -14321,6 +14331,16 @@
           },
           "amount": {
             "$ref": "#/components/schemas/MinorUnit"
+          },
+          "tax_rate": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "total_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
           },
           "requires_shipping": {
             "type": "boolean",
@@ -14719,6 +14739,17 @@
           {
             "type": "object",
             "required": [
+              "klarna_checkout"
+            ],
+            "properties": {
+              "klarna_checkout": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "affirm_redirect"
             ],
             "properties": {
@@ -14820,6 +14851,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/KlarnaSdkPaymentMethodResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "klarna_checkout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/KlarnaCheckoutPaymentMethodResponse"
               }
             ],
             "nullable": true
@@ -16620,6 +16659,12 @@
             "nullable": true,
             "minimum": 0
           },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 6540,
+            "nullable": true
+          },
           "currency": {
             "allOf": [
               {
@@ -16981,6 +17026,12 @@
             "format": "int64",
             "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
@@ -18091,6 +18142,12 @@
             "example": 6540,
             "nullable": true,
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
@@ -19221,6 +19278,12 @@
             "example": 6540,
             "nullable": true,
             "minimum": 0
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
