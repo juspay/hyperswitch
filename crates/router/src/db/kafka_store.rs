@@ -3731,10 +3731,6 @@ impl CallBackMapperInterface for KafkaStore {
         &self,
         id: String,
     ) -> CustomResult<domain::CallBackMapper, errors::StorageError> {
-        self.diesel_store
-            .find_call_back_mapper_by_id(id)
-            .await
+        self.diesel_store.find_call_back_mapper_by_id(id).await
     }
-
 }
-
