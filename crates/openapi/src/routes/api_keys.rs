@@ -64,9 +64,9 @@ pub async fn api_key_retrieve() {}
 /// Retrieve information about the specified API Key.
 #[utoipa::path(
     get,
-    path = "/v2/api_keys/{key_id}",
+    path = "/v2/api_keys/{id}",
     params (
-        ("key_id" = String, Path, description = "The unique identifier for the API Key")
+        ("id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
         (status = 200, description = "API Key retrieved", body = RetrieveApiKeyResponse),
@@ -106,10 +106,10 @@ pub async fn api_key_update() {}
 /// Update information for the specified API Key.
 #[utoipa::path(
     put,
-    path = "/v2/api_keys/{key_id}",
+    path = "/v2/api_keys/{id}",
     request_body = UpdateApiKeyRequest,
     params (
-        ("key_id" = String, Path, description = "The unique identifier for the API Key")
+        ("id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
         (status = 200, description = "API Key updated", body = RetrieveApiKeyResponse),
@@ -150,9 +150,9 @@ pub async fn api_key_revoke() {}
 /// authenticating with our APIs.
 #[utoipa::path(
     delete,
-    path = "/v2/api_keys/{key_id}",
+    path = "/v2/api_keys/{id}",
     params (
-        ("key_id" = String, Path, description = "The unique identifier for the API Key")
+        ("id" = String, Path, description = "The unique identifier for the API Key")
     ),
     responses(
         (status = 200, description = "API Key revoked", body = RevokeApiKeyResponse),

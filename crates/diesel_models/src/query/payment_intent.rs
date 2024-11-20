@@ -7,9 +7,7 @@ use crate::schema::payment_intent::dsl;
 use crate::schema_v2::payment_intent::dsl;
 use crate::{
     errors,
-    payment_intent::{
-        PaymentIntent, PaymentIntentNew, PaymentIntentUpdate, PaymentIntentUpdateInternal,
-    },
+    payment_intent::{self, PaymentIntent, PaymentIntentNew},
     PgPooledConn, StorageResult,
 };
 
@@ -24,12 +22,12 @@ impl PaymentIntent {
     pub async fn update(
         self,
         conn: &PgPooledConn,
-        payment_intent: PaymentIntentUpdate,
+        payment_intent_update: payment_intent::PaymentIntentUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
             conn,
             self.id.to_owned(),
-            PaymentIntentUpdateInternal::from(payment_intent),
+            payment_intent_update,
         )
         .await
         {
@@ -53,14 +51,14 @@ impl PaymentIntent {
     pub async fn update(
         self,
         conn: &PgPooledConn,
-        payment_intent: PaymentIntentUpdate,
+        payment_intent: payment_intent::PaymentIntentUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::payment_id
                 .eq(self.payment_id.to_owned())
                 .and(dsl::merchant_id.eq(self.merchant_id.to_owned())),
-            PaymentIntentUpdateInternal::from(payment_intent),
+            payment_intent::PaymentIntentUpdateInternal::from(payment_intent),
         )
         .await
         {

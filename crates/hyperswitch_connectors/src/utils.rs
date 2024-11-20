@@ -844,6 +844,7 @@ pub trait CardData {
     fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error>;
 }
 
 impl CardData for Card {
@@ -916,6 +917,14 @@ impl CardData for Card {
     }
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
         self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error> {
+        self.get_expiry_year_4_digit()
             .peek()
             .clone()
             .parse::<i32>()
@@ -1985,6 +1994,7 @@ pub enum PaymentMethodDataType {
     OpenBanking,
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
+    DirectCarrierBilling,
 }
 
 impl From<PaymentMethodData> for PaymentMethodDataType {
@@ -2170,6 +2180,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::CardToken(_) => Self::CardToken,
             PaymentMethodData::OpenBanking(data) => match data {
                 hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
+            },
+            PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
+                hyperswitch_domain_models::payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => Self::DirectCarrierBilling,
             },
         }
     }

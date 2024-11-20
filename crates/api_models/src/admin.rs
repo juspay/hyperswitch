@@ -2007,7 +2007,7 @@ pub struct ProfileCreate {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<url::Url>,
+    pub return_url: Option<common_utils::types::Url>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]
@@ -2244,7 +2244,7 @@ pub struct ProfileResponse {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]
@@ -2474,7 +2474,7 @@ pub struct ProfileUpdate {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<url::Url>,
+    pub return_url: Option<common_utils::types::Url>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]
@@ -2692,6 +2692,9 @@ pub struct PaymentLinkConfigRequest {
     /// Enable saved payment method option for payment link
     #[schema(default = false, example = true)]
     pub enabled_saved_payment_method: Option<bool>,
+    /// Hide card nickname field option for payment link
+    #[schema(default = false, example = true)]
+    pub hide_card_nickname_field: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
 }
@@ -2735,6 +2738,8 @@ pub struct PaymentLinkConfig {
     pub display_sdk_only: bool,
     /// Enable saved payment method option for payment link
     pub enabled_saved_payment_method: bool,
+    /// Hide card nickname field option for payment link
+    pub hide_card_nickname_field: bool,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link

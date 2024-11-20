@@ -71,7 +71,7 @@ pub enum Connector {
     Cybersource,
     Datatrans,
     Deutschebank,
-    // Digitalvirgo, template code for future usage
+    Digitalvirgo,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -94,6 +94,7 @@ pub enum Connector {
     Nexinets,
     Nexixpay,
     Nmi,
+    // Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -211,6 +212,7 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Deutschebank
+            | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
             | Self::Fiserv
@@ -231,6 +233,7 @@ impl Connector {
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
+            // | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode

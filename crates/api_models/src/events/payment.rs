@@ -177,6 +177,15 @@ impl ApiEventMetric for PaymentsConfirmIntentResponse {
     }
 }
 
+#[cfg(feature = "v2")]
+impl ApiEventMetric for super::PaymentsRetrieveResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
 #[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
@@ -187,11 +196,24 @@ impl ApiEventMetric for PaymentsResponse {
 }
 
 impl ApiEventMetric for PaymentMethodResponse {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.payment_method_id.clone(),
             payment_method: self.payment_method,
             payment_method_type: self.payment_method_type,
+        })
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.payment_method_id.clone(),
+            payment_method: self.payment_method_type,
+            payment_method_type: self.payment_method_subtype,
         })
     }
 }

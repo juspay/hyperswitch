@@ -11,7 +11,7 @@ pub use hyperswitch_domain_models::router_flow_types::payouts::{
 };
 pub use hyperswitch_interfaces::api::payouts::{
     PayoutCancel, PayoutCreate, PayoutEligibility, PayoutFulfill, PayoutQuote, PayoutRecipient,
-    PayoutRecipientAccount, PayoutSync,
+    PayoutRecipientAccount, PayoutSync, Payouts,
 };
 
 pub use super::payouts_v2::{

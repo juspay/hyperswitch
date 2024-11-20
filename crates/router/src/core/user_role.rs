@@ -156,12 +156,12 @@ pub async fn update_user_role(
     let mut is_updated = false;
 
     let v2_user_role_to_be_updated = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V2,
         )
         .await
@@ -210,12 +210,12 @@ pub async fn update_user_role(
         }
 
         state
-            .store
+            .global_store
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
                 &user_from_token.org_id,
                 Some(&user_from_token.merchant_id),
-                user_from_token.profile_id.as_ref(),
+                Some(&user_from_token.profile_id),
                 UserRoleUpdate::UpdateRole {
                     role_id: req.role_id.clone(),
                     modified_by: user_from_token.user_id.clone(),
@@ -229,12 +229,12 @@ pub async fn update_user_role(
     }
 
     let v1_user_role_to_be_updated = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_to_be_updated.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V1,
         )
         .await
@@ -283,12 +283,12 @@ pub async fn update_user_role(
         }
 
         state
-            .store
+            .global_store
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
                 &user_from_token.org_id,
                 Some(&user_from_token.merchant_id),
-                user_from_token.profile_id.as_ref(),
+                Some(&user_from_token.profile_id),
                 UserRoleUpdate::UpdateRole {
                     role_id: req.role_id.clone(),
                     modified_by: user_from_token.user_id,
@@ -470,12 +470,12 @@ pub async fn delete_user_role(
 
     // Find in V2
     let user_role_v2 = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V2,
         )
         .await
@@ -517,12 +517,12 @@ pub async fn delete_user_role(
 
         user_role_deleted_flag = true;
         state
-            .store
+            .global_store
             .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
-                user_from_token.profile_id.as_ref(),
+                &user_from_token.profile_id,
                 UserRoleVersion::V2,
             )
             .await
@@ -532,12 +532,12 @@ pub async fn delete_user_role(
 
     // Find in V1
     let user_role_v1 = match state
-        .store
+        .global_store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V1,
         )
         .await
@@ -579,12 +579,12 @@ pub async fn delete_user_role(
 
         user_role_deleted_flag = true;
         state
-            .store
+            .global_store
             .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
-                user_from_token.profile_id.as_ref(),
+                &user_from_token.profile_id,
                 UserRoleVersion::V1,
             )
             .await
@@ -599,7 +599,7 @@ pub async fn delete_user_role(
 
     // Check if user has any more role associations
     let remaining_roles = state
-        .store
+        .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: user_from_db.get_user_id(),
             org_id: None,
@@ -676,17 +676,13 @@ pub async fn list_users_in_lineage(
             .await?
         }
         EntityType::Profile => {
-            let Some(profile_id) = user_from_token.profile_id.as_ref() else {
-                return Err(UserErrors::JwtProfileIdMissing.into());
-            };
-
             utils::user_role::fetch_user_roles_by_payload(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
-                    profile_id: Some(profile_id),
+                    profile_id: Some(&user_from_token.profile_id),
                     version: None,
                     limit: None,
                 },
@@ -780,7 +776,7 @@ pub async fn list_invitations_for_user(
     user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<Vec<user_role_api::ListInvitationForUserResponse>> {
     let user_roles = state
-        .store
+        .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: &user_from_token.user_id,
             org_id: None,
