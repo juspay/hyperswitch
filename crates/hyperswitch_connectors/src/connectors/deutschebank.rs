@@ -39,7 +39,7 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self, Response, PaymentMethodDetails, SupportedPaymentMethods, PaymentMethodTypeMetadata},
     webhooks,
 };
 use masking::{ExposeInterface, Mask, Secret};
@@ -133,6 +133,20 @@ impl ConnectorCommon for Deutschebank {
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.deutschebank.base_url.as_ref()
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        let mut supported_payment_methods = SupportedPaymentMethods::new();
+        let mut bank_debit_payment_method = PaymentMethodTypeMetadata::new();
+        bank_debit_payment_method.insert(
+            enums::PaymentMethodType::Sepa,
+            PaymentMethodDetails {
+                availability_status: enums::PaymentMethodStage::Live,
+                supports_mandates: true,
+            },
+        );
+        supported_payment_methods.insert(enums::PaymentMethod::BankDebit, bank_debit_payment_method);
+        Some(supported_payment_methods)
     }
 
     fn get_auth_header(
