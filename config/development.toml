@@ -312,7 +312,7 @@ wildcard_origin = true
 sender_email = "example@example.com"
 aws_region = ""
 allowed_unverified_days = 1
-active_email_client = "SES"
+active_email_client = "NO_EMAIL_CLIENT"
 recon_recipient_email = "recon@example.com"
 prod_intent_recipient_email = "business@example.com"
 
