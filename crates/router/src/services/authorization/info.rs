@@ -40,7 +40,6 @@ fn get_group_description(group: PermissionGroup) -> &'static str {
         PermissionGroup::MerchantDetailsView | PermissionGroup::AccountView => "View Merchant Details",
         PermissionGroup::MerchantDetailsManage | PermissionGroup::AccountManage => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
         PermissionGroup::OrganizationManage => "Manage organization level tasks like create new Merchant accounts, Organization level roles, etc",
-        PermissionGroup::ReconTokenView => "Generate and Verify reconciliation tokens",
         PermissionGroup::ReconReportsView => "View and access reconciliation reports and analytics",
         PermissionGroup::ReconReportsManage => "Manage reconciliation reports",
         PermissionGroup::ReconOpsView => "View and access reconciliation operations",
@@ -56,7 +55,6 @@ pub fn get_parent_group_description(group: ParentGroup) -> &'static str {
         ParentGroup::Analytics => "View Analytics",
         ParentGroup::Users =>  "Manage and invite Users to the Team",
         ParentGroup::Account => "Create, modify and delete Merchant Details like api keys, webhooks, etc",
-        ParentGroup::Recon => "Generate and verify reconciliation tokens",
         ParentGroup::ReconOps => "View, manage reconciliation operations like upload and process files, run reconciliation etc",
         ParentGroup::ReconReports => "View, manage reconciliation reports and analytics",
     }

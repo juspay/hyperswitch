@@ -22,7 +22,6 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::UsersView
             | Self::MerchantDetailsView
             | Self::AccountView
-            | Self::ReconTokenView
             | Self::ReconOpsView
             | Self::ReconReportsView => PermissionScope::Read,
 
@@ -50,7 +49,6 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::MerchantDetailsManage
             | Self::AccountView
             | Self::AccountManage => ParentGroup::Account,
-            Self::ReconTokenView => ParentGroup::Recon,
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
         }
@@ -81,8 +79,6 @@ impl PermissionGroupExt for PermissionGroup {
             Self::UsersManage => {
                 vec![Self::UsersView, Self::UsersManage]
             }
-
-            Self::ReconTokenView => vec![Self::ReconTokenView],
 
             Self::ReconOpsView => vec![Self::ReconOpsView],
             Self::ReconOpsManage => vec![Self::ReconOpsView, Self::ReconOpsManage],
@@ -120,7 +116,6 @@ impl ParentGroupExt for ParentGroup {
             Self::Analytics => ANALYTICS.to_vec(),
             Self::Users => USERS.to_vec(),
             Self::Account => ACCOUNT.to_vec(),
-            Self::Recon => RECON.to_vec(),
             Self::ReconOps => RECON_OPS.to_vec(),
             Self::ReconReports => RECON_REPORTS.to_vec(),
         }
@@ -180,8 +175,6 @@ pub static ANALYTICS: [Resource; 3] = [Resource::Analytics, Resource::Report, Re
 pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
 pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
-
-pub static RECON: [Resource; 1] = [Resource::ReconToken];
 
 pub static RECON_OPS: [Resource; 5] = [
     Resource::ReconToken,
