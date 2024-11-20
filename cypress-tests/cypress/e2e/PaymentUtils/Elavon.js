@@ -128,8 +128,21 @@ export const connectorDetails = {
             Response: {
                 status: 200,
                 body: {
-                    status: "succeeded",
+                    status: "pending",
                 },
+            },
+        },
+        VoidAfterConfirm: {
+            Request: {},
+            Response: {
+                status: 501,
+                body: {
+                    error: {
+                        type: "invalid_request",
+                        message: "Cancel/Void flow is not implemented",
+                        code: "IR_00"
+                    }
+                }
             },
         },
         PartialRefund: {
@@ -161,6 +174,60 @@ export const connectorDetails = {
                 status: 200,
                 body: {
                     status: "succeeded",
+                },
+            },
+        },
+        PaymentMethodIdMandateNo3DSAutoCapture: {
+            Request: {
+                payment_method: "card",
+                payment_method_data: {
+                    card: successfulNo3DSCardDetails,
+                },
+                currency: "USD",
+                billing: {
+                    email: "mauro.morandi@nexi.it",
+                },
+                mandate_data: null,
+                customer_acceptance: {
+                    acceptance_type: "offline",
+                    accepted_at: "1963-05-03T04:07:52.723Z",
+                    online: {
+                        ip_address: "125.0.0.1",
+                        user_agent: "amet irure esse",
+                    },
+                },
+            },
+            Response: {
+                status: 200,
+                body: {
+                    status: "succeeded",
+                },
+            },
+        },
+        PaymentMethodIdMandateNo3DSManualCapture: {
+            Request: {
+                payment_method: "card",
+                payment_method_data: {
+                    card: successfulNo3DSCardDetails,
+                },
+                billing: {
+                    email: "mauro.morandi@nexi.it",
+                },
+                currency: "USD",
+                mandate_data: null,
+                customer_acceptance: {
+                    acceptance_type: "offline",
+                    accepted_at: "1963-05-03T04:07:52.723Z",
+                    online: {
+                        ip_address: "125.0.0.1",
+                        user_agent: "amet irure esse",
+                    },
+                },
+            },
+            Response: {
+                status: 200,
+                body: {
+                    status: "requires_capture",
                 },
             },
         },

@@ -526,7 +526,7 @@ fn map_payment_status(
 impl From<&ElavonPaymentsResponse> for enums::RefundStatus {
     fn from(item: &ElavonPaymentsResponse) -> Self {
         if item.is_successful() {
-            Self::Success
+            Self::Pending
         } else {
             Self::Failure
         }
