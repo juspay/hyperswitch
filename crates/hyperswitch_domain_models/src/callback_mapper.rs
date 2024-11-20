@@ -1,7 +1,5 @@
 use common_utils::pii;
-
 use serde::{self, Deserialize, Serialize};
-
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CallBackMapper {
