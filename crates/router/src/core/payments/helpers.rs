@@ -4540,29 +4540,13 @@ pub async fn get_additional_payment_data(
                 google_pay: None,
             })),
         },
-        // domain::PaymentMethodData::PayLater(_) => Ok(Some(
-        //     api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None },
-        // )),
-        domain::PaymentMethodData::PayLater(pay_later) => match pay_later {
-            domain::PayLaterData::KlarnaSdk { token: _ } => Ok(Some(
-                api_models::payments::AdditionalPaymentData::PayLater {
-                    klarna_sdk: None,
-                    klarna_checkout: None,
-                },
-            )),
-            domain::PayLaterData::KlarnaCheckout {} => Ok(Some(
-                api_models::payments::AdditionalPaymentData::PayLater {
-                    klarna_sdk: None,
-                    klarna_checkout: None,
-                },
-            )),
-            _ => Ok(Some(
-                api_models::payments::AdditionalPaymentData::PayLater {
-                    klarna_sdk: None,
-                    klarna_checkout: None,
-                },
-            )),
-        },
+        domain::PaymentMethodData::PayLater(_) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::PayLater {
+                klarna_sdk: None,
+                klarna_checkout: None,
+            },
+        )),
+        
         domain::PaymentMethodData::BankTransfer(bank_transfer) => Ok(Some(
             api_models::payments::AdditionalPaymentData::BankTransfer {
                 details: Some((*(bank_transfer.to_owned())).into()),
