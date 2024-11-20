@@ -2,10 +2,10 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 #[cfg(feature = "recon")]
 use masking::PeekInterface;
 
-#[cfg(feature = "dummy_connector")]
-use crate::user::sample_data::SampleDataRequest;
 #[cfg(feature = "recon")]
 use crate::recon::VerifyTokenResponse;
+#[cfg(feature = "dummy_connector")]
+use crate::user::sample_data::SampleDataRequest;
 use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,

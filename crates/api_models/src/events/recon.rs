@@ -1,6 +1,8 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
-use crate::recon::{ReconStatusResponse, ReconTokenResponse, ReconUpdateMerchantRequest, VerifyTokenResponse};
+use crate::recon::{
+    ReconStatusResponse, ReconTokenResponse, ReconUpdateMerchantRequest, VerifyTokenResponse,
+};
 
 impl ApiEventMetric for ReconUpdateMerchantRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {

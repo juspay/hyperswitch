@@ -1,4 +1,4 @@
-use common_utils::{pii, id_type};
+use common_utils::{id_type, pii};
 use masking::Secret;
 
 use crate::enums;
