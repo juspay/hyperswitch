@@ -4,11 +4,7 @@ use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
-    consts,
-    ext_traits::OptionExt,
-    pii::{Email, IpAddress},
-    request::Method,
-    types::StringMinorUnit,
+    consts, ext_traits::OptionExt, pii::Email, request::Method, types::StringMinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -32,9 +28,8 @@ use strum::Display;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, ApplePay, BrowserInformationData, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSyncRequestData,
-        RefundsRequestData, RouterData as _,
+        self, ApplePay, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
+        PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
     },
 };
 
@@ -82,7 +77,6 @@ pub struct NovalnetPaymentsRequestCustomer {
     email: Email,
     mobile: Option<Secret<String>>,
     billing: Option<NovalnetPaymentsRequestBilling>,
-    customer_ip: Option<Secret<String, IpAddress>>,
     no_nc: i64,
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -194,13 +188,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
             country_code: item.router_data.get_optional_billing_country(),
         };
 
-        let customer_ip = item
-            .router_data
-            .request
-            .get_browser_info()?
-            .get_ip_address()
-            .ok();
-
         let customer = NovalnetPaymentsRequestCustomer {
             first_name: item.router_data.get_billing_first_name()?,
             last_name: item.router_data.get_billing_last_name()?,
@@ -210,7 +197,6 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                 .or(item.router_data.request.get_email())?,
             mobile: item.router_data.get_optional_billing_phone_number(),
             billing: Some(billing),
-            customer_ip,
             // no_nc is used to indicate if minimal customer data is passed or not
             no_nc: 1,
         };
