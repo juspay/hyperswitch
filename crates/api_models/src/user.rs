@@ -167,15 +167,6 @@ pub struct SendVerifyEmailRequest {
     pub email: pii::Email,
 }
 
-#[cfg(feature = "recon")]
-#[derive(serde::Serialize, Debug)]
-pub struct VerifyTokenResponse {
-    pub merchant_id: id_type::MerchantId,
-    pub user_email: pii::Email,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub acl: Option<String>,
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateUserAccountDetailsRequest {
     pub name: Option<Secret<String>>,

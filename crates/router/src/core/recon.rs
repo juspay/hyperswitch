@@ -192,7 +192,7 @@ pub async fn recon_merchant_account_update(
 pub async fn verify_recon_token(
     state: SessionState,
     user_with_role: authentication::UserFromTokenWithRoleInfo,
-) -> UserResponse<user_api::VerifyTokenResponse> {
+) -> UserResponse<recon_api::VerifyTokenResponse> {
     let user = user_with_role.user;
     let user_in_db = user
         .get_user_from_db(&state)
@@ -211,7 +211,7 @@ pub async fn verify_recon_token(
         .ok();
 
     Ok(service_api::ApplicationResponse::Json(
-        user_api::VerifyTokenResponse {
+        recon_api::VerifyTokenResponse {
             merchant_id: user.merchant_id.to_owned(),
             user_email: user_in_db.0.email,
             acl: optional_acl_str,

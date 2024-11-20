@@ -5,7 +5,7 @@ use masking::PeekInterface;
 #[cfg(feature = "dummy_connector")]
 use crate::user::sample_data::SampleDataRequest;
 #[cfg(feature = "recon")]
-use crate::user::VerifyTokenResponse;
+use crate::recon::VerifyTokenResponse;
 use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
