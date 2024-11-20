@@ -1967,6 +1967,56 @@
         ]
       }
     },
+    "/v2/payments/{id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Get",
+        "description": "Retrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "operationId": "Retrieve a Payment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "force_sync",
+            "in": "query",
+            "description": "A boolean to indicate whether to force sync the payment status. Value can be true or false",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ForceSync"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gets the payment with final status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsRetrieveResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment found with the given id"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v2/refunds": {
       "post": {
         "tags": [
@@ -5776,6 +5826,7 @@
           "cybersource",
           "datatrans",
           "deutschebank",
+          "digitalvirgo",
           "dlocal",
           "ebanx",
           "fiserv",
@@ -8018,17 +8069,30 @@
           {
             "type": "string",
             "enum": [
-              "browser_language"
+              "user_msisdn"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "browser_ip"
+              "user_client_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "order_details_product_name"
             ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
+      },
+      "ForceSync": {
+        "type": "string",
+        "enum": [
+          "true",
+          "false"
+        ]
       },
       "FrmAction": {
         "type": "string",
@@ -10471,6 +10535,71 @@
       "MobilePayRedirection": {
         "type": "object"
       },
+      "MobilePaymentConsent": {
+        "type": "string",
+        "enum": [
+          "consent_required",
+          "consent_not_required",
+          "consent_optional"
+        ]
+      },
+      "MobilePaymentData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "direct_carrier_billing"
+            ],
+            "properties": {
+              "direct_carrier_billing": {
+                "type": "object",
+                "required": [
+                  "msisdn"
+                ],
+                "properties": {
+                  "msisdn": {
+                    "type": "string",
+                    "description": "The phone number of the user",
+                    "example": "1234567890"
+                  },
+                  "client_uid": {
+                    "type": "string",
+                    "description": "Unique user id",
+                    "example": "02iacdYXGI9CnyJdoN8c7",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MobilePaymentNextStepData": {
+        "type": "object",
+        "required": [
+          "consent_data_required"
+        ],
+        "properties": {
+          "consent_data_required": {
+            "$ref": "#/components/schemas/MobilePaymentConsent"
+          }
+        }
+      },
+      "MobilePaymentResponse": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object"
+          }
+        ]
+      },
       "MomoRedirection": {
         "type": "object"
       },
@@ -10771,6 +10900,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains consent to collect otp for mobile payment",
+            "required": [
+              "consent_data_required",
+              "type"
+            ],
+            "properties": {
+              "consent_data_required": {
+                "$ref": "#/components/schemas/MobilePaymentConsent"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "collect_otp"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -10785,7 +10933,8 @@
           "invoke_sdk_client",
           "trigger_api",
           "display_bank_transfer_information",
-          "display_wait_screen"
+          "display_wait_screen",
+          "collect_otp"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -11787,7 +11936,8 @@
           "one_click",
           "link_wallet",
           "invoke_payment_app",
-          "display_wait_screen"
+          "display_wait_screen",
+          "collect_otp"
         ]
       },
       "PaymentLinkConfig": {
@@ -12079,7 +12229,8 @@
           "upi",
           "voucher",
           "gift_card",
-          "open_banking"
+          "open_banking",
+          "mobile_payment"
         ]
       },
       "PaymentMethodCollectLinkRequest": {
@@ -12486,6 +12637,18 @@
                 "$ref": "#/components/schemas/OpenBankingData"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "MobilePayment",
+            "required": [
+              "mobile_payment"
+            ],
+            "properties": {
+              "mobile_payment": {
+                "$ref": "#/components/schemas/MobilePaymentData"
+              }
+            }
           }
         ]
       },
@@ -12690,6 +12853,17 @@
             "properties": {
               "open_banking": {
                 "$ref": "#/components/schemas/OpenBankingResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mobile_payment"
+            ],
+            "properties": {
+              "mobile_payment": {
+                "$ref": "#/components/schemas/MobilePaymentResponse"
               }
             }
           }
@@ -13061,7 +13235,8 @@
           "pay_easy",
           "local_bank_transfer",
           "mifinity",
-          "open_banking_pis"
+          "open_banking_pis",
+          "direct_carrier_billing"
         ]
       },
       "PaymentMethodUpdate": {
@@ -15069,6 +15244,105 @@
           "force_sync": {
             "type": "boolean",
             "description": "A boolean used to indicate if the payment status should be fetched from the connector\nIf this is set to true, the status will be fetched from the connector"
+          }
+        }
+      },
+      "PaymentsRetrieveResponse": {
+        "type": "object",
+        "description": "Response for Payment Intent Confirm",
+        "required": [
+          "id",
+          "status",
+          "amount",
+          "client_secret",
+          "created"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
+            "example": "12345_pay_01926c58bc6e77c09e809964e72af8c8",
+            "maxLength": 64,
+            "minLength": 32
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntentStatus"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+          },
+          "connector": {
+            "type": "string",
+            "description": "The connector used for the payment",
+            "example": "stripe",
+            "nullable": true
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "It's a token used for client side verification."
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time when the payment was created",
+            "example": "2022-09-10T10:11:12Z"
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodDataResponseWithBilling"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_subtype": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "A unique identifier for a payment provided by the connector",
+            "example": "993672945374576J",
+            "nullable": true
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "reference(Identifier) to the payment at connector side",
+            "example": "993672945374576J",
+            "nullable": true
+          },
+          "merchant_connector_id": {
+            "type": "string",
+            "description": "Identifier of the connector ( merchant connector account ) which was chosen to make the payment",
+            "nullable": true
+          },
+          "browser_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrowserInformation"
+              }
+            ],
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17765,6 +18039,7 @@
           "cybersource",
           "datatrans",
           "deutschebank",
+          "digitalvirgo",
           "dlocal",
           "ebanx",
           "fiserv",

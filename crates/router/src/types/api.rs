@@ -375,10 +375,9 @@ impl ConnectorData {
                 enums::Connector::Deutschebank => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Deutschebank::new())))
                 }
-                // tempplate code for future usage
-                // enums::Connector::Digitalvirgo => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Digitalvirgo::new())))
-                // }
+                enums::Connector::Digitalvirgo => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Digitalvirgo::new())))
+                }
                 enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(
@@ -567,25 +566,6 @@ pub trait FraudCheck {}
 
 #[cfg(not(feature = "frm"))]
 pub trait FraudCheckV2 {}
-
-#[cfg(feature = "payouts")]
-pub trait Payouts:
-    ConnectorCommon
-    + PayoutCancel
-    + PayoutCreate
-    + PayoutEligibility
-    + PayoutFulfill
-    + PayoutQuote
-    + PayoutRecipient
-    + PayoutRecipientAccount
-    + PayoutSync
-{
-}
-#[cfg(not(feature = "payouts"))]
-pub trait Payouts {}
-
-#[cfg(not(feature = "payouts"))]
-pub trait PayoutsV2 {}
 
 #[cfg(test)]
 mod test {

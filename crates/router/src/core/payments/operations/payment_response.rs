@@ -1277,6 +1277,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             | hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(
                 _,
             )
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::MobilePayment(_)
             | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(_)
             | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(_)
             | hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(_)

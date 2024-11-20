@@ -323,7 +323,6 @@ default_imp_for_complete_authorize!(
     connectors::Cashtocode,
     connectors::Coinbase,
     connectors::Cryptopay,
-    connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
     connectors::Fiserv,
@@ -491,7 +490,6 @@ default_imp_for_connector_redirect_response!(
     connectors::Coinbase,
     connectors::Cryptopay,
     connectors::Deutschebank,
-    connectors::Digitalvirgo,
     connectors::Dlocal,
     connectors::Elavon,
     connectors::Fiserv,
@@ -1045,6 +1043,56 @@ default_imp_for_file_upload!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Zen,
+    connectors::Zsl
+);
+
+macro_rules! default_imp_for_payouts {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::Payouts for $path::$connector {}
+    )*
+    };
+}
+
+default_imp_for_payouts!(
+    connectors::Airwallex,
+    connectors::Amazonpay,
+    connectors::Bambora,
+    connectors::Billwerk,
+    connectors::Bitpay,
+    connectors::Cashtocode,
+    connectors::Cryptopay,
+    connectors::Coinbase,
+    connectors::Deutschebank,
+    connectors::Digitalvirgo,
+    connectors::Dlocal,
+    connectors::Elavon,
+    connectors::Fiserv,
+    connectors::Fiservemea,
+    connectors::Fiuu,
+    connectors::Forte,
+    connectors::Globepay,
+    connectors::Helcim,
+    connectors::Jpmorgan,
+    connectors::Mollie,
+    connectors::Multisafepay,
+    connectors::Nexinets,
+    connectors::Nexixpay,
+    connectors::Nomupay,
+    connectors::Novalnet,
+    connectors::Payeezy,
+    connectors::Payu,
+    connectors::Powertranz,
+    connectors::Razorpay,
+    connectors::Shift4,
+    connectors::Square,
+    connectors::Stax,
+    connectors::Taxjar,
+    connectors::Tsys,
+    connectors::Volt,
+    connectors::Worldline,
+    connectors::Worldpay,
     connectors::Zen,
     connectors::Zsl
 );
