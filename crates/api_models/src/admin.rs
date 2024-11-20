@@ -2692,6 +2692,9 @@ pub struct PaymentLinkConfigRequest {
     /// Enable saved payment method option for payment link
     #[schema(default = false, example = true)]
     pub enabled_saved_payment_method: Option<bool>,
+    /// Hide card nickname field option for payment link
+    #[schema(default = false, example = true)]
+    pub hide_card_nickname_field: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
 }
@@ -2735,6 +2738,8 @@ pub struct PaymentLinkConfig {
     pub display_sdk_only: bool,
     /// Enable saved payment method option for payment link
     pub enabled_saved_payment_method: bool,
+    /// Hide card nickname field option for payment link
+    pub hide_card_nickname_field: bool,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link

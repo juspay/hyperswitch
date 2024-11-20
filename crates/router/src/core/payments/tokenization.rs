@@ -610,7 +610,8 @@ where
                                 Ok(customer_payment_methods) => Ok(customer_payment_methods
                                     .iter()
                                     .find(|payment_method| {
-                                        payment_method.payment_method_type == payment_method_type
+                                        payment_method.get_payment_method_subtype()
+                                            == payment_method_type
                                     })
                                     .cloned()),
                                 Err(error) => {
@@ -1143,6 +1144,7 @@ pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn add_connector_mandate_details_in_payment_method(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
@@ -1174,7 +1176,9 @@ pub fn add_connector_mandate_details_in_payment_method(
         None
     }
 }
+
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v1")]
 pub fn update_connector_mandate_details(
     mandate_details: Option<diesel_models::PaymentsMandateReference>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,

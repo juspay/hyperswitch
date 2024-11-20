@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.20.0
+
+### Features
+
+- **analytics:** Add `smart_retries` only metrics for analytics v2 dashboard ([#6575](https://github.com/juspay/hyperswitch/pull/6575)) ([`f3897dd`](https://github.com/juspay/hyperswitch/commit/f3897dd6b57318b681a2c5dc099d787aa8233f24))
+- **connector:** [Novalnet] Add minimal customer data feature ([#6570](https://github.com/juspay/hyperswitch/pull/6570)) ([`9787a2b`](https://github.com/juspay/hyperswitch/commit/9787a2becf1bc9eceee6a1fec0a4edb5c3e6473b))
+- **router:** Add payment incoming webhooks support for v2 ([#6551](https://github.com/juspay/hyperswitch/pull/6551)) ([`8e9c3ec`](https://github.com/juspay/hyperswitch/commit/8e9c3ec8931851dae638037b91eb1611399be0bf))
+- **routing:** Add invalidate window as a service for SR based routing ([#6264](https://github.com/juspay/hyperswitch/pull/6264)) ([`607b3df`](https://github.com/juspay/hyperswitch/commit/607b3df3fc822a5f937dbb4f89fbdb0352eca3ff))
+
+### Bug Fixes
+
+- **analytics:** Fix `authentication_type` and `card_last_4` fields serialization for payment_intent_filters ([#6595](https://github.com/juspay/hyperswitch/pull/6595)) ([`0302c30`](https://github.com/juspay/hyperswitch/commit/0302c3033fbff4bfbdb18df44fabc3513b063fb0))
+- **connector:**
+  - [Worldpay] use 4 digit expiry year ([#6543](https://github.com/juspay/hyperswitch/pull/6543)) ([`e730a2e`](https://github.com/juspay/hyperswitch/commit/e730a2ee5a35d56f3740e923cb16de67edca2fc0))
+  - [Adyen]fix error code and message for webhooks response ([#6602](https://github.com/juspay/hyperswitch/pull/6602)) ([`8b31a7b`](https://github.com/juspay/hyperswitch/commit/8b31a7bbe1de88f2126bee4547b37cbb16ea95a4))
+- **docker-compose:** Address "role root does not exist" errors arising from postgres health check ([#6582](https://github.com/juspay/hyperswitch/pull/6582)) ([`e9e8df2`](https://github.com/juspay/hyperswitch/commit/e9e8df222c90661493ba974374d70438ce0ffa6f))
+
+### Refactors
+
+- **payment_methods_v2:** Rename `payment_method` and `payment_method_type` fields and use concrete type for `payment_method_data` ([#6555](https://github.com/juspay/hyperswitch/pull/6555)) ([`11e9241`](https://github.com/juspay/hyperswitch/commit/11e92413b22f13df8cfa62020d48d490e37b5d87))
+- **users:** Force 2FA in production environment ([#6596](https://github.com/juspay/hyperswitch/pull/6596)) ([`bbd55e3`](https://github.com/juspay/hyperswitch/commit/bbd55e32f838349b402e8cd0abc06d34f647be94))
+
+**Full Changelog:** [`2024.11.19.0...2024.11.20.0`](https://github.com/juspay/hyperswitch/compare/2024.11.19.0...2024.11.20.0)
+
+- - -
+
+## 2024.11.19.0
+
+### Features
+
+- **connector:** [Novalnet] Add support for disputes ([#6560](https://github.com/juspay/hyperswitch/pull/6560)) ([`6881ce2`](https://github.com/juspay/hyperswitch/commit/6881ce2ed3d11006c33fef9863107f0d823ebddb))
+- **payments:** [Payment links] add hide card nickname field config for secure payment links ([#6554](https://github.com/juspay/hyperswitch/pull/6554)) ([`0e026b7`](https://github.com/juspay/hyperswitch/commit/0e026b70b6502c4e82f3e8cccc5441deb472119e))
+
+### Refactors
+
+- **core:** Add profile_id for default_fallback api ([#6546](https://github.com/juspay/hyperswitch/pull/6546)) ([`053f810`](https://github.com/juspay/hyperswitch/commit/053f8109302a98e6b6d30d957b2af618ea73055f))
+- **users:** Make `profile_id` in the JWT non-optional ([#6537](https://github.com/juspay/hyperswitch/pull/6537)) ([`d32397f`](https://github.com/juspay/hyperswitch/commit/d32397f060731f51a15634e221117a554b8b3721))
+
+**Full Changelog:** [`2024.11.18.0...2024.11.19.0`](https://github.com/juspay/hyperswitch/compare/2024.11.18.0...2024.11.19.0)
+
+- - -
+
 ## 2024.11.18.0
 
 ### Features

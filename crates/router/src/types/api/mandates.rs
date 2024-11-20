@@ -56,7 +56,7 @@ impl MandateResponseExt for MandateResponse {
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
         let pm = payment_method
-            .payment_method
+            .get_payment_method_type()
             .get_required_value("payment_method")
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("payment_method not found")?;
@@ -91,7 +91,7 @@ impl MandateResponseExt for MandateResponse {
             None
         };
         let payment_method_type = payment_method
-            .payment_method_type
+            .get_payment_method_subtype()
             .map(|pmt| pmt.to_string());
         Ok(Self {
             mandate_id: mandate.mandate_id,
