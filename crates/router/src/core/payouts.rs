@@ -1762,6 +1762,7 @@ async fn complete_payout_quote_steps_if_required<F>(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub async fn complete_payout_retrieve(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -1781,6 +1782,16 @@ pub async fn complete_payout_retrieve(
     }
 
     Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub async fn complete_payout_retrieve(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    connector_call_type: api::ConnectorCallType,
+    payout_data: &mut PayoutData,
+) -> RouterResult<()> {
+    todo!()
 }
 
 pub async fn create_payout_retrieve(

@@ -11,6 +11,7 @@ use crate::{
     services::Store,
 };
 pub mod sample_data;
+pub mod theme;
 
 #[async_trait::async_trait]
 pub trait UserInterface {

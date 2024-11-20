@@ -52,6 +52,7 @@ mod netcetera;
 mod nexinets;
 mod nexixpay;
 mod nmi;
+mod nomupay;
 mod noon;
 mod novalnet;
 mod nuvei;
