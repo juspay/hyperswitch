@@ -86,7 +86,7 @@ pub async fn setup_intents_create(
     .await
 }
 
-#[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+#[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieveForceSync))]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,

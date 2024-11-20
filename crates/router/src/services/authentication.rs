@@ -70,6 +70,12 @@ pub struct AuthenticationData {
 }
 
 #[derive(Clone, Debug)]
+pub struct AuthenticationDataWithoutProfile {
+    pub merchant_account: domain::MerchantAccount,
+    pub key_store: domain::MerchantKeyStore,
+}
+
+#[derive(Clone, Debug)]
 pub struct AuthenticationDataWithMultipleProfiles {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
@@ -81,7 +87,7 @@ pub struct AuthenticationDataWithUser {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
     pub user: storage::User,
-    pub profile_id: Option<id_type::ProfileId>,
+    pub profile_id: id_type::ProfileId,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -179,6 +185,7 @@ pub struct UserFromSinglePurposeToken {
     pub user_id: String,
     pub origin: domain::Origin,
     pub path: Vec<TokenPurpose>,
+    pub tenant_id: Option<String>,
 }
 
 #[cfg(feature = "olap")]
@@ -189,6 +196,7 @@ pub struct SinglePurposeToken {
     pub origin: domain::Origin,
     pub path: Vec<TokenPurpose>,
     pub exp: u64,
+    pub tenant_id: Option<String>,
 }
 
 #[cfg(feature = "olap")]
@@ -199,6 +207,7 @@ impl SinglePurposeToken {
         origin: domain::Origin,
         settings: &Settings,
         path: Vec<TokenPurpose>,
+        tenant_id: Option<String>,
     ) -> UserResult<String> {
         let exp_duration =
             std::time::Duration::from_secs(consts::SINGLE_PURPOSE_TOKEN_TIME_IN_SECS);
@@ -209,6 +218,7 @@ impl SinglePurposeToken {
             origin,
             exp,
             path,
+            tenant_id,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
@@ -221,7 +231,8 @@ pub struct AuthToken {
     pub role_id: String,
     pub exp: u64,
     pub org_id: id_type::OrganizationId,
-    pub profile_id: Option<id_type::ProfileId>,
+    pub profile_id: id_type::ProfileId,
+    pub tenant_id: Option<String>,
 }
 
 #[cfg(feature = "olap")]
@@ -232,7 +243,8 @@ impl AuthToken {
         role_id: String,
         settings: &Settings,
         org_id: id_type::OrganizationId,
-        profile_id: Option<id_type::ProfileId>,
+        profile_id: id_type::ProfileId,
+        tenant_id: Option<String>,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
@@ -243,6 +255,7 @@ impl AuthToken {
             exp,
             org_id,
             profile_id,
+            tenant_id,
         };
         jwt::generate_jwt(&token_payload, settings).await
     }
@@ -254,7 +267,8 @@ pub struct UserFromToken {
     pub merchant_id: id_type::MerchantId,
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
-    pub profile_id: Option<id_type::ProfileId>,
+    pub profile_id: id_type::ProfileId,
+    pub tenant_id: Option<String>,
 }
 
 pub struct UserIdFromAuth {
@@ -268,6 +282,7 @@ pub struct SinglePurposeOrLoginToken {
     pub role_id: Option<String>,
     pub purpose: Option<TokenPurpose>,
     pub exp: u64,
+    pub tenant_id: Option<String>,
 }
 
 pub trait AuthInfo {
@@ -314,9 +329,6 @@ where
 
 #[derive(Debug)]
 pub struct ApiKeyAuth;
-
-#[derive(Debug)]
-pub struct ApiKeyAuthV2;
 
 pub struct NoAuth;
 
@@ -431,17 +443,6 @@ where
             .change_context(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                key_manager_state,
-                &key_store,
-                &stored_api_key.merchant_id,
-                &profile_id,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-
         let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(
@@ -449,6 +450,12 @@ where
                 &stored_api_key.merchant_id,
                 &key_store,
             )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -677,14 +684,14 @@ where
         let key_manager_state = &(&state.session_state()).into();
         let profile = state
             .store()
-            .find_business_profile_by_merchant_id_profile_id(
+            .find_business_profile_by_profile_id(
                 key_manager_state,
                 &auth_data.key_store,
-                auth_data.merchant_account.get_id(),
                 &profile_id,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
         let auth_data_v2 = AuthenticationData {
             merchant_account: auth_data.merchant_account,
             key_store: auth_data.key_store,
@@ -751,6 +758,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         if self.0 != payload.purpose {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
@@ -761,6 +772,7 @@ where
                 user_id: payload.user_id.clone(),
                 origin: payload.origin.clone(),
                 path: payload.path,
+                tenant_id: payload.tenant_id,
             },
             AuthenticationType::SinglePurposeJwt {
                 user_id: payload.user_id,
@@ -785,6 +797,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         if self.0 != payload.purpose {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
@@ -795,6 +811,7 @@ where
                 user_id: payload.user_id.clone(),
                 origin: payload.origin.clone(),
                 path: payload.path,
+                tenant_id: payload.tenant_id,
             }),
             AuthenticationType::SinglePurposeJwt {
                 user_id: payload.user_id,
@@ -824,6 +841,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let is_purpose_equal = payload
             .purpose
@@ -1027,6 +1048,53 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithoutProfile, A>
+    for AdminApiAuthWithMerchantIdFromRoute
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithoutProfile, AuthenticationType)> {
+        AdminApiAuth
+            .authenticate_and_fetch(request_headers, state)
+            .await?;
+
+        let merchant_id = self.0.clone();
+
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let auth = AuthenticationDataWithoutProfile {
+            merchant_account: merchant,
+            key_store,
+        };
+
+        Ok((
+            auth,
+            AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
+        ))
+    }
+}
+
 /// A helper struct to extract headers from the request
 pub(crate) struct HeaderMapStruct<'a> {
     headers: &'a HeaderMap,
@@ -1202,6 +1270,53 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithoutProfile, A>
+    for AdminApiAuthWithMerchantIdFromHeader
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithoutProfile, AuthenticationType)> {
+        AdminApiAuth
+            .authenticate_and_fetch(request_headers, state)
+            .await?;
+
+        let merchant_id = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
+
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let auth = AuthenticationDataWithoutProfile {
+            merchant_account: merchant,
+            key_store,
+        };
+        Ok((
+            auth,
+            AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
+        ))
+    }
+}
+
 #[derive(Debug)]
 pub struct EphemeralKeyAuth;
 
@@ -1312,6 +1427,65 @@ where
         let merchant = state
             .store()
             .find_merchant_account_by_merchant_id(key_manager_state, &self.0, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let auth = AuthenticationData {
+            merchant_account: merchant,
+            key_store,
+            profile,
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantId {
+                merchant_id: auth.merchant_account.get_id().clone(),
+            },
+        ))
+    }
+}
+
+#[derive(Debug)]
+#[cfg(feature = "v2")]
+pub struct MerchantIdAndProfileIdAuth {
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: id_type::ProfileId,
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationData, A> for MerchantIdAndProfileIdAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &self.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+
+        let profile = state
+            .store()
+            .find_business_profile_by_merchant_id_profile_id(
+                key_manager_state,
+                &key_store,
+                &self.merchant_id,
+                &self.profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(key_manager_state, &self.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -1492,6 +1666,11 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
 
@@ -1520,6 +1699,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
@@ -1531,6 +1714,7 @@ where
                 org_id: payload.org_id,
                 role_id: payload.role_id,
                 profile_id: payload.profile_id,
+                tenant_id: payload.tenant_id,
             },
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
@@ -1555,6 +1739,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
@@ -1614,6 +1802,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
@@ -1655,6 +1847,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
@@ -1691,6 +1887,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
 
@@ -1729,7 +1929,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-            profile_id: payload.profile_id,
+            profile_id: Some(payload.profile_id),
         };
 
         Ok((
@@ -1822,6 +2022,72 @@ where
     }
 }
 
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithoutProfile, A> for JWTAuthMerchantFromHeader
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithoutProfile, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+
+        let merchant_id_from_header = HeaderMapStruct::new(request_headers)
+            .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
+
+        // Check if token has access to MerchantId that has been requested through headers
+        if payload.merchant_id != merchant_id_from_header {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+        }
+
+        let key_manager_state = &(&state.session_state()).into();
+
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
+
+        let auth = AuthenticationDataWithoutProfile {
+            merchant_account: merchant,
+            key_store,
+        };
+
+        Ok((
+            auth,
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
 #[async_trait]
 impl<A> AuthenticateAndFetch<(), A> for JWTAuthMerchantFromRoute
 where
@@ -1836,6 +2102,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
@@ -1869,6 +2139,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         if payload.merchant_id != self.merchant_id {
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
@@ -1903,7 +2177,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-            profile_id: payload.profile_id,
+            profile_id: Some(payload.profile_id),
         };
         Ok((
             auth.clone(),
@@ -1987,6 +2261,68 @@ where
         ))
     }
 }
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithoutProfile, A> for JWTAuthMerchantFromRoute
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithoutProfile, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        if payload.merchant_id != self.merchant_id {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
+        }
+
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.required_permission, &role_info)?;
+
+        let key_manager_state = &(&state.session_state()).into();
+        let key_store = state
+            .store()
+            .get_merchant_key_store_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &state.store().get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
+
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(
+                key_manager_state,
+                &payload.merchant_id,
+                &key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
+
+        let auth = AuthenticationDataWithoutProfile {
+            merchant_account: merchant,
+            key_store,
+        };
+        Ok((
+            auth.clone(),
+            AuthenticationType::MerchantJwt {
+                merchant_id: auth.merchant_account.get_id().clone(),
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
 pub struct JWTAuthMerchantAndProfileFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
@@ -2008,16 +2344,16 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         if payload.merchant_id != self.merchant_id {
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
 
-        if payload
-            .profile_id
-            .as_ref()
-            .is_some_and(|profile_id| *profile_id != self.profile_id)
-        {
+        if payload.profile_id != self.profile_id {
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
 
@@ -2050,7 +2386,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-            profile_id: payload.profile_id,
+            profile_id: Some(payload.profile_id),
         };
         Ok((
             auth.clone(),
@@ -2083,6 +2419,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.required_permission, &role_info)?;
@@ -2110,30 +2450,14 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        if let Some(ref payload_profile_id) = payload.profile_id {
-            if *payload_profile_id != self.profile_id {
-                return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
-            } else {
-                // if both of them are same then proceed with the profile id present in the request
-                let auth = AuthenticationData {
-                    merchant_account: merchant,
-                    key_store,
-                    profile_id: Some(self.profile_id.clone()),
-                };
-                Ok((
-                    auth.clone(),
-                    AuthenticationType::MerchantJwt {
-                        merchant_id: auth.merchant_account.get_id().clone(),
-                        user_id: Some(payload.user_id),
-                    },
-                ))
-            }
+        if payload.profile_id != self.profile_id {
+            return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         } else {
-            // if profile_id is not present in the auth_layer itself then no change in behaviour
+            // if both of them are same then proceed with the profile id present in the request
             let auth = AuthenticationData {
                 merchant_account: merchant,
                 key_store,
-                profile_id: payload.profile_id,
+                profile_id: Some(self.profile_id.clone()),
             };
             Ok((
                 auth.clone(),
@@ -2257,6 +2581,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
@@ -2287,7 +2615,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-            profile_id: payload.profile_id,
+            profile_id: Some(payload.profile_id),
         };
         Ok((
             auth,
@@ -2314,6 +2642,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let profile_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
@@ -2386,6 +2718,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
@@ -2415,7 +2751,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-            profile_id: payload.profile_id,
+            profile_id: Some(payload.profile_id),
         };
         Ok((
             (auth.clone(), payload.user_id.clone()),
@@ -2445,6 +2781,11 @@ where
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
 
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
         Ok((
             UserFromToken {
                 user_id: payload.user_id.clone(),
@@ -2452,6 +2793,7 @@ where
                 org_id: payload.org_id,
                 role_id: payload.role_id,
                 profile_id: payload.profile_id,
+                tenant_id: payload.tenant_id,
             },
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
@@ -2476,6 +2818,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
 
         Ok(((), AuthenticationType::NoAuth))
     }
@@ -2493,6 +2839,11 @@ where
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
         let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -2518,7 +2869,7 @@ where
         let auth = AuthenticationData {
             merchant_account: merchant,
             key_store,
-            profile_id: payload.profile_id,
+            profile_id: Some(payload.profile_id),
         };
         Ok((
             auth.clone(),
@@ -2542,6 +2893,13 @@ impl ClientSecretFetch for payouts::PayoutCreateRequest {
 
 #[cfg(feature = "v1")]
 impl ClientSecretFetch for payments::PaymentsRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref()
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
@@ -2577,12 +2935,6 @@ impl ClientSecretFetch for PaymentMethodIntentConfirm {
 }
 
 impl ClientSecretFetch for api_models::cards_info::CardsInfoRequest {
-    fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret.as_ref()
-    }
-}
-
-impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
@@ -2860,6 +3212,10 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(&self.permission, &role_info)?;
 
