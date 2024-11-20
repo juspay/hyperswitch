@@ -308,8 +308,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                             merchant_urls: MerchantURLs {
                                 terms: return_url.clone(),
                                 checkout: return_url.clone(),
-                                confirmation: return_url.clone(),
-                                push: return_url,
+                                confirmation: "https://google.com".to_string(),
+                                push: "https://google.com".to_string(),
                             },
                             auto_capture: request.is_auto_capture()?,
                             shipping_address: get_address_info(item.router_data.get_optional_shipping())
