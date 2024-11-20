@@ -10041,8 +10041,7 @@
             "description": "The dispute amount"
           },
           "currency": {
-            "type": "string",
-            "description": "The three-letter ISO currency code"
+            "$ref": "#/components/schemas/Currency"
           },
           "dispute_stage": {
             "$ref": "#/components/schemas/DisputeStage"
