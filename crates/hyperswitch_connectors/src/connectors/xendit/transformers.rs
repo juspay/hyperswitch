@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_utils::{crypto::OptionalEncryptableEmail, types::StringMinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -8,6 +8,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
+use common_utils::pii::Email;
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -226,3 +227,142 @@ pub struct XenditErrorResponse {
     pub message: String,
     pub reason: Option<String>,
 }
+
+// Xendit Customer
+
+pub enum XenditCustomerType{
+    INDIVIDUAL,
+    BUSINESS
+}
+
+pub struct XenditCustomerIndividualDetail{
+    pub given_names: String,
+    pub surname: String
+}
+
+pub enum XenditCustomerBusinessType{
+    CORPORATION,
+    SOLEPROPRIETOR,
+    PARTNERSHIP,
+    COOPERATIVE,
+    TRUST,
+    NONPROFIT,
+    GOVERNMENT
+}
+
+pub struct XenditCustomerBusinessDetail{
+    pub business_name: String,
+    pub business_type: XenditCustomerBusinessType
+}
+
+// reference-id = random UUID
+pub struct XenditCustomerRequest{
+    pub reference_id: String,
+    pub customer_type: XenditCustomerType,
+    pub individual_detail: Option<XenditCustomerIndividualDetail>,
+    pub business_detail: Option<XenditCustomerBusinessDetail>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String>>,
+}
+
+pub struct XenditCustomerResponse{
+    pub customer_id: String,
+    pub reference_id: String,
+    pub customer_type: XenditCustomerType,
+    pub individual_detail: Option<XenditCustomerIndividualDetail>,
+    pub business_detail: Option<XenditCustomerBusinessDetail>,
+    pub email: Option<Email>,
+    pub phone: Option<Secret<String>>,
+}
+
+
+// Xendit Direct Debit
+
+// Step 1: Create Customer
+
+// Step 2: Initialize Linked Account Tokenization
+
+pub enum XenditLATStatus{
+    SUCCESS,
+    PENDING,
+    FAILED
+}
+
+pub enum XenditChannelCode{
+    DCBRI,
+    BCAONEKLIK,
+    BABPI,
+    BPIRECURRING,
+    BAUBP,
+    UBPEADA,
+    BABBL,
+    BABAY,
+    BAKTB,
+    BASCB
+}
+
+pub struct XenditLATDebitCardProperties{
+    pub account_mobile_number: Secret<String>,
+    pub card_last_four: Secret<String>, // Card's last four digits
+    pub card_expiry: Secret<String>,
+    pub account_email: Email
+}
+
+pub struct XenditLATBankAccountProperties{
+    pub success_redirect_url: String,
+    pub failure_redirect_url: Option<String>,
+    pub callback_url: Option<String>
+}
+
+pub struct XenditLATBCAOneKlikProperties{
+    pub account_mobile_number: Secret<String>,
+    pub success_redirect_url: String,
+    pub failure_redirect_url: Option<String>,
+    pub callback_url: Option<String>
+}
+
+// Step (2.1): Sending LAT Request
+pub struct XenditLinkedAccountTokenizationRequest<T>{
+    pub customer_id: String,
+    pub channel_code: XenditChannelCode,
+    pub properties: T,
+    // METADATA
+}
+
+pub struct XenditLinkedAccountTokenizationResponse{
+    pub id: String,
+    pub customer_id: String,
+    pub channel_code: XenditChannelCode,
+    pub authorizer_url: Option<String>,
+    pub status: XenditLATStatus,
+    // METADATA
+}
+
+// Step (2.2) - Validation of Linked Account Tokenization 
+// For debit card we have to send them OTP
+// For bank account Xendit LAT Response returns auth url from where customer has to authorize
+
+pub struct XenditDebitCardValidateRequest{
+    pub otp_code: String
+}
+
+pub struct XenditLATValidationResponse{
+    pub id: String,
+    pub customer_id: String,
+    pub channel_code: XenditChannelCode,
+    pub status: XenditLATStatus,
+    // METADATA
+}
+
+// Step (2.3) - Retrieve the list of accounts
+
+pub struct XenditLinkedAccount<T>{
+    pub channel_code: XenditChannelCode,
+    pub id: String,
+    pub properties : T,
+    pub link_type: String // Whether Debit Card, Bank acc, wallet, etc
+}
+
+// pub struct XenditLinkedAccountResponse{
+//     pub accounts: Vec<XenditLinkedAccount<T>>
+// }
