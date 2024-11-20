@@ -109,7 +109,7 @@ impl RefundMetricAccumulator for SuccessRateAccumulator {
     }
 
     fn collect(self) -> Self::MetricOutput {
-        if self.total <= 0 {
+        if self.total == 0 {
             (None, None, None)
         } else {
             let success = Some(self.success);
