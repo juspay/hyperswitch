@@ -449,8 +449,26 @@ impl
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        let checkout_endpoint = get_klarna_checkout_endpoint(self.base_url(connectors));
 
-        Ok(format!("{endpoint}ordermanagement/v1/orders/{order_id}"))
+        let payment_experience = req.request.payment_experience;
+
+        match payment_experience {
+            Some(common_enums::PaymentExperience::InvokeSdkClient) => {
+                Ok(format!("{endpoint}ordermanagement/v1/orders/{order_id}"))
+            }
+            Some(common_enums::PaymentExperience::RedirectToUrl) => {
+                Ok(format!("{checkout_endpoint}checkout/v3/orders/{order_id}"))
+            }
+            None => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                message: "payment_experience not supported".to_string(),
+                connector: "klarna",
+            })),
+            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                message: "payment_experience not supported".to_string(),
+                connector: "klarna",
+            })),
+        }
     }
 
     fn build_request(
@@ -478,7 +496,6 @@ impl
             .response
             .parse_struct("klarna KlarnaPsyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
@@ -597,7 +614,6 @@ impl
                         | common_enums::PaymentMethodType::Interac
                         | common_enums::PaymentMethodType::Indomaret
                         | common_enums::PaymentMethodType::Klarna
-                        | common_enums::PaymentMethodType::KlarnaCheckout
                         | common_enums::PaymentMethodType::KakaoPay
                         | common_enums::PaymentMethodType::MandiriVa
                         | common_enums::PaymentMethodType::Knet
@@ -662,8 +678,8 @@ impl
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
                 match (payment_experience, payment_method_type) {
                     (
-                        common_enums::PaymentExperience::InvokeSdkClient,
-                        common_enums::PaymentMethodType::KlarnaCheckout,
+                        common_enums::PaymentExperience::RedirectToUrl,
+                        common_enums::PaymentMethodType::Klarna,
                     ) => Ok(format!("{checkout_endpoint}checkout/v3/orders",)),
                     (
                         common_enums::PaymentExperience::DisplayQrCode
@@ -715,7 +731,6 @@ impl
                         | common_enums::PaymentMethodType::Interac
                         | common_enums::PaymentMethodType::Indomaret
                         | common_enums::PaymentMethodType::Klarna
-                        | common_enums::PaymentMethodType::KlarnaCheckout
                         | common_enums::PaymentMethodType::KakaoPay
                         | common_enums::PaymentMethodType::MandiriVa
                         | common_enums::PaymentMethodType::Knet
@@ -816,8 +831,7 @@ impl
             req.request.currency,
         )?;
         let connector_router_data = klarna::KlarnaRouterData::from((amount, req));
-        let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
-
+        let connector_req = klarna::KlarnaAuthRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -849,7 +863,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: klarna::KlarnaPaymentsResponse = res
+        let response: klarna::KlarnaAuthResponse = res
             .response
             .parse_struct("KlarnaPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

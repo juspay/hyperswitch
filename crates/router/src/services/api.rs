@@ -1934,7 +1934,6 @@ pub fn build_redirection_form(
             }
         },
         RedirectForm::KlarnaCheckout { html_snippet } => {
-            // Assuming 'html_snippet' is a string containing the Klarna HTML snippet.
             maud::html! {
                 (maud::DOCTYPE)
                 html {
@@ -1942,7 +1941,6 @@ pub fn build_redirection_form(
                         title { "Redirecting to Klarna Checkout" }
                     }
                     body {
-                        // Directly passing the Klarna HTML snippet
                         (PreEscaped(html_snippet))
                     }
                 }

@@ -2694,7 +2694,6 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Alma
                 | api_enums::PaymentMethodType::AfterpayClearpay
                 | api_enums::PaymentMethodType::Klarna
-                | api_enums::PaymentMethodType::KlarnaCheckout
                 | api_enums::PaymentMethodType::PayBright
                 | api_enums::PaymentMethodType::Atome
                 | api_enums::PaymentMethodType::Walley

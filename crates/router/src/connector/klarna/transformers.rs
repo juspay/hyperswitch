@@ -64,8 +64,14 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for KlarnaConnectorMetadataObject {
     }
 }
 
-#[derive(Default, Debug, Serialize)]
-pub struct KlarnaPaymentsRequest {
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum KlarnaAuthRequest {
+    KlarnaPaymentsAuthRequest(PaymentsRequest),
+    KlarnaCheckoutAuthRequest(CheckoutRequest),
+}
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct PaymentsRequest {
     auto_capture: bool,
     order_lines: Vec<OrderLines>,
     order_amount: MinorUnit,
@@ -74,15 +80,38 @@ pub struct KlarnaPaymentsRequest {
     merchant_reference1: Option<String>,
     merchant_reference2: Option<String>,
     shipping_address: Option<KlarnaShippingAddress>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct CheckoutRequest {
+    auto_capture: bool,
+    order_lines: Vec<OrderLines>,
+    order_amount: MinorUnit,
+    purchase_country: enums::CountryAlpha2,
+    purchase_currency: enums::Currency,
+    shipping_address: Option<KlarnaShippingAddress>,
     order_tax_amount: Option<i64>,
-    merchant_urls: Option<MerchantURLs>,
+    merchant_urls: MerchantURLs,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct KlarnaPaymentsResponse {
+#[serde(untagged)]
+pub enum KlarnaAuthResponse {
+    KlarnaPaymentsAuthResponse(PaymentsResponse),
+    KlarnaCheckoutAuthResponse(CheckoutResponse),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PaymentsResponse {
     order_id: String,
-    fraud_status: Option<KlarnaFraudStatus>,
-    status: Option<KlarnaCheckoutStatus>,
+    fraud_status: KlarnaFraudStatus,
+    authorized_payment_method: Option<AuthorizedPaymentMethod>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CheckoutResponse {
+    order_id: String,
+    status: KlarnaCheckoutStatus,
     html_snippet: Option<String>,
     authorized_payment_method: Option<AuthorizedPaymentMethod>,
 }
@@ -126,7 +155,7 @@ pub struct KlarnaSessionRequest {
     shipping_address: Option<KlarnaShippingAddress>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct KlarnaShippingAddress {
     city: String,
     country: enums::CountryAlpha2,
@@ -140,7 +169,7 @@ pub struct KlarnaShippingAddress {
     street_address2: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct MerchantURLs {
     terms: String,
     checkout: String,
@@ -213,7 +242,8 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
         })
     }
 }
-impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaPaymentsRequest {
+
+impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaAuthRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
@@ -226,13 +256,11 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { .. }) => {
                 match request.order_details.clone() {
-                   Some(order_details)=> {
-
-                        Ok(Self{
+                    Some(order_details) => {
+                        Ok(Self::KlarnaPaymentsAuthRequest(PaymentsRequest {
                             purchase_country: item.router_data.get_billing_country()?,
                             purchase_currency: request.currency,
                             order_amount: item.amount,
-                            order_tax_amount:None,
                             order_lines: order_details
                                 .iter()
                                 .map(|data| OrderLines {
@@ -240,127 +268,78 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                                     quantity: data.quantity,
                                     unit_price: data.amount,
                                     total_amount: data.amount * data.quantity,
-                                    tax_amount:data.total_tax_amount,
-                                    total_tax_amount:None,
-                                    tax_rate:data.tax_rate,
+                                    tax_amount: data.total_tax_amount,
+                                    total_tax_amount: None,
+                                    tax_rate: data.tax_rate,
                                 })
                                 .collect(),
-                            merchant_reference1: Some(
-                                item.router_data.connector_request_reference_id.clone(),
-                            ),
-                            merchant_reference2: item
-                                .router_data
-                                .request
-                                .merchant_order_reference_id
-                                .clone(),
-                            merchant_urls:None,
+                            merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
+                            merchant_reference2: item.router_data.request.merchant_order_reference_id.clone(),
                             auto_capture: request.is_auto_capture()?,
-                            shipping_address: get_address_info(
-                                item.router_data.get_optional_shipping(),
-                            )
-                            .transpose()?,
-                        })
+                            shipping_address: get_address_info(item.router_data.get_optional_shipping())
+                                .transpose()?,
+                        }))
                     }
                     None => {
-                        Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-                    },
+                        Err(errors::ConnectorError::NotImplemented("Order details missing".to_string()).into())
+                    }
                 }
             }
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
                 match request.order_details.clone() {
-                    Some(order_details)=> {
-                        Ok(Self{
+                    Some(order_details) => {
+                        Ok(Self::KlarnaCheckoutAuthRequest(CheckoutRequest {
                             purchase_country: item.router_data.get_billing_country()?,
                             purchase_currency: request.currency,
                             order_amount: item.amount,
-                            order_tax_amount: Some(0),
+                            order_tax_amount: Some(request.order_tax_amount),
                             order_lines: order_details
                                 .iter()
                                 .map(|data| OrderLines {
                                     name: data.product_name.clone(),
                                     quantity: data.quantity,
                                     unit_price: data.amount,
-                                    total_tax_amount:data.total_tax_amount,
-                                    tax_amount:None,
-                                    tax_rate:data.tax_rate,
                                     total_amount: data.amount * data.quantity,
+                                    total_tax_amount: data.total_tax_amount,
+                                    tax_amount: None,
+                                    tax_rate: data.tax_rate,
                                 })
                                 .collect(),
-                            merchant_urls: Some(MerchantURLs {
+                            merchant_urls: MerchantURLs {
                                 terms: return_url.clone(),
                                 checkout: return_url.clone(),
                                 confirmation: return_url.clone(),
-                                push: return_url.clone(),
-                            }),
-                            merchant_reference1: None,
-                            merchant_reference2: None,
+                                push: return_url,
+                            },
                             auto_capture: request.is_auto_capture()?,
-                            shipping_address: get_address_info(
-                                item.router_data.get_optional_shipping(),
-                            )
-                            .transpose()?,
-                        })
+                            shipping_address: get_address_info(item.router_data.get_optional_shipping())
+                                .transpose()?,
+                        }))
                     }
                     None => {
-                        Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-                    },
+                        Err(errors::ConnectorError::NotImplemented("Order details missing".to_string()).into())
+                    }
                 }
             }
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_card) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_card_details_for_network_transaction_id) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(_card_redirect_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(_wallet_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(_pay_later_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(_bank_redirect_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(_bank_debit_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(_bank_transfer_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(_crypto_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(_real_time_payment_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(_upi_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(_voucher_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(_gift_card_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(_card_token) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(_open_banking_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_network_token_data) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::MobilePayment(_mobile_payment_data) => {
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_)
+            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::MobilePayment(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
             },
         }
@@ -390,133 +369,117 @@ fn get_address_info(
     })
 }
 
-impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
+impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
     for types::PaymentsAuthorizeRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
+
     fn try_from(
-        item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
+        item: types::PaymentsResponseRouterData<KlarnaAuthResponse>,
     ) -> Result<Self, Self::Error> {
         let connector_response = types::ConnectorResponseData::with_additional_payment_method_data(
-            match item.response.authorized_payment_method {
-                Some(authorized_payment_method) => {
-                    types::AdditionalPaymentMethodConnectorResponse::from(authorized_payment_method)
+            match item.response {
+                KlarnaAuthResponse::KlarnaPaymentsAuthResponse(ref response) => {
+                    match &response.authorized_payment_method {
+                        Some(authorized_payment_method) => {
+                            types::AdditionalPaymentMethodConnectorResponse::from(
+                                authorized_payment_method.clone(),
+                            )
+                        }
+                        None => types::AdditionalPaymentMethodConnectorResponse::PayLater {
+                            klarna_sdk: None,
+                            klarna_checkout: None,
+                        },
+                    }
                 }
-                None => types::AdditionalPaymentMethodConnectorResponse::PayLater {
-                    klarna_sdk: None,
-                    klarna_checkout: None,
-                },
+                KlarnaAuthResponse::KlarnaCheckoutAuthResponse(ref response) => {
+                    match &response.authorized_payment_method {
+                        Some(authorized_payment_method) => {
+                            types::AdditionalPaymentMethodConnectorResponse::from(
+                                authorized_payment_method.clone(),
+                            )
+                        }
+                        None => types::AdditionalPaymentMethodConnectorResponse::PayLater {
+                            klarna_sdk: None,
+                            klarna_checkout: None,
+                        },
+                    }
+                }
             },
         );
         let payment_method_data = item.data.request.payment_method_data.clone();
 
-        match payment_method_data{
+        match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { .. }) => {
+                if let KlarnaAuthResponse::KlarnaPaymentsAuthResponse(ref response) = item.response
+                {
                     Ok(Self {
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
-                                item.response.order_id.clone(),
+                                response.order_id.clone(),
                             ),
-                            redirection_data:Box::new(None),
+                            redirection_data: Box::new(None),
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
-                            connector_response_reference_id: Some(item.response.order_id.clone()),
+                            connector_response_reference_id: Some(response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             charge_id: None,
                         }),
                         status: enums::AttemptStatus::foreign_from((
-                            item.response.fraud_status.unwrap_or(KlarnaFraudStatus::Accepted),
+                            response.fraud_status.clone(),
                             item.data.request.is_auto_capture()?,
                         )),
                         connector_response: Some(connector_response),
                         ..item.data
                     })
-                },
-                domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {})  => {
+                } else {
+                    Err(errors::ConnectorError::NotImplemented(
+                        "Unsupported response type".to_string(),
+                    )
+                    .into())
+                }
+            }
 
+            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
+                if let KlarnaAuthResponse::KlarnaCheckoutAuthResponse(ref response) = item.response
+                {
                     Ok(Self {
                         response: Ok(types::PaymentsResponseData::TransactionResponse {
                             resource_id: types::ResponseId::ConnectorTransactionId(
-                                            item.response.order_id.clone(),
-                                        ),
+                                response.order_id.clone(),
+                            ),
                             redirection_data: Box::new(Some(RedirectForm::KlarnaCheckout {
-                                html_snippet: item.response.html_snippet.clone().unwrap_or_default(),
+                                html_snippet: response.html_snippet.clone().unwrap_or_default(),
                             })),
                             mandate_reference: Box::new(None),
                             connector_metadata: None,
                             network_txn_id: None,
-                            connector_response_reference_id: None,
+                            connector_response_reference_id: Some(response.order_id.clone()),
                             incremental_authorization_allowed: None,
                             charge_id: None,
                         }),
-                        status: enums::AttemptStatus::from(item.response.status.unwrap_or(KlarnaCheckoutStatus::CheckoutComplete)),
+                        status: enums::AttemptStatus::from(response.status.clone()),
                         connector_response: Some(connector_response),
                         ..item.data
                     })
-                },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_card) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_card_details_for_network_transaction_id) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(_card_redirect_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(_wallet_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(_pay_later_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(_bank_redirect_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(_bank_debit_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(_bank_transfer_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(_crypto_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(_real_time_payment_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(_upi_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(_voucher_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(_gift_card_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(_card_token) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(_open_banking_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_network_token_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::MobilePayment(_mobile_payment_data) => {
-                Err(errors::ConnectorError::NotImplemented("payment method data".to_string()).into())
-            },
+                } else {
+                    Err(errors::ConnectorError::NotImplemented(
+                        "Unsupported response type".to_string(),
+                    )
+                    .into())
+                }
             }
+
+            _ => Err(errors::ConnectorError::NotImplemented(
+                "Unsupported payment method data".to_string(),
+            )
+            .into()),
+        }
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct OrderLines {
     name: String,
     quantity: u16,
@@ -597,11 +560,24 @@ impl From<KlarnaCheckoutStatus> for enums::AttemptStatus {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum KlarnaPsyncResponse {
+    KlarnaSDKPsyncResponse(KlarnaSDKSyncResponse),
+    KlarnaCheckoutPSyncResponse(KlarnaCheckoutSyncResponse),
+}
+
 #[derive(Debug, Serialize, Deserialize)]
-pub struct KlarnaPsyncResponse {
+pub struct KlarnaSDKSyncResponse {
     pub order_id: String,
     pub status: KlarnaPaymentStatus,
     pub klarna_reference: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct KlarnaCheckoutSyncResponse {
+    pub order_id: String,
+    pub status: KlarnaCheckoutStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -632,28 +608,46 @@ impl<F, T>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
+
     fn try_from(
         item: types::ResponseRouterData<F, KlarnaPsyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.order_id.clone(),
-                ),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: item
-                    .response
-                    .klarna_reference
-                    .or(Some(item.response.order_id)),
-                incremental_authorization_allowed: None,
-                charge_id: None,
+        match item.response {
+            KlarnaPsyncResponse::KlarnaSDKPsyncResponse(response) => Ok(Self {
+                status: enums::AttemptStatus::from(response.status),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.order_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: response
+                        .klarna_reference
+                        .or(Some(response.order_id.clone())),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+            KlarnaPsyncResponse::KlarnaCheckoutPSyncResponse(response) => Ok(Self {
+                status: enums::AttemptStatus::from(response.status),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.order_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(response.order_id.clone()),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
+            }),
+        }
     }
 }
 

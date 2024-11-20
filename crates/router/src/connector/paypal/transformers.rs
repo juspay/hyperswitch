@@ -1080,11 +1080,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                             utils::get_unimplemented_payment_method_error_message("paypal"),
                         ))
                     }
-                    enums::PaymentMethodType::KlarnaCheckout => {
-                        Err(errors::ConnectorError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("paypal"),
-                        ))
-                    }
                 };
 
                 Ok(Self {

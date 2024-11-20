@@ -136,7 +136,6 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Bacs
                 | PaymentMethodType::Givex
                 | PaymentMethodType::Klarna
-                | PaymentMethodType::KlarnaCheckout
                 | PaymentMethodType::Twint
                 | PaymentMethodType::Walley => match capture_method {
                     enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),

@@ -49,7 +49,6 @@ pub enum PayLaterType {
     AfterpayClearpay,
     Alma,
     Klarna,
-    KlarnaCheckout,
     PayBright,
     Walley,
     Atome,

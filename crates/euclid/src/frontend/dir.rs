@@ -834,7 +834,6 @@ mod test {
             dirval!(CardType = Credit),
             dirval!(CardNetwork = Visa),
             dirval!(PayLaterType = Klarna),
-            dirval!(PayLaterType = KlarnaCheckout),
             dirval!(WalletType = Paypal),
             dirval!(BankRedirectType = Sofort),
             dirval!(BankDebitType = Bacs),

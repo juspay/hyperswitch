@@ -358,7 +358,6 @@ pub struct KlarnaSdkResponse {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KlarnaCheckoutResponse {
     pub payment_type: Option<String>,
-    // pub html_snippet: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
