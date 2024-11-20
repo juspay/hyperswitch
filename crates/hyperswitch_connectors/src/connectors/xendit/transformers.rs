@@ -301,6 +301,17 @@ pub enum XenditChannelCode{
     BASCB
 }
 
+pub enum XenditDirectDebitUsability{
+    SINGLEUSE,
+    MULTIPLEUSE
+}
+
+pub enum XenditPaymentMethodStatus{
+    REQUIRESACTION,
+    ACTIVE,
+    PENDING
+}
+
 pub struct XenditLATDebitCardProperties{
     pub account_mobile_number: Secret<String>,
     pub card_last_four: Secret<String>, // Card's last four digits
@@ -310,8 +321,7 @@ pub struct XenditLATDebitCardProperties{
 
 pub struct XenditLATBankAccountProperties{
     pub success_redirect_url: String,
-    pub failure_redirect_url: Option<String>,
-    pub callback_url: Option<String>
+    pub failure_redirect_url: String,
 }
 
 pub struct XenditLATBCAOneKlikProperties{
@@ -322,25 +332,40 @@ pub struct XenditLATBCAOneKlikProperties{
 }
 
 // Step (2.1): Sending LAT Request
-pub struct XenditLinkedAccountTokenizationRequest<T>{
-    pub customer_id: String,
+
+pub struct XenditDirectDebitPayload<T>{
     pub channel_code: XenditChannelCode,
     pub properties: T,
+}
+pub struct XenditLinkedAccountTokenizationRequest<T>{
+    pub payment_method_type: String, // This would be "DIRECT_DEBIT" for this case
+    pub direct_debit: XenditDirectDebitPayload<T>,
+    pub reusability: XenditDirectDebitUsability,
+    pub customer_id: String
     // METADATA
+}
+
+pub struct XenditLATActions{
+    pub method: String,
+    pub url_type: String,
+    pub action: String,
+    pub url: String,
 }
 
 pub struct XenditLinkedAccountTokenizationResponse{
     pub id: String,
+    pub business_id: String,
     pub customer_id: String,
-    pub channel_code: XenditChannelCode,
-    pub authorizer_url: Option<String>,
-    pub status: XenditLATStatus,
+    pub reusability: XenditDirectDebitUsability,
+    pub status: XenditPaymentMethodStatus,
+    pub actions: Vec<XenditLATActions>
     // METADATA
 }
 
 // Step (2.2) - Validation of Linked Account Tokenization 
 // For debit card we have to send them OTP
 // For bank account Xendit LAT Response returns auth url from where customer has to authorize
+// This step might have been skipped in payments api v2
 
 pub struct XenditDebitCardValidateRequest{
     pub otp_code: String
