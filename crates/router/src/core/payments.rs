@@ -1642,10 +1642,15 @@ pub trait PaymentRedirectFlow: Sync {
 
         let query_params = req.param.clone().get_required_value("param")?;
 
+        #[cfg(feature = "v1")]
         let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_id",
             })?;
+
+        #[cfg(feature = "v2")]
+        //TODO: Will get the global payment id from the resource id, we need to handle this in the further flow
+        let resource_id: id_type::PaymentId = todo!();
 
         // This connector data is ephemeral, the call payment flow will get new connector data
         // with merchant account details, so the connector_id can be safely set to None here
@@ -5678,7 +5683,7 @@ pub fn is_network_transaction_id_flow(
         .connector_list;
 
     is_connector_agnostic_mit_enabled == Some(true)
-        && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
+        && payment_method_info.get_payment_method_type() == Some(storage_enums::PaymentMethod::Card)
         && ntid_supported_connectors.contains(&connector)
         && payment_method_info.network_transaction_id.is_some()
 }
@@ -5697,7 +5702,7 @@ pub fn is_network_token_with_network_transaction_id_flow(
     match (
         is_connector_agnostic_mit_enabled,
         is_network_tokenization_enabled,
-        payment_method_info.payment_method,
+        payment_method_info.get_payment_method_type(),
         payment_method_info.network_transaction_id.clone(),
         payment_method_info.network_token_locker_id.is_some(),
         payment_method_info
