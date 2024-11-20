@@ -32,8 +32,8 @@ use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, errors, merchant_account, payment_method_data,
-    ApiModelToDieselModelConvertor,
+    address::Address, business_profile, errors, merchant_account, payment_address,
+    payment_method_data, ApiModelToDieselModelConvertor,
 };
 
 #[cfg(feature = "v1")]

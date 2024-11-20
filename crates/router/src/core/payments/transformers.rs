@@ -432,7 +432,7 @@ pub async fn construct_router_data_for_psync<'a>(
         sync_type: types::SyncRequestType::SinglePaymentSync,
         payment_method_type: Some(attempt.payment_method_subtype),
         currency: payment_intent.amount_details.currency,
-        // TODO: Get the charges object from
+        // TODO: Get the charges object from feature metadata
         charges: None,
         payment_experience: None,
     };
@@ -505,30 +505,6 @@ pub async fn construct_router_data_for_psync<'a>(
     };
 
     Ok(router_data)
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
-pub async fn construct_payment_router_data<'a, F, T>(
-    state: &'a SessionState,
-    payment_data: PaymentData<F>,
-    connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
-    customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    merchant_recipient_data: Option<types::MerchantRecipientData>,
-    header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
-where
-    T: TryFrom<PaymentAdditionalData<'a, F>>,
-    types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
-    F: Clone,
-    error_stack::Report<errors::ApiErrorResponse>:
-        From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
-{
-    todo!()
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
