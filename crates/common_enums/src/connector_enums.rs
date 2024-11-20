@@ -98,6 +98,7 @@ pub enum RoutableConnectors {
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Paybox,
     Payme,
+    // Paymentwall,
     Payone,
     Paypal,
     Payu,
