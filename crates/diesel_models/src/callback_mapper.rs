@@ -8,7 +8,6 @@ use crate::schema::callback_mapper;
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize,
 )]
 #[diesel(table_name = callback_mapper,  primary_key(id), check_for_backend(diesel::pg::Pg))]
-
 pub struct CallBackMapper {
     pub id: String,
     #[serde(rename = "type")]

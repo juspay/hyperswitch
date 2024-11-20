@@ -23,6 +23,7 @@ pub mod router_request_types;
 pub mod router_response_types;
 pub mod type_encryption;
 pub mod types;
+pub mod callback_mapper;
 
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutAttemptInterface {}

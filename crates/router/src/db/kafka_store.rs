@@ -53,6 +53,7 @@ use crate::{
         authentication::AuthenticationInterface,
         authorization::AuthorizationInterface,
         business_profile::ProfileInterface,
+        callback_mapper::CallBackMapperInterface,
         capture::CaptureInterface,
         cards_info::CardsInfoInterface,
         configs::ConfigInterface,
@@ -3714,3 +3715,26 @@ impl ThemeInterface for KafkaStore {
             .await
     }
 }
+
+#[async_trait::async_trait]
+impl CallBackMapperInterface for KafkaStore {
+    async fn insert_call_back_mapper(
+        &self,
+        call_back_mapper: domain::CallBackMapperNew,
+    ) -> CustomResult<domain::CallBackMapper, errors::StorageError> {
+        self.diesel_store
+            .insert_call_back_mapper(call_back_mapper)
+            .await
+    }
+
+    async fn find_call_back_mapper_by_id(
+        &self,
+        id: String,
+    ) -> CustomResult<domain::CallBackMapper, errors::StorageError> {
+        self.diesel_store
+            .find_call_back_mapper_by_id(id)
+            .await
+    }
+
+}
+
