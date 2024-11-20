@@ -1,7 +1,6 @@
 use diesel_models::callback_mapper::{
     CallBackMapper as DieselCallBackMapper, CallBackMapperNew as DieselCallBackMapperNew,
 };
-
 use hyperswitch_domain_models::callback_mapper::{CallBackMapper, CallBackMapperNew};
 
 use crate::DataModelExt;

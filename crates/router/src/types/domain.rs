@@ -16,7 +16,7 @@ mod customers {
     pub use hyperswitch_domain_models::customer::*;
 }
 
-mod callback_mapper{
+mod callback_mapper {
     pub use hyperswitch_domain_models::callback_mapper::{CallBackMapper, CallBackMapperNew};
 }
 
