@@ -116,6 +116,7 @@ mod encrypt {
             S: masking::Strategy<String> + Send + Sync,
         > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
     {
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn encrypt_via_api(
             state: &KeyManagerState,
@@ -150,6 +151,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn decrypt_via_api(
             state: &KeyManagerState,
@@ -193,6 +195,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn encrypt(
             masked_data: Secret<String, S>,
@@ -204,6 +207,7 @@ mod encrypt {
             Ok(Self::new(masked_data, encrypted_data.into()))
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn decrypt(
             encrypted_data: Encryption,
@@ -221,6 +225,7 @@ mod encrypt {
             Ok(Self::new(value.into(), encrypted))
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_encrypt_via_api(
             state: &KeyManagerState,
@@ -255,6 +260,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_decrypt_via_api(
             state: &KeyManagerState,
@@ -297,6 +303,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_encrypt(
             masked_data: FxHashMap<String, Secret<String, S>>,
@@ -318,6 +325,7 @@ mod encrypt {
                 .collect()
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_decrypt(
             encrypted_data: FxHashMap<String, Encryption>,
@@ -345,6 +353,7 @@ mod encrypt {
         > TypeEncryption<serde_json::Value, V, S>
         for crypto::Encryptable<Secret<serde_json::Value, S>>
     {
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn encrypt_via_api(
             state: &KeyManagerState,
@@ -379,6 +388,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn decrypt_via_api(
             state: &KeyManagerState,
@@ -421,6 +431,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn encrypt(
             masked_data: Secret<serde_json::Value, S>,
@@ -434,6 +445,7 @@ mod encrypt {
             Ok(Self::new(masked_data, encrypted_data.into()))
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn decrypt(
             encrypted_data: Encryption,
@@ -449,6 +461,7 @@ mod encrypt {
             Ok(Self::new(value.into(), encrypted))
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_encrypt_via_api(
             state: &KeyManagerState,
@@ -483,6 +496,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_decrypt_via_api(
             state: &KeyManagerState,
@@ -525,6 +539,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_encrypt(
             masked_data: FxHashMap<String, Secret<serde_json::Value, S>>,
@@ -545,6 +560,7 @@ mod encrypt {
                 .collect()
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_decrypt(
             encrypted_data: FxHashMap<String, Encryption>,
@@ -599,6 +615,7 @@ mod encrypt {
         > TypeEncryption<EncryptedJsonType<T>, V, S>
         for crypto::Encryptable<Secret<EncryptedJsonType<T>, S>>
     {
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn encrypt_via_api(
             state: &KeyManagerState,
@@ -614,6 +631,7 @@ mod encrypt {
             Ok(Self::new(masked_data, result.into_encrypted()))
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn decrypt_via_api(
             state: &KeyManagerState,
@@ -630,6 +648,7 @@ mod encrypt {
                 .change_context(errors::CryptoError::DecodingFailed)
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn encrypt(
             masked_data: Secret<EncryptedJsonType<T>, S>,
@@ -642,6 +661,7 @@ mod encrypt {
             Ok(Self::new(masked_data, result.into_encrypted()))
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn decrypt(
             encrypted_data: Encryption,
@@ -655,6 +675,7 @@ mod encrypt {
                 .change_context(errors::CryptoError::DecodingFailed)
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_encrypt_via_api(
             state: &KeyManagerState,
@@ -698,6 +719,7 @@ mod encrypt {
             Ok(result_hashmap)
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_decrypt_via_api(
             state: &KeyManagerState,
@@ -731,6 +753,7 @@ mod encrypt {
             Ok(result_hashmap)
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_encrypt(
             masked_data: FxHashMap<String, Secret<EncryptedJsonType<T>, S>>,
@@ -769,6 +792,7 @@ mod encrypt {
             Ok(result_hashmap)
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_decrypt(
             encrypted_data: FxHashMap<String, Encryption>,
@@ -800,6 +824,7 @@ mod encrypt {
             S: masking::Strategy<Vec<u8>> + Send + Sync,
         > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
     {
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn encrypt_via_api(
             state: &KeyManagerState,
@@ -834,6 +859,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn decrypt_via_api(
             state: &KeyManagerState,
@@ -876,6 +902,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn encrypt(
             masked_data: Secret<Vec<u8>, S>,
@@ -887,6 +914,7 @@ mod encrypt {
             Ok(Self::new(masked_data, encrypted_data.into()))
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn decrypt(
             encrypted_data: Encryption,
@@ -899,6 +927,7 @@ mod encrypt {
             Ok(Self::new(data.into(), encrypted))
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_encrypt_via_api(
             state: &KeyManagerState,
@@ -933,6 +962,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_decrypt_via_api(
             state: &KeyManagerState,
@@ -975,6 +1005,7 @@ mod encrypt {
             }
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_encrypt(
             masked_data: FxHashMap<String, Secret<Vec<u8>, S>>,
@@ -993,6 +1024,7 @@ mod encrypt {
                 .collect()
         }
 
+        // Do not remove the `skip_all` as the key would be logged otherwise
         #[instrument(skip_all)]
         async fn batch_decrypt(
             encrypted_data: FxHashMap<String, Encryption>,
@@ -1021,17 +1053,32 @@ mod encrypt {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EncryptedJsonType<T>(T);
 
+impl<T> EncryptedJsonType<T> {
+    pub fn inner(&self) -> &T {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
 impl<T> From<T> for EncryptedJsonType<T> {
     fn from(value: T) -> Self {
         Self(value)
     }
 }
 
-impl<T> EncryptedJsonType<T> {
-    pub(crate) fn inner(&self) -> &T {
-        &self.0
+impl<T> std::ops::Deref for EncryptedJsonType<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner()
     }
 }
+
+/// Type alias for `Option<Encryptable<Secret<EncryptedJsonType<T>>>>`
+pub type OptionalEncryptableJsonType<T> = Option<crypto::Encryptable<Secret<EncryptedJsonType<T>>>>;
 
 pub trait Lift<U> {
     type SelfWrapper<T>;
@@ -1231,6 +1278,7 @@ pub enum CryptoOutput<T: Clone, S: masking::Strategy<T>> {
     BatchOperation(FxHashMap<String, crypto::Encryptable<Secret<T, S>>>),
 }
 
+// Do not remove the `skip_all` as the key would be logged otherwise
 #[instrument(skip_all, fields(table = table_name))]
 pub async fn crypto_operation<T: Clone + Send, S: masking::Strategy<T>>(
     state: &KeyManagerState,

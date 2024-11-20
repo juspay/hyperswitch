@@ -593,3 +593,13 @@ where
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
 }
+
+#[cfg(feature = "v2")]
+impl<F> PaymentStatusData<F>
+where
+    F: Clone,
+{
+    pub fn get_payment_id(&self) -> &id_type::GlobalPaymentId {
+        &self.payment_intent.id
+    }
+}

@@ -3520,6 +3520,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout: config.sdk_layout,
             display_sdk_only: config.display_sdk_only,
             enabled_saved_payment_method: config.enabled_saved_payment_method,
+            hide_card_nickname_field: config.hide_card_nickname_field,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
@@ -3572,6 +3573,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             sdk_layout: config.sdk_layout,
             display_sdk_only: config.display_sdk_only,
             enabled_saved_payment_method: config.enabled_saved_payment_method,
+            hide_card_nickname_field: config.hide_card_nickname_field,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
