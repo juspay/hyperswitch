@@ -540,7 +540,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     extended_authorization_applied: payment_attempt
                         .extended_authorization_applied
                         .clone(),
-                    capture_before: payment_attempt.capture_before.clone(),
+                    capture_before: payment_attempt.capture_before,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);

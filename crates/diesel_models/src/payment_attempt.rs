@@ -177,7 +177,6 @@ pub struct PaymentAttempt {
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub capture_before: Option<PrimitiveDateTime>,
 }
 
