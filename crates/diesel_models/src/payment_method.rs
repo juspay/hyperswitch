@@ -248,6 +248,11 @@ pub enum PaymentMethodUpdate {
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<serde_json::Value>,
     },
+    NetworkTokenDataUpdate {
+        network_token_requestor_reference_id: Option<String>,
+        network_token_locker_id: Option<String>,
+        network_token_payment_method_data: Option<Encryption>,
+    },
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -619,6 +624,27 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+            },
+            PaymentMethodUpdate::NetworkTokenDataUpdate {
+                network_token_requestor_reference_id,
+                network_token_locker_id,
+                network_token_payment_method_data,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                status: None,
+                locker_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_issuer: None,
+                payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
+                network_transaction_id: None,
+                network_token_requestor_reference_id,
+                network_token_locker_id,
+                network_token_payment_method_data,
             },
         }
     }
