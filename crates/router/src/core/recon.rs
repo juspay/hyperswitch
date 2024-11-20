@@ -1,4 +1,4 @@
-use api_models::{recon as recon_api, user as user_api};
+use api_models::{recon as recon_api};
 #[cfg(feature = "email")]
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
