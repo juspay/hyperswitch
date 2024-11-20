@@ -8,7 +8,6 @@ pub struct RefundMetricsAccumulator {
     pub refund_count: CountAccumulator,
     pub refund_success: CountAccumulator,
     pub processed_amount: RefundProcessedAmountAccumulator,
-    pub refunds_distribution: RefundsDistributionAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -25,13 +24,6 @@ pub struct CountAccumulator {
 pub struct RefundProcessedAmountAccumulator {
     pub count: Option<i64>,
     pub total: Option<i64>,
-}
-
-#[derive(Debug, Default)]
-pub struct RefundsDistributionAccumulator {
-    pub success: u32,
-    pub failed: u32,
-    pub total: u32,
 }
 
 pub trait RefundMetricAccumulator {
@@ -123,57 +115,12 @@ impl RefundMetricAccumulator for SuccessRateAccumulator {
     }
 }
 
-impl RefundMetricAccumulator for RefundsDistributionAccumulator {
-    type MetricOutput = (Option<f64>, Option<f64>);
-
-    fn add_metrics_bucket(&mut self, metrics: &RefundMetricRow) {
-        if let Some(ref refund_status) = metrics.refund_status {
-            if refund_status.as_ref() == &storage_enums::RefundStatus::Success {
-                if let Some(success) = metrics
-                    .count
-                    .and_then(|success| u32::try_from(success).ok())
-                {
-                    self.success += success;
-                }
-            }
-            if refund_status.as_ref() == &storage_enums::RefundStatus::Failure {
-                if let Some(failed) = metrics.count.and_then(|failed| u32::try_from(failed).ok()) {
-                    self.failed += failed;
-                }
-            }
-        };
-        if let Some(total) = metrics.count.and_then(|total| u32::try_from(total).ok()) {
-            self.total += total;
-        }
-    }
-
-    fn collect(self) -> Self::MetricOutput {
-        let success = Some(self.success);
-        let failed = Some(self.failed);
-        let total = Some(self.total);
-
-        let success_rate = match (success, total) {
-            (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
-            _ => None,
-        };
-
-        let failed_rate = match (failed, total) {
-            (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
-            _ => None,
-        };
-
-        (success_rate, failed_rate)
-    }
-}
-
 impl RefundMetricsAccumulator {
     pub fn collect(self) -> RefundMetricsBucketValue {
         let (successful_refunds, total_refunds, refund_success_rate) =
             self.refund_success_rate.collect();
         let (refund_processed_amount, refund_processed_count, refund_processed_amount_in_usd) =
             self.processed_amount.collect();
-        let (refund_success_rate_distribution, refund_failure_rate_distribution) =
-            self.refunds_distribution.collect();
         RefundMetricsBucketValue {
             successful_refunds,
             total_refunds,
@@ -183,8 +130,6 @@ impl RefundMetricsAccumulator {
             refund_processed_amount,
             refund_processed_amount_in_usd,
             refund_processed_count,
-            refund_success_rate_distribution,
-            refund_failure_rate_distribution,
         }
     }
 }

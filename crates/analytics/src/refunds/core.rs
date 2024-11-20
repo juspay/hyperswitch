@@ -106,9 +106,6 @@ pub async fn get_metrics(
                 | RefundMetrics::SessionizedRefundProcessedAmount => {
                     metrics_builder.processed_amount.add_metrics_bucket(&value)
                 }
-                RefundMetrics::SessionizedRefundsDistribution => metrics_builder
-                    .refunds_distribution
-                    .add_metrics_bucket(&value),
             }
         }
 

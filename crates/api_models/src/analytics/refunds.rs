@@ -92,7 +92,6 @@ pub enum RefundMetrics {
     SessionizedRefundCount,
     SessionizedRefundSuccessCount,
     SessionizedRefundProcessedAmount,
-    SessionizedRefundsDistribution,
 }
 
 pub mod metric_behaviour {
@@ -125,6 +124,7 @@ pub struct RefundMetricsBucketIdentifier {
     pub currency: Option<Currency>,
     pub refund_status: Option<String>,
     pub connector: Option<String>,
+
     pub refund_type: Option<String>,
     pub profile_id: Option<String>,
     #[serde(rename = "time_range")]
@@ -184,8 +184,6 @@ pub struct RefundMetricsBucketValue {
     pub refund_processed_amount: Option<u64>,
     pub refund_processed_amount_in_usd: Option<u64>,
     pub refund_processed_count: Option<u64>,
-    pub refund_success_rate_distribution: Option<f64>,
-    pub refund_failure_rate_distribution: Option<f64>,
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketResponse {
