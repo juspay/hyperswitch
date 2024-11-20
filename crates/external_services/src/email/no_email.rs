@@ -1,5 +1,6 @@
 use common_utils::{errors::CustomResult, pii};
 use router_env::logger;
+
 use crate::email::{EmailClient, EmailError, EmailResult, IntermediateString};
 
 /// Client when email support is disabled

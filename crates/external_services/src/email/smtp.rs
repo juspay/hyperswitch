@@ -33,7 +33,9 @@ impl SmtpServer {
             .username
             .clone()
             .zip(self.smtp_config.password.clone())
-            .map(|(username, password)| Credentials::new(username.peek().to_owned(), password.peek().to_owned()));
+            .map(|(username, password)| {
+                Credentials::new(username.peek().to_owned(), password.peek().to_owned())
+            });
         match &self.smtp_config.connection {
             SmtpConnection::StartTls => match credentials {
                 Some(credentials) => Ok(SmtpTransport::starttls_relay(&host)
