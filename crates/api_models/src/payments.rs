@@ -861,7 +861,7 @@ pub struct PaymentsRequest {
 
     /// Choose what kind of sca exemption is required for this payment
     #[schema(value_type = Option<ScaExemptionType>)]
-    pub sca_exemption_required: Option<api_enums::ScaExemptionType>,
+    pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
 }
 
 #[cfg(feature = "v1")]

@@ -272,7 +272,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
         payment_intent.sca_exemption_required = request
-            .sca_exemption_required
+            .psd2_sca_exemption_type
             .or(payment_intent.sca_exemption_required);
         Self::populate_payment_intent_with_request(&mut payment_intent, request);
 

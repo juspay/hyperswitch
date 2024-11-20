@@ -1668,7 +1668,7 @@ pub enum PaymentType {
     RecurringMandate,
 }
 
-/// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
+/// SCA Exemptions types available for authentication
 #[derive(
     Clone,
     Copy,
@@ -1687,11 +1687,8 @@ pub enum PaymentType {
 #[strum(serialize_all = "snake_case")]
 pub enum ScaExemptionType {
     #[default]
-    LowValueExemption,
-    LowRiskExemption,
-    SecureCorporateExemption,
-    TrustedBeneficiaryExemption,
-    MerchantInitiatedTransactionExemption,
+    LowValue,
+    TransactionRiskAnalysis,
 }
 
 #[derive(

@@ -43,6 +43,7 @@ pub fn construct_authentication_router_data(
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
     three_ds_requestor_url: String,
+    sca_exemption_required: Option<common_enums::ScaExemptionType>,
 ) -> RouterResult<types::authentication::ConnectorAuthenticationRouterData> {
     let router_request = types::authentication::ConnectorAuthenticationRequestData {
         payment_method_data,
@@ -70,6 +71,7 @@ pub fn construct_authentication_router_data(
         types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,
+        sca_exemption_required,
     )
 }
 
@@ -94,6 +96,7 @@ pub fn construct_post_authentication_router_data(
         types::PaymentAddress::default(),
         router_request,
         &merchant_connector_account,
+        None,
     )
 }
 
@@ -119,6 +122,7 @@ pub fn construct_pre_authentication_router_data<F: Clone>(
         types::PaymentAddress::default(),
         router_request,
         merchant_connector_account,
+        None,
     )
 }
 
@@ -129,6 +133,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
     address: types::PaymentAddress,
     request_data: Req,
     merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
+    sca_exemption_required: Option<common_enums::ScaExemptionType>,
 ) -> RouterResult<types::RouterData<F, Req, Res>> {
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
@@ -185,7 +190,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
-        sca_exemption_required: None,
+        sca_exemption_required,
     })
 }
 

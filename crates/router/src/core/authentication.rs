@@ -39,6 +39,7 @@ pub async fn perform_authentication(
     email: Option<common_utils::pii::Email>,
     webhook_url: String,
     three_ds_requestor_url: String,
+    sca_exemption_required: Option<common_enums::ScaExemptionType>,
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let router_data = transformers::construct_authentication_router_data(
         merchant_id,
@@ -60,6 +61,7 @@ pub async fn perform_authentication(
         email,
         webhook_url,
         three_ds_requestor_url,
+        sca_exemption_required,
     )?;
     let response = Box::pin(utils::do_auth_connector_call(
         state,
