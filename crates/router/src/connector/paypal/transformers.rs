@@ -1099,11 +1099,11 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 )?;
 
                 let payment_source = match payment_method_type {
-                    enums::PaymentMethodType::Credit => Ok(Some(PaymentSourceItem::Card(
-                        CardRequest::CardVaultStruct(VaultStruct {
+                    enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit => Ok(Some(
+                        PaymentSourceItem::Card(CardRequest::CardVaultStruct(VaultStruct {
                             vault_id: connector_mandate_id.into(),
-                        }),
-                    ))),
+                        })),
+                    )),
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
                         PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
                             vault_id: connector_mandate_id.into(),
@@ -1135,7 +1135,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     | enums::PaymentMethodType::Cashapp
                     | enums::PaymentMethodType::Dana
                     | enums::PaymentMethodType::DanamonVa
-                    | enums::PaymentMethodType::Debit
                     | enums::PaymentMethodType::DirectCarrierBilling
                     | enums::PaymentMethodType::DuitNow
                     | enums::PaymentMethodType::Efecty
