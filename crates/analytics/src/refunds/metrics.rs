@@ -122,6 +122,11 @@ where
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
+            Self::SessionizedRefundsDistribution => {
+                sessionized_metrics::RefundsDistribution::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
         }
     }
 }
