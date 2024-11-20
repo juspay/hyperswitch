@@ -568,7 +568,7 @@ common_utils::create_list_wrapper!(
             &self,
         ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType)> {
             let connector_and_supporting_payment_method_type = self.iter().flat_map(|connector_account| {
-                let res = connector_account
+                connector_account
                     .get_parsed_payment_methods_enabled()
                     // TODO: make payment_methods_enabled strict type in DB
                     .into_iter()
@@ -596,8 +596,7 @@ common_utils::create_list_wrapper!(
                             })
                             .collect::<Vec<_>>()
                     })
-                    .collect::<Vec<_>>();
-                res
+                    .collect::<Vec<_>>()
             }).collect();
             connector_and_supporting_payment_method_type
         }
