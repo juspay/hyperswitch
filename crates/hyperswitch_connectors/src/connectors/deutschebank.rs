@@ -39,7 +39,9 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response, PaymentMethodDetails, SupportedPaymentMethods, PaymentMethodTypeMetadata},
+    types::{
+        self, PaymentMethodDetails, PaymentMethodTypeMetadata, Response, SupportedPaymentMethods,
+    },
     webhooks,
 };
 use masking::{ExposeInterface, Mask, Secret};
@@ -145,7 +147,8 @@ impl ConnectorCommon for Deutschebank {
                 supports_mandates: true,
             },
         );
-        supported_payment_methods.insert(enums::PaymentMethod::BankDebit, bank_debit_payment_method);
+        supported_payment_methods
+            .insert(enums::PaymentMethod::BankDebit, bank_debit_payment_method);
         Some(supported_payment_methods)
     }
 
