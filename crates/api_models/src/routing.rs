@@ -541,7 +541,15 @@ impl DynamicRoutingAlgoAccessor<SuccessBasedAlgorithm> for DynamicRoutingAlgorit
     }
 }
 
-impl DynamicRoutingAlgoAccessor<EliminationRoutingAlgorithm> for DynamicRoutingAlgorithmRef {}
+impl DynamicRoutingAlgoAccessor<EliminationRoutingAlgorithm> for DynamicRoutingAlgorithmRef {
+    fn get_algorithm(&self) -> &Option<EliminationRoutingAlgorithm> {
+        &self.elimination_routing_algorithm
+    }
+
+    fn get_algorithm_mut(&mut self) -> &mut Option<EliminationRoutingAlgorithm> {
+        &mut self.elimination_routing_algorithm
+    }
+}
 
 impl EliminationRoutingAlgorithm {
     pub fn new(
@@ -639,7 +647,7 @@ impl DynamicRoutingAlgorithmRef {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct ToggleSuccessBasedRoutingQuery {
+pub struct ToggleDynamicRoutingQuery {
     pub enable: DynamicRoutingFeatures,
 }
 
@@ -661,13 +669,13 @@ pub struct SuccessBasedRoutingUpdateConfigQuery {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct ToggleSuccessBasedRoutingWrapper {
+pub struct ToggleDynamicRoutingWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
     pub feature_to_enable: DynamicRoutingFeatures,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct ToggleSuccessBasedRoutingPath {
+pub struct ToggleDynamicRoutingPath {
     #[schema(value_type = String)]
     pub profile_id: common_utils::id_type::ProfileId,
 }
@@ -752,7 +760,7 @@ pub struct SuccessBasedRoutingPayloadWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, strum::Display, serde::Serialize, serde::Deserialize)]
 pub enum DynamicRoutingType {
     SuccessRateBasedRouting,
     EliminationRouting,

@@ -1018,11 +1018,11 @@ pub async fn routing_update_default_config_for_profile(
 pub async fn toggle_success_based_routing(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<api_models::routing::ToggleSuccessBasedRoutingQuery>,
-    path: web::Path<routing_types::ToggleSuccessBasedRoutingPath>,
+    query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
+    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
 ) -> impl Responder {
     let flow = Flow::ToggleDynamicRouting;
-    let wrapper = routing_types::ToggleSuccessBasedRoutingWrapper {
+    let wrapper = routing_types::ToggleDynamicRoutingWrapper {
         feature_to_enable: query.into_inner().enable,
         profile_id: path.into_inner().profile_id,
     };
@@ -1033,9 +1033,9 @@ pub async fn toggle_success_based_routing(
         wrapper.clone(),
         |state,
          auth: auth::AuthenticationData,
-         wrapper: routing_types::ToggleSuccessBasedRoutingWrapper,
+         wrapper: routing_types::ToggleDynamicRoutingWrapper,
          _| {
-            routing::toggle_success_based_routing(
+            routing::toggle_specific_dynamic_routing(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -1095,11 +1095,11 @@ pub async fn success_based_routing_update_configs(
 pub async fn toggle_elimination_routing(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<api_models::routing::ToggleSuccessBasedRoutingQuery>,
-    path: web::Path<routing_types::ToggleSuccessBasedRoutingPath>,
+    query: web::Query<api_models::routing::ToggleDynamicRoutingQuery>,
+    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
 ) -> impl Responder {
     let flow = Flow::ToggleDynamicRouting;
-    let wrapper = routing_types::ToggleSuccessBasedRoutingWrapper {
+    let wrapper = routing_types::ToggleDynamicRoutingWrapper {
         feature_to_enable: query.into_inner().enable,
         profile_id: path.into_inner().profile_id,
     };
@@ -1110,9 +1110,9 @@ pub async fn toggle_elimination_routing(
         wrapper.clone(),
         |state,
          auth: auth::AuthenticationData,
-         wrapper: routing_types::ToggleSuccessBasedRoutingWrapper,
+         wrapper: routing_types::ToggleDynamicRoutingWrapper,
          _| {
-            routing::toggle_success_based_routing(
+            routing::toggle_specific_dynamic_routing(
                 state,
                 auth.merchant_account,
                 auth.key_store,

@@ -1193,7 +1193,7 @@ pub async fn update_default_routing_config_for_profile(
 // Toggle the specific routing type as well as add the default configs in RoutingAlgorithm table
 // and update the same in business profile table.
 #[cfg(feature = "v1")]
-pub async fn toggle_success_based_routing(
+pub async fn toggle_specific_dynamic_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -1238,7 +1238,7 @@ pub async fn toggle_success_based_routing(
         | routing::DynamicRoutingFeatures::DynamicConnectorSelection => {
             // occurs when algorithm is already present in the db
             // 1. If present with same feature then return response as already enabled
-            // 2. Else update the feature and preserve the same on database
+            // 2. Else update the feature and persist the same on db
             // 3. If not present in db then create a new default entry
             helpers::enable_dynamic_routing_algorithm(
                 &state,
@@ -1251,13 +1251,14 @@ pub async fn toggle_success_based_routing(
             .await
         }
         routing::DynamicRoutingFeatures::None => {
-            // disable success based routing for the requested profile
+            // disable specific dynamic routing for the requested profile
             helpers::disable_dynamic_routing_algorithm(
                 &state,
                 key_store,
                 business_profile,
                 feature_to_enable,
                 dynamic_routing_algo_ref,
+                dynamic_routing_type,
             )
             .await
         }
