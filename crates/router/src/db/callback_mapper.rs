@@ -28,19 +28,15 @@ impl CallBackMapperInterface for Store {
     #[instrument(skip_all)]
     async fn insert_call_back_mapper(
         &self,
-        call_back_mapper: DomainCallBackMapper::CallBackMapperNew, //take domain model as input
+        call_back_mapper: DomainCallBackMapper::CallBackMapperNew,
     ) -> CustomResult<DomainCallBackMapper::CallBackMapper, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let storage_model = call_back_mapper
+        call_back_mapper
             .to_storage_model()
             .insert(&conn)
             .await
-            .map_err(|error| report!(errors::StorageError::from(error)))?;
-
-        // Convert the storage model back to domain model
-        Ok(DomainCallBackMapper::CallBackMapper::from_storage_model(
-            storage_model,
-        ))
+            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map(DomainCallBackMapper::CallBackMapper::from_storage_model)
     }
 
     async fn find_call_back_mapper_by_id(
@@ -48,10 +44,9 @@ impl CallBackMapperInterface for Store {
         id: String,
     ) -> CustomResult<DomainCallBackMapper::CallBackMapper, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        Ok(DomainCallBackMapper::CallBackMapper::from_storage_model(
-            storage::CallBackMapper::find_by_id(&conn, id)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))?,
-        ))
+        storage::CallBackMapper::find_by_id(&conn, id)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+            .map(DomainCallBackMapper::CallBackMapper::from_storage_model)
     }
 }
