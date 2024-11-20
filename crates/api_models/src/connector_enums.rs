@@ -96,7 +96,7 @@ pub enum Connector {
     Nexinets,
     Nexixpay,
     Nmi,
-    // Nomupay,
+    Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -144,6 +144,7 @@ impl Connector {
             (Self::Paypal, Some(PayoutType::Wallet))
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
+                | (Self::Nomupay, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -164,7 +165,7 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_vendor_disburse_account_create_for_payout(&self) -> bool {
-        matches!(self, Self::Stripe)
+        matches!(self, Self::Stripe | Self::Nomupay)
     }
     pub fn supports_access_token(&self, payment_method: PaymentMethod) -> bool {
         matches!(
@@ -238,7 +239,7 @@ impl Connector {
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
-            // | Self::Nomupay
+            | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
