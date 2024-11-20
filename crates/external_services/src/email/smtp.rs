@@ -9,7 +9,7 @@ use lettre::{
     transport::smtp::{self, authentication::Credentials},
     Message, SmtpTransport, Transport,
 };
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 
 use crate::email::{EmailClient, EmailError, EmailResult, EmailSettings, IntermediateString};
 
@@ -33,7 +33,7 @@ impl SmtpServer {
             .username
             .clone()
             .zip(self.smtp_config.password.clone())
-            .map(|(username, password)| Credentials::new(username.to_owned(), password.to_owned()));
+            .map(|(username, password)| Credentials::new(username.peek().to_owned(), password.peek().to_owned()));
         match &self.smtp_config.connection {
             SmtpConnection::StartTls => match credentials {
                 Some(credentials) => Ok(SmtpTransport::starttls_relay(&host)
@@ -83,16 +83,16 @@ impl SmtpServer {
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct SmtpServerConfig {
-    /// hostname of the SMTP server eg: smtp.google.com
+    /// hostname of the SMTP server eg: smtp.gmail.com
     pub host: String,
     /// portname of the SMTP server eg: 25
     pub port: u16,
-    /// timeout for the SMTP server connection eg: 10
+    /// timeout for the SMTP server connection in seconds eg: 10
     pub timeout: u64,
     /// Username name of the SMTP server
-    pub username: Option<String>,
+    pub username: Option<Secret<String>>,
     /// Password of the SMTP server
-    pub password: Option<String>,
+    pub password: Option<Secret<String>>,
     /// Connection type of the SMTP server
     #[serde(default)]
     pub connection: SmtpConnection,
@@ -119,10 +119,10 @@ impl SmtpServerConfig {
         self.username.clone().zip(self.password.clone()).map_or(
             Ok(()),
             |(username, password)| {
-                when(username.is_default_or_empty(), || {
+                when(username.peek().is_default_or_empty(), || {
                     Err("email.smtp.username must not be empty")
                 })?;
-                when(password.is_default_or_empty(), || {
+                when(password.peek().is_default_or_empty(), || {
                     Err("email.smtp.password must not be empty")
                 })
             },

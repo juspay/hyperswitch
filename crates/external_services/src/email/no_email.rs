@@ -1,5 +1,5 @@
 use common_utils::{errors::CustomResult, pii};
-
+use router_env::logger;
 use crate::email::{EmailClient, EmailError, EmailResult, IntermediateString};
 
 /// Client when email support is disabled
@@ -30,6 +30,7 @@ impl EmailClient for NoEmailClient {
         _body: Self::RichText,
         _proxy_url: Option<&String>,
     ) -> EmailResult<()> {
+        logger::info!("Email not sent as email support is disabled, please enable any of the supported email clients to send emails");
         Ok(())
     }
 }

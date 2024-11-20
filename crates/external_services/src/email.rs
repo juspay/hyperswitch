@@ -120,19 +120,6 @@ dyn_clone::clone_trait_object!(EmailClient<RichText = Body>);
 
 /// List of available email clients to choose from
 #[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum AvailableEmailClients {
-    /// Default Email client to use when no client is specified
-    #[default]
-    NoEmailClient,
-    /// AWS ses email client
-    Ses,
-    /// Other Simple SMTP server
-    Smtp,
-}
-
-/// List of available email clients to choose from
-#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(tag = "active_email_client")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum EmailClientConfigs {
