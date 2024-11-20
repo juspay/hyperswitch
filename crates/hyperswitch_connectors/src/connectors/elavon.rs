@@ -263,9 +263,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ela
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
+                .set_body(types::PaymentsSyncType::get_request_body(
+                    self, req, connectors,
+                )?)
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
         ))
@@ -515,7 +518,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Elavon {
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
+                .method(Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)

@@ -52,6 +52,7 @@ pub enum TransactionType {
 pub enum SyncTransactionType {
     Sale,
     AuthOnly,
+    Return,
 }
 
 #[derive(Debug, Serialize)]
@@ -526,7 +527,7 @@ fn map_payment_status(
 impl From<&ElavonPaymentsResponse> for enums::RefundStatus {
     fn from(item: &ElavonPaymentsResponse) -> Self {
         if item.is_successful() {
-            Self::Pending
+            Self::Success 
         } else {
             Self::Failure
         }
@@ -554,6 +555,7 @@ impl From<&ElavonSyncResponse> for enums::AttemptStatus {
             TransactionSyncStatus::STL => match item.ssl_transaction_type {
                 SyncTransactionType::Sale => Self::Charged,
                 SyncTransactionType::AuthOnly => Self::Authorized,
+                SyncTransactionType::Return => Self::Pending,
             },
             TransactionSyncStatus::PST
             | TransactionSyncStatus::FPR
