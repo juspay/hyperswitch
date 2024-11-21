@@ -163,10 +163,28 @@ impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveReques
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();
 
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            payment_intent
+                .shipping_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_intent
+                .billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_attempt
+                .as_ref()
+                .and_then(|payment_attempt| payment_attempt.payment_method_billing_address.as_ref())
+                .cloned()
+                .map(|address| address.into_inner()),
+            Some(true),
+        );
+
         let payment_data = PaymentStatusData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
+            payment_address,
             should_sync_with_connector,
         };
 

@@ -3305,6 +3305,7 @@ pub enum PresenceOfCustomerDuringPayment {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum TaxCalculationOverride {
     /// Skip calling the external tax provider
     #[default]
@@ -3314,6 +3315,7 @@ pub enum TaxCalculationOverride {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum SurchargeCalculationOverride {
     /// Skip calculating surcharge
     #[default]

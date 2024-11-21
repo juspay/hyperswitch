@@ -907,6 +907,7 @@ where
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 id: payment_intent.id.clone(),
+                profile_id: payment_intent.profile_id.clone(),
                 status: payment_intent.status,
                 amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
                     payment_intent.amount_details.clone(),
@@ -1009,6 +1010,17 @@ where
             .clone()
             .map(api_models::payments::ErrorDetails::foreign_from);
 
+        let payment_address = payment_data.get_address();
+
+        let payment_method_data =
+            Some(api_models::payments::PaymentMethodDataResponseWithBilling {
+                payment_method_data: None,
+                billing: payment_address
+                    .get_request_payment_method_billing()
+                    .cloned()
+                    .map(From::from),
+            });
+
         // TODO: Add support for other next actions, currently only supporting redirect to url
         let redirect_to_url = payment_intent
             .create_start_redirection_url(base_url, merchant_account.publishable_key.clone())?;
@@ -1024,7 +1036,7 @@ where
             connector,
             client_secret: payment_intent.client_secret.clone(),
             created: payment_intent.created_at,
-            payment_method_data: None,
+            payment_method_data,
             payment_method_type: payment_attempt.payment_method_type,
             payment_method_subtype: payment_attempt.payment_method_subtype,
             next_action,
@@ -1079,6 +1091,17 @@ where
             .and_then(|payment_attempt| payment_attempt.error.clone())
             .map(api_models::payments::ErrorDetails::foreign_from);
 
+        let payment_address = payment_data.get_address();
+
+        let payment_method_data =
+            Some(api_models::payments::PaymentMethodDataResponseWithBilling {
+                payment_method_data: None,
+                billing: payment_address
+                    .get_request_payment_method_billing()
+                    .cloned()
+                    .map(From::from),
+            });
+
         let response = Self {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
@@ -1086,7 +1109,7 @@ where
             connector,
             client_secret: payment_intent.client_secret.clone(),
             created: payment_intent.created_at,
-            payment_method_data: None,
+            payment_method_data,
             payment_method_type: payment_attempt.map(|attempt| attempt.payment_method_type),
             payment_method_subtype: payment_attempt.map(|attempt| attempt.payment_method_subtype),
             connector_transaction_id: payment_attempt
@@ -3320,10 +3343,10 @@ impl
             currency: intent_amount_details.currency,
             shipping_cost: attempt_amount_details.shipping_cost,
             order_tax_amount: attempt_amount_details.order_tax_amount,
-            skip_external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
+            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
                 intent_amount_details.skip_external_tax_calculation,
             ),
-            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
+            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
                 intent_amount_details.skip_surcharge_calculation,
             ),
             surcharge_amount: attempt_amount_details.surcharge_amount,
@@ -3363,10 +3386,10 @@ impl
                     .tax_details
                     .as_ref()
                     .and_then(|tax_details| tax_details.get_default_tax_amount())),
-            skip_external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
+            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
                 intent_amount_details.skip_external_tax_calculation,
             ),
-            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
+            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
                 intent_amount_details.skip_surcharge_calculation,
             ),
             surcharge_amount: attempt_amount_details
@@ -3423,10 +3446,10 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
             order_tax_amount: amount_details.tax_details.and_then(|tax_details| {
                 tax_details.default.map(|default| default.order_tax_amount)
             }),
-            skip_external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
+            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
                 amount_details.skip_external_tax_calculation,
             ),
-            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
+            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
                 amount_details.skip_surcharge_calculation,
             ),
             surcharge_amount: amount_details.surcharge_amount,
