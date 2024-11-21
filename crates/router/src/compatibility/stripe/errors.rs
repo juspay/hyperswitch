@@ -278,6 +278,8 @@ pub enum StripeErrorCode {
     InvalidTenant,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "HE_01", message = "Failed to convert amount to {amount_type} type")]
     AmountConversionFailed { amount_type: &'static str },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Bad Request")]
+    PlatformBadRequest,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -677,6 +679,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::AmountConversionFailed { amount_type } => {
                 Self::AmountConversionFailed { amount_type }
             }
+            errors::ApiErrorResponse::PlatfromAccountAuthNotSupported => Self::PlatformBadRequest,
         }
     }
 }
@@ -750,6 +753,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::CurrencyConversionFailed
             | Self::PaymentMethodDeleteFailed
             | Self::ExtendedCardInfoNotFound
+            | Self::PlatformBadRequest
             | Self::LinkConfigurationError { .. } => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed

@@ -293,6 +293,8 @@ pub enum ApiErrorResponse {
         field_names: String,
         connector_transaction_id: Option<String>,
     },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_42", message = "This API does not support platfrom account")]
+    PlatfromAccountAuthNotSupported,
 }
 
 #[derive(Clone)]
@@ -659,6 +661,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                     ..Default::default()
                 })
             )),
+            Self::PlatfromAccountAuthNotSupported => {
+                AER::BadRequest(ApiError::new("IR", 42, "API does not support platform merchant account", None))
+            }
         }
     }
 }

@@ -57,7 +57,7 @@ mod detached;
 #[derive(Clone, Debug)]
 pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
-    // pub platform_merchant_account: Option<domain::MerchantAccount>,
+    pub platform_merchant_account: Option<domain::MerchantAccount>,
     pub key_store: domain::MerchantKeyStore,
     pub profile_id: Option<id_type::ProfileId>,
 }
@@ -485,6 +485,8 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        throw_error_if_platform_merchant_authentication_required(request_headers)?;
+
         let api_key = get_api_key(request_headers)
             .change_context(errors::ApiErrorResponse::Unauthorized)?
             .trim();
@@ -547,6 +549,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account: None,
             key_store,
             profile_id: None,
         };
@@ -736,6 +739,7 @@ where
 
     let auth = AuthenticationData {
         merchant_account: merchant,
+        platform_merchant_account: None,
         key_store,
         profile_id: None,
     };
@@ -942,6 +946,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account: None,
             key_store,
             profile_id: None,
         };
@@ -1145,6 +1150,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account: None,
             key_store,
             profile_id: None,
         };
@@ -1252,9 +1258,11 @@ where
 {
     async fn authenticate_and_fetch(
         &self,
-        _request_headers: &HeaderMap,
+        request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        throw_error_if_platform_merchant_authentication_required(request_headers)?;
+
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1274,6 +1282,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account: None,
             key_store,
             profile_id: None,
         };
@@ -1417,6 +1426,8 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        throw_error_if_platform_merchant_authentication_required(request_headers)?;
+
         let publishable_key =
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let key_manager_state = &(&state.session_state()).into();
@@ -1430,6 +1441,7 @@ where
                 (
                     AuthenticationData {
                         merchant_account,
+                        platform_merchant_account: None,
                         key_store,
                         profile_id: None,
                     },
@@ -1766,6 +1778,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account: None,
             key_store,
             profile_id: payload.profile_id,
         };
@@ -1948,6 +1961,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account: None,
             key_store,
             profile_id: payload.profile_id,
         };
@@ -2099,6 +2113,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account: None,
             key_store,
             profile_id: payload.profile_id,
         };
@@ -2171,6 +2186,7 @@ where
                 // if both of them are same then proceed with the profile id present in the request
                 let auth = AuthenticationData {
                     merchant_account: merchant,
+                    platform_merchant_account: None,
                     key_store,
                     profile_id: Some(self.profile_id.clone()),
                 };
@@ -2186,6 +2202,7 @@ where
             // if profile_id is not present in the auth_layer itself then no change in behaviour
             let auth = AuthenticationData {
                 merchant_account: merchant,
+                platform_merchant_account: None,
                 key_store,
                 profile_id: payload.profile_id,
             };
@@ -2336,6 +2353,7 @@ where
         let merchant_id = merchant.get_id().clone();
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account: None,
             key_store,
             profile_id: payload.profile_id,
         };
@@ -2472,6 +2490,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account: None,
             key_store,
             profile_id: payload.profile_id,
         };
@@ -2590,6 +2609,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account: None,
             key_store,
             profile_id: payload.profile_id,
         };
@@ -3053,4 +3073,16 @@ where
     } else {
         Ok((merchant_account, None))
     }
+}
+
+fn throw_error_if_platform_merchant_authentication_required(
+    request_headers: &HeaderMap,
+) -> RouterResult<()> {
+    HeaderMapStruct::new(request_headers)
+        .get_id_type_from_header_if_present::<id_type::MerchantId>(
+            headers::X_CONNECTED_MERCHANT_ID,
+        )?
+        .map_or(Ok(()), |_| {
+            Err(errors::ApiErrorResponse::PlatfromAccountAuthNotSupported.into())
+        })
 }
