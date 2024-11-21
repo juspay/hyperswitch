@@ -129,7 +129,7 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
-    // Xendit,
+    Xendit,
     Zen,
     Zsl,
 }
@@ -260,7 +260,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
-            // | Self::Xendit
+            | Self::Xendit
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd
