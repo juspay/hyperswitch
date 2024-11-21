@@ -1107,6 +1107,11 @@ where
             status: payment_intent.status,
             amount,
             connector,
+            billing: payment_address
+                .get_payment_billing()
+                .cloned()
+                .map(From::from),
+            shipping: payment_address.get_shipping().cloned().map(From::from),
             client_secret: payment_intent.client_secret.clone(),
             created: payment_intent.created_at,
             payment_method_data,

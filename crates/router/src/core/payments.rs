@@ -7099,9 +7099,8 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    // what is this address find out and not required remove this
     fn get_address(&self) -> &PaymentAddress {
-        todo!()
+        &self.payment_address
     }
 
     fn get_creds_identifier(&self) -> Option<&str> {

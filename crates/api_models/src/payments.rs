@@ -4716,6 +4716,12 @@ pub struct PaymentsRetrieveResponse {
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
+
+    /// The shipping address associated with the payment intent
+    pub shipping: Option<Address>,
+
+    /// The billing address associated with the payment intent
+    pub billing: Option<Address>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
