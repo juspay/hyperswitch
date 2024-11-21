@@ -2547,20 +2547,22 @@ where
 {
     let cookie_token_result = get_cookie_from_header(headers).and_then(cookies::parse_cookie);
     let auth_header_token_result = get_jwt_from_authorization_header(headers);
-    let use_cookie_only = state.conf().user.force_cookies;
+    let force_cookie = state.conf().user.force_cookies;
 
     logger::info!(
         user_agent = ?headers.get(headers::USER_AGENT),
         header_names = ?headers.keys().collect::<Vec<_>>(),
         is_token_equal =
             auth_header_token_result.as_deref().ok() == cookie_token_result.as_deref().ok(),
-        use_cookie_only,
+        cookie_error = ?cookie_token_result.as_ref().err(),
+        token_error = ?auth_header_token_result.as_ref().err(),
+        force_cookie,
     );
 
-    let final_token = if use_cookie_only {
+    let final_token = if force_cookie {
         cookie_token_result?
     } else {
-        cookie_token_result.unwrap_or(auth_header_token_result?.to_owned())
+        auth_header_token_result?.to_owned()
     };
 
     decode_jwt(&final_token, state).await
