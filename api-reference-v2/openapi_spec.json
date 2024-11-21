@@ -7192,8 +7192,7 @@
             "description": "The dispute amount"
           },
           "currency": {
-            "type": "string",
-            "description": "The three-letter ISO currency code"
+            "$ref": "#/components/schemas/Currency"
           },
           "dispute_stage": {
             "$ref": "#/components/schemas/DisputeStage"
@@ -10021,11 +10020,6 @@
             ],
             "nullable": true
           },
-          "metadata": {
-            "type": "object",
-            "description": "Metadata is useful for storing additional, unstructured information on an object.",
-            "nullable": true
-          },
           "disabled": {
             "type": "boolean",
             "description": "A boolean value to indicate if the connector is disabled. By default, its value is false.",
@@ -10056,22 +10050,6 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
-          },
-          "additional_merchant_data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AdditionalMerchantData"
-              }
-            ],
-            "nullable": true
-          },
-          "connector_wallets_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorWalletDetails"
-              }
-            ],
-            "nullable": true
           }
         },
         "additionalProperties": false

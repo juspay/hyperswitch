@@ -631,6 +631,11 @@ Cypress.Commands.add("connectorListByMid", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.be.an("array").and.not.empty;
+    response.body.forEach((item) => {
+      expect(item).to.not.have.property("metadata");
+      expect(item).to.not.have.property("additional_merchant_data");
+      expect(item).to.not.have.property("connector_wallets_details");
+    });
   });
 });
 

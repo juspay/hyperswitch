@@ -886,7 +886,13 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             payment_id: dispute.payment_id,
             attempt_id: dispute.attempt_id,
             amount: dispute.amount,
-            currency: dispute.currency,
+            currency: dispute.dispute_currency.unwrap_or(
+                dispute
+                    .currency
+                    .to_uppercase()
+                    .parse_enum("Currency")
+                    .unwrap_or_default(),
+            ),
             dispute_stage: dispute.dispute_stage,
             dispute_status: dispute.dispute_status,
             connector: dispute.connector,
@@ -1022,7 +1028,6 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             test_mode: item.test_mode,
             disabled: item.disabled,
             payment_methods_enabled,
-            metadata: item.metadata,
             business_country: item.business_country,
             business_label: item.business_label,
             business_sub_label: item.business_sub_label,
@@ -1031,31 +1036,6 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             applepay_verified_domains: item.applepay_verified_domains,
             pm_auth_config: item.pm_auth_config,
             status: item.status,
-            additional_merchant_data: item
-                .additional_merchant_data
-                .map(|data| {
-                    let data = data.into_inner();
-                    serde_json::Value::parse_value::<router_types::AdditionalMerchantData>(
-                        data.expose(),
-                        "AdditionalMerchantData",
-                    )
-                    .attach_printable("Unable to deserialize additional_merchant_data")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                })
-                .transpose()?
-                .map(api_models::admin::AdditionalMerchantData::foreign_from),
-            connector_wallets_details: item
-                .connector_wallets_details
-                .map(|data| {
-                    data.into_inner()
-                        .expose()
-                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
-                            "ConnectorWalletDetails",
-                        )
-                        .attach_printable("Unable to deserialize connector_wallets_details")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                })
-                .transpose()?,
         };
         #[cfg(feature = "v2")]
         let response = Self {
@@ -1065,37 +1045,11 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             connector_label: item.connector_label,
             disabled: item.disabled,
             payment_methods_enabled,
-            metadata: item.metadata,
             frm_configs,
             profile_id: item.profile_id,
             applepay_verified_domains: item.applepay_verified_domains,
             pm_auth_config: item.pm_auth_config,
             status: item.status,
-            additional_merchant_data: item
-                .additional_merchant_data
-                .map(|data| {
-                    let data = data.into_inner();
-                    serde_json::Value::parse_value::<router_types::AdditionalMerchantData>(
-                        data.expose(),
-                        "AdditionalMerchantData",
-                    )
-                    .attach_printable("Unable to deserialize additional_merchant_data")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                })
-                .transpose()?
-                .map(api_models::admin::AdditionalMerchantData::foreign_from),
-            connector_wallets_details: item
-                .connector_wallets_details
-                .map(|data| {
-                    data.into_inner()
-                        .expose()
-                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
-                            "ConnectorWalletDetails",
-                        )
-                        .attach_printable("Unable to deserialize connector_wallets_details")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                })
-                .transpose()?,
         };
         Ok(response)
     }
