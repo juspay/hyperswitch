@@ -81,7 +81,11 @@ pub mod error_parser {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.write_str(
                 serde_json::to_string(&serde_json::json!({
-                    "error": self.err.to_string()
+                    "error": {
+                        "error_type": "invalid_request",
+                        "message": self.err.to_string(),
+                        "code": "IR_06",
+                    }
                 }))
                 .as_deref()
                 .unwrap_or("Invalid Json Error"),
