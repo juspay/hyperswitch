@@ -137,9 +137,9 @@ export function defaultErrorHandler(response, response_data) {
       // Check if the error message is a Json deserialize error
       let content = response.body.error[key];
       if (typeof content === "string" && content.includes("Json deserialize error")) {
-        expect(response.body.error).to.include(response_data.body.error);
+        expect(content).to.include(response_data.body.error[key]);
       } else {
-        expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+        expect(response_data.body.error[key]).to.equal(content);
       }
     }
   }
