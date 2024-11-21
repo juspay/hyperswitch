@@ -90,10 +90,11 @@ export function defaultErrorHandler(response, response_data) {
     for (const key in response_data.body.error) {
       // Check if the error message is a Json deserialize error
       let apiResponseContent = response.body.error[key];
+      let expectedContent = response_data.body.error[key];
       if (typeof apiResponseContent === "string" && apiResponseContent.includes("Json deserialize error")) {
-        expect(apiResponseContent).to.include(response_data.body.error[key]);
+        expect(apiResponseContent).to.include(expectedContent);
       } else {
-        expect(response_data.body.error[key]).to.equal(apiResponseContent);
+        expect(apiResponseContent).to.equal(expectedContent);
       }
     }
   }
