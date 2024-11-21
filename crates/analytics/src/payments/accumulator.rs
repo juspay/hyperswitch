@@ -76,8 +76,11 @@ pub struct PaymentsDistributionAccumulator {
     pub failed: u32,
     pub total: u32,
     pub success_without_retries: u32,
+    pub success_with_only_retries: u32,
     pub failed_without_retries: u32,
+    pub failed_with_only_retries: u32,
     pub total_without_retries: u32,
+    pub total_with_only_retries: u32,
 }
 
 pub trait PaymentMetricAccumulator {
@@ -181,7 +184,14 @@ impl PaymentMetricAccumulator for SuccessRateAccumulator {
 }
 
 impl PaymentMetricAccumulator for PaymentsDistributionAccumulator {
-    type MetricOutput = (Option<f64>, Option<f64>, Option<f64>, Option<f64>);
+    type MetricOutput = (
+        Option<f64>,
+        Option<f64>,
+        Option<f64>,
+        Option<f64>,
+        Option<f64>,
+        Option<f64>,
+    );
 
     fn add_metrics_bucket(&mut self, metrics: &PaymentMetricRow) {
         if let Some(ref status) = metrics.status {
@@ -193,6 +203,8 @@ impl PaymentMetricAccumulator for PaymentsDistributionAccumulator {
                     self.success += success;
                     if metrics.first_attempt.unwrap_or(false) {
                         self.success_without_retries += success;
+                    } else {
+                        self.success_with_only_retries += success;
                     }
                 }
             }
@@ -201,6 +213,8 @@ impl PaymentMetricAccumulator for PaymentsDistributionAccumulator {
                     self.failed += failed;
                     if metrics.first_attempt.unwrap_or(false) {
                         self.failed_without_retries += failed;
+                    } else {
+                        self.failed_with_only_retries += failed;
                     }
                 }
             }
@@ -208,6 +222,8 @@ impl PaymentMetricAccumulator for PaymentsDistributionAccumulator {
                 self.total += total;
                 if metrics.first_attempt.unwrap_or(false) {
                     self.total_without_retries += total;
+                } else {
+                    self.total_with_only_retries += total;
                 }
             }
         }
@@ -215,14 +231,17 @@ impl PaymentMetricAccumulator for PaymentsDistributionAccumulator {
 
     fn collect(self) -> Self::MetricOutput {
         if self.total == 0 {
-            (None, None, None, None)
+            (None, None, None, None, None, None)
         } else {
             let success = Some(self.success);
             let success_without_retries = Some(self.success_without_retries);
+            let success_with_only_retries = Some(self.success_with_only_retries);
             let failed = Some(self.failed);
+            let failed_with_only_retries = Some(self.failed_with_only_retries);
             let failed_without_retries = Some(self.failed_without_retries);
             let total = Some(self.total);
             let total_without_retries = Some(self.total_without_retries);
+            let total_with_only_retries = Some(self.total_with_only_retries);
 
             let success_rate = match (success, total) {
                 (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
@@ -231,6 +250,12 @@ impl PaymentMetricAccumulator for PaymentsDistributionAccumulator {
 
             let success_rate_without_retries =
                 match (success_without_retries, total_without_retries) {
+                    (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
+                    _ => None,
+                };
+
+            let success_rate_with_only_retries =
+                match (success_with_only_retries, total_with_only_retries) {
                     (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
                     _ => None,
                 };
@@ -245,11 +270,19 @@ impl PaymentMetricAccumulator for PaymentsDistributionAccumulator {
                 (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
                 _ => None,
             };
+
+            let failed_rate_with_only_retries =
+                match (failed_with_only_retries, total_with_only_retries) {
+                    (Some(s), Some(t)) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
+                    _ => None,
+                };
             (
                 success_rate,
                 success_rate_without_retries,
+                success_rate_with_only_retries,
                 failed_rate,
                 failed_rate_without_retries,
+                failed_rate_with_only_retries,
             )
         }
     }
@@ -387,14 +420,16 @@ impl PaymentMetricsAccumulator {
             payment_processed_count,
             payment_processed_amount_without_smart_retries,
             payment_processed_count_without_smart_retries,
-            payment_processed_amount_usd,
+            payment_processed_amount_in_usd,
             payment_processed_amount_without_smart_retries_usd,
         ) = self.processed_amount.collect();
         let (
             payments_success_rate_distribution,
             payments_success_rate_distribution_without_smart_retries,
+            payments_success_rate_distribution_with_only_retries,
             payments_failure_rate_distribution,
             payments_failure_rate_distribution_without_smart_retries,
+            payments_failure_rate_distribution_with_only_retries,
         ) = self.payments_distribution.collect();
         let (failure_reason_count, failure_reason_count_without_smart_retries) =
             self.failure_reasons_distribution.collect();
@@ -413,11 +448,13 @@ impl PaymentMetricsAccumulator {
             connector_success_rate: self.connector_success_rate.collect(),
             payments_success_rate_distribution,
             payments_success_rate_distribution_without_smart_retries,
+            payments_success_rate_distribution_with_only_retries,
             payments_failure_rate_distribution,
             payments_failure_rate_distribution_without_smart_retries,
+            payments_failure_rate_distribution_with_only_retries,
             failure_reason_count,
             failure_reason_count_without_smart_retries,
-            payment_processed_amount_usd,
+            payment_processed_amount_in_usd,
             payment_processed_amount_without_smart_retries_usd,
         }
     }

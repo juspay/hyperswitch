@@ -147,16 +147,15 @@ pub trait ValidateRequest<F, R, D> {
 
 #[cfg(feature = "v2")]
 pub trait ValidateRequest<F, R, D> {
-    fn validate_request<'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         request: &R,
         merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
+    ) -> RouterResult<ValidateResult>;
 }
 
 #[cfg(feature = "v2")]
-pub struct GetTrackerResponse<'a, F: Clone, R, D> {
-    pub operation: BoxedOperation<'a, F, R, D>,
+pub struct GetTrackerResponse<D> {
     pub payment_data: D,
 }
 
@@ -186,8 +185,6 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
-    // TODO: this need not return the operation, since operation does not change in v2
-    // Operation remains the same from start to finish
     #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
@@ -199,7 +196,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         profile: &domain::Profile,
         mechant_key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
+    ) -> RouterResult<GetTrackerResponse<D>>;
 }
 
 #[async_trait]

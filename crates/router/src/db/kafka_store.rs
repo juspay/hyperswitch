@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use common_enums::enums::MerchantStorageScheme;
-use common_utils::{errors::CustomResult, id_type, pii, types::keymanager::KeyManagerState};
+use common_utils::{
+    errors::CustomResult,
+    id_type, pii,
+    types::{keymanager::KeyManagerState, theme::ThemeLineage},
+};
 use diesel_models::{
     enums,
     enums::ProcessTrackerStatus,
@@ -34,7 +38,7 @@ use time::PrimitiveDateTime;
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
-    user::{sample_data::BatchSampleDataInterface, UserInterface},
+    user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
     user_key_store::UserKeyStoreInterface,
     user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload, UserRoleInterface},
@@ -1476,6 +1480,26 @@ impl PaymentAttemptInterface for KafkaStore {
             .find_payment_attempt_by_merchant_id_connector_txn_id(
                 merchant_id,
                 connector_txn_id,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &domain::MerchantKeyStore,
+        profile_id: &id_type::ProfileId,
+        connector_transaction_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<storage::PaymentAttempt, errors::DataStorageError> {
+        self.diesel_store
+            .find_payment_attempt_by_profile_id_connector_transaction_id(
+                key_manager_state,
+                merchant_key_store,
+                profile_id,
+                connector_transaction_id,
                 storage_scheme,
             )
             .await
@@ -3026,7 +3050,7 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&id_type::ProfileId>,
+        profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
@@ -3066,7 +3090,7 @@ impl UserRoleInterface for KafkaStore {
         user_id: &str,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
-        profile_id: Option<&id_type::ProfileId>,
+        profile_id: &id_type::ProfileId,
         version: enums::UserRoleVersion,
     ) -> CustomResult<storage::UserRole, errors::StorageError> {
         self.diesel_store
@@ -3680,6 +3704,33 @@ impl UserAuthenticationMethodInterface for KafkaStore {
     ) -> CustomResult<storage::UserAuthenticationMethod, errors::StorageError> {
         self.diesel_store
             .update_user_authentication_method(id, user_authentication_method_update)
+            .await
+    }
+}
+
+#[async_trait::async_trait]
+impl ThemeInterface for KafkaStore {
+    async fn insert_theme(
+        &self,
+        theme: storage::theme::ThemeNew,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.insert_theme(theme).await
+    }
+
+    async fn find_theme_by_lineage(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.find_theme_by_lineage(lineage).await
+    }
+
+    async fn delete_theme_by_lineage_and_theme_id(
+        &self,
+        theme_id: String,
+        lineage: ThemeLineage,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .delete_theme_by_lineage_and_theme_id(theme_id, lineage)
             .await
     }
 }

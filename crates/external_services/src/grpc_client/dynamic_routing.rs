@@ -14,8 +14,9 @@ use serde;
 use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse,
-    CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
-    UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
+    CurrentBlockThreshold as DynamicCurrentThreshold, InvalidateWindowsRequest,
+    InvalidateWindowsResponse, LabelWithStatus, UpdateSuccessRateWindowConfig,
+    UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
 use tonic::Status;
 #[allow(
@@ -111,6 +112,11 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
+    /// To invalidates the success rate routing keys
+    async fn invalidate_success_rate_routing_keys(
+        &self,
+        id: String,
+    ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
 }
 
 #[async_trait::async_trait]
@@ -139,9 +145,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             config,
         });
 
-        let mut client = self.clone();
-
-        let response = client
+        let response = self
+            .clone()
             .fetch_success_rate(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
@@ -179,9 +184,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             config,
         });
 
-        let mut client = self.clone();
-
-        let response = client
+        let response = self
+            .clone()
             .update_success_rate_window(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
@@ -189,6 +193,23 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             ))?
             .into_inner();
 
+        Ok(response)
+    }
+
+    async fn invalidate_success_rate_routing_keys(
+        &self,
+        id: String,
+    ) -> DynamicRoutingResult<InvalidateWindowsResponse> {
+        let request = tonic::Request::new(InvalidateWindowsRequest { id });
+
+        let response = self
+            .clone()
+            .invalidate_windows(request)
+            .await
+            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
+                "Failed to invalidate the success rate routing keys".to_string(),
+            ))?
+            .into_inner();
         Ok(response)
     }
 }

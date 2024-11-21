@@ -148,8 +148,8 @@ pub async fn confirm_payment_method_intent_api(
 
     let inner_payload = payment_methods::PaymentMethodIntentConfirmInternal {
         id: pm_id.clone(),
-        payment_method: payload.payment_method,
         payment_method_type: payload.payment_method_type,
+        payment_method_subtype: payload.payment_method_subtype,
         client_secret: payload.client_secret.clone(),
         customer_id: payload.customer_id.to_owned(),
         payment_method_data: payload.payment_method_data.clone(),
