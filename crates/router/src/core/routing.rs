@@ -1222,7 +1222,7 @@ pub async fn toggle_specific_dynamic_routing(
         id: profile_id.get_string_repr().to_owned(),
     })?;
 
-    let mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+    let dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
         .dynamic_routing_algorithm
         .clone()
         .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
@@ -1256,7 +1256,6 @@ pub async fn toggle_specific_dynamic_routing(
                 &state,
                 key_store,
                 business_profile,
-                feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
             )

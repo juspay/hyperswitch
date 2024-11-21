@@ -1735,11 +1735,9 @@ impl Profile {
                             )
                             .service(
                                 web::scope("/elimination")
-                                    .service(
-                                        web::resource("/toggle").route(
-                                            web::post().to(routing::toggle_elimination_routing),
-                                        ),
-                                    )
+                                    .service(web::resource("/toggle").route(
+                                        web::post().to(routing::toggle_elimination_routing),
+                                    )),
                             ),
                     )
                     .service(
