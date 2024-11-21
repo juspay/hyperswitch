@@ -432,7 +432,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
                 }
                 enums::Connector::Jpmorgan => {
-                    Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan::new())))
                 }
                 enums::Connector::Klarna => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Klarna::new())))

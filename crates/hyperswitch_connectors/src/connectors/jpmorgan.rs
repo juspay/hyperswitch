@@ -1,6 +1,7 @@
 pub mod transformers;
 //use async_trait::async_trait;
 use std::convert::TryFrom;
+use api_models::payments::PaymentsResponse;
 use hyperswitch_interfaces::errors::ConnectorError;
 //use base64::Engine;
 use common_enums::enums;
@@ -8,8 +9,9 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor,MinorUnit, MinorUnitForConnector},
 };
+use masking::{Mask,ExposeInterface};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -19,9 +21,7 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
@@ -40,7 +40,6 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::Mask;
 use transformers as jpmorgan;
 
 use crate::{
@@ -49,13 +48,13 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Jpmorgan {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
 }
 
 impl Jpmorgan {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &MinorUnitForConnector,
         }
     }
 }
@@ -104,7 +103,7 @@ impl ConnectorCommon for Jpmorgan {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
         //todo!()
         //    TODO! Check connector documentation, on which unit they are processing the currency.
         //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
@@ -121,15 +120,11 @@ impl ConnectorCommon for Jpmorgan {
 
     fn get_auth_header(
         &self,
-        _auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        /*let auth = jpmorgan::JpmorganAuthType::try_from(auth_type)
-        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;*/
-        let str_api_key : &str = "eyJ0eXAiOiJKV1QiLCJraWQiOiJJR05rNSthbHVNdy9FeHQ4ejc5Wmg5ZVpZL0U9IiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI1YWE0NmMwZi0xZDRkLTQ3OGMtYmJjOC1mZjA5MWJkZDg1NWIiLCJjdHMiOiJPQVVUSDJfU1RBVEVMRVNTX0dSQU5UIiwiYXVkaXRUcmFja2luZ0lkIjoiMTA4NTg1ZjUtNTlmMC00M2YyLWI0MzEtNjI2ZWI0ZDM0NmJlLTUyNDAxMiIsInN1Ym5hbWUiOiI1YWE0NmMwZi0xZDRkLTQ3OGMtYmJjOC1mZjA5MWJkZDg1NWIiLCJpc3MiOiJodHRwczovL2lkLnBheW1lbnRzLmpwbW9yZ2FuLmNvbTo0NDMvYW0vb2F1dGgyIiwidG9rZW5OYW1lIjoiYWNjZXNzX3Rva2VuIiwidG9rZW5fdHlwZSI6IkJlYXJlciIsImF1dGhHcmFudElkIjoieEVhWGJmb1U1QTJJMWV5aVJnbVVGbkN6T1BRIiwiY2xpZW50X2lkIjoiNWFhNDZjMGYtMWQ0ZC00NzhjLWJiYzgtZmYwOTFiZGQ4NTViIiwiYXVkIjoiNWFhNDZjMGYtMWQ0ZC00NzhjLWJiYzgtZmYwOTFiZGQ4NTViIiwibmJmIjoxNzMxNDc4OTYxLCJncmFudF90eXBlIjoiY2xpZW50X2NyZWRlbnRpYWxzIiwic2NvcGUiOlsianBtOnBheW1lbnRzOnNhbmRib3giXSwiYXV0aF90aW1lIjoxNzMxNDc4OTYxLCJyZWFsbSI6Ii9hbHBoYSIsImV4cCI6MTczMTQ4MjU2MSwiaWF0IjoxNzMxNDc4OTYxLCJleHBpcmVzX2luIjozNjAwLCJqdGkiOiJ6a0NVZFFwZUFpdHUweGFWWmlyNTdlcjZ1Y3MifQ.kcJqY7zYo8d9Peo9ifBqqEJfJY2iYLUYDQmvGDXzhQvpIzqDxZ_WbwbdyUpcbNpapjpEZsgSFfsQI792TpcOfHAu93Uwb97bVstm50CUCG94Ms2QOxdWYqyQ9svgD3zYsm6Z6e7D7fK42wS4EcA62sgTev8hmwyDEoBMv9MZgGnt8uWKdgDa-nuzVgqRIgB6-qSQB3ZoqHC8zGkscheKE6BKk4PojjCGuzrNc50MCdKtZGWb4AkPcUgIhNOdxQlRiLSMJEWsEvZBcLelekqO_SuOU363zwnVm-JgKAfLFDTPoDmAPavtJe1wpkytCBdwHI8sF4u36NN-FI8ns87Y4A";
-        let api_key: String = str_api_key.to_string();
+        let auth = jpmorgan::JpmorganAuthType::try_from(auth_type);
+        let api_key : String = auth.unwrap().access_token.expose();
         let masked_api_key = api_key.into_masked();
-
-        //sending the hardcoded access token in the api key (just for testing flows)
         Ok(vec![(headers::X_NN_ACCESS_KEY.to_string(), masked_api_key)])
     }
 
@@ -172,6 +167,19 @@ impl ConnectorValidation for Jpmorgan {
             ),
         }
     }
+
+    fn validate_psync_reference_id(
+            &self,
+            data: &PaymentsSyncData,
+            _is_three_ds: bool,
+            _status: enums::AttemptStatus,
+            _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+        ) -> CustomResult<(), errors::ConnectorError> {
+            if data.encoded_data.is_some() || data.connector_transaction_id.get_connector_transaction_id().is_ok(){
+                return Ok(());
+            }
+            Err(errors::ConnectorError::MissingConnectorTransactionID.into())
+    }
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Jpmorgan {
@@ -212,7 +220,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
+        let amount: MinorUnit = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -231,6 +239,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        println!("Inside Build Request");
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -260,70 +269,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
 
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
+        println!("Inside handle_response {:?}", response);
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Jpmorgan {
-    fn get_headers(
-        &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: jpmorgan::JpmorganPaymentsResponse = res
-            .response
-            .parse_struct("jpmorgan PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -355,18 +303,36 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
 
     fn get_url(
         &self,
-        _req: &PaymentsCaptureRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let endpoint = self.base_url(connectors);
+        let tid = req.request.connector_transaction_id.clone();
+        println!("Transaction Id inside get_url fn of Capture {}", tid);
+        
+        Ok(format!("{}/payments/{}/captures", endpoint, tid))
+        // Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
-        _req: &PaymentsCaptureRouterData,
+        req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+        let amount: MinorUnit = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
+            req.request.currency,
+        )?;
+                
+        let connector_router_data = jpmorgan::JpmorganRouterData::from((amount, req));
+        let connector_req = jpmorgan::JpmorganCaptureRequest::try_from(&connector_router_data)?;
+        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        println!("$$$$$req {:?}", printrequest);
+        
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
@@ -374,6 +340,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        println!("Entered build req of Capture");
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -395,12 +362,188 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
+        println!("Entered handle res of Capture");
         let response: jpmorgan::JpmorganPaymentsResponse = res
             .response
             .parse_struct("Jpmorgan PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
+
+        println!("Inside Handle Responde of Capture {:?}", response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("Entered get error res fn of Capture");
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Jpmorgan {
+    fn get_headers(
+        &self,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        println!("Inside get_headers fn in PSync Flow");
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        println!("Inside get_content_type in PSync Flow");
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+
+        println!("Inside get_url fn of PSync Flow");
+        let tid = req.request.connector_transaction_id.get_connector_transaction_id().change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let endpoint = self.base_url(connectors);
+        //let tid: String;
+
+        println!("########### Transaction Id in PSync Flow {}", tid);
+
+        Ok(format!("{}/payments/{}", endpoint, tid))
+        //Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        println!("Inside build_request fn of PSync Flow");
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                //.set_body(self.get_request_body(req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
+        println!("Inside handle_response fn of PSync Flow");
+            let response: jpmorgan::JpmorganPaymentsResponse = res
+                .response
+                .parse_struct("jpmorgan PaymentsSyncResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+    
+            println!("Response of PSync Flow {:?}", response);
+    
+            RouterData::try_from(ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("Inside get_error_response fn of PSync Flow");
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Jpmorgan {
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = self.base_url(connectors);
+        let tid = req.request.connector_transaction_id.clone();
+        Ok(format!("{}/payments/{}", endpoint, tid))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount: MinorUnit = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount.unwrap(),
+            req.request.currency.unwrap(),
+        )?;
+
+        let connector_router_data = jpmorgan::JpmorganRouterData::from((amount, req));
+        let connector_req = jpmorgan::JpmorganCancelRequest::try_from(connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PaymentsCancelRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        println!("#@#$@$ Inside build request of Cancel Flow");
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Patch)
+                .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
+                .set_body(types::PaymentsVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelRouterData, errors::ConnectorError> {
+        println!("############$$$$$$$$ Inside Handle Response of Capture Flow");
+        let response: jpmorgan::JpmorganCancelResponse = res
+            .response
+            .parse_struct("JpmrorganPaymentsVoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        println!("#@@@###@@# Response of Cancel Flow {:?}", response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
@@ -416,8 +559,6 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         self.build_error_response(res, event_builder)
     }
 }
-
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Jpmorgan {}
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Jpmorgan {
     fn get_headers(
@@ -435,9 +576,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Jpmorga
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let endpoint = self.base_url(connectors);
+        Ok(format!("{}/refunds", endpoint))
+        //Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
@@ -481,9 +624,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Jpmorga
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: jpmorgan::RefundResponse = res
+        let response: jpmorgan::JpmorganRefundResponse = res
             .response
-            .parse_struct("jpmorgan RefundResponse")
+            .parse_struct( "JpmorganRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -515,15 +658,16 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Jpmorgan 
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
     }
-
     fn get_url(
         &self,
-        _req: &RefundSyncRouterData,
-        _connectors: &Connectors,
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let endpoint = self.base_url(connectors);
+        let tid = req.request.connector_transaction_id.clone();
+        Ok(format!("{}/refunds/{}", endpoint, tid))
+        // Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
-
     fn build_request(
         &self,
         req: &RefundSyncRouterData,
@@ -548,7 +692,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Jpmorgan 
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: jpmorgan::RefundResponse = res
+        let response: jpmorgan::JpmorganRefundSyncResponse = res
             .response
             .parse_struct("jpmorgan RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
