@@ -1061,11 +1061,6 @@ pub struct Payouts;
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
 impl Payouts {
-    #[cfg(feature = "v2")]
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/payouts").app_data(web::Data::new(state))
-    }
-    #[cfg(feature = "v1")]
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payouts").app_data(web::Data::new(state));
         route = route.service(web::resource("/create").route(web::post().to(payouts_create)));
@@ -1580,10 +1575,6 @@ impl Cards {
             .app_data(web::Data::new(state))
             .service(web::resource("/{bin}").route(web::get().to(card_iin_info)))
     }
-    #[cfg(feature = "v2")]
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/cards").app_data(web::Data::new(state))
-    }
 }
 
 pub struct Files;
@@ -1650,10 +1641,6 @@ impl PayoutLink {
             web::resource("/{merchant_id}/{payout_id}").route(web::get().to(render_payout_link)),
         );
         route
-    }
-    #[cfg(feature = "v2")]
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/payout_link").app_data(web::Data::new(state))
     }
 }
 pub struct Profile;

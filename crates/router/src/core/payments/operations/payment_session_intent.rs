@@ -27,20 +27,20 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
         intent_status: common_enums::IntentStatus,
     ) -> Result<(), errors::ApiErrorResponse> {
         match intent_status {
-            common_enums::IntentStatus::RequiresPaymentMethod
-            | common_enums::IntentStatus::Cancelled
+            common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
+            common_enums::IntentStatus::Cancelled
             | common_enums::IntentStatus::Processing
             | common_enums::IntentStatus::RequiresCustomerAction
             | common_enums::IntentStatus::RequiresMerchantAction
             | common_enums::IntentStatus::RequiresCapture
             | common_enums::IntentStatus::PartiallyCaptured
             | common_enums::IntentStatus::RequiresConfirmation
-            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => Ok(()),
-            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable
+            | common_enums::IntentStatus::Succeeded
             | common_enums::IntentStatus::Failed => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: format!(
-                        "You cannot create session token for this payment because it has status {intent_status}",
+                        "You cannot create session token for this payment because it has status {intent_status}. Expected status is requires_payment_method.",
                     ),
                 })
             }
