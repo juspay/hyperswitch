@@ -1480,7 +1480,7 @@ where
     F: Send + Clone + Sync,
     Req: Send + Sync,
     FData: Send + Sync + Clone,
-    Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
+    Op: Operation<F, Req, Data = D> + ValidateStatusForOperation + Send + Sync + Clone,
     Req: Debug,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     Res: transformers::ToResponse<F, D, Op>,
@@ -6567,10 +6567,6 @@ pub trait OperationSessionGetters<F> {
     fn get_amount(&self) -> api::Amount;
     fn get_payment_attempt_connector(&self) -> Option<&str>;
     fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address>;
-    #[cfg(feature = "v2")]
-    fn get_payment_method_billing_address(
-        &self,
-    ) -> Option<hyperswitch_domain_models::address::Address>;
     fn get_payment_method_data(&self) -> Option<&domain::PaymentMethodData>;
     fn get_sessions_token(&self) -> Vec<api::SessionToken>;
     fn get_token_data(&self) -> Option<&storage::PaymentTokenData>;
@@ -6998,13 +6994,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         todo!();
     }
-
-    fn get_payment_method_billing_address(
-        &self,
-    ) -> Option<hyperswitch_domain_models::address::Address> {
-        // We will not have payment method billing address in this case since confirm has not happened yet
-        None
-    }
 }
 
 #[cfg(feature = "v2")]
@@ -7217,27 +7206,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
 
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         Some(&self.payment_attempt)
-    }
-
-    fn get_payment_method_billing_address(
-        &self,
-    ) -> Option<hyperswitch_domain_models::address::Address> {
-        let optional_billing_address = self
-            .payment_intent
-            .billing_address
-            .as_ref()
-            .map(|address| address.get_inner());
-
-        let optional_payment_method_billing_address = self
-            .payment_attempt
-            .payment_method_billing_address
-            .as_ref()
-            .map(|address| address.get_inner());
-
-        // Unify the addresses, give priority to payment_method_billing_address
-        optional_payment_method_billing_address.map(|payment_method_billing_address| {
-            payment_method_billing_address.unify_address(optional_billing_address)
-        })
     }
 }
 
@@ -7453,27 +7421,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
 
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         self.payment_attempt.as_ref()
-    }
-
-    fn get_payment_method_billing_address(
-        &self,
-    ) -> Option<hyperswitch_domain_models::address::Address> {
-        let optional_billing_address = self
-            .payment_intent
-            .billing_address
-            .as_ref()
-            .map(|address| address.get_inner());
-
-        let optional_payment_method_billing_address = self
-            .payment_attempt
-            .as_ref()
-            .and_then(|payment_attempt| payment_attempt.payment_method_billing_address.as_ref())
-            .map(|address| address.get_inner());
-
-        // Unify the addresses, give priority to payment_method_billing_address
-        optional_payment_method_billing_address.map(|payment_method_billing_address| {
-            payment_method_billing_address.unify_address(optional_billing_address)
-        })
     }
 }
 

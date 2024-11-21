@@ -1,4 +1,3 @@
-use api_models::payments;
 use base64::Engine;
 use common_utils::pii;
 use masking::{ExposeInterface, PeekInterface, Secret};

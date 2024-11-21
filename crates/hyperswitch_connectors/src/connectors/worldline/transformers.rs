@@ -1,4 +1,3 @@
-use api_models::payments;
 use common_enums::enums::{AttemptStatus, BankNames, CaptureMethod, CountryAlpha2, Currency};
 use common_utils::{pii::Email, request::Method};
 use hyperswitch_domain_models::{

@@ -1,4 +1,4 @@
-use api_models::{payments::AddressDetails, webhooks::IncomingWebhookEvent};
+use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
 use common_enums::enums;
 use common_utils::{

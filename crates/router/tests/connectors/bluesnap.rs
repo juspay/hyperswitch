@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
 use common_utils::pii::Email;
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, domain, storage::enums, ConnectorAuthType, PaymentAddress};
 
@@ -56,8 +56,7 @@ fn get_payment_info() -> Option<PaymentInfo> {
                 }),
                 phone: None,
                 email: None,
-            })
-            .map(From::from),
+            }),
             None,
             None,
         )),

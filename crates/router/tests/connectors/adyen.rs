@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails, PhoneDetails};
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, storage::enums, PaymentAddress};
 
@@ -70,8 +70,7 @@ impl AdyenTest {
                         country_code: Some("+351".to_string()),
                     }),
                     email: None,
-                })
-                .map(From::from),
+                }),
                 None,
                 None,
             )),
@@ -99,8 +98,7 @@ impl AdyenTest {
                     }),
                     phone: None,
                     email: None,
-                })
-                .map(From::from),
+                }),
                 None,
                 None,
             )),

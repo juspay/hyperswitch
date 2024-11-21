@@ -4,6 +4,8 @@ use masking::Secret;
 use router::types::{self, api, domain, storage::enums, AccessToken, ConnectorAuthType};
 use serde_json::json;
 
+use hyperswitch_domain_models::address::{Address, AddressDetails};
+
 use crate::{
     connector_auth,
     utils::{self, Connector, ConnectorActions, PaymentInfo},
@@ -59,15 +61,14 @@ impl Globalpay {
         Some(PaymentInfo {
             address: Some(types::PaymentAddress::new(
                 None,
-                Some(api::Address {
-                    address: Some(api::AddressDetails {
+                Some(Address {
+                    address: Some(AddressDetails {
                         country: Some(api_models::enums::CountryAlpha2::US),
                         ..Default::default()
                     }),
                     phone: None,
                     ..Default::default()
-                })
-                .map(From::from),
+                }),
                 None,
                 None,
             )),

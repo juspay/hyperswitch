@@ -5,6 +5,8 @@ use common_utils::types::MinorUnit;
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums};
 
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
+
 use crate::{
     connector_auth,
     utils::{self, ConnectorActions},
@@ -54,8 +56,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(types::PaymentAddress::new(
             None,
-            Some(api::Address {
-                address: Some(api::AddressDetails {
+            Some(Address {
+                address: Some(AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
                     line1: Some(Secret::new("line1".to_string())),
@@ -65,13 +67,12 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                     country: Some(api_models::enums::CountryAlpha2::IN),
                     ..Default::default()
                 }),
-                phone: Some(api::PhoneDetails {
+                phone: Some(PhoneDetails {
                     number: Some(Secret::new("9123456789".to_string())),
                     country_code: Some("+91".to_string()),
                 }),
                 email: None,
-            })
-            .map(From::from),
+            }),
             None,
             None,
         )),

@@ -2,8 +2,8 @@
 
 use std::{borrow::Cow, marker::PhantomData, str::FromStr, sync::Arc};
 
-use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use common_utils::id_type;
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -96,8 +96,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                     country_code: Some("+351".to_string()),
                 }),
                 email: None,
-            })
-            .map(From::from),
+            }),
             None,
         ),
         connector_meta_data: None,

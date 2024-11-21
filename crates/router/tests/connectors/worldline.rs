@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::{
     connector::Worldline,
@@ -54,8 +54,7 @@ impl WorldlineTest {
                     }),
                     phone: None,
                     email: None,
-                })
-                .map(From::from),
+                }),
                 None,
                 None,
             )),

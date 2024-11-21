@@ -8,6 +8,8 @@ use crate::{
     utils::{self, ConnectorActions},
 };
 
+use hyperswitch_domain_models::address::{Address, AddressDetails};
+
 #[derive(Clone, Copy)]
 struct TrustpayTest;
 impl ConnectorActions for TrustpayTest {}
@@ -69,8 +71,8 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     Some(utils::PaymentInfo {
         address: Some(types::PaymentAddress::new(
             None,
-            Some(api::Address {
-                address: Some(api::AddressDetails {
+            Some(Address {
+                address: Some(AddressDetails {
                     first_name: Some(Secret::new("first".to_string())),
                     last_name: Some(Secret::new("last".to_string())),
                     line1: Some(Secret::new("line1".to_string())),
@@ -82,8 +84,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 }),
                 phone: None,
                 email: None,
-            })
-            .map(From::from),
+            }),
             None,
             None,
         )),

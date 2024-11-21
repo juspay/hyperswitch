@@ -332,7 +332,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .map(|description| description.get_string_repr())
             .map(ToOwned::to_owned),
         // TODO: Create unified address
-        address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
+        address: payment_data.payment_address.clone(),
         auth_type: payment_data.payment_attempt.authentication_type,
         connector_meta_data: None,
         connector_wallets_details: None,

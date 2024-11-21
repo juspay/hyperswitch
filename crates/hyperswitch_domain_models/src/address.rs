@@ -74,7 +74,7 @@ impl AddressDetails {
                 first_name,
                 last_name,
                 city: self.city.clone().or(other.city.clone()),
-                country: self.country.clone().or(other.country),
+                country: self.country.or(other.country),
                 line1: self.line1.clone().or(other.line1.clone()),
                 line2: self.line2.clone().or(other.line2.clone()),
                 line3: self.line3.clone().or(other.line3.clone()),

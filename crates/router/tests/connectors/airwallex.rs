@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::{PeekInterface, Secret};
 use router::types::{self, domain, storage::enums, AccessToken};
 
@@ -63,8 +63,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 }),
                 phone: None,
                 email: None,
-            })
-            .map(From::from),
+            }),
             None,
         )),
         ..Default::default()
