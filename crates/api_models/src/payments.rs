@@ -4923,7 +4923,7 @@ pub struct PaymentListFilterConstraints {
     pub order: Order,
     /// The List of all the card networks to filter payments list
     pub card_network: Option<Vec<enums::CardNetwork>>,
-    /// The identifier for merchnat order reference id
+    /// The identifier for merchant order reference id
     pub merchant_order_reference_id: Option<String>,
 }
 
