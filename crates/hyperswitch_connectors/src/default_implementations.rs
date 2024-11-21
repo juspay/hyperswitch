@@ -467,6 +467,7 @@ default_imp_for_create_customer!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
