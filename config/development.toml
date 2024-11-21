@@ -580,7 +580,7 @@ paybox = { payment_method = "card" }
 nexixpay = { payment_method = "card" }
 
 [connector_customer]
-connector_list = "gocardless,stax,stripe"
+connector_list = "gocardless,stax,stripe,xendit"
 payout_connector_list = "stripe,wise"
 
 [dummy_connector]

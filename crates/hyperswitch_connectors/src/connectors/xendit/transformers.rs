@@ -1,12 +1,13 @@
 use common_enums::enums;
-use common_utils::{crypto::OptionalEncryptableEmail, types::StringMinorUnit};
+use common_utils::{crypto::OptionalEncryptableEmail, types::StringMinorUnit, id_type::CustomerId};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{PaymentsAuthorizeRouterData, RefundsRouterData, ConnectorCustomerRouterData},
+    
 };
 use common_utils::pii::Email;
 use hyperswitch_interfaces::errors;
@@ -15,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    utils::{PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 
 //TODO: Fill the struct with respective fields
@@ -230,50 +231,102 @@ pub struct XenditErrorResponse {
 
 // Xendit Customer
 
-pub enum XenditCustomerType{
-    INDIVIDUAL,
-    BUSINESS
-}
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct XenditCustomerIndividualDetail{
-    pub given_names: String,
-    pub surname: String
+    pub given_names: Secret<String>,
+    pub surname: Secret<String>
 }
 
-pub enum XenditCustomerBusinessType{
-    CORPORATION,
-    SOLEPROPRIETOR,
-    PARTNERSHIP,
-    COOPERATIVE,
-    TRUST,
-    NONPROFIT,
-    GOVERNMENT
+impl TryFrom<&ConnectorCustomerRouterData> for XenditCustomerIndividualDetail{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        
+        // if item.request.name.is_none(){
+        //     Err(errors::ConnectorError::MissingRequiredField {
+        //         field_name: "name",
+        //     }
+        //     .into());
+        // }
+
+        Ok(Self{
+            given_names: item.get_billing_full_name()?,
+            surname: item.get_billing_last_name()?
+        })
+    }
 }
 
-pub struct XenditCustomerBusinessDetail{
-    pub business_name: String,
-    pub business_type: XenditCustomerBusinessType
-}
+// pub enum XenditCustomerBusinessType{
+//     CORPORATION,
+//     SOLEPROPRIETOR,
+//     PARTNERSHIP,
+//     COOPERATIVE,
+//     TRUST,
+//     NONPROFIT,
+//     GOVERNMENT
+// }
 
-// reference-id = random UUID
+// reference-id = Merchant-provided identifier for the customer.
+#[derive(Debug, Serialize)]
 pub struct XenditCustomerRequest{
-    pub reference_id: String,
-    pub customer_type: XenditCustomerType,
+    pub reference_id: CustomerId,
+    pub customer_type: String,
     pub individual_detail: Option<XenditCustomerIndividualDetail>,
-    pub business_detail: Option<XenditCustomerBusinessDetail>,
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
 }
 
+impl TryFrom<&ConnectorCustomerRouterData> for XenditCustomerRequest{
+
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+
+        if item.request.email.is_none() && item.request.phone.is_none() {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "email or phone",
+            }
+            .into())
+        } else {
+            Ok(Self {
+                reference_id:  item.get_customer_id()?,
+                customer_type: "INDIVIDUAL".to_string(),
+                individual_detail: Some(XenditCustomerIndividualDetail::try_from(item)?),
+                email: item.request.email.to_owned(),
+                phone: item.request.phone.to_owned(),
+            })
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct XenditCustomerResponse{
     pub customer_id: String,
-    pub reference_id: String,
-    pub customer_type: XenditCustomerType,
+    pub reference_id: Secret<String>,
+    pub customer_type: String,
     pub individual_detail: Option<XenditCustomerIndividualDetail>,
-    pub business_detail: Option<XenditCustomerBusinessDetail>,
+    // pub business_detail: Option<XenditCustomerBusinessDetail>,
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
 }
+
+
+impl<F,T> TryFrom<ResponseRouterData<F, XenditCustomerResponse, T, PaymentsResponseData>> for RouterData<F,T,PaymentsResponseData>{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: ResponseRouterData<F, XenditCustomerResponse, T, PaymentsResponseData>) -> Result<Self, Self::Error> {
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
+                connector_customer_id: item.response.customer_id,
+            }),
+            ..item.data
+        })
+    }
+}
+
+
 
 
 // Xendit Direct Debit

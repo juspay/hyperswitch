@@ -1544,6 +1544,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 worldpay::transformers::WorldpayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Xendit => {
+                xendit::transformers::XenditAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Zen => {
                 zen::transformers::ZenAuthType::try_from(self.auth_type)?;
                 Ok(())
