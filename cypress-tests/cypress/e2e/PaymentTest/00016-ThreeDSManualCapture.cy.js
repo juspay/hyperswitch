@@ -6,6 +6,14 @@ import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 let globalState;
 
 describe("Card - ThreeDS Manual payment flow test", () => {
+  let should_continue = true;
+
+  beforeEach(function () {
+    if (!should_continue) {
+      this.skip();
+    }
+  });
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);

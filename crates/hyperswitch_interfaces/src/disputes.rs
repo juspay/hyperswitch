@@ -8,7 +8,7 @@ pub struct DisputePayload {
     /// amount
     pub amount: String,
     /// currency
-    pub currency: String,
+    pub currency: common_enums::enums::Currency,
     /// dispute_stage
     pub dispute_stage: common_enums::enums::DisputeStage,
     /// connector_status

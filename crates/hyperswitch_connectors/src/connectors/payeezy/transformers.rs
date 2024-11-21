@@ -146,6 +146,7 @@ impl TryFrom<&PayeezyRouterData<&PaymentsAuthorizeRouterData>> for PayeezyPaymen
             | PaymentMethod::BankDebit
             | PaymentMethod::Reward
             | PaymentMethod::RealTimePayment
+            | PaymentMethod::MobilePayment
             | PaymentMethod::Upi
             | PaymentMethod::Voucher
             | PaymentMethod::OpenBanking
@@ -262,6 +263,7 @@ fn get_payment_method_data(
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)

@@ -1887,6 +1887,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Seicomart => Self::Voucher,
             PaymentMethodType::PayEasy => Self::Voucher,
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
+            PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
         }
     }
 }
