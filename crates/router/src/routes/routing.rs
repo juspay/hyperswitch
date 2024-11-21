@@ -565,17 +565,13 @@ pub async fn routing_retrieve_default_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            routing::retrieve_default_routing_config(state, auth.merchant_account, transaction_type)
+            routing::retrieve_default_routing_config(
+                state,
+                auth.profile_id,
+                auth.merchant_account,
+                transaction_type,
+            )
         },
-        #[cfg(not(feature = "release"))]
-        auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth),
-            &auth::JWTAuth {
-                permission: Permission::ProfileRoutingRead,
-            },
-            req.headers(),
-        ),
-        #[cfg(feature = "release")]
         &auth::JWTAuth {
             permission: Permission::ProfileRoutingRead,
         },
@@ -1013,7 +1009,7 @@ pub async fn routing_update_default_config_for_profile(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
 pub async fn toggle_success_based_routing(
     state: web::Data<AppState>,
@@ -1056,7 +1052,7 @@ pub async fn toggle_success_based_routing(
     .await
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
 pub async fn success_based_routing_update_configs(
     state: web::Data<AppState>,

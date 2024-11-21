@@ -1336,11 +1336,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            // Template code for future usage
-            // api_enums::Connector::Digitalvirgo => {
-            //     digitalvirgo::transformers::DigitalvirgoAuthType::try_from(self.auth_type)?;
-            //     Ok(())
-            // }
+            api_enums::Connector::Digitalvirgo => {
+                digitalvirgo::transformers::DigitalvirgoAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Dlocal => {
                 dlocal::transformers::DlocalAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -2970,19 +2969,11 @@ pub async fn retrieve_connector(
 #[cfg(all(feature = "olap", feature = "v2"))]
 pub async fn list_connectors_for_a_profile(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     profile_id: id_type::ProfileId,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
     let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
-            merchant_account.get_id(),
-            &store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_connector_accounts = store
         .list_connector_account_by_profile_id(key_manager_state, &profile_id, &key_store)
@@ -3614,7 +3605,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             profile_name,
             created_at: current_time,
             modified_at: current_time,
-            return_url: self.return_url.map(|return_url| return_url.to_string()),
+            return_url: self.return_url,
             enable_payment_response_hash: self.enable_payment_response_hash.unwrap_or(true),
             payment_response_hash_key: Some(payment_response_hash_key),
             redirect_to_merchant_with_http_post: self
@@ -3978,7 +3969,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
-                return_url: self.return_url.map(|return_url| return_url.to_string()),
+                return_url: self.return_url,
                 enable_payment_response_hash: self.enable_payment_response_hash,
                 payment_response_hash_key: self.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,

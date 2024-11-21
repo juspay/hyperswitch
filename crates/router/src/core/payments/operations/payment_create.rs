@@ -1195,6 +1195,11 @@ impl PaymentCreate {
             None
         };
 
+        let payment_method_type = Option::<enums::PaymentMethodType>::foreign_from((
+            payment_method_type,
+            additional_pm_data.as_ref(),
+        ));
+
         Ok((
             storage::PaymentAttemptNew {
                 payment_id: payment_id.to_owned(),

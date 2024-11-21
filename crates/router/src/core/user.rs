@@ -119,9 +119,7 @@ pub async fn get_user_details(
             org_id: user_from_token.org_id,
             is_two_factor_auth_setup: user.get_totp_status() == TotpStatus::Set,
             recovery_codes_left: user.get_recovery_codes().map(|codes| codes.len()),
-            profile_id: user_from_token
-                .profile_id
-                .ok_or(UserErrors::JwtProfileIdMissing)?,
+            profile_id: user_from_token.profile_id,
             entity_type: role_info.get_entity_type(),
         },
     ))
@@ -603,7 +601,7 @@ async fn handle_existing_user_invitation(
             invitee_user_from_db.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V1,
         )
         .await
@@ -619,7 +617,7 @@ async fn handle_existing_user_invitation(
             invitee_user_from_db.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V2,
         )
         .await
@@ -673,10 +671,6 @@ async fn handle_existing_user_invitation(
                 .await?
         }
         EntityType::Profile => {
-            let profile_id = user_from_token
-                .profile_id
-                .clone()
-                .ok_or(UserErrors::InternalServerError)?;
             user_role
                 .add_entity(domain::ProfileLevel {
                     tenant_id: user_from_token
@@ -685,7 +679,7 @@ async fn handle_existing_user_invitation(
                         .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
-                    profile_id: profile_id.clone(),
+                    profile_id: user_from_token.profile_id.clone(),
                 })
                 .insert_in_v2(state)
                 .await?
@@ -705,16 +699,10 @@ async fn handle_existing_user_invitation(
                 entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
                 entity_type: EntityType::Merchant,
             },
-            EntityType::Profile => {
-                let profile_id = user_from_token
-                    .profile_id
-                    .clone()
-                    .ok_or(UserErrors::InternalServerError)?;
-                email_types::Entity {
-                    entity_id: profile_id.get_string_repr().to_owned(),
-                    entity_type: EntityType::Profile,
-                }
-            }
+            EntityType::Profile => email_types::Entity {
+                entity_id: user_from_token.profile_id.get_string_repr().to_owned(),
+                entity_type: EntityType::Profile,
+            },
         };
 
         let email_contents = email_types::InviteUser {
@@ -812,10 +800,6 @@ async fn handle_new_user_invitation(
                 .await?
         }
         EntityType::Profile => {
-            let profile_id = user_from_token
-                .profile_id
-                .clone()
-                .ok_or(UserErrors::InternalServerError)?;
             user_role
                 .add_entity(domain::ProfileLevel {
                     tenant_id: user_from_token
@@ -824,7 +808,7 @@ async fn handle_new_user_invitation(
                         .unwrap_or(state.tenant.tenant_id.clone()),
                     org_id: user_from_token.org_id.clone(),
                     merchant_id: user_from_token.merchant_id.clone(),
-                    profile_id: profile_id.clone(),
+                    profile_id: user_from_token.profile_id.clone(),
                 })
                 .insert_in_v2(state)
                 .await?
@@ -848,16 +832,10 @@ async fn handle_new_user_invitation(
                 entity_id: user_from_token.merchant_id.get_string_repr().to_owned(),
                 entity_type: EntityType::Merchant,
             },
-            EntityType::Profile => {
-                let profile_id = user_from_token
-                    .profile_id
-                    .clone()
-                    .ok_or(UserErrors::InternalServerError)?;
-                email_types::Entity {
-                    entity_id: profile_id.get_string_repr().to_owned(),
-                    entity_type: EntityType::Profile,
-                }
-            }
+            EntityType::Profile => email_types::Entity {
+                entity_id: user_from_token.profile_id.get_string_repr().to_owned(),
+                entity_type: EntityType::Profile,
+            },
         };
 
         let email_contents = email_types::InviteUser {
@@ -887,7 +865,7 @@ async fn handle_new_user_invitation(
             merchant_id: user_from_token.merchant_id.clone(),
             org_id: user_from_token.org_id.clone(),
             role_id: request.role_id.clone(),
-            profile_id: None,
+            profile_id: user_from_token.profile_id.clone(),
             tenant_id: user_from_token.tenant_id.clone(),
         };
 
@@ -939,7 +917,7 @@ pub async fn resend_invite(
             user.get_user_id(),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
-            user_from_token.profile_id.as_ref(),
+            &user_from_token.profile_id,
             UserRoleVersion::V2,
         )
         .await
@@ -962,7 +940,7 @@ pub async fn resend_invite(
                 user.get_user_id(),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
-                user_from_token.profile_id.as_ref(),
+                &user_from_token.profile_id,
                 UserRoleVersion::V1,
             )
             .await
@@ -1235,10 +1213,7 @@ pub async fn list_user_roles_details(
             merchant_id: (requestor_role_info.get_entity_type() <= EntityType::Merchant)
                 .then_some(&user_from_token.merchant_id),
             profile_id: (requestor_role_info.get_entity_type() <= EntityType::Profile)
-                .then_some(&user_from_token.profile_id)
-                .cloned()
-                .flatten()
-                .as_ref(),
+                .then_some(&user_from_token.profile_id),
             entity_id: None,
             version: None,
             status: None,
@@ -2223,6 +2198,7 @@ pub async fn list_user_authentication_methods(
     ))
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_sso_auth_url(
     state: SessionState,
     request: user_api::GetSsoAuthUrlRequest,
@@ -2864,7 +2840,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     request: user_api::SwitchProfileRequest,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<user_api::TokenResponse> {
-    if user_from_token.profile_id == Some(request.profile_id.clone()) {
+    if user_from_token.profile_id == request.profile_id {
         return Err(UserErrors::InvalidRoleOperationWithMessage(
             "User switching to same profile".to_string(),
         )

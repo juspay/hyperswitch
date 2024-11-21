@@ -102,6 +102,16 @@ pub trait PaymentAttemptInterface {
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        profile_id: &id_type::ProfileId,
+        connector_transaction_id: &str,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
+
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
@@ -807,6 +817,10 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<String>,
         updated_by: String,
     },
+    ConnectorMandateDetailUpdate {
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+        updated_by: String,
+    },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
@@ -992,6 +1006,13 @@ impl PaymentAttemptUpdate {
                 status,
                 error_code,
                 error_message,
+                updated_by,
+            },
+            Self::ConnectorMandateDetailUpdate {
+                connector_mandate_detail,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::ConnectorMandateDetailUpdate {
+                connector_mandate_detail,
                 updated_by,
             },
             Self::PaymentMethodDetailsUpdate {
@@ -1298,6 +1319,7 @@ pub enum PaymentAttemptUpdate {
         connector_payment_id: Option<String>,
         updated_by: String,
         redirection_data: Option<router_response_types::RedirectForm>,
+        connector_metadata: Option<pii::SecretSerdeValue>,
     },
     /// Update the payment attempt after force syncing with the connector
     SyncUpdate {
@@ -1932,6 +1954,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_payment_id: None,
                 connector: Some(connector),
                 redirection_data: None,
+                connector_metadata: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -1952,12 +1975,14 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_payment_id,
                 connector: None,
                 redirection_data: None,
+                connector_metadata: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse {
                 status,
                 connector_payment_id,
                 updated_by,
                 redirection_data,
+                connector_metadata,
             } => Self {
                 status: Some(status),
                 error_message: None,
@@ -1973,6 +1998,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: None,
                 redirection_data: redirection_data
                     .map(diesel_models::payment_attempt::RedirectForm::from),
+                connector_metadata,
             },
             PaymentAttemptUpdate::SyncUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1988,6 +2014,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_payment_id: None,
                 connector: None,
                 redirection_data: None,
+                connector_metadata: None,
             },
         }
     }
