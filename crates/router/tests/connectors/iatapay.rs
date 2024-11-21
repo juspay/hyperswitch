@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, api, storage::enums, AccessToken};
 
@@ -7,8 +8,6 @@ use crate::{
         self, get_connector_transaction_id, Connector, ConnectorActions, PaymentAuthorizeType,
     },
 };
-
-use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 
 #[derive(Clone, Copy)]
 struct IatapayTest;

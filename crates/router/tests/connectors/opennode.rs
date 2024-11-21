@@ -1,3 +1,4 @@
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums};
 
@@ -5,8 +6,6 @@ use crate::{
     connector_auth,
     utils::{self, ConnectorActions},
 };
-
-use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 
 #[derive(Clone, Copy)]
 struct OpennodeTest;

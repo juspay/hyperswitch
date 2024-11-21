@@ -1,10 +1,9 @@
 use std::str::FromStr;
 
 use common_utils::pii::Email;
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums};
-
-use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 
 use crate::{
     connector_auth,

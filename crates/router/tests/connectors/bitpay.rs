@@ -1,7 +1,6 @@
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums, PaymentAddress};
-
-use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 
 use crate::{
     connector_auth,

@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums, BrowserInformation};
 
@@ -7,8 +8,6 @@ use crate::{
     connector_auth,
     utils::{self, ConnectorActions},
 };
-
-use hyperswitch_domain_models::address::{Address, AddressDetails};
 
 #[derive(Clone, Copy)]
 struct TrustpayTest;
