@@ -1270,3 +1270,56 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
             .attach_printable("Join Error"),
     }
 }
+
+pub async fn trigger_refund_outgoing_webhook(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    refund_response: api_models::refunds::RefundResponse,
+    profile_id: id_type::ProfileId,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()> {
+    let refund_status = refund_response.status;
+    if matches!(
+        refund_status,
+        api_models::refunds::RefundStatus::Succeeded | api_models::refunds::RefundStatus::Failed
+    ) {
+        let key_manager_state = &(state).into();
+        let refund_id = refund_response.refund_id.clone();
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(key_manager_state, key_store, &profile_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+        let event_type: Option<enums::EventType> =
+            ForeignFrom::foreign_from(refund_response.status);
+        let cloned_state = state.clone();
+        let cloned_key_store = key_store.clone();
+        let cloned_merchant_account = merchant_account.clone();
+        let primary_object_created_at = refund_response.created_at;
+        if let Some(outgoing_event_type) = event_type {
+            tokio::spawn(
+                async move {
+                    Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                        cloned_state,
+                        cloned_merchant_account,
+                        business_profile,
+                        &cloned_key_store,
+                        outgoing_event_type,
+                        diesel_models::enums::EventClass::Refunds,
+                        refund_id.to_string(),
+                        diesel_models::enums::EventObjectType::RefundDetails,
+                        webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
+                        primary_object_created_at,
+                    ))
+                    .await
+                }
+                .in_current_span(),
+            );
+        } else {
+            logger::warn!("Outgoing webhook not sent because of missing event type status mapping");
+        };
+    }
+    Ok(())
+}

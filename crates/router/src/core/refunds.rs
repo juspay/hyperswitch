@@ -363,6 +363,16 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
+    utils::trigger_refund_outgoing_webhook(
+        state,
+        merchant_account,
+        response.clone().foreign_into(),
+        payment_attempt.profile_id.clone(),
+        key_store,
+    )
+    .await
+    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+    .ok();
     Ok(response)
 }
 
@@ -481,6 +491,17 @@ pub async fn refund_retrieve_core(
     } else {
         Ok(refund)
     }?;
+
+    utils::trigger_refund_outgoing_webhook(
+        &state,
+        &merchant_account,
+        response.clone().foreign_into(),
+        payment_attempt.profile_id.clone(),
+        &key_store,
+    )
+    .await
+    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+    .ok();
 
     Ok(response)
 }
