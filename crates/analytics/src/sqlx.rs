@@ -214,6 +214,15 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::metrics::RefundMetricRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let refund_reason: Option<String> = row.try_get("refund_reason").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let refund_error_message: Option<String> =
+            row.try_get("refund_error_message").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         let total: Option<bigdecimal::BigDecimal> = row.try_get("total").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
@@ -235,6 +244,8 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::metrics::RefundMetricRow {
             connector,
             refund_type,
             profile_id,
+            refund_reason,
+            refund_error_message,
             total,
             count,
             start_bucket,
@@ -786,12 +797,23 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::filters::RefundFilterRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let refund_reason: Option<String> = row.try_get("refund_reason").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let refund_error_message: Option<String> =
+            row.try_get("refund_error_message").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         Ok(Self {
             currency,
             refund_status,
             connector,
             refund_type,
             profile_id,
+            refund_reason,
+            refund_error_message,
         })
     }
 }
