@@ -2099,34 +2099,31 @@ Cypress.Commands.add(
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
 
-    const networkTransactionIdAndCardDetails = {
-      card_number: "4242424242424242",
-      card_exp_month: "11",
-      card_exp_year: "2024",
-      card_holder_name: "joseph Doe",
-      network_transaction_id: "MCC5ZRGMI0925"
-    };
-
-    requestBody.recurring_details.data = networkTransactionIdAndCardDetails;
-
     if (globalState.get("connectorId") !== "cybersource") {
       return;
     }
     
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/payments`;
+    
     cy.request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/payments`,
+      url: url,
       headers: {
         "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
+        "api-key": apiKey,
       },
       failOnStatusCode: false,
       body: requestBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-      expect(response.headers["content-type"]).to.include("application/json");
+      
       if (response.status === 200) {
+        expect(response.headers["content-type"]).to.include("application/json");
+
         globalState.set("paymentID", response.body.payment_id);
+
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
