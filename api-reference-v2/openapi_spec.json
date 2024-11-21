@@ -2646,8 +2646,8 @@
         "required": [
           "order_amount",
           "currency",
-          "skip_external_tax_calculation",
-          "skip_surcharge_calculation"
+          "external_tax_calculation",
+          "surcharge_calculation"
         ],
         "properties": {
           "order_amount": {
@@ -2676,10 +2676,10 @@
             ],
             "nullable": true
           },
-          "skip_external_tax_calculation": {
+          "external_tax_calculation": {
             "$ref": "#/components/schemas/TaxCalculationOverride"
           },
-          "skip_surcharge_calculation": {
+          "surcharge_calculation": {
             "$ref": "#/components/schemas/SurchargeCalculationOverride"
           },
           "surcharge_amount": {
@@ -5717,8 +5717,8 @@
         "type": "object",
         "required": [
           "currency",
-          "skip_external_tax_calculation",
-          "skip_surcharge_calculation",
+          "external_tax_calculation",
+          "surcharge_calculation",
           "net_amount",
           "amount_capturable"
         ],
@@ -5749,10 +5749,10 @@
             ],
             "nullable": true
           },
-          "skip_external_tax_calculation": {
+          "external_tax_calculation": {
             "$ref": "#/components/schemas/TaxCalculationOverride"
           },
-          "skip_surcharge_calculation": {
+          "surcharge_calculation": {
             "$ref": "#/components/schemas/SurchargeCalculationOverride"
           },
           "surcharge_amount": {
@@ -14504,6 +14504,7 @@
           "status",
           "amount_details",
           "client_secret",
+          "profile_id",
           "capture_method",
           "authentication_type",
           "customer_present",
@@ -14529,6 +14530,10 @@
             "type": "string",
             "description": "It's a token used for client side verification.",
             "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The identifier for the profile. This is inferred from the `x-profile-id` header"
           },
           "merchant_reference_id": {
             "type": "string",
@@ -19098,8 +19103,8 @@
       "SurchargeCalculationOverride": {
         "type": "string",
         "enum": [
-          "Skip",
-          "Calculate"
+          "skip",
+          "calculate"
         ]
       },
       "SurchargeDetailsResponse": {
@@ -19200,8 +19205,8 @@
       "TaxCalculationOverride": {
         "type": "string",
         "enum": [
-          "Skip",
-          "Calculate"
+          "skip",
+          "calculate"
         ]
       },
       "ThirdPartySdkSessionResponse": {
