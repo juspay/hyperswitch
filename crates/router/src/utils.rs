@@ -1323,3 +1323,14 @@ pub async fn trigger_refund_outgoing_webhook(
     }
     Ok(())
 }
+
+#[cfg(feature = "v2")]
+pub async fn trigger_refund_outgoing_webhook(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    refund_response: api_models::refunds::RefundResponse,
+    profile_id: id_type::ProfileId,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()> {
+    todo!()
+}
