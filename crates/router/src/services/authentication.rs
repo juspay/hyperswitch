@@ -2547,7 +2547,7 @@ where
 {
     let cookie_token_result = get_cookie_from_header(headers).and_then(cookies::parse_cookie);
     let auth_header_token_result = get_jwt_from_authorization_header(headers);
-    let use_cookie_only = state.conf().user.use_cookies_only;
+    let use_cookie_only = state.conf().user.force_cookies;
 
     logger::info!(
         user_agent = ?headers.get(headers::USER_AGENT),

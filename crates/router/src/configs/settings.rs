@@ -557,7 +557,7 @@ pub struct UserSettings {
     pub totp_issuer_name: String,
     pub base_url: String,
     pub force_two_factor_auth: bool,
-    pub use_cookies_only: bool,
+    pub force_cookies: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]

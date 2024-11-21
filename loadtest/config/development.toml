@@ -36,7 +36,7 @@ password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch"
 force_two_factor_auth = false
-use_cookies_only = true
+force_cookies = true
 
 [locker]
 host = ""

@@ -143,7 +143,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Integ"
 base_url = "https://integ.hyperswitch.io"
 force_two_factor_auth = false
-use_cookies_only = true
+force_cookies = true
 
 [frm]
 enabled = true

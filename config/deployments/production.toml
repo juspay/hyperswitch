@@ -150,7 +150,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Production"
 base_url = "https://live.hyperswitch.io"
 force_two_factor_auth = true
-use_cookies_only = false
+force_cookies = false
 
 [frm]
 enabled = false
