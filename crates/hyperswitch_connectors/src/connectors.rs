@@ -36,6 +36,7 @@ pub mod tsys;
 pub mod volt;
 pub mod worldline;
 pub mod worldpay;
+pub mod xendit;
 pub mod zen;
 pub mod zsl;
 
@@ -48,5 +49,5 @@ pub use self::{
     nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay, novalnet::Novalnet, payeezy::Payeezy,
     payu::Payu, powertranz::Powertranz, razorpay::Razorpay, shift4::Shift4, square::Square,
     stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt, worldline::Worldline,
-    worldpay::Worldpay, zen::Zen, zsl::Zsl,
+    worldpay::Worldpay, xendit::Xendit, zen::Zen, zsl::Zsl,
 };
