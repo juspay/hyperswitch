@@ -2039,87 +2039,98 @@ pub async fn create_recipient_disburse_account(
             ref: crates/api_models/src/payment_methods.rs     line: 2186
             */
 
-            match (
+            router_env::logger::info!(
+                "rec: {:?}\npmd: {:?}\nid: {:?}\ncus: {:?}",
+                payout_data.payouts.recurring.clone(),
+                payout_data.payout_method_data.clone(),
+                payout_response_data.connector_payout_id.clone(),
+                payout_data.customer_details.clone(),
+            );
+
+            if let (
+                true,
+                Some(payout_method_data),
+                Some(connector_payout_id),
+                Some(customer_details),
+                Some(merchant_connector_id),
+            ) = (
                 payout_data.payouts.recurring,
                 payout_data.payout_method_data.clone(),
-                payout_response_data.connector_payout_id,
+                payout_response_data.connector_payout_id.clone(),
                 payout_data.customer_details.clone(),
+                connector_data.merchant_connector_id.clone(),
             ) {
-                (
-                    true,
-                    Some(payout_method_data),
-                    Some(connector_payout_id),
-                    Some(customer_details),
-                ) => {
-                    let connector_mandate_details = HashMap::from([(
-                        connector_data.merchant_connector_id.clone(), // which connector was called  [MCA]
-                        PaymentsMandateReferenceRecord {
-                            connector_mandate_id: connector_payout_id.clone(), // what does the connector return
-                            payment_method_type: Some(api_enums::PaymentMethodType::foreign_from(
-                                payout_method_data,
-                            )),
-                            original_payment_authorized_amount: Some(
-                                payout_data.payouts.amount.get_amount_as_i64(),
-                            ),
-                            original_payment_authorized_currency: Some(
-                                payout_data.payouts.destination_currency,
-                            ),
-                        },
-                    )]);
+                let connector_mandate_details = HashMap::from([(
+                    merchant_connector_id, // which connector was called  [MCA]
+                    PaymentsMandateReferenceRecord {
+                        connector_mandate_id: connector_payout_id, // what does the connector return
+                        payment_method_type: Some(api_enums::PaymentMethodType::foreign_from(
+                            payout_method_data,
+                        )),
+                        original_payment_authorized_amount: Some(
+                            payout_data.payouts.amount.get_amount_as_i64(),
+                        ),
+                        original_payment_authorized_currency: Some(
+                            payout_data.payouts.destination_currency,
+                        ),
+                    },
+                )]);
 
-                    let connector_mandate_details_value =
-                        serde_json::to_value(connector_mandate_details).ok();
+                //println!("###### {:?}", connector_mandate_details);
 
-                    let current_time = common_utils::date_time::now();
-                    let payment_method = PaymentMethod {
-                        customer_id: customer_details.customer_id, //.as_ref().map(|c|c.customer_id.clone()).unwrap(),
-                        merchant_id: merchant_account.get_id().clone(),
-                        payment_method_id: utils::generate_id(consts::ID_LENGTH, "pm"),
-                        locker_id: None,
-                        payment_method: None,
-                        payment_method_type: None,
-                        payment_method_issuer: None,
-                        scheme: None,
-                        metadata: None,
-                        payment_method_data: None,
-                        connector_mandate_details: connector_mandate_details_value,
-                        customer_acceptance: None,
-                        client_secret: None,
-                        status: common_enums::PaymentMethodStatus::Active,
-                        network_transaction_id: None,
-                        payment_method_issuer_code: None,
-                        accepted_currency: None,
-                        token: None,
-                        cardholder_name: None,
-                        issuer_name: None,
-                        issuer_country: None,
-                        payer_country: None,
-                        is_stored: None,
-                        swift_code: None,
-                        direct_debit_token: None,
-                        created_at: current_time,
-                        last_modified: current_time,
-                        last_used_at: current_time,
-                        payment_method_billing_address: None,
-                        updated_by: None,
-                        version: domain::consts::API_VERSION,
-                        network_token_requestor_reference_id: None,
-                        network_token_locker_id: None,
-                        network_token_payment_method_data: None,
-                        transaction_flow: Some(storage_enums::TransactionFlow::Payouts),
-                    };
+                let connector_mandate_details_value =
+                    serde_json::to_value(connector_mandate_details).ok();
 
-                    db.insert_payment_method(
-                        &state.into(),
-                        key_store,
-                        payment_method,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add payment method in db")?;
-                }
-                _ => (),
+                //println!("###### {:?}", connector_mandate_details_value);
+
+                let current_time = common_utils::date_time::now();
+                let payment_method = PaymentMethod {
+                    customer_id: customer_details.customer_id,
+                    merchant_id: merchant_account.get_id().clone(),
+                    payment_method_id: utils::generate_id(consts::ID_LENGTH, "pm"),
+                    locker_id: None,
+                    payment_method: None,
+                    payment_method_type: None,
+                    payment_method_issuer: None,
+                    scheme: None,
+                    metadata: None,
+                    payment_method_data: None,
+                    connector_mandate_details: connector_mandate_details_value,
+                    customer_acceptance: None,
+                    client_secret: None,
+                    status: common_enums::PaymentMethodStatus::Active,
+                    network_transaction_id: None,
+                    payment_method_issuer_code: None,
+                    accepted_currency: None,
+                    token: None,
+                    cardholder_name: None,
+                    issuer_name: None,
+                    issuer_country: None,
+                    payer_country: None,
+                    is_stored: None,
+                    swift_code: None,
+                    direct_debit_token: None,
+                    created_at: current_time,
+                    last_modified: current_time,
+                    last_used_at: current_time,
+                    payment_method_billing_address: None,
+                    updated_by: None,
+                    version: domain::consts::API_VERSION,
+                    network_token_requestor_reference_id: None,
+                    network_token_locker_id: None,
+                    network_token_payment_method_data: None,
+                    transaction_flow: Some(storage_enums::TransactionFlow::Payouts),
+                };
+
+                db.insert_payment_method(
+                    &state.into(),
+                    key_store,
+                    payment_method,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to add payment method in db")?;
             }
         }
         Err(err) => {
@@ -2164,7 +2175,6 @@ pub async fn create_recipient_disburse_account(
                 .attach_printable("Error updating payout_attempt in db")?;
         }
     };
-
     Ok(())
 }
 
