@@ -1880,7 +1880,7 @@ pub fn build_redirection_form(
                                                 var collectionReference = data[collectionField];
                                                 return submitCollectionReference(collectionReference);
                                             }} else {{
-                                                console.error("Collection field not found in event data (" + collectionField + ")"); 
+                                                console.error("Collection field not found in event data (" + collectionField + ")");
                                             }}
                                         }} catch (error) {{
                                             console.error("Error parsing event data: ", error);
@@ -1914,7 +1914,7 @@ pub fn build_redirection_form(
                                         }
                                         (PreEscaped(format!(r#"
                                             <script type="text/javascript"> {logging_template}
-                                                var form = document.getElementById("payment_form"); 
+                                                var form = document.getElementById("payment_form");
                                                 var formFields = form.querySelectorAll("input");
                                                 window.setTimeout(function () {{
                                                     if (form.method.toUpperCase() === "GET" && formFields.length === 0) {{
