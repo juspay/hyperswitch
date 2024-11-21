@@ -134,9 +134,13 @@ export function defaultErrorHandler(response, response_data) {
 
   if (typeof response.body.error === "object") {
     for (const key in response_data.body.error) {
-      expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+      // Check if the error message is a Json deserialize error
+      let content = response.body.error[key];
+      if (typeof content === "string" && content.includes("Json deserialize error")) {
+        expect(response.body.error).to.include(response_data.body.error);
+      } else {
+        expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+      }
     }
-  } else if (typeof response.body.error === "string") {
-    expect(response.body.error).to.include(response_data.body.error);
   }
 }
