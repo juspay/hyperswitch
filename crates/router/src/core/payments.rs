@@ -6054,7 +6054,7 @@ pub async fn payment_external_authentication(
         optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
         webhook_url,
         authentication_details.three_ds_requestor_url.clone(),
-        payment_intent.sca_exemption_required,
+        payment_intent.psd2_sca_exemption_type,
     ))
     .await?;
     Ok(services::ApplicationResponse::Json(

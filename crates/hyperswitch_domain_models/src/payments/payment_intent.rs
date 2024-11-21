@@ -1283,7 +1283,7 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present: Some(customer_present.as_bool()),
             payment_link_config,
             routing_algorithm_id,
-            sca_exemption_required: None,
+            psd2_sca_exemption_type: None,
         })
     }
     async fn convert_back(
@@ -1552,7 +1552,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
-            sca_exemption_required: self.sca_exemption_required,
+            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
         })
     }
 
@@ -1640,7 +1640,7 @@ impl behaviour::Conversion for PaymentIntent {
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
-                sca_exemption_required: storage_model.sca_exemption_required,
+                psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
             })
         }
         .await
@@ -1703,7 +1703,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
-            sca_exemption_required: self.sca_exemption_required,
+            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
         })
     }
 }

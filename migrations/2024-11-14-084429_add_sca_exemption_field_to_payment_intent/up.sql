@@ -3,4 +3,4 @@ CREATE TYPE "ScaExemptionType" AS ENUM (
     'transaction_risk_analysis'
 );
 
-ALTER TABLE payment_intent ADD COLUMN IF NOT EXISTS sca_exemption_required "ScaExemptionType";
+ALTER TABLE payment_intent ADD COLUMN IF NOT EXISTS psd2_sca_exemption_type "ScaExemptionType";

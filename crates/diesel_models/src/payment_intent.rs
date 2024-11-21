@@ -72,7 +72,7 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
-    pub sca_exemption_required: Option<storage_enums::ScaExemptionType>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 #[cfg(feature = "v1")]
@@ -137,7 +137,7 @@ pub struct PaymentIntent {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
-    pub sca_exemption_required: Option<storage_enums::ScaExemptionType>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
@@ -352,7 +352,7 @@ pub struct PaymentIntentNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
-    pub sca_exemption_required: Option<storage_enums::ScaExemptionType>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 #[cfg(feature = "v2")]

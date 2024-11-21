@@ -129,7 +129,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             additional_merchant_data: None,
             header_payload,
             connector_mandate_request_reference_id: None,
-            sca_exemption_required: None,
+            psd2_sca_exemption_type: None,
         };
 
         Ok(router_data)
