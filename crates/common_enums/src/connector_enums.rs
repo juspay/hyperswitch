@@ -123,6 +123,7 @@ pub enum RoutableConnectors {
     Wise,
     Worldline,
     Worldpay,
+    Xendit,
     Zen,
     Plaid,
     Zsl,

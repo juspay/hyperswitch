@@ -92,6 +92,7 @@ pub struct ConnectorAuthentication {
     // pub wellsfargopayout: Option<HeaderKey>,
     pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
+    pub xendit: Option<HeaderKey>,
     pub worldline: Option<SignatureKey>,
     pub zen: Option<HeaderKey>,
     pub zsl: Option<BodyKey>,
