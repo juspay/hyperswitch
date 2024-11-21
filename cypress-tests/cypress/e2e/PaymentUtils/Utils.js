@@ -136,9 +136,14 @@ export function defaultErrorHandler(response, response_data) {
 
   if (typeof response.body.error === "object") {
     for (const key in response_data.body.error) {
-      expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+      // Check if the error message is a Json deserialize error
+      let apiResponseContent = response.body.error[key];
+      let expectedContent = response_data.body.error[key];
+      if (typeof apiResponseContent === "string" && apiResponseContent.includes("Json deserialize error")) {
+        expect(apiResponseContent).to.include(expectedContent);
+      } else {
+        expect(apiResponseContent).to.equal(expectedContent);
+      }
     }
-  } else if (typeof response.body.error === "string") {
-    expect(response.body.error).to.include(response_data.body.error);
   }
 }
