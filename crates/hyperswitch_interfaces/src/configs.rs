@@ -87,6 +87,7 @@ pub struct Connectors {
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
     pub volt: ConnectorParams,
+    pub wechatpay: ConnectorParams,
     pub wellsfargo: ConnectorParams,
     pub wellsfargopayout: ConnectorParams,
     pub wise: ConnectorParams,
