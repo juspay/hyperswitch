@@ -1,12 +1,13 @@
 use common_enums::enums;
+use hyperswitch_domain_models::types::RefreshTokenRouterData;
 use common_utils::types::{MinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{self, ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{self, AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{refunds::{Execute, RSync}, Capture},
-    router_request_types::{PaymentsAuthorizeData, PaymentsCaptureData, PaymentsSyncData, ResponseId, PaymentsCancelData},
+    router_request_types::{PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundsRouterData, PaymentsCancelRouterData},
+    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
 use masking::{ExposeInterface, Secret};
@@ -31,6 +32,56 @@ impl<T> From<(MinorUnit, T)> for JpmorganRouterData<T> {
             amount,
             router_data: item,
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JpmorganAuthUpdateRequest{
+    pub grant_type: String,
+    pub scope : String,
+    // pub client_id : Secret<String>,
+    // pub client_secret : Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JpmorganAuthUpdateResponse {
+    pub access_token : Secret<String>,
+    pub scope : String,
+    pub token_type : String,
+    pub expires_in : i64,
+}
+
+use crate::utils::AccessTokenRequestInfo;
+
+
+impl TryFrom<&RefreshTokenRouterData> for JpmorganAuthUpdateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            grant_type: String::from("client_credentials"),
+            scope : String::from("jpm:payments:sandbox"),
+            // client_id : item.get_request_id()?,
+            // client_secret : item.request.app_id.clone(),
+        })
+    }
+}
+
+impl<F,T> TryFrom<ResponseRouterData<F, JpmorganAuthUpdateResponse, T, AccessToken>>
+    for RouterData<F, T, AccessToken>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, JpmorganAuthUpdateResponse, T, AccessToken>,
+    ) -> Result<Self, Self::Error>{
+        let token = item.response.access_token;
+        let expires = item.response.expires_in;
+        Ok(Self{ 
+            response : Ok(AccessToken{
+                token,
+                expires,
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -143,19 +194,19 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
 //TODO: Fill the struct with respective fields
 // Auth Struct
 //in jpm, we get a client id and secret and using these two, we have a curl, we make an api call and we get a access token in res with an expiry time as well
+#[derive(Debug)]
 pub struct JpmorganAuthType {
-    //pub(super) client_id: Secret<String>,
-    //pub(super) client_secret : Secret<String>,
-    //pub(super) api_key: Secret<String>,
-    pub(super) access_token : Secret<String>,
+    pub (super) api_key : Secret<String>,
+    pub (super) key1 : Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for JpmorganAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                access_token: api_key.to_owned(),
+            ConnectorAuthType::BodyKey { api_key , key1} => Ok(Self {
+                api_key : api_key.to_owned(),
+                key1 : key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

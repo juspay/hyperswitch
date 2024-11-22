@@ -1,17 +1,13 @@
 pub mod transformers;
+use base64::{engine, Engine};
 //use async_trait::async_trait;
-use std::convert::TryFrom;
-use api_models::payments::PaymentsResponse;
-use hyperswitch_interfaces::errors::ConnectorError;
-//use base64::Engine;
+use std::{convert::TryFrom, fmt::format};
 use common_enums::enums;
+// use crate::types::RefreshTokenRouterData;
 use common_utils::{
-    errors::CustomResult,
-    ext_traits::BytesExt,
-    request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor,MinorUnit, MinorUnitForConnector},
+    access_token, errors::CustomResult, ext_traits::BytesExt, request::{Method, Request, RequestBuilder, RequestContent}, types::{AmountConvertor,MinorUnit, MinorUnitForConnector}
 };
-use masking::{Mask,ExposeInterface};
+use masking::{ExposeInterface, Mask, PeekInterface};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -21,7 +17,7 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData
+        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
@@ -31,19 +27,19 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         ConnectorValidation,
     },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self, RefreshTokenType, Response},
     webhooks,
 };
 use transformers as jpmorgan;
 
 use crate::{
-    constants::headers, types::ResponseRouterData, utils, utils::PaymentsAuthorizeRequestData,
+    constants::headers, types::{ResponseRouterData, RefreshTokenRouterData}, utils
 };
 
 #[derive(Clone)]
@@ -78,6 +74,8 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     // Not Implemented (R)
 }
 
+//use masking::Secret;
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Jpmorgan
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -87,13 +85,27 @@ where
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
+        let mut headers = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
+        println!("insidebuildheader$%$%$%{:?}", req.access_token);
+        let access_token = req.access_token.clone().ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+        println!("Access Token struct Inside ConnectorCommonExt impl of build_headers fn {:?}", access_token);
+        // let token1 = "eyJ0eXAiOiJKV1QiLCJraWQiOiJJR05rNSthbHVNdy9FeHQ4ejc5Wmg5ZVpZL0U9IiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiI1YWE0NmMwZi0xZDRkLTQ3OGMtYmJjOC1mZjA5MWJkZDg1NWIiLCJjdHMiOiJPQVVUSDJfU1RBVEVMRVNTX0dSQU5UIiwiYXVkaXRUcmFja2luZ0lkIjoiZmU1ZDE4NDItOTgxYS00YjUyLThhMzgtZjE2NDkwZWZjYjMyLTU2NTc0MzUiLCJzdWJuYW1lIjoiNWFhNDZjMGYtMWQ0ZC00NzhjLWJiYzgtZmYwOTFiZGQ4NTViIiwiaXNzIjoiaHR0cHM6Ly9pZC5wYXltZW50cy5qcG1vcmdhbi5jb206NDQzL2FtL29hdXRoMiIsInRva2VuTmFtZSI6ImFjY2Vzc190b2tlbiIsInRva2VuX3R5cGUiOiJCZWFyZXIiLCJhdXRoR3JhbnRJZCI6Im1mSUVZbHE5eXZqblhIcVl3QmZUdG5lSkM0MCIsImNsaWVudF9pZCI6IjVhYTQ2YzBmLTFkNGQtNDc4Yy1iYmM4LWZmMDkxYmRkODU1YiIsImF1ZCI6IjVhYTQ2YzBmLTFkNGQtNDc4Yy1iYmM4LWZmMDkxYmRkODU1YiIsIm5iZiI6MTczMjI1NzA1NSwiZ3JhbnRfdHlwZSI6ImNsaWVudF9jcmVkZW50aWFscyIsInNjb3BlIjpbImpwbTpwYXltZW50czpzYW5kYm94Il0sImF1dGhfdGltZSI6MTczMjI1NzA1NSwicmVhbG0iOiIvYWxwaGEiLCJleHAiOjE3MzIyNjA2NTUsImlhdCI6MTczMjI1NzA1NSwiZXhwaXJlc19pbiI6MzYwMCwianRpIjoiZFRxcmNjUTRKQVFrZFZmN3ZVUUVZRXJVRkFNIn0.PoIz28UlNqYdx49V4XkUvYSvq9U9jrudB5jaMKEW0fqyDrxbYhQwnITgBHQq1UAtOGmJWOGBqdQoSDNyq8iQeV-yvzrdRtttXjGzWlyUk_5hnq2vZwbuA-3RJ36CNpn4aWnkD51wdOrKPC9muRrEkGebKwJyiYGjFec0HSkeSqHqz6uD9JSbLlhU9oIZ-poepwfIdn2w7oNE2qdK1In34pF_9sbm8KEyEP57OSPZ3mHIQ_OxcDJUktKgXhrFLoA3-IqO2yo-5OMZENupkzM42WBq_oQwmPSxN-N9qtKE93pFgYw32F0OfEV10oauo_ZlAfKAO_aeumjPXcLKolTDmQ";
+
+        // let access_token = AccessToken {
+        //     token : Secret::new(token1.to_string()),
+        //     expires: 3599,
+        // };
+
+        let auth_header = (
+            headers::AUTHORIZATION.to_string(),
+            format!("Bearer {}", access_token.token.peek()).into_masked(),
+        );
+
+        headers.push(auth_header);
+        Ok(headers)
     }
 }
 
@@ -122,10 +134,13 @@ impl ConnectorCommon for Jpmorgan {
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = jpmorgan::JpmorganAuthType::try_from(auth_type);
-        let api_key : String = auth.unwrap().access_token.expose();
-        let masked_api_key = api_key.into_masked();
-        Ok(vec![(headers::X_NN_ACCESS_KEY.to_string(), masked_api_key)])
+        let auth = jpmorgan::JpmorganAuthType::try_from(auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        println!("Inside get_auth_header of ConnectorCommon impl for get_auth_header fn {:?}", auth);
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.into_masked(),
+        )])
     }
 
     fn build_error_response(
@@ -140,7 +155,7 @@ impl ConnectorCommon for Jpmorgan {
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
+        println!("Inside build error response of ConnectorCommon impl build_error_response fn {:?}", response);
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code,
@@ -186,7 +201,118 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Jpmorgan {}
+// use masking::Secret;
+
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Jpmorgan {
+    fn get_url(
+        &self,
+        _req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let access_token_url = connectors.jpmorgan.secondary_base_url.as_ref().ok_or( errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        println!("%$%#$%$^&^&^ Access Token URL {}", access_token_url);
+        Ok(format!("{}", access_token_url))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_headers(
+        &self, 
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        println!("Inside get_headers fn of Access Token");
+        
+
+        let client_id = req.request.app_id.clone();
+        println!("Client Id {}", client_id.peek());
+
+        let client_secret = req.request.id.clone();
+        println!("Client Secret {}", client_secret.clone().unwrap().peek());
+
+        let creds = format!("{}:{}", client_id.peek(), client_secret.unwrap().peek());
+        println!("Printing Creds username:password {}", creds);
+        let encoded_creds = common_utils::consts::BASE64_ENGINE.encode(creds);
+
+        let auth_string = format!("Basic {}", encoded_creds);
+        println!("base 64 encoded {}", auth_string);
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            RefreshTokenType::get_content_type(self).to_string().into(),
+        ),
+        (
+            headers::AUTHORIZATION.to_string(),
+            auth_string.into_masked(),
+        )])
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        println!("$%$^%&^*& Inside get_request_body fn of Access Token");
+        let connector_req = jpmorgan::JpmorganAuthUpdateRequest::try_from(req)?;
+
+        println!("Connector Req of Access Token {:?}", connector_req);
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &RefreshTokenRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        println!("$&*&(*( Inside build_request fn of Access Token");
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .attach_default_headers()
+                .headers(RefreshTokenType::get_headers(self, req, connectors)?)
+                .url(&RefreshTokenType::get_url(self, req, connectors)?)
+                .set_body(RefreshTokenType::get_request_body(self, req, connectors)?)
+                .build(),
+        );
+        println!("Req in Access Token {:?}", req);
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &RefreshTokenRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<RefreshTokenRouterData, errors::ConnectorError> {
+        println!("Inside handle_Response***** fn of Access Token{:?}", res.response);
+        let response: jpmorgan::JpmorganAuthUpdateResponse = res
+            .response
+            .parse_struct("jpmorgan JpmorganAuthUpdateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        println!("Response of Access Token {:?}", response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("Entered get error res fn of Access Token");
+        self.build_error_response(res, event_builder)
+    }
+
+}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
     for Jpmorgan

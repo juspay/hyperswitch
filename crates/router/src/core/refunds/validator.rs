@@ -60,7 +60,7 @@ pub fn validate_refund_amount(
             }
         })
         .sum();
-
+        println!("xxxyyy{:?}", total_refunded_amount);
     utils::when(
         refund_amount > (amount_captured - total_refunded_amount),
         || {

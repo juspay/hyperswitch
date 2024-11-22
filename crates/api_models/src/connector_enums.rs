@@ -166,6 +166,7 @@ impl Connector {
             (self, payment_method),
             (Self::Airwallex, _)
                 | (Self::Deutschebank, _)
+                | (Self::Jpmorgan, _)
                 | (Self::Globalpay, _)
                 | (Self::Paypal, _)
                 | (Self::Payu, _)

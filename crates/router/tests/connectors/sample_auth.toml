@@ -285,7 +285,8 @@ api_secret = "Client Key"
 api_key="API Key"
 
 [jpmorgan]
-api_key="API Key"
+api_key="Client ID"
+key1 ="Client Secret"
 
 [elavon]
 api_key="API Key"
