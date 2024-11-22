@@ -41,4 +41,5 @@ pub const EMAIL_SUBJECT_INVITATION: &str = "You have been invited to join Hypers
 pub const EMAIL_SUBJECT_MAGIC_LINK: &str = "Unlock Hyperswitch: Use Your Magic Link to Sign In";
 pub const EMAIL_SUBJECT_RESET_PASSWORD: &str = "Get back to Hyperswitch - Reset Your Password Now";
 pub const EMAIL_SUBJECT_NEW_PROD_INTENT: &str = "New Prod Intent";
-pub const EMAIL_SUBJECT_WELCOME_TO_COMMUNITY: &str = "Thank you for signing up on Hyperswitch Dashboard!";
+pub const EMAIL_SUBJECT_WELCOME_TO_COMMUNITY: &str =
+    "Thank you for signing up on Hyperswitch Dashboard!";
