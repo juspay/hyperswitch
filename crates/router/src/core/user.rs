@@ -248,7 +248,7 @@ pub async fn connect_account(
             )
             .await?;
 
-        let email_contents = email_types::VerifyEmail {
+        let magic_link_email = email_types::VerifyEmail {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             subject: consts::user::EMAIL_SUBJECT_SIGNUP,
@@ -258,7 +258,22 @@ pub async fn connect_account(
         let send_email_result = state
             .email_client
             .compose_and_send_email(
-                Box::new(email_contents),
+                Box::new(magic_link_email),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
+
+        logger::info!(?send_email_result);
+
+        let welcome_to_community_email = email_types::WelcomeToCommunity {
+            recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+            subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
+        };
+
+        let send_email_result = state
+            .email_client
+            .compose_and_send_email(
+                Box::new(welcome_to_community_email),
                 state.conf.proxy.https_url.as_ref(),
             )
             .await;
