@@ -2,7 +2,9 @@ import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
 import { payment_methods_enabled } from "../PaymentUtils/Commons";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
+
 let globalState;
+
 describe("Config Tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -283,9 +285,9 @@ describe("Config Tests", () => {
           fixtures.businessProfile.bpUpdate,
           true, // is_connector_agnostic_enabled
           true, // collect_billing_address_from_wallet_connector
-          false, //collect_shipping_address_from_wallet_connector
-          true, //always_collect_billing_address_from_wallet_connector
-          false, //always_collect_shipping_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          true, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -294,8 +296,10 @@ describe("Config Tests", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
+
         let req_data = data["Request"];
         let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           req_data,
@@ -304,6 +308,7 @@ describe("Config Tests", () => {
           "automatic",
           globalState
         );
+
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
@@ -350,9 +355,9 @@ describe("Config Tests", () => {
           fixtures.businessProfile.bpUpdate,
           true, // is_connector_agnostic_enabled
           false, // collect_billing_address_from_wallet_connector
-          false, //collect_shipping_address_from_wallet_connector
-          false, //always_collect_billing_address_from_wallet_connector
-          false, //always_collect_shipping_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -361,8 +366,10 @@ describe("Config Tests", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
+
         let req_data = data["Request"];
         let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           req_data,
@@ -371,9 +378,11 @@ describe("Config Tests", () => {
           "automatic",
           globalState
         );
+
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
+
       it("payment_methods-call-test", () => {
         cy.paymentMethodsCallTest(globalState);
       });
