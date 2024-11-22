@@ -296,8 +296,10 @@ describe("Config Tests", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
+
         let req_data = data["Request"];
         let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           req_data,
@@ -306,6 +308,7 @@ describe("Config Tests", () => {
           "automatic",
           globalState
         );
+
         if (should_continue)
           should_continue = utils.should_continue_further(res_data);
       });
