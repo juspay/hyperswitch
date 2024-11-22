@@ -748,7 +748,7 @@ pub async fn mk_delete_card_request_hs_by_id(
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(
         headers::X_TENANT_ID,
-        tenant_id.get_string_repr.to_owned().into(),
+        tenant_id.get_string_repr().to_owned().into(),
     );
     if let Some(req_id) = request_id {
         request.add_header(
