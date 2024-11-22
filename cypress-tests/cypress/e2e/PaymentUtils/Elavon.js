@@ -5,7 +5,39 @@ const successfulNo3DSCardDetails = {
     card_holder_name: "joseph Doe",
     card_cvc: "123",
 };
+const singleUseMandateData = {
+    customer_acceptance: {
+        acceptance_type: "offline",
+        accepted_at: "1963-05-03T04:07:52.723Z",
+        online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+        },
+    },
+    mandate_type: {
+        single_use: {
+            amount: 8000,
+            currency: "USD",
+        },
+    },
+};
 
+const multiUseMandateData = {
+    customer_acceptance: {
+        acceptance_type: "offline",
+        accepted_at: "1963-05-03T04:07:52.723Z",
+        online: {
+            ip_address: "125.0.0.1",
+            user_agent: "amet irure esse",
+        },
+    },
+    mandate_type: {
+        multi_use: {
+            amount: 8000,
+            currency: "USD",
+        },
+    },
+};
 export const connectorDetails = {
     card_pm: {
         PaymentIntent: {
@@ -82,6 +114,70 @@ export const connectorDetails = {
                 status: 200,
                 body: {
                     status: "succeeded",
+                },
+            },
+        },
+        MandateMultiUseNo3DSAutoCapture: {
+            Request: {
+              payment_method: "card",
+              payment_method_data: {
+                card: successfulNo3DSCardDetails,
+              },
+              currency: "USD",
+              mandate_data: multiUseMandateData,
+            },
+            Response: {
+              status: 200,
+              body: {
+                status: "succeeded",
+              },
+            },
+          },
+          MandateMultiUseNo3DSManualCapture: {
+            Request: {
+              payment_method: "card",
+              payment_method_data: {
+                card: successfulNo3DSCardDetails,
+              },
+              currency: "USD",
+              mandate_data: multiUseMandateData,
+            },
+            Response: {
+              status: 200,
+              body: {
+                status: "requires_capture",
+              },
+            },
+          },
+        MandateSingleUseNo3DSAutoCapture: {
+            Request: {
+                payment_method: "card",
+                payment_method_data: {
+                    card: successfulNo3DSCardDetails,
+                },
+                currency: "USD",
+                mandate_data: singleUseMandateData,
+            },
+            Response: {
+                status: 200,
+                body: {
+                    status: "succeeded",
+                },
+            },
+        },
+        MandateSingleUseNo3DSManualCapture: {
+            Request: {
+                payment_method: "card",
+                payment_method_data: {
+                    card: successfulNo3DSCardDetails,
+                },
+                currency: "USD",
+                mandate_data: singleUseMandateData,
+            },
+            Response: {
+                status: 200,
+                body: {
+                    status: "requires_capture",
                 },
             },
         },
