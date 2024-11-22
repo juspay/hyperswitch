@@ -8,7 +8,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "email")]
 use crate::{consts, services::email::types as email_types, types::domain};
 use crate::{
-    core::errors::{self, RouterResponse, UserResponse, UserErrors},
+    core::errors::{self, RouterResponse, UserErrors, UserResponse},
     services::{api as service_api, authentication},
     types::{
         api::{self as api_types, enums},
