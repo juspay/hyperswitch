@@ -285,9 +285,9 @@ describe("Config Tests", () => {
           fixtures.updateBusinessProfile,
           true, // is_connector_agnostic_enabled
           true, // collect_billing_address_from_wallet_connector
-          false, //collect_shipping_address_from_wallet_connector
-          true, //always_collect_billing_address_from_wallet_connector
-          false, //always_collect_shipping_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          true, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
