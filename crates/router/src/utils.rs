@@ -11,7 +11,6 @@ pub mod user;
 pub mod user_role;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
-use crate::types::transformers::ForeignInto;
 use std::fmt::Debug;
 
 use api_models::{
@@ -60,7 +59,10 @@ use crate::{
     logger,
     routes::{metrics, SessionState},
     services,
-    types::{self, domain, transformers::ForeignFrom},
+    types::{
+        self, domain,
+        transformers::{ForeignFrom, ForeignInto},
+    },
 };
 
 pub mod error_parser {
