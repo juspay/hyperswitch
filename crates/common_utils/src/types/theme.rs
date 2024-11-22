@@ -6,20 +6,20 @@ use crate::id_type;
 pub enum ThemeLineage {
     /// Tenant lineage variant
     Tenant {
-        /// tenant_id: String
-        tenant_id: String,
+        /// tenant_id: TenantId
+        tenant_id: id_type::TenantId,
     },
     /// Org lineage variant
     Organization {
-        /// tenant_id: String
-        tenant_id: String,
+        /// tenant_id: TenantId
+        tenant_id: id_type::TenantId,
         /// org_id: OrganizationId
         org_id: id_type::OrganizationId,
     },
     /// Merchant lineage variant
     Merchant {
-        /// tenant_id: String
-        tenant_id: String,
+        /// tenant_id: TenantId
+        tenant_id: id_type::TenantId,
         /// org_id: OrganizationId
         org_id: id_type::OrganizationId,
         /// merchant_id: MerchantId
@@ -27,8 +27,8 @@ pub enum ThemeLineage {
     },
     /// Profile lineage variant
     Profile {
-        /// tenant_id: String
-        tenant_id: String,
+        /// tenant_id: TenantId
+        tenant_id: id_type::TenantId,
         /// org_id: OrganizationId
         org_id: id_type::OrganizationId,
         /// merchant_id: MerchantId

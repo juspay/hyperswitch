@@ -52,7 +52,7 @@ impl SchedulerInterface for MockDb {}
 
 #[async_trait::async_trait]
 pub trait SchedulerAppState: Send + Sync + Clone {
-    fn get_tenants(&self) -> Vec<String>;
+    fn get_tenants(&self) -> Vec<common_utils::id_type::TenantId>;
 }
 #[async_trait::async_trait]
 pub trait SchedulerSessionState: Send + Sync + Clone {
@@ -71,7 +71,7 @@ pub async fn start_process_tracker<
     app_state_to_session_state: F,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    F: Fn(&T, &str) -> CustomResult<U, errors::ProcessTrackerError>,
+    F: Fn(&T, &common_utils::id_type::TenantId) -> CustomResult<U, errors::ProcessTrackerError>,
 {
     match scheduler_flow {
         SchedulerFlow::Producer => {

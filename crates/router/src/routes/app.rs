@@ -191,14 +191,14 @@ impl SessionStateInfo for SessionState {
 pub struct AppState {
     pub flow_name: String,
     pub global_store: Box<dyn GlobalStorageInterface>,
-    pub stores: HashMap<String, Box<dyn StorageInterface>>,
+    pub stores: HashMap<common_utils::id_type::TenantId, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailService>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
-    pub pools: HashMap<String, AnalyticsProvider>,
+    pub pools: HashMap<common_utils::id_type::TenantId, AnalyticsProvider>,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
@@ -207,7 +207,7 @@ pub struct AppState {
     pub grpc_client: Arc<GrpcClients>,
 }
 impl scheduler::SchedulerAppState for AppState {
-    fn get_tenants(&self) -> Vec<String> {
+    fn get_tenants(&self) -> Vec<common_utils::id_type::TenantId> {
         self.conf.multitenancy.get_tenant_ids()
     }
 }
@@ -315,7 +315,8 @@ impl AppState {
             );
 
             #[cfg(feature = "olap")]
-            let mut pools: HashMap<String, AnalyticsProvider> = HashMap::new();
+            let mut pools: HashMap<common_utils::id_type::TenantId, AnalyticsProvider> =
+                HashMap::new();
             let mut stores = HashMap::new();
             #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
@@ -430,7 +431,11 @@ impl AppState {
         .await
     }
 
-    pub fn get_session_state<E, F>(self: Arc<Self>, tenant: &str, err: F) -> Result<SessionState, E>
+    pub fn get_session_state<E, F>(
+        self: Arc<Self>,
+        tenant: &common_utils::id_type::TenantId,
+        err: F,
+    ) -> Result<SessionState, E>
     where
         F: FnOnce() -> E + Copy,
     {

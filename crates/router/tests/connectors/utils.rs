@@ -599,7 +599,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -639,7 +642,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -680,7 +686,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -720,7 +729,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -811,7 +823,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -848,7 +863,10 @@ async fn call_connector<
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
     services::api::execute_connector_processing_step(
         &state,

@@ -27,7 +27,7 @@ pub async fn start_producer<T, U, F>(
     app_state_to_session_state: F,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    F: Fn(&T, &str) -> CustomResult<U, errors::ProcessTrackerError>,
+    F: Fn(&T, &common_utils::id_type::TenantId) -> CustomResult<U, errors::ProcessTrackerError>,
     T: SchedulerAppState,
     U: SchedulerSessionState,
 {
@@ -69,7 +69,7 @@ where
                 interval.tick().await;
                 let tenants = state.get_tenants();
                 for tenant in tenants {
-                    let session_state = app_state_to_session_state(state, tenant.as_str())?;
+                    let session_state = app_state_to_session_state(state, &tenant)?;
                     match run_producer_flow(&session_state, &scheduler_settings).await {
                         Ok(_) => (),
                         Err(error) => {

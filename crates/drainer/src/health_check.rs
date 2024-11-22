@@ -20,7 +20,10 @@ pub const TEST_STREAM_DATA: &[(&str, &str)] = &[("data", "sample_data")];
 pub struct Health;
 
 impl Health {
-    pub fn server(conf: Settings, stores: HashMap<String, Arc<Store>>) -> Scope {
+    pub fn server(
+        conf: Settings,
+        stores: HashMap<common_utils::id_type::TenantId, Arc<Store>>,
+    ) -> Scope {
         web::scope("health")
             .app_data(web::Data::new(conf))
             .app_data(web::Data::new(stores))

@@ -18,7 +18,10 @@ async fn invalidate_existing_cache_success() {
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
     let cache_key = "cacheKey".to_string();
     let cache_key_value = "val".to_string();

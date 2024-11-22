@@ -138,17 +138,17 @@ pub struct Multitenancy {
 }
 
 impl Multitenancy {
-    pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
+    pub fn get_tenants(&self) -> &HashMap<common_utils::id_type::TenantId, Tenant> {
         &self.tenants.0
     }
-    pub fn get_tenant_ids(&self) -> Vec<String> {
+    pub fn get_tenant_ids(&self) -> Vec<common_utils::id_type::TenantId> {
         self.tenants
             .0
             .values()
             .map(|tenant| tenant.tenant_id.clone())
             .collect()
     }
-    pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
+    pub fn get_tenant(&self, tenant_id: &common_utils::id_type::TenantId) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
     }
 }
@@ -159,11 +159,11 @@ pub struct DecisionConfig {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct TenantConfig(pub HashMap<String, Tenant>);
+pub struct TenantConfig(pub HashMap<common_utils::id_type::TenantId, Tenant>);
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Tenant {
-    pub tenant_id: String,
+    pub tenant_id: common_utils::id_type::TenantId,
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
@@ -1116,7 +1116,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
             clickhouse_database: String,
         }
 
-        let hashmap = <HashMap<String, Inner>>::deserialize(deserializer)?;
+        let hashmap = <HashMap<common_utils::id_type::TenantId, Inner>>::deserialize(deserializer)?;
 
         Ok(Self(
             hashmap

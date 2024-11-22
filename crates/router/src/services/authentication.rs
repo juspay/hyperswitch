@@ -185,7 +185,7 @@ pub struct UserFromSinglePurposeToken {
     pub user_id: String,
     pub origin: domain::Origin,
     pub path: Vec<TokenPurpose>,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 #[cfg(feature = "olap")]
@@ -196,7 +196,7 @@ pub struct SinglePurposeToken {
     pub origin: domain::Origin,
     pub path: Vec<TokenPurpose>,
     pub exp: u64,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 #[cfg(feature = "olap")]
@@ -207,7 +207,7 @@ impl SinglePurposeToken {
         origin: domain::Origin,
         settings: &Settings,
         path: Vec<TokenPurpose>,
-        tenant_id: Option<String>,
+        tenant_id: Option<id_type::TenantId>,
     ) -> UserResult<String> {
         let exp_duration =
             std::time::Duration::from_secs(consts::SINGLE_PURPOSE_TOKEN_TIME_IN_SECS);
@@ -232,7 +232,7 @@ pub struct AuthToken {
     pub exp: u64,
     pub org_id: id_type::OrganizationId,
     pub profile_id: id_type::ProfileId,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 #[cfg(feature = "olap")]
@@ -244,7 +244,7 @@ impl AuthToken {
         settings: &Settings,
         org_id: id_type::OrganizationId,
         profile_id: id_type::ProfileId,
-        tenant_id: Option<String>,
+        tenant_id: Option<id_type::TenantId>,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
@@ -268,7 +268,7 @@ pub struct UserFromToken {
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
     pub profile_id: id_type::ProfileId,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 pub struct UserIdFromAuth {
@@ -282,7 +282,7 @@ pub struct SinglePurposeOrLoginToken {
     pub role_id: Option<String>,
     pub purpose: Option<TokenPurpose>,
     pub exp: u64,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 pub trait AuthInfo {

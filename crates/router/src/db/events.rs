@@ -732,7 +732,10 @@ mod tests {
         ))
         .await;
         let state = &Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant_1"))

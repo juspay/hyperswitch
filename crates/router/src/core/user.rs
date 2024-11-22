@@ -1105,7 +1105,8 @@ pub async fn create_internal_user(
             }
         })?;
 
-    let default_tenant_id = common_utils::consts::DEFAULT_TENANT.to_string();
+    let default_tenant_id =
+        common_utils::id_type::TenantId::new_unchecked(common_utils::consts::DEFAULT_TENANT);
 
     if state.tenant.tenant_id != default_tenant_id {
         return Err(UserErrors::ForbiddenTenantId)
