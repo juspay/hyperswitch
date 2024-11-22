@@ -576,18 +576,6 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
     }
 }
 
-impl ForeignFrom<storage_enums::RefundStatus> for Option<storage_enums::EventType> {
-    fn foreign_from(value: storage_enums::RefundStatus) -> Self {
-        match value {
-            storage_enums::RefundStatus::Success => Some(storage_enums::EventType::RefundSucceeded),
-            storage_enums::RefundStatus::Failure => Some(storage_enums::EventType::RefundFailed),
-            api_enums::RefundStatus::ManualReview
-            | api_enums::RefundStatus::Pending
-            | api_enums::RefundStatus::TransactionFailure => None,
-        }
-    }
-}
-
 impl ForeignFrom<api_models::refunds::RefundStatus> for Option<storage_enums::EventType> {
     fn foreign_from(value: api_models::refunds::RefundStatus) -> Self {
         match value {

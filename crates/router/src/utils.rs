@@ -11,6 +11,7 @@ pub mod user;
 pub mod user_role;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
+use crate::types::transformers::ForeignInto;
 use std::fmt::Debug;
 
 use api_models::{
@@ -1275,15 +1276,19 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
 pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    refund_response: api_models::refunds::RefundResponse,
+    refund: &diesel_models::Refund,
     profile_id: id_type::ProfileId,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    let refund_status = refund_response.status;
+    let refund_status = refund.refund_status;
     if matches!(
         refund_status,
-        api_models::refunds::RefundStatus::Succeeded | api_models::refunds::RefundStatus::Failed
+        enums::RefundStatus::Success
+            | enums::RefundStatus::Failure
+            | enums::RefundStatus::TransactionFailure
     ) {
+        let event_type = ForeignFrom::foreign_from(refund_status);
+        let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
         let key_manager_state = &(state).into();
         let refund_id = refund_response.refund_id.clone();
         let business_profile = state
@@ -1293,8 +1298,6 @@ pub async fn trigger_refund_outgoing_webhook(
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
-        let event_type: Option<enums::EventType> =
-            ForeignFrom::foreign_from(refund_response.status);
         let cloned_state = state.clone();
         let cloned_key_store = key_store.clone();
         let cloned_merchant_account = merchant_account.clone();
@@ -1329,7 +1332,7 @@ pub async fn trigger_refund_outgoing_webhook(
 pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    refund_response: api_models::refunds::RefundResponse,
+    refund: &diesel_models::refund,
     profile_id: id_type::ProfileId,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
