@@ -1334,7 +1334,7 @@ pub async fn trigger_refund_outgoing_webhook(
 pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
-    refund: &diesel_models::refund,
+    refund: &diesel_models::Refund,
     profile_id: id_type::ProfileId,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
