@@ -27,7 +27,7 @@ describe("Config Tests", () => {
 
       it("Create Business Profile", () => {
         cy.createBusinessProfileTest(
-          fixtures.createBusinessProfile,
+          fixtures.businessProfile.bpCreate,
           globalState
         );
       });
@@ -47,7 +47,7 @@ describe("Config Tests", () => {
 
       it("Update collect_billing_details_from_wallet_connector to true", () => {
         cy.UpdateBusinessProfileTest(
-          fixtures.updateBusinessProfile,
+          fixtures.businessProfile.bpUpdate,
           true, // is_connector_agnostic_enabled
           true, // collect_billing_address_from_wallet_connector
           false, //collect_shipping_address_from_wallet_connector
@@ -93,7 +93,7 @@ describe("Config Tests", () => {
 
       it("Update collect_shipping_details_from_wallet_connector to true", () => {
         cy.UpdateBusinessProfileTest(
-          fixtures.updateBusinessProfile,
+          fixtures.businessProfile.bpUpdate,
           true, // is_connector_agnostic_enabled
           false, // collect_billing_address_from_wallet_connector
           false, //collect_shipping_address_from_wallet_connector
@@ -140,7 +140,7 @@ describe("Config Tests", () => {
 
       it("Update always_collect_billing_details_from_wallet_connector to true", () => {
         cy.UpdateBusinessProfileTest(
-          fixtures.updateBusinessProfile,
+          fixtures.businessProfile.bpUpdate,
           true, // is_connector_agnostic_enabled
           false, // collect_billing_address_from_wallet_connector
           false, //collect_shipping_address_from_wallet_connector
@@ -187,7 +187,7 @@ describe("Config Tests", () => {
 
       it("Update always_collect_shipping_details_from_wallet_connector to true", () => {
         cy.UpdateBusinessProfileTest(
-          fixtures.updateBusinessProfile,
+          fixtures.businessProfile.bpUpdate,
           true, // is_connector_agnostic_enabled
           false, // collect_billing_address_from_wallet_connector
           false, //collect_shipping_address_from_wallet_connector
@@ -234,7 +234,7 @@ describe("Config Tests", () => {
 
       it("Update both always & collect_shipping_details_from_wallet_connector to true", () => {
         cy.UpdateBusinessProfileTest(
-          fixtures.updateBusinessProfile,
+          fixtures.businessProfile.bpUpdate,
           true, // is_connector_agnostic_enabled
           false, // collect_billing_address_from_wallet_connector
           true, //collect_shipping_address_from_wallet_connector
@@ -280,7 +280,7 @@ describe("Config Tests", () => {
 
       it("Update both always & collect_billing_details_from_wallet_connector to true", () => {
         cy.UpdateBusinessProfileTest(
-          fixtures.updateBusinessProfile,
+          fixtures.businessProfile.bpUpdate,
           true, // is_connector_agnostic_enabled
           true, // collect_billing_address_from_wallet_connector
           false, //collect_shipping_address_from_wallet_connector
@@ -327,7 +327,7 @@ describe("Config Tests", () => {
 
       it("Create Business Profile", () => {
         cy.createBusinessProfileTest(
-          fixtures.createBusinessProfile,
+          fixtures.businessProfile.bpCreate,
           globalState
         );
       });
@@ -347,7 +347,7 @@ describe("Config Tests", () => {
 
       it("Update all config to false", () => {
         cy.UpdateBusinessProfileTest(
-          fixtures.updateBusinessProfile,
+          fixtures.businessProfile.bpUpdate,
           true, // is_connector_agnostic_enabled
           false, // collect_billing_address_from_wallet_connector
           false, //collect_shipping_address_from_wallet_connector
