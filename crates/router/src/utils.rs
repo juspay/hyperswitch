@@ -1271,6 +1271,7 @@ pub async fn flatten_join_error<T>(handle: Handle<T>) -> RouterResult<T> {
     }
 }
 
+#[cfg(feature = "v1")]
 pub async fn trigger_refund_outgoing_webhook(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
