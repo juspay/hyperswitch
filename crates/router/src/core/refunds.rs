@@ -477,7 +477,7 @@ pub async fn refund_retrieve_core(
         .transpose()?;
 
     let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
-        sync_refund_with_gateway(
+        Box::pin(sync_refund_with_gateway(
             &state,
             &merchant_account,
             &key_store,
@@ -486,7 +486,7 @@ pub async fn refund_retrieve_core(
             &refund,
             creds_identifier,
             charges_req,
-        )
+        ))
         .await
     } else {
         Ok(refund)
@@ -680,11 +680,11 @@ pub async fn sync_refund_with_gateway(
             )
         })?;
     utils::trigger_refund_outgoing_webhook(
-        &state,
-        &merchant_account,
+        state,
+        merchant_account,
         &response,
         payment_attempt.profile_id.clone(),
-        &key_store,
+        key_store,
     )
     .await
     .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
