@@ -151,7 +151,7 @@ force_cookies = true
 enabled = true
 
 [connector_customer]
-connector_list = "gocardless,stax,stripe"
+connector_list = "gocardless,stax,stripe,xendit"
 payout_connector_list = "stripe,wise"
 
 [delayed_session_response]
