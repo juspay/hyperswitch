@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.22.0
+
+### Features
+
+- **connector:**
+  - [Xendit] Template PR ([#6593](https://github.com/juspay/hyperswitch/pull/6593)) ([`9bc363f`](https://github.com/juspay/hyperswitch/commit/9bc363f140afcdc3d4dc624d6410a42c33afaeed))
+  - [AIRWALLEX] Update production endpoint ([#6632](https://github.com/juspay/hyperswitch/pull/6632)) ([`bc65a84`](https://github.com/juspay/hyperswitch/commit/bc65a848a14c1e5c8a50cf4bf5764a7af2918ac9))
+- **themes:** Add `theme_name` and `entity_type` in themes table ([#6621](https://github.com/juspay/hyperswitch/pull/6621)) ([`bf13c16`](https://github.com/juspay/hyperswitch/commit/bf13c16109d0113f900c806b0722895a36ec2d5a))
+
+### Bug Fixes
+
+- **connector:** [Novalnet] Get email from customer email if billing.email is not present ([#6619](https://github.com/juspay/hyperswitch/pull/6619)) ([`9010214`](https://github.com/juspay/hyperswitch/commit/9010214c6e62a65f91e0eeca6d5f21468e5c63aa))
+
+### Refactors
+
+- Update API response for JSON deserialization errors ([#6610](https://github.com/juspay/hyperswitch/pull/6610)) ([`40d3c38`](https://github.com/juspay/hyperswitch/commit/40d3c38b830a7163331778064d0e1917d30fc17e))
+
+**Full Changelog:** [`2024.11.21.0...2024.11.22.0`](https://github.com/juspay/hyperswitch/compare/2024.11.21.0...2024.11.22.0)
+
+- - -
+
 ## 2024.11.21.0
 
 ### Features
