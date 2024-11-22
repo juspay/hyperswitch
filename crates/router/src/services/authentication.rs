@@ -3295,7 +3295,8 @@ impl ReconToken {
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
         let acl = role_info.get_recon_acl();
         let optional_acl_str = serde_json::to_string(&acl)
-            .map_err(|_| errors::UserErrors::InternalServerError)
+            .inspect_err(|err| logger::error!("Failed to serialize acl to string: {}", err))
+            .change_context(errors::UserErrors::InternalServerError)
             .attach_printable("Failed to serialize acl to string. Using empty ACL")
             .ok();
         let token_payload = Self {

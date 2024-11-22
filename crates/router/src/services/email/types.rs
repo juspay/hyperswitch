@@ -380,7 +380,6 @@ impl EmailData for InviteUser {
 pub struct ReconActivation {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
-    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
 }
 
@@ -455,7 +454,6 @@ pub struct ProFeatureRequest {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub user_name: domain::UserName,
     pub user_email: domain::UserEmail,
-    pub settings: std::sync::Arc<configs::Settings>,
     pub subject: String,
 }
 

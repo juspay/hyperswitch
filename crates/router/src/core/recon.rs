@@ -8,7 +8,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "email")]
 use crate::{consts, services::email::types as email_types, types::domain};
 use crate::{
-    core::errors::{self, RouterResponse, UserErrors, UserResponse},
+    core::errors::{self, RouterResponse, UserResponse},
     services::{api as service_api, authentication},
     types::{
         api::{self as api_types, enums},
@@ -50,7 +50,6 @@ pub async fn send_recon_request(
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert recipient's email to UserEmail")?,
-            settings: state.conf.clone(),
             subject: format!(
                 "{} {}",
                 consts::EMAIL_SUBJECT_DASHBOARD_FEATURE_REQUEST,
@@ -164,7 +163,6 @@ pub async fn recon_merchant_account_update(
             user_name: domain::UserName::new(Secret::new("HyperSwitch User".to_string()))
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to form username")?,
-            settings: state.conf.clone(),
             subject: consts::EMAIL_SUBJECT_APPROVAL_RECON_REQUEST,
         };
         if req.recon_status == enums::ReconStatus::Active {
@@ -176,8 +174,7 @@ pub async fn recon_merchant_account_update(
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
-                .attach_printable("Failed to compose and send email for ReconActivation")
-                .is_ok();
+                .attach_printable("Failed to compose and send email for ReconActivation");
         }
     }
 
@@ -206,7 +203,8 @@ pub async fn verify_recon_token(
 
     let acl = user_with_role.role_info.get_recon_acl();
     let optional_acl_str = serde_json::to_string(&acl)
-        .map_err(|_| UserErrors::InternalServerError)
+        .inspect_err(|err| router_env::logger::error!("Failed to serialize acl to string: {}", err))
+        .change_context(errors::UserErrors::InternalServerError)
         .attach_printable("Failed to serialize acl to string. Using empty ACL")
         .ok();
 
