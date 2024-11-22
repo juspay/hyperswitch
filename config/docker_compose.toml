@@ -532,7 +532,7 @@ card.debit = { connector_list = "cybersource" }
 connector_list = "stripe,adyen,cybersource"
 
 [connector_customer]
-connector_list = "gocardless,stax,stripe"
+connector_list = "gocardless,stax,stripe,xendit"
 payout_connector_list = "stripe,wise"
 
 

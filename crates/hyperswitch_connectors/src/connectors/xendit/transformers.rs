@@ -1,17 +1,17 @@
 use common_enums::enums;
-use common_utils::{crypto::OptionalEncryptableEmail, types::StringMinorUnit, id_type::CustomerId};
+use common_utils::{
+    crypto::OptionalEncryptableEmail, id_type::CustomerId, pii::Email, types::StringMinorUnit,
+};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData, ConnectorCustomerRouterData},
-    
+    types::{ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, RefundsRouterData, TokenizationRouterData},
 };
-use common_utils::pii::Email;
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -231,18 +231,16 @@ pub struct XenditErrorResponse {
 
 // Xendit Customer
 
-
 #[derive(Debug, Serialize, Deserialize)]
-pub struct XenditCustomerIndividualDetail{
+pub struct XenditCustomerIndividualDetail {
     pub given_names: Secret<String>,
-    pub surname: Secret<String>
+    pub surname: Secret<String>,
 }
 
-impl TryFrom<&ConnectorCustomerRouterData> for XenditCustomerIndividualDetail{
+impl TryFrom<&ConnectorCustomerRouterData> for XenditCustomerIndividualDetail {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
-        
         // if item.request.name.is_none(){
         //     Err(errors::ConnectorError::MissingRequiredField {
         //         field_name: "name",
@@ -250,9 +248,9 @@ impl TryFrom<&ConnectorCustomerRouterData> for XenditCustomerIndividualDetail{
         //     .into());
         // }
 
-        Ok(Self{
-            given_names: item.get_billing_full_name()?,
-            surname: item.get_billing_last_name()?
+        Ok(Self {
+            given_names: item.get_billing_first_name()?,
+            surname: item.get_billing_last_name()?,
         })
     }
 }
@@ -269,41 +267,36 @@ impl TryFrom<&ConnectorCustomerRouterData> for XenditCustomerIndividualDetail{
 
 // reference-id = Merchant-provided identifier for the customer.
 #[derive(Debug, Serialize)]
-pub struct XenditCustomerRequest{
+pub struct XenditCustomerRequest {
     pub reference_id: CustomerId,
+    #[serde(rename = "type")]
     pub customer_type: String,
     pub individual_detail: Option<XenditCustomerIndividualDetail>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<Secret<String>>,
 }
 
-impl TryFrom<&ConnectorCustomerRouterData> for XenditCustomerRequest{
-
+impl TryFrom<&ConnectorCustomerRouterData> for XenditCustomerRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
-
-        if item.request.email.is_none() && item.request.phone.is_none() {
-            Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "email or phone",
-            }
-            .into())
-        } else {
-            Ok(Self {
-                reference_id:  item.get_customer_id()?,
-                customer_type: "INDIVIDUAL".to_string(),
-                individual_detail: Some(XenditCustomerIndividualDetail::try_from(item)?),
-                email: item.request.email.to_owned(),
-                phone: item.request.phone.to_owned(),
-            })
-        }
+        Ok(Self {
+            reference_id: item.get_customer_id()?,
+            customer_type: "INDIVIDUAL".to_string(),
+            individual_detail: Some(XenditCustomerIndividualDetail::try_from(item)?),
+            email: item.request.email.to_owned(),
+            phone: item.request.phone.to_owned(),
+        })
     }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct XenditCustomerResponse{
-    pub customer_id: String,
-    pub reference_id: Secret<String>,
+pub struct XenditCustomerResponse {
+    pub id: String,
+    pub reference_id: CustomerId,
+    #[serde(rename = "type")]
     pub customer_type: String,
     pub individual_detail: Option<XenditCustomerIndividualDetail>,
     // pub business_detail: Option<XenditCustomerBusinessDetail>,
@@ -311,23 +304,22 @@ pub struct XenditCustomerResponse{
     pub phone: Option<Secret<String>>,
 }
 
-
-impl<F,T> TryFrom<ResponseRouterData<F, XenditCustomerResponse, T, PaymentsResponseData>> for RouterData<F,T,PaymentsResponseData>{
+impl<F, T> TryFrom<ResponseRouterData<F, XenditCustomerResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: ResponseRouterData<F, XenditCustomerResponse, T, PaymentsResponseData>) -> Result<Self, Self::Error> {
-
+    fn try_from(
+        item: ResponseRouterData<F, XenditCustomerResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.customer_id,
+                connector_customer_id: item.response.id,
             }),
             ..item.data
         })
     }
 }
-
-
-
 
 // Xendit Direct Debit
 
@@ -335,13 +327,13 @@ impl<F,T> TryFrom<ResponseRouterData<F, XenditCustomerResponse, T, PaymentsRespo
 
 // Step 2: Initialize Linked Account Tokenization
 
-pub enum XenditLATStatus{
+pub enum XenditLATStatus {
     SUCCESS,
     PENDING,
-    FAILED
+    FAILED,
 }
 
-pub enum XenditChannelCode{
+pub enum XenditChannelCode {
     DCBRI,
     BCAONEKLIK,
     BABPI,
@@ -351,80 +343,123 @@ pub enum XenditChannelCode{
     BABBL,
     BABAY,
     BAKTB,
-    BASCB
+    BASCB,
 }
 
-pub enum XenditDirectDebitUsability{
+pub enum XenditDirectDebitUsability {
     SINGLEUSE,
-    MULTIPLEUSE
+    MULTIPLEUSE,
 }
 
-pub enum XenditPaymentMethodStatus{
+pub enum XenditPaymentMethodStatus {
     REQUIRESACTION,
     ACTIVE,
-    PENDING
+    PENDING,
 }
 
-pub struct XenditLATDebitCardProperties{
+pub struct XenditLATDebitCardProperties {
     pub account_mobile_number: Secret<String>,
     pub card_last_four: Secret<String>, // Card's last four digits
     pub card_expiry: Secret<String>,
-    pub account_email: Email
+    pub account_email: Email,
 }
 
-pub struct XenditLATBankAccountProperties{
-    pub success_redirect_url: String,
-    pub failure_redirect_url: String,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct XenditLATBankAccountProperties {
+    pub success_return_url: String,
+    pub failure_return_url: String,
 }
 
-pub struct XenditLATBCAOneKlikProperties{
+pub struct XenditLATBCAOneKlikProperties {
     pub account_mobile_number: Secret<String>,
     pub success_redirect_url: String,
     pub failure_redirect_url: Option<String>,
-    pub callback_url: Option<String>
+    pub callback_url: Option<String>,
 }
 
 // Step (2.1): Sending LAT Request
 
-pub struct XenditDirectDebitPayload<T>{
-    pub channel_code: XenditChannelCode,
-    pub properties: T,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct XenditDirectDebitPayload {
+    pub channel_code: String,
+    pub properties: XenditLATBankAccountProperties
 }
-pub struct XenditLinkedAccountTokenizationRequest<T>{
-    pub payment_method_type: String, // This would be "DIRECT_DEBIT" for this case
-    pub direct_debit: XenditDirectDebitPayload<T>,
-    pub reusability: XenditDirectDebitUsability,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct XenditLinkedAccountTokenizationRequest{
+    #[serde(rename = "type")]
+    pub action_type: String,
+    pub direct_debit: XenditDirectDebitPayload,
+    pub reusability: String,
     pub customer_id: String
-    // METADATA
 }
 
-pub struct XenditLATActions{
+impl TryFrom<&TokenizationRouterData> for XenditLinkedAccountTokenizationRequest{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: &TokenizationRouterData) -> Result<Self, Self::Error> {
+        let customer_id = item.get_connector_customer_id()?;
+
+        let direct_debit = XenditDirectDebitPayload{
+            channel_code: "BPI".to_string(),
+            properties: XenditLATBankAccountProperties{
+                success_return_url: "https://google.com/success".to_string(),
+                failure_return_url: "https://google.com/failiure".to_string()
+            }
+        };
+
+        Ok(Self { 
+            action_type: "DIRECT_DEBIT".to_string(),
+            direct_debit,
+            reusability: "MULTIPLE_USE".to_string(),
+            customer_id
+         })
+    }
+
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct XenditLATActions {
     pub method: String,
     pub url_type: String,
     pub action: String,
     pub url: String,
 }
 
-pub struct XenditLinkedAccountTokenizationResponse{
-    pub id: String,
+#[derive(Debug, Deserialize, Serialize)]
+
+pub struct XenditLinkedAccountTokenizationResponse {
+    pub id: Secret<String>, // payment method id
     pub business_id: String,
     pub customer_id: String,
-    pub reusability: XenditDirectDebitUsability,
-    pub status: XenditPaymentMethodStatus,
-    pub actions: Vec<XenditLATActions>
+    pub reference_id: String,
+    pub status: String,
+    pub actions: Vec<XenditLATActions>, 
     // METADATA
 }
 
-// Step (2.2) - Validation of Linked Account Tokenization 
+impl <F,T> TryFrom<ResponseRouterData<F, XenditLinkedAccountTokenizationResponse, T, PaymentsResponseData>> for RouterData<F,T,PaymentsResponseData>{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: ResponseRouterData<F, XenditLinkedAccountTokenizationResponse, T, PaymentsResponseData>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TokenizationResponse {
+                token: item.response.id.expose(),
+            }),
+            ..item.data
+        })
+    }
+}
+
+
+// Step (2.2) - Validation of Linked Account Tokenization
 // For debit card we have to send them OTP
 // For bank account Xendit LAT Response returns auth url from where customer has to authorize
 // This step might have been skipped in payments api v2
 
-pub struct XenditDebitCardValidateRequest{
-    pub otp_code: String
+pub struct XenditDebitCardValidateRequest {
+    pub otp_code: String,
 }
 
-pub struct XenditLATValidationResponse{
+pub struct XenditLATValidationResponse {
     pub id: String,
     pub customer_id: String,
     pub channel_code: XenditChannelCode,
@@ -434,11 +469,11 @@ pub struct XenditLATValidationResponse{
 
 // Step (2.3) - Retrieve the list of accounts
 
-pub struct XenditLinkedAccount<T>{
+pub struct XenditLinkedAccount<T> {
     pub channel_code: XenditChannelCode,
     pub id: String,
-    pub properties : T,
-    pub link_type: String // Whether Debit Card, Bank acc, wallet, etc
+    pub properties: T,
+    pub link_type: String, // Whether Debit Card, Bank acc, wallet, etc
 }
 
 // pub struct XenditLinkedAccountResponse{
