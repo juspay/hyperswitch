@@ -668,7 +668,7 @@ pub struct Profile {
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
@@ -709,7 +709,7 @@ pub struct ProfileSetter {
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
@@ -815,7 +815,7 @@ impl Profile {
 #[derive(Debug)]
 pub struct ProfileGeneralUpdate {
     pub profile_name: Option<String>,
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,

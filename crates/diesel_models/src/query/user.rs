@@ -1,6 +1,8 @@
 use common_utils::pii;
 use diesel::{associations::HasTable, ExpressionMethods};
+
 pub mod sample_data;
+pub mod theme;
 
 use crate::{
     query::generics, schema::users::dsl as users_dsl, user::*, PgPooledConn, StorageResult,
