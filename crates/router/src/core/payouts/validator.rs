@@ -182,7 +182,25 @@ pub async fn validate_create_request(
         })
         .attach_printable("Profile id is a mandatory parameter")?;
 
-    Ok((payout_id, payout_method_data, profile_id, customer))
+        // .find_payment_method(
+        //     &((&state).into()),
+        //     &key_store,
+        //     &pm_id,
+        //     merchant_account.storage_scheme,
+        // )
+        // .await
+        // .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+    let payment_method = if let Some(payment_method_id)  = req.payment_method_id {
+        Some(db.find_payment_method(&state.into(), merchant_key_store, &payment_method_id, merchant_account.storage_scheme)
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .attach_printable("Unable to find payment method")?)
+    }else{
+        None
+    };
+
+    Ok((payout_id, payout_method_data, profile_id, customer, payment_method))
 }
 
 pub fn validate_payout_link_request(
