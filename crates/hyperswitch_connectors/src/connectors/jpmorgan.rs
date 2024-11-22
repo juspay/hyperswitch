@@ -2,6 +2,7 @@ pub mod transformers;
 use base64::Engine;
 use std::convert::TryFrom;
 use common_enums::enums;
+// use crate::types::RefreshTokenRouterData;
 use common_utils::{
     errors::CustomResult, ext_traits::BytesExt, request::{Method, Request, RequestBuilder, RequestContent}, types::{AmountConvertor,MinorUnit, MinorUnitForConnector}
 };
@@ -66,6 +67,8 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 {
     // Not Implemented (R)
 }
+
+//use masking::Secret;
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Jpmorgan
 where
