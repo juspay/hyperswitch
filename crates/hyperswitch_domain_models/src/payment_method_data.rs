@@ -1709,9 +1709,7 @@ impl From<Card> for ExtendedCardInfo {
     }
 }
 
-impl From<GooglePayWalletData>
-    for payment_additional_types::WalletAdditionalDataForCard
-{
+impl From<GooglePayWalletData> for payment_additional_types::WalletAdditionalDataForCard {
     fn from(item: GooglePayWalletData) -> Self {
         Self {
             last4: item.info.card_details,
