@@ -1895,7 +1895,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
             amount: notif.amount.value.to_string(),
-            currency: notif.amount.currency.to_string(),
+            currency: notif.amount.currency,
             dispute_stage: api_models::enums::DisputeStage::from(notif.event_code.clone()),
             connector_dispute_id: notif.psp_reference,
             connector_reason: notif.reason,

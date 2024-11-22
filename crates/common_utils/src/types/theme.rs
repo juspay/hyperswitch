@@ -4,11 +4,12 @@ use crate::id_type;
 /// Currently being used for theme related APIs and queries.
 #[derive(Debug)]
 pub enum ThemeLineage {
-    /// Tenant lineage variant
-    Tenant {
-        /// tenant_id: TenantId
-        tenant_id: id_type::TenantId,
-    },
+    // TODO: Add back Tenant variant when we introduce Tenant Variant in EntityType
+    // /// Tenant lineage variant
+    // Tenant {
+    //     /// tenant_id: String
+    //     tenant_id: String,
+    // },
     /// Org lineage variant
     Organization {
         /// tenant_id: TenantId

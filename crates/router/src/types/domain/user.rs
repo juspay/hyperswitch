@@ -103,7 +103,7 @@ impl UserEmail {
     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
         use validator::ValidateEmail;
 
-        let email_string = email.expose();
+        let email_string = email.expose().to_lowercase();
         let email =
             pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
 
@@ -123,21 +123,8 @@ impl UserEmail {
     }
 
     pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
-        use validator::ValidateEmail;
-
-        let email_string = email.peek();
-        if email_string.validate_email() {
-            let (_username, domain) = match email_string.split_once('@') {
-                Some((u, d)) => (u, d),
-                None => return Err(UserErrors::EmailParsingError.into()),
-            };
-            if BLOCKED_EMAIL.contains(domain) {
-                return Err(UserErrors::InvalidEmailError.into());
-            }
-            Ok(Self(email))
-        } else {
-            Err(UserErrors::EmailParsingError.into())
-        }
+        let email_string = email.expose().map(|inner| inner.to_lowercase());
+        Self::new(email_string)
     }
 
     pub fn into_inner(self) -> pii::Email {

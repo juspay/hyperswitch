@@ -8,7 +8,9 @@ use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
 #[cfg(feature = "email")]
-use external_services::email::{ses::AwsSes, EmailService};
+use external_services::email::{
+    no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
+};
 use external_services::{file_storage::FileStorageInterface, grpc_client::GrpcClients};
 use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
@@ -48,7 +50,7 @@ use super::poll;
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
-#[cfg(all(feature = "oltp", feature = "v1"))]
+#[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
@@ -97,7 +99,7 @@ pub struct SessionState {
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
-    pub email_client: Arc<dyn EmailService>,
+    pub email_client: Arc<Box<dyn EmailService>>,
     #[cfg(feature = "olap")]
     pub pool: AnalyticsProvider,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
@@ -195,7 +197,7 @@ pub struct AppState {
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
-    pub email_client: Arc<dyn EmailService>,
+    pub email_client: Arc<Box<dyn EmailService>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
     pub pools: HashMap<common_utils::id_type::TenantId, AnalyticsProvider>,
@@ -215,7 +217,7 @@ pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings<RawSecret>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailService>;
+    fn email_client(&self) -> Arc<Box<dyn EmailService>>;
     fn add_request_id(&mut self, request_id: RequestId);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
@@ -232,7 +234,7 @@ impl AppStateInfo for AppState {
         self.conf.as_ref().to_owned()
     }
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailService> {
+    fn email_client(&self) -> Arc<Box<dyn EmailService>> {
         self.email_client.to_owned()
     }
     fn event_handler(&self) -> EventsHandler {
@@ -258,11 +260,22 @@ impl AsRef<Self> for AppState {
 }
 
 #[cfg(feature = "email")]
-pub async fn create_email_client(settings: &settings::Settings<RawSecret>) -> impl EmailService {
-    match settings.email.active_email_client {
-        external_services::email::AvailableEmailClients::SES => {
-            AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await
+pub async fn create_email_client(
+    settings: &settings::Settings<RawSecret>,
+) -> Box<dyn EmailService> {
+    match &settings.email.client_config {
+        EmailClientConfigs::Ses { aws_ses } => Box::new(
+            AwsSes::create(
+                &settings.email,
+                aws_ses,
+                settings.proxy.https_url.to_owned(),
+            )
+            .await,
+        ),
+        EmailClientConfigs::Smtp { smtp } => {
+            Box::new(SmtpServer::create(&settings.email, smtp.clone()).await)
         }
+        EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
     }
 }
 
@@ -1442,6 +1455,29 @@ impl Webhooks {
     }
 }
 
+#[cfg(all(feature = "oltp", feature = "v2"))]
+impl Webhooks {
+    pub fn server(config: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+
+        #[allow(unused_mut)]
+        let mut route = web::scope("/v2/webhooks")
+            .app_data(web::Data::new(config))
+            .service(
+                web::resource("/{merchant_id}/{profile_id}/{connector_id}")
+                    .route(
+                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    )
+                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
+                    .route(
+                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    ),
+            );
+
+        route
+    }
+}
+
 pub struct Configs;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1706,47 +1742,54 @@ impl Profile {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl Profile {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/account/{account_id}/business_profile")
+        let mut route = web::scope("/account/{account_id}/business_profile")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("")
                     .route(web::post().to(profiles::profile_create))
                     .route(web::get().to(profiles::profiles_list)),
-            )
-            .service(
-                web::scope("/{profile_id}")
-                    .service(
-                        web::scope("/dynamic_routing").service(
-                            web::scope("/success_based")
-                                .service(
-                                    web::resource("/toggle").route(
-                                        web::post().to(routing::toggle_success_based_routing),
-                                    ),
-                                )
-                                .service(web::resource("/config/{algorithm_id}").route(
-                                    web::patch().to(|state, req, path, payload| {
-                                        routing::success_based_routing_update_configs(
-                                            state, req, path, payload,
-                                        )
-                                    }),
-                                )),
-                        ),
-                    )
-                    .service(
-                        web::resource("")
-                            .route(web::get().to(profiles::profile_retrieve))
-                            .route(web::post().to(profiles::profile_update))
-                            .route(web::delete().to(profiles::profile_delete)),
-                    )
-                    .service(
-                        web::resource("/toggle_extended_card_info")
-                            .route(web::post().to(profiles::toggle_extended_card_info)),
-                    )
-                    .service(
-                        web::resource("/toggle_connector_agnostic_mit")
-                            .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
+            );
+
+        #[cfg(feature = "dynamic_routing")]
+        {
+            route =
+                route.service(
+                    web::scope("/{profile_id}/dynamic_routing").service(
+                        web::scope("/success_based")
+                            .service(
+                                web::resource("/toggle")
+                                    .route(web::post().to(routing::toggle_success_based_routing)),
+                            )
+                            .service(web::resource("/config/{algorithm_id}").route(
+                                web::patch().to(|state, req, path, payload| {
+                                    routing::success_based_routing_update_configs(
+                                        state, req, path, payload,
+                                    )
+                                }),
+                            )),
                     ),
-            )
+                );
+        }
+
+        route = route.service(
+            web::scope("/{profile_id}")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(profiles::profile_retrieve))
+                        .route(web::post().to(profiles::profile_update))
+                        .route(web::delete().to(profiles::profile_delete)),
+                )
+                .service(
+                    web::resource("/toggle_extended_card_info")
+                        .route(web::post().to(profiles::toggle_extended_card_info)),
+                )
+                .service(
+                    web::resource("/toggle_connector_agnostic_mit")
+                        .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
+                ),
+        );
+
+        route
     }
 }
 

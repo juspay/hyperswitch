@@ -555,11 +555,7 @@ pub fn generate_payment_method_response(
     let pmd = pm
         .payment_method_data
         .clone()
-        .map(|data| data.into_inner().expose())
-        .map(|decrypted_value| decrypted_value.parse_value("PaymentMethodsData"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to parse PaymentMethodsData")?
+        .map(|data| data.into_inner().expose().into_inner())
         .and_then(|data| match data {
             api::PaymentMethodsData::Card(card) => {
                 Some(api::PaymentMethodResponseData::Card(card.into()))
@@ -571,8 +567,8 @@ pub fn generate_payment_method_response(
         merchant_id: pm.merchant_id.to_owned(),
         customer_id: pm.customer_id.to_owned(),
         payment_method_id: pm.id.get_string_repr().to_owned(),
-        payment_method: pm.payment_method,
-        payment_method_type: pm.payment_method_type,
+        payment_method_type: pm.get_payment_method_type(),
+        payment_method_subtype: pm.get_payment_method_subtype(),
         created: Some(pm.created_at),
         recurring_enabled: false,
         last_used_at: Some(pm.last_used_at),

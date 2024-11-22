@@ -1,3 +1,4 @@
+use common_enums::EntityType;
 use common_utils::id_type;
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
@@ -14,6 +15,8 @@ pub struct Theme {
     pub profile_id: Option<id_type::ProfileId>,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
+    pub entity_type: EntityType,
+    pub theme_name: String,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -26,4 +29,6 @@ pub struct ThemeNew {
     pub profile_id: Option<id_type::ProfileId>,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
+    pub entity_type: EntityType,
+    pub theme_name: String,
 }
