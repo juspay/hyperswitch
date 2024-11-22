@@ -8,7 +8,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "email")]
 use crate::{consts, services::email::types as email_types, types::domain};
 use crate::{
-    core::errors::{self, RouterResponse, UserResponse},
+    core::errors::{self, RouterResponse, UserResponse, UserErrors},
     services::{api as service_api, authentication},
     types::{
         api::{self as api_types, enums},
@@ -204,7 +204,7 @@ pub async fn verify_recon_token(
     let acl = user_with_role.role_info.get_recon_acl();
     let optional_acl_str = serde_json::to_string(&acl)
         .inspect_err(|err| router_env::logger::error!("Failed to serialize acl to string: {}", err))
-        .change_context(errors::UserErrors::InternalServerError)
+        .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to serialize acl to string. Using empty ACL")
         .ok();
 
