@@ -4,6 +4,48 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.22.0
+
+### Features
+
+- **connector:**
+  - [Xendit] Template PR ([#6593](https://github.com/juspay/hyperswitch/pull/6593)) ([`9bc363f`](https://github.com/juspay/hyperswitch/commit/9bc363f140afcdc3d4dc624d6410a42c33afaeed))
+  - [AIRWALLEX] Update production endpoint ([#6632](https://github.com/juspay/hyperswitch/pull/6632)) ([`bc65a84`](https://github.com/juspay/hyperswitch/commit/bc65a848a14c1e5c8a50cf4bf5764a7af2918ac9))
+- **themes:** Add `theme_name` and `entity_type` in themes table ([#6621](https://github.com/juspay/hyperswitch/pull/6621)) ([`bf13c16`](https://github.com/juspay/hyperswitch/commit/bf13c16109d0113f900c806b0722895a36ec2d5a))
+
+### Bug Fixes
+
+- **connector:** [Novalnet] Get email from customer email if billing.email is not present ([#6619](https://github.com/juspay/hyperswitch/pull/6619)) ([`9010214`](https://github.com/juspay/hyperswitch/commit/9010214c6e62a65f91e0eeca6d5f21468e5c63aa))
+
+### Refactors
+
+- Update API response for JSON deserialization errors ([#6610](https://github.com/juspay/hyperswitch/pull/6610)) ([`40d3c38`](https://github.com/juspay/hyperswitch/commit/40d3c38b830a7163331778064d0e1917d30fc17e))
+
+**Full Changelog:** [`2024.11.21.0...2024.11.22.0`](https://github.com/juspay/hyperswitch/compare/2024.11.21.0...2024.11.22.0)
+
+- - -
+
+## 2024.11.21.0
+
+### Features
+
+- **email:** Add SMTP support to allow mails through self hosted/custom SMTP server ([#6617](https://github.com/juspay/hyperswitch/pull/6617)) ([`0f563b0`](https://github.com/juspay/hyperswitch/commit/0f563b069994f47bba1ba77c79fef6307f3760e8))
+- **router:** Add support for network token migration ([#6300](https://github.com/juspay/hyperswitch/pull/6300)) ([`012e352`](https://github.com/juspay/hyperswitch/commit/012e352db0477f5ddb4429cb0e4f5d781fd901a7))
+- **users:** Convert emails to lowercase from requests ([#6601](https://github.com/juspay/hyperswitch/pull/6601)) ([`c04f81e`](https://github.com/juspay/hyperswitch/commit/c04f81e3c4362369a92b2ead5ee1b28b4ca44b52))
+
+### Bug Fixes
+
+- **connector:** [Volt] handle 5xx error for Volt payments webhooks ([#6576](https://github.com/juspay/hyperswitch/pull/6576)) ([`75ec96b`](https://github.com/juspay/hyperswitch/commit/75ec96b6131d470b39171415058106b3464de75a))
+- **dispute:** Change dispute currency type to currency enum ([#6454](https://github.com/juspay/hyperswitch/pull/6454)) ([`98aa84b`](https://github.com/juspay/hyperswitch/commit/98aa84b7e842ac85ce2461f3eab826a6c3783832))
+
+### Refactors
+
+- **router:** Remove metadata, additional_merchant_data and connector_wallets_details from connector list api ([#6583](https://github.com/juspay/hyperswitch/pull/6583)) ([`5611769`](https://github.com/juspay/hyperswitch/commit/5611769964e372eb4690ef95ce950a2842f074d3))
+
+**Full Changelog:** [`2024.11.20.0...2024.11.21.0`](https://github.com/juspay/hyperswitch/compare/2024.11.20.0...2024.11.21.0)
+
+- - -
+
 ## 2024.11.20.0
 
 ### Features

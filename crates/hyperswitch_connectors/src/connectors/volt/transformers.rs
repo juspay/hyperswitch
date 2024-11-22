@@ -518,6 +518,7 @@ pub enum VoltWebhookObjectResource {
 #[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentWebhookObjectResource {
+    #[serde(alias = "id")]
     pub payment: String,
     pub merchant_internal_reference: Option<String>,
     pub status: VoltWebhookPaymentStatus,
