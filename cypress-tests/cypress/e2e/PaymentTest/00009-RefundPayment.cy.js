@@ -1598,6 +1598,10 @@ describe("Card - Refund flow - 3DS", () => {
     });
 
     it("Confirm 3DS", () => {
+      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+        "3DSManualCapture"
+      ];
+
       let configs = validateConfig(data["Configs"]);
       let req_data = data["Request"];
       let res_data = data["Response"];

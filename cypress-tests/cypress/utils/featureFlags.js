@@ -94,7 +94,10 @@ export function execConfig(configs) {
       typeof configs?.CONNECTOR_CREDENTIAL === "undefined" ||
       typeof configs?.CONNECTOR_CREDENTIAL === "null"
     ) {
-      return "profileId";
+      return {
+        profile_id: "profileId",
+        merchant_connector_id: "merchantConnectorId",
+      };
     } else {
       if (configs.CONNECTOR_CREDENTIAL === "connector_1") {
         return {

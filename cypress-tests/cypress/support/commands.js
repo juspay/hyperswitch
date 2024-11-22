@@ -921,6 +921,7 @@ Cypress.Commands.add(
     createPaymentBody.capture_method = capture_method;
     createPaymentBody.customer_id = globalState.get("customerId");
     createPaymentBody.profile_id = profile_id;
+
     globalState.set("paymentAmount", createPaymentBody.amount);
 
     cy.request({
@@ -1144,7 +1145,6 @@ Cypress.Commands.add(
     confirmBody.confirm = confirm;
     confirmBody.profile_id = profile_id;
 
-    console.log(config_info, confirmBody.profile_id);
     for (const key in req_data) {
       confirmBody[key] = req_data[key];
     }
@@ -1513,8 +1513,11 @@ Cypress.Commands.add(
       body: createConfirmPaymentBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+
       globalState.set("clientSecret", response.body.client_secret);
+
       expect(response.headers["content-type"]).to.include("application/json");
+
       if (response.status === 200) {
         globalState.set("paymentAmount", createConfirmPaymentBody.amount);
         globalState.set("paymentID", response.body.payment_id);
@@ -1533,6 +1536,7 @@ Cypress.Commands.add(
         expect(response.body.billing, "billing_address").to.not.be.empty;
         expect(response.body.profile_id, "profile_id").to.not.be.null;
         expect(response.body).to.have.property("status");
+
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
@@ -1774,8 +1778,13 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "retrievePaymentCallTest",
-  (globalState, autoretries = false, attempt = 1) => {
+  (globalState, configs, autoretries = false, attempt = 1) => {
+    const config_info = execConfig(configs);
     const payment_id = globalState.get("paymentID");
+    const merchant_connector_id = globalState.get(
+      config_info.merchant_connector_id
+    );
+
     cy.request({
       method: "GET",
       url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
@@ -1786,7 +1795,6 @@ Cypress.Commands.add(
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-      globalState.set("paymentID", response.body.payment_id);
 
       expect(response.headers["content-type"]).to.include("application/json");
       expect(response.body.payment_id).to.equal(payment_id);
@@ -1806,7 +1814,7 @@ Cypress.Commands.add(
           .be.empty;
         expect(response.body.payment_method, "payment_method").to.not.be.null;
         expect(response.body.merchant_connector_id, "connector_id").to.equal(
-          globalState.get("merchantConnectorId")
+          merchant_connector_id
         );
       }
 
@@ -1929,7 +1937,7 @@ Cypress.Commands.add(
     requestBody.confirm = confirm;
     requestBody.customer_id = globalState.get("customerId");
     requestBody.payment_type = payment_type;
-    requestBody.profile_id = globalState.get(profile_id);
+    requestBody.profile_id = profile_id;
 
     globalState.set("paymentAmount", requestBody.amount);
 
@@ -1953,7 +1961,7 @@ Cypress.Commands.add(
         expect(response.body.connector, "connector").to.equal(
           globalState.get("connectorId")
         );
-        expect(globalState.get("merchantConnectorId"), "connector_id").to.equal(
+        expect(merchant_connector_id, "connector_id").to.equal(
           response.body.merchant_connector_id
         );
         expect(response.body.customer, "customer").to.not.be.empty;
@@ -2042,7 +2050,7 @@ Cypress.Commands.add(
     requestBody.capture_method = capture_method;
     requestBody.customer_id = globalState.get("customerId");
     requestBody.mandate_id = globalState.get("mandateId");
-    requestBody.profile_id = globalState.get(profile_id);
+    requestBody.profile_id = profile_id;
 
     globalState.set("paymentAmount", requestBody.amount);
     cy.request({
@@ -2064,7 +2072,7 @@ Cypress.Commands.add(
         expect(response.body.connector, "connector").to.equal(
           globalState.get("connectorId")
         );
-        expect(globalState.get("merchantConnectorId"), "connector_id").to.equal(
+        expect(merchant_connector_id, "connector_id").to.equal(
           response.body.merchant_connector_id
         );
         expect(response.body.customer, "customer").to.not.be.empty;
@@ -2134,15 +2142,12 @@ Cypress.Commands.add(
   (requestBody, amount, confirm, capture_method, globalState, configs) => {
     const config_info = execConfig(configs);
     const profile_id = globalState.get(config_info.profile_id);
-    const merchant_connector_id = globalState.get(
-      config_info.merchant_connector_id
-    );
 
     requestBody.amount = amount;
     requestBody.capture_method = capture_method;
     requestBody.confirm = confirm;
     requestBody.customer_id = globalState.get("customerId");
-    requestBody.profile_id = globalState.get(profile_id);
+    requestBody.profile_id = profile_id;
     requestBody.recurring_details.data = globalState.get("paymentMethodId");
 
     cy.request({
