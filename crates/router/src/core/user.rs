@@ -255,7 +255,7 @@ pub async fn connect_account(
             auth_id,
         };
 
-        let send_email_result = state
+        let magic_link_result = state
             .email_client
             .compose_and_send_email(
                 Box::new(magic_link_email),
@@ -263,14 +263,14 @@ pub async fn connect_account(
             )
             .await;
 
-        logger::info!(?send_email_result);
+        logger::info!(?magic_link_result);
 
         let welcome_to_community_email = email_types::WelcomeToCommunity {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
         };
 
-        let send_email_result = state
+        let welcome_email_result = state
             .email_client
             .compose_and_send_email(
                 Box::new(welcome_to_community_email),
@@ -278,11 +278,11 @@ pub async fn connect_account(
             )
             .await;
 
-        logger::info!(?send_email_result);
+        logger::info!(?welcome_email_result);
 
         return Ok(ApplicationResponse::Json(
             user_api::ConnectAccountResponse {
-                is_email_sent: send_email_result.is_ok(),
+                is_email_sent: magic_link_result.is_ok(),
                 user_id: user_from_db.get_user_id().to_string(),
             },
         ));
