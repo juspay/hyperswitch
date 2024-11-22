@@ -820,6 +820,7 @@ pub struct PaymentMethodResponse {
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
+    WalletDetails(payments::additional_info::WalletAdditionalDataForCard),
 }
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
