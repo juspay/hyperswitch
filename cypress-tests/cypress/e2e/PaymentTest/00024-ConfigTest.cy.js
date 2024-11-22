@@ -2,7 +2,9 @@ import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
 import { payment_methods_enabled } from "../PaymentUtils/Commons";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
+
 let globalState;
+
 describe("Config Tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
