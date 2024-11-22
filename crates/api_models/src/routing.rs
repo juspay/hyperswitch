@@ -526,28 +526,32 @@ pub struct DynamicRoutingAlgorithmRef {
     pub elimination_routing_algorithm: Option<EliminationRoutingAlgorithm>,
 }
 
-pub trait DynamicRoutingAlgoAccessor<T> {
-    fn get_algorithm(&self) -> &Option<T>;
-    fn get_algorithm_mut(&mut self) -> &mut Option<T>;
+pub trait DynamicRoutingAlgoAccessor {
+    fn get_algorithm_id_with_timestamp(
+        &mut self,
+    ) -> &mut DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>;
+    fn get_enabeld_features(&mut self) -> &mut DynamicRoutingFeatures;
 }
 
-impl DynamicRoutingAlgoAccessor<SuccessBasedAlgorithm> for DynamicRoutingAlgorithmRef {
-    fn get_algorithm(&self) -> &Option<SuccessBasedAlgorithm> {
-        &self.success_based_algorithm
+impl DynamicRoutingAlgoAccessor for SuccessBasedAlgorithm {
+    fn get_algorithm_id_with_timestamp(
+        &mut self,
+    ) -> &mut DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId> {
+        &mut self.algorithm_id_with_timestamp
     }
-
-    fn get_algorithm_mut(&mut self) -> &mut Option<SuccessBasedAlgorithm> {
-        &mut self.success_based_algorithm
+    fn get_enabeld_features(&mut self) -> &mut DynamicRoutingFeatures {
+        &mut self.enabled_feature
     }
 }
 
-impl DynamicRoutingAlgoAccessor<EliminationRoutingAlgorithm> for DynamicRoutingAlgorithmRef {
-    fn get_algorithm(&self) -> &Option<EliminationRoutingAlgorithm> {
-        &self.elimination_routing_algorithm
+impl DynamicRoutingAlgoAccessor for EliminationRoutingAlgorithm {
+    fn get_algorithm_id_with_timestamp(
+        &mut self,
+    ) -> &mut DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId> {
+        &mut self.algorithm_id_with_timestamp
     }
-
-    fn get_algorithm_mut(&mut self) -> &mut Option<EliminationRoutingAlgorithm> {
-        &mut self.elimination_routing_algorithm
+    fn get_enabeld_features(&mut self) -> &mut DynamicRoutingFeatures {
+        &mut self.enabled_feature
     }
 }
 

@@ -10,11 +10,7 @@ use std::sync::Arc;
 use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
-use common_utils::{
-    ext_traits::{AsyncExt, Encode},
-    id_type,
-    types::keymanager::KeyManagerState,
-};
+use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
 #[cfg(feature = "v1")]
 use diesel_models::routing_algorithm;
@@ -1042,6 +1038,7 @@ pub async fn enable_dynamic_routing_algorithm(
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let business_profile = business_profile.clone();
 
+    let dynamic_routing = dynamic_routing_algo_ref.clone();
     match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
             helper_enable_function(
@@ -1051,6 +1048,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
+                dynamic_routing.success_based_algorithm.unwrap(),
             )
             .await
         }
@@ -1062,88 +1060,71 @@ pub async fn enable_dynamic_routing_algorithm(
                 feature_to_enable,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
+                dynamic_routing.elimination_routing_algorithm.unwrap(),
             )
             .await
         }
     }
 }
 
-pub async fn helper_enable_function(
+pub async fn helper_enable_function<A>(
     state: &SessionState,
     key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
     feature_to_enable: routing_types::DynamicRoutingFeatures,
     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
+    algo_type: A,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>>
 where
+    A: routing_types::DynamicRoutingAlgoAccessor,
 {
     let db = state.store.as_ref();
     let feature_to_enable_for_routing = feature_to_enable.clone();
     let profile_id = business_profile.get_id().clone();
-    let routing_type = dynamic_routing_type.to_string();
     let business_profile = business_profile.clone();
-    let mut res = dynamic_routing_algo_ref
-        .success_based_algorithm
-        .as_mut()
-        .map(|algo| {
-            if algo.enabled_feature == feature_to_enable {
-                // algorithm already has the required feature
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "{} is already enabled".to_string(),
-                })
-            } else {
-                Ok(algo)
-            }
-        })
-        .transpose()?;
+    let mut algo_type_enabled_features = algo_type.get_enabeld_features();
+    let algo_type_algorithm_id = algo_type.get_algorithm_id_with_timestamp().algorithm_id;
+    if *algo_type_enabled_features == feature_to_enable {
+        // algorithm already has the required feature
+        return Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!("{} is already enabled", dynamic_routing_type.to_string()),
+        }
+        .into());
+    };
 
-    let algo_id = res
-        .as_mut()
-        .and_then(|algo| algo.algorithm_id_with_timestamp.algorithm_id.clone());
-
-    let temp = res
-        .as_mut()
-        .zip(algo_id)
-        .async_map(|(algo, algo_id)| async move {
-            algo.update_enabled_features(feature_to_enable_for_routing.to_owned());
-            db.find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algo_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
-        })
+    *algo_type_enabled_features = feature_to_enable;
+    let routing_algortihm = db
+        .find_routing_algorithm_by_profile_id_algorithm_id(
+            &profile_id,
+            &algo_type_algorithm_id.unwrap(),
+        )
         .await
-        .transpose()?
-        .async_map(|routing_algo| async {
-            update_business_profile_active_dynamic_algorithm_ref(
-                db,
-                &state.into(),
-                &key_store,
-                business_profile.clone(),
-                dynamic_routing_algo_ref.clone(),
-            )
-            .await
-            .map(|_| routing_algo.foreign_into())
-        })
-        .await
-        .transpose()?
-        .map(|response| {
-            core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([(
-                    "profile_id",
-                    business_profile
-                        .get_id()
-                        .clone()
-                        .get_string_repr()
-                        .to_owned(),
-                )]),
-            );
-            Ok(ApplicationResponse::Json(response))
-        });
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+    let temp = update_business_profile_active_dynamic_algorithm_ref(
+        db,
+        &state.into(),
+        &key_store,
+        business_profile.clone(),
+        dynamic_routing_algo_ref.clone(),
+    )
+    .await;
 
-    if let Some(inner) = temp {
-        inner
+    if temp.is_ok() {
+        let updated_routing_record = routing_algortihm.foreign_into()?;
+        core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+            &metrics::CONTEXT,
+            1,
+            &add_attributes([(
+                "profile_id",
+                business_profile
+                    .get_id()
+                    .clone()
+                    .get_string_repr()
+                    .to_owned(),
+            )]),
+        );
+        Ok(ApplicationResponse::Json(updated_routing_record))
     } else {
         default_success_based_routing_setup(
             &state,
@@ -1156,7 +1137,94 @@ where
         .await
     }
 }
-
+// pub async fn helper_enable_functions(
+//     state: &SessionState,
+//     key_store: domain::MerchantKeyStore,
+//     business_profile: domain::Profile,
+//     feature_to_enable: routing_types::DynamicRoutingFeatures,
+//     mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
+//     dynamic_routing_type: routing_types::DynamicRoutingType,
+// ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>>
+// where
+// {
+//     let db = state.store.as_ref();
+//     let feature_to_enable_for_routing = feature_to_enable.clone();
+//     let profile_id = business_profile.get_id().clone();
+//     let routing_type = dynamic_routing_type.to_string();
+//     let business_profile = business_profile.clone();
+//     let mut res = dynamic_routing_algo_ref
+//         .success_based_algorithm
+//         .as_mut()
+//         .map(|algo| {
+//             if algo.enabled_feature == feature_to_enable {
+//                 // algorithm already has the required feature
+//                 Err(errors::ApiErrorResponse::PreconditionFailed {
+//                     message: "{} is already enabled".to_string(),
+//                 })
+//             } else {
+//                 Ok(algo)
+//             }
+//         })
+//         .transpose()?;
+//
+//     let algo_id = res
+//         .as_mut()message: format!("{} is already enabled", dynamic_routing_type),
+//         .and_then(|algo| algo.algorithm_id_with_timestamp.algorithm_id.clone());
+//
+//     let temp = res
+//         .as_mut()
+//         .zip(algo_id)
+//         .async_map(|(algo, algo_id)| async move {
+//             algo.update_enabled_features(feature_to_enable_for_routing.to_owned());
+//             db.find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algo_id)
+//                 .await
+//                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
+//         })
+//         .await
+//         .transpose()?
+//         .async_map(|routing_algo| async {
+//             update_business_profile_active_dynamic_algorithm_ref(
+//                 db,
+//                 &state.into(),
+//                 &key_store,
+//                 business_profile.clone(),
+//                 dynamic_routing_algo_ref.clone(),
+//             )
+//             .await
+//             .map(|_| routing_algo.foreign_into())
+//         })
+//         .await
+//         .transpose()?
+//         .map(|response| {
+//             core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+//                 &metrics::CONTEXT,
+//                 1,
+//                 &add_attributes([(
+//                     "profile_id",
+//                     business_profile
+//                         .get_id()
+//                         .clone()
+//                         .get_string_repr()
+//                         .to_owned(),
+//                 )]),
+//             );
+//             Ok(ApplicationResponse::Json(response))
+//         });
+//
+//     if let Some(inner) = temp {
+//         inner
+//     } else {
+//         default_success_based_routing_setup(
+//             &state,
+//             key_store,
+//             business_profile,
+//             feature_to_enable,
+//             dynamic_routing_algo_ref,
+//             dynamic_routing_type,
+//         )
+//         .await
+//     }
+// }
 /// default config setup for success_based_routing
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
