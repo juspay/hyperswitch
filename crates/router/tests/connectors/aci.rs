@@ -217,7 +217,7 @@ async fn payments_create_success() {
     .await;
     let state = Arc::new(app_state)
         .get_session_state(
-            &id_type::TenantId::wrap("public".to_string()).unwrap(),
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
             || {},
         )
         .unwrap();
@@ -267,7 +267,7 @@ async fn payments_create_failure() {
         .await;
         let state = Arc::new(app_state)
             .get_session_state(
-                &id_type::TenantId::wrap("public".to_string()).unwrap(),
+                &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
                 || {},
             )
             .unwrap();
@@ -333,7 +333,7 @@ async fn refund_for_successful_payments() {
     .await;
     let state = Arc::new(app_state)
         .get_session_state(
-            &id_type::TenantId::wrap("public".to_string()).unwrap(),
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
             || {},
         )
         .unwrap();
@@ -406,7 +406,7 @@ async fn refunds_create_failure() {
     .await;
     let state = Arc::new(app_state)
         .get_session_state(
-            &id_type::TenantId::wrap("public".to_string()).unwrap(),
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
             || {},
         )
         .unwrap();

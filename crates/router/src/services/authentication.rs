@@ -1110,7 +1110,7 @@ impl<'a> HeaderMapStruct<'a> {
         self.get_mandatory_header_value_by_key(headers::X_ORGANIZATION_ID)
             .map(|val| val.to_owned())
             .and_then(|organization_id| {
-                id_type::OrganizationId::wrap(organization_id).change_context(
+                id_type::OrganizationId::try_from_string(organization_id).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!("`{}` header is invalid", headers::X_ORGANIZATION_ID),
                     },

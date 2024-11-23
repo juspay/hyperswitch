@@ -600,7 +600,7 @@ pub trait ConnectorActions: Connector {
         .await;
         let state = Arc::new(app_state)
             .get_session_state(
-                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
                 || {},
             )
             .unwrap();
@@ -643,7 +643,7 @@ pub trait ConnectorActions: Connector {
         .await;
         let state = Arc::new(app_state)
             .get_session_state(
-                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
                 || {},
             )
             .unwrap();
@@ -687,7 +687,7 @@ pub trait ConnectorActions: Connector {
         .await;
         let state = Arc::new(app_state)
             .get_session_state(
-                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
                 || {},
             )
             .unwrap();
@@ -730,7 +730,7 @@ pub trait ConnectorActions: Connector {
         .await;
         let state = Arc::new(app_state)
             .get_session_state(
-                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
                 || {},
             )
             .unwrap();
@@ -824,7 +824,7 @@ pub trait ConnectorActions: Connector {
         .await;
         let state = Arc::new(app_state)
             .get_session_state(
-                &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
                 || {},
             )
             .unwrap();
@@ -864,7 +864,7 @@ async fn call_connector<
     .await;
     let state = Arc::new(app_state)
         .get_session_state(
-            &common_utils::id_type::TenantId::wrap("public".to_string()).unwrap(),
+            &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
             || {},
         )
         .unwrap();

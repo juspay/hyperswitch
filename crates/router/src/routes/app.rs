@@ -7,6 +7,7 @@ use api_models::routing::RoutingRetrieveQuery;
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
+use common_utils::id_type;
 #[cfg(feature = "email")]
 use external_services::email::{
     no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
@@ -193,14 +194,14 @@ impl SessionStateInfo for SessionState {
 pub struct AppState {
     pub flow_name: String,
     pub global_store: Box<dyn GlobalStorageInterface>,
-    pub stores: HashMap<common_utils::id_type::TenantId, Box<dyn StorageInterface>>,
+    pub stores: HashMap<id_type::TenantId, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
     pub email_client: Arc<Box<dyn EmailService>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
-    pub pools: HashMap<common_utils::id_type::TenantId, AnalyticsProvider>,
+    pub pools: HashMap<id_type::TenantId, AnalyticsProvider>,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
@@ -209,7 +210,7 @@ pub struct AppState {
     pub grpc_client: Arc<GrpcClients>,
 }
 impl scheduler::SchedulerAppState for AppState {
-    fn get_tenants(&self) -> Vec<common_utils::id_type::TenantId> {
+    fn get_tenants(&self) -> Vec<id_type::TenantId> {
         self.conf.multitenancy.get_tenant_ids()
     }
 }
@@ -328,8 +329,7 @@ impl AppState {
             );
 
             #[cfg(feature = "olap")]
-            let mut pools: HashMap<common_utils::id_type::TenantId, AnalyticsProvider> =
-                HashMap::new();
+            let mut pools: HashMap<id_type::TenantId, AnalyticsProvider> = HashMap::new();
             let mut stores = HashMap::new();
             #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
@@ -446,7 +446,7 @@ impl AppState {
 
     pub fn get_session_state<E, F>(
         self: Arc<Self>,
-        tenant: &common_utils::id_type::TenantId,
+        tenant: &id_type::TenantId,
         err: F,
     ) -> Result<SessionState, E>
     where

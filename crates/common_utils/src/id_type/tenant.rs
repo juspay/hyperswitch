@@ -1,4 +1,3 @@
-use super::{AlphaNumericId, LengthId};
 use crate::errors::{CustomResult, ValidationError};
 
 crate::id_type!(
@@ -17,14 +16,7 @@ crate::impl_to_sql_from_sql_id_type!(TenantId);
 
 impl TenantId {
     /// Get tenant id from String
-    pub fn wrap(tenant_id: String) -> CustomResult<Self, ValidationError> {
+    pub fn try_from_string(tenant_id: String) -> CustomResult<Self, ValidationError> {
         Self::try_from(std::borrow::Cow::from(tenant_id))
-    }
-
-    /// Create a tenant ID without check
-    pub fn new_unchecked(tenant_id: &str) -> Self {
-        let alphanumeric_id = AlphaNumericId::new_unchecked(tenant_id.to_string());
-        let length_id = LengthId::new_unchecked(alphanumeric_id);
-        Self(length_id)
     }
 }

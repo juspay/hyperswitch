@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type};
 use storage_impl::mock_db::MockDb;
 #[cfg(feature = "kv_store")]
 use storage_impl::KVRouterStore;
@@ -52,7 +52,7 @@ impl SchedulerInterface for MockDb {}
 
 #[async_trait::async_trait]
 pub trait SchedulerAppState: Send + Sync + Clone {
-    fn get_tenants(&self) -> Vec<common_utils::id_type::TenantId>;
+    fn get_tenants(&self) -> Vec<id_type::TenantId>;
 }
 #[async_trait::async_trait]
 pub trait SchedulerSessionState: Send + Sync + Clone {
@@ -71,7 +71,7 @@ pub async fn start_process_tracker<
     app_state_to_session_state: F,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    F: Fn(&T, &common_utils::id_type::TenantId) -> CustomResult<U, errors::ProcessTrackerError>,
+    F: Fn(&T, &id_type::TenantId) -> CustomResult<U, errors::ProcessTrackerError>,
 {
     match scheduler_flow {
         SchedulerFlow::Producer => {

@@ -722,9 +722,11 @@ where
 
     let mut event_type = payload.get_api_event_type();
     let tenant_id = if !state.conf.multitenancy.enabled {
-        common_utils::id_type::TenantId::new_unchecked(DEFAULT_TENANT)
+        common_utils::id_type::TenantId::try_from_string(DEFAULT_TENANT.to_owned())
+            .attach_printable("Unable to get default tenant id")
+            .change_context(errors::ApiErrorResponse::InternalServerError.switch())?
     } else {
-        let request_tenant_id = common_utils::id_type::TenantId::wrap(
+        let request_tenant_id = common_utils::id_type::TenantId::try_from_string(
             incoming_request_header
                 .get(TENANT_HEADER)
                 .and_then(|value| value.to_str().ok())

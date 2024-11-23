@@ -6,7 +6,7 @@ use std::{
 #[cfg(feature = "olap")]
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::{enums, payment_methods::RequiredFieldInfo};
-use common_utils::ext_traits::ConfigExt;
+use common_utils::{ext_traits::ConfigExt, id_type};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -138,17 +138,17 @@ pub struct Multitenancy {
 }
 
 impl Multitenancy {
-    pub fn get_tenants(&self) -> &HashMap<common_utils::id_type::TenantId, Tenant> {
+    pub fn get_tenants(&self) -> &HashMap<id_type::TenantId, Tenant> {
         &self.tenants.0
     }
-    pub fn get_tenant_ids(&self) -> Vec<common_utils::id_type::TenantId> {
+    pub fn get_tenant_ids(&self) -> Vec<id_type::TenantId> {
         self.tenants
             .0
             .values()
             .map(|tenant| tenant.tenant_id.clone())
             .collect()
     }
-    pub fn get_tenant(&self, tenant_id: &common_utils::id_type::TenantId) -> Option<&Tenant> {
+    pub fn get_tenant(&self, tenant_id: &id_type::TenantId) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
     }
 }
@@ -159,11 +159,11 @@ pub struct DecisionConfig {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct TenantConfig(pub HashMap<common_utils::id_type::TenantId, Tenant>);
+pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
 #[derive(Debug, Clone)]
 pub struct Tenant {
-    pub tenant_id: common_utils::id_type::TenantId,
+    pub tenant_id: id_type::TenantId,
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,
@@ -743,8 +743,7 @@ pub struct LockerBasedRecipientConnectorList {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorRequestReferenceIdConfig {
-    pub merchant_ids_send_payment_id_as_connector_request_id:
-        HashSet<common_utils::id_type::MerchantId>,
+    pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<id_type::MerchantId>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1120,7 +1119,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
             clickhouse_database: String,
         }
 
-        let hashmap = <HashMap<common_utils::id_type::TenantId, Inner>>::deserialize(deserializer)?;
+        let hashmap = <HashMap<id_type::TenantId, Inner>>::deserialize(deserializer)?;
 
         Ok(Self(
             hashmap

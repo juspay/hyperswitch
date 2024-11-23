@@ -3,6 +3,7 @@ use std::{
     sync::{atomic, Arc},
 };
 
+use common_utils::id_type;
 use router_env::tracing::Instrument;
 use tokio::{
     sync::{mpsc, oneshot},
@@ -34,14 +35,14 @@ pub struct HandlerInner {
     loop_interval: Duration,
     active_tasks: Arc<atomic::AtomicU64>,
     conf: DrainerSettings,
-    stores: HashMap<common_utils::id_type::TenantId, Arc<Store>>,
+    stores: HashMap<id_type::TenantId, Arc<Store>>,
     running: Arc<atomic::AtomicBool>,
 }
 
 impl Handler {
     pub fn from_conf(
         conf: DrainerSettings,
-        stores: HashMap<common_utils::id_type::TenantId, Arc<Store>>,
+        stores: HashMap<id_type::TenantId, Arc<Store>>,
     ) -> Self {
         let shutdown_interval = Duration::from_millis(conf.shutdown_interval.into());
         let loop_interval = Duration::from_millis(conf.loop_interval.into());

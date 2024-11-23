@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, id_type};
 use diesel_models::{Config, ConfigNew};
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
@@ -20,10 +20,7 @@ pub const TEST_STREAM_DATA: &[(&str, &str)] = &[("data", "sample_data")];
 pub struct Health;
 
 impl Health {
-    pub fn server(
-        conf: Settings,
-        stores: HashMap<common_utils::id_type::TenantId, Arc<Store>>,
-    ) -> Scope {
+    pub fn server(conf: Settings, stores: HashMap<id_type::TenantId, Arc<Store>>) -> Scope {
         web::scope("health")
             .app_data(web::Data::new(conf))
             .app_data(web::Data::new(stores))
