@@ -309,6 +309,7 @@ pub async fn create_routing_algorithm_under_profile(
         created_at: timestamp,
         modified_at: timestamp,
         algorithm_for: transaction_type.to_owned(),
+        status: Some(diesel_models::enums::RoutingAlgorithmStatus::Enabled),
     };
     let record = db
         .insert_routing_algorithm(algo)
