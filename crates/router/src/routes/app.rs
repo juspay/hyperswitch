@@ -149,7 +149,7 @@ impl SessionStateInfo for SessionState {
     }
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
-        self.store.add_request_id(request_id.to_string());<<<<<<< feat_elimination_routing
+        self.store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 
@@ -1743,45 +1743,33 @@ impl Profile {
                 web::resource("")
                     .route(web::post().to(profiles::profile_create))
                     .route(web::get().to(profiles::profiles_list)),
-            )
-            .service(
-                web::scope("/{profile_id}")
-                    .service(
-                        web::scope("/dynamic_routing")
+            );
+
+        #[cfg(feature = "dynamic_routing")]
+        {
+            route =
+                route.service(
+                    web::scope("/{profile_id}/dynamic_routing").service(
+                        web::scope("/success_based")
                             .service(
-                                web::scope("/success_based")
-                                    .service(web::resource("/toggle").route(
-                                        web::post().to(routing::toggle_success_based_routing),
-                                    ))
-                                    .service(web::resource("/config/{algorithm_id}").route(
-                                        web::patch().to(|state, req, path, payload| {
-                                            routing::success_based_routing_update_configs(
-                                                state, req, path, payload,
-                                            )
-                                        }),
-                                    )),
+                                web::resource("/toggle")
+                                    .route(web::post().to(routing::toggle_success_based_routing)),
                             )
-                            .service(
-                                web::scope("/elimination")
-                                    .service(web::resource("/toggle").route(
+                            .service(web::resource("/config/{algorithm_id}").route(
+                                web::patch().to(|state, req, path, payload| {
+                                    routing::success_based_routing_update_configs(
+                                        state, req, path, payload,
+                                    )
+                                }),
+                            )),
+                    ).service(
+                            web::scope("/elimination")
+                                .service(
+                                    web::resource("/toggle").route(
                                         web::post().to(routing::toggle_elimination_routing),
-                                    )),
-                            ),
-                    )
-                    .service(
-                        web::resource("")
-                            .route(web::get().to(profiles::profile_retrieve))
-                            .route(web::post().to(profiles::profile_update))
-                            .route(web::delete().to(profiles::profile_delete)),
-                    )
-                    .service(
-                        web::resource("/toggle_extended_card_info")
-                            .route(web::post().to(profiles::toggle_extended_card_info)),
-                    )
-                    .service(
-                        web::resource("/toggle_connector_agnostic_mit")
-                            .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
-                    ),
+                                    ),
+                                )
+                        )
                 );
         }
 
