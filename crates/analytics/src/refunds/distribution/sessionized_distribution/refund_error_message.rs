@@ -2,8 +2,8 @@ use api_models::analytics::{
     refunds::{RefundDimensions, RefundFilters, RefundMetricsBucketIdentifier},
     Granularity, RefundDistributionBody, TimeRange,
 };
-use diesel_models::enums as storage_enums;
 use common_utils::errors::ReportSwitchExt;
+use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
@@ -11,7 +11,7 @@ use super::{RefundDistribution, RefundDistributionRow};
 use crate::{
     enums::AuthInfo,
     query::{
-        Aggregate, GroupByClause, Order, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window
+        Aggregate, GroupByClause, Order, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window,
     },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };

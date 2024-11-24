@@ -1,4 +1,6 @@
-use api_models::analytics::refunds::{ReasonsResult, ErrorMessagesResult, RefundMetricsBucketValue};
+use api_models::analytics::refunds::{
+    ErrorMessagesResult, ReasonsResult, RefundMetricsBucketValue,
+};
 use bigdecimal::ToPrimitive;
 use diesel_models::enums as storage_enums;
 
@@ -110,22 +112,27 @@ impl RefundDistributionAccumulator for RefundErrorMessageDistributionAccumulator
     type DistributionOutput = Option<Vec<ErrorMessagesResult>>;
 
     fn add_distribution_bucket(&mut self, distribution: &RefundDistributionRow) {
-        self.refund_error_message_vec.push(RefundErrorMessageDistributionRow {
-            count: distribution.count.unwrap_or_default(),
-            total: distribution
-                .total
-                .clone()
-                .map(|i| i.to_i64().unwrap_or_default())
-                .unwrap_or_default(),
-            refund_error_message: distribution.refund_error_message.clone().unwrap_or("".to_string()),
-        })
+        self.refund_error_message_vec
+            .push(RefundErrorMessageDistributionRow {
+                count: distribution.count.unwrap_or_default(),
+                total: distribution
+                    .total
+                    .clone()
+                    .map(|i| i.to_i64().unwrap_or_default())
+                    .unwrap_or_default(),
+                refund_error_message: distribution
+                    .refund_error_message
+                    .clone()
+                    .unwrap_or("".to_string()),
+            })
     }
 
     fn collect(mut self) -> Self::DistributionOutput {
         if self.refund_error_message_vec.is_empty() {
             None
         } else {
-            self.refund_error_message_vec.sort_by(|a, b| b.count.cmp(&a.count));
+            self.refund_error_message_vec
+                .sort_by(|a, b| b.count.cmp(&a.count));
             let mut res: Vec<ErrorMessagesResult> = Vec::new();
             for val in self.refund_error_message_vec.into_iter() {
                 let perc = f64::from(u32::try_from(val.count).ok()?) * 100.0
