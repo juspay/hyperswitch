@@ -458,6 +458,24 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",

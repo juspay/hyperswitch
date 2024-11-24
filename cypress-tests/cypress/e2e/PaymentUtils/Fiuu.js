@@ -360,6 +360,24 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
