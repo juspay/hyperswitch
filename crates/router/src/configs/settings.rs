@@ -969,7 +969,7 @@ pub struct ServerTls {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
-    pub id: common_utils::id_type::CellId,
+    pub id: id_type::CellId,
 }
 
 #[cfg(feature = "v2")]
@@ -980,8 +980,8 @@ impl Default for CellInformation {
         // around the time of deserializing application settings.
         // And a panic at application startup is considered acceptable.
         #[allow(clippy::expect_used)]
-        let cell_id = common_utils::id_type::CellId::from_string("defid")
-            .expect("Failed to create a default for Cell Id");
+        let cell_id =
+            id_type::CellId::from_string("defid").expect("Failed to create a default for Cell Id");
         Self { id: cell_id }
     }
 }

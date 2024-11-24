@@ -726,19 +726,20 @@ where
             .attach_printable("Unable to get default tenant id")
             .change_context(errors::ApiErrorResponse::InternalServerError.switch())?
     } else {
-        let request_tenant_id = common_utils::id_type::TenantId::try_from_string(
-            incoming_request_header
-                .get(TENANT_HEADER)
-                .and_then(|value| value.to_str().ok())
-                .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())?
-                .to_string(),
-        )
-        .change_context(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("`{}` header is invalid", headers::X_TENANT_ID),
-            }
-            .switch(),
-        )?;
+        let request_tenant_id = incoming_request_header
+            .get(TENANT_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
+            .and_then(|header_value| {
+                common_utils::id_type::TenantId::try_from_string(header_value.to_string()).map_err(
+                    |_| {
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: format!("`{}` header is invalid", headers::X_TENANT_ID),
+                        }
+                        .switch()
+                    },
+                )
+            })?;
 
         state
             .conf
