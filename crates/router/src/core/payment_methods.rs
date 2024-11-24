@@ -1337,12 +1337,8 @@ async fn get_pm_list_context(
 
     let payment_method_retrieval_context = match payment_method_data {
         Some(payment_methods::PaymentMethodsData::Card(card)) => {
-            let card_details = api::CardDetailFromLocker::from(card);
-
-            Some(PaymentMethodListContext {
-                card_details: Some(card_details.clone()),
-                #[cfg(feature = "payouts")]
-                bank_transfer_details: None,
+            Some(PaymentMethodListContext::Card {
+                card_details: api::CardDetailFromLocker::from(card),
                 hyperswitch_token_data: is_payment_associated.then_some(
                     storage::PaymentTokenData::permanent_card(
                         Some(payment_method.get_id().clone()),
@@ -1391,18 +1387,12 @@ async fn get_pm_list_context(
             bank_account_token_data.map(|data| {
                 let token_data = storage::PaymentTokenData::AuthBankDebit(data);
 
-                PaymentMethodListContext {
-                    card_details: None,
-                    #[cfg(feature = "payouts")]
-                    bank_transfer_details: None,
+                PaymentMethodListContext::Bank {
                     hyperswitch_token_data: is_payment_associated.then_some(token_data),
                 }
             })
         }
-        None => Some(PaymentMethodListContext {
-            card_details: None,
-            #[cfg(feature = "payouts")]
-            bank_transfer_details: None,
+        None => Some(PaymentMethodListContext::TemporaryToken {
             hyperswitch_token_data: is_payment_associated.then_some(
                 storage::PaymentTokenData::temporary_generic(generate_id(
                     consts::ID_LENGTH,
@@ -1682,15 +1672,20 @@ async fn generate_saved_pm_response(
         requires_cvv && !(off_session_payment_flag && pm.connector_mandate_details.is_some())
     };
 
-    let pmd = if let Some(card) = pm_list_context.card_details.as_ref() {
-        Some(api::PaymentMethodListData::Card(card.clone()))
-    } else if cfg!(feature = "payouts") {
-        pm_list_context
-            .bank_transfer_details
-            .clone()
-            .map(api::PaymentMethodListData::Bank)
-    } else {
-        None
+    let pmd = match &pm_list_context {
+        PaymentMethodListContext::Card { card_details, .. } => {
+            Some(api::PaymentMethodListData::Card(card_details.clone()))
+        }
+        #[cfg(feature = "payouts")]
+        PaymentMethodListContext::BankTransfer {
+            bank_transfer_details,
+            ..
+        } => Some(api::PaymentMethodListData::Bank(
+            bank_transfer_details.clone(),
+        )),
+        PaymentMethodListContext::Bank { .. } | PaymentMethodListContext::TemporaryToken { .. } => {
+            None
+        }
     };
 
     let pma = api::CustomerPaymentMethod {
@@ -1974,7 +1969,7 @@ impl pm_types::SavedPMLPaymentsInfo {
             .as_ref()
             .get_required_value("parent_payment_method_token")?;
         let hyperswitch_token_data = pm_list_context
-            .hyperswitch_token_data
+            .get_token_data()
             .get_required_value("PaymentTokenData")?;
 
         let intent_fulfillment_time = self

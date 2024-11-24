@@ -105,12 +105,58 @@ impl PaymentTokenData {
     }
 }
 
+#[cfg(all(
+    any(feature = "v1", feature = "v2"),
+    not(feature = "payment_methods_v2")
+))]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodListContext {
     pub card_details: Option<api::CardDetailFromLocker>,
     pub hyperswitch_token_data: Option<PaymentTokenData>,
     #[cfg(feature = "payouts")]
     pub bank_transfer_details: Option<api::BankPayout>,
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum PaymentMethodListContext {
+    Card {
+        card_details: api::CardDetailFromLocker,
+        hyperswitch_token_data: Option<PaymentTokenData>,
+    },
+    Bank {
+        hyperswitch_token_data: Option<PaymentTokenData>,
+    },
+    #[cfg(feature = "payouts")]
+    BankTransfer {
+        bank_transfer_details: api::BankPayout,
+        hyperswitch_token_data: Option<PaymentTokenData>,
+    },
+    TemporaryToken {
+        hyperswitch_token_data: Option<PaymentTokenData>,
+    },
+}
+
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+impl PaymentMethodListContext {
+    pub(crate) fn get_token_data(&self) -> Option<PaymentTokenData> {
+        match self {
+            Self::Card {
+                hyperswitch_token_data,
+                ..
+            }
+            | Self::Bank {
+                hyperswitch_token_data,
+            }
+            | Self::BankTransfer {
+                hyperswitch_token_data,
+                ..
+            }
+            | Self::TemporaryToken {
+                hyperswitch_token_data,
+            } => hyperswitch_token_data.clone(),
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
