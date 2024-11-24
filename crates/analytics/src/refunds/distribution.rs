@@ -1,8 +1,9 @@
 use api_models::analytics::{
-    payments::{
-        PaymentDimensions, PaymentDistributions, PaymentFilters, PaymentMetricsBucketIdentifier,
+    refunds::{
+        RefundDimensions, RefundDistributions, RefundFilters, RefundMetricsBucketIdentifier,
+        RefundType,
     },
-    Granularity, PaymentDistributionBody, TimeRange,
+    Granularity, RefundDistributionBody, TimeRange,
 };
 use diesel_models::enums as storage_enums;
 use time::PrimitiveDateTime;
@@ -13,60 +14,48 @@ use crate::{
     types::{AnalyticsCollection, AnalyticsDataSource, DBEnumWrapper, LoadRow, MetricsResult},
 };
 
-mod payment_error_message;
-
-use payment_error_message::PaymentErrorMessage;
+mod sessionized_distribution;
 
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
-pub struct PaymentDistributionRow {
+pub struct RefundDistributionRow {
     pub currency: Option<DBEnumWrapper<storage_enums::Currency>>,
-    pub status: Option<DBEnumWrapper<storage_enums::AttemptStatus>>,
+    pub refund_status: Option<DBEnumWrapper<storage_enums::RefundStatus>>,
     pub connector: Option<String>,
-    pub authentication_type: Option<DBEnumWrapper<storage_enums::AuthenticationType>>,
-    pub payment_method: Option<String>,
-    pub payment_method_type: Option<String>,
-    pub client_source: Option<String>,
-    pub client_version: Option<String>,
+    pub refund_type: Option<DBEnumWrapper<RefundType>>,
     pub profile_id: Option<String>,
-    pub card_network: Option<String>,
-    pub merchant_id: Option<String>,
-    pub card_last_4: Option<String>,
-    pub card_issuer: Option<String>,
-    pub error_reason: Option<String>,
-    pub first_attempt: Option<bool>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
-    pub error_message: Option<String>,
+    pub refund_reason: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub end_bucket: Option<PrimitiveDateTime>,
 }
 
-pub trait PaymentDistributionAnalytics: LoadRow<PaymentDistributionRow> {}
+pub trait RefundDistributionAnalytics: LoadRow<RefundDistributionRow> {}
 
 #[async_trait::async_trait]
-pub trait PaymentDistribution<T>
+pub trait RefundDistribution<T>
 where
-    T: AnalyticsDataSource + PaymentDistributionAnalytics,
+    T: AnalyticsDataSource + RefundDistributionAnalytics,
 {
     #[allow(clippy::too_many_arguments)]
     async fn load_distribution(
         &self,
-        distribution: &PaymentDistributionBody,
-        dimensions: &[PaymentDimensions],
+        distribution: &RefundDistributionBody,
+        dimensions: &[RefundDimensions],
         auth: &AuthInfo,
-        filters: &PaymentFilters,
+        filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>>;
+    ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundDistributionRow)>>;
 }
 
 #[async_trait::async_trait]
-impl<T> PaymentDistribution<T> for PaymentDistributions
+impl<T> RefundDistribution<T> for RefundDistributions
 where
-    T: AnalyticsDataSource + PaymentDistributionAnalytics,
+    T: AnalyticsDataSource + RefundDistributionAnalytics,
     PrimitiveDateTime: ToSql<T>,
     AnalyticsCollection: ToSql<T>,
     Granularity: GroupByClause<T>,
@@ -75,17 +64,17 @@ where
 {
     async fn load_distribution(
         &self,
-        distribution: &PaymentDistributionBody,
-        dimensions: &[PaymentDimensions],
+        distribution: &RefundDistributionBody,
+        dimensions: &[RefundDimensions],
         auth: &AuthInfo,
-        filters: &PaymentFilters,
+        filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>> {
+    ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundDistributionRow)>> {
         match self {
-            Self::PaymentErrorMessage => {
-                PaymentErrorMessage
+            Self::SessionizedRefundReason => {
+                sessionized_distribution::RefundReason::default()
                     .load_distribution(
                         distribution,
                         dimensions,

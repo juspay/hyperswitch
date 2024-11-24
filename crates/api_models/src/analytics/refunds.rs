@@ -94,6 +94,33 @@ pub enum RefundMetrics {
     SessionizedRefundProcessedAmount,
 }
 
+#[derive(Debug, Default, serde::Serialize)]
+pub struct ReasonsResult {
+    pub reason: String,
+    pub count: i64,
+    pub percentage: f64,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::AsRefStr,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum RefundDistributions {
+    #[strum(serialize = "refund_reason")]
+    SessionizedRefundReason,
+}
+
 pub mod metric_behaviour {
     pub struct RefundSuccessRate;
     pub struct RefundCount;
@@ -184,6 +211,7 @@ pub struct RefundMetricsBucketValue {
     pub refund_processed_amount: Option<u64>,
     pub refund_processed_amount_in_usd: Option<u64>,
     pub refund_processed_count: Option<u64>,
+    pub refund_reason: Option<Vec<ReasonsResult>>,
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketResponse {

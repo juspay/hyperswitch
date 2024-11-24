@@ -1,13 +1,27 @@
-use api_models::analytics::refunds::RefundMetricsBucketValue;
+use api_models::analytics::refunds::{ReasonsResult, RefundMetricsBucketValue};
+use bigdecimal::ToPrimitive;
 use diesel_models::enums as storage_enums;
 
-use super::metrics::RefundMetricRow;
+use super::{distribution::RefundDistributionRow, metrics::RefundMetricRow};
 #[derive(Debug, Default)]
 pub struct RefundMetricsAccumulator {
     pub refund_success_rate: SuccessRateAccumulator,
     pub refund_count: CountAccumulator,
     pub refund_success: CountAccumulator,
     pub processed_amount: RefundProcessedAmountAccumulator,
+    pub refund_reason: RefundReasonDistributionAccumulator,
+}
+
+#[derive(Debug, Default)]
+pub struct RefundReasonDistributionRow {
+    pub count: i64,
+    pub total: i64,
+    pub refund_reason: String,
+}
+
+#[derive(Debug, Default)]
+pub struct RefundReasonDistributionAccumulator {
+    pub refund_reason_vec: Vec<RefundReasonDistributionRow>,
 }
 
 #[derive(Debug, Default)]
@@ -34,6 +48,51 @@ pub trait RefundMetricAccumulator {
     fn collect(self) -> Self::MetricOutput;
 }
 
+pub trait RefundDistributionAccumulator {
+    type DistributionOutput;
+
+    fn add_distribution_bucket(&mut self, distribution: &RefundDistributionRow);
+
+    fn collect(self) -> Self::DistributionOutput;
+}
+
+impl RefundDistributionAccumulator for RefundReasonDistributionAccumulator {
+    type DistributionOutput = Option<Vec<ReasonsResult>>;
+
+    fn add_distribution_bucket(&mut self, distribution: &RefundDistributionRow) {
+        self.refund_reason_vec.push(RefundReasonDistributionRow {
+            count: distribution.count.unwrap_or_default(),
+            total: distribution
+                .total
+                .clone()
+                .map(|i| i.to_i64().unwrap_or_default())
+                .unwrap_or_default(),
+            refund_reason: distribution.refund_reason.clone().unwrap_or("".to_string()),
+        })
+    }
+
+    fn collect(mut self) -> Self::DistributionOutput {
+        if self.refund_reason_vec.is_empty() {
+            None
+        } else {
+            self.refund_reason_vec.sort_by(|a, b| b.count.cmp(&a.count));
+            let mut res: Vec<ReasonsResult> = Vec::new();
+            for val in self.refund_reason_vec.into_iter() {
+                let perc = f64::from(u32::try_from(val.count).ok()?) * 100.0
+                    / f64::from(u32::try_from(val.total).ok()?);
+
+                res.push(ReasonsResult {
+                    reason: val.refund_reason,
+                    count: val.count,
+                    percentage: (perc * 100.0).round() / 100.0,
+                })
+            }
+
+            Some(res)
+        }
+    }
+}
+
 impl RefundMetricAccumulator for CountAccumulator {
     type MetricOutput = Option<u64>;
     #[inline]
@@ -56,10 +115,7 @@ impl RefundMetricAccumulator for RefundProcessedAmountAccumulator {
     fn add_metrics_bucket(&mut self, metrics: &RefundMetricRow) {
         self.total = match (
             self.total,
-            metrics
-                .total
-                .as_ref()
-                .and_then(bigdecimal::ToPrimitive::to_i64),
+            metrics.total.as_ref().and_then(ToPrimitive::to_i64),
         ) {
             (None, None) => None,
             (None, i @ Some(_)) | (i @ Some(_), None) => i,
@@ -130,6 +186,7 @@ impl RefundMetricsAccumulator {
             refund_processed_amount,
             refund_processed_amount_in_usd,
             refund_processed_count,
+            refund_reason: self.refund_reason.collect(),
         }
     }
 }

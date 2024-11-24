@@ -12,7 +12,7 @@ use self::{
     frm::{FrmDimensions, FrmMetrics},
     payment_intents::{PaymentIntentDimensions, PaymentIntentMetrics},
     payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
-    refunds::{RefundDimensions, RefundMetrics},
+    refunds::{RefundDimensions, RefundDistributions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
 };
 pub mod active_payments;
@@ -73,7 +73,7 @@ pub struct GetPaymentMetricRequest {
     #[serde(default)]
     pub filters: payments::PaymentFilters,
     pub metrics: HashSet<PaymentMetrics>,
-    pub distribution: Option<Distribution>,
+    pub distribution: Option<PaymentDistributionBody>,
     #[serde(default)]
     pub delta: bool,
 }
@@ -98,8 +98,15 @@ impl Into<u64> for QueryLimit {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Distribution {
+pub struct PaymentDistributionBody {
     pub distribution_for: PaymentDistributions,
+    pub distribution_cardinality: QueryLimit,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundDistributionBody {
+    pub distribution_for: RefundDistributions,
     pub distribution_cardinality: QueryLimit,
 }
 
@@ -142,6 +149,7 @@ pub struct GetRefundMetricRequest {
     #[serde(default)]
     pub filters: refunds::RefundFilters,
     pub metrics: HashSet<RefundMetrics>,
+    pub distribution: Option<RefundDistributionBody>,
     #[serde(default)]
     pub delta: bool,
 }
