@@ -1094,7 +1094,10 @@ where
         };
 
         *algo_type_enabled_features = feature_to_enable.clone();
-        let algo_type_algorithm_id = algo_type.clone().get_algorithm_id_with_timestamp().algorithm_id;
+        let algo_type_algorithm_id = algo_type
+            .clone()
+            .get_algorithm_id_with_timestamp()
+            .algorithm_id;
         let routing_algortihm = db
             .find_routing_algorithm_by_profile_id_algorithm_id(
                 &profile_id,
@@ -1112,7 +1115,7 @@ where
         .await;
 
         if temp.is_ok() {
-        let updated_routing_record = routing_algortihm.foreign_into();
+            let updated_routing_record = routing_algortihm.foreign_into();
             core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
                 &metrics::CONTEXT,
                 1,
