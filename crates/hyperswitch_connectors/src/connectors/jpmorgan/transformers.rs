@@ -1,25 +1,20 @@
 use common_enums::enums;
 use hyperswitch_domain_models::types::RefreshTokenRouterData;
-use common_utils::types::{MinorUnit};
+use common_utils::types::MinorUnit;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{self, AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
-    router_flow_types::{refunds::{Execute, RSync}, Capture},
-    router_request_types::{PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSyncData, ResponseId},
+    router_data::{AccessToken, ConnectorAuthType, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::{PaymentsCancelData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundsRouterData},
+    types::{PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
+use masking::Secret;
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
-use crate::{connectors::novalnet::transformers::get_error_response, utils::PaymentsAuthorizeRequestData};
-use crate::{
-    types::{RefundsResponseRouterData, ResponseRouterData},
-    //utils::RequestData,
-};
-
-use super::Jpmorgan;
+use crate::utils::PaymentsAuthorizeRequestData;
+use crate::types::{RefundsResponseRouterData, ResponseRouterData};
 pub struct JpmorganRouterData<T> {
     pub amount: MinorUnit,
     pub router_data: T,
@@ -39,8 +34,6 @@ impl<T> From<(MinorUnit, T)> for JpmorganRouterData<T> {
 pub struct JpmorganAuthUpdateRequest{
     pub grant_type: String,
     pub scope : String,
-    // pub client_id : Secret<String>,
-    // pub client_secret : Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -51,17 +44,13 @@ pub struct JpmorganAuthUpdateResponse {
     pub expires_in : i64,
 }
 
-use crate::utils::AccessTokenRequestInfo;
-
-
 impl TryFrom<&RefreshTokenRouterData> for JpmorganAuthUpdateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
+    fn try_from(_item: &RefreshTokenRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             grant_type: String::from("client_credentials"),
-            scope : String::from("jpm:payments:sandbox"),
-            // client_id : item.get_request_id()?,
-            // client_secret : item.request.app_id.clone(),
+            scope : String::from("jpm:payments:sandbox"),   //for prod testing, needs to be added differently
+            //docs : https://developer.payments.jpmorgan.com/contact/sales?post_auth=true
         })
     }
 }
@@ -186,13 +175,11 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                     payment_method_type,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Selected payment method through jpmorgan".to_string()).into()),
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-// Auth Struct
 //in jpm, we get a client id and secret and using these two, we have a curl, we make an api call and we get a access token in res with an expiry time as well
 #[derive(Debug)]
 pub struct JpmorganAuthType {
@@ -364,12 +351,7 @@ impl<F,T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRes
     fn try_from(
         item: ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-
-        //let transaction_status = convert_transaction_state(&item.response.response_status);
-
-        //let mut transaction_state = item.response.transaction_state.to_string();
         let mut transaction_state = item.response.transaction_state.to_string();
-        println!("###########  BEFORE TRANSACTION STATE {}", transaction_state);
 
         if transaction_state == String::from("Closed") {
             let cm = item.response.capture_method.clone();
@@ -379,25 +361,13 @@ impl<F,T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRes
                 transaction_state = String::from("Authorized")
             } 
         }
-
-        // match item.data.request.is_auto_capture()? {
-        //     true => transaction_state = String::from("Closed"),
-        //     false => transaction_state = String::from("Authorized")
-        // }             
-
-        println!("########### AFTER TRANSACTION STATE {}", transaction_state);
-
         let status = common_enums::AttemptStatus::from_transaction_state(transaction_state);
-        println!("######### STATE as STATUS {}", status);
 
         let connector_response_reference_id = Some(item.response.transaction_id.clone());
 
         let resource_id = ResponseId::ConnectorTransactionId(item.response.transaction_id.clone());
 
-        //let connector_response_reference_id = item.response.host_reference_id.clone();
-
         Ok(Self {
-            //status: common_enums::AttemptStatus::from(transaction_status),
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
@@ -863,15 +833,6 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
             Some(cm) => Some(cm.to_string()),
             None => None,
         };
-        println!("$$$$#####****  CAPTURE METHOD : {:?}", capture_method);
-
-        // let merchant_software = JpmorganMerchantSoftware {
-        //     company_name: String::from("JPMC"),
-        //     product_name: String::from("Hyperswitch"), //could be Amazon or something else, subject to change
-        // };
-        //hardcoded as of now
-
-        //let merchant = JpmorganMerchant { merchant_software };
 
         let currency = Some(item.router_data.request.currency.to_string());
 
@@ -950,10 +911,7 @@ impl <F,T> TryFrom<ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsRes
     ) -> Result<Self, Self::Error> {
         
         let transaction_state = item.response.transaction_state.to_string();
-        println!("############# TRANSACTION STATE IN CAPTURE FLOW {}", transaction_state);
-
         let status = common_enums::AttemptStatus::from_transaction_state(transaction_state);
-        println!("############## STATE AS STATUS IN CAPTURE FLOW {}", status);
 
         let transaction_id = item.response.transaction_id.clone();
         let connector_response_reference_id = Some (transaction_id.clone());
@@ -978,7 +936,6 @@ impl <F,T> TryFrom<ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsRes
     }
 }
 
-//response struct for PSync 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all="camelCase")]
 pub struct JpmorganPSyncResponse {
@@ -1006,8 +963,6 @@ impl<F,PaymentsSyncData> TryFrom<ResponseRouterData<F, JpmorganPSyncResponse, Pa
         fn try_from(
             item: ResponseRouterData<F, JpmorganPSyncResponse, PaymentsSyncData, PaymentsResponseData>
         ) -> Result<Self, Self::Error>{
-            // match item.response.response_status {
-            //     JpmorganResponseStatus::Success => {
                     let transaction_state = item.response.transaction_state.to_string();
                     let status = common_enums::AttemptStatus::from_transaction_state(transaction_state);
 
@@ -1030,17 +985,7 @@ impl<F,PaymentsSyncData> TryFrom<ResponseRouterData<F, JpmorganPSyncResponse, Pa
                         }),
                         ..item.data
                     })
-
-                // }   
-                // JpmorganResponseStatus::Denied | JpmorganResponseStatus::Error => {
-                //     let response = Err(get_error_response(item.response.response_status, item.http_code));
-                //     Ok(Self {
-                //         response,
-                //         ..item.data
-                //     })
-                // }
             }
-        // }
     }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1107,8 +1052,6 @@ pub struct JpmorganRefundResponse {
     pub remaining_refundable_amount : Option<i64>,
 }
 
-// Type definition for Refund Response
-
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
 pub enum RefundStatus {
@@ -1124,12 +1067,10 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
@@ -1234,7 +1175,6 @@ impl TryFrom<JpmorganRouterData<&PaymentsCancelRouterData>> for JpmorganCancelRe
 pub struct JpmorganCancelResponse{
     transaction_id : String,
     request_id : String,
-    //transaction_state : JpmorganTransactionState,
     response_status : JpmorganResponseStatus,
     response_code : String,
     response_message : String,
@@ -1252,8 +1192,6 @@ pub struct JpmorganPaymentMethodTypeCancelResponse{
 pub struct CardCancelResponse {
     pub card_type : String, 
     pub card_type_name : String,
-    //pub is_bill_payment : bool,
-    //pub masked_account_number : Secret<String>,
 }
 
 impl<F> TryFrom<ResponseRouterData<F, JpmorganCancelResponse, PaymentsCancelData, PaymentsResponseData>>
@@ -1295,7 +1233,6 @@ impl<F> TryFrom<ResponseRouterData<F, JpmorganCancelResponse, PaymentsCancelData
     } 
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct JpmorganErrorResponse {
     pub status_code: u16,

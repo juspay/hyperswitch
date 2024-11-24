@@ -782,6 +782,8 @@ pub async fn validate_and_create_refund(
         .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
     })?;
 
+    println!("{:?}", connector_transaction_id);
+    println!("{:?}", merchant_account);
     let all_refunds = db
         .find_refund_by_merchant_id_connector_transaction_id(
             merchant_account.get_id(),
@@ -806,7 +808,8 @@ pub async fn validate_and_create_refund(
     let total_amount_captured = payment_intent
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
-
+    
+    println!("All Refunds {:#?}", all_refunds);
     validator::validate_refund_amount(
         total_amount_captured.get_amount_as_i64(),
         &all_refunds,
