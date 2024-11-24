@@ -1,4 +1,4 @@
-use api_models::analytics::refunds::{ReasonsResult, RefundMetricsBucketValue};
+use api_models::analytics::refunds::{ReasonsResult, ErrorMessagesResult, RefundMetricsBucketValue};
 use bigdecimal::ToPrimitive;
 use diesel_models::enums as storage_enums;
 
@@ -10,6 +10,7 @@ pub struct RefundMetricsAccumulator {
     pub refund_success: CountAccumulator,
     pub processed_amount: RefundProcessedAmountAccumulator,
     pub refund_reason: RefundReasonDistributionAccumulator,
+    pub refund_error_message: RefundErrorMessageDistributionAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -22,6 +23,18 @@ pub struct RefundReasonDistributionRow {
 #[derive(Debug, Default)]
 pub struct RefundReasonDistributionAccumulator {
     pub refund_reason_vec: Vec<RefundReasonDistributionRow>,
+}
+
+#[derive(Debug, Default)]
+pub struct RefundErrorMessageDistributionRow {
+    pub count: i64,
+    pub total: i64,
+    pub refund_error_message: String,
+}
+
+#[derive(Debug, Default)]
+pub struct RefundErrorMessageDistributionAccumulator {
+    pub refund_error_message_vec: Vec<RefundErrorMessageDistributionRow>,
 }
 
 #[derive(Debug, Default)]
@@ -83,6 +96,43 @@ impl RefundDistributionAccumulator for RefundReasonDistributionAccumulator {
 
                 res.push(ReasonsResult {
                     reason: val.refund_reason,
+                    count: val.count,
+                    percentage: (perc * 100.0).round() / 100.0,
+                })
+            }
+
+            Some(res)
+        }
+    }
+}
+
+impl RefundDistributionAccumulator for RefundErrorMessageDistributionAccumulator {
+    type DistributionOutput = Option<Vec<ErrorMessagesResult>>;
+
+    fn add_distribution_bucket(&mut self, distribution: &RefundDistributionRow) {
+        self.refund_error_message_vec.push(RefundErrorMessageDistributionRow {
+            count: distribution.count.unwrap_or_default(),
+            total: distribution
+                .total
+                .clone()
+                .map(|i| i.to_i64().unwrap_or_default())
+                .unwrap_or_default(),
+            refund_error_message: distribution.refund_error_message.clone().unwrap_or("".to_string()),
+        })
+    }
+
+    fn collect(mut self) -> Self::DistributionOutput {
+        if self.refund_error_message_vec.is_empty() {
+            None
+        } else {
+            self.refund_error_message_vec.sort_by(|a, b| b.count.cmp(&a.count));
+            let mut res: Vec<ErrorMessagesResult> = Vec::new();
+            for val in self.refund_error_message_vec.into_iter() {
+                let perc = f64::from(u32::try_from(val.count).ok()?) * 100.0
+                    / f64::from(u32::try_from(val.total).ok()?);
+
+                res.push(ErrorMessagesResult {
+                    error_message: val.refund_error_message,
                     count: val.count,
                     percentage: (perc * 100.0).round() / 100.0,
                 })
@@ -187,6 +237,7 @@ impl RefundMetricsAccumulator {
             refund_processed_amount_in_usd,
             refund_processed_count,
             refund_reason: self.refund_reason.collect(),
+            refund_error_message: self.refund_error_message.collect(),
         }
     }
 }

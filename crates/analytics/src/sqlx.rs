@@ -834,6 +834,11 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::distribution::RefundDistribution
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let refund_error_message: Option<String> =
+            row.try_get("refund_error_message").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
         // Removing millisecond precision to get accurate diffs against clickhouse
         let start_bucket: Option<PrimitiveDateTime> = row
             .try_get::<Option<PrimitiveDateTime>, _>("start_bucket")?
@@ -850,6 +855,7 @@ impl<'a> FromRow<'a, PgRow> for super::refunds::distribution::RefundDistribution
             total,
             count,
             refund_reason,
+            refund_error_message,
             start_bucket,
             end_bucket,
         })

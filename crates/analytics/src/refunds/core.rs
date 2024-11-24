@@ -180,6 +180,9 @@ pub async fn get_metrics(
                         RefundDistributions::SessionizedRefundReason => metrics_builder
                             .refund_reason
                             .add_distribution_bucket(&value),
+                        RefundDistributions::SessionizedRefundErrorMessage => metrics_builder
+                            .refund_error_message
+                            .add_distribution_bucket(&value),
                     }
                 }
                 logger::debug!(

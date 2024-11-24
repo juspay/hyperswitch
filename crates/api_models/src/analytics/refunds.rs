@@ -101,6 +101,13 @@ pub struct ReasonsResult {
     pub percentage: f64,
 }
 
+#[derive(Debug, Default, serde::Serialize)]
+pub struct ErrorMessagesResult {
+    pub error_message: String,
+    pub count: i64,
+    pub percentage: f64,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -119,6 +126,8 @@ pub struct ReasonsResult {
 pub enum RefundDistributions {
     #[strum(serialize = "refund_reason")]
     SessionizedRefundReason,
+    #[strum(serialize = "refund_error_message")]
+    SessionizedRefundErrorMessage,
 }
 
 pub mod metric_behaviour {
@@ -151,7 +160,6 @@ pub struct RefundMetricsBucketIdentifier {
     pub currency: Option<Currency>,
     pub refund_status: Option<String>,
     pub connector: Option<String>,
-
     pub refund_type: Option<String>,
     pub profile_id: Option<String>,
     #[serde(rename = "time_range")]
@@ -212,6 +220,7 @@ pub struct RefundMetricsBucketValue {
     pub refund_processed_amount_in_usd: Option<u64>,
     pub refund_processed_count: Option<u64>,
     pub refund_reason: Option<Vec<ReasonsResult>>,
+    pub refund_error_message: Option<Vec<ErrorMessagesResult>>,
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketResponse {

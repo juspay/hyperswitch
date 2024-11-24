@@ -26,6 +26,7 @@ pub struct RefundDistributionRow {
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     pub refund_reason: Option<String>,
+	pub refund_error_message: Option<String>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub start_bucket: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -86,6 +87,19 @@ where
                     )
                     .await
             }
+			Self::SessionizedRefundErrorMessage => {
+				sessionized_distribution::RefundErrorMessage
+					.load_distribution(
+						distribution,
+						dimensions,
+						auth,
+						filters,
+						granularity,
+						time_range,
+						pool,
+					)
+					.await
+			}
         }
     }
 }
