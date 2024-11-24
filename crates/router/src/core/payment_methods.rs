@@ -1587,6 +1587,8 @@ pub async fn list_customer_payment_method(
         is_guest_customer: is_payment_associated.then_some(false), //to return this key only when the request is tied to a payment intent
     };
 
+    /*
+    TODO: Implement surcharge for v2
     if is_payment_associated {
         Box::pin(cards::perform_surcharge_ops(
             payments_info.as_ref().map(|pi| pi.payment_intent.clone()),
@@ -1598,6 +1600,7 @@ pub async fn list_customer_payment_method(
         ))
         .await?;
     }
+    */
 
     Ok(services::ApplicationResponse::Json(response))
 }
