@@ -64,4 +64,5 @@ pub struct PaymentFilterRow {
     pub card_last_4: Option<String>,
     pub card_issuer: Option<String>,
     pub error_reason: Option<String>,
+    pub first_attempt: Option<bool>,
 }
