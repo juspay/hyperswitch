@@ -590,6 +590,25 @@ impl DynamicRoutingAlgorithmRef {
             self.success_based_algorithm = Some(success_based_algorithm)
         }
     }
+
+    pub fn update_specific_ref(
+        &mut self,
+        algo_type: DynamicRoutingType,
+        feature_to_enable: DynamicRoutingFeatures,
+    ) {
+        match algo_type {
+            DynamicRoutingType::SuccessRateBasedRouting => {
+                self.success_based_algorithm
+                    .as_mut()
+                    .map(|algo| algo.enabled_feature = feature_to_enable);
+            }
+            DynamicRoutingType::EliminationRouting => {
+                self.elimination_routing_algorithm
+                    .as_mut()
+                    .map(|algo| algo.enabled_feature = feature_to_enable);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

@@ -1072,7 +1072,7 @@ pub async fn helper_enable_function<A>(
     key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
     feature_to_enable: routing_types::DynamicRoutingFeatures,
-    dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
+    mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
     algo_type: Option<A>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>>
@@ -1092,19 +1092,13 @@ where
             }
             .into());
         };
-
         *algo_type_enabled_features = feature_to_enable.clone();
         let algo_type_algorithm_id = algo_type
             .clone()
             .get_algorithm_id_with_timestamp()
             .algorithm_id;
-        let routing_algortihm = db
-            .find_routing_algorithm_by_profile_id_algorithm_id(
-                &profile_id,
-                &algo_type_algorithm_id.unwrap(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+        dynamic_routing_algo_ref
+            .update_specific_ref(dynamic_routing_type.clone(), feature_to_enable.clone());
         let temp = update_business_profile_active_dynamic_algorithm_ref(
             db,
             &state.into(),
@@ -1115,6 +1109,13 @@ where
         .await;
 
         if temp.is_ok() {
+            let routing_algortihm = db
+                .find_routing_algorithm_by_profile_id_algorithm_id(
+                    &profile_id,
+                    &algo_type_algorithm_id.unwrap(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
             let updated_routing_record = routing_algortihm.foreign_into();
             core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
                 &metrics::CONTEXT,
