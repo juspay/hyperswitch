@@ -1494,9 +1494,9 @@ pub async fn list_customer_payment_method(
     let key_manager_state = &(state).into();
 
     let customer = db
-        .find_customer_by_merchant_reference_id_merchant_id(
+        .find_customer_by_global_id(
             key_manager_state,
-            customer_id,
+            customer_id.get_string_repr(),
             merchant_account.get_id(),
             &key_store,
             merchant_account.storage_scheme,
