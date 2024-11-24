@@ -26,6 +26,67 @@ pub struct GsmCreateRequest {
     pub unified_code: Option<String>,
     /// error message unified across the connectors
     pub unified_message: Option<String>,
+    /// category in which error belongs to
+    pub error_category: Option<ErrorCategory>,
+    /// sub-category in which error belongs to
+    pub error_sub_category: Option<ErrorSubCategory>,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ErrorCategory {
+    IssuerDecline,
+    ProcessorDecline,
+    TechnicalErrorWithProcessor,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ErrorSubCategory {
+    AuthFailure,
+    CardDecline,
+    ExpiredCard,
+    Frm,
+    General,
+    IncorrectAccount,
+    IncorrectCard,
+    IncorrectCvv,
+    IncorrectData,
+    InsufficientFunds,
+    Partial,
+    Restricted,
+    BadRequest,
+    ConfigurationError,
+    CustomerError,
+    IncorrectAuth,
+    Unauthorized,
+    ServerError,
+    Timeout,
+    Upstream,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -88,6 +149,10 @@ pub struct GsmUpdateRequest {
     pub unified_code: Option<String>,
     /// error message unified across the connectors
     pub unified_message: Option<String>,
+    /// category in which error belongs to
+    pub error_category: Option<ErrorCategory>,
+    /// sub-category in which error belongs to
+    pub error_sub_category: Option<ErrorSubCategory>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -141,4 +206,8 @@ pub struct GsmResponse {
     pub unified_code: Option<String>,
     /// error message unified across the connectors
     pub unified_message: Option<String>,
+    /// category in which error belongs to
+    pub error_category: Option<String>,
+    /// sub-category in which error belongs to
+    pub error_sub_category: Option<String>,
 }

@@ -39,6 +39,8 @@ pub struct GatewayStatusMap {
     pub step_up_possible: bool,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub error_category: Option<String>,
+    pub error_sub_category: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable)]
@@ -55,17 +57,12 @@ pub struct GatewayStatusMappingNew {
     pub step_up_possible: bool,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub error_category: Option<String>,
+    pub error_sub_category: Option<String>,
 }
 
 #[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    AsChangeset,
-    router_derive::DebugAsDisplay,
-    Default,
-    serde::Deserialize,
+    Clone, Debug, PartialEq, Eq, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize,
 )]
 #[diesel(table_name = gateway_status_map)]
 pub struct GatewayStatusMapperUpdateInternal {
@@ -80,6 +77,9 @@ pub struct GatewayStatusMapperUpdateInternal {
     pub step_up_possible: Option<bool>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub error_category: Option<String>,
+    pub error_sub_category: Option<String>,
+    pub last_modified: PrimitiveDateTime,
 }
 
 #[derive(Debug)]
@@ -90,6 +90,8 @@ pub struct GatewayStatusMappingUpdate {
     pub step_up_possible: Option<bool>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
+    pub error_category: Option<String>,
+    pub error_sub_category: Option<String>,
 }
 
 impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
@@ -101,6 +103,8 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             step_up_possible,
             unified_code,
             unified_message,
+            error_category,
+            error_sub_category,
         } = value;
         Self {
             status,
@@ -109,7 +113,14 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             step_up_possible,
             unified_code,
             unified_message,
-            ..Default::default()
+            error_category,
+            error_sub_category,
+            last_modified: common_utils::date_time::now(),
+            connector: None,
+            flow: None,
+            sub_flow: None,
+            code: None,
+            message: None,
         }
     }
 }
