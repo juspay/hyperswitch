@@ -74,7 +74,7 @@ where
     ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundDistributionRow)>> {
         match self {
             Self::SessionizedRefundReason => {
-                sessionized_distribution::RefundReason::default()
+                sessionized_distribution::RefundReason
                     .load_distribution(
                         distribution,
                         dimensions,
