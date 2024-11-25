@@ -1479,6 +1479,7 @@ impl PaymentCreate {
             shipping_cost: request.shipping_cost,
             tax_details: None,
             skip_external_tax_calculation,
+            psd2_sca_exemption_type: request.psd2_sca_exemption_type,
         })
     }
 
