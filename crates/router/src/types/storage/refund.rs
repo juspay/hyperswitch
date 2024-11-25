@@ -1,7 +1,7 @@
 use api_models::payments::AmountFilter;
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 pub use diesel_models::refund::{
     Refund, RefundCoreWorkflow, RefundNew, RefundUpdate, RefundUpdateInternal,
 };
@@ -67,8 +67,11 @@ impl RefundDbExt for Refund {
         ) {
             search_by_pay_or_ref_id = true;
             filter = filter
-                .filter(dsl::payment_id.eq(pid.to_owned()))
-                .or_filter(dsl::refund_id.eq(ref_id.to_owned()))
+                .filter(
+                    dsl::payment_id
+                        .eq(pid.to_owned())
+                        .or(dsl::refund_id.eq(ref_id.to_owned())),
+                )
                 .limit(limit)
                 .offset(offset);
         };
@@ -228,9 +231,11 @@ impl RefundDbExt for Refund {
             &refund_list_details.refund_id,
         ) {
             search_by_pay_or_ref_id = true;
-            filter = filter
-                .filter(dsl::payment_id.eq(pid.to_owned()))
-                .or_filter(dsl::refund_id.eq(ref_id.to_owned()));
+            filter = filter.filter(
+                dsl::payment_id
+                    .eq(pid.to_owned())
+                    .or(dsl::refund_id.eq(ref_id.to_owned())),
+            );
         };
 
         if !search_by_pay_or_ref_id {
