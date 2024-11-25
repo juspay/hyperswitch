@@ -35,10 +35,10 @@ export const connectorDetails = {
                     state: "California",
                     zip: "12345",
                     country: "US",
-                    first_name: "Max",
-                    last_name: "Mustermann",
+                    first_name: "John",
+                    last_name: "Doe",
                   },
-                  email: "test@novalnet.de",
+                  email: "test@jpmorgan.us",
                   phone: {
                     number: "9123456789",
                     country_code: "+91",
@@ -59,27 +59,8 @@ export const connectorDetails = {
         },
         No3DSAutoCapture: {
             Request: {
-              // Auto capture with different currency, so we need to pass currency in here
               currency: "USD",
               payment_method: "card",
-            //   billing: {
-            //     address: {
-            //       line1: "1467",
-            //       line2: "CA",
-            //       line3: "CA",
-            //       city: "Musterhausen",
-            //       state: "California",
-            //       zip: "12345",
-            //       country: "US",
-            //       first_name: "Max",
-            //       last_name: "Mustermann",
-            //     },
-            //     email: "test@novalnet.de",
-            //     phone: {
-            //       number: "9123456789",
-            //       country_code: "+91",
-            //     },
-            //   },
               payment_method_data: {
                 card: successfulNo3DSCardDetails,
               },
