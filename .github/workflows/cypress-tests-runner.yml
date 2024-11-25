@@ -24,7 +24,7 @@ env:
 jobs:
   runner:
     name: Run Cypress tests
-    runs-on: hyperswitch-runners
+    runs-on: ubuntu-latest
 
     services:
       redis:
