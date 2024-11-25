@@ -74,6 +74,7 @@ pub enum Connector {
     Digitalvirgo,
     Dlocal,
     Ebanx,
+    Elavon,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -217,6 +218,7 @@ impl Connector {
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
+            | Self::Elavon
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
