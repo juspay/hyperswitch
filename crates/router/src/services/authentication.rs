@@ -545,12 +545,12 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
-        // let (merchant, platform_merchant_account) =
-        //     get_platform_merchant_account(state, request_headers, merchant).await?;
+        let (merchant, platform_merchant_account) =
+            get_platform_merchant_account(state, request_headers, merchant).await?;
 
         let auth = AuthenticationData {
             merchant_account: merchant,
-            platform_merchant_account: None,
+            platform_merchant_account,
             key_store,
             profile_id: None,
         };
@@ -2459,7 +2459,6 @@ where
 
         if payload.profile_id != self.profile_id {
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
-
         } else {
             // if both of them are same then proceed with the profile id present in the request
             let auth = AuthenticationData {
