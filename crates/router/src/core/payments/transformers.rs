@@ -168,6 +168,7 @@ where
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: None,
     };
     Ok(router_data)
 }
@@ -370,6 +371,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: None,
     };
 
     Ok(router_data)
@@ -502,6 +504,7 @@ pub async fn construct_router_data_for_psync<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
+        psd2_sca_exemption_type: None,
     };
 
     Ok(router_data)
@@ -723,6 +726,7 @@ where
         }),
         header_payload,
         connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
     };
 
     Ok(router_data)
