@@ -243,6 +243,7 @@ default_imp_for_new_connector_integration_payment!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -302,6 +303,7 @@ default_imp_for_new_connector_integration_refund!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -356,6 +358,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -416,6 +419,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -475,6 +479,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -534,6 +539,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -603,6 +609,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -664,6 +671,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -725,6 +733,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -786,6 +795,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -847,6 +857,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -908,6 +919,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -969,6 +981,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1030,6 +1043,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1091,6 +1105,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1150,6 +1165,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1211,6 +1227,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1272,6 +1289,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1333,6 +1351,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1394,6 +1413,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1455,6 +1475,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1513,6 +1534,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
