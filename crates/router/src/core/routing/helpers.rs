@@ -1097,17 +1097,20 @@ where
             .clone()
             .get_algorithm_id_with_timestamp()
             .algorithm_id
-            .ok_or(errors::ApiErrorResponse::GenericNotFoundError { message: "algorithm_id not found in database".to_string() })?;
+            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "algorithm_id not found in database".to_string(),
+            })?;
         dynamic_routing_algo_ref
             .update_specific_ref(dynamic_routing_type.clone(), feature_to_enable.clone());
-        let update_business_profile_with_ref = update_business_profile_active_dynamic_algorithm_ref(
-            db,
-            &state.into(),
-            &key_store,
-            business_profile.clone(),
-            dynamic_routing_algo_ref.clone(),
-        )
-        .await;
+        let update_business_profile_with_ref =
+            update_business_profile_active_dynamic_algorithm_ref(
+                db,
+                &state.into(),
+                &key_store,
+                business_profile.clone(),
+                dynamic_routing_algo_ref.clone(),
+            )
+            .await;
 
         if update_business_profile_with_ref.is_ok() {
             let routing_algorithm = db
