@@ -657,7 +657,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .or(payment_attempt.payment_method_type)
             .or(payment_method_info
                 .as_ref()
-                .and_then(|pm_info| pm_info.payment_method_type));
+                .and_then(|pm_info| pm_info.get_payment_method_subtype()));
 
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = mandate_data.map(|mut sm| {

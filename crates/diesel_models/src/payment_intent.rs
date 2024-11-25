@@ -154,6 +154,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub display_sdk_only: Option<bool>,
     /// Enable saved payment method option for payment link
     pub enabled_saved_payment_method: Option<bool>,
+    /// Hide card nickname field option for payment link
+    pub hide_card_nickname_field: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
 }

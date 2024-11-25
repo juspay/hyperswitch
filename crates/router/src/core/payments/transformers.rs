@@ -227,12 +227,12 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_id,
     ));
 
-    let router_return_url = Some(helpers::create_redirect_url(
-        router_base_url,
-        attempt,
-        connector_id,
-        None,
-    ));
+    let router_return_url = payment_data
+        .payment_intent
+        .create_finish_redirection_url(router_base_url, &merchant_account.publishable_key)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to construct finish redirection url")?
+        .to_string();
 
     let connector_request_reference_id = payment_data
         .payment_intent
@@ -270,7 +270,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         enrolled_for_3ds: true,
         related_transaction_id: None,
         payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
-        router_return_url,
+        router_return_url: Some(router_return_url),
         webhook_url,
         complete_authorize_url,
         customer_id: None,
@@ -3522,6 +3522,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout: config.sdk_layout,
             display_sdk_only: config.display_sdk_only,
             enabled_saved_payment_method: config.enabled_saved_payment_method,
+            hide_card_nickname_field: config.hide_card_nickname_field,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
@@ -3574,6 +3575,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             sdk_layout: config.sdk_layout,
             display_sdk_only: config.display_sdk_only,
             enabled_saved_payment_method: config.enabled_saved_payment_method,
+            hide_card_nickname_field: config.hide_card_nickname_field,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()

@@ -1347,6 +1347,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 ebanx::transformers::EbanxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Elavon => {
+                elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Fiserv => {
                 fiserv::transformers::FiservAuthType::try_from(self.auth_type)?;
                 fiserv::transformers::FiservSessionObject::try_from(self.connector_meta_data)?;
@@ -3604,7 +3608,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             profile_name,
             created_at: current_time,
             modified_at: current_time,
-            return_url: self.return_url.map(|return_url| return_url.to_string()),
+            return_url: self.return_url,
             enable_payment_response_hash: self.enable_payment_response_hash.unwrap_or(true),
             payment_response_hash_key: Some(payment_response_hash_key),
             redirect_to_merchant_with_http_post: self
@@ -3968,7 +3972,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
                 profile_name: self.profile_name,
-                return_url: self.return_url.map(|return_url| return_url.to_string()),
+                return_url: self.return_url,
                 enable_payment_response_hash: self.enable_payment_response_hash,
                 payment_response_hash_key: self.payment_response_hash_key,
                 redirect_to_merchant_with_http_post: self.redirect_to_merchant_with_http_post,

@@ -436,6 +436,7 @@ pub async fn generate_sample_data(
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                     dispute_amount: amount * 100,
                     organization_id: org_id.clone(),
+                    dispute_currency: Some(payment_intent.currency.unwrap_or_default()),
                 })
             } else {
                 None

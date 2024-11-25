@@ -942,7 +942,7 @@ async fn get_or_update_dispute_object(
             let new_dispute = diesel_models::dispute::DisputeNew {
                 dispute_id,
                 amount: dispute_details.amount.clone(),
-                currency: dispute_details.currency,
+                currency: dispute_details.currency.to_string(),
                 dispute_stage: dispute_details.dispute_stage,
                 dispute_status: common_enums::DisputeStatus::foreign_try_from(event_type)
                     .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -963,6 +963,7 @@ async fn get_or_update_dispute_object(
                 merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                 dispute_amount: dispute_details.amount.parse::<i64>().unwrap_or(0),
                 organization_id: organization_id.clone(),
+                dispute_currency: Some(dispute_details.currency),
             };
             state
                 .store

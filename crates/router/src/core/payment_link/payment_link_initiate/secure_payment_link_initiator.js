@@ -63,6 +63,7 @@ if (!isFramed) {
         : paymentDetails.sdk_layout;
 
     var enableSavedPaymentMethod = paymentDetails.enabled_saved_payment_method;
+    var hideCardNicknameField = paymentDetails.hide_card_nickname_field;
     var unifiedCheckoutOptions = {
       displaySavedPaymentMethodsCheckbox: enableSavedPaymentMethod,
       displaySavedPaymentMethods: enableSavedPaymentMethod,
@@ -79,6 +80,7 @@ if (!isFramed) {
           height: 55,
         },
       },
+      hideCardNicknameField: hideCardNicknameField,
     };
     // @ts-ignore
     unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);

@@ -74,6 +74,7 @@ pub enum Connector {
     Digitalvirgo,
     Dlocal,
     Ebanx,
+    Elavon,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -129,6 +130,7 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
+    // Xendit,
     Zen,
     Zsl,
 }
@@ -215,6 +217,7 @@ impl Connector {
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
+            | Self::Elavon
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -259,6 +262,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
+            // | Self::Xendit
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd

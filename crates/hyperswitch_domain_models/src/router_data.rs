@@ -474,6 +474,7 @@ impl
                         connector_payment_id,
                         updated_by: storage_scheme.to_string(),
                         redirection_data: *redirection_data.clone(),
+                        connector_metadata: connector_metadata.clone().map(Secret::new),
                     }
                 }
                 router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {

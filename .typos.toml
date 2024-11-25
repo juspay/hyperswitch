@@ -19,6 +19,7 @@ HypoNoeLbFurNiederosterreichUWien = "HypoNoeLbFurNiederosterreichUWien"
 hypo_noe_lb_fur_niederosterreich_u_wien = "hypo_noe_lb_fur_niederosterreich_u_wien"
 IOT = "IOT" # British Indian Ocean Territory country code
 klick = "klick" # Swedish word for clicks
+FPR = "FPR" # Fraud Prevention Rules
 LSO = "LSO" # Lesotho country code
 NAM = "NAM"  # Namibia country code
 ND = "ND"  # North Dakota state code
