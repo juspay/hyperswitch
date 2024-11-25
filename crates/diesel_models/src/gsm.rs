@@ -1,5 +1,6 @@
 //! Gateway status mapping
 
+use common_enums::{ErrorCategory, ErrorSubCategory};
 use common_utils::{
     custom_serde,
     events::{ApiEventMetric, ApiEventsType},
@@ -39,8 +40,8 @@ pub struct GatewayStatusMap {
     pub step_up_possible: bool,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub error_category: Option<String>,
-    pub error_sub_category: Option<String>,
+    pub error_category: Option<ErrorCategory>,
+    pub error_sub_category: Option<ErrorSubCategory>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable)]
@@ -57,8 +58,8 @@ pub struct GatewayStatusMappingNew {
     pub step_up_possible: bool,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub error_category: Option<String>,
-    pub error_sub_category: Option<String>,
+    pub error_category: Option<ErrorCategory>,
+    pub error_sub_category: Option<ErrorSubCategory>,
 }
 
 #[derive(
@@ -77,8 +78,8 @@ pub struct GatewayStatusMapperUpdateInternal {
     pub step_up_possible: Option<bool>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub error_category: Option<String>,
-    pub error_sub_category: Option<String>,
+    pub error_category: Option<ErrorCategory>,
+    pub error_sub_category: Option<ErrorSubCategory>,
     pub last_modified: PrimitiveDateTime,
 }
 
@@ -90,8 +91,8 @@ pub struct GatewayStatusMappingUpdate {
     pub step_up_possible: Option<bool>,
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
-    pub error_category: Option<String>,
-    pub error_sub_category: Option<String>,
+    pub error_category: Option<ErrorCategory>,
+    pub error_sub_category: Option<ErrorSubCategory>,
 }
 
 impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {

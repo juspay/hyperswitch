@@ -1684,8 +1684,8 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
             step_up_possible: value.step_up_possible,
             unified_code: value.unified_code,
             unified_message: value.unified_message,
-            error_category: value.error_category.map(|ec| ec.to_string()),
-            error_sub_category: value.error_sub_category.map(|esc| esc.to_string()),
+            error_category: value.error_category,
+            error_sub_category: value.error_sub_category,
         }
     }
 }

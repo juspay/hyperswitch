@@ -3334,3 +3334,66 @@ pub enum ConnectorMandateStatus {
     /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
     Inactive,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+    PartialOrd,
+    Ord,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ErrorCategory {
+    IssuerDecline,
+    ProcessorDecline,
+    TechnicalErrorWithProcessor,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+    PartialOrd,
+    Ord,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ErrorSubCategory {
+    AuthFailure,
+    CardDecline,
+    ExpiredCard,
+    Frm,
+    General,
+    IncorrectAccount,
+    IncorrectCard,
+    IncorrectCvv,
+    IncorrectData,
+    InsufficientFunds,
+    Partial,
+    Restricted,
+    BadRequest,
+    ConfigurationError,
+    CustomerError,
+    IncorrectAuth,
+    Unauthorized,
+    ServerError,
+    Timeout,
+    Upstream,
+}
