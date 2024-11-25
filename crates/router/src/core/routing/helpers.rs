@@ -1088,7 +1088,7 @@ where
         if *algo_type_enabled_features == feature_to_enable {
             // algorithm already has the required feature
             return Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!("{} is already enabled", dynamic_routing_type.to_string()),
+                message: format!("{} is already enabled", dynamic_routing_type),
             }
             .into());
         };
@@ -1096,10 +1096,11 @@ where
         let algo_type_algorithm_id = algo_type
             .clone()
             .get_algorithm_id_with_timestamp()
-            .algorithm_id;
+            .algorithm_id
+            .ok_or(errors::ApiErrorResponse::GenericNotFoundError { message: "algorithm_id not found in database".to_string() })?;
         dynamic_routing_algo_ref
             .update_specific_ref(dynamic_routing_type.clone(), feature_to_enable.clone());
-        let temp = update_business_profile_active_dynamic_algorithm_ref(
+        let update_business_profile_with_ref = update_business_profile_active_dynamic_algorithm_ref(
             db,
             &state.into(),
             &key_store,
@@ -1108,11 +1109,11 @@ where
         )
         .await;
 
-        if temp.is_ok() {
+        if update_business_profile_with_ref.is_ok() {
             let routing_algortihm = db
                 .find_routing_algorithm_by_profile_id_algorithm_id(
                     &profile_id,
-                    &algo_type_algorithm_id.unwrap(),
+                    &algo_type_algorithm_id,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
@@ -1132,7 +1133,7 @@ where
             Ok(ApplicationResponse::Json(updated_routing_record))
         } else {
             default_success_based_routing_setup(
-                &state,
+                state,
                 key_store,
                 business_profile,
                 feature_to_enable,
@@ -1143,7 +1144,7 @@ where
         }
     } else {
         default_success_based_routing_setup(
-            &state,
+            state,
             key_store,
             business_profile,
             feature_to_enable,

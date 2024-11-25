@@ -561,7 +561,7 @@ impl EliminationRoutingAlgorithm {
             common_utils::id_type::RoutingId,
         >,
     ) -> Self {
-        EliminationRoutingAlgorithm {
+        Self {
             algorithm_id_with_timestamp,
             enabled_feature: DynamicRoutingFeatures::None,
         }
@@ -574,7 +574,7 @@ impl SuccessBasedAlgorithm {
             common_utils::id_type::RoutingId,
         >,
     ) -> Self {
-        SuccessBasedAlgorithm {
+        Self {
             algorithm_id_with_timestamp,
             enabled_feature: DynamicRoutingFeatures::None,
         }
