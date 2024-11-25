@@ -69,6 +69,14 @@ impl Theme {
         }
     }
 
+    pub async fn find_by_theme_id(conn: &PgPooledConn, theme_id: String) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::theme_id.eq(theme_id),
+        )
+        .await
+    }
+
     pub async fn find_by_lineage(
         conn: &PgPooledConn,
         lineage: ThemeLineage,

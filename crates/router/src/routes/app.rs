@@ -107,6 +107,7 @@ pub struct SessionState {
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub grpc_client: Arc<GrpcClients>,
+    pub theme_storage_client: Arc<dyn FileStorageInterface>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -205,6 +206,7 @@ pub struct AppState {
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
     pub grpc_client: Arc<GrpcClients>,
+    pub theme_storage_client: Arc<dyn FileStorageInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<String> {
@@ -353,6 +355,7 @@ impl AppState {
             let email_client = Arc::new(create_email_client(&conf).await);
 
             let file_storage_client = conf.file_storage.get_file_storage_client().await;
+            let theme_storage_client = conf.theme_storage.get_file_storage_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
 
@@ -373,6 +376,7 @@ impl AppState {
                 file_storage_client,
                 encryption_client,
                 grpc_client,
+                theme_storage_client,
             }
         })
         .await
@@ -454,6 +458,7 @@ impl AppState {
             #[cfg(feature = "olap")]
             opensearch_client: Arc::clone(&self.opensearch_client),
             grpc_client: Arc::clone(&self.grpc_client),
+            theme_storage_client: self.theme_storage_client.clone(),
         })
     }
 }
@@ -2078,6 +2083,22 @@ impl User {
                     .route(web::delete().to(user::delete_sample_data)),
             )
         }
+
+        route = route.service(
+            web::scope("/theme")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(user::theme::get_theme_using_lineage))
+                        .route(web::post().to(user::theme::create_theme)),
+                )
+                .service(
+                    web::resource("/{theme_id}")
+                        .route(web::get().to(user::theme::get_theme_using_theme_id))
+                        .route(web::post().to(user::theme::upload_file_to_theme_storage))
+                        .route(web::delete().to(user::theme::delete_theme)),
+                ),
+        );
+
         route
     }
 }

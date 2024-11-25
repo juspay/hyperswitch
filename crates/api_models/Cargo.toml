@@ -43,6 +43,7 @@ common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
 masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }
 router_derive = { version = "0.1.0", path = "../router_derive" }
+actix-multipart = "0.6.1"
 
 [lints]
 workspace = true

@@ -128,6 +128,7 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
+    pub theme_storage: FileStorageConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

@@ -1,3 +1,5 @@
+pub mod theme;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(feature = "dummy_connector")]
 use api_models::user::sample_data::SampleDataRequest;

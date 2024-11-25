@@ -775,3 +775,6 @@ card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
 connector_list = "cybersource"
+
+[theme_storage]
+file_storage_backend = "file_storage"

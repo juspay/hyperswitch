@@ -1,39 +1,5 @@
 use std::sync::Arc;
 
-use common_enums::enums::MerchantStorageScheme;
-use common_utils::{
-    errors::CustomResult,
-    id_type, pii,
-    types::{keymanager::KeyManagerState, theme::ThemeLineage},
-};
-use diesel_models::{
-    enums,
-    enums::ProcessTrackerStatus,
-    ephemeral_key::{EphemeralKey, EphemeralKeyNew},
-    reverse_lookup::{ReverseLookup, ReverseLookupNew},
-    user_role as user_storage,
-};
-#[cfg(feature = "payouts")]
-use hyperswitch_domain_models::payouts::{
-    payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
-};
-use hyperswitch_domain_models::{
-    disputes,
-    payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
-    refunds,
-};
-#[cfg(not(feature = "payouts"))]
-use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
-use masking::Secret;
-use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
-use router_env::logger;
-use scheduler::{
-    db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
-    SchedulerInterface,
-};
-use serde::Serialize;
-use storage_impl::{config::TenantConfig, redis::kv_store::RedisConnInterface};
-use time::PrimitiveDateTime;
 use super::{
     dashboard_metadata::DashboardMetadataInterface,
     role::RoleInterface,
@@ -79,6 +45,40 @@ use crate::{
     services::{kafka::KafkaProducer, Store},
     types::{domain, storage, AccessToken},
 };
+use common_enums::enums::MerchantStorageScheme;
+use common_utils::{
+    errors::CustomResult,
+    id_type, pii,
+    types::{keymanager::KeyManagerState, theme::ThemeLineage},
+};
+use diesel_models::{
+    enums,
+    enums::ProcessTrackerStatus,
+    ephemeral_key::{EphemeralKey, EphemeralKeyNew},
+    reverse_lookup::{ReverseLookup, ReverseLookupNew},
+    user_role as user_storage,
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::payouts::{
+    payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+};
+use hyperswitch_domain_models::{
+    disputes,
+    payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
+    refunds,
+};
+#[cfg(not(feature = "payouts"))]
+use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
+use masking::Secret;
+use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
+use router_env::logger;
+use scheduler::{
+    db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
+    SchedulerInterface,
+};
+use serde::Serialize;
+use storage_impl::{config::TenantConfig, redis::kv_store::RedisConnInterface};
+use time::PrimitiveDateTime;
 #[derive(Debug, Clone, Serialize)]
 pub struct TenantID(pub String);
 #[derive(Clone)]
@@ -3644,6 +3644,13 @@ impl ThemeInterface for KafkaStore {
         self.diesel_store.insert_theme(theme).await
     }
 
+    async fn find_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.find_theme_by_theme_id(theme_id).await
+    }
+
     async fn find_theme_by_lineage(
         &self,
         lineage: ThemeLineage,
@@ -3661,53 +3668,3 @@ impl ThemeInterface for KafkaStore {
             .await
     }
 }
-#[cfg(feature = "payouts")]
-#[cfg(not(feature = "payouts"))]
-#[cfg(feature = "payouts")]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[cfg(not(feature = "payouts"))]
-#[cfg(feature = "payouts")]
-#[async_trait::async_trait]
-#[cfg(not(feature = "payouts"))]
-#[cfg(feature = "payouts")]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]
-#[async_trait::async_trait]

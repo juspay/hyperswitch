@@ -10,6 +10,7 @@ use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
+    theme::{CreateThemeRequest, GetThemeResponse, UploadFileRequest},
     AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
     ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
     CreateUserAuthenticationMethodRequest, ForgotPasswordRequest, GetSsoAuthUrlRequest,
@@ -74,7 +75,10 @@ common_utils::impl_api_event_type!(
         UpdateUserAuthenticationMethodRequest,
         GetSsoAuthUrlRequest,
         SsoSignInRequest,
-        AuthSelectRequest
+        AuthSelectRequest,
+        GetThemeResponse,
+        UploadFileRequest,
+        CreateThemeRequest
     )
 );
 

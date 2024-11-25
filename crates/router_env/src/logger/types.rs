@@ -488,6 +488,16 @@ pub enum Flow {
     ListUsersInLineage,
     /// List invitations for user
     ListInvitationsForUser,
+    /// Get theme using lineage
+    GetThemeUsingLineage,
+    /// Get theme using theme id
+    GetThemeUsingThemeId,
+    /// Upload file to theme storage
+    UploadFileToThemeStorage,
+    /// Create theme
+    CreateTheme,
+    /// Delete theme
+    DeleteTheme,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
