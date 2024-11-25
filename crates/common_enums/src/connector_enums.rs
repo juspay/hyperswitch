@@ -71,6 +71,7 @@ pub enum RoutableConnectors {
     Digitalvirgo,
     Dlocal,
     Ebanx,
+    Elavon,
     Fiserv,
     Fiservemea,
     Fiuu,
