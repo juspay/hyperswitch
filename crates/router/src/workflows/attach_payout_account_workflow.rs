@@ -56,6 +56,7 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             &key_store,
             &request,
             DEFAULT_LOCALE,
+            None,
         )
         .await?;
 

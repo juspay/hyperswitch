@@ -13,6 +13,7 @@ use hyperswitch_domain_models::{
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
+use hyperswitch_domain_models::payment_methods::PaymentMethod;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
 
@@ -62,6 +63,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
+    payment_method: Option<PaymentMethod>,
 ) -> RouterResponse<serde_json::Value> {
     let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
@@ -73,6 +75,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             key_store,
             connector_name_or_mca_id,
             body.clone(),
+            payment_method,
         ))
         .await?;
 
@@ -126,6 +129,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
+    payment_method: Option<PaymentMethod>,
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
@@ -466,6 +470,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 webhook_details,
                 event_type,
                 source_verified,
+                payment_method,
             ))
             .await
             .attach_printable("Incoming webhook flow for payouts failed")?,
@@ -660,7 +665,9 @@ async fn payouts_incoming_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     event_type: webhooks::IncomingWebhookEvent,
     source_verified: bool,
+    payment_method: Option<PaymentMethod>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
     if source_verified {
         let db = &*state.store;
@@ -724,6 +731,7 @@ async fn payouts_incoming_webhook_flow(
             &key_store,
             &action_req,
             common_utils::consts::DEFAULT_LOCALE,
+            payment_method
         )
         .await?;
 

@@ -518,7 +518,7 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, FloatMajorUnit)> for NomupayPaymentReque
         (item, amount): (&PayoutsRouterData<F>, FloatMajorUnit),
     ) -> Result<Self, Self::Error> {
         let nomupay_auth_type = NomupayAuthType::try_from(&item.connector_auth_type)?;
-        let destination = item.request.clone().get_connector_payout_id()?;
+        let destination = item.request.clone().get_connector_payout_id()?;    //
 
         Ok(Self {
             source_id: nomupay_auth_type.eid,

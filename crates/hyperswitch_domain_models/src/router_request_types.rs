@@ -779,7 +779,7 @@ pub struct UploadFileRequestData {
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
-pub struct PayoutsData {
+pub struct PayoutsData { // pass to conn inte
     pub payout_id: String,
     pub amount: i64,
     pub connector_payout_id: Option<String>,
@@ -793,6 +793,7 @@ pub struct PayoutsData {
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,
     pub priority: Option<storage_enums::PayoutSendPriority>,
+    pub connector_transfer_method_id: Option<String>, // here
 }
 
 #[derive(Debug, Default, Clone)]

@@ -2131,7 +2131,8 @@ pub async fn create_recipient_disburse_account(
                 let connector_mandate_details_value =
                     serde_json::to_value(connector_mandate_details).ok();
 
-                /*
+                /**************** above this is correct **********************
+                
 
                 need to fetch connector_mandate_details using payment_method_id
 
@@ -2150,25 +2151,27 @@ pub async fn create_recipient_disburse_account(
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("Unable to find payment method")?;
 
-                    let mut connector_mandate_details = payment_method.connector_mandate_details.clone()
-                    .map(|details| {
-                        details
-                            .parse_value::<diesel_models::PaymentsMandateReference>("connector_mandate_details")
-                    })
-                    .transpose()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("unable to deserialize connector mandate details")?;
+                    payout_data.payment_method = Some(payment_method);
+                    response_handler(&state, &merchant_account, &payout_data).await;
 
-                    if let Some(mandate_details) = connector_mandate_details {
+                    // let mut connector_mandate_details = payment_method.connector_mandate_details.clone()
+                    // .map(|details| {
+                    //     details
+                    //         .parse_value::<diesel_models::PaymentsMandateReference>("connector_mandate_details")
+                    // })
+                    // .transpose()
+                    // .change_context(errors::ApiErrorResponse::InternalServerError)
+                    // .attach_printable("unable to deserialize connector mandate details")?;
 
-                        payout_data.payment_method = Some(payment_method);
-                        // payout_data.payment_method = 
+                    // if let Some(pm_reference) = connector_mandate_details {
 
-                        response_handler(&state, &merchant_account, &payout_data).await
+                    //     payout_data.payment_method = Some(payment_method);
+                    //     payout_data.payment_method.map(|pm| pm.connector_mandate_details=pm_reference);
 
-                    }else{
 
-                    }
+                    //     response_handler(&state, &merchant_account, &payout_data).await;
+
+                    // };
                     
                 }
                 else{
@@ -2225,7 +2228,7 @@ pub async fn create_recipient_disburse_account(
 
                     payout_data.payment_method = Some(updated_payment_method);
 
-                    response_handler(&state, &merchant_account, &payout_data).await
+                    response_handler(&state, &merchant_account, &payout_data).await;
                 };
             }
         }
@@ -2481,8 +2484,17 @@ pub async fn fulfill_payout(
                     ),
                 }));
             } else if payout_data.payouts.recurring
-                && payout_data.payouts.payout_method_id.clone().is_none()
+                && payout_data.payouts.payout_method_id.clone().is_none()   // need to change here
             {
+
+                /*
+                
+                fulfill_payout     or     payouts_fulfill_core
+
+
+                 */
+                
+
                 let payout_method_data = payout_data
                     .payout_method_data
                     .clone()
@@ -2639,7 +2651,7 @@ pub async fn response_handler(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse payout link's URL")?,
-        payment_method_id: payouts.payout_method_id,
+        payment_method_id: payouts.payout_method_id,  //here
     };
     Ok(services::ApplicationResponse::Json(response))
 }

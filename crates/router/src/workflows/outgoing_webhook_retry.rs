@@ -531,6 +531,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 &key_store,
                 &request,
                 DEFAULT_LOCALE,
+                None,
             )
             .await?;
 

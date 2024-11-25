@@ -17,6 +17,8 @@ use crate::{
     },
     types::api::payouts as payout_types,
 };
+use hyperswitch_domain_models::payment_methods::PaymentMethod;
+
 
 fn get_locale_from_header(headers: &HeaderMap) -> String {
     get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
@@ -58,7 +60,9 @@ pub async fn payouts_retrieve(
     req: HttpRequest,
     path: web::Path<String>,
     query_params: web::Query<payout_types::PayoutRetrieveBody>,
+    payment_method: Option<PaymentMethod>,
 ) -> HttpResponse {
+    
     let payout_retrieve_request = payout_types::PayoutRetrieveRequest {
         payout_id: path.into_inner(),
         force_sync: query_params.force_sync.to_owned(),
@@ -80,6 +84,7 @@ pub async fn payouts_retrieve(
                 auth.key_store,
                 req,
                 &locale,
+                payment_method.clone(),
             )
         },
         auth::auth_type(
@@ -100,6 +105,7 @@ pub async fn payouts_update(
     req: HttpRequest,
     path: web::Path<String>,
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
+    payment_method: Option<PaymentMethod>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsUpdate;
     let locale = get_locale_from_header(req.headers());
@@ -112,7 +118,7 @@ pub async fn payouts_update(
         &req,
         payout_update_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_update_core(state, auth.merchant_account, auth.key_store, req, &locale)
+            payouts_update_core(state, auth.merchant_account, auth.key_store, req, &locale, payment_method.clone())
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -126,6 +132,7 @@ pub async fn payouts_confirm(
     req: HttpRequest,
     json_payload: web::Json<payout_types::PayoutCreateRequest>,
     path: web::Path<String>,
+    payment_method: Option<PaymentMethod>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsConfirm;
     let mut payload = json_payload.into_inner();
@@ -146,7 +153,7 @@ pub async fn payouts_confirm(
         &req,
         payload,
         |state, auth, req, _| {
-            payouts_confirm_core(state, auth.merchant_account, auth.key_store, req, &locale)
+            payouts_confirm_core(state, auth.merchant_account, auth.key_store, req, &locale, payment_method.clone())
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -161,6 +168,7 @@ pub async fn payouts_cancel(
     req: HttpRequest,
     json_payload: web::Json<payout_types::PayoutActionRequest>,
     path: web::Path<String>,
+    payment_method: Option<PaymentMethod>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsCancel;
     let mut payload = json_payload.into_inner();
@@ -173,7 +181,7 @@ pub async fn payouts_cancel(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_cancel_core(state, auth.merchant_account, auth.key_store, req, &locale)
+            payouts_cancel_core(state, auth.merchant_account, auth.key_store, req, &locale, payment_method.clone())
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
@@ -187,6 +195,7 @@ pub async fn payouts_fulfill(
     req: HttpRequest,
     json_payload: web::Json<payout_types::PayoutActionRequest>,
     path: web::Path<String>,
+    payment_method: Option<PaymentMethod>,
 ) -> HttpResponse {
     let flow = Flow::PayoutsFulfill;
     let mut payload = json_payload.into_inner();
@@ -199,7 +208,7 @@ pub async fn payouts_fulfill(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req, &locale)
+            payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req, &locale, payment_method.clone())
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
