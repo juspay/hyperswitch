@@ -559,7 +559,7 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
     fn from(item: PaymentOutcome) -> Self {
         match item {
             PaymentOutcome::Authorized => Self::Authorized,
-            PaymentOutcome::SentForSettlement => Self::CaptureInitiated,
+            PaymentOutcome::SentForSettlement => Self::Charged,
             PaymentOutcome::ThreeDsDeviceDataRequired => Self::DeviceDataCollectionPending,
             PaymentOutcome::ThreeDsAuthenticationFailed => Self::AuthenticationFailed,
             PaymentOutcome::ThreeDsChallenged => Self::AuthenticationPending,
@@ -577,16 +577,17 @@ impl From<&EventType> for enums::AttemptStatus {
     fn from(value: &EventType) -> Self {
         match value {
             EventType::SentForAuthorization => Self::Authorizing,
-            EventType::SentForSettlement => Self::CaptureInitiated,
+            EventType::SentForSettlement => Self::Charged,
             EventType::Settled => Self::Charged,
             EventType::Authorized => Self::Authorized,
-            EventType::Refused | EventType::SettlementFailed => Self::Failure,
-            EventType::Cancelled
-            | EventType::SentForRefund
+            EventType::Refused
+            | EventType::SettlementFailed
+            | EventType::Expired
+            | EventType::Cancelled
+            | EventType::Error => Self::Failure,
+            EventType::SentForRefund
             | EventType::RefundFailed
             | EventType::Refunded
-            | EventType::Error
-            | EventType::Expired
             | EventType::Unknown => Self::Pending,
         }
     }
