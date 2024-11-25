@@ -222,6 +222,7 @@ impl PaymentMetricAccumulator for PaymentsDistributionAccumulator {
                 && status.as_ref() != &storage_enums::AttemptStatus::PaymentMethodAwaited
                 && status.as_ref() != &storage_enums::AttemptStatus::DeviceDataCollectionPending
                 && status.as_ref() != &storage_enums::AttemptStatus::ConfirmationAwaited
+                && status.as_ref() != &storage_enums::AttemptStatus::Unresolved
             {
                 if let Some(total) = metrics.count.and_then(|total| u32::try_from(total).ok()) {
                     self.total += total;
