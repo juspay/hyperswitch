@@ -1110,14 +1110,14 @@ where
         .await;
 
         if update_business_profile_with_ref.is_ok() {
-            let routing_algortihm = db
+            let routing_algorithm = db
                 .find_routing_algorithm_by_profile_id_algorithm_id(
                     &profile_id,
                     &algo_type_algorithm_id,
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            let updated_routing_record = routing_algortihm.foreign_into();
+            let updated_routing_record = routing_algorithm.foreign_into();
             core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
                 &metrics::CONTEXT,
                 1,

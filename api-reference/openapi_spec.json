@@ -3931,7 +3931,7 @@
         ],
         "summary": "Routing - Toggle success based dynamic routing for profile",
         "description": "Create a success based dynamic routing algorithm",
-        "operationId": "Toggle success based dynamic routing algprithm",
+        "operationId": "Toggle success based dynamic routing algorithm",
         "parameters": [
           {
             "name": "account_id",
@@ -3957,7 +3957,7 @@
             "description": "Feature to enable for success based routing",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/SuccessBasedRoutingFeatures"
+              "$ref": "#/components/schemas/DynamicRoutingFeatures"
             }
           }
         ],
@@ -10234,6 +10234,14 @@
             "nullable": true
           }
         }
+      },
+      "DynamicRoutingFeatures": {
+        "type": "string",
+        "enum": [
+          "metrics",
+          "dynamic_connector_selection",
+          "none"
+        ]
       },
       "EnabledPaymentMethod": {
         "type": "object",
@@ -23809,14 +23817,6 @@
           "destination"
         ]
       },
-      "SuccessBasedRoutingFeatures": {
-        "type": "string",
-        "enum": [
-          "metrics",
-          "dynamic_connector_selection",
-          "none"
-        ]
-      },
       "SurchargeDetailsResponse": {
         "type": "object",
         "required": [
@@ -24033,6 +24033,28 @@
           }
         }
       },
+      "ToggleDynamicRoutingPath": {
+        "type": "object",
+        "required": [
+          "profile_id"
+        ],
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          }
+        }
+      },
+      "ToggleDynamicRoutingQuery": {
+        "type": "object",
+        "required": [
+          "enable"
+        ],
+        "properties": {
+          "enable": {
+            "$ref": "#/components/schemas/DynamicRoutingFeatures"
+          }
+        }
+      },
       "ToggleKVRequest": {
         "type": "object",
         "required": [
@@ -24063,28 +24085,6 @@
             "type": "boolean",
             "description": "Status of KV for the specific merchant",
             "example": true
-          }
-        }
-      },
-      "ToggleSuccessBasedRoutingPath": {
-        "type": "object",
-        "required": [
-          "profile_id"
-        ],
-        "properties": {
-          "profile_id": {
-            "type": "string"
-          }
-        }
-      },
-      "ToggleSuccessBasedRoutingQuery": {
-        "type": "object",
-        "required": [
-          "enable"
-        ],
-        "properties": {
-          "enable": {
-            "$ref": "#/components/schemas/SuccessBasedRoutingFeatures"
           }
         }
       },
