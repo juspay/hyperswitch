@@ -366,6 +366,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
+          error_code: "The currency not allow for the RecordType",
+          error_message: "The currency not allow for the RecordType",
         },
       },
     },
@@ -374,7 +376,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "failed",
+          error_code: "The currency not allow for the RecordType",
+          error_message: "The currency not allow for the RecordType",
         },
       },
     },
