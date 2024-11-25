@@ -1149,7 +1149,7 @@ where
             );
             Ok(ApplicationResponse::Json(updated_routing_record))
         } else {
-            default_success_based_routing_setup(
+            default_specific_dynamic_routing_setup(
                 state,
                 key_store,
                 business_profile,
@@ -1160,7 +1160,7 @@ where
             .await
         }
     } else {
-        default_success_based_routing_setup(
+        default_specific_dynamic_routing_setup(
             state,
             key_store,
             business_profile,
@@ -1174,7 +1174,7 @@ where
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn default_success_based_routing_setup(
+pub async fn default_specific_dynamic_routing_setup(
     state: &SessionState,
     key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
