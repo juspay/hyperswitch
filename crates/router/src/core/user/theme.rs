@@ -1,14 +1,15 @@
-use crate::{
-    core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    routes::SessionState,
-    utils::user::theme as theme_utils,
-};
 use api_models::user::theme as theme_api;
 use common_utils::{ext_traits::Encode, types::theme::ThemeLineage};
 use diesel_models::user::theme::ThemeNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
 use uuid::Uuid;
+
+use crate::{
+    core::errors::{StorageErrorExt, UserErrors, UserResponse},
+    routes::SessionState,
+    utils::user::theme as theme_utils,
+};
 
 pub async fn get_theme_using_lineage(
     state: SessionState,

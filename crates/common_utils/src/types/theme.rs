@@ -1,6 +1,9 @@
 use common_enums::EntityType;
 
-use crate::{events::ApiEventMetric, events::ApiEventsType, id_type, impl_api_event_type};
+use crate::{
+    events::{ApiEventMetric, ApiEventsType},
+    id_type, impl_api_event_type,
+};
 
 /// Enum for having all the required lineage for every level.
 /// Currently being used for theme related APIs and queries.

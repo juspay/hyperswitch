@@ -263,7 +263,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetThemeUsingLineage
             | Flow::GetThemeUsingThemeId
             | Flow::UploadFileToThemeStorage
-            | Flow::CreateTheme 
+            | Flow::CreateTheme
             | Flow::DeleteTheme => Self::User,
 
             Flow::ListRolesV2
