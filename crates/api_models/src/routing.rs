@@ -523,8 +523,27 @@ pub struct DynamicAlgorithmWithTimestamp<T> {
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DynamicRoutingAlgorithmRef {
     pub success_based_algorithm: Option<SuccessBasedAlgorithm>,
+    pub dynamic_routing_volume_split: u8,
 }
 
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RoutingVolumeSplit {
+    pub routing_type: RoutingType,
+    pub split: u8,
+}
+
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+pub enum RoutingType {
+    #[default]
+    Static,
+    Dynamic,
+}
+
+impl RoutingType {
+    pub fn is_dynamic_routing(&self) -> bool {
+        self == &Self::Dynamic
+    }
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuccessBasedAlgorithm {
     pub algorithm_id_with_timestamp:

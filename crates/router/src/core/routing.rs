@@ -1321,6 +1321,7 @@ pub async fn toggle_success_based_routing(
                                     },
                                 enabled_feature: routing::SuccessBasedRoutingFeatures::None,
                             }),
+                            dynamic_routing_volume_split: u8::default(),
                         };
 
                         // redact cache for success based routing configs
