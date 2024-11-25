@@ -218,12 +218,18 @@ impl PaymentMetricAccumulator for PaymentsDistributionAccumulator {
                     }
                 }
             }
-            if let Some(total) = metrics.count.and_then(|total| u32::try_from(total).ok()) {
-                self.total += total;
-                if metrics.first_attempt.unwrap_or(false) {
-                    self.total_without_retries += total;
-                } else {
-                    self.total_with_only_retries += total;
+            if status.as_ref() != &storage_enums::AttemptStatus::AuthenticationFailed
+                && status.as_ref() != &storage_enums::AttemptStatus::PaymentMethodAwaited
+                && status.as_ref() != &storage_enums::AttemptStatus::DeviceDataCollectionPending
+                && status.as_ref() != &storage_enums::AttemptStatus::ConfirmationAwaited
+            {
+                if let Some(total) = metrics.count.and_then(|total| u32::try_from(total).ok()) {
+                    self.total += total;
+                    if metrics.first_attempt.unwrap_or(false) {
+                        self.total_without_retries += total;
+                    } else {
+                        self.total_with_only_retries += total;
+                    }
                 }
             }
         }
