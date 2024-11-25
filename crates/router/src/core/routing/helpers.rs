@@ -915,7 +915,7 @@ pub async fn disable_dynamic_routing_algorithm(
     state: &SessionState,
     key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
-    success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
+    dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
     let db = state.store.as_ref();
@@ -928,9 +928,7 @@ pub async fn disable_dynamic_routing_algorithm(
         .to_owned();
     let (algorithm_id, dynamic_routing_algorithm) = match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let Some(algorithm_ref) =
-                success_based_dynamic_routing_algo_ref.success_based_algorithm
-            else {
+            let Some(algorithm_ref) = dynamic_routing_algo_ref.success_based_algorithm else {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "Success rate based routing is already disabled".to_string(),
                 })?
@@ -950,15 +948,13 @@ pub async fn disable_dynamic_routing_algorithm(
                         },
                         enabled_feature: routing_types::DynamicRoutingFeatures::None,
                     }),
-                    elimination_routing_algorithm: success_based_dynamic_routing_algo_ref
+                    elimination_routing_algorithm: dynamic_routing_algo_ref
                         .elimination_routing_algorithm,
                 },
             )
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            let Some(algorithm_ref) =
-                success_based_dynamic_routing_algo_ref.elimination_routing_algorithm
-            else {
+            let Some(algorithm_ref) = dynamic_routing_algo_ref.elimination_routing_algorithm else {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "Elimination routing is already disabled".to_string(),
                 })?
@@ -971,8 +967,7 @@ pub async fn disable_dynamic_routing_algorithm(
             (
                 algorithm_id,
                 routing_types::DynamicRoutingAlgorithmRef {
-                    success_based_algorithm: success_based_dynamic_routing_algo_ref
-                        .success_based_algorithm,
+                    success_based_algorithm: dynamic_routing_algo_ref.success_based_algorithm,
                     elimination_routing_algorithm: Some(
                         routing_types::EliminationRoutingAlgorithm {
                             algorithm_id_with_timestamp:
@@ -1003,7 +998,9 @@ pub async fn disable_dynamic_routing_algorithm(
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("unable to publish into the redact channel for evicting the success based routing config cache")?;
+    .attach_printable(
+        "unable to publish into the redact channel for evicting the dynamic routing config cache",
+    )?;
 
     let record = db
         .find_routing_algorithm_by_profile_id_algorithm_id(business_profile.get_id(), &algorithm_id)
@@ -1041,7 +1038,7 @@ pub async fn enable_dynamic_routing_algorithm(
     let dynamic_routing = dynamic_routing_algo_ref.clone();
     match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            helper_enable_function(
+            enable_specific_routing_algorithm(
                 state,
                 key_store,
                 business_profile,
@@ -1053,7 +1050,7 @@ pub async fn enable_dynamic_routing_algorithm(
             .await
         }
         routing_types::DynamicRoutingType::EliminationRouting => {
-            helper_enable_function(
+            enable_specific_routing_algorithm(
                 state,
                 key_store,
                 business_profile,
@@ -1067,7 +1064,7 @@ pub async fn enable_dynamic_routing_algorithm(
     }
 }
 
-pub async fn helper_enable_function<A>(
+pub async fn enable_specific_routing_algorithm<A>(
     state: &SessionState,
     key_store: domain::MerchantKeyStore,
     business_profile: domain::Profile,
@@ -1081,10 +1078,9 @@ where
 {
     if let Some(mut algo_type) = algo_type {
         let db = state.store.as_ref();
-        let _feature_to_enable_for_routing = feature_to_enable.clone();
         let profile_id = business_profile.get_id().clone();
         let business_profile = business_profile.clone();
-        let algo_type_enabled_features = algo_type.get_enabeld_features();
+        let algo_type_enabled_features = algo_type.get_enabled_features();
         if *algo_type_enabled_features == feature_to_enable {
             // algorithm already has the required feature
             return Err(errors::ApiErrorResponse::PreconditionFailed {
