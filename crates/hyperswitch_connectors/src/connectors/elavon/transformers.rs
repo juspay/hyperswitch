@@ -405,10 +405,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, ElavonSyncResponse>> for RefundsRo
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.ssl_txn_id.clone(),
-                refund_status: get_refund_status(
-                    item.data.request.refund_status,
-                    &item.response,
-                ),
+                refund_status: get_refund_status(item.data.request.refund_status, &item.response),
             }),
             ..item.data
         })
