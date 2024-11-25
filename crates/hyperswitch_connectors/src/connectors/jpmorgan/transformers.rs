@@ -1233,10 +1233,27 @@ impl<F> TryFrom<ResponseRouterData<F, JpmorganCancelResponse, PaymentsCancelData
     } 
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all="camelCase")]
+pub struct JpmorganValidationErrors{
+    pub code : Option<String>,
+    pub message : Option<String>,
+    pub entity : Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all="camelCase")]
+pub struct JpmorganErrorInformation{
+    pub code : Option<String>,
+    pub message : Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all="camelCase")]
 pub struct JpmorganErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub response_status : JpmorganTransactionStatus,
+    pub response_code : String,
+    pub response_message : Option<String>, 
+    // pub validation_errors : Option<Vec<JpmorganValidationErrors>>,
+    // pub information : JpmorganErrorInformation,
 }

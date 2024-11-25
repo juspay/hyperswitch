@@ -27,14 +27,9 @@ use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
         ConnectorValidation,
-    },
-    configs::Connectors,
-    errors,
-    events::connector_api_logs::ConnectorEvent,
-    types::{self, RefreshTokenType, Response},
-    webhooks,
+    }, configs::Connectors, consts, errors, events::connector_api_logs::ConnectorEvent, types::{self, RefreshTokenType, Response}, webhooks
 };
-use transformers as jpmorgan;
+use transformers::{self as jpmorgan, JpmorganErrorResponse};
 
 use crate::{
     constants::headers, types::{ResponseRouterData, RefreshTokenRouterData}, utils
@@ -130,25 +125,26 @@ impl ConnectorCommon for Jpmorgan {
     }
 
     fn build_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: jpmorgan::JpmorganErrorResponse = res
-            .response
-            .parse_struct("JpmorganErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            &self,
+            res: Response,
+            event_builder: Option<&mut ConnectorEvent>,
+        ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+            let response : JpmorganErrorResponse = res.response.parse_struct("JpmorganErrorResponse").
+            change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
-            attempt_status: None,
-            connector_transaction_id: None,
-        })
+            router_env::logger::info!(connector_response=?response);
+            event_builder.map(|i| i.set_response_body(&response));
+
+            let response_message = response.response_message.as_ref().map_or_else(|| consts::NO_ERROR_MESSAGE.to_string(), ToString::to_string);
+
+            Ok(ErrorResponse{
+                status_code : res.status_code,
+                code : response.response_code,
+                message : response_message.clone(),
+                reason : Some(response_message),
+                attempt_status : None,
+                connector_transaction_id : None,
+            })
     }
 }
 
@@ -162,9 +158,13 @@ impl ConnectorValidation for Jpmorgan {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
             enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+            //enums::CaptureMethod::ManualMultiple | 
+            enums::CaptureMethod::Scheduled => Err(      
                 utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
+            enums::CaptureMethod::ManualMultiple => Err(errors::ConnectorError::NotImplemented(     //ManualMultiple unimplemented
+                utils::get_unimplemented_payment_method_error_message("Jpmorgan"),
+            ))?,
         }
     }
 

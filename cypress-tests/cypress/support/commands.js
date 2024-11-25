@@ -1470,7 +1470,7 @@ Cypress.Commands.add(
       if (response.body.capture_method !== undefined) {
         expect(response.body.payment_id).to.equal(payment_id);
         for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
+          expect(res_data.body[key]).to.equal(response.body[key]); //
         }
       } else {
         defaultErrorHandler(response, res_data);
