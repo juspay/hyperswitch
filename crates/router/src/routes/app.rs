@@ -1747,9 +1747,9 @@ impl Profile {
 
         #[cfg(feature = "dynamic_routing")]
         {
-            route =
-                route.service(
-                    web::scope("/{profile_id}/dynamic_routing").service(
+            route = route.service(
+                web::scope("/{profile_id}/dynamic_routing")
+                    .service(
                         web::scope("/success_based")
                             .service(
                                 web::resource("/toggle")
@@ -1762,8 +1762,14 @@ impl Profile {
                                     )
                                 }),
                             )),
+                    )
+                    .service(
+                        web::scope("/elimination").service(
+                            web::resource("/toggle")
+                                .route(web::post().to(routing::toggle_elimination_routing)),
+                        ),
                     ),
-                );
+            );
         }
 
         route = route.service(
