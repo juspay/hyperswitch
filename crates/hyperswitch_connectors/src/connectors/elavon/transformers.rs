@@ -382,7 +382,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<ElavonSyncResponse>> for PaymentsSyn
         item: PaymentsSyncResponseRouterData<ElavonSyncResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(&item.response),
+            status: get_sync_status(item.data.status, &item.response),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.ssl_txn_id),
                 redirection_data: Box::new(None),
@@ -405,7 +405,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, ElavonSyncResponse>> for RefundsRo
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.ssl_txn_id.clone(),
-                refund_status: enums::RefundStatus::from(&item.response),
+                refund_status: get_refund_status(
+                    item.data.request.refund_status,
+                    &item.response,
+                ),
             }),
             ..item.data
         })
@@ -527,22 +530,23 @@ fn map_payment_status(
 impl From<&ElavonPaymentsResponse> for enums::RefundStatus {
     fn from(item: &ElavonPaymentsResponse) -> Self {
         if item.is_successful() {
-            Self::Success 
+            Self::Success
         } else {
             Self::Failure
         }
     }
 }
-impl From<&ElavonSyncResponse> for enums::RefundStatus {
-    fn from(item: &ElavonSyncResponse) -> Self {
-        match item.ssl_trans_status {
-            TransactionSyncStatus::REV
-            | TransactionSyncStatus::OPN
-            | TransactionSyncStatus::PEN => Self::Pending,
-            TransactionSyncStatus::STL => Self::Success,
-            TransactionSyncStatus::PST
-            | TransactionSyncStatus::FPR
-            | TransactionSyncStatus::PRE => Self::Failure,
+fn get_refund_status(
+    prev_status: enums::RefundStatus,
+    item: &ElavonSyncResponse,
+) -> enums::RefundStatus {
+    match item.ssl_trans_status {
+        TransactionSyncStatus::REV | TransactionSyncStatus::OPN | TransactionSyncStatus::PEN => {
+            prev_status
+        }
+        TransactionSyncStatus::STL => enums::RefundStatus::Success,
+        TransactionSyncStatus::PST | TransactionSyncStatus::FPR | TransactionSyncStatus::PRE => {
+            enums::RefundStatus::Failure
         }
     }
 }
@@ -560,6 +564,24 @@ impl From<&ElavonSyncResponse> for enums::AttemptStatus {
             TransactionSyncStatus::PST
             | TransactionSyncStatus::FPR
             | TransactionSyncStatus::PRE => Self::Failure,
+        }
+    }
+}
+fn get_sync_status(
+    prev_status: enums::AttemptStatus,
+    item: &ElavonSyncResponse,
+) -> enums::AttemptStatus {
+    match item.ssl_trans_status {
+        TransactionSyncStatus::REV | TransactionSyncStatus::OPN | TransactionSyncStatus::PEN => {
+            prev_status
+        }
+        TransactionSyncStatus::STL => match item.ssl_transaction_type {
+            SyncTransactionType::Sale => enums::AttemptStatus::Charged,
+            SyncTransactionType::AuthOnly => enums::AttemptStatus::Authorized,
+            SyncTransactionType::Return => enums::AttemptStatus::Pending,
+        },
+        TransactionSyncStatus::PST | TransactionSyncStatus::FPR | TransactionSyncStatus::PRE => {
+            enums::AttemptStatus::Failure
         }
     }
 }

@@ -39,12 +39,12 @@ const connectorDetails = {
   paybox: payboxConnectorDetails,
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
+  elavon: elavonConnectorDetails,
   trustpay: trustpayConnectorDetails,
   datatrans: datatransConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   fiuu: fiuuConnectorDetails,
   worldpay: worldpayConnectorDetails,
-  elavon: elavonConnectorDetails
 };
 
 export default function getConnectorDetails(connectorId) {
