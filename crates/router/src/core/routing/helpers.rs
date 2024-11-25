@@ -911,6 +911,7 @@ pub fn generate_tenant_business_profile_id(
     format!("{}:{}", redis_key_prefix, business_profile_id)
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn disable_dynamic_routing_algorithm(
     state: &SessionState,
     key_store: domain::MerchantKeyStore,
@@ -1043,6 +1044,7 @@ pub async fn disable_dynamic_routing_algorithm(
     Ok(ApplicationResponse::Json(response))
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn enable_dynamic_routing_algorithm(
     state: &SessionState,
     key_store: domain::MerchantKeyStore,
@@ -1082,6 +1084,7 @@ pub async fn enable_dynamic_routing_algorithm(
     }
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn enable_specific_routing_algorithm<A>(
     state: &SessionState,
     key_store: domain::MerchantKeyStore,
@@ -1092,75 +1095,11 @@ pub async fn enable_specific_routing_algorithm<A>(
     algo_type: Option<A>,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>>
 where
-    A: routing_types::DynamicRoutingAlgoAccessor + Clone,
+    A: routing_types::DynamicRoutingAlgoAccessor + Clone + std::fmt::Debug,
 {
-    if let Some(mut algo_type) = algo_type {
-        let db = state.store.as_ref();
-        let profile_id = business_profile.get_id().clone();
-        let business_profile = business_profile.clone();
-        let algo_type_enabled_features = algo_type.get_enabled_features();
-        if *algo_type_enabled_features == feature_to_enable {
-            // algorithm already has the required feature
-            return Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!("{} is already enabled", dynamic_routing_type),
-            }
-            .into());
-        };
-        *algo_type_enabled_features = feature_to_enable.clone();
-        let algo_type_algorithm_id = algo_type
-            .clone()
-            .get_algorithm_id_with_timestamp()
-            .algorithm_id
-            .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "algorithm_id not found in database".to_string(),
-            })?;
-        dynamic_routing_algo_ref
-            .update_specific_ref(dynamic_routing_type.clone(), feature_to_enable.clone());
-        let update_business_profile_with_ref =
-            update_business_profile_active_dynamic_algorithm_ref(
-                db,
-                &state.into(),
-                &key_store,
-                business_profile.clone(),
-                dynamic_routing_algo_ref.clone(),
-            )
-            .await;
-
-        if update_business_profile_with_ref.is_ok() {
-            let routing_algorithm = db
-                .find_routing_algorithm_by_profile_id_algorithm_id(
-                    &profile_id,
-                    &algo_type_algorithm_id,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            let updated_routing_record = routing_algorithm.foreign_into();
-            core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([(
-                    "profile_id",
-                    business_profile
-                        .get_id()
-                        .clone()
-                        .get_string_repr()
-                        .to_owned(),
-                )]),
-            );
-            Ok(ApplicationResponse::Json(updated_routing_record))
-        } else {
-            default_specific_dynamic_routing_setup(
-                state,
-                key_store,
-                business_profile,
-                feature_to_enable,
-                dynamic_routing_algo_ref,
-                dynamic_routing_type,
-            )
-            .await
-        }
-    } else {
-        default_specific_dynamic_routing_setup(
+    // Algorithm wasn't created yet
+    let Some(mut algo_type) = algo_type else {
+        return default_specific_dynamic_routing_setup(
             state,
             key_store,
             business_profile,
@@ -1168,8 +1107,66 @@ where
             dynamic_routing_algo_ref,
             dynamic_routing_type,
         )
+        .await;
+    };
+
+    // Algorithm was in disabled state
+    let Some(algo_type_algorithm_id) = algo_type
+        .clone()
+        .get_algorithm_id_with_timestamp()
+        .algorithm_id
+    else {
+        return default_specific_dynamic_routing_setup(
+            state,
+            key_store,
+            business_profile,
+            feature_to_enable,
+            dynamic_routing_algo_ref,
+            dynamic_routing_type,
+        )
+        .await;
+    };
+    let db = state.store.as_ref();
+    let profile_id = business_profile.get_id().clone();
+    let business_profile = business_profile.clone();
+    let algo_type_enabled_features = algo_type.get_enabled_features();
+    if *algo_type_enabled_features == feature_to_enable {
+        // algorithm already has the required feature
+        return Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!("{} is already enabled", dynamic_routing_type),
+        }
+        .into());
+    };
+    *algo_type_enabled_features = feature_to_enable.clone();
+    dynamic_routing_algo_ref
+        .update_specific_ref(dynamic_routing_type.clone(), feature_to_enable.clone());
+    update_business_profile_active_dynamic_algorithm_ref(
+        db,
+        &state.into(),
+        &key_store,
+        business_profile.clone(),
+        dynamic_routing_algo_ref.clone(),
+    )
+    .await?;
+
+    let routing_algorithm = db
+        .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algo_type_algorithm_id)
         .await
-    }
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+    let updated_routing_record = routing_algorithm.foreign_into();
+    core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([(
+            "profile_id",
+            business_profile
+                .get_id()
+                .clone()
+                .get_string_repr()
+                .to_owned(),
+        )]),
+    );
+    Ok(ApplicationResponse::Json(updated_routing_record))
 }
 
 #[cfg(feature = "v1")]
