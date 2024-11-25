@@ -68,7 +68,7 @@ pub enum RoutableConnectors {
     Cybersource,
     Datatrans,
     Deutschebank,
-    // Digitalvirgo, template code for future usage
+    Digitalvirgo,
     Dlocal,
     Ebanx,
     Fiserv,
@@ -123,6 +123,7 @@ pub enum RoutableConnectors {
     Wise,
     Worldline,
     Worldpay,
+    Xendit,
     Zen,
     Plaid,
     Zsl,

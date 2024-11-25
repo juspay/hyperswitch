@@ -168,6 +168,7 @@ where
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: None,
     };
     Ok(router_data)
 }
@@ -226,12 +227,12 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_id,
     ));
 
-    let router_return_url = Some(helpers::create_redirect_url(
-        router_base_url,
-        attempt,
-        connector_id,
-        None,
-    ));
+    let router_return_url = payment_data
+        .payment_intent
+        .create_finish_redirection_url(router_base_url, &merchant_account.publishable_key)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to construct finish redirection url")?
+        .to_string();
 
     let connector_request_reference_id = payment_data
         .payment_intent
@@ -269,7 +270,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         enrolled_for_3ds: true,
         related_transaction_id: None,
         payment_method_type: Some(payment_data.payment_attempt.payment_method_subtype),
-        router_return_url,
+        router_return_url: Some(router_return_url),
         webhook_url,
         complete_authorize_url,
         customer_id: None,
@@ -370,6 +371,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: None,
     };
 
     Ok(router_data)
@@ -502,6 +504,7 @@ pub async fn construct_router_data_for_psync<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
+        psd2_sca_exemption_type: None,
     };
 
     Ok(router_data)
@@ -723,6 +726,7 @@ where
         }),
         header_payload,
         connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
     };
 
     Ok(router_data)
@@ -1560,6 +1564,8 @@ where
 
         let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
+        let next_action_mobile_payment = mobile_payment_next_steps_check(&payment_attempt)?;
+
         let next_action_containing_qr_code_url = qr_code_next_steps_check(payment_attempt.clone())?;
 
         let papal_sdk_next_action = paypal_sdk_next_steps_check(payment_attempt.clone())?;
@@ -1588,6 +1594,11 @@ where
                         .or(next_action_voucher.map(|voucher_data| {
                             api_models::payments::NextActionData::DisplayVoucherInformation {
                                 voucher_details: voucher_data,
+                            }
+                        }))
+                        .or(next_action_mobile_payment.map(|mobile_payment_data| {
+                            api_models::payments::NextActionData::CollectOtp {
+                                consent_data_required: mobile_payment_data.consent_data_required,
                             }
                         }))
                         .or(next_action_containing_qr_code_url.map(|qr_code_data| {
@@ -2202,6 +2213,31 @@ pub fn voucher_next_steps_check(
         None
     };
     Ok(voucher_next_step)
+}
+
+#[cfg(feature = "v1")]
+pub fn mobile_payment_next_steps_check(
+    payment_attempt: &storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::MobilePaymentNextStepData>> {
+    let mobile_payment_next_step = if let Some(diesel_models::enums::PaymentMethod::MobilePayment) =
+        payment_attempt.payment_method
+    {
+        let mobile_paymebnt_next_steps: Option<api_models::payments::MobilePaymentNextStepData> =
+            payment_attempt
+                .connector_metadata
+                .clone()
+                .map(|metadata| {
+                    metadata
+                        .parse_value("MobilePaymentNextStepData")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to parse the Value to NextRequirements struct")
+                })
+                .transpose()?;
+        mobile_paymebnt_next_steps
+    } else {
+        None
+    };
+    Ok(mobile_payment_next_step)
 }
 
 pub fn change_order_details_to_new_type(
@@ -3486,6 +3522,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout: config.sdk_layout,
             display_sdk_only: config.display_sdk_only,
             enabled_saved_payment_method: config.enabled_saved_payment_method,
+            hide_card_nickname_field: config.hide_card_nickname_field,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
@@ -3538,6 +3575,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             sdk_layout: config.sdk_layout,
             display_sdk_only: config.display_sdk_only,
             enabled_saved_payment_method: config.enabled_saved_payment_method,
+            hide_card_nickname_field: config.hide_card_nickname_field,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()

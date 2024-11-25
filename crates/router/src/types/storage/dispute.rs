@@ -83,14 +83,8 @@ impl DisputeDbExt for Dispute {
         if let Some(dispute_status) = &dispute_list_constraints.dispute_status {
             filter = filter.filter(dsl::dispute_status.eq_any(dispute_status.clone()));
         }
-
         if let Some(currency_list) = &dispute_list_constraints.currency {
-            let currency: Vec<String> = currency_list
-                .iter()
-                .map(|currency| currency.to_string())
-                .collect();
-
-            filter = filter.filter(dsl::currency.eq_any(currency));
+            filter = filter.filter(dsl::dispute_currency.eq_any(currency_list.clone()));
         }
         if let Some(merchant_connector_id) = &dispute_list_constraints.merchant_connector_id {
             filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id.clone()))

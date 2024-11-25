@@ -63,11 +63,15 @@ pub enum PaymentIntentDimensions {
     Currency,
     ProfileId,
     Connector,
+    #[strum(serialize = "authentication_type")]
+    #[serde(rename = "authentication_type")]
     AuthType,
     PaymentMethod,
     PaymentMethodType,
     CardNetwork,
     MerchantId,
+    #[strum(serialize = "card_last_4")]
+    #[serde(rename = "card_last_4")]
     CardLast4,
     CardIssuer,
     ErrorReason,
