@@ -8,12 +8,12 @@ use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::V
 use diesel_models::{enums as storage_enums, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_methods::PaymentMethod,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
-use hyperswitch_domain_models::payment_methods::PaymentMethod;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
 
@@ -667,7 +667,6 @@ async fn payouts_incoming_webhook_flow(
     source_verified: bool,
     payment_method: Option<PaymentMethod>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
     if source_verified {
         let db = &*state.store;
@@ -731,7 +730,7 @@ async fn payouts_incoming_webhook_flow(
             &key_store,
             &action_req,
             common_utils::consts::DEFAULT_LOCALE,
-            payment_method
+            payment_method,
         )
         .await?;
 

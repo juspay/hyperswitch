@@ -79,7 +79,7 @@ pub struct PayoutData {
     pub should_terminate: bool,
     pub payout_link: Option<PayoutLink>,
     pub current_locale: String,
-    pub payment_method: Option<PaymentMethod>
+    pub payment_method: Option<PaymentMethod>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -381,7 +381,6 @@ pub async fn payouts_confirm_core(
     req: payouts::PayoutCreateRequest,
     locale: &str,
     payment_method: Option<PaymentMethod>,
-    
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
         &state,
@@ -390,7 +389,7 @@ pub async fn payouts_confirm_core(
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         locale,
-        payment_method
+        payment_method,
     )
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -465,7 +464,7 @@ pub async fn payouts_update_core(
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         locale,
-        payment_method
+        payment_method,
     )
     .await?;
 
@@ -550,7 +549,7 @@ pub async fn payouts_retrieve_core(
         &key_store,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
         locale,
-        payment_method
+        payment_method,
     )
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -693,7 +692,7 @@ pub async fn payouts_fulfill_core(
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         locale,
-        payment_method
+        payment_method,
     )
     .await?;
 
@@ -2132,7 +2131,7 @@ pub async fn create_recipient_disburse_account(
                     serde_json::to_value(connector_mandate_details).ok();
 
                 /**************** above this is correct **********************
-                
+
 
                 need to fetch connector_mandate_details using payment_method_id
 
@@ -2141,15 +2140,15 @@ pub async fn create_recipient_disburse_account(
 
                 if let Some(payout_method_id) = pm_id {
                     let payment_method = db
-                    .find_payment_method(
-                        &(state.into()),
-                        key_store,
-                        &payout_method_id,  // need to get from api request
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-                    .attach_printable("Unable to find payment method")?;
+                        .find_payment_method(
+                            &(state.into()),
+                            key_store,
+                            &payout_method_id, // need to get from api request
+                            merchant_account.storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                        .attach_printable("Unable to find payment method")?;
 
                     payout_data.payment_method = Some(payment_method);
                     response_handler(&state, &merchant_account, &payout_data).await;
@@ -2168,14 +2167,10 @@ pub async fn create_recipient_disburse_account(
                     //     payout_data.payment_method = Some(payment_method);
                     //     payout_data.payment_method.map(|pm| pm.connector_mandate_details=pm_reference);
 
-
                     //     response_handler(&state, &merchant_account, &payout_data).await;
 
                     // };
-                    
-                }
-                else{
-
+                } else {
                     let current_time = common_utils::date_time::now();
                     let payment_method = PaymentMethod {
                         customer_id: customer_details.customer_id,
@@ -2215,16 +2210,16 @@ pub async fn create_recipient_disburse_account(
                         transaction_flow: Some(storage_enums::TransactionFlow::Payouts),
                     };
 
-                    let updated_payment_method:PaymentMethod = db.insert_payment_method(
-                        &state.into(),
-                        key_store,
-                        payment_method,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add payment method in db")?;
-                    
+                    let updated_payment_method: PaymentMethod = db
+                        .insert_payment_method(
+                            &state.into(),
+                            key_store,
+                            payment_method,
+                            merchant_account.storage_scheme,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to add payment method in db")?;
 
                     payout_data.payment_method = Some(updated_payment_method);
 
@@ -2484,16 +2479,15 @@ pub async fn fulfill_payout(
                     ),
                 }));
             } else if payout_data.payouts.recurring
-                && payout_data.payouts.payout_method_id.clone().is_none()   // need to change here
+                && payout_data.payouts.payout_method_id.clone().is_none()
+            // need to change here
             {
-
                 /*
-                
+
                 fulfill_payout     or     payouts_fulfill_core
 
 
                  */
-                
 
                 let payout_method_data = payout_data
                     .payout_method_data
@@ -2651,7 +2645,7 @@ pub async fn response_handler(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse payout link's URL")?,
-        payment_method_id: payouts.payout_method_id,  //here
+        payment_method_id: payouts.payout_method_id, //here
     };
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -2743,7 +2737,7 @@ pub async fn payout_create_db_entries(
     let payout_method_id = if stored_payout_method_data.is_some() {
         req.payout_token.to_owned()
     } else {
-        payment_method.clone().map(|pm|pm.payment_method_id) //here
+        payment_method.clone().map(|pm| pm.payment_method_id) //here
     };
     let client_secret = utils::generate_id(
         consts::ID_LENGTH,
@@ -2887,7 +2881,7 @@ pub async fn make_payout_data(
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
     locale: &str,
-    payment_method:Option<PaymentMethod>, //here
+    payment_method: Option<PaymentMethod>, //here
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -3066,7 +3060,7 @@ pub async fn make_payout_data(
         profile_id,
         payout_link,
         current_locale: locale.to_string(),
-        payment_method,  //here
+        payment_method, //here
     })
 }
 

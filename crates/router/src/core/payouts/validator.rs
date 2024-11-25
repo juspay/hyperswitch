@@ -7,9 +7,10 @@ use common_utils::validation::validate_domain_against_allowed_domains;
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
+use hyperswitch_domain_models::payment_methods::PaymentMethod;
 use router_env::{instrument, tracing, which as router_env_which, Env};
 use url::Url;
-use hyperswitch_domain_models::payment_methods::PaymentMethod;
+
 use super::helpers;
 use crate::{
     core::{
@@ -183,18 +184,32 @@ pub async fn validate_create_request(
         })
         .attach_printable("Profile id is a mandatory parameter")?;
 
-//here
+    //here
     // fetching payment_method using req.payment_method_id and passing it from here
-    let payment_method:Option<PaymentMethod> = if let Some(payment_method_id)  = req.payment_method_id.clone() {
-        Some(db.find_payment_method(&state.into(), merchant_key_store, &payment_method_id, merchant_account.storage_scheme)
-        .await
-        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-        .attach_printable("Unable to find payment method")?)
-    }else{
-        None
-    };
+    let payment_method: Option<PaymentMethod> =
+        if let Some(payment_method_id) = req.payment_method_id.clone() {
+            Some(
+                db.find_payment_method(
+                    &state.into(),
+                    merchant_key_store,
+                    &payment_method_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                .attach_printable("Unable to find payment method")?,
+            )
+        } else {
+            None
+        };
 
-    Ok((payout_id, payout_method_data, profile_id, customer, payment_method))
+    Ok((
+        payout_id,
+        payout_method_data,
+        profile_id,
+        customer,
+        payment_method,
+    ))
 }
 
 pub fn validate_payout_link_request(
