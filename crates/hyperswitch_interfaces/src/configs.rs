@@ -57,6 +57,7 @@ pub struct Connectors {
     pub nexinets: ConnectorParams,
     pub nexixpay: ConnectorParams,
     pub nmi: ConnectorParams,
+    pub nomupay: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,
     pub novalnet: ConnectorParams,
     pub nuvei: ConnectorParams,
@@ -91,6 +92,7 @@ pub struct Connectors {
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
+    pub xendit: ConnectorParams,
     pub zen: ConnectorParams,
     pub zsl: ConnectorParams,
 }

@@ -319,6 +319,7 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -399,6 +400,7 @@ impl<F, T>
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
                     | common_enums::PaymentMethod::RealTimePayment
+                    | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
@@ -1094,6 +1096,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::Crypto(_)
                     | domain::PaymentMethodData::Reward
                     | domain::PaymentMethodData::RealTimePayment(_)
+                    | domain::PaymentMethodData::MobilePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
@@ -1587,6 +1590,7 @@ impl<F>
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
                     | common_enums::PaymentMethod::RealTimePayment
+                    | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
@@ -1804,6 +1808,7 @@ impl<F>
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
                     | common_enums::PaymentMethod::RealTimePayment
+                    | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking

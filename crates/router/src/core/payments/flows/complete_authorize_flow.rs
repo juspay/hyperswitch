@@ -20,6 +20,7 @@ impl
         types::PaymentsResponseData,
     > for PaymentData<api::CompleteAuthorize>
 {
+    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -52,6 +53,27 @@ impl
             header_payload,
         ))
         .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<
+        types::RouterData<
+            api::CompleteAuthorize,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > {
+        todo!()
     }
 
     async fn get_merchant_recipient_data<'a>(

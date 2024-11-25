@@ -127,6 +127,7 @@ netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netce
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 nmi.base_url = "https://secure.nmi.com/"
+nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
 noon.base_url = "https://api-test.noonpayments.com/"
 noon.key_mode = "Test"
 novalnet.base_url = "https://payport.novalnet.de/v2"
@@ -165,6 +166,7 @@ wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+xendit.base_url = "https://api.xendit.co"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
@@ -221,6 +223,7 @@ cards = [
     "nexinets",
     "nexixpay",
     "nmi",
+    "nomupay",
     "noon",
     "novalnet",
     "nuvei",
@@ -251,6 +254,7 @@ cards = [
     "wise",
     "worldline",
     "worldpay",
+    "xendit",
     "zen",
     "zsl",
 ]
@@ -382,7 +386,7 @@ public = { base_url = "http://localhost:8080", schema = "public", redis_key_pref
 sender_email = "example@example.com"
 aws_region = ""
 allowed_unverified_days = 1
-active_email_client = "SES"
+active_email_client = "NO_EMAIL_CLIENT"
 recon_recipient_email = "recon@example.com"
 prod_intent_recipient_email = "business@example.com"
 

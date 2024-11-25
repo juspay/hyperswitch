@@ -124,6 +124,7 @@ impl_api_event_type!(
     )
 );
 
+#[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsRedirectResponseData {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentRedirectionResponse {
@@ -132,6 +133,15 @@ impl ApiEventMetric for PaymentsRedirectResponseData {
                 api_models::payments::PaymentIdType::PaymentIntentId(id) => Some(id.clone()),
                 _ => None,
             },
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentsRedirectResponseData {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentRedirectionResponse {
+            payment_id: self.payment_id.clone(),
         })
     }
 }

@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
         SyncIntegrityObject,
     },
 };
-use masking::{ExposeInterface, Secret};
+use masking::{Deserialize, ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
@@ -2823,6 +2823,7 @@ pub enum PaymentMethodDataType {
     VietQr,
     OpenBanking,
     NetworkToken,
+    DirectCarrierBilling,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -3009,6 +3010,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::OpenBanking(data) => match data {
                 hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
             },
+            domain::payments::PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
+                hyperswitch_domain_models::payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => Self::DirectCarrierBilling,
+            },
         }
     }
 }
@@ -3138,4 +3142,15 @@ impl NetworkTokenData for domain::NetworkTokenData {
         }
         Secret::new(year)
     }
+}
+
+pub fn convert_uppercase<'de, D, T>(v: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+{
+    use serde::de::Error;
+    let output = <&str>::deserialize(v)?;
+    output.to_uppercase().parse::<T>().map_err(D::Error::custom)
 }

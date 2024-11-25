@@ -515,6 +515,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -726,7 +727,7 @@ pub struct NonThreeDSResponseData {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExtraParameters {
-    token: Option<Secret<String>>,
+    pub token: Option<Secret<String>>,
 }
 
 impl<F>

@@ -1,3 +1,11 @@
+const successfulNo3DSCardDetails = {
+  card_number: "4111111111111111",
+  card_exp_month: "03",
+  card_exp_year: "30",
+  card_holder_name: "John Doe",
+  card_cvc: "737",
+};
+
 export const connectorDetails = {
   bank_redirect_pm: {
     Ideal: {
@@ -35,6 +43,40 @@ export const connectorDetails = {
   },
   card_pm: {
     ZeroAuthMandate: {
+      Response: {
+        status: 501,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Setup Mandate flow for Iatapay is not implemented",
+            code: "IR_00",
+          },
+        },
+      },
+    },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
       Response: {
         status: 501,
         body: {
