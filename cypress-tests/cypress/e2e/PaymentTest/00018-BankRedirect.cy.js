@@ -30,21 +30,15 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["BlikPaymentIntent"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -56,20 +50,15 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["Blik"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
-        req_data,
-        res_data,
+        data,
         true,
-        globalState,
-        configs
+        globalState
       );
+
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
   });
 
@@ -93,21 +82,15 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["PaymentIntent"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -119,20 +102,15 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["Eps"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
-        req_data,
-        res_data,
+        data,
         true,
-        globalState,
-        configs
+        globalState
       );
+
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Handle bank redirect redirection", () => {
@@ -168,21 +146,15 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["PaymentIntent"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -194,20 +166,15 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["Ideal"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
-        req_data,
-        res_data,
+        data,
         true,
-        globalState,
-        configs
+        globalState
       );
+
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Handle bank redirect redirection", () => {
@@ -241,21 +208,15 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["PaymentIntent"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -267,20 +228,15 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["Sofort"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
-        req_data,
-        res_data,
+        data,
         true,
-        globalState,
-        configs
+        globalState
       );
+
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Handle bank redirect redirection", () => {
@@ -314,21 +270,15 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["PaymentIntent"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -340,20 +290,15 @@ describe("Bank Redirect tests", () => {
         "bank_redirect_pm"
       ]["Przelewy24"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
-        req_data,
-        res_data,
+        data,
         true,
-        globalState,
-        configs
+        globalState
       );
+
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Handle bank redirect redirection", () => {

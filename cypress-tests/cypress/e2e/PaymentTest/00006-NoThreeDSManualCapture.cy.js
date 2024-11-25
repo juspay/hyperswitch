@@ -31,22 +31,16 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["PaymentIntent"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "manual",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("payment_methods-call-test", () => {
@@ -58,21 +52,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["No3DSManualCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          req_data,
-          res_data,
-          true,
-          globalState,
-          configs
-        );
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -90,21 +73,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          6500,
-          globalState,
-          configs
-        );
+        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -132,22 +104,16 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["No3DSManualCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "manual",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -165,21 +131,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          6500,
-          globalState,
-          configs
-        );
+        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -211,22 +166,16 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["PaymentIntent"];
 
-          let configs = validateConfig(data["Configs"]);
-          let req_data = data["Request"];
-          let res_data = data["Response"];
-
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
-            req_data,
-            res_data,
+            data,
             "no_three_ds",
             "manual",
-            globalState,
-            configs
+            globalState
           );
 
           if (should_continue)
-            should_continue = utils.should_continue_further(res_data, configs);
+            should_continue = utils.should_continue_further(data);
         });
 
         it("payment_methods-call-test", () => {
@@ -238,21 +187,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["No3DSManualCapture"];
 
-          let configs = validateConfig(data["Configs"]);
-          let req_data = data["Request"];
-          let res_data = data["Response"];
-
-          cy.confirmCallTest(
-            fixtures.confirmBody,
-            req_data,
-            res_data,
-            true,
-            globalState,
-            configs
-          );
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
           if (should_continue)
-            should_continue = utils.should_continue_further(res_data, configs);
+            should_continue = utils.should_continue_further(data);
         });
 
         it("retrieve-payment-call-test", () => {
@@ -270,21 +208,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["PartialCapture"];
 
-          let configs = validateConfig(data["Configs"]);
-          let req_data = data["Request"];
-          let res_data = data["Response"];
-
-          cy.captureCallTest(
-            fixtures.captureBody,
-            req_data,
-            res_data,
-            100,
-            globalState,
-            configs
-          );
+          cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
 
           if (should_continue)
-            should_continue = utils.should_continue_further(res_data, configs);
+            should_continue = utils.should_continue_further(data);
         });
 
         it("retrieve-payment-call-test", () => {
@@ -312,22 +239,16 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["No3DSManualCapture"];
 
-          let configs = validateConfig(data["Configs"]);
-          let req_data = data["Request"];
-          let res_data = data["Response"];
-
           cy.createConfirmPaymentTest(
             fixtures.createConfirmPaymentBody,
-            req_data,
-            res_data,
+            data,
             "no_three_ds",
             "manual",
-            globalState,
-            configs
+            globalState
           );
 
           if (should_continue)
-            should_continue = utils.should_continue_further(res_data, configs);
+            should_continue = utils.should_continue_further(data);
         });
 
         it("retrieve-payment-call-test", () => {
@@ -345,21 +266,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["PartialCapture"];
 
-          let configs = validateConfig(data["Configs"]);
-          let req_data = data["Request"];
-          let res_data = data["Response"];
-
-          cy.captureCallTest(
-            fixtures.captureBody,
-            req_data,
-            res_data,
-            100,
-            globalState,
-            configs
-          );
+          cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
 
           if (should_continue)
-            should_continue = utils.should_continue_further(res_data, configs);
+            should_continue = utils.should_continue_further(data);
         });
 
         it("retrieve-payment-call-test", () => {

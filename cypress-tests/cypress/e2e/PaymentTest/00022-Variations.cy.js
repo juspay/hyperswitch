@@ -32,18 +32,12 @@ describe("Corner cases", () => {
         "InvalidCardNumber"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentIntentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
     });
 
@@ -52,18 +46,12 @@ describe("Corner cases", () => {
         "InvalidExpiryMonth"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentIntentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
     });
 
@@ -72,18 +60,12 @@ describe("Corner cases", () => {
         "InvalidExpiryYear"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentIntentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
     });
 
@@ -92,18 +74,12 @@ describe("Corner cases", () => {
         "InvalidCardCvv"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentIntentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
     });
 
@@ -112,18 +88,12 @@ describe("Corner cases", () => {
         "InvalidCurrency"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentIntentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
     });
 
@@ -132,18 +102,12 @@ describe("Corner cases", () => {
         "InvalidCaptureMethod"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentIntentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
     });
 
@@ -152,18 +116,12 @@ describe("Corner cases", () => {
         "InvalidPaymentMethod"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentIntentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
     });
 
@@ -172,18 +130,12 @@ describe("Corner cases", () => {
         "InvalidAmountToCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentIntentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
     });
 
@@ -192,18 +144,12 @@ describe("Corner cases", () => {
         "MissingRequiredParam"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentIntentBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
     });
   });
@@ -224,18 +170,12 @@ describe("Corner cases", () => {
         "PaymentIntent"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createPaymentIntentTest(
         paymentIntentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
     });
 
@@ -244,18 +184,7 @@ describe("Corner cases", () => {
         "PaymentIntentErrored"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.confirmCallTest(
-        fixtures.confirmBody,
-        req_data,
-        res_data,
-        true,
-        globalState,
-        configs
-      );
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
   });
 
@@ -283,22 +212,16 @@ describe("Corner cases", () => {
         "No3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "manual",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Capture call", () => {
@@ -306,21 +229,10 @@ describe("Corner cases", () => {
         "CaptureGreaterAmount"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.captureCallTest(
-        fixtures.captureBody,
-        req_data,
-        res_data,
-        65000,
-        globalState,
-        configs
-      );
+      cy.captureCallTest(fixtures.captureBody, data, 65000, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
   });
 
@@ -348,22 +260,16 @@ describe("Corner cases", () => {
         "No3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -381,21 +287,10 @@ describe("Corner cases", () => {
         "CaptureCapturedAmount"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.captureCallTest(
-        fixtures.captureBody,
-        req_data,
-        res_data,
-        65000,
-        globalState,
-        configs
-      );
+      cy.captureCallTest(fixtures.captureBody, data, 65000, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
   });
 
@@ -423,22 +318,16 @@ describe("Corner cases", () => {
         "No3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -456,21 +345,10 @@ describe("Corner cases", () => {
         "ConfirmSuccessfulPayment"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.confirmCallTest(
-        fixtures.confirmBody,
-        req_data,
-        res_data,
-        true,
-        globalState,
-        configs
-      );
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
   });
 
@@ -498,22 +376,16 @@ describe("Corner cases", () => {
         "No3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -534,23 +406,19 @@ describe("Corner cases", () => {
         "card_pm"
       ]["Void"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = utils.getConnectorFlowDetails(
-        data,
-        commonData,
-        "ResponseCustom"
-      );
-      cy.voidCallTest(
-        fixtures.voidBody,
-        req_data,
-        res_data,
-        globalState,
-        configs
-      );
+      const newData = {
+        ...data,
+        Response: utils.getConnectorFlowDetails(
+          data,
+          commonData,
+          "ResponseCustom"
+        ),
+      };
+
+      cy.voidCallTest(fixtures.voidBody, newData, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
   });
 
@@ -578,22 +446,16 @@ describe("Corner cases", () => {
         "3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
-        req_data,
-        res_data,
+        data,
         "three_ds",
         "manual",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -626,21 +488,10 @@ describe("Corner cases", () => {
         "CaptureGreaterAmount"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.captureCallTest(
-        fixtures.captureBody,
-        req_data,
-        res_data,
-        65000,
-        globalState,
-        configs
-      );
+      cy.captureCallTest(fixtures.captureBody, data, 65000, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
   });
 
@@ -668,22 +519,16 @@ describe("Corner cases", () => {
         "No3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -704,23 +549,18 @@ describe("Corner cases", () => {
         "card_pm"
       ]["Refund"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = utils.getConnectorFlowDetails(
-        data,
-        commonData,
-        "ResponseCustom"
-      );
-      cy.refundCallTest(
-        fixtures.refundBody,
-        req_data,
-        res_data,
-        65000,
-        globalState,
-        configs
-      );
+      const newData = {
+        ...data,
+        Response: utils.getConnectorFlowDetails(
+          data,
+          commonData,
+          "ResponseCustom"
+        ),
+      };
+
+      cy.refundCallTest(fixtures.refundBody, newData, 65000, globalState);
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
   });
 
@@ -748,22 +588,16 @@ describe("Corner cases", () => {
         "No3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -784,25 +618,19 @@ describe("Corner cases", () => {
         "card_pm"
       ]["Refund"];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = utils.getConnectorFlowDetails(
-        data,
-        commonData,
-        "ResponseCustom"
-      );
+      const newData = {
+        ...data,
+        Response: utils.getConnectorFlowDetails(
+          data,
+          commonData,
+          "ResponseCustom"
+        ),
+      };
 
-      cy.refundCallTest(
-        fixtures.refundBody,
-        req_data,
-        res_data,
-        65000,
-        globalState,
-        configs
-      );
+      cy.refundCallTest(fixtures.refundBody, newData, 65000, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
   });
 
@@ -830,23 +658,17 @@ describe("Corner cases", () => {
         "MandateSingleUseNo3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
-        req_data,
-        res_data,
+        data,
         6500,
         true,
         "manual",
         "new_mandate",
-        globalState,
-        configs
+        globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("cit-capture-call-test", () => {
@@ -854,20 +676,9 @@ describe("Corner cases", () => {
         "Capture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.captureCallTest(
-        fixtures.captureBody,
-        req_data,
-        res_data,
-        6500,
-        globalState,
-        configs
-      );
+      cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {

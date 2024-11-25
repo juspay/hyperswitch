@@ -26,7 +26,7 @@
 
 // commands.js or your custom support file
 import { defaultErrorHandler, getValueByKey } from "../e2e/PaymentUtils/Utils";
-import { execConfig } from "../utils/featureFlags";
+import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleRedirection } from "./redirectionHandler";
 
@@ -894,13 +894,17 @@ Cypress.Commands.add(
   "createPaymentIntentTest",
   (
     createPaymentBody,
-    req_data,
-    res_data,
+    data,
     authentication_type,
     capture_method,
-    globalState,
-    configs = null
+    globalState
   ) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
     if (
       !createPaymentBody ||
       typeof createPaymentBody !== "object" ||
@@ -911,7 +915,7 @@ Cypress.Commands.add(
       );
     }
 
-    const config_info = execConfig(configs);
+    const config_info = execConfig(validateConfig(configs));
     const profile_id = globalState.get(config_info.profile_id);
 
     for (const key in req_data) {
@@ -1038,50 +1042,53 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
   });
 });
 
-Cypress.Commands.add(
-  "createPaymentMethodTest",
-  (globalState, req_data, res_data) => {
-    req_data.customer_id = globalState.get("customerId");
-    const merchant_id = globalState.get("merchantId");
+Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
+  const {
+    Configs: configs = {},
+    Request: req_data,
+    Response: res_data,
+  } = data || {};
 
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/payment_methods`,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      body: req_data,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  req_data.customer_id = globalState.get("customerId");
+  const merchant_id = globalState.get("merchantId");
 
-      expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        expect(response.body.client_secret, "client_secret").to.include(
-          "_secret_"
-        ).and.to.not.be.null;
-        expect(response.body.payment_method_id, "payment_method_id").to.not.be
-          .null;
-        expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
-        expect(req_data.payment_method_type, "payment_method_type").to.equal(
-          response.body.payment_method_type
-        );
-        expect(req_data.payment_method, "payment_method").to.equal(
-          response.body.payment_method
-        );
-        expect(response.body.last_used_at, "last_used_at").to.not.be.null;
-        expect(req_data.customer_id, "customer_id").to.equal(
-          response.body.customer_id
-        );
-        globalState.set("paymentMethodId", response.body.payment_method_id);
-      } else {
-        defaultErrorHandler(response, res_data);
-      }
-    });
-  }
-);
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/payment_methods`,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    body: req_data,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.headers["content-type"]).to.include("application/json");
+    if (response.status === 200) {
+      expect(response.body.client_secret, "client_secret").to.include(
+        "_secret_"
+      ).and.to.not.be.null;
+      expect(response.body.payment_method_id, "payment_method_id").to.not.be
+        .null;
+      expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
+      expect(req_data.payment_method_type, "payment_method_type").to.equal(
+        response.body.payment_method_type
+      );
+      expect(req_data.payment_method, "payment_method").to.equal(
+        response.body.payment_method
+      );
+      expect(response.body.last_used_at, "last_used_at").to.not.be.null;
+      expect(req_data.customer_id, "customer_id").to.equal(
+        response.body.customer_id
+      );
+      globalState.set("paymentMethodId", response.body.payment_method_id);
+    } else {
+      defaultErrorHandler(response, res_data);
+    }
+  });
+});
 
 Cypress.Commands.add("deletePaymentMethodTest", (globalState, res_data) => {
   const payment_method_id = globalState.get("paymentMethodId");
@@ -1133,8 +1140,14 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
 
 Cypress.Commands.add(
   "confirmCallTest",
-  (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
-    const config_info = execConfig(configs);
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
+    const config_info = execConfig(validateConfig(configs));
     const merchant_connector_id = globalState.get(
       config_info.merchant_connector_id
     );
@@ -1244,8 +1257,14 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "confirmBankRedirectCallTest",
-  (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
-    const config_info = execConfig(configs);
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
+    const config_info = execConfig(validateConfig(configs));
     const connectorId = globalState.get("connectorId");
     const paymentIntentId = globalState.get("paymentID");
     const profile_id = globalState.get(config_info.profile_id);
@@ -1342,8 +1361,14 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "confirmBankTransferCallTest",
-  (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
-    const config_info = execConfig(configs);
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
+    const config_info = execConfig(validateConfig(configs));
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = globalState.get(config_info.profile_id);
 
@@ -1417,8 +1442,14 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "confirmUpiCall",
-  (confirmBody, req_data, res_data, confirm, globalState, configs = null) => {
-    const config_info = execConfig(configs);
+  (confirmBody, data, confirm, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
+    const config_info = execConfig(validateConfig(configs));
     const paymentId = globalState.get("paymentID");
     const profile_id = globalState.get(config_info.profile_id);
 
@@ -1481,14 +1512,18 @@ Cypress.Commands.add(
   "createConfirmPaymentTest",
   (
     createConfirmPaymentBody,
-    req_data,
-    res_data,
+    data,
     authentication_type,
     capture_method,
-    globalState,
-    configs = null
+    globalState
   ) => {
-    const config_info = execConfig(configs);
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
+    const config_info = execConfig(validateConfig(configs));
     const merchant_connector_id = globalState.get(
       config_info.merchant_connector_id
     );
@@ -1598,8 +1633,14 @@ Cypress.Commands.add(
 // This is consequent saved card payment confirm call test(Using payment token)
 Cypress.Commands.add(
   "saveCardConfirmCallTest",
-  (saveCardConfirmBody, req_data, res_data, globalState, configs = null) => {
-    const config_info = execConfig(configs);
+  (saveCardConfirmBody, data, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
+    const config_info = execConfig(validateConfig(configs));
     const merchant_connector_id = globalState.get(
       config_info.merchant_connector_id
     );
@@ -1703,15 +1744,14 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "captureCallTest",
-  (
-    requestBody,
-    req_data,
-    res_data,
-    amount_to_capture,
-    globalState,
-    configs = null
-  ) => {
-    const config_info = execConfig(configs);
+  (requestBody, data, amount_to_capture, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
+    const config_info = execConfig(validateConfig(configs));
     const payment_id = globalState.get("paymentID");
     const profile_id = globalState.get(config_info.profile_id);
 
@@ -1743,43 +1783,46 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "voidCallTest",
-  (requestBody, req_data, res_data, globalState, configs = null) => {
-    const config_info = execConfig(configs);
-    const payment_id = globalState.get("paymentID");
-    const profile_id = globalState.get(config_info.profile_id);
+Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
+  const {
+    Configs: configs = {},
+    Request: req_data,
+    Response: res_data,
+  } = data || {};
 
-    requestBody.profile_id = profile_id;
+  const config_info = execConfig(validateConfig(configs));
+  const payment_id = globalState.get("paymentID");
+  const profile_id = globalState.get(config_info.profile_id);
 
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/payments/${payment_id}/cancel`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      failOnStatusCode: false,
-      body: requestBody,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  requestBody.profile_id = profile_id;
 
-      expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
-        }
-      } else {
-        defaultErrorHandler(response, res_data);
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/payments/${payment_id}/cancel`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+    body: requestBody,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.headers["content-type"]).to.include("application/json");
+    if (response.status === 200) {
+      for (const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
       }
-    });
-  }
-);
+    } else {
+      defaultErrorHandler(response, res_data);
+    }
+  });
+});
 
 Cypress.Commands.add(
   "retrievePaymentCallTest",
   (globalState, configs, autoretries = false, attempt = 1) => {
-    const config_info = execConfig(configs);
+    const config_info = execConfig(validateConfig(configs));
     const payment_id = globalState.get("paymentID");
     const merchant_connector_id = globalState.get(
       config_info.merchant_connector_id
@@ -1851,11 +1894,17 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "refundCallTest",
-  (requestBody, req_data, res_data, refund_amount, globalState, configs) => {
+  (requestBody, data, refund_amount, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
     const payment_id = globalState.get("paymentID");
 
     // we only need this to set the delay. We don't need the return value
-    let _ = execConfig(configs);
+    let _ = execConfig(validateConfig(configs));
 
     requestBody.amount = refund_amount;
     requestBody.payment_id = payment_id;
@@ -1886,44 +1935,51 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "syncRefundCallTest",
-  (req_data, res_data, globalState) => {
-    const refundId = globalState.get("refundId");
+Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
+  const {
+    Configs: configs = {},
+    Request: req_data,
+    Response: res_data,
+  } = data || {};
 
-    cy.request({
-      method: "GET",
-      url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  const refundId = globalState.get("refundId");
 
-      expect(response.headers["content-type"]).to.include("application/json");
-      for (const key in res_data.body) {
-        expect(res_data.body[key]).to.equal(response.body[key]);
-      }
-    });
-  }
-);
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.headers["content-type"]).to.include("application/json");
+    for (const key in res_data.body) {
+      expect(res_data.body[key]).to.equal(response.body[key]);
+    }
+  });
+});
 
 Cypress.Commands.add(
   "citForMandatesCallTest",
   (
     requestBody,
-    req_data,
-    res_data,
+    data,
     amount,
     confirm,
     capture_method,
     payment_type,
-    globalState,
-    configs = null
+    globalState
   ) => {
-    const config_info = execConfig(configs);
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
+    const config_info = execConfig(validateConfig(configs));
     const profile_id = globalState.get(config_info.profile_id);
     const merchant_connector_id = globalState.get(
       config_info.merchant_connector_id
@@ -2039,7 +2095,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitForMandatesCallTest",
   (requestBody, amount, confirm, capture_method, globalState, configs) => {
-    const config_info = execConfig(configs);
+    const config_info = execConfig(validateConfig(configs));
     const profile_id = globalState.get(config_info.profile_id);
     const merchant_connector_id = globalState.get(
       config_info.merchant_connector_id
@@ -2140,7 +2196,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitUsingPMId",
   (requestBody, amount, confirm, capture_method, globalState, configs) => {
-    const config_info = execConfig(configs);
+    const config_info = execConfig(validateConfig(configs));
     const profile_id = globalState.get(config_info.profile_id);
 
     requestBody.amount = amount;
@@ -2498,14 +2554,13 @@ Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
 
 Cypress.Commands.add(
   "createConfirmPayoutTest",
-  (
-    createConfirmPayoutBody,
-    req_data,
-    res_data,
-    confirm,
-    auto_fulfill,
-    globalState
-  ) => {
+  (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
     for (const key in req_data) {
       createConfirmPayoutBody[key] = req_data[key];
     }
@@ -2541,14 +2596,13 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "createConfirmWithTokenPayoutTest",
-  (
-    createConfirmPayoutBody,
-    req_data,
-    res_data,
-    confirm,
-    auto_fulfill,
-    globalState
-  ) => {
+  (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
     for (const key in req_data) {
       createConfirmPayoutBody[key] = req_data[key];
     }
@@ -2585,7 +2639,13 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "fulfillPayoutCallTest",
-  (payoutFulfillBody, req_data, res_data, globalState) => {
+  (payoutFulfillBody, data, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
     payoutFulfillBody.payout_id = globalState.get("payoutID");
 
     cy.request({
@@ -2788,14 +2848,20 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
 
 Cypress.Commands.add(
   "addRoutingConfig",
-  (routingBody, req_data, res_data, type, data, globalState) => {
+  (routingBody, data, type, routing_data, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: req_data,
+      Response: res_data,
+    } = data || {};
+
     for (const key in req_data) {
       routingBody[key] = req_data[key];
     }
     // set profile id from env
     routingBody.profile_id = globalState.get("profileId");
     routingBody.algorithm.type = type;
-    routingBody.algorithm.data = data;
+    routingBody.algorithm.data = routing_data;
 
     cy.request({
       method: "POST",
@@ -2824,63 +2890,69 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "activateRoutingConfig",
-  (req_data, res_data, globalState) => {
-    let routing_config_id = globalState.get("routingConfigId");
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/routing/${routing_config_id}/activate`,
-      headers: {
-        Authorization: `Bearer ${globalState.get("userInfoToken")}`,
-        "Content-Type": "application/json",
-        Cookie: `${globalState.get("cookie")}`,
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      expect(response.headers["content-type"]).to.include("application/json");
+Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
+  const {
+    Configs: configs = {},
+    Request: req_data,
+    Response: res_data,
+  } = data || {};
 
-      if (response.status === 200) {
-        expect(response.body.id).to.equal(routing_config_id);
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
-        }
-      } else {
-        defaultErrorHandler(response, res_data);
+  let routing_config_id = globalState.get("routingConfigId");
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/routing/${routing_config_id}/activate`,
+    headers: {
+      Authorization: `Bearer ${globalState.get("userInfoToken")}`,
+      "Content-Type": "application/json",
+      Cookie: `${globalState.get("cookie")}`,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.headers["content-type"]).to.include("application/json");
+
+    if (response.status === 200) {
+      expect(response.body.id).to.equal(routing_config_id);
+      for (const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
       }
-    });
-  }
-);
+    } else {
+      defaultErrorHandler(response, res_data);
+    }
+  });
+});
 
-Cypress.Commands.add(
-  "retrieveRoutingConfig",
-  (req_data, res_data, globalState) => {
-    let routing_config_id = globalState.get("routingConfigId");
-    cy.request({
-      method: "GET",
-      url: `${globalState.get("baseUrl")}/routing/${routing_config_id}`,
-      headers: {
-        Authorization: `Bearer ${globalState.get("userInfoToken")}`,
-        "Content-Type": "application/json",
-        Cookie: `${globalState.get("cookie")}`,
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      expect(response.headers["content-type"]).to.include("application/json");
+Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
+  const {
+    Configs: configs = {},
+    Request: req_data,
+    Response: res_data,
+  } = data || {};
 
-      if (response.status === 200) {
-        expect(response.body.id).to.equal(routing_config_id);
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
-        }
-      } else {
-        defaultErrorHandler(response, res_data);
+  let routing_config_id = globalState.get("routingConfigId");
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/routing/${routing_config_id}`,
+    headers: {
+      Authorization: `Bearer ${globalState.get("userInfoToken")}`,
+      "Content-Type": "application/json",
+      Cookie: `${globalState.get("cookie")}`,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.headers["content-type"]).to.include("application/json");
+
+    if (response.status === 200) {
+      expect(response.body.id).to.equal(routing_config_id);
+      for (const key in res_data.body) {
+        expect(res_data.body[key]).to.equal(response.body[key]);
       }
-    });
-  }
-);
+    } else {
+      defaultErrorHandler(response, res_data);
+    }
+  });
+});
 
 Cypress.Commands.add(
   "updateGsmConfig",

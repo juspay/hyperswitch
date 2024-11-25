@@ -68,13 +68,16 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // creating payment with currency as EUR and no billing address
       it("create-payment-call-test", () => {
         let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
-        let req_data = data["RequestCurrencyEUR"];
-        let res_data = data["Response"];
+
+        const newData = {
+          ...data,
+          Request: data.RequestCurrencyEUR,
+          RequestCurrencyEUR: undefined, // we do not need this anymore
+        };
 
         cy.createPaymentIntentTest(
           create_payment_body_with_currency("EUR"),
-          req_data,
-          res_data,
+          newData,
           "no_three_ds",
           "automatic",
           globalState
@@ -148,13 +151,16 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // creating payment with currency as INR and no billing address
       it("create-payment-call-test", () => {
         let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
-        let req_data = data["RequestCurrencyINR"];
-        let res_data = data["Response"];
+
+        const newData = {
+          ...data,
+          Request: data.RequestCurrencyINR,
+          RequestCurrencyINR: undefined, // we do not need this anymore
+        };
 
         cy.createPaymentIntentTest(
           create_payment_body_with_currency("INR"),
-          req_data,
-          res_data,
+          newData,
           "no_three_ds",
           "automatic",
           globalState
@@ -228,13 +234,16 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // creating payment with currency as USD and billing address as US
       it("create-payment-call-test", () => {
         let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
-        let req_data = data["RequestCurrencyUSD"];
-        let res_data = data["Response"];
+
+        const newData = {
+          ...data,
+          Request: data.RequestCurrencyUSD,
+          RequestCurrencyUSD: undefined, // we do not need this anymore
+        };
 
         cy.createPaymentIntentTest(
           create_payment_body_with_currency("USD"),
-          req_data,
-          res_data,
+          newData,
           "no_three_ds",
           "automatic",
           globalState
@@ -308,13 +317,16 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // creating payment with currency as EUR and billing address as US
       it("create-payment-call-test", () => {
         let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
-        let req_data = data["RequestCurrencyEUR"];
-        let res_data = data["Response"];
+
+        const newData = {
+          ...data,
+          Request: data.RequestCurrencyEUR,
+          RequestCurrencyEUR: undefined, // we do not need this anymore
+        };
 
         cy.createPaymentIntentTest(
           create_payment_body_with_currency_country("EUR", "US", "US"),
-          req_data,
-          res_data,
+          newData,
           "no_three_ds",
           "automatic",
           globalState
@@ -390,13 +402,16 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // creating payment with currency as USD and billing address as IN
       it("create-payment-call-test", () => {
         let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
-        let req_data = data["RequestCurrencyUSD"];
-        let res_data = data["Response"];
+
+        const newData = {
+          ...data,
+          Request: data.RequestCurrencyUSD,
+          RequestCurrencyUSD: undefined, // we do not need this anymore
+        };
 
         cy.createPaymentIntentTest(
           create_payment_body_with_currency_country("USD", "IN", "IN"),
-          req_data,
-          res_data,
+          newData,
           "no_three_ds",
           "automatic",
           globalState
@@ -471,13 +486,16 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // creating payment with currency as USD and billing address as IN
       it("create-payment-call-test", () => {
         let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
-        let req_data = data["RequestCurrencyUSD"];
-        let res_data = data["Response"];
+
+        const newData = {
+          ...data,
+          Request: data.RequestCurrencyUSD,
+          RequestCurrencyUSD: undefined, // we do not need this anymore
+        };
 
         cy.createPaymentIntentTest(
           create_payment_body_with_currency("USD"),
-          req_data,
-          res_data,
+          newData,
           "no_three_ds",
           "automatic",
           globalState
@@ -551,13 +569,16 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       // creating payment with currency as EUR and no billing address
       it("create-payment-call-test", () => {
         let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
-        let req_data = data["RequestCurrencyEUR"];
-        let res_data = data["Response"];
+
+        const newData = {
+          ...data,
+          Request: data.RequestCurrencyEUR,
+          RequestCurrencyEUR: undefined, // we do not need this anymore
+        };
 
         cy.createPaymentIntentTest(
           create_payment_body_with_currency_country("EUR", "NL", "US"),
-          req_data,
-          res_data,
+          newData,
           "no_three_ds",
           "automatic",
           globalState

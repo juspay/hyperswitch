@@ -32,24 +32,18 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["ZeroAuthMandate"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
-          req_data,
-          res_data,
+          data,
           0,
           true,
           "automatic",
           "setup_mandate",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -86,24 +80,18 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["ZeroAuthMandate"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
-          req_data,
-          res_data,
+          data,
           0,
           true,
           "automatic",
           "setup_mandate",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -155,22 +143,16 @@ describe("Card - SingleUse Mandates flow test", () => {
         "ZeroAuthPaymentIntent"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Confirm No 3DS payment", () => {
@@ -178,21 +160,10 @@ describe("Card - SingleUse Mandates flow test", () => {
         "ZeroAuthConfirmPayment"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.confirmCallTest(
-        fixtures.confirmBody,
-        req_data,
-        res_data,
-        true,
-        globalState,
-        configs
-      );
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Retrieve Payment Call Test", () => {
@@ -214,22 +185,16 @@ describe("Card - SingleUse Mandates flow test", () => {
         "PaymentIntentOffSession"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Confirm Recurring Payment", () => {
@@ -237,20 +202,14 @@ describe("Card - SingleUse Mandates flow test", () => {
         "SaveCardConfirmAutoCaptureOffSession"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.saveCardConfirmCallTest(
         fixtures.saveCardConfirmBody,
-        req_data,
-        res_data,
-        globalState,
-        configs
+        data,
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
   });
 });

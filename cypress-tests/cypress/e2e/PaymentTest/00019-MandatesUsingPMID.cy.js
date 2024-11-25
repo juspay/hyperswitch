@@ -32,22 +32,16 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentIntent"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS CIT", () => {
@@ -55,24 +49,18 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
-          req_data,
-          res_data,
+          data,
           7000,
           true,
           "automatic",
           "new_mandate",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -110,22 +98,16 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentIntent"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "manual",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS CIT", () => {
@@ -133,24 +115,18 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSManualCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
-          req_data,
-          res_data,
+          data,
           6500,
           true,
           "manual",
           "new_mandate",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("cit-capture-call-test", () => {
@@ -158,21 +134,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          6500,
-          globalState,
-          configs
-        );
+        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -210,24 +175,18 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
-          req_data,
-          res_data,
+          data,
           7000,
           true,
           "automatic",
           "new_mandate",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -281,24 +240,18 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSManualCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
-          req_data,
-          res_data,
+          data,
           6500,
           true,
           "manual",
           "new_mandate",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("cit-capture-call-test", () => {
@@ -306,21 +259,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          6500,
-          globalState,
-          configs
-        );
+        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT 1", () => {
@@ -345,21 +287,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          6500,
-          globalState,
-          configs
-        );
+        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT 2", () => {
@@ -384,21 +315,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          6500,
-          globalState,
-          configs
-        );
+        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
     }
   );
@@ -419,24 +339,18 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandate3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
-          req_data,
-          res_data,
+          data,
           7000,
           true,
           "automatic",
           "new_mandate",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Handle redirection", () => {
@@ -495,24 +409,18 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandate3DSManualCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
-          req_data,
-          res_data,
+          data,
           6500,
           true,
           "manual",
           "new_mandate",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Handle redirection", () => {
@@ -525,21 +433,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          6500,
-          globalState,
-          configs
-        );
+        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {

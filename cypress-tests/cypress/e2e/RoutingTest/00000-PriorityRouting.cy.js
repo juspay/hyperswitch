@@ -53,9 +53,6 @@ describe("Priority Based Routing Test", () => {
 
     it("add-routing-config", () => {
       let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       let routing_data = [
         {
           connector: "stripe",
@@ -68,51 +65,45 @@ describe("Priority Based Routing Test", () => {
       ];
       cy.addRoutingConfig(
         fixtures.routingConfigBody,
-        req_data,
-        res_data,
+        data,
         "priority",
         routing_data,
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("retrieve-routing-call-test", () => {
       let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.retrieveRoutingConfig(req_data, res_data, globalState);
+
+      cy.retrieveRoutingConfig(data, globalState);
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("activate-routing-call-test", () => {
       let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.activateRoutingConfig(req_data, res_data, globalState);
+
+      cy.activateRoutingConfig(data, globalState);
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("payment-routing-test", () => {
       let data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
 
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
         globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -144,9 +135,6 @@ describe("Priority Based Routing Test", () => {
 
     it("add-routing-config", () => {
       let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       let routing_data = [
         {
           connector: "adyen",
@@ -159,49 +147,44 @@ describe("Priority Based Routing Test", () => {
       ];
       cy.addRoutingConfig(
         fixtures.routingConfigBody,
-        req_data,
-        res_data,
+        data,
         "priority",
         routing_data,
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("retrieve-routing-call-test", () => {
       let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.retrieveRoutingConfig(req_data, res_data, globalState);
+
+      cy.retrieveRoutingConfig(data, globalState);
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("activate-routing-call-test", () => {
       let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.activateRoutingConfig(req_data, res_data, globalState);
+
+      cy.activateRoutingConfig(data, globalState);
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("payment-routing-test", () => {
       let data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {

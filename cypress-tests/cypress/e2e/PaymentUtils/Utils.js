@@ -1,3 +1,5 @@
+import { validateConfig } from "../../utils/featureFlags.js";
+
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
@@ -124,15 +126,18 @@ export function getValueByKey(jsonObject, key) {
   }
 }
 
-export const should_continue_further = (res_data, config_data) => {
-  if (config_data?.TRIGGER_SKIP !== undefined) {
-    return !config_data.TRIGGER_SKIP;
+export const should_continue_further = (data) => {
+  const resData = data.Response || {};
+  const configData = validateConfig(data.Configs) || {};
+
+  if (typeof configData?.TRIGGER_SKIP !== "undefined") {
+    return !configData.TRIGGER_SKIP;
   }
 
   if (
-    res_data.body.error !== undefined ||
-    res_data.body.error_code !== undefined ||
-    res_data.body.error_message !== undefined
+    typeof resData.body.error !== "undefined" ||
+    typeof resData.body.error_code !== "undefined" ||
+    typeof resData.body.error_message !== "undefined"
   ) {
     return false;
   } else {

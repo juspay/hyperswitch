@@ -94,18 +94,15 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
         "bank_transfer_pm"
       ]["sepa"]["Fulfill"];
 
-      let req_data = data["Request"];
-      let res_data = data["Response"];
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
-        req_data,
-        res_data,
+        data,
         true,
         true,
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -126,29 +123,26 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa"]["Confirm"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
-        req_data,
-        res_data,
+        data,
         true,
         false,
         globalState
       );
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("fulfill-payout-call-test", () => {
       let data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa"]["Fulfill"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.fulfillPayoutCallTest({}, req_data, res_data, globalState);
+
+      cy.fulfillPayoutCallTest({}, data, globalState);
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {

@@ -1,6 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import { payment_methods_enabled } from "../PaymentUtils/Commons";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
@@ -52,22 +51,16 @@ describe("Connector Agnostic Tests", () => {
           "card_pm"
         ]["PaymentIntentOffSession"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("Confirm Payment", () => {
@@ -75,21 +68,10 @@ describe("Connector Agnostic Tests", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          req_data,
-          res_data,
-          true,
-          globalState,
-          configs
-        );
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("List Payment Method for Customer using Client Secret", () => {
@@ -125,22 +107,16 @@ describe("Connector Agnostic Tests", () => {
           "card_pm"
         ]["PaymentIntentOffSession"];
 
-        let configs = validateConfig(data["Configs"]);
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
-          globalState,
-          configs
+          globalState
         );
 
         if (should_continue)
-          should_continue = utils.should_continue_further(res_data, configs);
+          should_continue = utils.should_continue_further(data);
       });
 
       it("List Payment Method for Customer", () => {
@@ -188,22 +164,16 @@ describe("Connector Agnostic Tests", () => {
         "PaymentIntentOffSession"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("Confirm Payment", () => {
@@ -211,21 +181,10 @@ describe("Connector Agnostic Tests", () => {
         "SaveCardUseNo3DSAutoCaptureOffSession"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      cy.confirmCallTest(
-        fixtures.confirmBody,
-        req_data,
-        res_data,
-        true,
-        globalState,
-        configs
-      );
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("List Payment Method for Customer using Client Secret", () => {
@@ -258,22 +217,16 @@ describe("Connector Agnostic Tests", () => {
         "PaymentIntentOffSession"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
-        globalState,
-        configs
+        globalState
       );
 
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data, configs);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("List Payment Method for Customer", () => {

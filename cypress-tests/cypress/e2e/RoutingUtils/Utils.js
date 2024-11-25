@@ -26,11 +26,13 @@ function getValueByKey(jsonObject, key) {
   }
 }
 
-export const should_continue_further = (res_data) => {
+export const should_continue_further = (data) => {
+  const resData = data.Response || {};
+
   if (
-    res_data.body.error !== undefined ||
-    res_data.body.error_code !== undefined ||
-    res_data.body.error_message !== undefined
+    typeof resData.body.error !== "undefined" ||
+    typeof resData.body.error_code !== "undefined" ||
+    typeof resData.body.error_message !== "undefined"
   ) {
     return false;
   } else {
