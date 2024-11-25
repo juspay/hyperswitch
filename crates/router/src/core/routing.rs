@@ -14,6 +14,7 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::{mandates, payment_address};
+use router_env::metrics::add_attributes;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::{logger, metrics::add_attributes};
 use rustc_hash::FxHashSet;

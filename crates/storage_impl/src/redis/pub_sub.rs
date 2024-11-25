@@ -138,6 +138,15 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                                 .await;
                             key
                         }
+                        CacheKind::EliminationBasedDynamicRoutingCache(key) => {
+                            SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: message.tenant.clone(),
+                                })
+                                .await;
+                            key
+                        }
                         CacheKind::SuccessBasedDynamicRoutingCache(key) => {
                             SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
                                 .remove(CacheKey {

@@ -926,72 +926,90 @@ pub async fn disable_dynamic_routing_algorithm(
         .clone()
         .get_string_repr()
         .to_owned();
-    let (algorithm_id, dynamic_routing_algorithm) = match dynamic_routing_type {
-        routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
-            let Some(algorithm_ref) = dynamic_routing_algo_ref.success_based_algorithm else {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Success rate based routing is already disabled".to_string(),
-                })?
-            };
-            let Some(algorithm_id) = algorithm_ref.algorithm_id_with_timestamp.algorithm_id else {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Algorithm is already inactive".to_string(),
-                })?
-            };
-            (
-                algorithm_id,
-                routing_types::DynamicRoutingAlgorithmRef {
-                    success_based_algorithm: Some(routing_types::SuccessBasedAlgorithm {
-                        algorithm_id_with_timestamp: routing_types::DynamicAlgorithmWithTimestamp {
-                            algorithm_id: None,
-                            timestamp,
-                        },
-                        enabled_feature: routing_types::DynamicRoutingFeatures::None,
-                    }),
-                    elimination_routing_algorithm: dynamic_routing_algo_ref
-                        .elimination_routing_algorithm,
-                },
-            )
-        }
-        routing_types::DynamicRoutingType::EliminationRouting => {
-            let Some(algorithm_ref) = dynamic_routing_algo_ref.elimination_routing_algorithm else {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Elimination routing is already disabled".to_string(),
-                })?
-            };
-            let Some(algorithm_id) = algorithm_ref.algorithm_id_with_timestamp.algorithm_id else {
-                Err(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Algorithm is already inactive".to_string(),
-                })?
-            };
-            (
-                algorithm_id,
-                routing_types::DynamicRoutingAlgorithmRef {
-                    success_based_algorithm: dynamic_routing_algo_ref.success_based_algorithm,
-                    elimination_routing_algorithm: Some(
-                        routing_types::EliminationRoutingAlgorithm {
+    let (algorithm_id, dynamic_routing_algorithm, cache_entries_to_redact) =
+        match dynamic_routing_type {
+            routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
+                let Some(algorithm_ref) = dynamic_routing_algo_ref.success_based_algorithm else {
+                    Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Success rate based routing is already disabled".to_string(),
+                    })?
+                };
+                let Some(algorithm_id) = algorithm_ref.algorithm_id_with_timestamp.algorithm_id
+                else {
+                    Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Algorithm is already inactive".to_string(),
+                    })?
+                };
+
+                let cache_key = format!(
+                    "{}_{}",
+                    business_profile.get_id().get_string_repr(),
+                    algorithm_id.get_string_repr()
+                );
+                let cache_entries_to_redact =
+                    vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
+                        cache_key.into(),
+                    )];
+                (
+                    algorithm_id,
+                    routing_types::DynamicRoutingAlgorithmRef {
+                        success_based_algorithm: Some(routing_types::SuccessBasedAlgorithm {
                             algorithm_id_with_timestamp:
                                 routing_types::DynamicAlgorithmWithTimestamp {
                                     algorithm_id: None,
                                     timestamp,
                                 },
                             enabled_feature: routing_types::DynamicRoutingFeatures::None,
-                        },
-                    ),
-                },
-            )
-        }
-    };
+                        }),
+                        elimination_routing_algorithm: dynamic_routing_algo_ref
+                            .elimination_routing_algorithm,
+                    },
+                    cache_entries_to_redact,
+                )
+            }
+            routing_types::DynamicRoutingType::EliminationRouting => {
+                let Some(algorithm_ref) = dynamic_routing_algo_ref.elimination_routing_algorithm
+                else {
+                    Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Elimination routing is already disabled".to_string(),
+                    })?
+                };
+                let Some(algorithm_id) = algorithm_ref.algorithm_id_with_timestamp.algorithm_id
+                else {
+                    Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Algorithm is already inactive".to_string(),
+                    })?
+                };
+                let cache_key = format!(
+                    "{}_{}",
+                    business_profile.get_id().get_string_repr(),
+                    algorithm_id.get_string_repr()
+                );
+                let cache_entries_to_redact =
+                    vec![cache::CacheKind::EliminationBasedDynamicRoutingCache(
+                        cache_key.into(),
+                    )];
+                (
+                    algorithm_id,
+                    routing_types::DynamicRoutingAlgorithmRef {
+                        success_based_algorithm: dynamic_routing_algo_ref.success_based_algorithm,
+                        elimination_routing_algorithm: Some(
+                            routing_types::EliminationRoutingAlgorithm {
+                                algorithm_id_with_timestamp:
+                                    routing_types::DynamicAlgorithmWithTimestamp {
+                                        algorithm_id: None,
+                                        timestamp,
+                                    },
+                                enabled_feature: routing_types::DynamicRoutingFeatures::None,
+                            },
+                        ),
+                    },
+                    cache_entries_to_redact,
+                )
+            }
+        };
 
-    // redact cache for success based routing configs
-    let cache_key = format!(
-        "{}_{}",
-        business_profile.get_id().get_string_repr(),
-        algorithm_id.get_string_repr()
-    );
-    let cache_entries_to_redact = vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
-        cache_key.into(),
-    )];
+    // redact cache for dynamic routing config
     let _ = cache::publish_into_redact_channel(
         state.store.get_cache_store().as_ref(),
         cache_entries_to_redact,
