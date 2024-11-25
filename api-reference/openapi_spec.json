@@ -11816,13 +11816,19 @@
             "nullable": true
           },
           "error_category": {
-            "type": "string",
-            "description": "category in which error belongs to",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorCategory"
+              }
+            ],
             "nullable": true
           },
           "error_sub_category": {
-            "type": "string",
-            "description": "sub-category in which error belongs to",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorSubCategory"
+              }
+            ],
             "nullable": true
           }
         }
