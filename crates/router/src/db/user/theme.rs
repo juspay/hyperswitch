@@ -65,12 +65,13 @@ impl ThemeInterface for Store {
 
 fn check_theme_with_lineage(theme: &storage::Theme, lineage: &ThemeLineage) -> bool {
     match lineage {
-        ThemeLineage::Tenant { tenant_id } => {
-            &theme.tenant_id == tenant_id
-                && theme.org_id.is_none()
-                && theme.merchant_id.is_none()
-                && theme.profile_id.is_none()
-        }
+        // TODO: Add back Tenant variant when we introduce Tenant Variant in EntityType
+        // ThemeLineage::Tenant { tenant_id } => {
+        //     &theme.tenant_id == tenant_id
+        //         && theme.org_id.is_none()
+        //         && theme.merchant_id.is_none()
+        //         && theme.profile_id.is_none()
+        // }
         ThemeLineage::Organization { tenant_id, org_id } => {
             &theme.tenant_id == tenant_id
                 && theme
@@ -156,6 +157,8 @@ impl ThemeInterface for MockDb {
             profile_id: new_theme.profile_id,
             created_at: new_theme.created_at,
             last_modified_at: new_theme.last_modified_at,
+            entity_type: new_theme.entity_type,
+            theme_name: new_theme.theme_name,
         };
         themes.push(theme.clone());
 

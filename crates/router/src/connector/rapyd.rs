@@ -974,7 +974,7 @@ impl api::IncomingWebhook for Rapyd {
         }?;
         Ok(api::disputes::DisputePayload {
             amount: webhook_dispute_data.amount.to_string(),
-            currency: webhook_dispute_data.currency.to_string(),
+            currency: webhook_dispute_data.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: webhook_dispute_data.token,
             connector_reason: Some(webhook_dispute_data.dispute_reason_description),
