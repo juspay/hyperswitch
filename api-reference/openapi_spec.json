@@ -20158,6 +20158,10 @@
             "example": "Invalid card details",
             "nullable": true,
             "maxLength": 1024
+          },
+          "payment_method_id": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
