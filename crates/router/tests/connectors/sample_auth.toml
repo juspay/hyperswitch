@@ -294,4 +294,5 @@ api_key="API Key"
 api_key="API Key"
 
 [nomupay]
-api_key="API Key"
+api_key="kid"
+key1="eid"

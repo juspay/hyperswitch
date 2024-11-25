@@ -36,7 +36,7 @@ use crate::{
         routing::TransactionData,
         utils as core_utils,
     },
-    db::StorageInterface,
+    db::{storage::enums as storage_enums, StorageInterface},
     routes::{metrics, SessionState},
     services,
     types::{
@@ -540,6 +540,7 @@ pub async fn save_payout_data_to_locker(
             None,
             None,
             None,
+            Some(storage_enums::TransactionFlow::Payouts),
         )
         .await?;
     }

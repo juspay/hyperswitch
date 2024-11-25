@@ -184,6 +184,8 @@ pub struct PayoutCreateRequest {
     /// Customer's phone country code. _Deprecated: Use customer object instead._
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
+
+    pub payment_method_id: Option<String>,
 }
 
 impl PayoutCreateRequest {
@@ -568,6 +570,8 @@ pub struct PayoutCreateResponse {
     #[remove_in(PayoutCreateResponse)]
     #[schema(value_type = Option<String>, max_length = 1024, example = "Invalid card details")]
     pub unified_message: Option<UnifiedMessage>,
+
+    pub payment_method_id: Option<String>,
 }
 
 /// The payout method information for response

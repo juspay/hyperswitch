@@ -578,7 +578,7 @@ nexixpay = { payment_method = "card" }
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
-payout_connector_list = "stripe,wise"
+payout_connector_list = "nomupay,stripe,wise"
 
 [dummy_connector]
 enabled = true

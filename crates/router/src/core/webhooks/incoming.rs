@@ -5,9 +5,10 @@ use actix_web::FromRequest;
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::ValueExt};
-use diesel_models::ConnectorMandateReferenceId;
+use diesel_models::{enums as storage_enums, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_methods::PaymentMethod,
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
@@ -62,6 +63,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
+    payment_method: Option<PaymentMethod>,
 ) -> RouterResponse<serde_json::Value> {
     let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
@@ -73,6 +75,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             key_store,
             connector_name_or_mca_id,
             body.clone(),
+            payment_method,
         ))
         .await?;
 
@@ -126,6 +129,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
+    payment_method: Option<PaymentMethod>,
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
@@ -466,6 +470,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 webhook_details,
                 event_type,
                 source_verified,
+                payment_method,
             ))
             .await
             .attach_printable("Incoming webhook flow for payouts failed")?,
@@ -660,6 +665,7 @@ async fn payouts_incoming_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     event_type: webhooks::IncomingWebhookEvent,
     source_verified: bool,
+    payment_method: Option<PaymentMethod>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
     if source_verified {
@@ -724,6 +730,7 @@ async fn payouts_incoming_webhook_flow(
             &key_store,
             &action_req,
             common_utils::consts::DEFAULT_LOCALE,
+            payment_method,
         )
         .await?;
 
@@ -1803,8 +1810,12 @@ async fn update_connector_mandate_details(
                     &webhook_mandate_details,
                     mandate_details,
                 )?;
+
+                //let updated_transaction_flow:
+
                 let pm_update = diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                     connector_mandate_details: updated_connector_mandate_details,
+                    transaction_flow: Some(storage_enums::TransactionFlow::Payment),
                 };
 
                 state

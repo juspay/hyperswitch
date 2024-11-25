@@ -15,6 +15,8 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit},
 };
 use error_stack::{report, ResultExt};
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::router_request_types::PayoutsData;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_data::{
@@ -1135,6 +1137,18 @@ impl PhoneDetailsData for PhoneDetails {
             number_without_plus,
             number.peek()
         )))
+    }
+}
+#[cfg(feature = "payouts")]
+pub trait PayoutFulfillRequestData {
+    fn get_connector_payout_id(&self) -> Result<String, Error>;
+}
+#[cfg(feature = "payouts")]
+impl PayoutFulfillRequestData for PayoutsData {
+    fn get_connector_payout_id(&self) -> Result<String, Error> {
+        self.connector_payout_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_payout_id"))
     }
 }
 

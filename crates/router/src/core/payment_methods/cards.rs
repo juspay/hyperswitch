@@ -37,7 +37,7 @@ use common_utils::{
         MinorUnit,
     },
 };
-use diesel_models::payment_method;
+use diesel_models::{enums as storage_enums, payment_method};
 use error_stack::{report, ResultExt};
 #[cfg(all(
     any(feature = "v1", feature = "v2"),
@@ -145,6 +145,7 @@ pub async fn create_payment_method(
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: crypto::OptionalEncryptableValue,
+    transaction_flow: Option<storage_enums::TransactionFlow>,
 ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
     let customer = db
@@ -204,6 +205,7 @@ pub async fn create_payment_method(
                 network_token_requestor_reference_id,
                 network_token_locker_id,
                 network_token_payment_method_data,
+                transaction_flow,
             },
             storage_scheme,
         )
@@ -345,6 +347,7 @@ pub async fn get_or_insert_payment_method(
                     None,
                     None,
                     None,
+                    Some(storage_enums::TransactionFlow::Payment),
                 )
                 .await
             } else {
@@ -834,6 +837,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: Some(storage_enums::TransactionFlow::Payment),
             },
             merchant_account.storage_scheme,
         )
@@ -1068,6 +1072,7 @@ pub async fn get_client_secret_or_add_payment_method(
             None,
             None,
             None,
+            Some(storage_enums::TransactionFlow::Payment),
         )
         .await?;
 
@@ -1161,6 +1166,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
             None,
             None,
             None,
+            Some(storage_enums::TransactionFlow::Payment),
         )
         .await?;
         migration_status.connector_mandate_details_migrated(
@@ -1676,6 +1682,7 @@ pub async fn add_payment_method(
                 None,
                 None,
                 None,
+                Some(storage_enums::TransactionFlow::Payment),
             )
             .await?;
 
@@ -1947,6 +1954,7 @@ pub async fn save_migration_payment_method(
                 None,
                 None,
                 None,
+                Some(storage_enums::TransactionFlow::Payment),
             )
             .await?;
 
@@ -1979,6 +1987,7 @@ pub async fn insert_payment_method(
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: crypto::OptionalEncryptableValue,
+    transaction_flow: Option<storage_enums::TransactionFlow>,
 ) -> errors::RouterResult<domain::PaymentMethod> {
     let pm_card_details = resp
         .card
@@ -2016,6 +2025,7 @@ pub async fn insert_payment_method(
         network_token_requestor_reference_id,
         network_token_locker_id,
         network_token_payment_method_data,
+        transaction_flow,
     )
     .await
 }
@@ -2838,9 +2848,11 @@ pub async fn update_payment_method_connector_mandate_details(
     pm: domain::PaymentMethod,
     connector_mandate_details: Option<serde_json::Value>,
     storage_scheme: MerchantStorageScheme,
+    transaction_flow: Option<storage_enums::TransactionFlow>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details,
+        transaction_flow,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)
