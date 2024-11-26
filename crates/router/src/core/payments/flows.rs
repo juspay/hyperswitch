@@ -994,7 +994,6 @@ default_imp_for_payouts!(
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
-    connector::Jpmorgan,
     connector::Klarna,
     connector::Mifinity,
     connector::Netcetera,

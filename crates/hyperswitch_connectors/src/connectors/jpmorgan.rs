@@ -330,7 +330,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = jpmorgan::JpmorganRouterData::from((amount, req));
         let connector_req = jpmorgan::JpmorganPaymentsRequest::try_from(&connector_router_data)?;
-        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+        let _printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -422,7 +422,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                 
         let connector_router_data = jpmorgan::JpmorganRouterData::from((amount, req));
         let connector_req = jpmorgan::JpmorganCaptureRequest::try_from(&connector_router_data)?;
-        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+        let _printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
