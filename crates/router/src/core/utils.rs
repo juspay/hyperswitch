@@ -363,6 +363,7 @@ pub async fn construct_refund_router_data<'a, F>(
             browser_info,
             charges,
             integrity_object: None,
+            refund_status: refund.refund_status,
         },
 
         response: Ok(types::RefundsResponseData {

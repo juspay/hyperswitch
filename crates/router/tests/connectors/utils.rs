@@ -406,6 +406,7 @@ pub trait ConnectorActions: Connector {
                 browser_info: None,
                 charges: None,
                 integrity_object: None,
+                refund_status: enums::RefundStatus::Pending,
             }),
             payment_info,
         );
@@ -600,7 +601,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -640,7 +644,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -681,7 +688,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -721,7 +731,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -812,7 +825,10 @@ pub trait ConnectorActions: Connector {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let res = services::api::execute_connector_processing_step(
             &state,
@@ -849,7 +865,10 @@ async fn call_connector<
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &common_utils::id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
     services::api::execute_connector_processing_step(
         &state,
@@ -1035,6 +1054,7 @@ impl Default for PaymentRefundType {
             browser_info: None,
             charges: None,
             integrity_object: None,
+            refund_status: enums::RefundStatus::Pending,
         };
         Self(data)
     }

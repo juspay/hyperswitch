@@ -1106,20 +1106,20 @@ pub struct NoLevel;
 
 #[derive(Clone)]
 pub struct OrganizationLevel {
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Clone)]
 pub struct MerchantLevel {
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
 pub struct ProfileLevel {
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
@@ -1156,7 +1156,7 @@ impl NewUserRole<NoLevel> {
 }
 
 pub struct EntityInfo {
-    tenant_id: String,
+    tenant_id: id_type::TenantId,
     org_id: id_type::OrganizationId,
     merchant_id: Option<id_type::MerchantId>,
     profile_id: Option<id_type::ProfileId>,
