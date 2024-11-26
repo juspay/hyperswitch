@@ -947,11 +947,13 @@ where
                 billing: payment_intent
                     .billing_address
                     .clone()
-                    .map(|billing| billing.into_inner().expose()),
+                    .map(|billing| billing.into_inner())
+                    .map(From::from),
                 shipping: payment_intent
                     .shipping_address
                     .clone()
-                    .map(|shipping| shipping.into_inner().expose()),
+                    .map(|shipping| shipping.into_inner())
+                    .map(From::from),
                 customer_id: payment_intent.customer_id.clone(),
                 customer_present: payment_intent.customer_present.clone(),
                 description: payment_intent.description.clone(),
