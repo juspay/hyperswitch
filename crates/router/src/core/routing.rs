@@ -14,7 +14,7 @@ use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::{mandates, payment_address};
-#[cfg(any(feature = "v1", feature = "dynamic_routing"))]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::{logger, metrics::add_attributes};
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -1199,7 +1199,7 @@ pub async fn update_default_routing_config_for_profile(
 
 // Toggle the specific routing type as well as add the default configs in RoutingAlgorithm table
 // and update the same in business profile table.
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn toggle_specific_dynamic_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,

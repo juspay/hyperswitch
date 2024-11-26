@@ -21,6 +21,8 @@ use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use router_env::logger;
+#[cfg(all(feature = "dynamic_routing", feature = "v1"))]
+use crate::db::errors::StorageErrorExt;
 #[cfg(any(feature = "dynamic_routing", feature = "v1"))]
 use router_env::{instrument, metrics::add_attributes, tracing};
 use rustc_hash::FxHashSet;
@@ -30,7 +32,7 @@ use storage_impl::redis::cache;
 use crate::types::domain::MerchantConnectorAccount;
 use crate::{
     core::errors::{self, RouterResult},
-    db::{errors::StorageErrorExt, StorageInterface},
+    db::StorageInterface,
     routes::SessionState,
     types::{domain, storage},
     utils::StringExt,
