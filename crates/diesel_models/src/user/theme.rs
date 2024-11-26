@@ -9,7 +9,7 @@ use crate::schema::themes;
 #[diesel(table_name = themes, primary_key(theme_id), check_for_backend(diesel::pg::Pg))]
 pub struct Theme {
     pub theme_id: String,
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: Option<id_type::OrganizationId>,
     pub merchant_id: Option<id_type::MerchantId>,
     pub profile_id: Option<id_type::ProfileId>,
@@ -23,7 +23,7 @@ pub struct Theme {
 #[diesel(table_name = themes)]
 pub struct ThemeNew {
     pub theme_id: String,
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: Option<id_type::OrganizationId>,
     pub merchant_id: Option<id_type::MerchantId>,
     pub profile_id: Option<id_type::ProfileId>,
@@ -40,7 +40,7 @@ impl ThemeNew {
         Self {
             theme_id,
             theme_name,
-            tenant_id: lineage.tenant_id().to_string(),
+            tenant_id: lineage.tenant_id().to_owned(),
             org_id: lineage.org_id().cloned(),
             merchant_id: lineage.merchant_id().cloned(),
             profile_id: lineage.profile_id().cloned(),

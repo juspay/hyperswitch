@@ -19,15 +19,15 @@ pub enum ThemeLineage {
     // },
     /// Org lineage variant
     Organization {
-        /// tenant_id: String
-        tenant_id: String,
+        /// tenant_id: TenantId
+        tenant_id: id_type::TenantId,
         /// org_id: OrganizationId
         org_id: id_type::OrganizationId,
     },
     /// Merchant lineage variant
     Merchant {
-        /// tenant_id: String
-        tenant_id: String,
+        /// tenant_id: TenantId
+        tenant_id: id_type::TenantId,
         /// org_id: OrganizationId
         org_id: id_type::OrganizationId,
         /// merchant_id: MerchantId
@@ -35,8 +35,8 @@ pub enum ThemeLineage {
     },
     /// Profile lineage variant
     Profile {
-        /// tenant_id: String
-        tenant_id: String,
+        /// tenant_id: TenantId
+        tenant_id: id_type::TenantId,
         /// org_id: OrganizationId
         org_id: id_type::OrganizationId,
         /// merchant_id: MerchantId
@@ -59,7 +59,7 @@ impl ThemeLineage {
     }
 
     /// Get the tenant_id from the lineage
-    pub fn tenant_id(&self) -> &str {
+    pub fn tenant_id(&self) -> &id_type::TenantId {
         match self {
             Self::Organization { tenant_id, .. }
             | Self::Merchant { tenant_id, .. }

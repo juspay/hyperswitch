@@ -93,7 +93,7 @@ pub async fn generate_jwt_auth_token_with_attributes(
     org_id: id_type::OrganizationId,
     role_id: String,
     profile_id: id_type::ProfileId,
-    tenant_id: Option<String>,
+    tenant_id: Option<id_type::TenantId>,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user_id,

@@ -74,8 +74,8 @@ pub async fn validate_lineage(state: &SessionState, lineage: &ThemeLineage) -> U
     }
 }
 
-fn validate_tenant(state: &SessionState, tenant_id: &str) -> UserResult<()> {
-    if state.tenant.tenant_id != tenant_id {
+fn validate_tenant(state: &SessionState, tenant_id: &id_type::TenantId) -> UserResult<()> {
+    if &state.tenant.tenant_id != tenant_id {
         return Err(UserErrors::InvalidThemeLineage("tenant_id".to_string()).into());
     }
     Ok(())

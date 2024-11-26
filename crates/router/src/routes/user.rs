@@ -132,7 +132,7 @@ pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpR
         &http_req,
         (),
         |state, user, _, _| user_core::signout(state, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::AnyPurposeOrLoginTokenAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await

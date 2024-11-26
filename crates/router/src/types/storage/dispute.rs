@@ -1,6 +1,6 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 pub use diesel_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
 use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
 use error_stack::ResultExt;
@@ -43,9 +43,11 @@ impl DisputeDbExt for Dispute {
             &dispute_list_constraints.dispute_id,
         ) {
             search_by_payment_or_dispute_id = true;
-            filter = filter
-                .filter(dsl::payment_id.eq(payment_id.to_owned()))
-                .or_filter(dsl::dispute_id.eq(dispute_id.to_owned()));
+            filter = filter.filter(
+                dsl::payment_id
+                    .eq(payment_id.to_owned())
+                    .or(dsl::dispute_id.eq(dispute_id.to_owned())),
+            );
         };
 
         if !search_by_payment_or_dispute_id {

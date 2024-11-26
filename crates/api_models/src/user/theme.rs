@@ -8,7 +8,7 @@ pub struct GetThemeResponse {
     pub theme_id: String,
     pub theme_name: String,
     pub entity_type: EntityType,
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: Option<id_type::OrganizationId>,
     pub merchant_id: Option<id_type::MerchantId>,
     pub profile_id: Option<id_type::ProfileId>,

@@ -247,26 +247,41 @@ pub async fn connect_account(
             )
             .await?;
 
-        let email_contents = email_types::VerifyEmail {
+        let magic_link_email = email_types::VerifyEmail {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             subject: consts::user::EMAIL_SUBJECT_SIGNUP,
             auth_id,
         };
 
-        let send_email_result = state
+        let magic_link_result = state
             .email_client
             .compose_and_send_email(
-                Box::new(email_contents),
+                Box::new(magic_link_email),
                 state.conf.proxy.https_url.as_ref(),
             )
             .await;
 
-        logger::info!(?send_email_result);
+        logger::info!(?magic_link_result);
+
+        let welcome_to_community_email = email_types::WelcomeToCommunity {
+            recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+            subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
+        };
+
+        let welcome_email_result = state
+            .email_client
+            .compose_and_send_email(
+                Box::new(welcome_to_community_email),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
+
+        logger::info!(?welcome_email_result);
 
         return Ok(ApplicationResponse::Json(
             user_api::ConnectAccountResponse {
-                is_email_sent: send_email_result.is_ok(),
+                is_email_sent: magic_link_result.is_ok(),
                 user_id: user_from_db.get_user_id().to_string(),
             },
         ));
@@ -280,7 +295,7 @@ pub async fn connect_account(
 
 pub async fn signout(
     state: SessionState,
-    user_from_token: auth::UserFromToken,
+    user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<()> {
     tfa_utils::delete_totp_from_redis(&state, &user_from_token.user_id).await?;
     tfa_utils::delete_recovery_code_from_redis(&state, &user_from_token.user_id).await?;
@@ -1106,11 +1121,15 @@ pub async fn create_internal_user(
             }
         })?;
 
-    let default_tenant_id = common_utils::consts::DEFAULT_TENANT.to_string();
+    let default_tenant_id = common_utils::id_type::TenantId::try_from_string(
+        common_utils::consts::DEFAULT_TENANT.to_owned(),
+    )
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Unable to parse default tenant id")?;
 
     if state.tenant.tenant_id != default_tenant_id {
         return Err(UserErrors::ForbiddenTenantId)
-            .attach_printable("Operation allowed only for the default tenant.");
+            .attach_printable("Operation allowed only for the default tenant");
     }
 
     let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
