@@ -4,7 +4,7 @@ use std::fmt::Debug;
 #[cfg(feature = "frm")]
 use base64::Engine;
 #[cfg(feature = "frm")]
-use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent};
+use common_utils::{crypto, ext_traits::ByteSliceExt, request::RequestContent, types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector}};
 #[cfg(feature = "frm")]
 use error_stack::ResultExt;
 #[cfg(feature = "frm")]
@@ -34,8 +34,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Signifyd;
+#[derive(Clone)]
+pub struct Signifyd{
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
+
+impl Signifyd {
+    pub fn new() -> &'static Self{
+        &Self{
+            amount_converter: &StringMajorUnitForConnector
+        }
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Signifyd
 where
