@@ -1451,7 +1451,7 @@ pub async fn trigger_refund_execute_workflow(
 
             let payment_attempt = db
                 .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
-                    &refund.connector_transaction_id.get_id(),
+                    refund.connector_transaction_id.get_id(),
                     &refund_core.payment_id,
                     &refund.merchant_id,
                     merchant_account.storage_scheme,
