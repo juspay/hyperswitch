@@ -182,6 +182,8 @@ pub static RECON_OPS: [Resource; 5] = [
     Resource::ReconUpload,
     Resource::RunRecon,
     Resource::ReconConfig,
+    Resource::ReconAndSettlementAnalytics,
+    Resource::ReconReports,
 ];
 
 pub static RECON_REPORTS: [Resource; 3] = [
