@@ -1,5 +1,7 @@
 #[cfg(feature = "olap")]
 use analytics::health_check::HealthCheck;
+#[cfg(feature = "dynamic_routing")]
+use api_models::health_check::HealthCheckMap;
 use api_models::health_check::HealthState;
 use error_stack::ResultExt;
 use router_env::logger;
@@ -28,6 +30,11 @@ pub trait HealthCheckInterface {
     async fn health_check_opensearch(
         &self,
     ) -> CustomResult<HealthState, errors::HealthCheckDBError>;
+
+    #[cfg(feature = "dynamic_routing")]
+    async fn health_check_grpc(
+        &self,
+    ) -> CustomResult<HealthCheckMap, errors::HealthCheckGRPCServiceError>;
 }
 
 #[async_trait::async_trait]
@@ -157,5 +164,21 @@ impl HealthCheckInterface for app::SessionState {
 
         logger::debug!("Outgoing request successful");
         Ok(HealthState::Running)
+    }
+
+    #[cfg(feature = "dynamic_routing")]
+    async fn health_check_grpc(
+        &self,
+    ) -> CustomResult<HealthCheckMap, errors::HealthCheckGRPCServiceError> {
+        let health_client = &self.grpc_client.health_client;
+        let grpc_config = &self.conf.grpc_client;
+
+        let health_check_map = health_client
+            .perform_health_check(grpc_config)
+            .await
+            .change_context(errors::HealthCheckGRPCServiceError::FailedToCallService)?;
+
+        logger::debug!("Health check successful");
+        Ok(health_check_map)
     }
 }

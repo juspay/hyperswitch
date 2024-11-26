@@ -347,6 +347,11 @@ pub struct SdkEventFilterValue {
 }
 
 #[derive(Debug, serde::Serialize)]
+pub struct DisputesAnalyticsMetadata {
+    pub total_disputed_amount: Option<u64>,
+    pub total_dispute_lost_amount: Option<u64>,
+}
+#[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MetricsResponse<T> {
     pub query_data: Vec<T>,
@@ -372,6 +377,12 @@ pub struct PaymentIntentsMetricsResponse<T> {
 pub struct RefundsMetricsResponse<T> {
     pub query_data: Vec<T>,
     pub meta_data: [RefundsAnalyticsMetadata; 1],
+}
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DisputesMetricsResponse<T> {
+    pub query_data: Vec<T>,
+    pub meta_data: [DisputesAnalyticsMetadata; 1],
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]

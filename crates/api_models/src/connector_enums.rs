@@ -74,6 +74,7 @@ pub enum Connector {
     Digitalvirgo,
     Dlocal,
     Ebanx,
+    Elavon,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -83,6 +84,7 @@ pub enum Connector {
     Gocardless,
     Gpayments,
     Helcim,
+    // Inespay,
     Iatapay,
     Itaubank,
     //Jpmorgan,
@@ -216,6 +218,7 @@ impl Connector {
             | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
+            | Self::Elavon
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -226,6 +229,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
+			// | Self::Inespay
             | Self::Itaubank
             //| Self::Jpmorgan
             | Self::Klarna
