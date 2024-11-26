@@ -15,6 +15,7 @@ import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js"
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
+import { connectorDetails as jpmorganConnectorDetails} from "./Jpmorgan.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
@@ -36,6 +37,7 @@ const connectorDetails = {
   fiservemea: fiservemeaConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
+  jpmorgan : jpmorganConnectorDetails,
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
   novalnet: novalnetConnectorDetails,

@@ -83,7 +83,7 @@ pub enum RoutableConnectors {
     Iatapay,
     // Inespay,
     Itaubank,
-    //Jpmorgan,
+    Jpmorgan,
     Klarna,
     Mifinity,
     Mollie,
