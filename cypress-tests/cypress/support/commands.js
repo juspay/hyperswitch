@@ -796,7 +796,7 @@ Cypress.Commands.add("customerDeleteCall", (globalState) => {
 
 Cypress.Commands.add(
   "paymentMethodListTestLessThanEqualToOnePaymentMethod",
-  (res_data, globalState) => {
+  (resData, globalState) => {
     cy.request({
       method: "GET",
       url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${globalState.get("clientSecret")}`,
@@ -811,20 +811,20 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         expect(response.body).to.have.property("currency");
-        if (res_data["payment_methods"].length == 1) {
+        if (resData["payment_methods"].length == 1) {
           function getPaymentMethodType(obj) {
             return obj["payment_methods"][0]["payment_method_types"][0][
               "payment_method_type"
             ];
           }
-          expect(getPaymentMethodType(res_data)).to.equal(
+          expect(getPaymentMethodType(resData)).to.equal(
             getPaymentMethodType(response.body)
           );
         } else {
           expect(0).to.equal(response.body["payment_methods"].length);
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -832,7 +832,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "paymentMethodListTestTwoConnectorsForOnePaymentMethodCredit",
-  (res_data, globalState) => {
+  (resData, globalState) => {
     cy.request({
       method: "GET",
       url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${globalState.get("clientSecret")}`,
@@ -847,7 +847,7 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         expect(response.body).to.have.property("currency");
-        if (res_data["payment_methods"].length > 0) {
+        if (resData["payment_methods"].length > 0) {
           function getPaymentMethodType(obj) {
             return obj["payment_methods"][0]["payment_method_types"][0][
               "card_networks"
@@ -855,7 +855,7 @@ Cypress.Commands.add(
               .slice()
               .sort();
           }
-          let config_payment_method_type = getPaymentMethodType(res_data);
+          let config_payment_method_type = getPaymentMethodType(resData);
           let response_payment_method_type = getPaymentMethodType(
             response.body
           );
@@ -868,7 +868,7 @@ Cypress.Commands.add(
           expect(0).to.equal(response.body["payment_methods"].length);
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -901,14 +901,14 @@ Cypress.Commands.add(
   ) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
     if (
       !createPaymentBody ||
       typeof createPaymentBody !== "object" ||
-      !req_data.currency
+      !reqData.currency
     ) {
       throw new Error(
         "Invalid parameters provided to createPaymentIntentTest command"
@@ -918,8 +918,8 @@ Cypress.Commands.add(
     const config_info = execConfig(validateConfig(configs));
     const profile_id = globalState.get(config_info.profile_id);
 
-    for (const key in req_data) {
-      createPaymentBody[key] = req_data[key];
+    for (const key in reqData) {
+      createPaymentBody[key] = reqData[key];
     }
     createPaymentBody.authentication_type = authentication_type;
     createPaymentBody.capture_method = capture_method;
@@ -943,16 +943,16 @@ Cypress.Commands.add(
 
       expect(response.headers["content-type"]).to.include("application/json");
 
-      if (res_data.status === 200) {
+      if (resData.status === 200) {
         expect(response.body).to.have.property("client_secret");
         const clientSecret = response.body.client_secret;
         globalState.set("clientSecret", clientSecret);
         globalState.set("paymentID", response.body.payment_id);
         cy.log(clientSecret);
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(
             response.body[key],
-            `Expected ${res_data.body[key]} but got ${response.body[key]}`
+            `Expected ${resData.body[key]} but got ${response.body[key]}`
           );
         }
         expect(response.body.payment_id, "payment_id").to.not.be.null;
@@ -1014,7 +1014,7 @@ Cypress.Commands.add(
         expect(response.body.connector_mandate_id, "connector_mandate_id").to.be
           .null;
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -1045,11 +1045,11 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
   const {
     Configs: configs = {},
-    Request: req_data,
-    Response: res_data,
+    Request: reqData,
+    Response: resData,
   } = data || {};
 
-  req_data.customer_id = globalState.get("customerId");
+  reqData.customer_id = globalState.get("customerId");
   const merchant_id = globalState.get("merchantId");
 
   cy.request({
@@ -1060,7 +1060,7 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
       Accept: "application/json",
       "api-key": globalState.get("apiKey"),
     },
-    body: req_data,
+    body: reqData,
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
@@ -1073,24 +1073,24 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
       expect(response.body.payment_method_id, "payment_method_id").to.not.be
         .null;
       expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
-      expect(req_data.payment_method_type, "payment_method_type").to.equal(
+      expect(reqData.payment_method_type, "payment_method_type").to.equal(
         response.body.payment_method_type
       );
-      expect(req_data.payment_method, "payment_method").to.equal(
+      expect(reqData.payment_method, "payment_method").to.equal(
         response.body.payment_method
       );
       expect(response.body.last_used_at, "last_used_at").to.not.be.null;
-      expect(req_data.customer_id, "customer_id").to.equal(
+      expect(reqData.customer_id, "customer_id").to.equal(
         response.body.customer_id
       );
       globalState.set("paymentMethodId", response.body.payment_method_id);
     } else {
-      defaultErrorHandler(response, res_data);
+      defaultErrorHandler(response, resData);
     }
   });
 });
 
-Cypress.Commands.add("deletePaymentMethodTest", (globalState, res_data) => {
+Cypress.Commands.add("deletePaymentMethodTest", (globalState, resData) => {
   const payment_method_id = globalState.get("paymentMethodId");
   cy.request({
     method: "DELETE",
@@ -1108,7 +1108,7 @@ Cypress.Commands.add("deletePaymentMethodTest", (globalState, res_data) => {
       expect(response.body.payment_method_id).to.equal(payment_method_id);
       expect(response.body.deleted).to.be.true;
     } else {
-      defaultErrorHandler(response, res_data);
+      defaultErrorHandler(response, resData);
     }
   });
 });
@@ -1143,31 +1143,34 @@ Cypress.Commands.add(
   (confirmBody, data, confirm, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
-    const config_info = execConfig(validateConfig(configs));
-    const merchant_connector_id = globalState.get(
-      config_info.merchant_connector_id
+    const apiKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+    const configInfo = execConfig(validateConfig(configs));
+    const merchantConnectorId = globalState.get(
+      configInfo.merchant_connector_id
     );
     const paymentIntentID = globalState.get("paymentID");
-    const profile_id = globalState.get(config_info.profile_id);
+    const profileId = globalState.get(configInfo.profile_id);
+    const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
 
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
-    confirmBody.profile_id = profile_id;
+    confirmBody.profile_id = profileId;
 
-    for (const key in req_data) {
-      confirmBody[key] = req_data[key];
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
     }
 
     cy.request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
+      url: url,
       headers: {
         "Content-Type": "application/json",
-        "api-key": globalState.get("publishableKey"),
+        "api-key": apiKey,
       },
       failOnStatusCode: false,
       body: confirmBody,
@@ -1185,12 +1188,12 @@ Cypress.Commands.add(
         );
         expect(response.body.payment_method_data, "payment_method_data").to.not
           .be.empty;
-        expect(merchant_connector_id, "connector_id").to.equal(
+        expect(merchantConnectorId, "connector_id").to.equal(
           response.body.merchant_connector_id
         );
         expect(response.body.customer, "customer").to.not.be.empty;
         expect(response.body.billing, "billing_address").to.not.be.empty;
-        expect(response.body.profile_id, "profile_id").to.equal(profile_id).and
+        expect(response.body.profile_id, "profile_id").to.equal(profileId).and
           .to.not.be.null;
 
         if (response.body.capture_method === "automatic") {
@@ -1202,14 +1205,14 @@ Cypress.Commands.add(
               "nextActionUrl",
               response.body.next_action.redirect_to_url
             );
-            for (const key in res_data.body) {
-              expect(res_data.body[key], [key]).to.deep.equal(
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
                 response.body[key]
               );
             }
           } else if (response.body.authentication_type === "no_three_ds") {
-            for (const key in res_data.body) {
-              expect(res_data.body[key], [key]).to.deep.equal(
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
                 response.body[key]
               );
             }
@@ -1227,14 +1230,14 @@ Cypress.Commands.add(
               "nextActionUrl",
               response.body.next_action.redirect_to_url
             );
-            for (const key in res_data.body) {
-              expect(res_data.body[key], [key]).to.deep.equal(
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
                 response.body[key]
               );
             }
           } else if (response.body.authentication_type === "no_three_ds") {
-            for (const key in res_data.body) {
-              expect(res_data.body[key], [key]).to.deep.equal(
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
                 response.body[key]
               );
             }
@@ -1249,7 +1252,7 @@ Cypress.Commands.add(
           );
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -1260,8 +1263,8 @@ Cypress.Commands.add(
   (confirmBody, data, confirm, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
@@ -1269,8 +1272,8 @@ Cypress.Commands.add(
     const paymentIntentId = globalState.get("paymentID");
     const profile_id = globalState.get(config_info.profile_id);
 
-    for (const key in req_data) {
-      confirmBody[key] = req_data[key];
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
     }
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
@@ -1320,7 +1323,7 @@ Cypress.Commands.add(
                 }
               } else if (response.body.status === "failed") {
                 expect(response.body.error_code).to.equal(
-                  res_data.body.error_code
+                  resData.body.error_code
                 );
               }
             } else {
@@ -1353,7 +1356,7 @@ Cypress.Commands.add(
             );
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -1364,16 +1367,16 @@ Cypress.Commands.add(
   (confirmBody, data, confirm, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = globalState.get(config_info.profile_id);
 
-    for (const key in req_data) {
-      confirmBody[key] = req_data[key];
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
     }
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
@@ -1434,7 +1437,7 @@ Cypress.Commands.add(
           );
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -1445,16 +1448,16 @@ Cypress.Commands.add(
   (confirmBody, data, confirm, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
     const paymentId = globalState.get("paymentID");
     const profile_id = globalState.get(config_info.profile_id);
 
-    for (const key in req_data) {
-      confirmBody[key] = req_data[key];
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
     }
     confirmBody.client_secret = globalState.get("clientSecret");
     confirmBody.confirm = confirm;
@@ -1502,7 +1505,7 @@ Cypress.Commands.add(
           );
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -1519,8 +1522,8 @@ Cypress.Commands.add(
   ) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
@@ -1533,8 +1536,8 @@ Cypress.Commands.add(
     createConfirmPaymentBody.capture_method = capture_method;
     createConfirmPaymentBody.customer_id = globalState.get("customerId");
     createConfirmPaymentBody.profile_id = profile_id;
-    for (const key in req_data) {
-      createConfirmPaymentBody[key] = req_data[key];
+    for (const key in reqData) {
+      createConfirmPaymentBody[key] = reqData[key];
     }
 
     cy.request({
@@ -1581,14 +1584,14 @@ Cypress.Commands.add(
               "nextActionUrl",
               response.body.next_action.redirect_to_url
             );
-            for (const key in res_data.body) {
-              expect(res_data.body[key], [key]).to.deep.equal(
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
                 response.body[key]
               );
             }
           } else if (response.body.authentication_type === "no_three_ds") {
-            for (const key in res_data.body) {
-              expect(res_data.body[key], [key]).to.deep.equal(
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
                 response.body[key]
               );
             }
@@ -1606,14 +1609,14 @@ Cypress.Commands.add(
               "nextActionUrl",
               response.body.next_action.redirect_to_url
             );
-            for (const key in res_data.body) {
-              expect(res_data.body[key], [key]).to.deep.equal(
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
                 response.body[key]
               );
             }
           } else if (response.body.authentication_type === "no_three_ds") {
-            for (const key in res_data.body) {
-              expect(res_data.body[key], [key]).to.deep.equal(
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.deep.equal(
                 response.body[key]
               );
             }
@@ -1624,7 +1627,7 @@ Cypress.Commands.add(
           }
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -1636,8 +1639,8 @@ Cypress.Commands.add(
   (saveCardConfirmBody, data, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
@@ -1647,14 +1650,14 @@ Cypress.Commands.add(
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = globalState.get(config_info.profile_id);
 
-    if (req_data.setup_future_usage === "on_session") {
-      saveCardConfirmBody.card_cvc = req_data.payment_method_data.card.card_cvc;
+    if (reqData.setup_future_usage === "on_session") {
+      saveCardConfirmBody.card_cvc = reqData.payment_method_data.card.card_cvc;
     }
     saveCardConfirmBody.client_secret = globalState.get("clientSecret");
     saveCardConfirmBody.payment_token = globalState.get("paymentToken");
     saveCardConfirmBody.profile_id = profile_id;
-    for (const key in req_data) {
-      saveCardConfirmBody[key] = req_data[key];
+    for (const key in reqData) {
+      saveCardConfirmBody[key] = reqData[key];
     }
 
     cy.request({
@@ -1687,7 +1690,7 @@ Cypress.Commands.add(
           response.body.merchant_connector_id
         );
         expect(response.body.customer, "customer").to.not.be.empty;
-        if (req_data.billing !== null) {
+        if (reqData.billing !== null) {
           expect(response.body.billing, "billing_address").to.not.be.empty;
         }
         expect(response.body.profile_id, "profile_id").to.not.be.null;
@@ -1699,8 +1702,8 @@ Cypress.Commands.add(
               .to.have.property("next_action")
               .to.have.property("redirect_to_url");
           } else if (response.body.authentication_type === "no_three_ds") {
-            for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+            for (const key in resData.body) {
+              expect(resData.body[key]).to.equal(response.body[key]);
             }
             expect(response.body.customer_id).to.equal(
               globalState.get("customerId")
@@ -1717,8 +1720,8 @@ Cypress.Commands.add(
               .to.have.property("next_action")
               .to.have.property("redirect_to_url");
           } else if (response.body.authentication_type === "no_three_ds") {
-            for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+            for (const key in resData.body) {
+              expect(resData.body[key]).to.equal(response.body[key]);
             }
             expect(response.body.customer_id).to.equal(
               globalState.get("customerId")
@@ -1736,7 +1739,7 @@ Cypress.Commands.add(
           );
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -1747,8 +1750,8 @@ Cypress.Commands.add(
   (requestBody, data, amount_to_capture, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
@@ -1773,11 +1776,11 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.body.capture_method !== undefined) {
         expect(response.body.payment_id).to.equal(payment_id);
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(response.body[key]);
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -1786,8 +1789,8 @@ Cypress.Commands.add(
 Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
   const {
     Configs: configs = {},
-    Request: req_data,
-    Response: res_data,
+    Request: reqData,
+    Response: resData,
   } = data || {};
 
   const config_info = execConfig(validateConfig(configs));
@@ -1810,11 +1813,11 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
 
     expect(response.headers["content-type"]).to.include("application/json");
     if (response.status === 200) {
-      for (const key in res_data.body) {
-        expect(res_data.body[key]).to.equal(response.body[key]);
+      for (const key in resData.body) {
+        expect(resData.body[key]).to.equal(response.body[key]);
       }
     } else {
-      defaultErrorHandler(response, res_data);
+      defaultErrorHandler(response, resData);
     }
   });
 });
@@ -1897,8 +1900,8 @@ Cypress.Commands.add(
   (requestBody, data, refund_amount, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
     const payment_id = globalState.get("paymentID");
@@ -1924,12 +1927,12 @@ Cypress.Commands.add(
 
       if (response.status === 200) {
         globalState.set("refundId", response.body.refund_id);
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(response.body[key]);
         }
         expect(response.body.payment_id).to.equal(payment_id);
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -1938,8 +1941,8 @@ Cypress.Commands.add(
 Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
   const {
     Configs: configs = {},
-    Request: req_data,
-    Response: res_data,
+    Request: reqData,
+    Response: resData,
   } = data || {};
 
   const refundId = globalState.get("refundId");
@@ -1956,8 +1959,8 @@ Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     expect(response.headers["content-type"]).to.include("application/json");
-    for (const key in res_data.body) {
-      expect(res_data.body[key]).to.equal(response.body[key]);
+    for (const key in resData.body) {
+      expect(resData.body[key]).to.equal(response.body[key]);
     }
   });
 });
@@ -1975,8 +1978,8 @@ Cypress.Commands.add(
   ) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
@@ -1985,8 +1988,8 @@ Cypress.Commands.add(
       config_info.merchant_connector_id
     );
 
-    for (const key in req_data) {
-      requestBody[key] = req_data[key];
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
     }
     requestBody.amount = amount;
     requestBody.capture_method = capture_method;
@@ -2045,12 +2048,12 @@ Cypress.Commands.add(
               response.body.next_action.redirect_to_url
             );
             cy.log(nextActionUrl);
-            for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+            for (const key in resData.body) {
+              expect(resData.body[key]).to.equal(response.body[key]);
             }
           } else if (response.body.authentication_type === "no_three_ds") {
-            for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+            for (const key in resData.body) {
+              expect(resData.body[key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2068,12 +2071,12 @@ Cypress.Commands.add(
               response.body.next_action.redirect_to_url
             );
             cy.log(nextActionUrl);
-            for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+            for (const key in resData.body) {
+              expect(resData.body[key]).to.equal(response.body[key]);
             }
           } else if (response.body.authentication_type === "no_three_ds") {
-            for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+            for (const key in resData.body) {
+              expect(resData.body[key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2086,7 +2089,7 @@ Cypress.Commands.add(
           );
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -2557,12 +2560,12 @@ Cypress.Commands.add(
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
-    for (const key in req_data) {
-      createConfirmPayoutBody[key] = req_data[key];
+    for (const key in reqData) {
+      createConfirmPayoutBody[key] = reqData[key];
     }
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
@@ -2584,11 +2587,11 @@ Cypress.Commands.add(
       if (response.status === 200) {
         globalState.set("payoutAmount", createConfirmPayoutBody.amount);
         globalState.set("payoutID", response.body.payout_id);
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(response.body[key]);
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -2599,12 +2602,12 @@ Cypress.Commands.add(
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
-    for (const key in req_data) {
-      createConfirmPayoutBody[key] = req_data[key];
+    for (const key in reqData) {
+      createConfirmPayoutBody[key] = reqData[key];
     }
     createConfirmPayoutBody.customer_id = globalState.get("customerId");
     createConfirmPayoutBody.payout_token = globalState.get("paymentToken");
@@ -2627,11 +2630,11 @@ Cypress.Commands.add(
       if (response.status === 200) {
         globalState.set("payoutAmount", createConfirmPayoutBody.amount);
         globalState.set("payoutID", response.body.payout_id);
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(response.body[key]);
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -2642,8 +2645,8 @@ Cypress.Commands.add(
   (payoutFulfillBody, data, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
     payoutFulfillBody.payout_id = globalState.get("payoutID");
@@ -2662,11 +2665,11 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
 
       if (response.status === 200) {
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(response.body[key]);
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -2674,7 +2677,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "updatePayoutCallTest",
-  (payoutConfirmBody, req_data, res_data, auto_fulfill, globalState) => {
+  (payoutConfirmBody, reqData, resData, auto_fulfill, globalState) => {
     payoutConfirmBody.confirm = true;
     payoutConfirmBody.auto_fulfill = auto_fulfill;
 
@@ -2692,11 +2695,11 @@ Cypress.Commands.add(
       expect(response.headers["content-type"]).to.include("application/json");
 
       if (response.status === 200) {
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(response.body[key]);
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -2851,12 +2854,12 @@ Cypress.Commands.add(
   (routingBody, data, type, routing_data, globalState) => {
     const {
       Configs: configs = {},
-      Request: req_data,
-      Response: res_data,
+      Request: reqData,
+      Response: resData,
     } = data || {};
 
-    for (const key in req_data) {
-      routingBody[key] = req_data[key];
+    for (const key in reqData) {
+      routingBody[key] = reqData[key];
     }
     // set profile id from env
     routingBody.profile_id = globalState.get("profileId");
@@ -2880,11 +2883,11 @@ Cypress.Commands.add(
       if (response.status === 200) {
         expect(response.body).to.have.property("id");
         globalState.set("routingConfigId", response.body.id);
-        for (const key in res_data.body) {
-          expect(res_data.body[key]).to.equal(response.body[key]);
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(response.body[key]);
         }
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -2893,8 +2896,8 @@ Cypress.Commands.add(
 Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
   const {
     Configs: configs = {},
-    Request: req_data,
-    Response: res_data,
+    Request: reqData,
+    Response: resData,
   } = data || {};
 
   let routing_config_id = globalState.get("routingConfigId");
@@ -2913,11 +2916,11 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
 
     if (response.status === 200) {
       expect(response.body.id).to.equal(routing_config_id);
-      for (const key in res_data.body) {
-        expect(res_data.body[key]).to.equal(response.body[key]);
+      for (const key in resData.body) {
+        expect(resData.body[key]).to.equal(response.body[key]);
       }
     } else {
-      defaultErrorHandler(response, res_data);
+      defaultErrorHandler(response, resData);
     }
   });
 });
@@ -2925,8 +2928,8 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
 Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
   const {
     Configs: configs = {},
-    Request: req_data,
-    Response: res_data,
+    Request: reqData,
+    Response: resData,
   } = data || {};
 
   let routing_config_id = globalState.get("routingConfigId");
@@ -2945,11 +2948,11 @@ Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
 
     if (response.status === 200) {
       expect(response.body.id).to.equal(routing_config_id);
-      for (const key in res_data.body) {
-        expect(res_data.body[key]).to.equal(response.body[key]);
+      for (const key in resData.body) {
+        expect(resData.body[key]).to.equal(response.body[key]);
       }
     } else {
-      defaultErrorHandler(response, res_data);
+      defaultErrorHandler(response, resData);
     }
   });
 });
