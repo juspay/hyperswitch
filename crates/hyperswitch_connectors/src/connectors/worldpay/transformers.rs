@@ -574,6 +574,23 @@ impl From<PaymentOutcome> for enums::AttemptStatus {
     }
 }
 
+impl From<PaymentOutcome> for enums::RefundStatus {
+    fn from(item: PaymentOutcome) -> Self {
+        match item {
+            PaymentOutcome::SentForPartialRefund | PaymentOutcome::SentForRefund => Self::Success,
+            PaymentOutcome::Refused
+            | PaymentOutcome::FraudHighRisk
+            | PaymentOutcome::Authorized
+            | PaymentOutcome::SentForSettlement
+            | PaymentOutcome::ThreeDsDeviceDataRequired
+            | PaymentOutcome::ThreeDsAuthenticationFailed
+            | PaymentOutcome::ThreeDsChallenged
+            | PaymentOutcome::SentForCancellation
+            | PaymentOutcome::ThreeDsUnavailable => Self::Failure,
+        }
+    }
+}
+
 impl From<&EventType> for enums::AttemptStatus {
     fn from(value: &EventType) -> Self {
         match value {
