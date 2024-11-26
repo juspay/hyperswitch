@@ -327,7 +327,6 @@ check_token_status_url= ""    # base url to check token status from token servic
 host = "localhost" # Client Host
 port = 7000        # Client Port
 
-# File storage configuration
 [theme_storage]
 file_storage_backend = "aws_s3" # Theme storage backend to be used
 
