@@ -287,6 +287,9 @@ api_secret = "Client Key"
 [thunes]
 api_key="API Key"
 
+[inespay]
+api_key="API Key"
+
 [jpmorgan]
 api_key="Client ID"
 key1 ="Client Secret"
