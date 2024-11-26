@@ -120,7 +120,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
         },
-        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         billing: billing,
@@ -143,7 +142,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
         },
-        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -317,7 +315,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDsTestCardDetailsRequest,
         },
-        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         browser_info,
