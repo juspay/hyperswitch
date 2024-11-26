@@ -17,7 +17,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     req: HttpRequest,
     body: web::Bytes,
     path: web::Path<(common_utils::id_type::MerchantId, String)>,
-    payment_method: Option<PaymentMethod>,
+    // payment_method: Option<PaymentMethod>,
 ) -> impl Responder {
     let flow = Flow::IncomingWebhookReceive;
     let (merchant_id, connector_id_or_name) = path.into_inner();
@@ -37,7 +37,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
                 auth.key_store,
                 &connector_id_or_name,
                 body.clone(),
-                payment_method.clone(),
+                // payment_method.clone(),
             )
         },
         &auth::MerchantIdAuth(merchant_id),

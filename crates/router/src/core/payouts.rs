@@ -380,7 +380,7 @@ pub async fn payouts_confirm_core(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
     locale: &str,
-    payment_method: Option<PaymentMethod>,
+    // payment_method: Option<PaymentMethod>,
     
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
@@ -390,7 +390,7 @@ pub async fn payouts_confirm_core(
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         locale,
-        payment_method
+        // payment_method
     )
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -455,7 +455,7 @@ pub async fn payouts_update_core(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
     locale: &str,
-    payment_method: Option<PaymentMethod>,
+    // payment_method: Option<PaymentMethod>,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
     let mut payout_data = make_payout_data(
@@ -465,7 +465,7 @@ pub async fn payouts_update_core(
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         locale,
-        payment_method
+        // payment_method
     )
     .await?;
 
@@ -541,7 +541,7 @@ pub async fn payouts_retrieve_core(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
     locale: &str,
-    payment_method: Option<PaymentMethod>,
+    // payment_method: Option<PaymentMethod>,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
         &state,
@@ -550,7 +550,7 @@ pub async fn payouts_retrieve_core(
         &key_store,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
         locale,
-        payment_method
+        // payment_method
     )
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -588,7 +588,7 @@ pub async fn payouts_cancel_core(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutActionRequest,
     locale: &str,
-    payment_method: Option<PaymentMethod>,
+    // payment_method: Option<PaymentMethod>,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
         &state,
@@ -597,7 +597,7 @@ pub async fn payouts_cancel_core(
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         locale,
-        payment_method,
+        // payment_method,
     )
     .await?;
 
@@ -684,7 +684,7 @@ pub async fn payouts_fulfill_core(
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutActionRequest,
     locale: &str,
-    payment_method: Option<PaymentMethod>,
+    // payment_method: Option<PaymentMethod>,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
         &state,
@@ -693,7 +693,7 @@ pub async fn payouts_fulfill_core(
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         locale,
-        payment_method
+        // payment_method
     )
     .await?;
 
@@ -2887,7 +2887,7 @@ pub async fn make_payout_data(
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
     locale: &str,
-    payment_method:Option<PaymentMethod>, //here
+    // payment_method:Option<PaymentMethod>, //here
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = merchant_account.get_id();
@@ -3053,6 +3053,23 @@ pub async fn make_payout_data(
         })
         .await
         .transpose()?;
+
+
+    let payout_method_id = payouts.payout_method_id.clone();
+    let mut payment_method: Option<PaymentMethod>= None;
+
+    if let Some(pm_id) =  payout_method_id {
+        payment_method = Some(db
+        .find_payment_method(
+            &(state.into()),
+            &key_store,
+            &pm_id,  // need to get from api request
+            merchant_account.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        .attach_printable("Unable to find payment method")?);
+    }
 
     Ok(PayoutData {
         billing_address,

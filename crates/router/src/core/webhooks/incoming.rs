@@ -63,7 +63,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
-    payment_method: Option<PaymentMethod>,
+    // payment_method: Option<PaymentMethod>,
 ) -> RouterResponse<serde_json::Value> {
     let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
@@ -75,7 +75,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
             key_store,
             connector_name_or_mca_id,
             body.clone(),
-            payment_method,
+            // payment_method,
         ))
         .await?;
 
@@ -129,7 +129,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
-    payment_method: Option<PaymentMethod>,
+    // payment_method: Option<PaymentMethod>,
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
@@ -470,7 +470,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 webhook_details,
                 event_type,
                 source_verified,
-                payment_method,
+                // payment_method,
             ))
             .await
             .attach_printable("Incoming webhook flow for payouts failed")?,
@@ -665,7 +665,7 @@ async fn payouts_incoming_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     event_type: webhooks::IncomingWebhookEvent,
     source_verified: bool,
-    payment_method: Option<PaymentMethod>,
+    // payment_method: Option<PaymentMethod>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
 
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
@@ -724,6 +724,23 @@ async fn payouts_incoming_webhook_flow(
                 payout_id: payouts.payout_id.clone(),
             });
 
+        // let pm_id = payout_data.payouts.payout_method_id.clone();
+        let payout_method_id = payouts.payout_method_id.clone();
+        let mut payment_method: Option<PaymentMethod>= None;
+
+        if let Some(pm_id) =  payout_method_id {
+            payment_method = Some(db
+            .find_payment_method(
+                &((&state).into()),
+                &key_store,
+                &pm_id,  // need to get from api request
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("Unable to find payment method")?);
+        }
+
         let payout_data = payouts::make_payout_data(
             &state,
             &merchant_account,
@@ -731,7 +748,7 @@ async fn payouts_incoming_webhook_flow(
             &key_store,
             &action_req,
             common_utils::consts::DEFAULT_LOCALE,
-            payment_method
+            // payment_method,
         )
         .await?;
 
