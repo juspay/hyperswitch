@@ -96,7 +96,7 @@ pub enum UserErrors {
     MaxRecoveryCodeAttemptsReached,
     #[error("Forbidden tenant id")]
     ForbiddenTenantId,
-    #[error("Error Retreiving file from Theme Storage")]
+    #[error("Error Retrieving file from Theme Storage")]
     ErrorRetrievingFile,
     #[error("Theme not found")]
     ThemeNotFound,
@@ -326,7 +326,7 @@ impl UserErrors {
             Self::SSOFailed => "Invalid SSO request".to_string(),
             Self::JwtProfileIdMissing => "profile_id missing in JWT".to_string(),
             Self::ForbiddenTenantId => "Forbidden tenant id".to_string(),
-            Self::ErrorRetrievingFile => "Error Retreiving file from Theme Storage".to_string(),
+            Self::ErrorRetrievingFile => "Error Retrieving file from Theme Storage".to_string(),
             Self::ThemeNotFound => "Theme not found".to_string(),
             Self::ThemeAlreadyExists => "Theme with lineage already exists".to_string(),
             Self::InvalidThemeLineage(field_name) => {

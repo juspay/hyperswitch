@@ -11,12 +11,12 @@ pub fn get_theme_dir_key(theme_id: &str) -> String {
     format!("themes/{}", theme_id)
 }
 
-pub fn get_specfic_file_key(theme_id: &str, file_name: &str) -> String {
+pub fn get_specific_file_key(theme_id: &str, file_name: &str) -> String {
     format!("{}/{}", get_theme_dir_key(theme_id), file_name)
 }
 
 pub fn get_theme_file_key(theme_id: &str) -> String {
-    get_specfic_file_key(theme_id, "theme.json")
+    get_specific_file_key(theme_id, "theme.json")
 }
 
 pub async fn retrieve_file_from_theme_bucket(

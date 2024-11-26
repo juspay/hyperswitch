@@ -90,7 +90,7 @@ pub async fn upload_file_to_theme_storage(
 
     theme_utils::upload_file_to_theme_bucket(
         &state,
-        &theme_utils::get_specfic_file_key(&theme_id, &request.asset_name),
+        &theme_utils::get_specific_file_key(&theme_id, &request.asset_name),
         request.asset_data.clone(),
     )
     .await?;
