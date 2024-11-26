@@ -59,9 +59,6 @@ where
             })
             .switch()?;
 
-        query_builder
-            .add_select_column("attempt_count == 1 as first_attempt")
-            .switch()?;
         query_builder.add_select_column("currency").switch()?;
         query_builder
             .add_select_column(Aggregate::Min {
@@ -98,10 +95,6 @@ where
                 .switch()?;
         }
 
-        query_builder
-            .add_group_by_clause("first_attempt")
-            .attach_printable("Error grouping by first_attempt")
-            .switch()?;
         query_builder
             .add_group_by_clause("currency")
             .attach_printable("Error grouping by currency")
