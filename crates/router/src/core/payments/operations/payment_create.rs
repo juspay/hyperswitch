@@ -1195,6 +1195,11 @@ impl PaymentCreate {
             None
         };
 
+        let payment_method_type = Option::<enums::PaymentMethodType>::foreign_from((
+            payment_method_type,
+            additional_pm_data.as_ref(),
+        ));
+
         Ok((
             storage::PaymentAttemptNew {
                 payment_id: payment_id.to_owned(),
@@ -1474,6 +1479,7 @@ impl PaymentCreate {
             shipping_cost: request.shipping_cost,
             tax_details: None,
             skip_external_tax_calculation,
+            psd2_sca_exemption_type: request.psd2_sca_exemption_type,
         })
     }
 

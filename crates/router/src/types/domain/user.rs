@@ -103,7 +103,7 @@ impl UserEmail {
     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
         use validator::ValidateEmail;
 
-        let email_string = email.expose();
+        let email_string = email.expose().to_lowercase();
         let email =
             pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
 
@@ -123,21 +123,8 @@ impl UserEmail {
     }
 
     pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
-        use validator::ValidateEmail;
-
-        let email_string = email.peek();
-        if email_string.validate_email() {
-            let (_username, domain) = match email_string.split_once('@') {
-                Some((u, d)) => (u, d),
-                None => return Err(UserErrors::EmailParsingError.into()),
-            };
-            if BLOCKED_EMAIL.contains(domain) {
-                return Err(UserErrors::InvalidEmailError.into());
-            }
-            Ok(Self(email))
-        } else {
-            Err(UserErrors::EmailParsingError.into())
-        }
+        let email_string = email.expose().map(|inner| inner.to_lowercase());
+        Self::new(email_string)
     }
 
     pub fn into_inner(self) -> pii::Email {
@@ -689,7 +676,10 @@ impl NewUser {
 
         let org_user_role = self
             .get_no_level_user_role(role_id, user_status)
-            .add_entity(OrganizationLevel { org_id });
+            .add_entity(OrganizationLevel {
+                tenant_id: state.tenant.tenant_id.clone(),
+                org_id,
+            });
 
         org_user_role.insert_in_v2(&state).await
     }
@@ -1116,17 +1106,20 @@ pub struct NoLevel;
 
 #[derive(Clone)]
 pub struct OrganizationLevel {
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Clone)]
 pub struct MerchantLevel {
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
 pub struct ProfileLevel {
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
@@ -1163,6 +1156,7 @@ impl NewUserRole<NoLevel> {
 }
 
 pub struct EntityInfo {
+    tenant_id: id_type::TenantId,
     org_id: id_type::OrganizationId,
     merchant_id: Option<id_type::MerchantId>,
     profile_id: Option<id_type::ProfileId>,
@@ -1175,6 +1169,7 @@ impl From<OrganizationLevel> for EntityInfo {
         Self {
             entity_id: value.org_id.get_string_repr().to_owned(),
             entity_type: EntityType::Organization,
+            tenant_id: value.tenant_id,
             org_id: value.org_id,
             merchant_id: None,
             profile_id: None,
@@ -1187,6 +1182,7 @@ impl From<MerchantLevel> for EntityInfo {
         Self {
             entity_id: value.merchant_id.get_string_repr().to_owned(),
             entity_type: EntityType::Merchant,
+            tenant_id: value.tenant_id,
             org_id: value.org_id,
             profile_id: None,
             merchant_id: Some(value.merchant_id),
@@ -1199,6 +1195,7 @@ impl From<ProfileLevel> for EntityInfo {
         Self {
             entity_id: value.profile_id.get_string_repr().to_owned(),
             entity_type: EntityType::Profile,
+            tenant_id: value.tenant_id,
             org_id: value.org_id,
             merchant_id: Some(value.merchant_id),
             profile_id: Some(value.profile_id),
@@ -1225,6 +1222,7 @@ where
             entity_id: Some(entity.entity_id),
             entity_type: Some(entity.entity_type),
             version: UserRoleVersion::V2,
+            tenant_id: entity.tenant_id,
         }
     }
 
@@ -1234,7 +1232,7 @@ where
         let new_v2_role = self.convert_to_new_v2_role(entity.into());
 
         state
-            .store
+            .global_store
             .insert_user_role(new_v2_role)
             .await
             .change_context(UserErrors::InternalServerError)

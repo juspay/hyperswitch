@@ -59,10 +59,6 @@ where
             })
             .switch()?;
 
-        query_builder
-            .add_select_column("attempt_count == 1 as first_attempt")
-            .switch()?;
-
         query_builder.add_select_column("currency").switch()?;
 
         query_builder
@@ -101,11 +97,6 @@ where
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
-
-        query_builder
-            .add_group_by_clause("attempt_count")
-            .attach_printable("Error grouping by attempt_count")
-            .switch()?;
 
         query_builder
             .add_group_by_clause("currency")

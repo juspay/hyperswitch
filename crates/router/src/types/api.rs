@@ -76,6 +76,8 @@ pub enum ConnectorCallType {
     PreDetermined(ConnectorData),
     Retryable(Vec<ConnectorData>),
     SessionMultiple(Vec<SessionConnectorData>),
+    #[cfg(feature = "v2")]
+    Skip,
 }
 
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
@@ -373,10 +375,9 @@ impl ConnectorData {
                 enums::Connector::Deutschebank => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Deutschebank::new())))
                 }
-                // tempplate code for future usage
-                // enums::Connector::Digitalvirgo => {
-                //     Ok(ConnectorEnum::Old(Box::new(connector::Digitalvirgo::new())))
-                // }
+                enums::Connector::Digitalvirgo => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Digitalvirgo::new())))
+                }
                 enums::Connector::Dlocal => Ok(ConnectorEnum::Old(Box::new(&connector::Dlocal))),
                 #[cfg(feature = "dummy_connector")]
                 enums::Connector::DummyConnector1 => Ok(ConnectorEnum::Old(Box::new(
@@ -409,7 +410,9 @@ impl ConnectorData {
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
-                // enums::Connector::Elavon => Ok(ConnectorEnum::Old(Box::new(connector::Elavon))),
+                enums::Connector::Elavon => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
+                }
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
                 enums::Connector::Fiservemea => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
@@ -431,6 +434,9 @@ impl ConnectorData {
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
+                // enums::Connector::Inespay => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
+                // }
                 enums::Connector::Itaubank => {
                     //enums::Connector::Jpmorgan => Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
@@ -445,6 +451,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Nexixpay::new())))
                 }
                 enums::Connector::Nmi => Ok(ConnectorEnum::Old(Box::new(connector::Nmi::new()))),
+                // enums::Connector::Nomupay => Ok(ConnectorEnum::Old(Box::new(connector::Nomupay))),
                 enums::Connector::Noon => Ok(ConnectorEnum::Old(Box::new(connector::Noon::new()))),
                 enums::Connector::Novalnet => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Novalnet::new())))
@@ -494,6 +501,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
+                // enums::Connector::Xendit => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Xendit::new())))
+                // }
                 enums::Connector::Mifinity => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Mifinity::new())))
                 }
@@ -564,25 +574,6 @@ pub trait FraudCheck {}
 
 #[cfg(not(feature = "frm"))]
 pub trait FraudCheckV2 {}
-
-#[cfg(feature = "payouts")]
-pub trait Payouts:
-    ConnectorCommon
-    + PayoutCancel
-    + PayoutCreate
-    + PayoutEligibility
-    + PayoutFulfill
-    + PayoutQuote
-    + PayoutRecipient
-    + PayoutRecipientAccount
-    + PayoutSync
-{
-}
-#[cfg(not(feature = "payouts"))]
-pub trait Payouts {}
-
-#[cfg(not(feature = "payouts"))]
-pub trait PayoutsV2 {}
 
 #[cfg(test)]
 mod test {

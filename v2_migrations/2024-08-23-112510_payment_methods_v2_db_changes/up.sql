@@ -12,11 +12,16 @@ ALTER TABLE payment_methods
     DROP COLUMN IF EXISTS swift_code,
     DROP COLUMN IF EXISTS payment_method_issuer,
     DROP COLUMN IF EXISTS payment_method_issuer_code,
-    DROP COLUMN IF EXISTS metadata;
+    DROP COLUMN IF EXISTS metadata,
+    DROP COLUMN IF EXISTS payment_method,
+    DROP COLUMN IF EXISTS payment_method_type;
 
 DROP TYPE IF EXISTS "PaymentMethodIssuerCode";
 
-ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS locker_fingerprint_id VARCHAR(64);
+ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS locker_fingerprint_id VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS payment_method_type_v2 VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS payment_method_subtype VARCHAR(64);
 
 ALTER TABLE payment_methods DROP COLUMN IF EXISTS id;
 ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS id VARCHAR(64);

@@ -287,8 +287,14 @@ api_secret = "Client Key"
 [thunes]
 api_key="API Key"
 
+[inespay]
+api_key="API Key"
+
 [jpmorgan]
 api_key="API Key"
 
 [elavon]
+api_key="API Key"
+
+[nomupay]
 api_key="API Key"

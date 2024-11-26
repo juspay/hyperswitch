@@ -13,7 +13,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  PAYMENTS_CONNECTORS: "stripe"
+  PAYMENTS_CONNECTORS: "cybersource stripe"
   PAYOUTS_CONNECTORS: "wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -24,7 +24,7 @@ env:
 jobs:
   runner:
     name: Run Cypress tests
-    runs-on: hyperswitch-runners
+    runs-on: ubuntu-latest
 
     services:
       redis:
@@ -190,7 +190,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel 3
+          scripts/execute_cypress.sh
 
           kill "${{ env.PID }}"
 

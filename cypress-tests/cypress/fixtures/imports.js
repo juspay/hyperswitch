@@ -2,6 +2,7 @@ import captureBody from "./capture-flow-body.json";
 import configs from "./configs.json";
 import confirmBody from "./confirm-body.json";
 import apiKeyCreateBody from "./create-api-key-body.json";
+import createBusinessProfile from "./create-business-profile.json";
 import createConfirmPaymentBody from "./create-confirm-body.json";
 import createConnectorBody from "./create-connector-body.json";
 import customerCreateBody from "./create-customer-body.json";
@@ -17,10 +18,13 @@ import merchantUpdateBody from "./merchant-update-body.json";
 import refundBody from "./refund-flow-body.json";
 import routingConfigBody from "./routing-config-body.json";
 import saveCardConfirmBody from "./save-card-confirm-body.json";
+import sessionTokenBody from "./session-token.json";
 import apiKeyUpdateBody from "./update-api-key-body.json";
+import updateBusinessProfile from "./update-business-profile.json";
 import updateConnectorBody from "./update-connector-body.json";
 import customerUpdateBody from "./update-customer-body.json";
 import voidBody from "./void-payment-body.json";
+import ntidConfirmBody from "./create-ntid-mit.json";
 
 export {
   apiKeyCreateBody,
@@ -29,6 +33,7 @@ export {
   citConfirmBody,
   configs,
   confirmBody,
+  createBusinessProfile,
   createConfirmPaymentBody,
   createConnectorBody,
   createPaymentBody,
@@ -40,10 +45,13 @@ export {
   merchantCreateBody,
   merchantUpdateBody,
   mitConfirmBody,
+  ntidConfirmBody,
   pmIdConfirmBody,
   refundBody,
   routingConfigBody,
   saveCardConfirmBody,
+  sessionTokenBody,
+  updateBusinessProfile,
   updateConnectorBody,
   voidBody,
 };
