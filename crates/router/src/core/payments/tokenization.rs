@@ -5,8 +5,8 @@ use std::collections::HashMap;
     not(feature = "payment_methods_v2")
 ))]
 use api_models::payment_methods::PaymentMethodsData;
-use api_models::payments::{
-    additional_info::WalletAdditionalDataForCard, ConnectorMandateReferenceId,
+use api_models::{
+    payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
 };
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_utils::{
@@ -261,7 +261,7 @@ where
                         _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
                     ) => Some(PaymentMethodsData::WalletDetails(
-                        WalletAdditionalDataForCard::from(googlepay),
+                        PaymentMethodDataWalletInfo::from(googlepay),
                     )),
                     _ => None,
                 };

@@ -820,8 +820,9 @@ pub struct PaymentMethodResponse {
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
-    WalletDetails(payments::additional_info::WalletAdditionalDataForCard),
+    WalletDetails(PaymentMethodDataWalletInfo),
 }
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
@@ -846,6 +847,37 @@ pub struct PaymentMethodDataBankCreds {
     pub account_name: Option<String>,
     pub payment_method_type: api_enums::PaymentMethodType,
     pub connector_details: Vec<BankAccountConnectorDetails>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct PaymentMethodDataWalletInfo {
+    /// Last 4 digits of the card number
+    pub last4: String,
+    /// The information of the payment method
+    pub card_network: String,
+    /// The type of payment method
+    #[serde(rename = "type")]
+    pub card_type: String,
+}
+
+impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
+    fn from(item: payments::additional_info::WalletAdditionalDataForCard) -> Self {
+        Self {
+            last4: item.last4,
+            card_network: item.card_network,
+            card_type: item.card_type,
+        }
+    }
+}
+
+impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAdditionalDataForCard {
+    fn from(item: PaymentMethodDataWalletInfo) -> Self {
+        Self {
+            last4: item.last4,
+            card_network: item.card_network,
+            card_type: item.card_type,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

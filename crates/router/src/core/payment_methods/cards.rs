@@ -5493,6 +5493,12 @@ pub async fn get_bank_account_connector_details(
                 message: "Card is not a valid entity".to_string(),
             }
             .into()),
+            PaymentMethodsData::WalletDetails(_) => {
+                Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Wallet is not a valid entity".to_string(),
+                }
+                .into())
+            }
             PaymentMethodsData::BankDetails(bank_details) => {
                 let connector_details = bank_details
                     .connector_details
@@ -5516,12 +5522,6 @@ pub async fn get_bank_account_connector_details(
                 };
 
                 Ok(Some(token_data))
-            }
-            PaymentMethodsData::WalletDetails(_) => {
-                Err(errors::ApiErrorResponse::UnprocessableEntity {
-                    message: "Wallet is not a valid entity".to_string(),
-                }
-                .into())
             }
         },
         None => Ok(None),
