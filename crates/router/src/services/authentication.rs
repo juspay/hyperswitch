@@ -901,7 +901,7 @@ where
             Ok((
                 UserIdFromAuth {
                     user_id: payload.user_id.clone(),
-                    tenant_id: payload.tenant_id
+                    tenant_id: payload.tenant_id,
                 },
                 AuthenticationType::SinglePurposeOrLoginJwt {
                     user_id: payload.user_id,
