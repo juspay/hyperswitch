@@ -862,6 +862,10 @@ pub struct PaymentsRequest {
 
     /// Whether to calculate tax for this payment intent
     pub skip_external_tax_calculation: Option<bool>,
+
+    /// Choose what kind of sca exemption is required for this payment
+    #[schema(value_type = Option<ScaExemptionType>)]
+    pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
 }
 
 #[cfg(feature = "v1")]
@@ -4952,6 +4956,8 @@ pub struct PaymentListFilterConstraints {
     pub order: Order,
     /// The List of all the card networks to filter payments list
     pub card_network: Option<Vec<enums::CardNetwork>>,
+    /// The identifier for merchant order reference id
+    pub merchant_order_reference_id: Option<String>,
 }
 
 impl PaymentListFilterConstraints {

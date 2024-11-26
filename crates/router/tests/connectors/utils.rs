@@ -406,6 +406,7 @@ pub trait ConnectorActions: Connector {
                 browser_info: None,
                 charges: None,
                 integrity_object: None,
+                refund_status: enums::RefundStatus::Pending,
             }),
             payment_info,
         );
@@ -547,6 +548,7 @@ pub trait ConnectorActions: Connector {
             additional_merchant_data: None,
             header_payload: None,
             connector_mandate_request_reference_id: None,
+            psd2_sca_exemption_type: None,
         }
     }
 
@@ -1035,6 +1037,7 @@ impl Default for PaymentRefundType {
             browser_info: None,
             charges: None,
             integrity_object: None,
+            refund_status: enums::RefundStatus::Pending,
         };
         Self(data)
     }

@@ -626,6 +626,7 @@ pub struct RefundsData {
     pub minor_payment_amount: MinorUnit,
     pub minor_refund_amount: MinorUnit,
     pub integrity_object: Option<RefundIntegrityObject>,
+    pub refund_status: storage_enums::RefundStatus,
 }
 
 #[derive(Debug, Clone, PartialEq)]
