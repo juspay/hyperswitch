@@ -56,7 +56,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
           fixtures.ntidConfirmBody,
           7000,
           true,
-          "automatic",
+          "manual",
           globalState
         );
       });
