@@ -91,6 +91,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                 services::AuthFlow::Client,
                 None,
                 hyperswitch_domain_models::payments::HeaderPayload::default(),
+                None, //Platform merchant account
             ))
             .await?;
 

@@ -99,6 +99,7 @@ pub struct PaymentIntent {
     pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub platform_merchant_id: Option<id_type::MerchantId>,
 }
 
 impl PaymentIntent {

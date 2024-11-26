@@ -78,6 +78,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -304,6 +305,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             attempt_id,
             profile_id.clone(),
             session_expiry,
+            platform_merchant_account,
         )
         .await?;
 
@@ -1293,6 +1295,7 @@ impl PaymentCreate {
         active_attempt_id: String,
         profile_id: common_utils::id_type::ProfileId,
         session_expiry: PrimitiveDateTime,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1479,6 +1482,8 @@ impl PaymentCreate {
             shipping_cost: request.shipping_cost,
             tax_details: None,
             skip_external_tax_calculation,
+            platform_merchant_id: platform_merchant_account
+                .map(|platform_merchant_account| platform_merchant_account.get_id().to_owned()),
         })
     }
 

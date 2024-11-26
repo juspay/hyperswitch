@@ -180,6 +180,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         mechant_key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
