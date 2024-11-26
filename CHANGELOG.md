@@ -4,6 +4,40 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.26.0
+
+### Features
+
+- **connector:**
+  - [Paypal] implement vaulting for paypal cards via zero mandates ([#5324](https://github.com/juspay/hyperswitch/pull/5324)) ([`83e8bc0`](https://github.com/juspay/hyperswitch/commit/83e8bc0775c20e9d055e65bd13a2e8b1148092e1))
+  - [Elavon] Implement cards Flow ([#6485](https://github.com/juspay/hyperswitch/pull/6485)) ([`6887681`](https://github.com/juspay/hyperswitch/commit/68876811a8817cdec09be407fbbbbf7f19992565))
+- **core:** Add SCA exemption field ([#6578](https://github.com/juspay/hyperswitch/pull/6578)) ([`2b8eb09`](https://github.com/juspay/hyperswitch/commit/2b8eb09a16040957ac369c48e6095c343207f0d3))
+- **payments:** Add merchant order ref id filter ([#6630](https://github.com/juspay/hyperswitch/pull/6630)) ([`57e64c2`](https://github.com/juspay/hyperswitch/commit/57e64c26ca4251b493c87bfe93799faaab4ffa89))
+
+### Miscellaneous Tasks
+
+- **deps:** Update cypress packages to address CVE ([#6624](https://github.com/juspay/hyperswitch/pull/6624)) ([`0db3aed`](https://github.com/juspay/hyperswitch/commit/0db3aed1533856b9892369d7bb2430d90d091756))
+
+**Full Changelog:** [`2024.11.25.0...2024.11.26.0`](https://github.com/juspay/hyperswitch/compare/2024.11.25.0...2024.11.26.0)
+
+- - -
+
+## 2024.11.25.0
+
+### Features
+
+- **analytics:** Add `first_attempt` as a filter for PaymentFilters ([#6604](https://github.com/juspay/hyperswitch/pull/6604)) ([`9460041`](https://github.com/juspay/hyperswitch/commit/9460041b2ae8f94f2894517d3c04d30c6f78a5bb))
+- **refunds:** Trigger refund outgoing webhooks in create and retrieve refund flows ([#6635](https://github.com/juspay/hyperswitch/pull/6635)) ([`420eaab`](https://github.com/juspay/hyperswitch/commit/420eaabf3308b2fd2119183b0a2b462aa69b77b2))
+
+### Bug Fixes
+
+- **analytics:** Remove first_attempt group by in Payment Intent old metrics ([#6627](https://github.com/juspay/hyperswitch/pull/6627)) ([`54e393b`](https://github.com/juspay/hyperswitch/commit/54e393bf9a55bdc4527a723b7a03968f21848a5e))
+- **connector:** [Cybersource] change commerce indicator for applepay ([#6634](https://github.com/juspay/hyperswitch/pull/6634)) ([`8d0639e`](https://github.com/juspay/hyperswitch/commit/8d0639ea6f22227253a44e6bd8272d9e55d17f92))
+
+**Full Changelog:** [`2024.11.22.0...2024.11.25.0`](https://github.com/juspay/hyperswitch/compare/2024.11.22.0...2024.11.25.0)
+
+- - -
+
 ## 2024.11.22.0
 
 ### Features
