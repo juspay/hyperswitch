@@ -2,8 +2,8 @@ import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
-let globalState;
 let connector;
+let globalState;
 
 describe("[Payment] Incremental Auth", () => {
   before("seed global state", () => {
