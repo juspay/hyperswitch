@@ -3566,6 +3566,12 @@ placeholder="Enter Google Pay Merchant Key"
 required=true
 type="Text"
 
+[xendit]
+[[xendit.bank_transfer]]
+  payment_method_type = "local_bank_transfer"
+[xendit.connector_auth.HeaderKey]
+api_key="API Key"
+
 [zen]
 [[zen.credit]]
   payment_method_type = "Mastercard"
