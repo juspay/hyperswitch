@@ -39,6 +39,12 @@ pub struct CreateThemeRequest {
     pub theme_data: ThemeData,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateThemeRequest {
+    pub lineage: ThemeLineage,
+    pub theme_data: ThemeData,
+}
+
 // All the below structs are for the theme.json file,
 // which will be used by frontend to style the dashboard.
 #[derive(Serialize, Deserialize, Debug)]

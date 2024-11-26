@@ -98,6 +98,28 @@ pub async fn create_theme(
     .await
 }
 
+pub async fn update_theme(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    payload: web::Json<theme_api::UpdateThemeRequest>,
+) -> HttpResponse {
+    let flow = Flow::UpdateTheme;
+    let theme_id = path.into_inner();
+    let payload = payload.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, _, payload, _| theme_core::update_theme(state, theme_id.clone(), payload),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn delete_theme(
     state: web::Data<AppState>,
     req: HttpRequest,

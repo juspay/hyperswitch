@@ -496,6 +496,8 @@ pub enum Flow {
     UploadFileToThemeStorage,
     /// Create theme
     CreateTheme,
+    /// Update theme
+    UpdateTheme,
     /// Delete theme
     DeleteTheme,
     /// List initial webhook delivery attempts

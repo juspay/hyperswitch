@@ -790,4 +790,4 @@ host = "localhost" # Client Host
 port = 7000        # Client Port
 
 [theme_storage]
-file_storage_backend = "file_storage" # Theme storage backend to be used
+file_storage_backend = "file_system" # Theme storage backend to be used

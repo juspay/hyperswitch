@@ -688,4 +688,4 @@ email_role_arn = ""        # The amazon resource name ( arn ) of the role which 
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
 
 [theme_storage]
-file_storage_backend = "file_storage" # Theme storage backend to be used
+file_storage_backend = "file_system" # Theme storage backend to be used
