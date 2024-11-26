@@ -617,7 +617,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                         .map(|id| id.to_string())
                 });
                 Ok(PaymentsCaptureRouterData {
-                    status: enums::AttemptStatus::Charged,
+                    status: enums::AttemptStatus::from(response.outcome.clone()),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::foreign_try_from((
                             response,
