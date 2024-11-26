@@ -122,18 +122,18 @@ pub struct PaymentMethodListContext {
 pub enum PaymentMethodListContext {
     Card {
         card_details: api::CardDetailFromLocker,
-        hyperswitch_token_data: Option<PaymentTokenData>,
+        token_data: Option<PaymentTokenData>,
     },
     Bank {
-        hyperswitch_token_data: Option<PaymentTokenData>,
+        token_data: Option<PaymentTokenData>,
     },
     #[cfg(feature = "payouts")]
     BankTransfer {
         bank_transfer_details: api::BankPayout,
-        hyperswitch_token_data: Option<PaymentTokenData>,
+        token_data: Option<PaymentTokenData>,
     },
     TemporaryToken {
-        hyperswitch_token_data: Option<PaymentTokenData>,
+        token_data: Option<PaymentTokenData>,
     },
 }
 
@@ -141,20 +141,10 @@ pub enum PaymentMethodListContext {
 impl PaymentMethodListContext {
     pub(crate) fn get_token_data(&self) -> Option<PaymentTokenData> {
         match self {
-            Self::Card {
-                hyperswitch_token_data,
-                ..
-            }
-            | Self::Bank {
-                hyperswitch_token_data,
-            }
-            | Self::BankTransfer {
-                hyperswitch_token_data,
-                ..
-            }
-            | Self::TemporaryToken {
-                hyperswitch_token_data,
-            } => hyperswitch_token_data.clone(),
+            Self::Card { token_data, .. }
+            | Self::Bank { token_data }
+            | Self::BankTransfer { token_data, .. }
+            | Self::TemporaryToken { token_data } => token_data.clone(),
         }
     }
 }

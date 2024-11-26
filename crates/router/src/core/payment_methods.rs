@@ -1339,7 +1339,7 @@ async fn get_pm_list_context(
         Some(payment_methods::PaymentMethodsData::Card(card)) => {
             Some(PaymentMethodListContext::Card {
                 card_details: api::CardDetailFromLocker::from(card),
-                hyperswitch_token_data: is_payment_associated.then_some(
+                token_data: is_payment_associated.then_some(
                     storage::PaymentTokenData::permanent_card(
                         Some(payment_method.get_id().clone()),
                         payment_method
@@ -1388,12 +1388,12 @@ async fn get_pm_list_context(
                 let token_data = storage::PaymentTokenData::AuthBankDebit(data);
 
                 PaymentMethodListContext::Bank {
-                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
+                    token_data: is_payment_associated.then_some(token_data),
                 }
             })
         }
         None => Some(PaymentMethodListContext::TemporaryToken {
-            hyperswitch_token_data: is_payment_associated.then_some(
+            token_data: is_payment_associated.then_some(
                 storage::PaymentTokenData::temporary_generic(generate_id(
                     consts::ID_LENGTH,
                     "token",
@@ -1971,7 +1971,7 @@ impl pm_types::SavedPMLPaymentsInfo {
         let token = parent_payment_method_token
             .as_ref()
             .get_required_value("parent_payment_method_token")?;
-        let hyperswitch_token_data = pm_list_context
+        let token_data = pm_list_context
             .get_token_data()
             .get_required_value("PaymentTokenData")?;
 
@@ -1981,7 +1981,7 @@ impl pm_types::SavedPMLPaymentsInfo {
             .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME);
 
         pm_routes::ParentPaymentMethodToken::create_key_for_token((token, pma.payment_method_type))
-            .insert(intent_fulfillment_time, hyperswitch_token_data, state)
+            .insert(intent_fulfillment_time, token_data, state)
             .await?;
 
         Ok(())
