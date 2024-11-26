@@ -152,6 +152,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Sandbox"
 base_url = "https://app.hyperswitch.io"
 force_two_factor_auth = false
+force_cookies = false
 
 [frm]
 enabled = true
@@ -286,10 +287,10 @@ apple_pay = { currency = "USD" }
 google_pay = { currency = "USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR" }
-debit = { currency = "USD,GBP,EUR" }
-apple_pay = { currency = "USD,GBP,EUR" }
-google_pay = { currency = "USD,GBP,EUR" }
+credit = { currency = "USD,GBP,EUR,PLN" }
+debit = { currency = "USD,GBP,EUR,PLN" }
+apple_pay = { currency = "USD,GBP,EUR,PLN" }
+google_pay = { currency = "USD,GBP,EUR,PLN" }
 samsung_pay = { currency = "USD,GBP,EUR" }
 paze = { currency = "USD" }
 

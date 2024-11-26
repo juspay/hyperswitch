@@ -294,7 +294,7 @@ pub async fn connect_account(
 
 pub async fn signout(
     state: SessionState,
-    user_from_token: auth::UserFromToken,
+    user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<()> {
     tfa_utils::delete_totp_from_redis(&state, &user_from_token.user_id).await?;
     tfa_utils::delete_recovery_code_from_redis(&state, &user_from_token.user_id).await?;
