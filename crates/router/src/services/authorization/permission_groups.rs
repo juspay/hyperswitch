@@ -176,7 +176,7 @@ pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
 pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
 
-pub static RECON_OPS: [Resource; 5] = [
+pub static RECON_OPS: [Resource; 7] = [
     Resource::ReconToken,
     Resource::ReconFiles,
     Resource::ReconUpload,
