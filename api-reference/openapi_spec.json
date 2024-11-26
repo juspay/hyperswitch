@@ -15169,7 +15169,8 @@
           "sdk_layout",
           "display_sdk_only",
           "enabled_saved_payment_method",
-          "hide_card_nickname_field"
+          "hide_card_nickname_field",
+          "show_card_form_by_default"
         ],
         "properties": {
           "theme": {
@@ -15199,6 +15200,10 @@
           "hide_card_nickname_field": {
             "type": "boolean",
             "description": "Hide card nickname field option for payment link"
+          },
+          "show_card_form_by_default": {
+            "type": "boolean",
+            "description": "Choose whether the card form is displayed by default or not in payment link"
           },
           "allowed_domains": {
             "type": "array",
@@ -15268,6 +15273,13 @@
             "type": "boolean",
             "description": "Hide card nickname field option for payment link",
             "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "show_card_form_by_default": {
+            "type": "boolean",
+            "description": "Choose whether the card form is displayed by default or not in payment link",
+            "default": true,
             "example": true,
             "nullable": true
           },
