@@ -712,6 +712,7 @@ authentication_analytics_topic = "hyperswitch-authentication-events"
 
 [analytics]
 source = "sqlx"
+forex_enabled = true
 
 [analytics.clickhouse]
 username = "default"
