@@ -2129,7 +2129,7 @@ impl User {
                 .service(
                     web::resource("/{theme_id}")
                         .route(web::get().to(user::theme::get_theme_using_theme_id))
-                        .route(web::post().to(user::theme::upload_file_to_theme_storage))
+                        .route(web::put().to(user::theme::upload_file_to_theme_storage))
                         .route(web::delete().to(user::theme::delete_theme)),
                 ),
         );

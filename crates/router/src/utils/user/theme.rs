@@ -90,16 +90,6 @@ async fn validate_org(state: &SessionState, org_id: &id_type::OrganizationId) ->
     Ok(())
 }
 
-async fn validate_merchant(
-    state: &SessionState,
-    org_id: &id_type::OrganizationId,
-    merchant_id: &id_type::MerchantId,
-) -> UserResult<()> {
-    validate_merchant_and_get_key_store(state, org_id, merchant_id)
-        .await
-        .map(|_| ())
-}
-
 async fn validate_merchant_and_get_key_store(
     state: &SessionState,
     org_id: &id_type::OrganizationId,
@@ -126,6 +116,16 @@ async fn validate_merchant_and_get_key_store(
     }
 
     Ok(key_store)
+}
+
+async fn validate_merchant(
+    state: &SessionState,
+    org_id: &id_type::OrganizationId,
+    merchant_id: &id_type::MerchantId,
+) -> UserResult<()> {
+    validate_merchant_and_get_key_store(state, org_id, merchant_id)
+        .await
+        .map(|_| ())
 }
 
 async fn validate_profile(
