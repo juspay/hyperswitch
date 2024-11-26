@@ -1,4 +1,4 @@
-use actix_multipart::form::{bytes::Bytes, json::Json, text::Text, MultipartForm};
+use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use common_enums::EntityType;
 use common_utils::{id_type, types::theme::ThemeLineage};
 use serde::{Deserialize, Serialize};
@@ -16,9 +16,7 @@ pub struct GetThemeResponse {
 }
 
 #[derive(Debug, MultipartForm)]
-pub struct RawUploadFileRequest {
-    #[multipart]
-    pub lineage: Json<ThemeLineage>,
+pub struct UploadFileAssetData {
     #[multipart]
     pub asset_name: Text<String>,
     #[multipart(limit = "10MB")]
