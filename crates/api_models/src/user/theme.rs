@@ -21,7 +21,7 @@ pub struct RawUploadFileRequest {
     pub lineage: Json<ThemeLineage>,
     #[multipart]
     pub asset_name: Text<String>,
-    #[multipart(limit = "100MB")]
+    #[multipart(limit = "10MB")]
     pub asset_data: Bytes,
 }
 

@@ -17,6 +17,7 @@ pub async fn get_theme_using_lineage(
 ) -> HttpResponse {
     let flow = Flow::GetThemeUsingLineage;
     let lineage = query.into_inner();
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -36,6 +37,7 @@ pub async fn get_theme_using_theme_id(
 ) -> HttpResponse {
     let flow = Flow::GetThemeUsingThemeId;
     let payload = path.into_inner();
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -61,6 +63,7 @@ pub async fn upload_file_to_theme_storage(
         asset_name: payload.asset_name.into_inner(),
         asset_data: payload.asset_data.data.to_vec(),
     };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -82,6 +85,7 @@ pub async fn create_theme(
 ) -> HttpResponse {
     let flow = Flow::CreateTheme;
     let payload = payload.into_inner();
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -103,6 +107,7 @@ pub async fn delete_theme(
     let flow = Flow::DeleteTheme;
     let theme_id = path.into_inner();
     let lineage = query.into_inner();
+
     Box::pin(api::server_wrap(
         flow,
         state,

@@ -79,17 +79,17 @@ impl ThemeLineage {
     /// Get the merchant_id from the lineage
     pub fn merchant_id(&self) -> Option<&id_type::MerchantId> {
         match self {
+            ThemeLineage::Organization { .. } => None,
             ThemeLineage::Merchant { merchant_id, .. }
             | ThemeLineage::Profile { merchant_id, .. } => Some(merchant_id),
-            ThemeLineage::Organization { .. } => None,
         }
     }
 
     /// Get the profile_id from the lineage
     pub fn profile_id(&self) -> Option<&id_type::ProfileId> {
         match self {
-            ThemeLineage::Profile { profile_id, .. } => Some(profile_id),
             ThemeLineage::Organization { .. } | ThemeLineage::Merchant { .. } => None,
+            ThemeLineage::Profile { profile_id, .. } => Some(profile_id),
         }
     }
 }
