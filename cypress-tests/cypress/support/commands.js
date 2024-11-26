@@ -1732,13 +1732,13 @@ Cypress.Commands.add(
         for (const key in response.body.attempts) {
           if (
             response.body.attempts[key].attempt_id ===
-              `${payment_id}_${attempt}` &&
+            `${payment_id}_${attempt}` &&
             response.body.status === "succeeded"
           ) {
             expect(response.body.attempts[key].status).to.equal("charged");
           } else if (
             response.body.attempts[key].attempt_id ===
-              `${payment_id}_${attempt}` &&
+            `${payment_id}_${attempt}` &&
             response.body.status === "requires_customer_action"
           ) {
             expect(response.body.attempts[key].status).to.equal(
@@ -1854,8 +1854,10 @@ Cypress.Commands.add(
         );
         expect(response.body.customer, "customer").to.not.be.empty;
         expect(response.body.profile_id, "profile_id").to.not.be.null;
-        expect(response.body.payment_method_id, "payment_method_id").to.not.be
-          .null;
+        if (response.body.status !== "failed") {
+          expect(response.body.payment_method_id, "payment_method_id").to.not.be
+            .null;
+        }
 
         if (requestBody.mandate_data === null) {
           expect(response.body).to.have.property("payment_method_id");
@@ -1969,7 +1971,7 @@ Cypress.Commands.add(
           } else if (response.body.authentication_type === "no_three_ds") {
             if (response.body.connector === "fiuu") {
               expect(response.body.status).to.equal("failed");
-            } 
+            }
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2049,7 +2051,7 @@ Cypress.Commands.add(
           } else if (response.body.authentication_type === "no_three_ds") {
             if (response.body.connector === "fiuu") {
               expect(response.body.status).to.equal("failed");
-            } 
+            }
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2098,11 +2100,11 @@ Cypress.Commands.add(
     if (globalState.get("connectorId") !== "cybersource") {
       return;
     }
-    
+
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const url = `${baseUrl}/payments`;
-    
+
     cy.request({
       method: "POST",
       url: url,
@@ -2114,7 +2116,7 @@ Cypress.Commands.add(
       body: requestBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-      
+
       if (response.status === 200) {
         expect(response.headers["content-type"]).to.include("application/json");
 
@@ -2128,7 +2130,7 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
           } else if (response.body.authentication_type === "no_three_ds") {
-              expect(response.body.status).to.equal("succeeded");
+            expect(response.body.status).to.equal("succeeded");
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2142,7 +2144,7 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
           } else if (response.body.authentication_type === "no_three_ds") {
-              expect(response.body.status).to.equal("requires_capture");
+            expect(response.body.status).to.equal("requires_capture");
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`

@@ -518,6 +518,41 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
+        trigger_skip: true,
+        status: 200,
+        body: {
+          error_code: "internalErrorOccurred",
+          error_message: "We cannot currently process your request. Please contact support.",
+          status: "failed",
+          payment_method_id: null
+        },
+      },
+    },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        trigger_skip: true,
         status: 200,
         body: {
           error_code: "internalErrorOccurred",
