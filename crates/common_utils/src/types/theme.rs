@@ -52,44 +52,45 @@ impl ThemeLineage {
     /// Get the entity_type from the lineage
     pub fn entity_type(&self) -> EntityType {
         match self {
-            ThemeLineage::Organization { .. } => EntityType::Organization,
-            ThemeLineage::Merchant { .. } => EntityType::Merchant,
-            ThemeLineage::Profile { .. } => EntityType::Profile,
+            Self::Organization { .. } => EntityType::Organization,
+            Self::Merchant { .. } => EntityType::Merchant,
+            Self::Profile { .. } => EntityType::Profile,
         }
     }
 
     /// Get the tenant_id from the lineage
     pub fn tenant_id(&self) -> &str {
         match self {
-            ThemeLineage::Organization { tenant_id, .. }
-            | ThemeLineage::Merchant { tenant_id, .. }
-            | ThemeLineage::Profile { tenant_id, .. } => tenant_id,
+            Self::Organization { tenant_id, .. }
+            | Self::Merchant { tenant_id, .. }
+            | Self::Profile { tenant_id, .. } => tenant_id,
         }
     }
 
     /// Get the org_id from the lineage
     pub fn org_id(&self) -> Option<&id_type::OrganizationId> {
         match self {
-            ThemeLineage::Organization { org_id, .. }
-            | ThemeLineage::Merchant { org_id, .. }
-            | ThemeLineage::Profile { org_id, .. } => Some(org_id),
+            Self::Organization { org_id, .. }
+            | Self::Merchant { org_id, .. }
+            | Self::Profile { org_id, .. } => Some(org_id),
         }
     }
 
     /// Get the merchant_id from the lineage
     pub fn merchant_id(&self) -> Option<&id_type::MerchantId> {
         match self {
-            ThemeLineage::Organization { .. } => None,
-            ThemeLineage::Merchant { merchant_id, .. }
-            | ThemeLineage::Profile { merchant_id, .. } => Some(merchant_id),
+            Self::Organization { .. } => None,
+            Self::Merchant { merchant_id, .. } | Self::Profile { merchant_id, .. } => {
+                Some(merchant_id)
+            }
         }
     }
 
     /// Get the profile_id from the lineage
     pub fn profile_id(&self) -> Option<&id_type::ProfileId> {
         match self {
-            ThemeLineage::Organization { .. } | ThemeLineage::Merchant { .. } => None,
-            ThemeLineage::Profile { profile_id, .. } => Some(profile_id),
+            Self::Organization { .. } | Self::Merchant { .. } => None,
+            Self::Profile { profile_id, .. } => Some(profile_id),
         }
     }
 }
