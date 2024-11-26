@@ -68,6 +68,7 @@ impl SPTFlow {
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id: user.get_user_id(),
+                    tenant_id: Some(&state.tenant.tenant_id),
                     org_id: None,
                     merchant_id: None,
                     profile_id: None,
@@ -304,6 +305,7 @@ impl NextFlow {
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: self.user.get_user_id(),
+                        tenant_id: Some(&state.tenant.tenant_id),
                         org_id: None,
                         merchant_id: None,
                         profile_id: None,
