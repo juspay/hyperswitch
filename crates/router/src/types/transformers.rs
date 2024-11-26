@@ -1320,8 +1320,8 @@ impl ForeignFrom<storage::Capture> for payments::CaptureResponse {
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
-    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
             api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
@@ -1331,8 +1331,8 @@ impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMe
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
-    fn foreign_from(value: api_models::payouts::Bank) -> Self {
+impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::Bank) -> Self {
         match value {
             api_models::payouts::Bank::Ach(_) => Self::Ach,
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
@@ -1343,8 +1343,8 @@ impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
-    fn foreign_from(value: api_models::payouts::Wallet) -> Self {
+impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::Wallet) -> Self {
         match value {
             api_models::payouts::Wallet::Paypal(_) => Self::Paypal,
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
@@ -1353,10 +1353,21 @@ impl ForeignFrom<api_models::payouts::Wallet> for api_enums::PaymentMethodType {
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
-    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
+    fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
+            api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
+            api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_models::enums::PayoutType {
+    fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
+        match value {
+            api_models::payouts::PayoutMethodData::Bank(_) => Self::Bank,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
         }

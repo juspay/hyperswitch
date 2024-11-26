@@ -4841,7 +4841,7 @@ pub async fn list_customer_payment_method(
     not(feature = "payment_methods_v2"),
     not(feature = "customer_v2")
 ))]
-async fn get_pm_list_context(
+pub async fn get_pm_list_context(
     state: &routes::SessionState,
     payment_method: &enums::PaymentMethod,
     #[cfg(feature = "payouts")] key_store: &domain::MerchantKeyStore,
