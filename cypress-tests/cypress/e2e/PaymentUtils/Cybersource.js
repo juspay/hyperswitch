@@ -366,6 +366,20 @@ export const connectorDetails = {
         },
       },
     },
+    IncrementalAuth: {
+      Request: {
+        amount: 7000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 7000,
+          amount_capturable: 7000,
+          amount_received: null,
+        },
+      },
+    },
     MandateSingleUse3DSAutoCapture: {
       Configs: {
         CONNECTOR_CREDENTIAL: "connector_1",

@@ -3037,3 +3037,73 @@ Cypress.Commands.add(
     });
   }
 );
+
+Cypress.Commands.add("incrementalAuth", (globalState, data) => {
+  const {
+    Configs: configs = {},
+    Request: reqData,
+    Response: resData,
+  } = data || {};
+
+  const baseUrl = globalState.get("baseUrl");
+  const paymentId = globalState.get("paymentID");
+  const apiKey = globalState.get("apiKey");
+  const url = `${baseUrl}/payments/${paymentId}/incremental_authorization`;
+
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: {
+      "api-key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: reqData,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body.amount_capturable, "amount_capturable").to.equal(
+        resData.body.amount_capturable
+      );
+      expect(response.body.authorization_count, "authorization_count").to.be.a(
+        "number"
+      ).and.not.be.null;
+      expect(
+        response.body.incremental_authorization_allowed,
+        "incremental_authorization_allowed"
+      ).to.be.true;
+      expect(
+        response.body.incremental_authorizations,
+        "incremental_authorizations"
+      ).to.be.an("array").and.not.be.empty;
+      expect(response.body.payment_id, "payment_id").to.equal(paymentId);
+      expect(response.body.status, "status").to.equal(resData.body.status);
+
+      for (let key in response.body.incremental_authorizations) {
+        expect(response.body.incremental_authorizations[key], "amount")
+          .to.have.property("amount")
+          .to.be.a("number")
+          .to.equal(resData.body.amount).and.not.be.null;
+        expect(
+          response.body.incremental_authorizations[key],
+          "error_code"
+        ).to.have.property("error_code").to.be.null;
+        expect(
+          response.body.incremental_authorizations[key],
+          "error_message"
+        ).to.have.property("error_message").to.be.null;
+        expect(
+          response.body.incremental_authorizations[key],
+          "previously_authorized_amount"
+        )
+          .to.have.property("previously_authorized_amount")
+          .to.be.a("number")
+          .to.equal(response.body.amount).and.not.be.null;
+        expect(response.body.incremental_authorizations[key], "status")
+          .to.have.property("status")
+          .to.equal("success");
+      }
+    }
+  });
+});
