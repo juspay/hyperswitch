@@ -42,7 +42,7 @@ impl UserRole {
         // Merchant-level: (org_id = ? && merchant_id = ? && profile_id = null)
         // Profile-level: (org_id = ? && merchant_id = ? && profile_id = ?)
         Box::new(
-            // Tenant-level condtion
+            // Tenant-level condition
             dsl::tenant_id
                 .eq(tenant_id.clone())
                 .and(dsl::org_id.is_null())
@@ -99,6 +99,7 @@ impl UserRole {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, predicate).await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_by_user_id_tenant_id_org_id_merchant_id_profile_id(
         conn: &PgPooledConn,
         user_id: String,
@@ -182,7 +183,7 @@ impl UserRole {
     pub async fn generic_user_roles_list_for_user(
         conn: &PgPooledConn,
         user_id: String,
-        tenant_id: Option<id_type::TenantId>,
+        tenant_id: id_type::TenantId,
         org_id: Option<id_type::OrganizationId>,
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
@@ -192,12 +193,8 @@ impl UserRole {
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table()
-            .filter(dsl::user_id.eq(user_id))
+            .filter(dsl::user_id.eq(user_id).and(dsl::tenant_id.eq(tenant_id)))
             .into_boxed();
-
-        if let Some(tenant_id) = tenant_id {
-            query = query.filter(dsl::tenant_id.eq(tenant_id));
-        }
 
         if let Some(org_id) = org_id {
             query = query.filter(dsl::org_id.eq(org_id));
@@ -245,10 +242,11 @@ impl UserRole {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn generic_user_roles_list_for_org_and_extra(
         conn: &PgPooledConn,
         user_id: Option<String>,
-        tenant_id: Option<id_type::TenantId>,
+        tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
         merchant_id: Option<id_type::MerchantId>,
         profile_id: Option<id_type::ProfileId>,
@@ -256,12 +254,8 @@ impl UserRole {
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = <Self as HasTable>::table()
-            .filter(dsl::org_id.eq(org_id))
+            .filter(dsl::org_id.eq(org_id).and(dsl::tenant_id.eq(tenant_id)))
             .into_boxed();
-
-        if let Some(tenant_id) = tenant_id {
-            query = query.filter(dsl::tenant_id.eq(tenant_id));
-        }
 
         if let Some(user_id) = user_id {
             query = query.filter(dsl::user_id.eq(user_id));

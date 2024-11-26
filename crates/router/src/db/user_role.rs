@@ -15,7 +15,7 @@ use crate::{
 
 pub struct ListUserRolesByOrgIdPayload<'a> {
     pub user_id: Option<&'a String>,
-    pub tenant_id: Option<&'a id_type::TenantId>,
+    pub tenant_id: &'a id_type::TenantId,
     pub org_id: &'a id_type::OrganizationId,
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,
@@ -25,7 +25,7 @@ pub struct ListUserRolesByOrgIdPayload<'a> {
 
 pub struct ListUserRolesByUserIdPayload<'a> {
     pub user_id: &'a str,
-    pub tenant_id: Option<&'a id_type::TenantId>,
+    pub tenant_id: &'a id_type::TenantId,
     pub org_id: Option<&'a id_type::OrganizationId>,
     pub merchant_id: Option<&'a id_type::MerchantId>,
     pub profile_id: Option<&'a id_type::ProfileId>,
@@ -181,7 +181,7 @@ impl UserRoleInterface for Store {
         storage::UserRole::generic_user_roles_list_for_user(
             &conn,
             payload.user_id.to_owned(),
-            payload.tenant_id.cloned(),
+            payload.tenant_id.to_owned(),
             payload.org_id.cloned(),
             payload.merchant_id.cloned(),
             payload.profile_id.cloned(),
@@ -202,7 +202,7 @@ impl UserRoleInterface for Store {
         storage::UserRole::generic_user_roles_list_for_org_and_extra(
             &conn,
             payload.user_id.cloned(),
-            payload.tenant_id.cloned(),
+            payload.tenant_id.to_owned(),
             payload.org_id.to_owned(),
             payload.merchant_id.cloned(),
             payload.profile_id.cloned(),

@@ -336,6 +336,10 @@ pub async fn accept_invitations_v2(
         utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
             &state,
             &user_from_token.user_id,
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             entity.entity_id,
             entity.entity_type,
         )
@@ -392,6 +396,10 @@ pub async fn accept_invitations_pre_auth(
         utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
             &state,
             &user_token.user_id,
+            user_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             entity.entity_id,
             entity.entity_type,
         )
@@ -642,12 +650,11 @@ pub async fn delete_user_role(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: user_from_db.get_user_id(),
-            tenant_id: Some(
-                user_from_token
-                    .tenant_id
-                    .as_ref()
-                    .unwrap_or(&state.tenant.tenant_id),
-            ),
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
+
             org_id: None,
             merchant_id: None,
             profile_id: None,
@@ -696,12 +703,10 @@ pub async fn list_users_in_lineage(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
-                    tenant_id: Some(
-                        user_from_token
-                            .tenant_id
-                            .as_ref()
-                            .unwrap_or(&state.tenant.tenant_id),
-                    ),
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: &user_from_token.org_id,
                     merchant_id: None,
                     profile_id: None,
@@ -717,12 +722,10 @@ pub async fn list_users_in_lineage(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
-                    tenant_id: Some(
-                        user_from_token
-                            .tenant_id
-                            .as_ref()
-                            .unwrap_or(&state.tenant.tenant_id),
-                    ),
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: None,
@@ -738,12 +741,10 @@ pub async fn list_users_in_lineage(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
-                    tenant_id: Some(
-                        user_from_token
-                            .tenant_id
-                            .as_ref()
-                            .unwrap_or(&state.tenant.tenant_id),
-                    ),
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: Some(&user_from_token.profile_id),
@@ -843,7 +844,10 @@ pub async fn list_invitations_for_user(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: &user_from_token.user_id,
-            tenant_id: Some(&state.tenant.tenant_id),
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             org_id: None,
             merchant_id: None,
             profile_id: None,
