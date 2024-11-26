@@ -113,6 +113,7 @@ pub enum Connector {
     Prophetpay,
     Rapyd,
     Razorpay,
+    // Redsys,
     Shift4,
     Square,
     Stax,
@@ -251,6 +252,7 @@ impl Connector {
             | Self::Powertranz
             | Self::Prophetpay
             | Self::Rapyd
+			// | Self::Redsys
             | Self::Shift4
             | Self::Square
             | Self::Stax
