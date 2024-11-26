@@ -18,7 +18,7 @@ crate::impl_to_sql_from_sql_id_type!(OrganizationId);
 
 impl OrganizationId {
     /// Get an organization id from String
-    pub fn wrap(org_id: String) -> CustomResult<Self, ValidationError> {
+    pub fn try_from_string(org_id: String) -> CustomResult<Self, ValidationError> {
         Self::try_from(std::borrow::Cow::from(org_id))
     }
 }
