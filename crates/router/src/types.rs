@@ -891,7 +891,6 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             integrity_object: None,
             additional_payment_method_data: None,
             shipping_cost: data.request.shipping_cost,
-            // merchant_urls:None,
         }
     }
 }

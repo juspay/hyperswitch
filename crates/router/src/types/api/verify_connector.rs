@@ -60,7 +60,6 @@ impl VerifyConnectorData {
             integrity_object: None,
             additional_payment_method_data: None,
             shipping_cost: None,
-            // merchant_urls:None
         }
     }
 

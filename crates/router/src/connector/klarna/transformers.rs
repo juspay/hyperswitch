@@ -85,7 +85,7 @@ pub struct PaymentsRequest {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct CheckoutRequest {
     auto_capture: bool,
-    order_lines: Vec<OrderLines>,
+    order_lines: Vec<CheckoutOrderLines>,
     order_amount: MinorUnit,
     purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
@@ -268,9 +268,9 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                                     quantity: data.quantity,
                                     unit_price: data.amount,
                                     total_amount: data.amount * data.quantity,
-                                    tax_amount: data.total_tax_amount,
+                                    tax_amount: None,
                                     total_tax_amount: None,
-                                    tax_rate: data.tax_rate,
+                                    tax_rate: None,
                                 })
                                 .collect(),
                             merchant_reference1: Some(item.router_data.connector_request_reference_id.clone()),
@@ -295,13 +295,12 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                             order_tax_amount: Some(request.order_tax_amount),
                             order_lines: order_details
                                 .iter()
-                                .map(|data| OrderLines {
+                                .map(|data| CheckoutOrderLines {
                                     name: data.product_name.clone(),
                                     quantity: data.quantity,
                                     unit_price: data.amount,
                                     total_amount: data.amount * data.quantity,
                                     total_tax_amount: data.total_tax_amount,
-                                    tax_amount: None,
                                     tax_rate: data.tax_rate,
                                 })
                                 .collect(),
@@ -407,74 +406,48 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
                 }
             },
         );
-        let payment_method_data = item.data.request.payment_method_data.clone();
 
-        match payment_method_data {
-            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { .. }) => {
-                if let KlarnaAuthResponse::KlarnaPaymentsAuthResponse(ref response) = item.response
-                {
-                    Ok(Self {
-                        response: Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
-                                response.order_id.clone(),
-                            ),
-                            redirection_data: Box::new(None),
-                            mandate_reference: Box::new(None),
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            connector_response_reference_id: Some(response.order_id.clone()),
-                            incremental_authorization_allowed: None,
-                            charge_id: None,
-                        }),
-                        status: enums::AttemptStatus::foreign_from((
-                            response.fraud_status.clone(),
-                            item.data.request.is_auto_capture()?,
-                        )),
-                        connector_response: Some(connector_response),
-                        ..item.data
-                    })
-                } else {
-                    Err(errors::ConnectorError::NotImplemented(
-                        "Unsupported response type".to_string(),
-                    )
-                    .into())
-                }
-            }
+        match item.response {
+            KlarnaAuthResponse::KlarnaPaymentsAuthResponse(ref response) => Ok(Self {
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.order_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(response.order_id.clone()),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                status: enums::AttemptStatus::foreign_from((
+                    response.fraud_status.clone(),
+                    item.data.request.is_auto_capture()?,
+                )),
+                connector_response: Some(connector_response),
+                ..item.data
+            }),
 
-            domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
-                if let KlarnaAuthResponse::KlarnaCheckoutAuthResponse(ref response) = item.response
-                {
-                    Ok(Self {
-                        response: Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
-                                response.order_id.clone(),
-                            ),
-                            redirection_data: Box::new(Some(RedirectForm::KlarnaCheckout {
-                                html_snippet: response.html_snippet.clone().unwrap_or_default(),
-                            })),
-                            mandate_reference: Box::new(None),
-                            connector_metadata: None,
-                            network_txn_id: None,
-                            connector_response_reference_id: Some(response.order_id.clone()),
-                            incremental_authorization_allowed: None,
-                            charge_id: None,
-                        }),
-                        status: enums::AttemptStatus::from(response.status.clone()),
-                        connector_response: Some(connector_response),
-                        ..item.data
-                    })
-                } else {
-                    Err(errors::ConnectorError::NotImplemented(
-                        "Unsupported response type".to_string(),
-                    )
-                    .into())
-                }
-            }
-
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Unsupported payment method data".to_string(),
-            )
-            .into()),
+            KlarnaAuthResponse::KlarnaCheckoutAuthResponse(ref response) => Ok(Self {
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.order_id.clone(),
+                    ),
+                    redirection_data: Box::new(Some(RedirectForm::KlarnaCheckout {
+                        html_snippet: response.html_snippet.clone().unwrap_or_default(),
+                    })),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(response.order_id.clone()),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                status: enums::AttemptStatus::from(response.status.clone()),
+                connector_response: Some(connector_response),
+                ..item.data
+            }),
         }
     }
 }
@@ -488,6 +461,15 @@ pub struct OrderLines {
     tax_rate: Option<i64>,
     tax_amount: Option<i64>,
     total_tax_amount: Option<i64>,
+}
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct CheckoutOrderLines {
+    name: String,
+    quantity: u16,
+    unit_price: MinorUnit,
+    total_amount: MinorUnit,
+    total_tax_amount: Option<i64>,
+    tax_rate: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]

@@ -71,7 +71,6 @@ pub struct PaymentsAuthorizeData {
     /// if the connector provides support to accept multiple reference ids.
     /// In case the connector supports only one reference id, Hyperswitch's Payment ID will be sent as reference.
     pub merchant_order_reference_id: Option<String>,
-    // pub merchant_urls: Option<MerchantURLs>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
     pub shipping_cost: Option<MinorUnit>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,

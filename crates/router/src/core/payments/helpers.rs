@@ -554,8 +554,8 @@ pub async fn get_token_pm_type_mandate_details(
 
                             (
                                 None,
-                                payment_method_info.payment_method,
-                                payment_method_info.payment_method_type,
+                                payment_method_info.get_payment_method_type(),
+                                payment_method_info.get_payment_method_subtype(),
                                 None,
                                 None,
                                 None,
@@ -608,7 +608,7 @@ pub async fn get_token_pm_type_mandate_details(
                                 Ok(customer_payment_methods) => Ok(customer_payment_methods
                                     .iter()
                                     .find(|payment_method| {
-                                        payment_method.payment_method_type
+                                        payment_method.get_payment_method_subtype()
                                             == request.payment_method_type
                                     })
                                     .cloned()),
@@ -808,13 +808,13 @@ pub async fn get_token_for_recurring_mandate(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let token = Uuid::new_v4().to_string();
-    let payment_method_type = payment_method.payment_method_type;
+    let payment_method_type = payment_method.get_payment_method_subtype();
     let mandate_connector_details = payments::MandateConnectorDetails {
         connector: mandate.connector,
         merchant_connector_id: mandate.merchant_connector_id,
     };
 
-    if let Some(enums::PaymentMethod::Card) = payment_method.payment_method {
+    if let Some(enums::PaymentMethod::Card) = payment_method.get_payment_method_type() {
         if state.conf.locker.locker_enabled {
             let _ = cards::get_lookup_key_from_locker(
                 state,
@@ -828,7 +828,7 @@ pub async fn get_token_for_recurring_mandate(
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request;
             if payment_method
-                .payment_method
+                .get_payment_method_type()
                 .is_some_and(|payment_method| payment_method != pm)
             {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -842,14 +842,14 @@ pub async fn get_token_for_recurring_mandate(
 
         Ok(MandateGenericData {
             token: Some(token),
-            payment_method: payment_method.payment_method,
+            payment_method: payment_method.get_payment_method_type(),
             recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
                 mandate_metadata: None,
             }),
-            payment_method_type: payment_method.payment_method_type,
+            payment_method_type: payment_method.get_payment_method_subtype(),
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
             payment_method_info: Some(payment_method),
@@ -857,14 +857,14 @@ pub async fn get_token_for_recurring_mandate(
     } else {
         Ok(MandateGenericData {
             token: None,
-            payment_method: payment_method.payment_method,
+            payment_method: payment_method.get_payment_method_type(),
             recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
                 mandate_metadata: None,
             }),
-            payment_method_type: payment_method.payment_method_type,
+            payment_method_type: payment_method.get_payment_method_subtype(),
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
             payment_method_info: Some(payment_method),
@@ -2340,7 +2340,9 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
 
     if payment_data.token_data.is_none() {
         if let Some(payment_method_info) = &payment_data.payment_method_info {
-            if payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card) {
+            if payment_method_info.get_payment_method_type()
+                == Some(storage_enums::PaymentMethod::Card)
+            {
                 payment_data.token_data =
                     Some(storage::PaymentTokenData::PermanentCard(CardTokenData {
                         payment_method_id: Some(payment_method_info.get_id().clone()),

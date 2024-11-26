@@ -2252,12 +2252,6 @@ impl<'a>
 
                 Ok(AdyenPaymentMethod::AdyenKlarna(Box::new(klarna)))
             }
-            domain::payments::PayLaterData::KlarnaCheckout { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
-                )
-                .into())
-            }
             domain::payments::PayLaterData::AffirmRedirect { .. } => {
                 check_required_field(shopper_email, "email")?;
                 check_required_field(shopper_name, "billing.first_name, billing.last_name")?;
@@ -2325,7 +2319,8 @@ impl<'a>
                 check_required_field(billing_address, "billing")?;
                 Ok(AdyenPaymentMethod::Atome)
             }
-            domain::payments::PayLaterData::KlarnaSdk { .. } => {
+            domain::payments::PayLaterData::KlarnaCheckout { .. }
+            | domain::payments::PayLaterData::KlarnaSdk { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Adyen"),
                 )
@@ -3410,7 +3405,10 @@ pub fn get_adyen_response(
 > {
     let status =
         storage_enums::AttemptStatus::foreign_from((is_capture_manual, response.result_code, pmt));
-    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+    let error = if response.refusal_reason.is_some()
+        || response.refusal_reason_code.is_some()
+        || status == storage_enums::AttemptStatus::Failure
+    {
         Some(types::ErrorResponse {
             code: response
                 .refusal_reason_code
@@ -3473,7 +3471,10 @@ pub fn get_webhook_response(
         is_capture_manual,
         response.status.clone(),
     ))?;
-    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+    let error = if response.refusal_reason.is_some()
+        || response.refusal_reason_code.is_some()
+        || status == storage_enums::AttemptStatus::Failure
+    {
         Some(types::ErrorResponse {
             code: response
                 .refusal_reason_code
@@ -3539,7 +3540,10 @@ pub fn get_redirection_response(
         response.result_code.clone(),
         pmt,
     ));
-    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+    let error = if response.refusal_reason.is_some()
+        || response.refusal_reason_code.is_some()
+        || status == storage_enums::AttemptStatus::Failure
+    {
         Some(types::ErrorResponse {
             code: response
                 .refusal_reason_code
@@ -3611,7 +3615,10 @@ pub fn get_present_to_shopper_response(
         response.result_code.clone(),
         pmt,
     ));
-    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+    let error = if response.refusal_reason.is_some()
+        || response.refusal_reason_code.is_some()
+        || status == storage_enums::AttemptStatus::Failure
+    {
         Some(types::ErrorResponse {
             code: response
                 .refusal_reason_code
@@ -3669,7 +3676,10 @@ pub fn get_qr_code_response(
         response.result_code.clone(),
         pmt,
     ));
-    let error = if response.refusal_reason.is_some() || response.refusal_reason_code.is_some() {
+    let error = if response.refusal_reason.is_some()
+        || response.refusal_reason_code.is_some()
+        || status == storage_enums::AttemptStatus::Failure
+    {
         Some(types::ErrorResponse {
             code: response
                 .refusal_reason_code
@@ -4437,6 +4447,14 @@ pub struct AdyenIncomingWebhook {
 
 impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
     fn from(notif: AdyenNotificationRequestItemWH) -> Self {
+        let (refusal_reason, refusal_reason_code) = if !is_success_scenario(notif.success.clone()) {
+            (
+                notif.reason.or(Some(consts::NO_ERROR_MESSAGE.to_string())),
+                Some(consts::NO_ERROR_CODE.to_string()),
+            )
+        } else {
+            (None, None)
+        };
         Self {
             transaction_id: notif.psp_reference,
             payment_reference: notif.original_reference,
@@ -4495,8 +4513,8 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                 currency: notif.amount.currency,
             }),
             merchant_reference_id: notif.merchant_reference,
-            refusal_reason: None,
-            refusal_reason_code: None,
+            refusal_reason,
+            refusal_reason_code,
             event_code: notif.event_code,
         }
     }

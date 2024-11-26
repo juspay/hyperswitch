@@ -2254,7 +2254,6 @@ pub fn change_order_details_to_new_type(
         product_type: order_details.product_type,
         product_tax_code: order_details.product_tax_code,
         tax_rate: order_details.tax_rate,
-        // total_amount: Some(order_details.total_amount),
         total_tax_amount: order_details.total_tax_amount,
     }])
 }
@@ -2479,7 +2478,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             integrity_object: None,
             additional_payment_method_data,
             shipping_cost,
-            // merchant_urls:None,
         })
     }
 }

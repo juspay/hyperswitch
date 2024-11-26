@@ -192,10 +192,6 @@ fn build_region_specific_endpoint(
     Ok(base_url.replace("{{klarna_region}}", &klarna_region))
 }
 
-fn get_klarna_checkout_endpoint(base_url: &str) -> String {
-    base_url.replace("{{klarna_region}}", "")
-}
-
 impl
     services::ConnectorIntegration<
         api::Session,
@@ -449,8 +445,6 @@ impl
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        let checkout_endpoint = get_klarna_checkout_endpoint(self.base_url(connectors));
-
         let payment_experience = req.request.payment_experience;
 
         match payment_experience {
@@ -458,7 +452,7 @@ impl
                 Ok(format!("{endpoint}ordermanagement/v1/orders/{order_id}"))
             }
             Some(common_enums::PaymentExperience::RedirectToUrl) => {
-                Ok(format!("{checkout_endpoint}checkout/v3/orders/{order_id}"))
+                Ok(format!("{endpoint}checkout/v3/orders/{order_id}"))
             }
             None => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: "payment_experience not supported".to_string(),
@@ -552,7 +546,6 @@ impl
             .ok_or_else(connector_utils::missing_field_err("payment_method_type"))?;
         let endpoint =
             build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
-        let checkout_endpoint = get_klarna_checkout_endpoint(self.base_url(connectors));
         build_region_specific_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
 
         match payment_method_data {
@@ -680,7 +673,7 @@ impl
                     (
                         common_enums::PaymentExperience::RedirectToUrl,
                         common_enums::PaymentMethodType::Klarna,
-                    ) => Ok(format!("{checkout_endpoint}checkout/v3/orders",)),
+                    ) => Ok(format!("{endpoint}checkout/v3/orders",)),
                     (
                         common_enums::PaymentExperience::DisplayQrCode
                         | common_enums::PaymentExperience::DisplayWaitScreen
