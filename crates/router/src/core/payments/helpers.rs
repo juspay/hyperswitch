@@ -2973,6 +2973,7 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
+                ("payment_id", payment_id),
                 (
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
