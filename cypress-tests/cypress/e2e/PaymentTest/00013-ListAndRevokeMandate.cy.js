@@ -89,20 +89,19 @@ describe("Card - List and revoke Mandates flow test", () => {
       let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
         "ZeroAuthMandate"
       ];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
-        req_data,
-        res_data,
+        data,
         0,
         true,
         "automatic",
         "setup_mandate",
         globalState
       );
+
       if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+        should_continue = utils.should_continue_further(data);
     });
 
     it("list-mandate-call-test", () => {
