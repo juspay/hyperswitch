@@ -405,7 +405,11 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
+                    Some(get_forex_exchange_rates(state.clone()).await?)
+                } else {
+                    None
+                };
                 analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -444,7 +448,11 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
+                    Some(get_forex_exchange_rates(state.clone()).await?)
+                } else {
+                    None
+                };
                 analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -491,7 +499,11 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
+                    Some(get_forex_exchange_rates(state.clone()).await?)
+                } else {
+                    None
+                };
                 analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -532,7 +544,11 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
+                    Some(get_forex_exchange_rates(state.clone()).await?)
+                } else {
+                    None
+                };
                 analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -571,7 +587,11 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
+                    Some(get_forex_exchange_rates(state.clone()).await?)
+                } else {
+                    None
+                };
                 analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -618,7 +638,11 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
+                    Some(get_forex_exchange_rates(state.clone()).await?)
+                } else {
+                    None
+                };
                 analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -659,7 +683,11 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
+                    Some(get_forex_exchange_rates(state.clone()).await?)
+                } else {
+                    None
+                };
                 analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -698,7 +726,11 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
+                    Some(get_forex_exchange_rates(state.clone()).await?)
+                } else {
+                    None
+                };
                 analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -745,7 +777,11 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
+                    Some(get_forex_exchange_rates(state.clone()).await?)
+                } else {
+                    None
+                };
                 analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
