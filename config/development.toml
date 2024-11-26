@@ -508,6 +508,9 @@ red_pagos = { country = "UY", currency = "UYU" }
 [pm_filters.zsl]
 local_bank_transfer = { country = "CN", currency = "CNY" }
 
+[pm_filters.xendit]
+local_bank_transfer = { country = "US", currency = "USD" }
+
 [pm_filters.aci]
 credit = { not_available_flows = { capture_method = "manual" } }
 debit = { not_available_flows = { capture_method = "manual" } }
@@ -559,6 +562,7 @@ duit_now = { country ="MY", currency = "MYR" }
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet", apple_pay_pre_decrypt_flow = "network_tokenization" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
+xendit = { long_lived_token = true, payment_method = "card,bank_transfer" }
 mollie = { long_lived_token = false, payment_method = "card" }
 square = { long_lived_token = false, payment_method = "card" }
 braintree = { long_lived_token = false, payment_method = "card" }

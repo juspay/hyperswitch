@@ -178,7 +178,6 @@ impl Connector {
                 | (Self::Iatapay, _)
                 | (Self::Volt, _)
                 | (Self::Itaubank, _)
-                | (Self::Xendit, _)
         )
     }
     pub fn supports_file_storage_module(&self) -> bool {
