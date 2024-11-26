@@ -9199,7 +9199,7 @@
       "KakaoPayRedirection": {
         "type": "object"
       },
-      "KlarnaSdkPaymentMethodResponse": {
+      "KlarnaCheckoutPaymentMethodResponse": {
         "type": "object",
         "properties": {
           "payment_type": {
@@ -9208,7 +9208,7 @@
           }
         }
       },
-      "KlarnaCheckoutPaymentMethodResponse": {
+      "KlarnaSdkPaymentMethodResponse": {
         "type": "object",
         "properties": {
           "payment_type": {
@@ -11138,6 +11138,16 @@
             "example": 1,
             "minimum": 0
           },
+          "tax_rate": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "total_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
           "requires_shipping": {
             "type": "boolean",
             "nullable": true
@@ -11205,6 +11215,16 @@
           },
           "amount": {
             "$ref": "#/components/schemas/MinorUnit"
+          },
+          "tax_rate": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "total_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
           },
           "requires_shipping": {
             "type": "boolean",
@@ -11610,6 +11630,17 @@
           {
             "type": "object",
             "required": [
+              "klarna_checkout"
+            ],
+            "properties": {
+              "klarna_checkout": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "affirm_redirect"
             ],
             "properties": {
@@ -11711,6 +11742,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/KlarnaSdkPaymentMethodResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "klarna_checkout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/KlarnaCheckoutPaymentMethodResponse"
               }
             ],
             "nullable": true
