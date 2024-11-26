@@ -952,6 +952,8 @@ pub async fn disable_dynamic_routing_algorithm(
                     }),
                     elimination_routing_algorithm: success_based_dynamic_routing_algo_ref
                         .elimination_routing_algorithm,
+                    dynamic_routing_volume_split: success_based_dynamic_routing_algo_ref
+                        .dynamic_routing_volume_split,
                 },
             )
         }
@@ -983,6 +985,8 @@ pub async fn disable_dynamic_routing_algorithm(
                             enabled_feature: routing_types::DynamicRoutingFeatures::None,
                         },
                     ),
+                    dynamic_routing_volume_split: success_based_dynamic_routing_algo_ref
+                        .dynamic_routing_volume_split,
                 },
             )
         }

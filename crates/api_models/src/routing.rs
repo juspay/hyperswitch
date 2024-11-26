@@ -523,7 +523,7 @@ pub struct DynamicAlgorithmWithTimestamp<T> {
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DynamicRoutingAlgorithmRef {
     pub success_based_algorithm: Option<SuccessBasedAlgorithm>,
-    pub dynamic_routing_volume_split: u8,
+    pub dynamic_routing_volume_split: Option<u8>,
     pub elimination_routing_algorithm: Option<EliminationRoutingAlgorithm>,
 }
 
@@ -610,12 +610,22 @@ impl DynamicRoutingAlgorithmRef {
             }
         }
     }
+
+    pub fn update_volume_split(&mut self, volume: Option<u8>) {
+        self.dynamic_routing_volume_split = volume
+    }
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingVolumeSplit {
     pub routing_type: RoutingType,
     pub split: u8,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RoutingVolumeSplitWrapper {
+    pub routing_info: RoutingVolumeSplit,
+    pub profile_id: common_utils::id_type::ProfileId,
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
@@ -691,6 +701,11 @@ impl DynamicRoutingAlgorithmRef {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleDynamicRoutingQuery {
     pub enable: DynamicRoutingFeatures,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct DynamicRoutingVolumeSplitQuery {
+    pub split: u8,
 }
 
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]

@@ -1271,6 +1271,66 @@ pub async fn toggle_specific_dynamic_routing(
     }
 }
 
+#[cfg(feature = "v1")]
+pub async fn configure_dynamic_routing_volume_split(
+    state: SessionState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    profile_id: common_utils::id_type::ProfileId,
+    routing_info: routing::RoutingVolumeSplit,
+) -> RouterResponse<()> {
+    metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+    );
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    utils::when(routing_info.split > 100, || {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Dynamic routing volume split should be less than 100".to_string(),
+        })
+    })?;
+
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        &key_store,
+        Some(&profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
+
+    let mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
+        .dynamic_routing_algorithm
+        .clone()
+        .map(|val| val.parse_value("DynamicRoutingAlgorithmRef"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to deserialize dynamic routing algorithm ref from business profile",
+        )?
+        .unwrap_or_default();
+
+    dynamic_routing_algo_ref.update_volume_split(Some(routing_info.split));
+
+    helpers::update_business_profile_active_dynamic_algorithm_ref(
+        db,
+        &((&state).into()),
+        &key_store,
+        business_profile.clone(),
+        dynamic_routing_algo_ref.clone(),
+    )
+    .await?;
+
+    Ok(service_api::ApplicationResponse::StatusOk)
+}
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn success_based_routing_update_configs(
     state: SessionState,

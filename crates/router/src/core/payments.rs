@@ -5919,12 +5919,17 @@ where
                 .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
             let dynamic_split = api_models::routing::RoutingVolumeSplit {
                 routing_type: api_models::routing::RoutingType::Dynamic,
-                split: dynamic_routing_config.dynamic_routing_volume_split,
+                split: dynamic_routing_config
+                    .dynamic_routing_volume_split
+                    .unwrap_or_default(),
             };
             let static_split: api_models::routing::RoutingVolumeSplit =
                 api_models::routing::RoutingVolumeSplit {
                     routing_type: api_models::routing::RoutingType::Static,
-                    split: 100 - dynamic_routing_config.dynamic_routing_volume_split,
+                    split: 100
+                        - dynamic_routing_config
+                            .dynamic_routing_volume_split
+                            .unwrap_or_default(),
                 };
             let volume_split_vec = vec![dynamic_split, static_split];
             let routing_choice =
