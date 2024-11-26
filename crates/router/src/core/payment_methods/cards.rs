@@ -5453,6 +5453,7 @@ pub async fn get_masked_bank_details(
             PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
                 mask: bank_details.mask,
             })),
+            PaymentMethodsData::WalletDetails(_) => Ok(None),
         },
         None => Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Unable to fetch payment method data"),
@@ -5492,6 +5493,12 @@ pub async fn get_bank_account_connector_details(
                 message: "Card is not a valid entity".to_string(),
             }
             .into()),
+            PaymentMethodsData::WalletDetails(_) => {
+                Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Wallet is not a valid entity".to_string(),
+                }
+                .into())
+            }
             PaymentMethodsData::BankDetails(bank_details) => {
                 let connector_details = bank_details
                     .connector_details
