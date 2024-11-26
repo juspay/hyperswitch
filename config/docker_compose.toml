@@ -150,6 +150,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
+inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
@@ -249,6 +250,7 @@ cards = [
     "gpayments",
     "helcim",
     "iatapay",
+    "inespay",
     "itaubank",
     "jpmorgan",
     "mollie",

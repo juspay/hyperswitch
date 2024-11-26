@@ -81,6 +81,7 @@ pub enum RoutableConnectors {
     Gocardless,
     Helcim,
     Iatapay,
+    // Inespay,
     Itaubank,
     //Jpmorgan,
     Klarna,
