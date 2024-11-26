@@ -1777,6 +1777,8 @@ pub async fn create_payout(
         }
     };
 
+    // router_env::logger::info!("@@@@@@@@@@@@@@@@{:?}", payout_data.payment_method.clone());
+
     Ok(())
 }
 
@@ -2151,8 +2153,17 @@ pub async fn create_recipient_disburse_account(
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("Unable to find payment method")?;
 
-                    payout_data.payment_method = Some(payment_method);
-                    response_handler(&state, &merchant_account, &payout_data).await;
+                    payout_data.payment_method = Some(payment_method.clone());
+                    payout_data.payouts.payout_method_id = Some(payment_method.payment_method_id.clone());
+
+                    router_env::logger::info!("XXXXXXXXXXXXXXXXX");
+                    router_env::logger::info!("{:?}", payment_method.payment_method_id.clone());
+                    router_env::logger::info!("XXXXXXXXXXXXXXXXX");
+                    router_env::logger::info!("{:?}", payment_method.clone());
+                    router_env::logger::info!("XXXXXXXXXXXXXXXXX");
+
+                    //response_handler(&state, &merchant_account, &payout_data).await
+                    // Ok(())
 
                     // let mut connector_mandate_details = payment_method.connector_mandate_details.clone()
                     // .map(|details| {
@@ -2218,7 +2229,7 @@ pub async fn create_recipient_disburse_account(
                     let updated_payment_method:PaymentMethod = db.insert_payment_method(
                         &state.into(),
                         key_store,
-                        payment_method,
+                        payment_method.clone(),
                         merchant_account.storage_scheme,
                     )
                     .await
@@ -2226,9 +2237,21 @@ pub async fn create_recipient_disburse_account(
                     .attach_printable("Failed to add payment method in db")?;
                     
 
-                    payout_data.payment_method = Some(updated_payment_method);
+                    payout_data.payment_method = Some(updated_payment_method.clone());
+                    payout_data.payouts.payout_method_id = Some(payment_method.payment_method_id.clone());
+                    payout_data.payment_method.as_mut().map(|pm|pm.payment_method_id=payment_method.payment_method_id.clone());
+                    //payout_data.
 
-                    response_handler(&state, &merchant_account, &payout_data).await;
+                    router_env::logger::info!("###############");
+                    router_env::logger::info!("{:?}", payment_method.payment_method_id.clone());
+                    router_env::logger::info!("###############");
+                    router_env::logger::info!("{:?}", payout_data.payment_method.clone());   // payment_method_id: "pm_HrPROdnlPPTcXpEZFmGR"
+                    router_env::logger::info!("{:?}", payout_data.payouts.payout_method_id.clone());
+                    router_env::logger::info!("###############");
+                    
+                    
+                    //response_handler(&state, &merchant_account, &payout_data).await;
+                    // Ok(())
                 };
             }
         }
@@ -2407,6 +2430,7 @@ pub async fn fulfill_payout(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
+    let payout_data_copy = payout_data.clone();
     // 1. Form Router data
     let mut router_data =
         core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
@@ -2486,6 +2510,8 @@ pub async fn fulfill_payout(
             } else if payout_data.payouts.recurring
                 && payout_data.payouts.payout_method_id.clone().is_none()   // need to change here
             {
+
+                
 
                 /*
                 
@@ -2573,6 +2599,8 @@ pub async fn fulfill_payout(
         }
     };
 
+    router_env::logger::info!("@@@@@@@@@@@@@@@@{:?}", payout_data_copy.payment_method);  // payment_method_id: "pm_nCiXDe1KtLKxzkhpJVpK",
+
     Ok(())
 }
 
@@ -2583,6 +2611,13 @@ pub async fn response_handler(
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let payouts = payout_data.payouts.to_owned();
+
+    let payment_method_id: Option<String> = payout_data
+    .payment_method
+    .as_ref() // Safely access the `payment_method` as a reference
+    .and_then(|pm| Some(pm.payment_method_id.clone()));
+
+
     let payout_link = payout_data.payout_link.to_owned();
     let billing_address = payout_data.billing_address.to_owned();
     let customer_details = payout_data.customer_details.to_owned();
@@ -2651,7 +2686,7 @@ pub async fn response_handler(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse payout link's URL")?,
-        payment_method_id: payouts.payout_method_id,  //here
+        payment_method_id: payment_method_id,  //here fetch it from payment method.
     };
     Ok(services::ApplicationResponse::Json(response))
 }

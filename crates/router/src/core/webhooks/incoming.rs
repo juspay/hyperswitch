@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
-use hyperswitch_domain_models::payment_methods::PaymentMethod;
+// use hyperswitch_domain_models::payment_methods::PaymentMethod;
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
 
@@ -725,21 +725,21 @@ async fn payouts_incoming_webhook_flow(
             });
 
         // let pm_id = payout_data.payouts.payout_method_id.clone();
-        let payout_method_id = payouts.payout_method_id.clone();
-        let mut payment_method: Option<PaymentMethod>= None;
+        // let payout_method_id = payouts.payout_method_id.clone();
+        // let mut payment_method: Option<PaymentMethod>= None;
 
-        if let Some(pm_id) =  payout_method_id {
-            payment_method = Some(db
-            .find_payment_method(
-                &((&state).into()),
-                &key_store,
-                &pm_id,  // need to get from api request
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-            .attach_printable("Unable to find payment method")?);
-        }
+        // if let Some(pm_id) =  payout_method_id {
+        //     payment_method = Some(db
+        //     .find_payment_method(
+        //         &((&state).into()),
+        //         &key_store,
+        //         &pm_id,  // need to get from api request
+        //         merchant_account.storage_scheme,
+        //     )
+        //     .await
+        //     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+        //     .attach_printable("Unable to find payment method")?);
+        // }
 
         let payout_data = payouts::make_payout_data(
             &state,

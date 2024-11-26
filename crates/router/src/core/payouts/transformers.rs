@@ -58,6 +58,10 @@ impl
         ),
     ) -> Self {
         let (payout, payout_attempt, customer, address) = item;
+        router_env::logger::info!("----------------");
+        router_env::logger::info!("{:?}", payout.clone());
+        router_env::logger::info!("----------------");
+
         let attempt = api::PayoutAttemptResponse {
             attempt_id: payout_attempt.payout_attempt_id,
             status: payout_attempt.status,
@@ -116,6 +120,7 @@ impl
                 .as_ref()
                 .and_then(|customer| customer.phone_country_code.clone()),
             payment_method_id: payout.payout_method_id,
+            // payment_method_id: payout.,
         }
     }
 }

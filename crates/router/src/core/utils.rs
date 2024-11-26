@@ -149,7 +149,7 @@ pub async fn construct_payout_router_data<'a, F>(
         };
 
 
-    let mut connector_mandate_id = None;
+    let mut connector_mandate_id = None;  //here
     if let Some(pm) = &payout_data.payment_method {
 
         let connector_mandate_details = pm.connector_mandate_details.clone().map(|details| {

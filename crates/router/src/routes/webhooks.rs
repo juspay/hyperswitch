@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, Responder};
-use hyperswitch_domain_models::payment_methods::PaymentMethod;
+// use hyperswitch_domain_models::payment_methods::PaymentMethod;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;

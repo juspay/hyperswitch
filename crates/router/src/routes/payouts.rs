@@ -17,7 +17,7 @@ use crate::{
     },
     types::api::payouts as payout_types,
 };
-use hyperswitch_domain_models::payment_methods::PaymentMethod;
+// use hyperswitch_domain_models::payment_methods::PaymentMethod;
 
 
 fn get_locale_from_header(headers: &HeaderMap) -> String {
