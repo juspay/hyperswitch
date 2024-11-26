@@ -459,7 +459,11 @@ impl<T: AnalyticsDataSource> ToSql<T> for common_utils::id_type::CustomerId {
 
 impl<T: AnalyticsDataSource> ToSql<T> for bool {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
-        Ok(self.to_string().to_owned())
+        Ok(if *self {
+            "1".to_string()
+        } else {
+            "0".to_string()
+        })
     }
 }
 
