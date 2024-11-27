@@ -14,7 +14,7 @@ use std::{collections::HashMap, sync::Arc};
 mod secrets_transformers;
 
 use actix_web::dev::Server;
-use common_utils::signals::get_allowed_signals;
+use common_utils::{id_type, signals::get_allowed_signals};
 use diesel_models::kv;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
@@ -31,7 +31,7 @@ use crate::{
 };
 
 pub async fn start_drainer(
-    stores: HashMap<String, Arc<Store>>,
+    stores: HashMap<id_type::TenantId, Arc<Store>>,
     conf: DrainerSettings,
 ) -> errors::DrainerResult<()> {
     let drainer_handler = handler::Handler::from_conf(conf, stores);
@@ -62,7 +62,7 @@ pub async fn start_drainer(
 
 pub async fn start_web_server(
     conf: Settings,
-    stores: HashMap<String, Arc<Store>>,
+    stores: HashMap<id_type::TenantId, Arc<Store>>,
 ) -> Result<Server, errors::DrainerError> {
     let server = conf.server.clone();
     let web_server = actix_web::HttpServer::new(move || {

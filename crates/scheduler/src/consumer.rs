@@ -7,7 +7,7 @@ use std::{
 pub mod types;
 pub mod workflows;
 
-use common_utils::{errors::CustomResult, signals::get_allowed_signals};
+use common_utils::{errors::CustomResult, id_type, signals::get_allowed_signals};
 use diesel_models::enums;
 pub use diesel_models::{self, process_tracker as storage};
 use error_stack::ResultExt;
@@ -42,7 +42,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static, U: SchedulerSessionS
     app_state_to_session_state: F,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    F: Fn(&T, &str) -> CustomResult<U, errors::ProcessTrackerError>,
+    F: Fn(&T, &id_type::TenantId) -> CustomResult<U, errors::ProcessTrackerError>,
 {
     use std::time::Duration;
 
@@ -88,7 +88,7 @@ where
                 let start_time = std_time::Instant::now();
                 let tenants = state.get_tenants();
                 for tenant in tenants {
-                    let session_state = app_state_to_session_state(state, tenant.as_str())?;
+                    let session_state = app_state_to_session_state(state, &tenant)?;
                     pt_utils::consumer_operation_handler(
                         session_state.clone(),
                         settings.clone(),

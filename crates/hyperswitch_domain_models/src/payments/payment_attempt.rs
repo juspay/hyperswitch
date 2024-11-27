@@ -1,6 +1,11 @@
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 use common_enums as storage_enums;
+#[cfg(feature = "v2")]
+use common_utils::{
+    crypto::Encryptable, encryption::Encryption, ext_traits::ValueExt,
+    types::keymanager::ToEncryptable,
+};
 use common_utils::{
     errors::{CustomResult, ValidationError},
     id_type, pii,
@@ -18,15 +23,19 @@ use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use masking::PeekInterface;
 use masking::Secret;
+#[cfg(feature = "v2")]
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "v2")]
+use serde_json::Value;
 use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
-use crate::merchant_key_store::MerchantKeyStore;
+use crate::type_encryption::{crypto_operation, CryptoOperation};
 #[cfg(feature = "v2")]
-use crate::router_response_types;
+use crate::{address::Address, merchant_key_store::MerchantKeyStore, router_response_types};
 use crate::{
     behaviour, errors,
     mandates::{MandateDataType, MandateDetails},
@@ -101,6 +110,16 @@ pub trait PaymentAttemptInterface {
         connector_txn_id: &str,
         storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        profile_id: &id_type::ProfileId,
+        connector_transaction_id: &str,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError>;
 
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -212,7 +231,7 @@ pub struct ErrorDetails {
 /// Few fields which are related are grouped together for better readability and understandability.
 /// These fields will be flattened and stored in the database in individual columns
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, router_derive::ToEncryption)]
 pub struct PaymentAttempt {
     /// Payment id for the payment attempt
     pub payment_id: id_type::GlobalPaymentId,
@@ -249,12 +268,11 @@ pub struct PaymentAttempt {
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     /// The insensitive data of the payment method data is stored here
-    // TODO: evaluate what details should be stored here. Use a domain type instead of serde_json::Value
     pub payment_method_data: Option<pii::SecretSerdeValue>,
     /// The result of the routing algorithm.
     /// This will store the list of connectors and other related information that was used to route the payment.
     // TODO: change this to type instead of serde_json::Value
-    pub routing_result: Option<serde_json::Value>,
+    pub routing_result: Option<Value>,
     pub preprocessing_step_id: Option<String>,
     /// Number of captures that have happened for the payment attempt
     pub multiple_capture_count: Option<i16>,
@@ -296,8 +314,8 @@ pub struct PaymentAttempt {
     /// A reference to the payment at connector side. This is returned by the connector
     pub external_reference_id: Option<String>,
     /// The billing address for the payment method
-    // TODO: use a type here instead of value
-    pub payment_method_billing_address: common_utils::crypto::OptionalEncryptableValue,
+    #[encrypt(ty = Value)]
+    pub payment_method_billing_address: Option<Encryptable<Address>>,
     /// The global identifier for the payment attempt
     pub id: id_type::GlobalAttemptId,
     /// The connector mandate details which are stored temporarily
@@ -354,6 +372,7 @@ impl PaymentAttempt {
         cell_id: id_type::CellId,
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsConfirmIntentRequest,
+        encrypted_data: DecryptedPaymentAttempt,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1309,6 +1328,7 @@ pub enum PaymentAttemptUpdate {
         connector_payment_id: Option<String>,
         updated_by: String,
         redirection_data: Option<router_response_types::RedirectForm>,
+        connector_metadata: Option<pii::SecretSerdeValue>,
     },
     /// Update the payment attempt after force syncing with the connector
     SyncUpdate {
@@ -1744,12 +1764,38 @@ impl behaviour::Conversion for PaymentAttempt {
     where
         Self: Sized,
     {
-        use crate::type_encryption;
-
         async {
             let connector_payment_id = storage_model
                 .get_optional_connector_transaction_id()
                 .cloned();
+
+            let decrypted_data = crypto_operation(
+                state,
+                common_utils::type_name!(Self::DstType),
+                CryptoOperation::BatchDecrypt(EncryptedPaymentAttempt::to_encryptable(
+                    EncryptedPaymentAttempt {
+                        payment_method_billing_address: storage_model
+                            .payment_method_billing_address,
+                    },
+                )),
+                key_manager_identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_batchoperation())?;
+
+            let decrypted_data = EncryptedPaymentAttempt::from_encryptable(decrypted_data)
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Invalid batch operation data")?;
+
+            let payment_method_billing_address = decrypted_data
+                .payment_method_billing_address
+                .map(|billing| {
+                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                .attach_printable("Error while deserializing Address")?;
 
             let amount_details = AttemptAmountDetails {
                 net_amount: storage_model.net_amount,
@@ -1759,18 +1805,6 @@ impl behaviour::Conversion for PaymentAttempt {
                 shipping_cost: storage_model.shipping_cost,
                 amount_capturable: storage_model.amount_capturable,
                 amount_to_capture: storage_model.amount_to_capture,
-            };
-
-            let inner_decrypt = |inner| async {
-                type_encryption::crypto_operation(
-                    state,
-                    common_utils::type_name!(Self::DstType),
-                    type_encryption::CryptoOperation::DecryptOptional(inner),
-                    key_manager_identifier.clone(),
-                    key.peek(),
-                )
-                .await
-                .and_then(|val| val.try_into_optionaloperation())
             };
 
             let error = storage_model
@@ -1827,10 +1861,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
                 connector: storage_model.connector,
-                payment_method_billing_address: inner_decrypt(
-                    storage_model.payment_method_billing_address,
-                )
-                .await?,
+                payment_method_billing_address,
                 connector_mandate_detail: storage_model.connector_mandate_detail,
             })
         }
@@ -1943,6 +1974,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_payment_id: None,
                 connector: Some(connector),
                 redirection_data: None,
+                connector_metadata: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -1963,12 +1995,14 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_payment_id,
                 connector: None,
                 redirection_data: None,
+                connector_metadata: None,
             },
             PaymentAttemptUpdate::ConfirmIntentResponse {
                 status,
                 connector_payment_id,
                 updated_by,
                 redirection_data,
+                connector_metadata,
             } => Self {
                 status: Some(status),
                 error_message: None,
@@ -1984,6 +2018,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector: None,
                 redirection_data: redirection_data
                     .map(diesel_models::payment_attempt::RedirectForm::from),
+                connector_metadata,
             },
             PaymentAttemptUpdate::SyncUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -1999,6 +2034,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 connector_payment_id: None,
                 connector: None,
                 redirection_data: None,
+                connector_metadata: None,
             },
         }
     }

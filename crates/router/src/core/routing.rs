@@ -7,14 +7,17 @@ use api_models::{
     routing::{self as routing_types, RoutingRetrieveQuery},
 };
 use async_trait::async_trait;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use common_utils::ext_traits::AsyncExt;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::{mandates, payment_address};
-#[cfg(feature = "v1")]
-use router_env::logger;
-use router_env::metrics::add_attributes;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use router_env::{logger, metrics::add_attributes};
 use rustc_hash::FxHashSet;
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use storage_impl::redis::cache;
 
 #[cfg(feature = "payouts")]
@@ -1182,7 +1185,7 @@ pub async fn update_default_routing_config_for_profile(
     ))
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn toggle_success_based_routing(
     state: SessionState,
     merchant_account: domain::MerchantAccount,
@@ -1379,7 +1382,7 @@ pub async fn toggle_success_based_routing(
     }
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn success_based_routing_update_configs(
     state: SessionState,
     request: routing_types::SuccessBasedRoutingConfig,
@@ -1449,6 +1452,27 @@ pub async fn success_based_routing_update_configs(
         1,
         &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
     );
+
+    let prefix_of_dynamic_routing_keys = helpers::generate_tenant_business_profile_id(
+        &state.tenant.redis_key_prefix,
+        profile_id.get_string_repr(),
+    );
+    state
+        .grpc_client
+        .dynamic_routing
+        .success_rate_client
+        .as_ref()
+        .async_map(|sr_client| async {
+            sr_client
+                .invalidate_success_rate_routing_keys(prefix_of_dynamic_routing_keys)
+                .await
+                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Failed to invalidate the routing keys".to_string(),
+                })
+        })
+        .await
+        .transpose()?;
+
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
