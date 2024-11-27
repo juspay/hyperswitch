@@ -172,8 +172,8 @@ pub async fn construct_payout_router_data<'a, F>(
                 connector_mandate_id = Some(mandate_reference_record.connector_mandate_id.clone());
             }
         }
-
     }
+    
 
     let router_data = types::RouterData {
         flow: PhantomData,

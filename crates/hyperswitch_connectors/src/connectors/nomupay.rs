@@ -209,7 +209,7 @@ where
             masking::Maskable::Normal(sign),
         ));
 
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let mut api_key: Vec<(String, masking::Maskable<String>)> = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
 
         Ok(header)
