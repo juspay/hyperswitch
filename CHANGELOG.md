@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.25.0-hotfix2
+
+### Refactors
+
+- **core:** Add error handling wrapper to wehbook ([#6686](https://github.com/juspay/hyperswitch/pull/6686)) ([`326f857`](https://github.com/juspay/hyperswitch/commit/326f857f2dbf770ccb90982a50f6feed87c06b66))
+
+- - -
+
 ## 2024.11.25.0-hotfix1
 
 ### Bug Fixes
