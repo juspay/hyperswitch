@@ -669,7 +669,7 @@ async fn handle_existing_user_invitation(
             limit: Some(1),
         })
         .await
-        .is_ok_and(|data| data.len() > 0)
+        .is_ok_and(|data| data.is_empty().not())
     {
         return Err(UserErrors::UserExists.into());
     }
