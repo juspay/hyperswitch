@@ -531,7 +531,7 @@ pub trait DynamicRoutingAlgoAccessor {
     fn get_algorithm_id_with_timestamp(
         self,
     ) -> DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>;
-    fn get_enabeld_features(&mut self) -> &mut DynamicRoutingFeatures;
+    fn get_enabled_features(&mut self) -> &mut DynamicRoutingFeatures;
 }
 
 impl DynamicRoutingAlgoAccessor for SuccessBasedAlgorithm {
@@ -540,7 +540,7 @@ impl DynamicRoutingAlgoAccessor for SuccessBasedAlgorithm {
     ) -> DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId> {
         self.algorithm_id_with_timestamp
     }
-    fn get_enabeld_features(&mut self) -> &mut DynamicRoutingFeatures {
+    fn get_enabled_features(&mut self) -> &mut DynamicRoutingFeatures {
         &mut self.enabled_feature
     }
 }
@@ -551,7 +551,7 @@ impl DynamicRoutingAlgoAccessor for EliminationRoutingAlgorithm {
     ) -> DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId> {
         self.algorithm_id_with_timestamp
     }
-    fn get_enabeld_features(&mut self) -> &mut DynamicRoutingFeatures {
+    fn get_enabled_features(&mut self) -> &mut DynamicRoutingFeatures {
         &mut self.enabled_feature
     }
 }

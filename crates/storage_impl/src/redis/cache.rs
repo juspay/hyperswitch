@@ -102,6 +102,7 @@ pub enum CacheKind<'a> {
     Surcharge(Cow<'a, str>),
     CGraph(Cow<'a, str>),
     SuccessBasedDynamicRoutingCache(Cow<'a, str>),
+    EliminationBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
 }
