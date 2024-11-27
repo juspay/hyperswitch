@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.25.0-hotfix1
+
+### Bug Fixes
+
+- **core:** Add payment_id as query param in merchant return url ([#6669](https://github.com/juspay/hyperswitch/pull/6669)) ([`50cdb95`](https://github.com/juspay/hyperswitch/commit/50cdb955d8485e638a96dd10820237252afabed1))
+
+- - -
+
 ## 2024.11.25.0
 
 ### Features
