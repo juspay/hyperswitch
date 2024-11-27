@@ -15203,7 +15203,7 @@
           },
           "show_card_form_by_default": {
             "type": "boolean",
-            "description": "Choose whether the card form is displayed by default or not in payment link"
+            "description": "Show card form by default for payment link"
           },
           "allowed_domains": {
             "type": "array",
@@ -15278,7 +15278,7 @@
           },
           "show_card_form_by_default": {
             "type": "boolean",
-            "description": "Choose whether the card form is displayed by default or not in payment link",
+            "description": "Show card form by default for payment link",
             "default": true,
             "example": true,
             "nullable": true
