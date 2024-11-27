@@ -2948,58 +2948,55 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "updateConfig",
-  (configType, configData, globalState, value) => {
-    const base_url = globalState.get("baseUrl");
-    const merchant_id = globalState.get("merchantId");
-    const api_key = globalState.get("adminApiKey");
+Cypress.Commands.add("updateConfig", (configType, globalState, value) => {
+  const base_url = globalState.get("baseUrl");
+  const merchant_id = globalState.get("merchantId");
+  const api_key = globalState.get("adminApiKey");
 
-    let key;
-    let url;
-    let body;
+  let key;
+  let url;
+  let body;
 
-    switch (configType) {
-      case "autoRetry":
-        key = `should_call_gsm_${merchant_id}`;
-        url = `${base_url}/configs/${key}`;
-        body = { key: key, value: value };
-        break;
-      case "maxRetries":
-        key = `max_auto_retries_enabled_${merchant_id}`;
-        url = `${base_url}/configs/${key}`;
-        body = { key: key, value: value };
-        break;
-      case "stepUp":
-        key = `step_up_enabled_${merchant_id}`;
-        url = `${base_url}/configs/${key}`;
-        body = { key: key, value: value };
-        break;
-      default:
-        throw new Error(
-          `Invalid config type passed into the configs: "${api_key}: ${value}"`
-        );
-    }
-
-    cy.request({
-      method: "POST",
-      url: url,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": api_key,
-      },
-      body: body,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      if (response.status === 200) {
-        expect(response.body).to.have.property("key").to.equal(key);
-        expect(response.body).to.have.property("value").to.equal(value);
-      }
-    });
+  switch (configType) {
+    case "autoRetry":
+      key = `should_call_gsm_${merchant_id}`;
+      url = `${base_url}/configs/${key}`;
+      body = { key: key, value: value };
+      break;
+    case "maxRetries":
+      key = `max_auto_retries_enabled_${merchant_id}`;
+      url = `${base_url}/configs/${key}`;
+      body = { key: key, value: value };
+      break;
+    case "stepUp":
+      key = `step_up_enabled_${merchant_id}`;
+      url = `${base_url}/configs/${key}`;
+      body = { key: key, value: value };
+      break;
+    default:
+      throw new Error(
+        `Invalid config type passed into the configs: "${api_key}: ${value}"`
+      );
   }
-);
+
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": api_key,
+    },
+    body: body,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    if (response.status === 200) {
+      expect(response.body).to.have.property("key").to.equal(key);
+      expect(response.body).to.have.property("value").to.equal(value);
+    }
+  });
+});
 
 Cypress.Commands.add("incrementalAuth", (globalState, data) => {
   const { Request: reqData, Response: resData } = data || {};
