@@ -479,7 +479,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             Err(error) => {
                 logger::error!(?error, "Incoming webhook flow failed");
 
-                // fetch teh connector enum from the connector name
+                // fetch the connector enum from the connector name
                 let connector_enum =
                     api_models::connector_enums::Connector::from_str(&connector_name)
                         .change_context(errors::ApiErrorResponse::InvalidDataValue {
