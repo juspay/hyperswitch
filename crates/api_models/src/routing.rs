@@ -680,3 +680,24 @@ impl CurrentBlockThreshold {
         }
     }
 }
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct RoutableConnectorChoiceWithBucketName {
+    pub routable_connector_choice: RoutableConnectorChoice,
+    pub bucket_name: String,
+}
+
+impl RoutableConnectorChoiceWithBucketName {
+    pub fn new(routable_connector_choice: RoutableConnectorChoice, bucket_name: String) -> Self {
+        Self {
+            routable_connector_choice,
+            bucket_name,
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct EliminationAnalyserConfig {
+    pub bucket_size: u64,
+    pub bucket_ttl_in_mins: u64,
+}
