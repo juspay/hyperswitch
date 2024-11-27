@@ -348,7 +348,7 @@ pub async fn payouts_create_core(
     /*
 
 
-
+    dummy commit
 
 
 
@@ -1155,13 +1155,13 @@ pub async fn call_connector_payout(
     )
     .await?;
     // Create customer's disbursement account flow
-    complete_create_recipient_disburse_account(
+    Box::pin(complete_create_recipient_disburse_account(
         state,
         merchant_account,
         connector_data,
         payout_data,
         key_store,
-    )
+    ))
     .await?;
     // Payout creation flow
     Box::pin(complete_create_payout(
@@ -2053,13 +2053,13 @@ pub async fn complete_create_recipient_disburse_account(
             .supports_vendor_disburse_account_create_for_payout()
         && connector_mandate_id_is_none(payout_data, connector_data)?
     {
-        create_recipient_disburse_account(
+        Box::pin(create_recipient_disburse_account(
             state,
             merchant_account,
             connector_data,
             payout_data,
             key_store,
-        )
+        ))
         .await
         .attach_printable("Creation of customer failed")?;
     }
@@ -2188,7 +2188,7 @@ pub async fn create_recipient_disburse_account(
                         state,
                         payout_data,
                         &customer_details.customer_id,
-                        &payout_method_data,
+                        payout_method_data,
                         connector_mandate_details_value,
                         merchant_account,
                         key_store,
@@ -2546,7 +2546,7 @@ pub async fn response_handler(
     let payment_method_id: Option<String> = payout_data
         .payment_method
         .as_ref() // Safely access the `payment_method` as a reference
-        .and_then(|pm| Some(pm.payment_method_id.clone()));
+        .map(|pm| pm.payment_method_id.clone());
 
     let payout_link = payout_data.payout_link.to_owned();
     let billing_address = payout_data.billing_address.to_owned();
@@ -2619,7 +2619,7 @@ pub async fn response_handler(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse payout link's URL")?,
-        payment_method_id: payment_method_id,
+        payment_method_id,
     };
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -3033,7 +3033,7 @@ pub async fn make_payout_data(
         payment_method = Some(
             db.find_payment_method(
                 &(state.into()),
-                &key_store,
+                key_store,
                 &pm_id, // need to get from api request
                 merchant_account.storage_scheme,
             )
