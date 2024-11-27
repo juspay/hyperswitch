@@ -1044,7 +1044,6 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 
 Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
   const {
-    Configs: configs = {},
     Request: reqData,
     Response: resData,
   } = data || {};
@@ -1750,7 +1749,6 @@ Cypress.Commands.add(
   (requestBody, data, amount_to_capture, globalState) => {
     const {
       Configs: configs = {},
-      Request: reqData,
       Response: resData,
     } = data || {};
 
@@ -1789,7 +1787,6 @@ Cypress.Commands.add(
 Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
   const {
     Configs: configs = {},
-    Request: reqData,
     Response: resData,
   } = data || {};
 
@@ -1827,8 +1824,6 @@ Cypress.Commands.add(
   (globalState, data, autoretries = false, attempt = 1) => {
     const {
       Configs: configs = {},
-      Request: reqData,
-      Response: resData,
     } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
@@ -1906,7 +1901,6 @@ Cypress.Commands.add(
   (requestBody, data, refund_amount, globalState) => {
     const {
       Configs: configs = {},
-      Request: reqData,
       Response: resData,
     } = data || {};
 
@@ -1946,8 +1940,6 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
   const {
-    Configs: configs = {},
-    Request: reqData,
     Response: resData,
   } = data || {};
 
@@ -2106,8 +2098,6 @@ Cypress.Commands.add(
   (requestBody, amount, confirm, capture_method, globalState, data) => {
     const {
       Configs: configs = {},
-      Request: reqData,
-      Response: resData,
     } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
@@ -2213,8 +2203,6 @@ Cypress.Commands.add(
   (requestBody, amount, confirm, capture_method, globalState, data) => {
     const {
       Configs: configs = {},
-      Request: reqData,
-      Response: resData,
     } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
@@ -2576,7 +2564,6 @@ Cypress.Commands.add(
   "createConfirmPayoutTest",
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
     const {
-      Configs: configs = {},
       Request: reqData,
       Response: resData,
     } = data || {};
@@ -2618,7 +2605,6 @@ Cypress.Commands.add(
   "createConfirmWithTokenPayoutTest",
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
     const {
-      Configs: configs = {},
       Request: reqData,
       Response: resData,
     } = data || {};
@@ -2661,8 +2647,6 @@ Cypress.Commands.add(
   "fulfillPayoutCallTest",
   (payoutFulfillBody, data, globalState) => {
     const {
-      Configs: configs = {},
-      Request: reqData,
       Response: resData,
     } = data || {};
 
@@ -2696,8 +2680,6 @@ Cypress.Commands.add(
   "updatePayoutCallTest",
   (payoutConfirmBody, data, auto_fulfill, globalState) => {
     const {
-      Configs: configs = {},
-      Request: reqData,
       Response: resData,
     } = data || {};
 
@@ -2876,7 +2858,6 @@ Cypress.Commands.add(
   "addRoutingConfig",
   (routingBody, data, type, routing_data, globalState) => {
     const {
-      Configs: configs = {},
       Request: reqData,
       Response: resData,
     } = data || {};
@@ -2918,8 +2899,6 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
   const {
-    Configs: configs = {},
-    Request: reqData,
     Response: resData,
   } = data || {};
 
@@ -2950,8 +2929,6 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
 
 Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
   const {
-    Configs: configs = {},
-    Request: reqData,
     Response: resData,
   } = data || {};
 
@@ -3063,7 +3040,6 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("incrementalAuth", (globalState, data) => {
   const {
-    Configs: configs = {},
     Request: reqData,
     Response: resData,
   } = data || {};
