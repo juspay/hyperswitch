@@ -125,12 +125,12 @@ where
                     .await
             }
             Self::SessionizedRefundReason => {
-                sessionized_metrics::RefundReason::default()
+                sessionized_metrics::RefundReason
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
             Self::SessionizedRefundErrorMessage => {
-                sessionized_metrics::RefundErrorMessage::default()
+                sessionized_metrics::RefundErrorMessage
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }
