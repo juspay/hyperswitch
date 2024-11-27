@@ -843,21 +843,81 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("sessionTokenCall", (apiKeyCreateBody, globalState) => {
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/payments/session_tokens`,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": globalState.get("publishableKey"),
-    },
-    body: sessionTokenBody,
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-  });
-});
+Cypress.Commands.add(
+  "sessionTokenCall",
+  (sessionTokenBody, res_data, globalState) => {
+    sessionTokenBody.payment_id = globalState.get("paymentID");
+    sessionTokenBody.client_secret = globalState.get("clientSecret");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/session_tokens`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      body: sessionTokenBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (response.status === 200) {
+        console.log("Actual Response:", response.body.session_token);
+
+        const expectedTokens = res_data.body.session_token;
+        const actualTokens = response.body.session_token;
+
+        // Verifying length of array
+        expect(actualTokens.length, "arrayLength").to.equal(
+          expectedTokens.length
+        );
+
+        // Verify specific fields in each session_token object
+        expectedTokens.forEach((expectedToken, index) => {
+          const actualToken = actualTokens[index];
+
+          // Check specific fields only
+          expect(actualToken.wallet_name, "wallet_name").to.equal(
+            expectedToken.wallet_name
+          );
+          expect(actualToken.connector, "connector").to.equal(
+            expectedToken.connector
+          );
+
+          // Additional checks if necessary
+          if (expectedToken.session_token_data) {
+            expect(
+              actualToken.session_token_data.display_name,
+              "display_name"
+            ).to.equal(expectedToken.session_token_data.display_name);
+            expect(
+              actualToken.session_token_data.domain_name,
+              "domain_name"
+            ).to.equal(expectedToken.session_token_data.domain_name);
+            expect(
+              actualToken.session_token_data.merchant_identifier,
+              "merchant_identifier"
+            ).to.equal(expectedToken.session_token_data.merchant_identifier);
+            expect(actualToken.session_token_data.psp_id, "psp_id").to.equal(
+              expectedToken.session_token_data.psp_id
+            );
+            expect(
+              actualToken.session_token_data.operational_analytics_identifier,
+              "operational_analytics_identifier"
+            ).to.equal(
+              expectedToken.session_token_data.operational_analytics_identifier
+            );
+            expect(actualToken.session_token_data.signature, "signature").to.not
+              .be.empty;
+          }
+        });
+      } else {
+        defaultErrorHandler(response, res_data);
+      }
+    });
+  }
+);
 
 Cypress.Commands.add(
   "createPaymentIntentTest",
