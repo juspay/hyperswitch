@@ -202,6 +202,7 @@ impl PartialEq for RefundMetricsBucketIdentifier {
 }
 
 impl RefundMetricsBucketIdentifier {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         currency: Option<Currency>,
         refund_status: Option<String>,
