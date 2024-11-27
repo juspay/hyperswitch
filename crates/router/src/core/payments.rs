@@ -5926,7 +5926,7 @@ where
             let static_split: api_models::routing::RoutingVolumeSplit =
                 api_models::routing::RoutingVolumeSplit {
                     routing_type: api_models::routing::RoutingType::Static,
-                    split: 100
+                    split: crate::consts::DYNAMIC_ROUTING_MAX_VOLUME
                         - dynamic_routing_config
                             .dynamic_routing_volume_split
                             .unwrap_or_default(),

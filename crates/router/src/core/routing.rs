@@ -15,7 +15,9 @@ use error_stack::ResultExt;
 use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use router_env::{logger, metrics::add_attributes};
+use router_env::logger;
+#[cfg(feature = "v1")]
+use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use storage_impl::redis::cache;
@@ -1287,11 +1289,14 @@ pub async fn configure_dynamic_routing_volume_split(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    utils::when(routing_info.split > 100, || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Dynamic routing volume split should be less than 100".to_string(),
-        })
-    })?;
+    utils::when(
+        routing_info.split > crate::consts::DYNAMIC_ROUTING_MAX_VOLUME,
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Dynamic routing volume split should be less than 100".to_string(),
+            })
+        },
+    )?;
 
     let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
         db,
