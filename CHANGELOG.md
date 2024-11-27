@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.20.0-hotfix2
+
+### Bug Fixes
+
+- **users:** Check lineage across entities in invite ([#6680](https://github.com/juspay/hyperswitch/pull/6680)) ([`888c5bf`](https://github.com/juspay/hyperswitch/commit/888c5bf9e9308ee375c3150e9f9b008b2336bc46))
+
+- - -
+
 ## 2024.11.20.0-hotfix1
 
 ### Bug Fixes
