@@ -25,9 +25,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     });
 
     it("create-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -46,9 +46,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     });
 
     it("confirm-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSManualCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -57,9 +57,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     });
 
     it("void-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "VoidAfterConfirm"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["VoidAfterConfirm"];
 
       cy.voidCallTest(fixtures.voidBody, data, globalState);
 
@@ -80,7 +80,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
 
@@ -101,7 +101,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("void-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Void"];
 
@@ -123,9 +123,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     });
 
     it("create-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -144,9 +144,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     });
 
     it("confirm-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSManualCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, false, globalState);
 
@@ -155,9 +155,9 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     });
 
     it("void-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "VoidAfterConfirm"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["VoidAfterConfirm"];
 
       cy.voidCallTest(fixtures.voidBody, data, globalState);
 

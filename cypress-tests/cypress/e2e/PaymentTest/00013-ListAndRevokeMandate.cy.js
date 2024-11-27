@@ -27,7 +27,7 @@ describe("Card - List and revoke Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateSingleUseNo3DSAutoCapture"];
 
@@ -46,7 +46,7 @@ describe("Card - List and revoke Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateSingleUseNo3DSAutoCapture"];
 
@@ -83,9 +83,9 @@ describe("Card - List and revoke Mandates flow test", () => {
     });
 
     it("Confirm No 3DS CIT", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "ZeroAuthMandate"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ZeroAuthMandate"];
 
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,

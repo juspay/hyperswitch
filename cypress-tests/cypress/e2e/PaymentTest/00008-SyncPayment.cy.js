@@ -23,7 +23,7 @@ describe("Card - Sync payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
   it("create-payment-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "PaymentIntent"
     ];
 
@@ -43,7 +43,7 @@ describe("Card - Sync payment flow test", () => {
   });
 
   it("confirm-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "No3DSAutoCapture"
     ];
 
@@ -53,9 +53,9 @@ describe("Card - Sync payment flow test", () => {
   });
 
   it("retrieve-payment-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "No3DSAutoCapture"
     ];
-    cy.retrievePaymentCallTest(globalState, dta);
+    cy.retrievePaymentCallTest(globalState, data);
   });
 });

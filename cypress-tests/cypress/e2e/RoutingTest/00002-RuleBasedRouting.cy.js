@@ -51,8 +51,8 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("add-routing-config", () => {
-      let data = utils.getConnectorDetails("common")["ruleBasedRouting"];
-      let routing_data = {
+      const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
+      const routing_data = {
         defaultSelection: {
           type: "priority",
           data: [],
@@ -126,19 +126,19 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("retrieve-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+      const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
 
       cy.retrieveRoutingConfig(data, globalState);
     });
 
     it("activate-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["ruleBasedRouting"];
+      const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
 
       cy.activateRoutingConfig(data, globalState);
     });
 
     it("payment-routing-test for card", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
@@ -155,7 +155,7 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("create-payment-routing-test for bank redirect", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("adyen")["bank_redirect_pm"]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
@@ -168,7 +168,7 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("Confirm bank redirect", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("adyen")["bank_redirect_pm"]["ideal"];
 
       cy.confirmBankRedirectCallTest(
@@ -181,8 +181,8 @@ describe("Rule Based Routing Test", () => {
 
     it("Handle bank redirect redirection", () => {
       // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
-      let expected_redirection = fixtures.confirmBody["return_url"];
-      let payment_method_type = globalState.get("paymentMethodType");
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,
@@ -215,8 +215,8 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("add-routing-config", () => {
-      let data = utils.getConnectorDetails("common")["ruleBasedRouting"];
-      let routing_data = {
+      const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
+      const routing_data = {
         defaultSelection: {
           type: "priority",
           data: [
@@ -268,19 +268,19 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("retrieve-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+      const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
 
       cy.retrieveRoutingConfig(data, globalState);
     });
 
     it("activate-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["ruleBasedRouting"];
+      const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
 
       cy.activateRoutingConfig(data, globalState);
     });
 
     it("create-payment-call-test-with-USD", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("stripe")["card_pm"]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
@@ -293,7 +293,7 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("Confirm No 3DS", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
@@ -304,7 +304,8 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("create-payment-call-test-with-EUR", () => {
-      let data = utils.getConnectorDetails("adyen")["card_pm"]["PaymentIntent"];
+      const data =
+        utils.getConnectorDetails("adyen")["card_pm"]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -316,7 +317,7 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("Confirm No 3DS", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
@@ -353,8 +354,8 @@ describe("Rule Based Routing Test", () => {
       });
 
       it("add-routing-config", () => {
-        let data = utils.getConnectorDetails("common")["ruleBasedRouting"];
-        let routing_data = {
+        const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
+        const routing_data = {
           defaultSelection: {
             type: "priority",
             data: [],
@@ -422,19 +423,19 @@ describe("Rule Based Routing Test", () => {
       });
 
       it("retrieve-routing-call-test", () => {
-        let data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+        const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
 
         cy.retrieveRoutingConfig(data, globalState);
       });
 
       it("activate-routing-call-test", () => {
-        let data = utils.getConnectorDetails("common")["ruleBasedRouting"];
+        const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
 
         cy.activateRoutingConfig(data, globalState);
       });
 
       it("create-payment-call-test-with-amount-10", () => {
-        let data =
+        const data =
           utils.getConnectorDetails("stripe")["card_pm"]["PaymentIntent"];
 
         cy.createPaymentIntentTest(
@@ -447,7 +448,7 @@ describe("Rule Based Routing Test", () => {
       });
 
       it("Confirm No 3DS", () => {
-        let data =
+        const data =
           utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
@@ -458,7 +459,7 @@ describe("Rule Based Routing Test", () => {
       });
 
       it("create-payment-call-test-with-amount-9", () => {
-        let data =
+        const data =
           utils.getConnectorDetails("adyen")["card_pm"]["PaymentIntent"];
 
         cy.createPaymentIntentTest(
@@ -471,7 +472,7 @@ describe("Rule Based Routing Test", () => {
       });
 
       it("Confirm No 3DS", () => {
-        let data =
+        const data =
           utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);

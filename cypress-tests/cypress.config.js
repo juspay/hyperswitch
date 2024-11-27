@@ -11,7 +11,6 @@ const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
 export default defineConfig({
   e2e: {
     setupNodeEvents(on) {
-
       on("task", {
         setGlobalState: (val) => {
           return (globalState = val || {});

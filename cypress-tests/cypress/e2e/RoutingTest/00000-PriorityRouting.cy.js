@@ -52,8 +52,8 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("add-routing-config", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let routing_data = [
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
+      const routing_data = [
         {
           connector: "stripe",
           merchant_connector_id: globalState.get("stripeMcaId"),
@@ -75,7 +75,7 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("retrieve-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
 
       cy.retrieveRoutingConfig(data, globalState);
       if (should_continue)
@@ -83,7 +83,7 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("activate-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
 
       cy.activateRoutingConfig(data, globalState);
       if (should_continue)
@@ -91,7 +91,7 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("payment-routing-test", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
@@ -134,8 +134,8 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("add-routing-config", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let routing_data = [
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
+      const routing_data = [
         {
           connector: "adyen",
           merchant_connector_id: globalState.get("adyenMcaId"),
@@ -157,7 +157,7 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("retrieve-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
 
       cy.retrieveRoutingConfig(data, globalState);
       if (should_continue)
@@ -165,7 +165,7 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("activate-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
 
       cy.activateRoutingConfig(data, globalState);
       if (should_continue)
@@ -173,7 +173,7 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("payment-routing-test", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(

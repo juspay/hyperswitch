@@ -11,7 +11,7 @@ const connectorDetails = {
 };
 
 export const getConnectorDetails = (connectorId) => {
-  let x = getValueByKey(connectorDetails, connectorId);
+  const x = getValueByKey(connectorDetails, connectorId);
   return x;
 };
 

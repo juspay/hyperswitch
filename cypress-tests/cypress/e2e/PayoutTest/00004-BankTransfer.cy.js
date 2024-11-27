@@ -90,7 +90,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
     });
 
     it("confirm-payout-call-with-auto-fulfill-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa"]["Fulfill"];
 
@@ -120,7 +120,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
     });
 
     it("confirm-payout-call-with-manual-fulfill-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa"]["Confirm"];
 
@@ -136,7 +136,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
     });
 
     it("fulfill-payout-call-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa"]["Fulfill"];
 

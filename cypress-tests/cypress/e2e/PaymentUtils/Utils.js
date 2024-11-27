@@ -52,12 +52,12 @@ const connectorDetails = {
 };
 
 export default function getConnectorDetails(connectorId) {
-  let x = mergeDetails(connectorId);
+  const x = mergeDetails(connectorId);
   return x;
 }
 
 export function getConnectorFlowDetails(connectorData, commonData, key) {
-  let data =
+  const data =
     connectorData[key] === undefined ? commonData[key] : connectorData[key];
   return data;
 }
@@ -109,7 +109,12 @@ export function getValueByKey(jsonObject, key) {
       for (let i = 0; i < keys.length; i++) {
         const currentItem = data[key][keys[i]];
 
-        if (currentItem.hasOwnProperty("connector_account_details")) {
+        if (
+          Object.prototype.hasOwnProperty.call(
+            currentItem,
+            "connector_account_details"
+          )
+        ) {
           Cypress.env("MULTIPLE_CONNECTORS", {
             status: true,
             count: keys.length,
@@ -163,8 +168,8 @@ export function defaultErrorHandler(response, response_data) {
   if (typeof response.body.error === "object") {
     for (const key in response_data.body.error) {
       // Check if the error message is a Json deserialize error
-      let apiResponseContent = response.body.error[key];
-      let expectedContent = response_data.body.error[key];
+      const apiResponseContent = response.body.error[key];
+      const expectedContent = response_data.body.error[key];
       if (
         typeof apiResponseContent === "string" &&
         apiResponseContent.includes("Json deserialize error")

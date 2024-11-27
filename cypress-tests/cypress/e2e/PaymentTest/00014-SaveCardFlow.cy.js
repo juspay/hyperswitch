@@ -33,7 +33,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
 
@@ -51,7 +51,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
 
@@ -63,7 +63,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
 
@@ -80,7 +80,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
 
@@ -109,7 +109,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
 
@@ -126,7 +126,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
 
@@ -138,7 +138,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
 
@@ -155,7 +155,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSManualCapture"];
 
@@ -166,7 +166,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSManualCapture"];
 
@@ -174,7 +174,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -203,7 +203,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
 
@@ -220,7 +220,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
 
@@ -232,7 +232,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
 
@@ -249,7 +249,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSManualCapture"];
 
@@ -259,7 +259,7 @@ describe("Card - SaveCard payment flow test", () => {
           should_continue = utils.should_continue_further(data);
       });
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSManualCapture"];
 
@@ -267,7 +267,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PartialCapture"];
 
@@ -296,7 +296,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
@@ -313,7 +313,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
@@ -325,7 +325,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
@@ -342,7 +342,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardConfirmAutoCaptureOffSession"];
 
@@ -371,7 +371,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSManualCaptureOffSession"];
 
@@ -388,14 +388,14 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSManualCaptureOffSession"];
 
         cy.retrievePaymentCallTest(globalState, data);
       });
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -410,7 +410,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
@@ -427,7 +427,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardConfirmManualCaptureOffSession"];
 
@@ -438,7 +438,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardConfirmManualCaptureOffSession"];
 
@@ -446,7 +446,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -457,7 +457,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -483,7 +483,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
@@ -500,7 +500,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
@@ -511,7 +511,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
@@ -523,7 +523,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
@@ -540,7 +540,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardConfirmAutoCaptureOffSession"];
 
@@ -568,7 +568,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
@@ -585,7 +585,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
@@ -600,7 +600,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
@@ -617,7 +617,7 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("confirm-save-card-payment-call-test-without-billing", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardConfirmAutoCaptureOffSessionWithoutBilling"];
 

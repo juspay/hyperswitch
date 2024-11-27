@@ -1,6 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -26,7 +25,7 @@ describe("Bank Transfers", () => {
     });
 
     it("create-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["PaymentIntent"];
 
@@ -47,7 +46,7 @@ describe("Bank Transfers", () => {
     });
 
     it("Confirm bank transfer", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["Pix"];
 
@@ -63,8 +62,8 @@ describe("Bank Transfers", () => {
     });
 
     it("Handle bank transfer redirection", () => {
-      let expected_redirection = fixtures.confirmBody["return_url"];
-      let payment_method_type = globalState.get("paymentMethodType");
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
 
       cy.handleBankTransferRedirection(
         globalState,

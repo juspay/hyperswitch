@@ -6,14 +6,6 @@ import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 let globalState;
 
 describe("Card - ThreeDS Manual payment flow test", () => {
-  let should_continue = true;
-
-  beforeEach(function () {
-    if (!should_continue) {
-      this.skip();
-    }
-  });
-
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -35,7 +27,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
 
@@ -56,7 +48,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       it("confirm-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSManualCapture"];
 
@@ -67,12 +59,12 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       it("Handle redirection", () => {
-        let expected_redirection = fixtures.confirmBody["return_url"];
+        const expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSManualCapture"];
 
@@ -80,7 +72,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -91,7 +83,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -109,7 +101,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSManualCapture"];
 
@@ -126,13 +118,13 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       it("Handle redirection", () => {
-        let expected_redirection =
+        const expected_redirection =
           fixtures.createConfirmPaymentBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["3DSManualCapture"];
 
@@ -140,7 +132,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -151,7 +143,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -173,7 +165,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("create-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentIntent"];
 
@@ -194,7 +186,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("confirm-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["3DSManualCapture"];
 
@@ -205,12 +197,12 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("Handle redirection", () => {
-          let expected_redirection = fixtures.confirmBody["return_url"];
+          const expected_redirection = fixtures.confirmBody["return_url"];
           cy.handleRedirection(globalState, expected_redirection);
         });
 
         it("retrieve-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["3DSManualCapture"];
 
@@ -218,7 +210,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("capture-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PartialCapture"];
 
@@ -229,7 +221,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("retrieve-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PartialCapture"];
 
@@ -247,7 +239,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("create+confirm-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["3DSManualCapture"];
 
@@ -264,13 +256,13 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("Handle redirection", () => {
-          let expected_redirection =
+          const expected_redirection =
             fixtures.createConfirmPaymentBody["return_url"];
           cy.handleRedirection(globalState, expected_redirection);
         });
 
         it("retrieve-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["3DSManualCapture"];
 
@@ -278,7 +270,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("capture-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PartialCapture"];
 
@@ -289,7 +281,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
         });
 
         it("retrieve-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PartialCapture"];
 

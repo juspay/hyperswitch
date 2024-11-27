@@ -492,7 +492,7 @@ Cypress.Commands.add(
   "createPayoutConnectorCallTest",
   (connectorType, createConnectorBody, globalState) => {
     const merchantId = globalState.get("merchantId");
-    let connectorName = globalState.get("connectorId");
+    const connectorName = globalState.get("connectorId");
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
     createConnectorBody.connector_type = "payout_processor";
@@ -502,7 +502,7 @@ Cypress.Commands.add(
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
       (jsonContent) => {
-        let authDetails = getValueByKey(
+        const authDetails = getValueByKey(
           JSON.stringify(jsonContent),
           `${connectorName}_payout`
         );
@@ -855,8 +855,8 @@ Cypress.Commands.add(
               .slice()
               .sort();
           }
-          let config_payment_method_type = getPaymentMethodType(resData);
-          let response_payment_method_type = getPaymentMethodType(
+          const config_payment_method_type = getPaymentMethodType(resData);
+          const response_payment_method_type = getPaymentMethodType(
             response.body
           );
           for (let i = 0; i < response_payment_method_type.length; i++) {
@@ -1893,7 +1893,7 @@ Cypress.Commands.add(
     const payment_id = globalState.get("paymentID");
 
     // we only need this to set the delay. We don't need the return value
-    let _ = execConfig(validateConfig(configs));
+    execConfig(validateConfig(configs));
 
     requestBody.amount = refund_amount;
     requestBody.payment_id = payment_id;
@@ -2259,10 +2259,15 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitUsingNTID",
-  (requestBody, amount, confirm, capture_method, globalState) => {
+  (requestBody, amount, confirm, capture_method, globalState, data) => {
+    const { Configs: configs = {} } = data || {};
+    const configInfo = execConfig(validateConfig(configs));
+    const profileId = globalState.get(configInfo.profile_id);
+
     requestBody.amount = amount;
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
+    requestBody.profile_id = profileId;
 
     if (globalState.get("connectorId") !== "cybersource") {
       return;
@@ -2379,9 +2384,9 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
 Cypress.Commands.add(
   "handleRedirection",
   (globalState, expected_redirection) => {
-    let connectorId = globalState.get("connectorId");
-    let expected_url = new URL(expected_redirection);
-    let redirection_url = new URL(globalState.get("nextActionUrl"));
+    const connectorId = globalState.get("connectorId");
+    const expected_url = new URL(expected_redirection);
+    const redirection_url = new URL(globalState.get("nextActionUrl"));
     handleRedirection(
       "three_ds",
       { redirection_url, expected_url },
@@ -2394,9 +2399,10 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "handleBankRedirectRedirection",
   (globalState, payment_method_type, expected_redirection) => {
-    let connectorId = globalState.get("connectorId");
-    let expected_url = new URL(expected_redirection);
-    let redirection_url = new URL(globalState.get("nextActionUrl"));
+    const connectorId = globalState.get("connectorId");
+    const expected_url = new URL(expected_redirection);
+    const redirection_url = new URL(globalState.get("nextActionUrl"));
+
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
     if (!(connectorId == "adyen" && payment_method_type == "sofort")) {
@@ -2413,10 +2419,11 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "handleBankTransferRedirection",
   (globalState, payment_method_type, expected_redirection) => {
-    let connectorId = globalState.get("connectorId");
-    let expected_url = new URL(expected_redirection);
-    let redirection_url = new URL(globalState.get("nextActionUrl"));
-    let next_action_type = globalState.get("nextActionType");
+    const connectorId = globalState.get("connectorId");
+    const expected_url = new URL(expected_redirection);
+    const redirection_url = new URL(globalState.get("nextActionUrl"));
+    const next_action_type = globalState.get("nextActionType");
+
     cy.log(payment_method_type);
     handleRedirection(
       "bank_transfer",
@@ -2433,9 +2440,10 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "handleUpiRedirection",
   (globalState, payment_method_type, expected_redirection) => {
-    let connectorId = globalState.get("connectorId");
-    let expected_url = new URL(expected_redirection);
-    let redirection_url = new URL(globalState.get("nextActionUrl"));
+    const connectorId = globalState.get("connectorId");
+    const expected_url = new URL(expected_redirection);
+    const redirection_url = new URL(globalState.get("nextActionUrl"));
+
     handleRedirection(
       "upi",
       { redirection_url, expected_url },
@@ -2867,7 +2875,7 @@ Cypress.Commands.add(
 Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
   const { Response: resData } = data || {};
 
-  let routing_config_id = globalState.get("routingConfigId");
+  const routing_config_id = globalState.get("routingConfigId");
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/routing/${routing_config_id}/activate`,
@@ -2895,7 +2903,7 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
 Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
   const { Response: resData } = data || {};
 
-  let routing_config_id = globalState.get("routingConfigId");
+  const routing_config_id = globalState.get("routingConfigId");
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/routing/${routing_config_id}`,
@@ -3036,7 +3044,7 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
       expect(response.body.payment_id, "payment_id").to.equal(paymentId);
       expect(response.body.status, "status").to.equal(resData.body.status);
 
-      for (let key in response.body.incremental_authorizations) {
+      for (const key in response.body.incremental_authorizations) {
         expect(response.body.incremental_authorizations[key], "amount")
           .to.have.property("amount")
           .to.be.a("number")

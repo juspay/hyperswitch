@@ -26,7 +26,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
 
@@ -47,7 +47,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("confirm-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSManualCapture"];
 
@@ -58,7 +58,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSManualCapture"];
 
@@ -66,7 +66,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -77,7 +77,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -95,7 +95,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSManualCapture"];
 
@@ -112,7 +112,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["No3DSManualCapture"];
 
@@ -120,7 +120,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -131,7 +131,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       it("retrieve-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -153,7 +153,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("create-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PaymentIntent"];
 
@@ -174,7 +174,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("confirm-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSManualCapture"];
 
@@ -185,7 +185,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("retrieve-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSManualCapture"];
 
@@ -193,7 +193,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("capture-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PartialCapture"];
 
@@ -204,7 +204,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("retrieve-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PartialCapture"];
 
@@ -222,7 +222,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("create+confirm-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSManualCapture"];
 
@@ -239,7 +239,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("retrieve-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["No3DSManualCapture"];
 
@@ -247,7 +247,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("capture-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PartialCapture"];
 
@@ -258,7 +258,7 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         });
 
         it("retrieve-payment-call-test", () => {
-          let data = getConnectorDetails(globalState.get("connectorId"))[
+          const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["PartialCapture"];
 

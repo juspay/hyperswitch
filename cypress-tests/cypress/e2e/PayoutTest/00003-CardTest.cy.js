@@ -38,7 +38,7 @@ describe("[Payout] Cards", () => {
     });
 
     it("confirm-payout-call-with-auto-fulfill-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["Fulfill"];
 
@@ -69,7 +69,7 @@ describe("[Payout] Cards", () => {
     });
 
     it("confirm-payout-call-with-manual-fulfill-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["Confirm"];
 
@@ -85,7 +85,7 @@ describe("[Payout] Cards", () => {
     });
 
     it("fulfill-payout-call-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["Fulfill"];
 

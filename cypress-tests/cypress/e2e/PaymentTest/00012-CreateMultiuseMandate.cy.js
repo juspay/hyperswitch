@@ -27,7 +27,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateMultiUseNo3DSAutoCapture"];
 
@@ -46,7 +46,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateMultiUseNo3DSAutoCapture"];
 
@@ -60,7 +60,7 @@ describe("Card - MultiUse Mandates flow test", () => {
         );
       });
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateMultiUseNo3DSAutoCapture"];
 
@@ -88,7 +88,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateMultiUseNo3DSManualCapture"];
 
@@ -107,7 +107,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("cit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -118,7 +118,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT 1", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -133,7 +133,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("mit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -144,7 +144,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT 2", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -159,7 +159,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("mit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -183,7 +183,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateMultiUseNo3DSManualCapture"];
 
@@ -202,7 +202,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("cit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -213,7 +213,7 @@ describe("Card - MultiUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 

@@ -51,9 +51,9 @@ describe("[Payment] Incremental Auth", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("[Payment] Confirm Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSManualCaptureOffSession"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardUseNo3DSManualCaptureOffSession"];
 
       const newData = {
         ...data,
@@ -65,17 +65,17 @@ describe("[Payment] Incremental Auth", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("[Payment] Incremental Authorization", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "IncrementalAuth"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["IncrementalAuth"];
       cy.incrementalAuth(globalState, data);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("[Payment] Capture Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Capture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Capture"];
 
       cy.captureCallTest(fixtures.captureBody, data, 7000, globalState);
 
@@ -116,9 +116,9 @@ describe("[Payment] Incremental Auth", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("[Payment] Confirm Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSManualCaptureOffSession"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardUseNo3DSManualCaptureOffSession"];
 
       const newData = {
         ...data,
@@ -134,18 +134,18 @@ describe("[Payment] Incremental Auth", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("[Payment] Incremental Authorization", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "IncrementalAuth"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["IncrementalAuth"];
 
       cy.incrementalAuth(globalState, data);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("[Payment] Capture Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Capture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Capture"];
 
       cy.captureCallTest(fixtures.captureBody, data, 7000, globalState);
 

@@ -27,7 +27,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid card number", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "InvalidCardNumber"
       ];
 
@@ -41,7 +41,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid expiry month", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "InvalidExpiryMonth"
       ];
 
@@ -55,7 +55,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid expiry year", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "InvalidExpiryYear"
       ];
 
@@ -69,7 +69,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid card CVV", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "InvalidCardCvv"
       ];
 
@@ -83,7 +83,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid currency", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "InvalidCurrency"
       ];
 
@@ -97,7 +97,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid capture method", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "InvalidCaptureMethod"
       ];
 
@@ -111,7 +111,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid payment method", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "InvalidPaymentMethod"
       ];
 
@@ -125,7 +125,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Invalid `amount_to_capture`", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "InvalidAmountToCapture"
       ];
 
@@ -139,7 +139,7 @@ describe("Corner cases", () => {
     });
 
     it("[Payment] Missing required params", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "MissingRequiredParam"
       ];
 
@@ -165,7 +165,7 @@ describe("Corner cases", () => {
     });
 
     it("Create payment intent", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "PaymentIntent"
       ];
 
@@ -179,7 +179,7 @@ describe("Corner cases", () => {
     });
 
     it("Confirm payment intent", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "PaymentIntentErrored"
       ];
 
@@ -207,9 +207,9 @@ describe("Corner cases", () => {
     });
 
     it("Create payment intent and confirm", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSManualCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
 
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
@@ -224,7 +224,7 @@ describe("Corner cases", () => {
     });
 
     it("Capture call", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "CaptureGreaterAmount"
       ];
 
@@ -255,9 +255,9 @@ describe("Corner cases", () => {
     });
 
     it("Create payment intent and confirm", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
@@ -272,17 +272,17 @@ describe("Corner cases", () => {
     });
 
     it("Retrieve payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Capture call", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "CaptureCapturedAmount"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["CaptureCapturedAmount"];
 
       cy.captureCallTest(fixtures.captureBody, data, 65000, globalState);
 
@@ -311,9 +311,9 @@ describe("Corner cases", () => {
     });
 
     it("Create payment intent and confirm", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
@@ -328,17 +328,17 @@ describe("Corner cases", () => {
     });
 
     it("Retrieve payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Confirm call", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "ConfirmSuccessfulPayment"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ConfirmSuccessfulPayment"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -367,9 +367,9 @@ describe("Corner cases", () => {
     });
 
     it("Create payment intent and confirm", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
@@ -384,18 +384,18 @@ describe("Corner cases", () => {
     });
 
     it("Retrieve payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Void call", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Void"
-      ];
-      let commonData = getConnectorDetails(globalState.get("commons"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Void"];
+      const commonData = getConnectorDetails(globalState.get("commons"))[
         "card_pm"
       ]["Void"];
 
@@ -435,9 +435,9 @@ describe("Corner cases", () => {
     });
 
     it("Create payment intent and confirm", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "3DSManualCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["3DSManualCapture"];
 
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
@@ -452,28 +452,28 @@ describe("Corner cases", () => {
     });
 
     it("Retrieve payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "3DSManualCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["3DSManualCapture"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Handle redirection", () => {
-      let expected_redirection = fixtures.confirmBody["return_url"];
+      const expected_redirection = fixtures.confirmBody["return_url"];
       cy.handleRedirection(globalState, expected_redirection);
     });
 
     it("Retrieve payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "3DSManualCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["3DSManualCapture"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Capture call", () => {
-      let data = getConnectorDetails(globalState.get("commons"))["card_pm"][
+      const data = getConnectorDetails(globalState.get("commons"))["card_pm"][
         "CaptureGreaterAmount"
       ];
 
@@ -504,9 +504,9 @@ describe("Corner cases", () => {
     });
 
     it("Create payment intent and confirm", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
@@ -521,18 +521,18 @@ describe("Corner cases", () => {
     });
 
     it("Retrieve payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Refund call", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
-      ];
-      let commonData = getConnectorDetails(globalState.get("commons"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Refund"];
+      const commonData = getConnectorDetails(globalState.get("commons"))[
         "card_pm"
       ]["Refund"];
 
@@ -571,9 +571,9 @@ describe("Corner cases", () => {
     });
 
     it("Create payment intent and confirm", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
         paymentCreateConfirmBody,
@@ -588,18 +588,18 @@ describe("Corner cases", () => {
     });
 
     it("Retrieve payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Refund call", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Refund"
-      ];
-      let commonData = getConnectorDetails(globalState.get("commons"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Refund"];
+      const commonData = getConnectorDetails(globalState.get("commons"))[
         "card_pm"
       ]["Refund"];
 
@@ -639,9 +639,9 @@ describe("Corner cases", () => {
     });
 
     it("No 3DS CIT", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MandateSingleUseNo3DSManualCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MandateSingleUseNo3DSManualCapture"];
 
       cy.citForMandatesCallTest(
         fixtures.citConfirmBody,
@@ -657,9 +657,9 @@ describe("Corner cases", () => {
     });
 
     it("cit-capture-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Capture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Capture"];
 
       cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
       if (should_continue)
@@ -667,17 +667,17 @@ describe("Corner cases", () => {
     });
 
     it("Retrieve payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Capture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Capture"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Confirm No 3DS MIT", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "Capture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Capture"];
       cy.mitForMandatesCallTest(
         fixtures.mitConfirmBody,
         65000,

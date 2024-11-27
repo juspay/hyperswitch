@@ -20,10 +20,8 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Automatic MIT payment flow test",
     () => {
-      let should_continue = true;
-
       beforeEach(function () {
-        if (!should_continue || connector !== "cybersource") {
+        if (connector !== "cybersource") {
           this.skip();
         }
       });
@@ -43,10 +41,8 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Manual MIT payment flow test",
     () => {
-      let should_continue = true;
-
       beforeEach(function () {
-        if (!should_continue || connector !== "cybersource") {
+        if (connector !== "cybersource") {
           this.skip();
         }
       });
@@ -66,10 +62,8 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Automatic multiple MITs payment flow test",
     () => {
-      let should_continue = true;
-
       beforeEach(function () {
-        if (!should_continue || connector !== "cybersource") {
+        if (connector !== "cybersource") {
           this.skip();
         }
       });
@@ -98,10 +92,10 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Manual multiple MITs payment flow test",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue || connector !== "cybersource") {
+        if (connector !== "cybersource") {
           this.skip();
         }
       });
@@ -117,14 +111,14 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       });
 
       it("mit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT 2", () => {
@@ -138,14 +132,14 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       });
 
       it("mit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -153,10 +147,8 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - ThreeDS Create and Confirm Automatic multiple MITs payment flow test",
     () => {
-      let should_continue = true;
-
       beforeEach(function () {
-        if (!should_continue || connector !== "cybersource") {
+        if (connector !== "cybersource") {
           this.skip();
         }
       });
@@ -185,10 +177,8 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
   context(
     "Card - ThreeDS Create and Confirm Manual multiple MITs payment flow",
     () => {
-      let should_continue = true;
-
       beforeEach(function () {
-        if (!should_continue || connector !== "cybersource") {
+        if (connector !== "cybersource") {
           this.skip();
         }
       });

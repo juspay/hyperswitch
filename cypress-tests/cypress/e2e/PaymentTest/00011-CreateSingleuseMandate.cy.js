@@ -27,7 +27,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateSingleUseNo3DSAutoCapture"];
 
@@ -46,7 +46,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateSingleUseNo3DSAutoCapture"];
 
@@ -74,7 +74,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateSingleUseNo3DSManualCapture"];
 
@@ -93,7 +93,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("cit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -104,7 +104,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -119,7 +119,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("mit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -147,7 +147,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Create No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MandateSingleUseNo3DSManualCapture"];
 
@@ -166,7 +166,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("cit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -177,7 +177,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 

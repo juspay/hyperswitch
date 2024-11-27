@@ -1,5 +1,4 @@
 import * as fixtures from "../../fixtures/imports";
-import { validateConfig } from "../../utils/featureFlags";
 import State from "../../utils/State";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
@@ -25,7 +24,7 @@ describe("Card - ThreeDS payment flow test", () => {
   });
 
   it("create-payment-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "PaymentIntent"
     ];
 
@@ -45,7 +44,7 @@ describe("Card - ThreeDS payment flow test", () => {
   });
 
   it("Confirm 3DS", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "3DSAutoCapture"
     ];
 
@@ -55,7 +54,7 @@ describe("Card - ThreeDS payment flow test", () => {
   });
 
   it("Handle redirection", () => {
-    let expected_redirection = fixtures.confirmBody["return_url"];
+    const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
   });
 });

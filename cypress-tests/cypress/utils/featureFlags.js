@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const config_fields = ["CONNECTOR_CREDENTIAL", "DELAY", "TRIGGER_SKIP"];
 
 // Helper function for type and range validation
@@ -72,8 +73,8 @@ export function validateConfig(configObject) {
     return null;
   }
 
-  for (let key in configObject) {
-    if (configObject.hasOwnProperty(key)) {
+  for (const key in configObject) {
+    if (Object.prototype.hasOwnProperty.call(configObject, key)) {
       const value = configObject[key];
       if (!validateConfigValue(key, value)) {
         return null; // Return null if any validation fails
@@ -92,7 +93,7 @@ export function execConfig(configs) {
 
     if (
       typeof configs?.CONNECTOR_CREDENTIAL === "undefined" ||
-      typeof configs?.CONNECTOR_CREDENTIAL === "null"
+      configs?.CONNECTOR_CREDENTIAL === "null"
     ) {
       return {
         profile_id: "profileId",

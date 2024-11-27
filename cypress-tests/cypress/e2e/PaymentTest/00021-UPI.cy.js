@@ -25,9 +25,9 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Create payment intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["upi_pm"][
-        "PaymentIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "upi_pm"
+      ]["PaymentIntent"];
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
         data,
@@ -45,9 +45,9 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Confirm payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["upi_pm"][
-        "UpiCollect"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "upi_pm"
+      ]["UpiCollect"];
 
       cy.confirmUpiCall(fixtures.confirmBody, data, true, globalState);
 
@@ -56,8 +56,8 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Handle UPI Redirection", () => {
-      let expected_redirection = fixtures.confirmBody["return_url"];
-      let payment_method_type = globalState.get("paymentMethodType");
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
 
       cy.handleUpiRedirection(
         globalState,
@@ -67,17 +67,17 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Retrieve payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["upi_pm"][
-        "UpiCollect"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "upi_pm"
+      ]["UpiCollect"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Refund payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["upi_pm"][
-        "Refund"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "upi_pm"
+      ]["Refund"];
 
       cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
 
@@ -107,9 +107,9 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Create payment intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["upi_pm"][
-        "PaymentIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "upi_pm"
+      ]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -128,9 +128,9 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Confirm payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["upi_pm"][
-        "UpiIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "upi_pm"
+      ]["UpiIntent"];
 
       cy.confirmUpiCall(fixtures.confirmBody, data, true, globalState);
 
@@ -139,8 +139,8 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Handle UPI Redirection", () => {
-      let expected_redirection = fixtures.confirmBody["return_url"];
-      let payment_method_type = globalState.get("paymentMethodType");
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
 
       cy.handleUpiRedirection(
         globalState,
@@ -150,9 +150,9 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     it("Retrieve payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["upi_pm"][
-        "UpiIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "upi_pm"
+      ]["UpiIntent"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });

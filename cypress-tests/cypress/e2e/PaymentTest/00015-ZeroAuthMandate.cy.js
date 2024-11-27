@@ -27,7 +27,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ZeroAuthMandate"];
 
@@ -46,7 +46,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ZeroAuthMandate"];
 
@@ -73,7 +73,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ZeroAuthMandate"];
 
@@ -92,7 +92,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ZeroAuthMandate"];
 
@@ -106,7 +106,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
       });
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ZeroAuthMandate"];
 
@@ -132,9 +132,9 @@ describe("Card - SingleUse Mandates flow test", () => {
     });
 
     it("Create No 3DS Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "ZeroAuthPaymentIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ZeroAuthPaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -149,9 +149,9 @@ describe("Card - SingleUse Mandates flow test", () => {
     });
 
     it("Confirm No 3DS payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "ZeroAuthConfirmPayment"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ZeroAuthConfirmPayment"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -160,9 +160,9 @@ describe("Card - SingleUse Mandates flow test", () => {
     });
 
     it("Retrieve Payment Call Test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "ZeroAuthConfirmPayment"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ZeroAuthConfirmPayment"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
@@ -172,9 +172,9 @@ describe("Card - SingleUse Mandates flow test", () => {
     });
 
     it("Create Recurring Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -189,9 +189,9 @@ describe("Card - SingleUse Mandates flow test", () => {
     });
 
     it("Confirm Recurring Payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardConfirmAutoCaptureOffSession"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardConfirmAutoCaptureOffSession"];
 
       cy.saveCardConfirmCallTest(
         fixtures.saveCardConfirmBody,

@@ -24,7 +24,7 @@ describe("Card - Sync Refund flow test", () => {
   });
 
   it("create-payment-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "PaymentIntent"
     ];
 
@@ -44,7 +44,7 @@ describe("Card - Sync Refund flow test", () => {
   });
 
   it("confirm-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "No3DSAutoCapture"
     ];
 
@@ -54,7 +54,7 @@ describe("Card - Sync Refund flow test", () => {
   });
 
   it("retrieve-payment-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "No3DSAutoCapture"
     ];
 
@@ -62,7 +62,7 @@ describe("Card - Sync Refund flow test", () => {
   });
 
   it("refund-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "Refund"
     ];
 
@@ -72,7 +72,7 @@ describe("Card - Sync Refund flow test", () => {
   });
 
   it("sync-refund-call-test", () => {
-    let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
+    const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "SyncRefund"
     ];
 

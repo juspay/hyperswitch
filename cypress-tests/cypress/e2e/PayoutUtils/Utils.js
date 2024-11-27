@@ -1,3 +1,5 @@
+import { validateConfig } from "../../utils/featureFlags.js";
+
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatform.js";
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
@@ -11,7 +13,7 @@ const connectorDetails = {
 };
 
 export function getConnectorDetails(connectorId) {
-  let x = mergeDetails(connectorId);
+  const x = mergeDetails(connectorId);
   return x;
 }
 
@@ -62,7 +64,12 @@ export function getValueByKey(jsonObject, key) {
       for (let i = 0; i < keys.length; i++) {
         const currentItem = data[key][keys[i]];
 
-        if (currentItem.hasOwnProperty("connector_account_details")) {
+        if (
+          Object.prototype.hasOwnProperty.call(
+            currentItem,
+            "connector_account_details"
+          )
+        ) {
           Cypress.env("MULTIPLE_CONNECTORS", {
             status: true,
             count: keys.length,

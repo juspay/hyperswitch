@@ -27,7 +27,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Create No 3DS Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
 
@@ -44,7 +44,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
@@ -63,7 +63,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
@@ -91,7 +91,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Create No 3DS Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
 
@@ -108,7 +108,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSManualCapture"];
 
@@ -127,7 +127,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("cit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -138,7 +138,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -166,7 +166,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
@@ -185,7 +185,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
@@ -199,7 +199,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
       });
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
@@ -227,7 +227,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSManualCapture"];
 
@@ -246,7 +246,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("cit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -257,7 +257,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT 1", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -272,7 +272,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("mit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -283,7 +283,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT 2", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -298,7 +298,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("mit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -322,7 +322,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandate3DSAutoCapture"];
 
@@ -341,12 +341,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Handle redirection", () => {
-        let expected_redirection = fixtures.citConfirmBody["return_url"];
+        const expected_redirection = fixtures.citConfirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandate3DSAutoCapture"];
 
@@ -360,7 +360,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
         );
       });
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandate3DSAutoCapture"];
 
@@ -388,7 +388,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentMethodIdMandate3DSManualCapture"];
 
@@ -407,12 +407,12 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Handle redirection", () => {
-        let expected_redirection = fixtures.citConfirmBody["return_url"];
+        const expected_redirection = fixtures.citConfirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
       });
 
       it("cit-capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 
@@ -423,7 +423,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
 

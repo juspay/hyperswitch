@@ -51,8 +51,8 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("add-routing-config", () => {
-      let data = utils.getConnectorDetails("common")["volumeBasedRouting"];
-      let routing_data = [
+      const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+      const routing_data = [
         {
           connector: {
             connector: "stripe",
@@ -72,19 +72,19 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("retrieve-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+      const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
 
       cy.retrieveRoutingConfig(data, globalState);
     });
 
     it("activate-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+      const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
 
       cy.activateRoutingConfig(data, globalState);
     });
 
     it("payment-routing-test", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
@@ -101,7 +101,7 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("create-payment-call-test-for-eps", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("stripe")["bank_redirect_pm"][
           "PaymentIntent"
         ];
@@ -120,7 +120,8 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("Confirm bank redirect", () => {
-      let data = utils.getConnectorDetails("stripe")["bank_redirect_pm"]["eps"];
+      const data =
+        utils.getConnectorDetails("stripe")["bank_redirect_pm"]["eps"];
 
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
@@ -132,8 +133,8 @@ describe("Volume Based Routing Test", () => {
 
     it("Handle bank redirect redirection", () => {
       // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
-      let expected_redirection = fixtures.confirmBody["return_url"];
-      let payment_method_type = globalState.get("paymentMethodType");
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,
@@ -165,8 +166,8 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("add-routing-config", () => {
-      let data = utils.getConnectorDetails("common")["volumeBasedRouting"];
-      let routing_data = [
+      const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+      const routing_data = [
         {
           connector: {
             connector: "adyen",
@@ -186,19 +187,19 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("retrieve-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+      const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
 
       cy.retrieveRoutingConfig(data, globalState);
     });
 
     it("activate-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+      const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
 
       cy.activateRoutingConfig(data, globalState);
     });
 
     it("payment-routing-test-for-card", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
@@ -215,7 +216,7 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("create-payment-call-test-for-eps", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("adyen")["bank_redirect_pm"]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
@@ -232,7 +233,8 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("Confirm bank redirect", () => {
-      let data = utils.getConnectorDetails("adyen")["bank_redirect_pm"]["eps"];
+      const data =
+        utils.getConnectorDetails("adyen")["bank_redirect_pm"]["eps"];
 
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
@@ -244,8 +246,8 @@ describe("Volume Based Routing Test", () => {
 
     it("Handle bank redirect redirection", () => {
       // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
-      let expected_redirection = fixtures.confirmBody["return_url"];
-      let payment_method_type = globalState.get("paymentMethodType");
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,

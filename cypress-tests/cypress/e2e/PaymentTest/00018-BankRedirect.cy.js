@@ -1,6 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -26,7 +25,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("create-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["BlikPaymentIntent"];
 
@@ -46,7 +45,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("Confirm bank redirect", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["Blik"];
 
@@ -78,7 +77,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("create-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"];
 
@@ -98,7 +97,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("Confirm bank redirect", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["Eps"];
 
@@ -115,8 +114,8 @@ describe("Bank Redirect tests", () => {
 
     it("Handle bank redirect redirection", () => {
       // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
-      let expected_redirection = fixtures.confirmBody["return_url"];
-      let payment_method_type = globalState.get("paymentMethodType");
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
 
       cy.handleBankRedirectRedirection(
         globalState,
@@ -142,7 +141,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("create-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"];
 
@@ -162,7 +161,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("Confirm bank redirect", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["Ideal"];
 
@@ -179,8 +178,8 @@ describe("Bank Redirect tests", () => {
 
     it("Handle bank redirect redirection", () => {
       // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
-      let expected_redirection = fixtures.confirmBody["return_url"];
-      let payment_method_type = globalState.get("paymentMethodType");
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,
@@ -204,7 +203,7 @@ describe("Bank Redirect tests", () => {
       }
     });
     it("create-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"];
 
@@ -224,7 +223,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("Confirm bank redirect", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["Sofort"];
 
@@ -241,8 +240,8 @@ describe("Bank Redirect tests", () => {
 
     it("Handle bank redirect redirection", () => {
       // return_url is a static url (https://hyperswitch.io) taken from confirm-body fixture and is not updated
-      let expected_redirection = fixtures.confirmBody["return_url"];
-      let payment_method_type = globalState.get("paymentMethodType");
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,
@@ -266,7 +265,7 @@ describe("Bank Redirect tests", () => {
       }
     });
     it("create-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["PaymentIntent"];
 
@@ -286,7 +285,7 @@ describe("Bank Redirect tests", () => {
     });
 
     it("Confirm bank redirect", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))[
+      const data = getConnectorDetails(globalState.get("connectorId"))[
         "bank_redirect_pm"
       ]["Przelewy24"];
 
@@ -302,8 +301,8 @@ describe("Bank Redirect tests", () => {
     });
 
     it("Handle bank redirect redirection", () => {
-      let expected_redirection = fixtures.confirmBody["return_url"];
-      let payment_method_type = globalState.get("paymentMethodType");
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,

@@ -1,3 +1,5 @@
+/* eslint-disable cypress/unsafe-to-chain-command */
+/* eslint-disable cypress/no-unnecessary-waiting */
 import jsQR from "jsqr";
 
 // Define constants for wait times
@@ -155,7 +157,7 @@ function bankRedirectRedirection(
                 cy.get("button.cookie-modal-deny-all.button-tertiary")
                   .should("be.visible")
                   .should("contain", "Reject All")
-                  .click({ force: true, multiple: true });
+                  .click({ multiple: true });
                 cy.get("div#TopBanks.top-banks-multistep")
                   .should("contain", "Demo Bank")
                   .as("btn")
@@ -279,7 +281,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
   if (connectorId === "adyen") {
     cy.get("iframe")
       .its("0.contentDocument.body")
-      .within((body) => {
+      .within(() => {
         cy.get('input[type="password"]').click();
         cy.get('input[type="password"]').type("password");
         cy.get("#buttonSubmit").click();
@@ -291,17 +293,17 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
   ) {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
-      .within((body) => {
+      .within(() => {
         cy.get('input[type="text"]').click().type("1234");
         cy.get('input[value="SUBMIT"]').click();
       });
   } else if (connectorId === "checkout") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
-      .within((body) => {
+      .within(() => {
         cy.get('form[id="form"]', { timeout: WAIT_TIME })
           .should("exist")
-          .then((form) => {
+          .then(() => {
             cy.get('input[id="password"]').click();
             cy.get('input[id="password"]').type("Checkout1!");
             cy.get("#txtButton").click();
@@ -310,13 +312,13 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
   } else if (connectorId === "nmi" || connectorId === "noon") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
-      .within((body) => {
+      .within(() => {
         cy.get("iframe", { timeout: TIMEOUT })
           .its("0.contentDocument.body")
-          .within((body) => {
+          .within(() => {
             cy.get('form[name="cardholderInput"]', { timeout: TIMEOUT })
               .should("exist")
-              .then((form) => {
+              .then(() => {
                 cy.get('input[name="challengeDataEntry"]').click().type("1234");
                 cy.get('input[value="SUBMIT"]').click();
               });
@@ -325,23 +327,23 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
   } else if (connectorId === "novalnet") {
     cy.get("form", { timeout: WAIT_TIME })
       .should("exist")
-      .then((form) => {
+      .then(() => {
         cy.get('input[id="submit"]').click();
       });
   } else if (connectorId === "stripe") {
     cy.get("iframe", { timeout: TIMEOUT })
       .its("0.contentDocument.body")
-      .within((body) => {
+      .within(() => {
         cy.get("iframe")
           .its("0.contentDocument.body")
-          .within((body) => {
+          .within(() => {
             cy.get("#test-source-authorize-3ds").click();
           });
       });
   } else if (connectorId === "trustpay") {
     cy.get('form[name="challengeForm"]', { timeout: WAIT_TIME })
       .should("exist")
-      .then((form) => {
+      .then(() => {
         cy.get("#outcomeSelect").select("Approve").should("have.value", "Y");
         cy.get('button[type="submit"]').click();
       });
@@ -359,7 +361,7 @@ function threeDsRedirection(redirection_url, expected_url, connectorId) {
   } else if (connectorId === "fiuu") {
     cy.get('form[id="cc_form"]', { timeout: TIMEOUT })
       .should("exist")
-      .then((form) => {
+      .then(() => {
         cy.get('button.pay-btn[name="pay"]').click();
         cy.get("div.otp")
           .invoke("text")

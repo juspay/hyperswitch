@@ -47,7 +47,7 @@ describe("Connector Agnostic Tests", () => {
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
@@ -64,7 +64,7 @@ describe("Connector Agnostic Tests", () => {
       });
 
       it("Confirm Payment", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
@@ -103,7 +103,7 @@ describe("Connector Agnostic Tests", () => {
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
@@ -160,9 +160,9 @@ describe("Connector Agnostic Tests", () => {
     });
 
     it("Create Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -177,9 +177,9 @@ describe("Connector Agnostic Tests", () => {
     });
 
     it("Confirm Payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCaptureOffSession"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -213,9 +213,9 @@ describe("Connector Agnostic Tests", () => {
     });
 
     it("Create Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,

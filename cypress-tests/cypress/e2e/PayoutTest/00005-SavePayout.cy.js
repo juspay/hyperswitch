@@ -42,7 +42,7 @@ describe("[Payout] Saved Card", () => {
     });
 
     it("create payment method", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["SavePayoutMethod"];
 
@@ -54,7 +54,7 @@ describe("[Payout] Saved Card", () => {
     });
 
     it("confirm-payout-call-with-auto-fulfill-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["Token"];
 
@@ -91,7 +91,7 @@ describe("[Payout] Saved Card", () => {
       });
 
       it("confirm-payout-call-with-auto-fulfill-test", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Fulfill"];
 
@@ -106,7 +106,7 @@ describe("[Payout] Saved Card", () => {
       });
 
       it("confirm-payout-call-with-auto-fulfill-test", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Token"];
 
@@ -166,7 +166,7 @@ describe("[Payout] Saved Bank transfer", () => {
       });
 
       it("create payment method", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
         ]["sepa"]["SavePayoutMethod"];
 
@@ -178,7 +178,7 @@ describe("[Payout] Saved Bank transfer", () => {
       });
 
       it("[Payout] [Bank transfer] [SEPA] Fulfill using Token", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
         ]["sepa"]["Token"];
 
@@ -216,7 +216,7 @@ describe("[Payout] Saved Bank transfer", () => {
       });
 
       it("confirm-payout-call-with-auto-fulfill-test", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
         ]["sepa"]["Fulfill"];
 
@@ -231,7 +231,7 @@ describe("[Payout] Saved Bank transfer", () => {
       });
 
       it("[Payout] [Bank transfer] [SEPA] Fulfill using Token", () => {
-        let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        const data = utils.getConnectorDetails(globalState.get("connectorId"))[
           "bank_transfer_pm"
         ]["sepa"]["Token"];
 
