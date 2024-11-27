@@ -12,6 +12,7 @@ import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
+import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
@@ -21,6 +22,7 @@ import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js"
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
+import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -38,11 +40,13 @@ const connectorDetails = {
   paybox: payboxConnectorDetails,
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
+  elavon: elavonConnectorDetails,
   trustpay: trustpayConnectorDetails,
   datatrans: datatransConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   fiuu: fiuuConnectorDetails,
   worldpay: worldpayConnectorDetails,
+  noon: noonConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
