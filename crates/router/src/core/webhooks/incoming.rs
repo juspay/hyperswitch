@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
-use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
+use hyperswitch_interfaces::webhooks::{IncomingWebhookFlowError, IncomingWebhookRequestDetails};
 use masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId};
 
@@ -209,7 +209,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             );
 
             let response = connector
-                .get_webhook_api_response(&request_details)
+                .get_webhook_api_response(&request_details, None)
                 .switch()
                 .attach_printable("Failed while early return in case of event type parsing")?;
 
@@ -358,7 +358,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        match flow_type {
+        let result_response = match flow_type {
             api::WebhookFlow::Payment => Box::pin(payments_incoming_webhook_flow(
                 state.clone(),
                 req_state,
@@ -372,7 +372,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 event_type,
             ))
             .await
-            .attach_printable("Incoming webhook flow for payments failed")?,
+            .attach_printable("Incoming webhook flow for payments failed"),
 
             api::WebhookFlow::Refund => Box::pin(refunds_incoming_webhook_flow(
                 state.clone(),
@@ -385,7 +385,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 event_type,
             ))
             .await
-            .attach_printable("Incoming webhook flow for refunds failed")?,
+            .attach_printable("Incoming webhook flow for refunds failed"),
 
             api::WebhookFlow::Dispute => Box::pin(disputes_incoming_webhook_flow(
                 state.clone(),
@@ -399,7 +399,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 event_type,
             ))
             .await
-            .attach_printable("Incoming webhook flow for disputes failed")?,
+            .attach_printable("Incoming webhook flow for disputes failed"),
 
             api::WebhookFlow::BankTransfer => Box::pin(bank_transfer_webhook_flow(
                 state.clone(),
@@ -411,9 +411,9 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 source_verified,
             ))
             .await
-            .attach_printable("Incoming bank-transfer webhook flow failed")?,
+            .attach_printable("Incoming bank-transfer webhook flow failed"),
 
-            api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoEffect,
+            api::WebhookFlow::ReturnResponse => Ok(WebhookResponseTracker::NoEffect),
 
             api::WebhookFlow::Mandate => Box::pin(mandates_incoming_webhook_flow(
                 state.clone(),
@@ -425,7 +425,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 event_type,
             ))
             .await
-            .attach_printable("Incoming webhook flow for mandates failed")?,
+            .attach_printable("Incoming webhook flow for mandates failed"),
 
             api::WebhookFlow::ExternalAuthentication => {
                 Box::pin(external_authentication_incoming_webhook_flow(
@@ -442,7 +442,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     merchant_connector_account,
                 ))
                 .await
-                .attach_printable("Incoming webhook flow for external authentication failed")?
+                .attach_printable("Incoming webhook flow for external authentication failed")
             }
             api::WebhookFlow::FraudCheck => Box::pin(frm_incoming_webhook_flow(
                 state.clone(),
@@ -455,7 +455,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 business_profile,
             ))
             .await
-            .attach_printable("Incoming webhook flow for fraud check failed")?,
+            .attach_printable("Incoming webhook flow for fraud check failed"),
 
             #[cfg(feature = "payouts")]
             api::WebhookFlow::Payout => Box::pin(payouts_incoming_webhook_flow(
@@ -468,10 +468,47 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 source_verified,
             ))
             .await
-            .attach_printable("Incoming webhook flow for payouts failed")?,
+            .attach_printable("Incoming webhook flow for payouts failed"),
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unsupported Flow Type received in incoming webhooks")?,
+                .attach_printable("Unsupported Flow Type received in incoming webhooks"),
+        };
+
+        match result_response {
+            Ok(response) => response,
+            Err(error) => {
+                logger::error!(?error, "Incoming webhook flow failed");
+
+                // fetch teh connector enum from the connector name
+                let connector_enum =
+                    api_models::connector_enums::Connector::from_str(&connector_name)
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "connector",
+                        })
+                        .attach_printable_lazy(|| {
+                            format!("unable to parse connector name {connector_name:?}")
+                        })?;
+
+                // get the error response from the connector
+                if connector_enum.should_acknowledge_webhook_for_resource_not_found_errors() {
+                    let response = connector
+                        .get_webhook_api_response(
+                            &request_details,
+                            Some(IncomingWebhookFlowError::from(error.current_context())),
+                        )
+                        .switch()
+                        .attach_printable(
+                            "Failed to get incoming webhook api response from connector",
+                        )?;
+                    return Ok((
+                        response,
+                        WebhookResponseTracker::NoEffect,
+                        serde_json::Value::Null,
+                    ));
+                } else {
+                    return Err(error);
+                }
+            }
         }
     } else {
         metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
@@ -486,7 +523,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     };
 
     let response = connector
-        .get_webhook_api_response(&request_details)
+        .get_webhook_api_response(&request_details, None)
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
 
