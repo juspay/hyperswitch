@@ -1059,8 +1059,6 @@ pub async fn enable_dynamic_routing_algorithm(
     dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
-    let business_profile = business_profile.clone();
-
     let dynamic_routing = dynamic_routing_algo_ref.clone();
     match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
@@ -1134,7 +1132,6 @@ where
     };
     let db = state.store.as_ref();
     let profile_id = business_profile.get_id().clone();
-    let business_profile = business_profile.clone();
     let algo_type_enabled_features = algo_type.get_enabled_features();
     if *algo_type_enabled_features == feature_to_enable {
         // algorithm already has the required feature
@@ -1150,7 +1147,7 @@ where
         db,
         &state.into(),
         &key_store,
-        business_profile.clone(),
+        business_profile,
         dynamic_routing_algo_ref.clone(),
     )
     .await?;
@@ -1163,14 +1160,7 @@ where
     core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
         &metrics::CONTEXT,
         1,
-        &add_attributes([(
-            "profile_id",
-            business_profile
-                .get_id()
-                .clone()
-                .get_string_repr()
-                .to_owned(),
-        )]),
+        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
     );
     Ok(ApplicationResponse::Json(updated_routing_record))
 }
@@ -1289,35 +1279,35 @@ impl SuccessBasedRoutingConfigParamsInterpolator {
 
     pub fn get_string_val(
         &self,
-        params: &Vec<routing_types::SuccessBasedRoutingConfigParams>,
+        params: &Vec<routing_types::DynamicRoutingConfigParams>,
     ) -> String {
         let mut parts: Vec<String> = Vec::new();
         for param in params {
             let val = match param {
-                routing_types::SuccessBasedRoutingConfigParams::PaymentMethod => self
+                routing_types::DynamicRoutingConfigParams::PaymentMethod => self
                     .payment_method
                     .as_ref()
                     .map_or(String::new(), |pm| pm.to_string()),
-                routing_types::SuccessBasedRoutingConfigParams::PaymentMethodType => self
+                routing_types::DynamicRoutingConfigParams::PaymentMethodType => self
                     .payment_method_type
                     .as_ref()
                     .map_or(String::new(), |pmt| pmt.to_string()),
-                routing_types::SuccessBasedRoutingConfigParams::AuthenticationType => self
+                routing_types::DynamicRoutingConfigParams::AuthenticationType => self
                     .authentication_type
                     .as_ref()
                     .map_or(String::new(), |at| at.to_string()),
-                routing_types::SuccessBasedRoutingConfigParams::Currency => self
+                routing_types::DynamicRoutingConfigParams::Currency => self
                     .currency
                     .as_ref()
                     .map_or(String::new(), |cur| cur.to_string()),
-                routing_types::SuccessBasedRoutingConfigParams::Country => self
+                routing_types::DynamicRoutingConfigParams::Country => self
                     .country
                     .as_ref()
                     .map_or(String::new(), |cn| cn.to_string()),
-                routing_types::SuccessBasedRoutingConfigParams::CardNetwork => {
+                routing_types::DynamicRoutingConfigParams::CardNetwork => {
                     self.card_network.clone().unwrap_or_default()
                 }
-                routing_types::SuccessBasedRoutingConfigParams::CardBin => {
+                routing_types::DynamicRoutingConfigParams::CardBin => {
                     self.card_bin.clone().unwrap_or_default()
                 }
             };
