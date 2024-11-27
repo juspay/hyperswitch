@@ -7,6 +7,7 @@ use error_stack::ResultExt;
 use masking::PeekInterface;
 use once_cell::sync::Lazy;
 use redis_interface::DelReply;
+use router_env::{instrument, tracing};
 use rust_decimal::Decimal;
 use strum::IntoEnumIterator;
 use tokio::{sync::RwLock, time::sleep};
@@ -150,11 +151,13 @@ impl TryFrom<DefaultExchangeRates> for ExchangeRates {
         let mut conversion_usable: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
         for (curr, conversion) in value.conversion {
             let enum_curr = enums::Currency::from_str(curr.as_str())
-                .change_context(ForexCacheError::ConversionError)?;
+                .change_context(ForexCacheError::ConversionError)
+                .attach_printable("Unable to Convert currency received")?;
             conversion_usable.insert(enum_curr, CurrencyFactors::from(conversion));
         }
         let base_curr = enums::Currency::from_str(value.base_currency.as_str())
-            .change_context(ForexCacheError::ConversionError)?;
+            .change_context(ForexCacheError::ConversionError)
+            .attach_printable("Unable to convert base currency")?;
         Ok(Self {
             base_currency: base_curr,
             conversion: conversion_usable,
@@ -170,6 +173,8 @@ impl From<Conversion> for CurrencyFactors {
         }
     }
 }
+
+#[instrument(skip_all)]
 pub async fn get_forex_rates(
     state: &SessionState,
     call_delay: i64,
@@ -222,6 +227,7 @@ async fn successive_fetch_and_save_forex(
     match acquire_redis_lock(state).await {
         Ok(lock_acquired) => {
             if !lock_acquired {
+                release_redis_lock(state).await;
                 return stale_redis_data.ok_or(ForexCacheError::CouldNotAcquireLock.into());
             }
             let api_rates = fetch_forex_rates(state).await;
@@ -235,6 +241,7 @@ async fn successive_fetch_and_save_forex(
                         Ok(rates) => Ok(successive_save_data_to_redis_local(state, rates).await?),
                         Err(error) => stale_redis_data.ok_or({
                             logger::error!(?error);
+                            release_redis_lock(state).await;
                             ForexCacheError::ApiUnresponsive.into()
                         }),
                     }
@@ -453,6 +460,7 @@ async fn release_redis_lock(
         .delete_key(REDIX_FOREX_CACHE_KEY)
         .await
         .change_context(ForexCacheError::RedisLockReleaseFailed)
+        .attach_printable("Unable to release redis lock")
 }
 
 async fn acquire_redis_lock(state: &SessionState) -> CustomResult<bool, ForexCacheError> {
@@ -475,6 +483,7 @@ async fn acquire_redis_lock(state: &SessionState) -> CustomResult<bool, ForexCac
         .await
         .map(|val| matches!(val, redis_interface::SetnxReply::KeySet))
         .change_context(ForexCacheError::CouldNotAcquireLock)
+        .attach_printable("Unable to acquire redis lock")
 }
 
 async fn save_forex_to_redis(
@@ -488,6 +497,7 @@ async fn save_forex_to_redis(
         .serialize_and_set_key(REDIX_FOREX_CACHE_DATA, forex_exchange_cache_entry)
         .await
         .change_context(ForexCacheError::RedisWriteError)
+        .attach_printable("Unable to save forex data to redis")
 }
 
 async fn retrieve_forex_from_redis(
@@ -500,6 +510,7 @@ async fn retrieve_forex_from_redis(
         .get_and_deserialize_key(REDIX_FOREX_CACHE_DATA, "FxExchangeRatesCache")
         .await
         .change_context(ForexCacheError::EntryNotFound)
+        .attach_printable("Forex entry not found in redis")
 }
 
 async fn is_redis_expired(
