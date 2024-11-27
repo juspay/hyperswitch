@@ -294,37 +294,38 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
             }
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
                 match request.order_details.clone() {
-                    Some(order_details) => {
-                        Ok(Self::KlarnaCheckoutAuthRequest(CheckoutRequest {
-                            purchase_country: item.router_data.get_billing_country()?,
-                            purchase_currency: request.currency,
-                            order_amount: item.amount,
-                            order_tax_amount: Some(request.order_tax_amount),
-                            order_lines: order_details
-                                .iter()
-                                .map(|data| CheckoutOrderLines {
-                                    name: data.product_name.clone(),
-                                    quantity: data.quantity,
-                                    unit_price: data.amount,
-                                    total_amount: data.amount * data.quantity,
-                                    total_tax_amount: data.total_tax_amount,
-                                    tax_rate: data.tax_rate,
-                                })
-                                .collect(),
-                            merchant_urls: MerchantURLs {
-                                terms: return_url.clone(),
-                                checkout: return_url.clone(),
-                                confirmation: return_url.clone(),
-                                push: return_url,
-                            },
-                            auto_capture: request.is_auto_capture()?,
-                            shipping_address: get_address_info(item.router_data.get_optional_shipping())
-                                .transpose()?,
-                        }))
-                    }
-                    None => {
-                        Err(errors::ConnectorError::NotImplemented("Order details missing".to_string()).into())
-                    }
+                    Some(order_details) => Ok(Self::KlarnaCheckoutAuthRequest(CheckoutRequest {
+                        purchase_country: item.router_data.get_billing_country()?,
+                        purchase_currency: request.currency,
+                        order_amount: item.amount,
+                        order_tax_amount: Some(request.order_tax_amount),
+                        order_lines: order_details
+                            .iter()
+                            .map(|data| CheckoutOrderLines {
+                                name: data.product_name.clone(),
+                                quantity: data.quantity,
+                                unit_price: data.amount,
+                                total_amount: data.amount * data.quantity,
+                                total_tax_amount: data.total_tax_amount,
+                                tax_rate: data.tax_rate,
+                            })
+                            .collect(),
+                        merchant_urls: MerchantURLs {
+                            terms: return_url.clone(),
+                            checkout: return_url.clone(),
+                            confirmation: return_url.clone(),
+                            push: return_url,
+                        },
+                        auto_capture: request.is_auto_capture()?,
+                        shipping_address: get_address_info(
+                            item.router_data.get_optional_shipping(),
+                        )
+                        .transpose()?,
+                    })),
+                    None => Err(errors::ConnectorError::NotImplemented(
+                        "Order details missing".to_string(),
+                    )
+                    .into()),
                 }
             }
             domain::PaymentMethodData::Card(_)
