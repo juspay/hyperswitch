@@ -12,7 +12,7 @@ use common_utils::ext_traits::AsyncExt;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::success_rate::SuccessBasedDynamicRouting;
+use external_services::grpc_client::dynamic_routing::success_rate_client::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::{logger, metrics::add_attributes};

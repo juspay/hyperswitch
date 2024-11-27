@@ -4,13 +4,13 @@ use common_utils::errors::CustomResult;
 use router_env::logger;
 use serde;
 /// Elimination Routing Client Interface Implementation
-pub mod elimination_rate;
+pub mod elimination_rate_client;
 /// Success Routing Client Interface Implementation
-pub mod success_rate;
+pub mod success_rate_client;
 
 use super::Client;
-pub use elimination_rate::EliminationAnalyserClient;
-pub use success_rate::SuccessRateCalculatorClient;
+pub use elimination_rate_client::EliminationAnalyserClient;
+pub use success_rate_client::SuccessRateCalculatorClient;
 /// Result type for Dynamic Routing
 pub type DynamicRoutingResult<T> = CustomResult<T, DynamicRoutingError>;
 
