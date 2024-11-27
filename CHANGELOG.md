@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.20.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [Cybersource] change commerce indicator for applepay ([#6675](https://github.com/juspay/hyperswitch/pull/6675)) ([`b397a85`](https://github.com/juspay/hyperswitch/commit/b397a85adcb0abbfa3777a06ce2d3b877c87be41))
+
+- - -
+
 ## 2024.11.20.0
 
 ### Features
