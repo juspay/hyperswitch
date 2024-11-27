@@ -845,6 +845,7 @@ pub trait CardData {
     fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error>;
 }
 
 impl CardData for Card {
@@ -917,6 +918,14 @@ impl CardData for Card {
     }
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
         self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error> {
+        self.get_expiry_year_4_digit()
             .peek()
             .clone()
             .parse::<i32>()
@@ -2241,4 +2250,21 @@ impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
             ),
         }
     }
+}
+
+pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
+    xml_data: &[u8],
+) -> Result<T, errors::ConnectorError> {
+    let response_str = std::str::from_utf8(xml_data)
+        .map_err(|e| {
+            router_env::logger::error!("Error converting response data to UTF-8: {:?}", e);
+            errors::ConnectorError::ResponseDeserializationFailed
+        })?
+        .trim();
+    let result: T = quick_xml::de::from_str(response_str).map_err(|e| {
+        router_env::logger::error!("Error deserializing XML response: {:?}", e);
+        errors::ConnectorError::ResponseDeserializationFailed
+    })?;
+
+    Ok(result)
 }

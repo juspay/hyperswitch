@@ -101,6 +101,7 @@ pub struct PaymentIntent {
     pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 impl PaymentIntent {
@@ -594,4 +595,14 @@ where
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
+}
+
+#[cfg(feature = "v2")]
+impl<F> PaymentStatusData<F>
+where
+    F: Clone,
+{
+    pub fn get_payment_id(&self) -> &id_type::GlobalPaymentId {
+        &self.payment_intent.id
+    }
 }
