@@ -12,7 +12,6 @@ pub mod datatrans;
 pub mod dummyconnector;
 pub mod ebanx;
 pub mod globalpay;
-pub mod gocardless;
 pub mod gpayments;
 pub mod iatapay;
 pub mod itaubank;
@@ -49,7 +48,7 @@ pub use hyperswitch_connectors::connectors::{
     cryptopay::Cryptopay, deutschebank, deutschebank::Deutschebank, digitalvirgo,
     digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, elavon, elavon::Elavon, fiserv,
     fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, forte, forte::Forte,
-    globepay, globepay::Globepay, helcim, helcim::Helcim, jpmorgan, jpmorgan::Jpmorgan, mollie,
+    globepay, globepay::Globepay, gocardless, gocardless::Gocardless, helcim, helcim::Helcim, jpmorgan, jpmorgan::Jpmorgan, mollie,
     mollie::Mollie, multisafepay, multisafepay::Multisafepay, nexinets, nexinets::Nexinets,
     nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay, novalnet, novalnet::Novalnet, payeezy,
     payeezy::Payeezy, payu, payu::Payu, powertranz, powertranz::Powertranz, razorpay,
@@ -64,7 +63,7 @@ pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, authorizedotnet::Authorizedotnet,
     bankofamerica::Bankofamerica, bluesnap::Bluesnap, braintree::Braintree,
     checkout::Checkout, cybersource::Cybersource, datatrans::Datatrans, ebanx::Ebanx,
-    globalpay::Globalpay, gocardless::Gocardless, gpayments::Gpayments, iatapay::Iatapay,
+    globalpay::Globalpay, gpayments::Gpayments, iatapay::Iatapay,
     itaubank::Itaubank, klarna::Klarna, mifinity::Mifinity, netcetera::Netcetera, nmi::Nmi,
     noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payme::Payme,
     payone::Payone, paypal::Paypal, placetopay::Placetopay, plaid::Plaid, prophetpay::Prophetpay,

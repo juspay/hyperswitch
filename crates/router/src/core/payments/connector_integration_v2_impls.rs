@@ -702,7 +702,7 @@ default_imp_for_new_connector_integration_payment!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -761,7 +761,7 @@ default_imp_for_new_connector_integration_refund!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -814,7 +814,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -889,7 +889,6 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -946,7 +945,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -987,7 +986,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1055,7 +1054,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1124,7 +1123,6 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
-    connector::Gocardless,
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
@@ -1206,7 +1204,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1266,7 +1264,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1326,7 +1324,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1386,7 +1384,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1446,7 +1444,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1506,7 +1504,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1566,7 +1564,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1626,7 +1624,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1684,7 +1682,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1753,7 +1751,6 @@ default_imp_for_new_connector_integration_frm!(
     connector::Fiuu,
     connector::Globalpay,
     connector::Globepay,
-    connector::Gocardless,
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
@@ -1835,7 +1832,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1895,7 +1892,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -1955,7 +1952,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -2015,7 +2012,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -2075,7 +2072,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
@@ -2132,7 +2129,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Datatrans,
     connector::Ebanx,
     connector::Globalpay,
-    connector::Gocardless,
+    
     connector::Gpayments,
     connector::Iatapay,
     connector::Itaubank,
