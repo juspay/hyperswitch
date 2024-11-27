@@ -571,7 +571,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
             .and_then(|billing_address| {
                 billing_address
                     .get_inner()
-                    .peek()
                     .address
                     .as_ref()
                     .and_then(|address| address.country)
@@ -650,6 +649,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
+        psd2_sca_exemption_type: None,
     };
 
     Ok(router_data)
