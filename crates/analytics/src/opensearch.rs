@@ -732,11 +732,6 @@ impl OpenSearchQueryBuilder {
                     should_array.clone(),
                     index,
                 );
-                println!("Index: {:?}", index);
-                println!(
-                    "Payload: {}",
-                    serde_json::to_string_pretty(&payload).unwrap()
-                );
                 payload
             })
             .collect::<Vec<Value>>())
