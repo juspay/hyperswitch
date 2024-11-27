@@ -650,6 +650,38 @@ async fn handle_existing_user_invitation(
         return Err(UserErrors::UserExists.into());
     }
 
+    let (org_id, merchant_id, profile_id) = match role_info.get_entity_type() {
+        EntityType::Organization => (Some(&user_from_token.org_id), None, None),
+        EntityType::Merchant => (
+            Some(&user_from_token.org_id),
+            Some(&user_from_token.merchant_id),
+            None,
+        ),
+        EntityType::Profile => (
+            Some(&user_from_token.org_id),
+            Some(&user_from_token.merchant_id),
+            Some(&user_from_token.profile_id),
+        ),
+    };
+
+    if state
+        .global_store
+        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+            user_id: invitee_user_from_db.get_user_id(),
+            org_id,
+            merchant_id,
+            profile_id,
+            entity_id: None,
+            version: None,
+            status: None,
+            limit: Some(1),
+        })
+        .await
+        .is_ok_and(|data| data.is_empty().not())
+    {
+        return Err(UserErrors::UserExists.into());
+    }
+
     let user_role = domain::NewUserRole {
         user_id: invitee_user_from_db.get_user_id().to_owned(),
         role_id: request.role_id.clone(),

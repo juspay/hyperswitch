@@ -29,8 +29,15 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
+          req_data,
+          res_data,
           7000,
           true,
           "automatic",
@@ -52,8 +59,15 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITManualCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
+          req_data,
+          res_data,
           7000,
           true,
           "manual",
@@ -75,8 +89,15 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
+          req_data,
+          res_data,
           7000,
           true,
           "automatic",
@@ -84,8 +105,15 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         );
       });
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
+          req_data,
+          res_data,
           7000,
           true,
           "automatic",
@@ -107,8 +135,15 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT 1", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITManualCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
+          req_data,
+          res_data,
           6500,
           true,
           "manual",
@@ -135,8 +170,15 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT 2", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITManualCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
+          req_data,
+          res_data,
           6500,
           true,
           "manual",
@@ -176,8 +218,15 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
+          req_data,
+          res_data,
           7000,
           true,
           "automatic",
@@ -185,8 +234,15 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         );
       });
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
+          req_data,
+          res_data,
           7000,
           true,
           "automatic",
@@ -208,8 +264,15 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitUsingNTID(
           fixtures.ntidConfirmBody,
+          req_data,
+          res_data,
           7000,
           true,
           "automatic",
