@@ -554,6 +554,7 @@ async fn store_bank_details_in_payment_methods(
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
             };
 
             #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
