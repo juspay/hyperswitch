@@ -112,7 +112,7 @@ pub struct PaymentsResponse {
 pub struct CheckoutResponse {
     order_id: String,
     status: KlarnaCheckoutStatus,
-    html_snippet: Option<String>,
+    html_snippet: String,
     authorized_payment_method: Option<AuthorizedPaymentMethod>,
 }
 
@@ -307,8 +307,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                             merchant_urls: MerchantURLs {
                                 terms: return_url.clone(),
                                 checkout: return_url.clone(),
-                                confirmation: "https://google.com".to_string(),
-                                push: "https://google.com".to_string(),
+                                confirmation: return_url.clone(),
+                                push: return_url,
                             },
                             auto_capture: request.is_auto_capture()?,
                             shipping_address: get_address_info(item.router_data.get_optional_shipping())
@@ -435,7 +435,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
                         response.order_id.clone(),
                     ),
                     redirection_data:  Box::new(Some(RedirectForm::Html {
-                        html_data: response.html_snippet.clone().unwrap_or_default(),
+                        html_data: response.html_snippet.clone(),
                     })),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -506,7 +506,6 @@ pub enum KlarnaFraudStatus {
     Accepted,
     Pending,
     Rejected,
-    AuthenticationPending,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -528,7 +527,6 @@ impl ForeignFrom<(KlarnaFraudStatus, bool)> for enums::AttemptStatus {
             }
             KlarnaFraudStatus::Pending => Self::Pending,
             KlarnaFraudStatus::Rejected => Self::Failure,
-            KlarnaFraudStatus::AuthenticationPending => Self::AuthenticationPending,
         }
     }
 }
