@@ -221,6 +221,7 @@ diesel::table! {
         is_network_tokenization_enabled -> Bool,
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
+        always_request_extended_authorization -> Nullable<Bool>,
     }
 }
 
@@ -822,6 +823,9 @@ diesel::table! {
         shipping_cost -> Nullable<Int8>,
         order_tax_amount -> Nullable<Int8>,
         connector_mandate_detail -> Nullable<Jsonb>,
+        request_extended_authorization -> Nullable<Bool>,
+        extended_authorization_applied -> Nullable<Bool>,
+        capture_before -> Nullable<Timestamp>,
     }
 }
 
@@ -895,6 +899,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        request_extended_authorization -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
     }
 }
