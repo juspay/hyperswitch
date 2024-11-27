@@ -614,12 +614,32 @@ where
         }
         api_models::payments::PaymentIdType::PreprocessingId(ref _id) => todo!(),
     };
+
+    // We need the address here to send it in the response
+    // In case we need to send an outgoing webhook, we might have to send the billing address and shipping address
+    let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+        payment_intent
+            .shipping_address
+            .clone()
+            .map(|address| address.into_inner()),
+        payment_intent
+            .billing_address
+            .clone()
+            .map(|address| address.into_inner()),
+        payment_attempt
+            .payment_method_billing_address
+            .clone()
+            .map(|address| address.into_inner()),
+        Some(true),
+    );
+
     Ok(payments::operations::GetTrackerResponse {
         payment_data: PaymentStatusData {
             flow: PhantomData,
             payment_intent,
             payment_attempt: Some(payment_attempt),
             should_sync_with_connector: true,
+            payment_address,
         },
     })
 }

@@ -163,6 +163,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveReques
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();
 
+        // We need the address here to send it in the response
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
                 .shipping_address
