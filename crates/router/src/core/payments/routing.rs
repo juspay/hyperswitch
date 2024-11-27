@@ -24,8 +24,8 @@ use euclid::{
     frontend::{ast, dir as euclid_dir},
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::{
-    success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
+use external_services::grpc_client::dynamic_routing::success_rate::{
+    CalSuccessRateResponse, SuccessBasedDynamicRouting,
 };
 use kgraph_utils::{
     mca as mca_graph,

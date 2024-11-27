@@ -16,7 +16,7 @@ use diesel_models::configs;
 use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
-use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
+use external_services::grpc_client::dynamic_routing::success_rate::SuccessBasedDynamicRouting;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
@@ -751,7 +751,10 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             &metrics::CONTEXT,
             1,
             &add_attributes([
-                ("tenant", state.tenant.tenant_id.clone()),
+                (
+                    "tenant",
+                    state.tenant.tenant_id.get_string_repr().to_owned(),
+                ),
                 (
                     "merchant_profile_id",
                     format!(

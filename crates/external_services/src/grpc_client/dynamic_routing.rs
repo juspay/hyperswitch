@@ -1,18 +1,16 @@
 use std::fmt::Debug;
 
 use common_utils::errors::CustomResult;
-use http_body_util::combinators::UnsyncBoxBody;
-use hyper::body::Bytes;
-use hyper_util::client::legacy::connect::HttpConnector;
 use router_env::logger;
 use serde;
-use tonic::Status;
+/// Elimination Routing Client Interface Implementation
 pub mod elimination_rate;
+/// Success Routing Client Interface Implementation
 pub mod success_rate;
 
+use super::Client;
 pub use elimination_rate::EliminationAnalyserClient;
 pub use success_rate::SuccessRateCalculatorClient;
-
 /// Result type for Dynamic Routing
 pub type DynamicRoutingResult<T> = CustomResult<T, DynamicRoutingError>;
 
@@ -33,8 +31,6 @@ pub enum DynamicRoutingError {
     EliminationRateRoutingFailure(String),
 }
 
-type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
-
 /// Type that consists of all the services provided by the client
 #[derive(Debug, Clone)]
 pub struct RoutingStrategy {
@@ -54,6 +50,8 @@ pub enum DynamicRoutingClientConfig {
         host: String,
         /// The port of the client
         port: u16,
+        /// Service name
+        service: String,
     },
     #[default]
     /// If the dynamic routing client config has been disabled
@@ -64,13 +62,10 @@ impl DynamicRoutingClientConfig {
     /// establish connection with the server
     pub async fn get_dynamic_routing_connection(
         self,
+        client: Client,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
-        let client =
-            hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
-                .http2_only(true)
-                .build_http();
         let (success_rate_client, elimination_rate_client) = match self {
-            Self::Enabled { host, port } => {
+            Self::Enabled { host, port, .. } => {
                 let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
                 logger::info!("Connection established with dynamic routing gRPC Server");
                 (
