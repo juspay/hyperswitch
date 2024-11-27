@@ -705,7 +705,7 @@ pub struct ToggleDynamicRoutingPath {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct EliminationRoutingConfig {
-    pub params: Option<Vec<SuccessBasedRoutingConfigParams>>,
+    pub params: Option<Vec<DynamicRoutingConfigParams>>,
     // pub labels: Option<Vec<String>>,
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
 }
@@ -719,7 +719,7 @@ pub struct EliminationAnalyserConfig {
 impl Default for EliminationRoutingConfig {
     fn default() -> Self {
         Self {
-            params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod]),
+            params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             elimination_analyser_config: Some(EliminationAnalyserConfig {
                 bucket_size: Some(5),
                 bucket_ttl_in_mins: Some(2.0),
@@ -730,14 +730,14 @@ impl Default for EliminationRoutingConfig {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct SuccessBasedRoutingConfig {
-    pub params: Option<Vec<SuccessBasedRoutingConfigParams>>,
+    pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub config: Option<SuccessBasedRoutingConfigBody>,
 }
 
 impl Default for SuccessBasedRoutingConfig {
     fn default() -> Self {
         Self {
-            params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod]),
+            params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             config: Some(SuccessBasedRoutingConfigBody {
                 min_aggregates_size: Some(2),
                 default_success_rate: Some(100.0),
@@ -752,7 +752,7 @@ impl Default for SuccessBasedRoutingConfig {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema, strum::Display)]
-pub enum SuccessBasedRoutingConfigParams {
+pub enum DynamicRoutingConfigParams {
     PaymentMethod,
     PaymentMethodType,
     AuthenticationType,

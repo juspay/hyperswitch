@@ -72,10 +72,20 @@ pub static PM_FILTERS_CGRAPH_CACHE: Lazy<Cache> = Lazy::new(|| {
     )
 });
 
-/// Dynamic Algorithm Cache
+/// Success based Dynamic Algorithm Cache
 pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
     Cache::new(
         "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
+        CACHE_TTL,
+        CACHE_TTI,
+        Some(MAX_CAPACITY),
+    )
+});
+
+/// Elimination based Dynamic Algorithm Cache
+pub static ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+    Cache::new(
+        "ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE",
         CACHE_TTL,
         CACHE_TTI,
         Some(MAX_CAPACITY),
