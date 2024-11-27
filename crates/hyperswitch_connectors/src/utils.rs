@@ -1133,6 +1133,7 @@ impl PhoneDetailsData for PhoneDetails {
 #[cfg(feature = "payouts")]
 pub trait PayoutFulfillRequestData {
     fn get_connector_payout_id(&self) -> Result<String, Error>;
+    fn get_connector_transfer_method_id(&self) -> Result<String, Error>;
 }
 #[cfg(feature = "payouts")]
 impl PayoutFulfillRequestData for PayoutsData {
@@ -1140,6 +1141,12 @@ impl PayoutFulfillRequestData for PayoutsData {
         self.connector_payout_id
             .clone()
             .ok_or_else(missing_field_err("connector_payout_id"))
+    }
+
+    fn get_connector_transfer_method_id(&self) -> Result<String, Error> {
+        self.connector_transfer_method_id
+            .clone()
+            .ok_or_else(missing_field_err("connector_transfer_method_id"))
     }
 }
 

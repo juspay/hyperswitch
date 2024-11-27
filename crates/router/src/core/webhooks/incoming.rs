@@ -667,7 +667,6 @@ async fn payouts_incoming_webhook_flow(
     source_verified: bool,
     // payment_method: Option<PaymentMethod>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-
     metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
     if source_verified {
         let db = &*state.store;

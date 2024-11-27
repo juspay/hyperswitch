@@ -410,9 +410,7 @@ pub async fn save_payout_data_to_locker(
             let card_isin = card_details.as_ref().map(|c| c.card_number.get_card_isin());
 
             let mut payment_method = api::PaymentMethodCreate {
-                payment_method: Some(api_enums::PaymentMethod::foreign_from(
-                    payout_method_data,
-                )),
+                payment_method: Some(api_enums::PaymentMethod::foreign_from(payout_method_data)),
                 payment_method_type: Some(payment_method_type),
                 payment_method_issuer: None,
                 payment_method_issuer_code: None,
@@ -521,29 +519,31 @@ pub async fn save_payout_data_to_locker(
     // Insert new entry in payment_methods table
     if should_insert_in_pm_table {
         let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-        payout_data.payment_method = Some(cards::create_payment_method(
-            state,
-            &new_payment_method,
-            customer_id,
-            &payment_method_id,
-            Some(stored_resp.card_reference.clone()),
-            merchant_account.get_id(),
-            None,
-            None,
-            card_details_encrypted.clone().map(Into::into),
-            key_store,
-            connector_mandate_details,
-            None,
-            None,
-            merchant_account.storage_scheme,
-            None,
-            None,
-            None,
-            None,
-            None,
-            Some(storage_enums::TransactionFlow::Payouts),
-        )
-        .await?);
+        payout_data.payment_method = Some(
+            cards::create_payment_method(
+                state,
+                &new_payment_method,
+                customer_id,
+                &payment_method_id,
+                Some(stored_resp.card_reference.clone()),
+                merchant_account.get_id(),
+                None,
+                None,
+                card_details_encrypted.clone().map(Into::into),
+                key_store,
+                connector_mandate_details,
+                None,
+                None,
+                merchant_account.storage_scheme,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(storage_enums::TransactionFlow::Payouts),
+            )
+            .await?,
+        );
     }
 
     /*  1. Delete from locker
@@ -602,16 +602,18 @@ pub async fn save_payout_data_to_locker(
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: card_details_encrypted.map(Into::into),
         };
-        payout_data.payment_method = Some(db.update_payment_method(
-            &(state.into()),
-            key_store,
-            existing_pm,
-            pm_update,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to add payment method in db")?);
+        payout_data.payment_method = Some(
+            db.update_payment_method(
+                &(state.into()),
+                key_store,
+                existing_pm,
+                pm_update,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to add payment method in db")?,
+        );
     };
 
     // Store card_reference in payouts table

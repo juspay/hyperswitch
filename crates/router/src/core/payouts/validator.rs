@@ -7,11 +7,11 @@ use common_utils::validation::validate_domain_against_allowed_domains;
 use diesel_models::generic_link::PayoutLink;
 use error_stack::{report, ResultExt};
 pub use hyperswitch_domain_models::errors::StorageError;
+use hyperswitch_domain_models::payment_methods::PaymentMethod;
 use router_env::{instrument, tracing, which as router_env_which, Env};
 use url::Url;
-use hyperswitch_domain_models::payment_methods::PaymentMethod;
+
 use super::helpers;
-use crate::utils::OptionExt;
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -22,6 +22,7 @@ use crate::{
     routes::SessionState,
     types::{api::payouts, domain, storage},
     utils,
+    utils::OptionExt,
 };
 
 #[instrument(skip(db))]

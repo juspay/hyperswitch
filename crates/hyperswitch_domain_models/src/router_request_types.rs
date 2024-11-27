@@ -779,7 +779,8 @@ pub struct UploadFileRequestData {
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]
-pub struct PayoutsData { // pass to conn inte
+pub struct PayoutsData {
+    // pass to conn inte
     pub payout_id: String,
     pub amount: i64,
     pub connector_payout_id: Option<String>,

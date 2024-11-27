@@ -1987,6 +1987,39 @@ pub async fn update_retrieve_payout_tracker<F, T>(
     Ok(())
 }
 
+fn connector_mandate_id_is_none(
+    payout_data: &mut PayoutData,
+    connector_data: &api::ConnectorData,
+) -> RouterResult<bool> {
+    if let Some(pm) = &payout_data.payment_method {
+        let connector_mandate_details = pm
+            .connector_mandate_details
+            .clone()
+            .map(|details| {
+                details.parse_value::<diesel_models::PaymentsMandateReference>(
+                    "connector_mandate_details",
+                )
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize connector mandate details")?;
+
+        if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
+            if let Some(_mandate_reference_record) = connector_mandate_details
+                .clone()
+                .get_required_value("connector_mandate_details")
+                .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                .attach_printable("there were no connector mandate details")?
+                .get(merchant_connector_id)
+            {
+                return Ok(false);
+            }
+        }
+        return Ok(true);
+    }
+    Ok(true)
+}
+
 pub async fn complete_create_recipient_disburse_account(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -1994,6 +2027,7 @@ pub async fn complete_create_recipient_disburse_account(
     payout_data: &mut PayoutData,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
+
     if !payout_data.should_terminate
         && matches!(
             payout_data.payout_attempt.status,
@@ -2003,7 +2037,9 @@ pub async fn complete_create_recipient_disburse_account(
         && connector_data
             .connector_name
             .supports_vendor_disburse_account_create_for_payout()
+        && connector_mandate_id_is_none(payout_data, connector_data)?
     {
+        router_env::logger::info!("Should it be created? as we are passing payment_method_id");
         create_recipient_disburse_account(
             state,
             merchant_account,
@@ -2183,6 +2219,7 @@ pub async fn create_recipient_disburse_account(
 
                     // };
                 } else {
+                    router_env::logger::info!("9999999999999999");
                     helpers::save_payout_data_to_locker(
                         state,
                         payout_data,
@@ -2372,7 +2409,7 @@ pub async fn fulfill_payout(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    let payout_data_copy = payout_data.clone();
+    //let payout_data_copy = payout_data.clone();
     // 1. Form Router data
     let mut router_data =
         core_utils::construct_payout_router_data(connector_data, merchant_account, payout_data)
@@ -2539,7 +2576,7 @@ pub async fn fulfill_payout(
         }
     };
 
-    router_env::logger::info!("@@@@@@@@@@@@@@@@{:?}", payout_data_copy.payment_method); // payment_method_id: "pm_nCiXDe1KtLKxzkhpJVpK",
+    // router_env::logger::info!("@@@@@@@@@@@@@@@@{:?}", payout_data_copy.payment_method); // payment_method_id: "pm_nCiXDe1KtLKxzkhpJVpK",
 
     Ok(())
 }

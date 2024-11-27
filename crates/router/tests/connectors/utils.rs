@@ -474,7 +474,6 @@ pub trait ConnectorActions: Connector {
                 connector_transfer_method_id: None,
             },
             payment_info,
-            
         )
     }
 

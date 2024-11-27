@@ -19,7 +19,6 @@ use crate::{
 };
 // use hyperswitch_domain_models::payment_methods::PaymentMethod;
 
-
 fn get_locale_from_header(headers: &HeaderMap) -> String {
     get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
         .ok()
@@ -62,7 +61,6 @@ pub async fn payouts_retrieve(
     query_params: web::Query<payout_types::PayoutRetrieveBody>,
     // payment_method: Option<PaymentMethod>,
 ) -> HttpResponse {
-    
     let payout_retrieve_request = payout_types::PayoutRetrieveRequest {
         payout_id: path.into_inner(),
         force_sync: query_params.force_sync.to_owned(),
