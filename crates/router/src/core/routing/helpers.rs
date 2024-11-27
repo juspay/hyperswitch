@@ -755,7 +755,10 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             &metrics::CONTEXT,
             1,
             &add_attributes([
-                ("tenant", state.tenant.tenant_id.clone()),
+                (
+                    "tenant",
+                    state.tenant.tenant_id.get_string_repr().to_owned(),
+                ),
                 (
                     "merchant_profile_id",
                     format!(
