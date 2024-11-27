@@ -1064,6 +1064,8 @@ diesel::table! {
         #[max_length = 64]
         network_token_locker_id -> Nullable<Varchar>,
         network_token_payment_method_data -> Nullable<Bytea>,
+        #[max_length = 255]
+        transaction_flow -> Nullable<Varchar>,
     }
 }
 

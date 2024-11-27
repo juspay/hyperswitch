@@ -148,6 +148,33 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
+    let mut connector_mandate_id = None;
+    if let Some(pm) = &payout_data.payment_method {
+        let connector_mandate_details = pm
+            .connector_mandate_details
+            .clone()
+            .map(|details| {
+                details.parse_value::<diesel_models::PaymentsMandateReference>(
+                    "connector_mandate_details",
+                )
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize connector mandate details")?;
+
+        if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
+            if let Some(mandate_reference_record) = connector_mandate_details
+                .clone()
+                .get_required_value("connector_mandate_details")
+                .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+                .attach_printable("there were no connector mandate details")?
+                .get(merchant_connector_id)
+            {
+                connector_mandate_id = Some(mandate_reference_record.connector_mandate_id.clone());
+            }
+        }
+    }
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.get_id().to_owned(),
@@ -189,6 +216,7 @@ pub async fn construct_payout_router_data<'a, F>(
                     phone: c.phone.map(Encryptable::into_inner),
                     phone_country_code: c.phone_country_code,
                 }),
+            connector_transfer_method_id: connector_mandate_id,
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
