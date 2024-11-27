@@ -31,6 +31,8 @@ pub struct RefundMetricRow {
     pub connector: Option<String>,
     pub refund_type: Option<DBEnumWrapper<RefundType>>,
     pub profile_id: Option<String>,
+    pub refund_reason: Option<String>,
+    pub refund_error_message: Option<String>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -119,6 +121,16 @@ where
             }
             Self::SessionizedRefundProcessedAmount => {
                 sessionized_metrics::RefundProcessedAmount::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundReason => {
+                sessionized_metrics::RefundReason::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundErrorMessage => {
+                sessionized_metrics::RefundErrorMessage::default()
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

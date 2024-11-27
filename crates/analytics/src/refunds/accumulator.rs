@@ -11,8 +11,10 @@ pub struct RefundMetricsAccumulator {
     pub refund_count: CountAccumulator,
     pub refund_success: CountAccumulator,
     pub processed_amount: RefundProcessedAmountAccumulator,
-    pub refund_reason: RefundReasonDistributionAccumulator,
-    pub refund_error_message: RefundErrorMessageDistributionAccumulator,
+    pub refund_reason: RefundReasonAccumulator,
+    pub refund_reason_distribution: RefundReasonDistributionAccumulator,
+    pub refund_error_message: RefundReasonAccumulator,
+    pub refund_error_message_distribution: RefundErrorMessageDistributionAccumulator,
 }
 
 #[derive(Debug, Default)]
@@ -37,6 +39,12 @@ pub struct RefundErrorMessageDistributionRow {
 #[derive(Debug, Default)]
 pub struct RefundErrorMessageDistributionAccumulator {
     pub refund_error_message_vec: Vec<RefundErrorMessageDistributionRow>,
+}
+
+#[derive(Debug, Default)]
+#[repr(transparent)]
+pub struct RefundReasonAccumulator {
+    pub count: u64,
 }
 
 #[derive(Debug, Default)]
@@ -228,6 +236,22 @@ impl RefundMetricAccumulator for SuccessRateAccumulator {
     }
 }
 
+impl RefundMetricAccumulator for RefundReasonAccumulator {
+    type MetricOutput = Option<u64>;
+
+    fn add_metrics_bucket(&mut self, metrics: &RefundMetricRow) {
+        if let Some(count) = metrics.count {
+            if let Ok(count_u64) = u64::try_from(count) {
+                self.count += count_u64;
+            }
+        }
+    }
+
+    fn collect(self) -> Self::MetricOutput {
+        Some(self.count)
+    }
+}
+
 impl RefundMetricsAccumulator {
     pub fn collect(self) -> RefundMetricsBucketValue {
         let (successful_refunds, total_refunds, refund_success_rate) =
@@ -243,8 +267,10 @@ impl RefundMetricsAccumulator {
             refund_processed_amount,
             refund_processed_amount_in_usd,
             refund_processed_count,
-            refund_reason: self.refund_reason.collect(),
-            refund_error_message: self.refund_error_message.collect(),
+            refund_reason_distribution: self.refund_reason_distribution.collect(),
+            refund_error_message_distribution: self.refund_error_message_distribution.collect(),
+            refund_reason_count: self.refund_reason.collect(),
+            refund_error_message_count: self.refund_error_message.collect(),
         }
     }
 }

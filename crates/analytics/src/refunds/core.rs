@@ -151,6 +151,12 @@ pub async fn get_metrics(
                         | RefundMetrics::SessionizedRefundProcessedAmount => {
                             metrics_builder.processed_amount.add_metrics_bucket(&value)
                         }
+                        RefundMetrics::SessionizedRefundReason => {
+                            metrics_builder.refund_reason.add_metrics_bucket(&value)
+                        }
+                        RefundMetrics::SessionizedRefundErrorMessage => metrics_builder
+                            .refund_error_message
+                            .add_metrics_bucket(&value),
                     }
                 }
 
@@ -178,10 +184,10 @@ pub async fn get_metrics(
                     let metrics_builder = metrics_accumulator.entry(id).or_default();
                     match distribution {
                         RefundDistributions::SessionizedRefundReason => metrics_builder
-                            .refund_reason
+                            .refund_reason_distribution
                             .add_distribution_bucket(&value),
                         RefundDistributions::SessionizedRefundErrorMessage => metrics_builder
-                            .refund_error_message
+                            .refund_error_message_distribution
                             .add_distribution_bucket(&value),
                     }
                 }
@@ -199,6 +205,8 @@ pub async fn get_metrics(
     let mut total_refund_processed_amount = 0;
     let mut total_refund_processed_amount_in_usd = 0;
     let mut total_refund_processed_count = 0;
+    let mut total_refund_reason_count = 0;
+    let mut total_refund_error_message_count = 0;
     let query_data: Vec<RefundMetricsBucketResponse> = metrics_accumulator
         .into_iter()
         .map(|(id, val)| {
@@ -233,6 +241,12 @@ pub async fn get_metrics(
             if let Some(count) = collected_values.refund_processed_count {
                 total_refund_processed_count += count;
             }
+            if let Some(total_count) = collected_values.refund_reason_count {
+                total_refund_reason_count += total_count;
+            }
+            if let Some(total_count) = collected_values.refund_error_message_count {
+                total_refund_error_message_count += total_count;
+            }
             RefundMetricsBucketResponse {
                 values: collected_values,
                 dimensions: id,
@@ -250,6 +264,8 @@ pub async fn get_metrics(
             total_refund_processed_amount: Some(total_refund_processed_amount),
             total_refund_processed_amount_in_usd: Some(total_refund_processed_amount_in_usd),
             total_refund_processed_count: Some(total_refund_processed_count),
+            total_refund_reason_count: Some(total_refund_reason_count),
+            total_refund_error_message_count: Some(total_refund_error_message_count),
         }],
     })
 }
@@ -325,6 +341,8 @@ pub async fn get_filters(
             RefundDimensions::Connector => fil.connector,
             RefundDimensions::RefundType => fil.refund_type.map(|i| i.as_ref().to_string()),
             RefundDimensions::ProfileId => fil.profile_id,
+            RefundDimensions::RefundReason => fil.refund_reason,
+            RefundDimensions::RefundErrorMessage => fil.refund_error_message,
         })
         .collect::<Vec<String>>();
         res.query_data.push(RefundFilterValue {

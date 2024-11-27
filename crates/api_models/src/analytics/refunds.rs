@@ -43,6 +43,10 @@ pub struct RefundFilters {
     pub refund_type: Vec<RefundType>,
     #[serde(default)]
     pub profile_id: Vec<id_type::ProfileId>,
+    #[serde(default)]
+    pub refund_reason: Vec<String>,
+    #[serde(default)]
+    pub refund_error_message: Vec<String>,
 }
 
 #[derive(
@@ -67,6 +71,8 @@ pub enum RefundDimensions {
     Connector,
     RefundType,
     ProfileId,
+    RefundReason,
+    RefundErrorMessage,
 }
 
 #[derive(
@@ -92,6 +98,8 @@ pub enum RefundMetrics {
     SessionizedRefundCount,
     SessionizedRefundSuccessCount,
     SessionizedRefundProcessedAmount,
+    SessionizedRefundReason,
+    SessionizedRefundErrorMessage,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -162,6 +170,8 @@ pub struct RefundMetricsBucketIdentifier {
     pub connector: Option<String>,
     pub refund_type: Option<String>,
     pub profile_id: Option<String>,
+    pub refund_reason: Option<String>,
+    pub refund_error_message: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -176,6 +186,8 @@ impl Hash for RefundMetricsBucketIdentifier {
         self.connector.hash(state);
         self.refund_type.hash(state);
         self.profile_id.hash(state);
+        self.refund_reason.hash(state);
+        self.refund_error_message.hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -196,6 +208,8 @@ impl RefundMetricsBucketIdentifier {
         connector: Option<String>,
         refund_type: Option<String>,
         profile_id: Option<String>,
+        refund_reason: Option<String>,
+        refund_error_message: Option<String>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -204,6 +218,8 @@ impl RefundMetricsBucketIdentifier {
             connector,
             refund_type,
             profile_id,
+            refund_reason,
+            refund_error_message,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -219,8 +235,10 @@ pub struct RefundMetricsBucketValue {
     pub refund_processed_amount: Option<u64>,
     pub refund_processed_amount_in_usd: Option<u64>,
     pub refund_processed_count: Option<u64>,
-    pub refund_reason: Option<Vec<ReasonsResult>>,
-    pub refund_error_message: Option<Vec<ErrorMessagesResult>>,
+    pub refund_reason_distribution: Option<Vec<ReasonsResult>>,
+    pub refund_error_message_distribution: Option<Vec<ErrorMessagesResult>>,
+    pub refund_reason_count: Option<u64>,
+    pub refund_error_message_count: Option<u64>,
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketResponse {
