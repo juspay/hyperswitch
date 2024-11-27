@@ -57,6 +57,7 @@ pub enum EmailBody {
         api_key_name: String,
         prefix: String,
     },
+    WelcomeToCommunity,
 }
 
 pub mod html {
@@ -145,6 +146,9 @@ Email         : {user_email}
                 prefix = prefix,
                 expires_in = expires_in,
             ),
+            EmailBody::WelcomeToCommunity => {
+                include_str!("assets/welcome_to_community.html").to_string()
+            }
         }
     }
 }
@@ -502,6 +506,24 @@ impl EmailData for ApiKeyExpiryReminder {
             subject: self.subject.to_string(),
             body: external_services::email::IntermediateString::new(body),
             recipient,
+        })
+    }
+}
+
+pub struct WelcomeToCommunity {
+    pub recipient_email: domain::UserEmail,
+    pub subject: &'static str,
+}
+
+#[async_trait::async_trait]
+impl EmailData for WelcomeToCommunity {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let body = html::get_html_body(EmailBody::WelcomeToCommunity);
+
+        Ok(EmailContents {
+            subject: self.subject.to_string(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient: self.recipient_email.clone().into_inner(),
         })
     }
 }

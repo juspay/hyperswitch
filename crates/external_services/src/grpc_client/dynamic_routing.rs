@@ -6,18 +6,17 @@ use api_models::routing::{
 };
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
-use http_body_util::combinators::UnsyncBoxBody;
-use hyper::body::Bytes;
-use hyper_util::client::legacy::connect::HttpConnector;
 use router_env::logger;
 use serde;
 use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse,
-    CurrentBlockThreshold as DynamicCurrentThreshold, LabelWithStatus,
-    UpdateSuccessRateWindowConfig, UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
+    CurrentBlockThreshold as DynamicCurrentThreshold, InvalidateWindowsRequest,
+    InvalidateWindowsResponse, LabelWithStatus, UpdateSuccessRateWindowConfig,
+    UpdateSuccessRateWindowRequest, UpdateSuccessRateWindowResponse,
 };
-use tonic::Status;
+
+use super::Client;
 #[allow(
     missing_docs,
     unused_qualifications,
@@ -44,8 +43,6 @@ pub enum DynamicRoutingError {
     SuccessRateBasedRoutingFailure(String),
 }
 
-type Client = hyper_util::client::legacy::Client<HttpConnector, UnsyncBoxBody<Bytes, Status>>;
-
 /// Type that consists of all the services provided by the client
 #[derive(Debug, Clone)]
 pub struct RoutingStrategy {
@@ -63,6 +60,8 @@ pub enum DynamicRoutingClientConfig {
         host: String,
         /// The port of the client
         port: u16,
+        /// Service name
+        service: String,
     },
     #[default]
     /// If the dynamic routing client config has been disabled
@@ -73,13 +72,10 @@ impl DynamicRoutingClientConfig {
     /// establish connection with the server
     pub async fn get_dynamic_routing_connection(
         self,
+        client: Client,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
-        let client =
-            hyper_util::client::legacy::Client::builder(hyper_util::rt::TokioExecutor::new())
-                .http2_only(true)
-                .build_http();
         let success_rate_client = match self {
-            Self::Enabled { host, port } => {
+            Self::Enabled { host, port, .. } => {
                 let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
                 logger::info!("Connection established with dynamic routing gRPC Server");
                 Some(SuccessRateCalculatorClient::with_origin(client, uri))
@@ -111,6 +107,11 @@ pub trait SuccessBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
         params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateSuccessRateWindowResponse>;
+    /// To invalidates the success rate routing keys
+    async fn invalidate_success_rate_routing_keys(
+        &self,
+        id: String,
+    ) -> DynamicRoutingResult<InvalidateWindowsResponse>;
 }
 
 #[async_trait::async_trait]
@@ -139,9 +140,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             config,
         });
 
-        let mut client = self.clone();
-
-        let response = client
+        let response = self
+            .clone()
             .fetch_success_rate(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
@@ -179,9 +179,8 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             config,
         });
 
-        let mut client = self.clone();
-
-        let response = client
+        let response = self
+            .clone()
             .update_success_rate_window(request)
             .await
             .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
@@ -189,6 +188,23 @@ impl SuccessBasedDynamicRouting for SuccessRateCalculatorClient<Client> {
             ))?
             .into_inner();
 
+        Ok(response)
+    }
+
+    async fn invalidate_success_rate_routing_keys(
+        &self,
+        id: String,
+    ) -> DynamicRoutingResult<InvalidateWindowsResponse> {
+        let request = tonic::Request::new(InvalidateWindowsRequest { id });
+
+        let response = self
+            .clone()
+            .invalidate_windows(request)
+            .await
+            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
+                "Failed to invalidate the success rate routing keys".to_string(),
+            ))?
+            .into_inner();
         Ok(response)
     }
 }

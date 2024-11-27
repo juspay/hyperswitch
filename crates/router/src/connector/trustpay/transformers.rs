@@ -1790,7 +1790,7 @@ pub struct WebhookReferences {
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookAmount {
     pub amount: f64,
-    pub currency: String,
+    pub currency: enums::Currency,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

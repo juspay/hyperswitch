@@ -1766,7 +1766,7 @@ pub struct BraintreeDisputeData {
     pub amount_won: Option<String>,
     pub case_number: Option<String>,
     pub chargeback_protection_level: Option<String>,
-    pub currency_iso_code: String,
+    pub currency_iso_code: enums::Currency,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
     pub evidence: Option<DisputeEvidence>,

@@ -168,6 +168,7 @@ where
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: None,
     };
     Ok(router_data)
 }
@@ -370,6 +371,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: None,
     };
 
     Ok(router_data)
@@ -502,6 +504,7 @@ pub async fn construct_router_data_for_psync<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
+        psd2_sca_exemption_type: None,
     };
 
     Ok(router_data)
@@ -723,6 +726,7 @@ where
         }),
         header_payload,
         connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
     };
 
     Ok(router_data)
@@ -943,11 +947,13 @@ where
                 billing: payment_intent
                     .billing_address
                     .clone()
-                    .map(|billing| billing.into_inner().expose()),
+                    .map(|billing| billing.into_inner())
+                    .map(From::from),
                 shipping: payment_intent
                     .shipping_address
                     .clone()
-                    .map(|shipping| shipping.into_inner().expose()),
+                    .map(|shipping| shipping.into_inner())
+                    .map(From::from),
                 customer_id: payment_intent.customer_id.clone(),
                 customer_present: payment_intent.customer_present.clone(),
                 description: payment_intent.description.clone(),
@@ -3518,6 +3524,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout: config.sdk_layout,
             display_sdk_only: config.display_sdk_only,
             enabled_saved_payment_method: config.enabled_saved_payment_method,
+            hide_card_nickname_field: config.hide_card_nickname_field,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()
@@ -3570,6 +3577,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             sdk_layout: config.sdk_layout,
             display_sdk_only: config.display_sdk_only,
             enabled_saved_payment_method: config.enabled_saved_payment_method,
+            hide_card_nickname_field: config.hide_card_nickname_field,
             transaction_details: config.transaction_details.map(|transaction_details| {
                 transaction_details
                     .iter()

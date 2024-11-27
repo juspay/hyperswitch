@@ -375,7 +375,7 @@ async fn store_bank_details_in_payment_methods(
     > = HashMap::new();
     let key_manager_state = (&state).into();
     for pm in payment_methods {
-        if pm.payment_method == Some(enums::PaymentMethod::BankDebit)
+        if pm.get_payment_method_type() == Some(enums::PaymentMethod::BankDebit)
             && pm.payment_method_data.is_some()
         {
             let bank_details_pm_data = pm
@@ -561,8 +561,8 @@ async fn store_bank_details_in_payment_methods(
                 customer_id: customer_id.clone(),
                 merchant_id: merchant_account.get_id().clone(),
                 id: pm_id,
-                payment_method: Some(enums::PaymentMethod::BankDebit),
-                payment_method_type: Some(creds.payment_method_type),
+                payment_method_type: Some(enums::PaymentMethod::BankDebit),
+                payment_method_subtype: Some(creds.payment_method_type),
                 status: enums::PaymentMethodStatus::Active,
                 metadata: None,
                 payment_method_data: Some(encrypted_data.into()),
