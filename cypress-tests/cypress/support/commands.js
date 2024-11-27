@@ -2115,8 +2115,18 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitUsingNTID",
-  (requestBody, amount, confirm, capture_method, globalState) => {
-
+  (
+    requestBody,
+    req_data,
+    res_data,
+    amount,
+    confirm,
+    capture_method,
+    globalState
+  ) => {
+    for (const key in req_data) {
+      requestBody[key] = req_data[key];
+    }
     requestBody.amount = amount;
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
@@ -2153,8 +2163,13 @@ Cypress.Commands.add(
               .to.have.property("redirect_to_url");
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
+            for (const key in res_data.body) {
+              expect(res_data.body[key]).to.equal(response.body[key]);
+            }
           } else if (response.body.authentication_type === "no_three_ds") {
-              expect(response.body.status).to.equal("succeeded");
+            for (const key in res_data.body) {
+              expect(res_data.body[key]).to.equal(response.body[key]);
+            }
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2167,8 +2182,13 @@ Cypress.Commands.add(
               .to.have.property("redirect_to_url");
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
+            for (const key in res_data.body) {
+              expect(res_data.body[key]).to.equal(response.body[key]);
+            }
           } else if (response.body.authentication_type === "no_three_ds") {
-              expect(response.body.status).to.equal("requires_capture");
+            for (const key in res_data.body) {
+              expect(res_data.body[key]).to.equal(response.body[key]);
+            }
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2180,9 +2200,7 @@ Cypress.Commands.add(
           );
         }
       } else {
-        throw new Error(
-          `Error Response: ${response.status}\n${response.body.error.message}\n${response.body.error.code}`
-        );
+        defaultErrorHandler(response, res_data);
       }
     });
   }
