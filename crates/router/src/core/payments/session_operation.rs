@@ -118,14 +118,11 @@ where
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
-    let (operation, _validate_result) = operation
+    let _validate_result = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
-    let operations::GetTrackerResponse {
-        operation,
-        mut payment_data,
-    } = operation
+    let operations::GetTrackerResponse { mut payment_data } = operation
         .to_get_tracker()?
         .get_trackers(
             state,
