@@ -227,7 +227,6 @@ async fn successive_fetch_and_save_forex(
     match acquire_redis_lock(state).await {
         Ok(lock_acquired) => {
             if !lock_acquired {
-                release_redis_lock(state).await;
                 return stale_redis_data.ok_or(ForexCacheError::CouldNotAcquireLock.into());
             }
             let api_rates = fetch_forex_rates(state).await;
@@ -238,10 +237,12 @@ async fn successive_fetch_and_save_forex(
                     logger::error!(?error);
                     let secondary_api_rates = fallback_fetch_forex_rates(state).await;
                     match secondary_api_rates {
-                        Ok(rates) => Ok(successive_save_data_to_redis_local(state, rates).await?),
+                        Ok(rates) => {
+                            Ok(successive_save_data_to_redis_local(state, rates).await?)
+                        },
                         Err(error) => stale_redis_data.ok_or({
                             logger::error!(?error);
-                            release_redis_lock(state).await;
+                            release_redis_lock(state).await?;
                             ForexCacheError::ApiUnresponsive.into()
                         }),
                     }
@@ -261,9 +262,9 @@ async fn successive_save_data_to_redis_local(
 ) -> CustomResult<FxExchangeRatesCacheEntry, ForexCacheError> {
     Ok(save_forex_to_redis(state, &forex)
         .await
-        .async_and_then(|_rates| async { release_redis_lock(state).await })
+        .async_and_then(|_rates| release_redis_lock(state))
         .await
-        .async_and_then(|_val| async { Ok(save_forex_to_local(forex.clone()).await) })
+        .async_and_then(|_val|  save_forex_to_local(forex.clone()))
         .await
         .map_or_else(
             |error| {
@@ -343,11 +344,13 @@ async fn fetch_forex_rates(
             false,
         )
         .await
-        .change_context(ForexCacheError::ApiUnresponsive)?;
+        .change_context(ForexCacheError::ApiUnresponsive)
+        .attach_printable("Primary forex fetch api unresponsive")?;
     let forex_response = response
         .json::<ForexResponse>()
         .await
-        .change_context(ForexCacheError::ParsingError)?;
+        .change_context(ForexCacheError::ParsingError)
+        .attach_printable("Unable to parse response received from primary api into ForexResponse")?;
 
     logger::info!("{:?}", forex_response);
 
@@ -399,11 +402,14 @@ pub async fn fallback_fetch_forex_rates(
             false,
         )
         .await
-        .change_context(ForexCacheError::ApiUnresponsive)?;
+        .change_context(ForexCacheError::ApiUnresponsive)
+        .attach_printable("Fallback forex fetch api unresponsive")?;
+
     let fallback_forex_response = response
         .json::<FallbackForexResponse>()
         .await
-        .change_context(ForexCacheError::ParsingError)?;
+        .change_context(ForexCacheError::ParsingError)
+        .attach_printable("Unable to parse response received from falback api into ForexResponse")?;
 
     logger::info!("{:?}", fallback_forex_response);
     let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
@@ -526,6 +532,7 @@ async fn is_redis_expired(
     })
 }
 
+#[instrument(skip_all)]
 pub async fn convert_currency(
     state: SessionState,
     amount: i64,
@@ -543,14 +550,17 @@ pub async fn convert_currency(
     .change_context(ForexCacheError::ApiError)?;
 
     let to_currency = enums::Currency::from_str(to_currency.as_str())
-        .change_context(ForexCacheError::CurrencyNotAcceptable)?;
+        .change_context(ForexCacheError::CurrencyNotAcceptable)
+        .attach_printable("The provided currency is not acceptable")?;
 
     let from_currency = enums::Currency::from_str(from_currency.as_str())
-        .change_context(ForexCacheError::CurrencyNotAcceptable)?;
+        .change_context(ForexCacheError::CurrencyNotAcceptable)
+        .attach_printable("The provided currency is not acceptable")?;
 
     let converted_amount =
         currency_conversion::conversion::convert(&rates.data, from_currency, to_currency, amount)
-            .change_context(ForexCacheError::ConversionError)?;
+            .change_context(ForexCacheError::ConversionError)
+            .attach_printable("Unable to perform currency conversion")?;
 
     Ok(api_models::currency::CurrencyConversionResponse {
         converted_amount: converted_amount.to_string(),
