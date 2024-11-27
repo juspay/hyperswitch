@@ -441,13 +441,8 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         response.order_id.clone(),
                     ),
-<<<<<<< HEAD
-                    redirection_data:  Box::new(Some(RedirectForm::Html {
-                        html_data: response.html_snippet.clone(),
-=======
                     redirection_data: Box::new(Some(RedirectForm::Html {
-                        html_data: response.html_snippet.clone().unwrap_or_default(),
->>>>>>> cc971afddbfcb01cdf170aab7be967d9bf639fb3
+                        html_data: response.html_snippet.clone(),
                     })),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -474,6 +469,7 @@ pub struct OrderLines {
     tax_amount: Option<i64>,
     total_tax_amount: Option<i64>,
 }
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct CheckoutOrderLines {
     name: String,
