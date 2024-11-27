@@ -1043,10 +1043,7 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
 });
 
 Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
-  const {
-    Request: reqData,
-    Response: resData,
-  } = data || {};
+  const { Request: reqData, Response: resData } = data || {};
 
   reqData.customer_id = globalState.get("customerId");
   const merchant_id = globalState.get("merchantId");
@@ -1747,10 +1744,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "captureCallTest",
   (requestBody, data, amount_to_capture, globalState) => {
-    const {
-      Configs: configs = {},
-      Response: resData,
-    } = data || {};
+    const { Configs: configs = {}, Response: resData } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
     const payment_id = globalState.get("paymentID");
@@ -1785,10 +1779,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
-  const {
-    Configs: configs = {},
-    Response: resData,
-  } = data || {};
+  const { Configs: configs = {}, Response: resData } = data || {};
 
   const config_info = execConfig(validateConfig(configs));
   const payment_id = globalState.get("paymentID");
@@ -1822,9 +1813,7 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
 Cypress.Commands.add(
   "retrievePaymentCallTest",
   (globalState, data, autoretries = false, attempt = 1) => {
-    const {
-      Configs: configs = {},
-    } = data || {};
+    const { Configs: configs = {} } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
     const merchant_connector_id = globalState.get(
@@ -1899,10 +1888,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "refundCallTest",
   (requestBody, data, refund_amount, globalState) => {
-    const {
-      Configs: configs = {},
-      Response: resData,
-    } = data || {};
+    const { Configs: configs = {}, Response: resData } = data || {};
 
     const payment_id = globalState.get("paymentID");
 
@@ -1939,9 +1925,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
-  const {
-    Response: resData,
-  } = data || {};
+  const { Response: resData } = data || {};
 
   const refundId = globalState.get("refundId");
 
@@ -2096,9 +2080,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitForMandatesCallTest",
   (requestBody, amount, confirm, capture_method, globalState, data) => {
-    const {
-      Configs: configs = {},
-    } = data || {};
+    const { Configs: configs = {} } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
     const profile_id = globalState.get(config_info.profile_id);
@@ -2201,9 +2183,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitUsingPMId",
   (requestBody, amount, confirm, capture_method, globalState, data) => {
-    const {
-      Configs: configs = {},
-    } = data || {};
+    const { Configs: configs = {} } = data || {};
 
     const config_info = execConfig(validateConfig(configs));
     const profile_id = globalState.get(config_info.profile_id);
@@ -2563,10 +2543,7 @@ Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
 Cypress.Commands.add(
   "createConfirmPayoutTest",
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
-    const {
-      Request: reqData,
-      Response: resData,
-    } = data || {};
+    const { Request: reqData, Response: resData } = data || {};
 
     for (const key in reqData) {
       createConfirmPayoutBody[key] = reqData[key];
@@ -2604,10 +2581,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "createConfirmWithTokenPayoutTest",
   (createConfirmPayoutBody, data, confirm, auto_fulfill, globalState) => {
-    const {
-      Request: reqData,
-      Response: resData,
-    } = data || {};
+    const { Request: reqData, Response: resData } = data || {};
 
     for (const key in reqData) {
       createConfirmPayoutBody[key] = reqData[key];
@@ -2646,9 +2620,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "fulfillPayoutCallTest",
   (payoutFulfillBody, data, globalState) => {
-    const {
-      Response: resData,
-    } = data || {};
+    const { Response: resData } = data || {};
 
     payoutFulfillBody.payout_id = globalState.get("payoutID");
 
@@ -2679,9 +2651,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "updatePayoutCallTest",
   (payoutConfirmBody, data, auto_fulfill, globalState) => {
-    const {
-      Response: resData,
-    } = data || {};
+    const { Response: resData } = data || {};
 
     payoutConfirmBody.confirm = true;
     payoutConfirmBody.auto_fulfill = auto_fulfill;
@@ -2857,10 +2827,7 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
 Cypress.Commands.add(
   "addRoutingConfig",
   (routingBody, data, type, routing_data, globalState) => {
-    const {
-      Request: reqData,
-      Response: resData,
-    } = data || {};
+    const { Request: reqData, Response: resData } = data || {};
 
     for (const key in reqData) {
       routingBody[key] = reqData[key];
@@ -2898,9 +2865,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
-  const {
-    Response: resData,
-  } = data || {};
+  const { Response: resData } = data || {};
 
   let routing_config_id = globalState.get("routingConfigId");
   cy.request({
@@ -2928,9 +2893,7 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
 });
 
 Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
-  const {
-    Response: resData,
-  } = data || {};
+  const { Response: resData } = data || {};
 
   let routing_config_id = globalState.get("routingConfigId");
   cy.request({
@@ -3039,10 +3002,7 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("incrementalAuth", (globalState, data) => {
-  const {
-    Request: reqData,
-    Response: resData,
-  } = data || {};
+  const { Request: reqData, Response: resData } = data || {};
 
   const baseUrl = globalState.get("baseUrl");
   const paymentId = globalState.get("paymentID");
