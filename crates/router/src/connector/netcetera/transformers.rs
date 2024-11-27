@@ -456,18 +456,8 @@ impl TryFrom<&NetceteraRouterData<&types::authentication::ConnectorAuthenticatio
         let now = common_utils::date_time::now();
         let request = item.router_data.request.clone();
         let pre_authn_data = request.pre_authentication_data.clone();
-        let three_ds_requestor = netcetera_types::ThreeDSRequestor {
-            three_ds_requestor_authentication_ind:
-                netcetera_types::ThreeDSRequestorAuthenticationIndicator::Payment,
-            three_ds_requestor_authentication_info: None,
-            three_ds_requestor_challenge_ind: None,
-            three_ds_requestor_prior_authentication_info: None,
-            three_ds_requestor_dec_req_ind: None,
-            three_ds_requestor_dec_max_time: None,
-            app_ip: None,
-            three_ds_requestor_spc_support: None,
-            spc_incomp_ind: None,
-        };
+        let three_ds_requestor =
+            netcetera_types::ThreeDSRequestor::from(item.router_data.psd2_sca_exemption_type);
         let card = utils::get_card_details(request.payment_method_data, "netcetera")?;
         let cardholder_account = netcetera_types::CardholderAccount {
             acct_type: None,

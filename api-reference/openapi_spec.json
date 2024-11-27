@@ -8743,6 +8743,7 @@
           "digitalvirgo",
           "dlocal",
           "ebanx",
+          "elavon",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -17019,6 +17020,14 @@
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
             "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17388,6 +17397,14 @@
           "skip_external_tax_calculation": {
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -18583,6 +18600,14 @@
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
             "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19615,6 +19640,14 @@
           "skip_external_tax_calculation": {
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -22771,6 +22804,7 @@
           "digitalvirgo",
           "dlocal",
           "ebanx",
+          "elavon",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -22815,6 +22849,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "xendit",
           "zen",
           "plaid",
           "zsl"
@@ -23282,6 +23317,14 @@
             "$ref": "#/components/schemas/SamsungPayTokenData"
           }
         }
+      },
+      "ScaExemptionType": {
+        "type": "string",
+        "description": "SCA Exemptions types available for authentication",
+        "enum": [
+          "low_value",
+          "transaction_risk_analysis"
+        ]
       },
       "SdkInformation": {
         "type": "object",

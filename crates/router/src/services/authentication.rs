@@ -185,7 +185,7 @@ pub struct UserFromSinglePurposeToken {
     pub user_id: String,
     pub origin: domain::Origin,
     pub path: Vec<TokenPurpose>,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 #[cfg(feature = "olap")]
@@ -196,7 +196,7 @@ pub struct SinglePurposeToken {
     pub origin: domain::Origin,
     pub path: Vec<TokenPurpose>,
     pub exp: u64,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 #[cfg(feature = "olap")]
@@ -207,7 +207,7 @@ impl SinglePurposeToken {
         origin: domain::Origin,
         settings: &Settings,
         path: Vec<TokenPurpose>,
-        tenant_id: Option<String>,
+        tenant_id: Option<id_type::TenantId>,
     ) -> UserResult<String> {
         let exp_duration =
             std::time::Duration::from_secs(consts::SINGLE_PURPOSE_TOKEN_TIME_IN_SECS);
@@ -232,7 +232,7 @@ pub struct AuthToken {
     pub exp: u64,
     pub org_id: id_type::OrganizationId,
     pub profile_id: id_type::ProfileId,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 #[cfg(feature = "olap")]
@@ -244,7 +244,7 @@ impl AuthToken {
         settings: &Settings,
         org_id: id_type::OrganizationId,
         profile_id: id_type::ProfileId,
-        tenant_id: Option<String>,
+        tenant_id: Option<id_type::TenantId>,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(exp_duration)?.as_secs();
@@ -268,7 +268,7 @@ pub struct UserFromToken {
     pub role_id: String,
     pub org_id: id_type::OrganizationId,
     pub profile_id: id_type::ProfileId,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 pub struct UserIdFromAuth {
@@ -282,7 +282,7 @@ pub struct SinglePurposeOrLoginToken {
     pub role_id: Option<String>,
     pub purpose: Option<TokenPurpose>,
     pub exp: u64,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 pub trait AuthInfo {
@@ -871,6 +871,47 @@ where
     }
 }
 
+#[cfg(feature = "olap")]
+#[derive(Debug)]
+pub struct AnyPurposeOrLoginTokenAuth;
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserIdFromAuth, A> for AnyPurposeOrLoginTokenAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserIdFromAuth, AuthenticationType)> {
+        let payload =
+            parse_jwt_payload::<A, SinglePurposeOrLoginToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let purpose_exists = payload.purpose.is_some();
+        let role_id_exists = payload.role_id.is_some();
+
+        if purpose_exists ^ role_id_exists {
+            Ok((
+                UserIdFromAuth {
+                    user_id: payload.user_id.clone(),
+                },
+                AuthenticationType::SinglePurposeOrLoginJwt {
+                    user_id: payload.user_id,
+                    purpose: payload.purpose,
+                    role_id: payload.role_id,
+                },
+            ))
+        } else {
+            Err(errors::ApiErrorResponse::InvalidJwtToken.into())
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct AdminApiAuth;
 
@@ -1110,7 +1151,7 @@ impl<'a> HeaderMapStruct<'a> {
         self.get_mandatory_header_value_by_key(headers::X_ORGANIZATION_ID)
             .map(|val| val.to_owned())
             .and_then(|organization_id| {
-                id_type::OrganizationId::wrap(organization_id).change_context(
+                id_type::OrganizationId::try_from_string(organization_id).change_context(
                     errors::ApiErrorResponse::InvalidRequestData {
                         message: format!("`{}` header is invalid", headers::X_ORGANIZATION_ID),
                     },
@@ -2504,17 +2545,27 @@ where
     T: serde::de::DeserializeOwned,
     A: SessionStateInfo + Sync,
 {
-    let token = match get_cookie_from_header(headers).and_then(cookies::parse_cookie) {
-        Ok(cookies) => cookies,
-        Err(error) => {
-            let token = get_jwt_from_authorization_header(headers);
-            if token.is_err() {
-                logger::error!(?error);
-            }
-            token?.to_owned()
-        }
+    let cookie_token_result = get_cookie_from_header(headers).and_then(cookies::parse_cookie);
+    let auth_header_token_result = get_jwt_from_authorization_header(headers);
+    let force_cookie = state.conf().user.force_cookies;
+
+    logger::info!(
+        user_agent = ?headers.get(headers::USER_AGENT),
+        header_names = ?headers.keys().collect::<Vec<_>>(),
+        is_token_equal =
+            auth_header_token_result.as_deref().ok() == cookie_token_result.as_deref().ok(),
+        cookie_error = ?cookie_token_result.as_ref().err(),
+        token_error = ?auth_header_token_result.as_ref().err(),
+        force_cookie,
+    );
+
+    let final_token = if force_cookie {
+        cookie_token_result?
+    } else {
+        auth_header_token_result?.to_owned()
     };
-    decode_jwt(&token, state).await
+
+    decode_jwt(&final_token, state).await
 }
 
 #[cfg(feature = "v1")]
