@@ -1,0 +1,63 @@
+syntax = "proto3";
+package elimination;
+
+service EliminationAnalyser {
+    rpc PerformElimination (EliminationRequest) returns (EliminationResponse);
+
+    rpc UpdateEliminationBucket (UpdateEliminationBucketRequest) returns (UpdateEliminationBucketResponse);
+
+    rpc InvalidateBucket (InvalidateBucketRequest) returns (InvalidateBucketResponse);
+}
+
+// API-1 types
+message EliminationRequest {
+    string id = 1;
+    string params = 2;
+    repeated string labels = 3;
+    EliminationAnalyserConfig config = 4;
+}
+
+message EliminationAnalyserConfig {
+    uint64 bucket_size = 1;
+    uint64 bucket_ttl_in_mins = 2;
+}
+
+message EliminationResponse {
+    repeated LabelWithStatus labels_with_status = 1;
+}
+
+message LabelWithStatus {
+    bool is_eliminated = 1; 
+    string label = 2;
+}
+
+// API-2 types
+message UpdateEliminationBucketRequest {
+    string id = 1;
+    string params = 2;
+    repeated LabelWithBucketName labels_with_bucket_name = 3;
+    UpdateEliminationBucketConfig config = 4;
+}
+
+message LabelWithBucketName {
+    string label = 1;
+    string bucket_name = 2;
+}
+
+message UpdateEliminationBucketConfig {
+    uint64 bucket_size = 1;
+    uint64 bucket_ttl_in_mins = 2;
+}
+
+message UpdateEliminationBucketResponse {
+    string message = 1;
+}
+
+// API-3 types
+message InvalidateBucketRequest {
+    string id = 1;
+}
+
+message InvalidateBucketResponse {
+    string message = 1;
+}
