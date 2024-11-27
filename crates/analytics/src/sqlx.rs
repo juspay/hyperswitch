@@ -581,6 +581,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let first_attempt: Option<bool> = row.try_get("first_attempt").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
         Ok(Self {
             currency,
             status,
@@ -596,6 +600,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             card_last_4,
             card_issuer,
             error_reason,
+            first_attempt,
         })
     }
 }
@@ -1015,6 +1020,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
             Self::Dispute => Ok("dispute".to_string()),
+            Self::DisputeSessionized => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("DisputeSessionized table is not implemented for Sqlx"))?,
         }
     }
 }

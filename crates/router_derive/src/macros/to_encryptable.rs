@@ -242,12 +242,16 @@ fn generate_to_encryptable(
 
     let inner_types = get_field_and_inner_types(&fields);
 
-    let inner_type = inner_types.first().map(|(_, ty)| ty).ok_or_else(|| {
+    let inner_type = inner_types.first().ok_or_else(|| {
         syn::Error::new(
             proc_macro2::Span::call_site(),
             "Please use the macro with attribute #[encrypt] on the fields you want to encrypt",
         )
     })?;
+
+    let provided_ty = get_encryption_ty_meta(&inner_type.0)
+        .map(|ty| ty.value.clone())
+        .unwrap_or(inner_type.1.clone());
 
     let structs = struct_types.iter().map(|(prefix, struct_type)| {
         let name = format_ident!("{}{}", prefix, struct_name);
@@ -275,15 +279,15 @@ fn generate_to_encryptable(
                         let decrypted_name = format_ident!("Decrypted{}", struct_name);
                         (
                             quote! { #decrypted_name },
-                            quote! { Secret<#inner_type> },
-                            quote! { Secret<#inner_type> },
+                            quote! { Secret<#provided_ty> },
+                            quote! { Secret<#provided_ty> },
                         )
                     }
                     StructType::Encrypted => {
                         let decrypted_name = format_ident!("Decrypted{}", struct_name);
                         (
                             quote! { #decrypted_name },
-                            quote! { Secret<#inner_type> },
+                            quote! { Secret<#provided_ty> },
                             quote! { Encryption },
                         )
                     }
@@ -291,8 +295,8 @@ fn generate_to_encryptable(
                         let decrypted_update_name = format_ident!("DecryptedUpdate{}", struct_name);
                         (
                             quote! { #decrypted_update_name },
-                            quote! { Secret<#inner_type> },
-                            quote! { Secret<#inner_type> },
+                            quote! { Secret<#provided_ty> },
+                            quote! { Secret<#provided_ty> },
                         )
                     }
                     //Unreachable statement
