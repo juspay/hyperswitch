@@ -23,6 +23,7 @@ import apiKeyUpdateBody from "./update-api-key-body.json";
 import updateConnectorBody from "./update-connector-body.json";
 import customerUpdateBody from "./update-customer-body.json";
 import voidBody from "./void-payment-body.json";
+import ntidConfirmBody from "./create-ntid-mit.json";
 
 export {
   apiKeyCreateBody,
@@ -43,6 +44,7 @@ export {
   merchantCreateBody,
   merchantUpdateBody,
   mitConfirmBody,
+  ntidConfirmBody,
   pmIdConfirmBody,
   refundBody,
   routingConfigBody,

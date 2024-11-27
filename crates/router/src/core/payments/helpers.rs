@@ -2948,11 +2948,13 @@ pub fn make_merchant_url_with_response(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Expected client secret to be `Some`")?;
 
+    let payment_id = redirection_response.payment_id.get_string_repr().to_owned();
     let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
             &[
                 ("status", status_check.to_string()),
+                ("payment_id", payment_id),
                 (
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
@@ -2971,6 +2973,7 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
+                ("payment_id", payment_id),
                 (
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
@@ -3473,6 +3476,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3542,6 +3546,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3609,6 +3614,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3931,6 +3937,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
     }
 }
 
