@@ -237,9 +237,7 @@ async fn successive_fetch_and_save_forex(
                     logger::error!(?error);
                     let secondary_api_rates = fallback_fetch_forex_rates(state).await;
                     match secondary_api_rates {
-                        Ok(rates) => {
-                            Ok(successive_save_data_to_redis_local(state, rates).await?)
-                        },
+                        Ok(rates) => Ok(successive_save_data_to_redis_local(state, rates).await?),
                         Err(error) => stale_redis_data.ok_or({
                             logger::error!(?error);
                             release_redis_lock(state).await?;
