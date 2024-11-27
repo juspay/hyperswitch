@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "cypress": "npx cypress open",
     "cypress-e2e": "npx cypress run --e2e",
@@ -10,14 +11,21 @@
     "cypress:payments": "cypress run --headless --spec 'cypress/e2e/PaymentTest/**/*'",
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/PayoutTest/**/*'",
     "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/PaymentMethodListTest/**/*'",
-    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'"
+    "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'",
+    "check": "prettier --config .prettierrc '**/*.js' --check",
+    "format": "prettier --config .prettierrc '**/*.js' --write"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@eslint/js": "^9.15.0",
     "cypress": "^13.16.0",
     "cypress-mochawesome-reporter": "^3.8.2",
+    "eslint": "^9.15.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-cypress": "^4.1.0",
+    "globals": "^15.12.0",
     "jsqr": "^1.4.0",
-    "prettier": "^3.3.2"
+    "prettier": "^3.4.1"
   }
 }
