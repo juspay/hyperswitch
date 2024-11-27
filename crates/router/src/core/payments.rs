@@ -49,6 +49,8 @@ pub use hyperswitch_domain_models::{
     router_request_types::CustomerDetails,
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
+#[cfg(feature = "v2")]
+use operations::ValidateStatusForOperation;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, metrics::add_attributes, tracing};
 #[cfg(feature = "olap")]
@@ -123,7 +125,7 @@ pub async fn payments_operation_core<F, Req, Op, FData, D>(
     profile: domain::Profile,
     operation: Op,
     req: Req,
-    payment_id: id_type::GlobalPaymentId,
+    get_tracker_response: operations::GetTrackerResponse<D>,
     call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
@@ -150,27 +152,8 @@ where
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
-    // Validate the request fields
-    let (operation, validate_result) = operation
-        .to_validate_request()?
-        .validate_request(&req, &merchant_account)?;
-
     // Get the trackers related to track the state of the payment
-    let operations::GetTrackerResponse {
-        operation,
-        mut payment_data,
-    } = operation
-        .to_get_tracker()?
-        .get_trackers(
-            state,
-            &payment_id,
-            &req,
-            &merchant_account,
-            &profile,
-            &key_store,
-            &header_payload,
-        )
-        .await?;
+    let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
 
     let (_operation, customer) = operation
         .to_domain()?
@@ -207,7 +190,6 @@ where
                 &mut payment_data,
                 &customer,
                 call_connector_action.clone(),
-                &validate_result,
                 None,
                 header_payload.clone(),
                 #[cfg(feature = "frm")]
@@ -1029,7 +1011,7 @@ where
 
     tracing::Span::current().record("merchant_id", merchant_account.get_id().get_string_repr());
 
-    let (operation, _validate_result) = operation
+    let _validate_result = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
@@ -1037,10 +1019,7 @@ where
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
-    let operations::GetTrackerResponse {
-        operation,
-        mut payment_data,
-    } = operation
+    let operations::GetTrackerResponse { mut payment_data } = operation
         .to_get_tracker()?
         .get_trackers(
             state,
@@ -1520,6 +1499,24 @@ where
     RouterData<F, FData, router_types::PaymentsResponseData>:
         hyperswitch_domain_models::router_data::TrackerPostUpdateObjects<F, FData>,
 {
+    // Validate the request fields
+    let validate_result = operation
+        .to_validate_request()?
+        .validate_request(&req, &merchant_account)?;
+
+    let get_tracker_response = operation
+        .to_get_tracker()?
+        .get_trackers(
+            &state,
+            &payment_id,
+            &req,
+            &merchant_account,
+            &profile,
+            &key_store,
+            &header_payload,
+        )
+        .await?;
+
     let (payment_data, _req, customer, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -1529,7 +1526,7 @@ where
             profile,
             operation.clone(),
             req,
-            payment_id,
+            get_tracker_response,
             call_connector_action,
             header_payload.clone(),
         )
@@ -1552,6 +1549,7 @@ fn is_start_pay<Op: Debug>(operation: &Op) -> bool {
     format!("{operation:?}").eq("PaymentStart")
 }
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentsRedirectResponseData {
     pub connector: Option<String>,
@@ -1563,11 +1561,20 @@ pub struct PaymentsRedirectResponseData {
     pub creds_identifier: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentsRedirectResponseData {
+    pub payment_id: id_type::GlobalPaymentId,
+    pub query_params: String,
+    pub json_payload: Option<serde_json::Value>,
+}
+
 #[async_trait::async_trait]
 pub trait PaymentRedirectFlow: Sync {
     // Associated type for call_payment_flow response
     type PaymentFlowResponse;
 
+    #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn call_payment_flow(
         &self,
@@ -1581,8 +1588,20 @@ pub trait PaymentRedirectFlow: Sync {
         payment_id: id_type::PaymentId,
     ) -> RouterResult<Self::PaymentFlowResponse>;
 
+    #[cfg(feature = "v2")]
+    async fn call_payment_flow(
+        &self,
+        state: &SessionState,
+        req_state: ReqState,
+        merchant_account: domain::MerchantAccount,
+        merchant_key_store: domain::MerchantKeyStore,
+        profile: domain::Profile,
+        req: PaymentsRedirectResponseData,
+    ) -> RouterResult<Self::PaymentFlowResponse>;
+
     fn get_payment_action(&self) -> services::PaymentAction;
 
+    #[cfg(feature = "v1")]
     fn generate_response(
         &self,
         payment_flow_response: &Self::PaymentFlowResponse,
@@ -1590,7 +1609,13 @@ pub trait PaymentRedirectFlow: Sync {
         connector: String,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
 
-    #[allow(clippy::too_many_arguments)]
+    #[cfg(feature = "v2")]
+    fn generate_response(
+        &self,
+        payment_flow_response: &Self::PaymentFlowResponse,
+    ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
+
+    #[cfg(feature = "v1")]
     async fn handle_payments_redirect_response(
         &self,
         state: SessionState,
@@ -1617,10 +1642,15 @@ pub trait PaymentRedirectFlow: Sync {
 
         let query_params = req.param.clone().get_required_value("param")?;
 
+        #[cfg(feature = "v1")]
         let resource_id = api::PaymentIdTypeExt::get_payment_intent_id(&req.resource_id)
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_id",
             })?;
+
+        #[cfg(feature = "v2")]
+        //TODO: Will get the global payment id from the resource id, we need to handle this in the further flow
+        let resource_id: id_type::PaymentId = todo!();
 
         // This connector data is ephemeral, the call payment flow will get new connector data
         // with merchant account details, so the connector_id can be safely set to None here
@@ -1655,6 +1685,39 @@ pub trait PaymentRedirectFlow: Sync {
             .await?;
 
         self.generate_response(&payment_flow_response, resource_id, connector)
+    }
+
+    #[cfg(feature = "v2")]
+    async fn handle_payments_redirect_response(
+        &self,
+        state: SessionState,
+        req_state: ReqState,
+        merchant_account: domain::MerchantAccount,
+        key_store: domain::MerchantKeyStore,
+        profile: domain::Profile,
+        request: PaymentsRedirectResponseData,
+    ) -> RouterResponse<api::RedirectionResponse> {
+        metrics::REDIRECTION_TRIGGERED.add(
+            &metrics::CONTEXT,
+            1,
+            &add_attributes([(
+                "merchant_id",
+                merchant_account.get_id().get_string_repr().to_owned(),
+            )]),
+        );
+
+        let payment_flow_response = self
+            .call_payment_flow(
+                &state,
+                req_state,
+                merchant_account,
+                key_store,
+                profile,
+                request,
+            )
+            .await?;
+
+        self.generate_response(&payment_flow_response)
     }
 }
 
@@ -1765,6 +1828,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::WaitScreenInformation{..} => None,
                         api_models::payments::NextActionData::ThreeDsInvoke{..} => None,
                         api_models::payments::NextActionData::InvokeSdkClient{..} => None,
+                        api_models::payments::NextActionData::CollectOtp{ .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
 
@@ -1885,6 +1949,167 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 &payment_flow_response.payments_response,
                 connector,
             )?,
+        ))
+    }
+
+    fn get_payment_action(&self) -> services::PaymentAction {
+        services::PaymentAction::PSync
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ValidateStatusForOperation for &PaymentRedirectSync {
+    fn validate_status_for_operation(
+        &self,
+        intent_status: common_enums::IntentStatus,
+    ) -> Result<(), errors::ApiErrorResponse> {
+        match intent_status {
+            common_enums::IntentStatus::RequiresCustomerAction => Ok(()),
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::RequiresPaymentMethod
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+                Err(errors::ApiErrorResponse::PaymentUnexpectedState {
+                    current_flow: format!("{self:?}"),
+                    field_name: "status".to_string(),
+                    current_value: intent_status.to_string(),
+                    states: ["requires_customer_action".to_string()].join(", "),
+                })
+            }
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+impl PaymentRedirectFlow for PaymentRedirectSync {
+    type PaymentFlowResponse =
+        router_types::RedirectPaymentFlowResponse<PaymentStatusData<api::PSync>>;
+
+    async fn call_payment_flow(
+        &self,
+        state: &SessionState,
+        req_state: ReqState,
+        merchant_account: domain::MerchantAccount,
+        merchant_key_store: domain::MerchantKeyStore,
+        profile: domain::Profile,
+        req: PaymentsRedirectResponseData,
+    ) -> RouterResult<Self::PaymentFlowResponse> {
+        let payment_id = req.payment_id.clone();
+
+        let payment_sync_request = api::PaymentsRetrieveRequest {
+            param: Some(req.query_params.clone()),
+            force_sync: true,
+        };
+
+        let operation = operations::PaymentGet;
+        let boxed_operation: BoxedOperation<
+            '_,
+            api::PSync,
+            api::PaymentsRetrieveRequest,
+            PaymentStatusData<api::PSync>,
+        > = Box::new(operation);
+
+        let get_tracker_response = boxed_operation
+            .to_get_tracker()?
+            .get_trackers(
+                state,
+                &payment_id,
+                &payment_sync_request,
+                &merchant_account,
+                &profile,
+                &merchant_key_store,
+                &HeaderPayload::default(),
+            )
+            .await?;
+
+        let payment_data = &get_tracker_response.payment_data;
+        self.validate_status_for_operation(payment_data.payment_intent.status)?;
+
+        let payment_attempt = payment_data
+            .payment_attempt
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("payment_attempt not found in get_tracker_response")?;
+
+        let connector = payment_attempt
+            .connector
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "connector is not set in payment attempt in finish redirection flow",
+            )?;
+
+        // This connector data is ephemeral, the call payment flow will get new connector data
+        // with merchant account details, so the connector_id can be safely set to None here
+        let connector_data = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector,
+            api::GetToken::Connector,
+            None,
+        )?;
+
+        let call_connector_action = connector_data
+            .connector
+            .get_flow_type(
+                &req.query_params,
+                req.json_payload.clone(),
+                self.get_payment_action(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to decide the response flow")?;
+
+        let (payment_data, _, _, _, _) =
+            Box::pin(payments_operation_core::<api::PSync, _, _, _, _>(
+                state,
+                req_state,
+                merchant_account,
+                merchant_key_store.clone(),
+                profile.clone(),
+                operation,
+                payment_sync_request,
+                get_tracker_response,
+                call_connector_action,
+                HeaderPayload::default(),
+            ))
+            .await?;
+
+        Ok(router_types::RedirectPaymentFlowResponse {
+            payment_data,
+            profile,
+        })
+    }
+    fn generate_response(
+        &self,
+        payment_flow_response: &Self::PaymentFlowResponse,
+    ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
+        let payment_intent = &payment_flow_response.payment_data.payment_intent;
+        let profile = &payment_flow_response.profile;
+
+        let return_url = payment_intent
+            .return_url
+            .as_ref()
+            .or(profile.return_url.as_ref())
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("return url not found in payment intent and profile")?
+            .to_owned();
+
+        let return_url = return_url
+            .add_query_params(("id", payment_intent.id.get_string_repr()))
+            .add_query_params(("status", &payment_intent.status.to_string()));
+
+        let return_url_str = return_url.into_inner().to_string();
+
+        Ok(services::ApplicationResponse::JsonForRedirection(
+            api::RedirectionResponse {
+                return_url_with_query_params: return_url_str,
+            },
         ))
     }
 
@@ -2409,7 +2634,6 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest, D>(
     payment_data: &mut D,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
-    validate_result: &operations::ValidateResult,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
@@ -5459,7 +5683,7 @@ pub fn is_network_transaction_id_flow(
         .connector_list;
 
     is_connector_agnostic_mit_enabled == Some(true)
-        && payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card)
+        && payment_method_info.get_payment_method_type() == Some(storage_enums::PaymentMethod::Card)
         && ntid_supported_connectors.contains(&connector)
         && payment_method_info.network_transaction_id.is_some()
 }
@@ -5478,7 +5702,7 @@ pub fn is_network_token_with_network_transaction_id_flow(
     match (
         is_connector_agnostic_mit_enabled,
         is_network_tokenization_enabled,
-        payment_method_info.payment_method,
+        payment_method_info.get_payment_method_type(),
         payment_method_info.network_transaction_id.clone(),
         payment_method_info.network_token_locker_id.is_some(),
         payment_method_info
@@ -6053,6 +6277,7 @@ pub async fn payment_external_authentication(
         optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
         webhook_url,
         authentication_details.three_ds_requestor_url.clone(),
+        payment_intent.psd2_sca_exemption_type,
     ))
     .await?;
     Ok(services::ApplicationResponse::Json(

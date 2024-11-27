@@ -260,7 +260,7 @@ pub struct Profile {
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
@@ -319,7 +319,7 @@ pub struct ProfileNew {
     pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
     pub enable_payment_response_hash: bool,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: bool,
@@ -363,7 +363,7 @@ pub struct ProfileNew {
 pub struct ProfileUpdateInternal {
     pub profile_name: Option<String>,
     pub modified_at: time::PrimitiveDateTime,
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
     pub enable_payment_response_hash: Option<bool>,
     pub payment_response_hash_key: Option<String>,
     pub redirect_to_merchant_with_http_post: Option<bool>,
@@ -547,6 +547,7 @@ pub struct PaymentLinkConfigRequest {
     pub sdk_layout: Option<String>,
     pub display_sdk_only: Option<bool>,
     pub enabled_saved_payment_method: Option<bool>,
+    pub hide_card_nickname_field: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);

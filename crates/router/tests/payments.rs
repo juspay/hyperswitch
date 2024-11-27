@@ -295,7 +295,10 @@ async fn payments_create_core() {
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
 
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
     let key_manager_state = &(&state).into();
     let key_store = state
@@ -554,7 +557,10 @@ async fn payments_create_core_adyen_no_redirect() {
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
 
     let payment_id =
