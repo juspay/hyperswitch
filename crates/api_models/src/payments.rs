@@ -3785,15 +3785,6 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
-#[derive(Default, Clone, Debug, Eq, PartialEq, ToSchema, serde::Deserialize, serde::Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct MerchantURLs {
-    terms: String,
-    checkout: String,
-    confirmation: String,
-    push: String,
-}
-
 impl masking::SerializableSecret for Address {}
 
 impl Address {

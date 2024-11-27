@@ -3448,9 +3448,6 @@ pub enum RedirectForm {
         form_fields: std::collections::HashMap<String, String>,
         collection_id: Option<String>,
     },
-    KlarnaCheckout {
-        html_snippet: String,
-    },
 }
 
 common_utils::impl_to_sql_from_sql_json!(RedirectForm);

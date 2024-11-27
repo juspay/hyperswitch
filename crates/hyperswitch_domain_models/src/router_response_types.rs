@@ -170,9 +170,6 @@ pub enum RedirectForm {
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
     },
-    KlarnaCheckout {
-        html_snippet: String,
-    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -267,7 +264,6 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
-            RedirectForm::KlarnaCheckout { html_snippet } => Self::KlarnaCheckout { html_snippet },
         }
     }
 }
@@ -347,9 +343,6 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 form_fields,
                 collection_id,
             },
-            diesel_models::RedirectForm::KlarnaCheckout { html_snippet } => {
-                Self::KlarnaCheckout { html_snippet }
-            }
         }
     }
 }

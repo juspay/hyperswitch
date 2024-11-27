@@ -307,8 +307,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                             merchant_urls: MerchantURLs {
                                 terms: return_url.clone(),
                                 checkout: return_url.clone(),
-                                confirmation: return_url.clone(),
-                                push: return_url,
+                                confirmation: "https://google.com".to_string(),
+                                push: "https://google.com".to_string(),
                             },
                             auto_capture: request.is_auto_capture()?,
                             shipping_address: get_address_info(item.router_data.get_optional_shipping())
@@ -320,25 +320,25 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                     }
                 }
             }
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankTransfer(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Crypto(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Reward
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::RealTimePayment(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Upi(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::GiftCard(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardToken(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::OpenBanking(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_)
-            | hyperswitch_domain_models::payment_method_data::PaymentMethodData::MobilePayment(_) => {
+            domain::PaymentMethodData::Card(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::MobilePayment(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
             },
         }
@@ -434,8 +434,8 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         response.order_id.clone(),
                     ),
-                    redirection_data: Box::new(Some(RedirectForm::KlarnaCheckout {
-                        html_snippet: response.html_snippet.clone().unwrap_or_default(),
+                    redirection_data:  Box::new(Some(RedirectForm::Html {
+                        html_data: response.html_snippet.clone().unwrap_or_default(),
                     })),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,

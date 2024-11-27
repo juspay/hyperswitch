@@ -1932,19 +1932,6 @@ pub fn build_redirection_form(
                         {}
                 }
             }
-        },
-        RedirectForm::KlarnaCheckout { html_snippet } => {
-            maud::html! {
-                (maud::DOCTYPE)
-                html {
-                    head {
-                        title { "Redirecting to Klarna Checkout" }
-                    }
-                    body {
-                        (PreEscaped(html_snippet))
-                    }
-                }
-            }
         }
     }
 }
