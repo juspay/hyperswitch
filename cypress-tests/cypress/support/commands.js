@@ -1978,11 +1978,11 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else if (response.body.authentication_type === "no_three_ds") {
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -1997,11 +1997,11 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else if (response.body.authentication_type === "no_three_ds") {
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2071,11 +2071,11 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else if (response.body.authentication_type === "no_three_ds") {
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2090,11 +2090,11 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else if (response.body.authentication_type === "no_three_ds") {
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2164,11 +2164,11 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else if (response.body.authentication_type === "no_three_ds") {
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2183,11 +2183,11 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else if (response.body.authentication_type === "no_three_ds") {
             for (const key in res_data.body) {
-              expect(res_data.body[key]).to.equal(response.body[key]);
+              expect(res_data.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
