@@ -13,6 +13,7 @@ use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
 use http::HeaderName;
+use hyperswitch_interfaces::webhooks::IncomingWebhookFlowError;
 use masking::Maskable;
 #[cfg(feature = "payouts")]
 use masking::Secret;
@@ -395,6 +396,25 @@ impl api::IncomingWebhook for Adyenplatform {
         #[cfg(not(feature = "payouts"))]
         {
             Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        }
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+        error_kind: Option<IncomingWebhookFlowError>,
+    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
+    {
+        if error_kind.is_some() {
+            Ok(services::api::ApplicationResponse::JsonWithHeaders((
+                serde_json::Value::Null,
+                vec![(
+                    "x-http-code".to_string(),
+                    Maskable::Masked(Secret::new("404".to_string())),
+                )],
+            )))
+        } else {
+            Ok(services::api::ApplicationResponse::StatusOk)
         }
     }
 
