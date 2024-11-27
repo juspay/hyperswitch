@@ -412,6 +412,7 @@ diesel::table! {
         dispute_amount -> Int8,
         #[max_length = 32]
         organization_id -> Varchar,
+        dispute_currency -> Nullable<Currency>,
     }
 }
 
@@ -954,9 +955,6 @@ diesel::table! {
         merchant_id -> Varchar,
         created_at -> Timestamp,
         last_modified -> Timestamp,
-        payment_method -> Nullable<Varchar>,
-        #[max_length = 64]
-        payment_method_type -> Nullable<Varchar>,
         payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,
@@ -974,6 +972,10 @@ diesel::table! {
         updated_by -> Nullable<Varchar>,
         #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_type_v2 -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
         version -> ApiVersion,
@@ -1241,6 +1243,10 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        entity_type -> Varchar,
+        #[max_length = 64]
+        theme_name -> Varchar,
     }
 }
 

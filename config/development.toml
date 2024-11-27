@@ -169,6 +169,7 @@ cards = [
     "wise",
     "worldline",
     "worldpay",
+    "xendit",
     "zen",
     "zsl",
 ]
@@ -279,6 +280,7 @@ stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+xendit.base_url = "https://api.xendit.co"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
 volt.base_url = "https://api.sandbox.volt.io/"
@@ -311,7 +313,7 @@ wildcard_origin = true
 sender_email = "example@example.com"
 aws_region = ""
 allowed_unverified_days = 1
-active_email_client = "SES"
+active_email_client = "NO_EMAIL_CLIENT"
 recon_recipient_email = "recon@example.com"
 prod_intent_recipient_email = "business@example.com"
 
@@ -782,3 +784,7 @@ card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
 connector_list = "cybersource"
+
+[grpc_client.dynamic_routing_client] 
+host = "localhost" 
+port = 7000       
