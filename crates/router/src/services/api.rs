@@ -1932,7 +1932,7 @@ pub fn build_redirection_form(
                         {}
                 }
             }
-        }
+        },
     }
 }
 
