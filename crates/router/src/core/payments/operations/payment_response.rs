@@ -1650,6 +1650,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                                         payment_method,
                                                         connector_mandate_details,
                                                         storage_scheme,
+                                                        Some(diesel_models::enums::TransactionFlow::Payment),
                                                     )
                                                     .await
                                                     .change_context(errors::ApiErrorResponse::InternalServerError)
