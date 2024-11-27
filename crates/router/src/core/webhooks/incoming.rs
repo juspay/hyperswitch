@@ -260,14 +260,25 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         let merchant_connector_account = match merchant_connector_account {
             Some(merchant_connector_account) => merchant_connector_account,
             None => {
-                Box::pin(helper_utils::get_mca_from_object_reference_id(
+                match Box::pin(helper_utils::get_mca_from_object_reference_id(
                     &state,
                     object_ref_id.clone(),
                     &merchant_account,
                     &connector_name,
                     &key_store,
                 ))
-                .await?
+                .await
+                {
+                    Ok(mca) => mca,
+                    Err(error) => {
+                        return handle_incoming_webhook_error(
+                            error,
+                            &connector,
+                            connector_name.as_str(),
+                            &request_details,
+                        );
+                    }
+                }
             }
         };
 
@@ -477,37 +488,12 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         match result_response {
             Ok(response) => response,
             Err(error) => {
-                logger::error!(?error, "Incoming webhook flow failed");
-
-                // fetch the connector enum from the connector name
-                let connector_enum =
-                    api_models::connector_enums::Connector::from_str(&connector_name)
-                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "connector",
-                        })
-                        .attach_printable_lazy(|| {
-                            format!("unable to parse connector name {connector_name:?}")
-                        })?;
-
-                // get the error response from the connector
-                if connector_enum.should_acknowledge_webhook_for_resource_not_found_errors() {
-                    let response = connector
-                        .get_webhook_api_response(
-                            &request_details,
-                            Some(IncomingWebhookFlowError::from(error.current_context())),
-                        )
-                        .switch()
-                        .attach_printable(
-                            "Failed to get incoming webhook api response from connector",
-                        )?;
-                    return Ok((
-                        response,
-                        WebhookResponseTracker::NoEffect,
-                        serde_json::Value::Null,
-                    ));
-                } else {
-                    return Err(error);
-                }
+                return handle_incoming_webhook_error(
+                    error,
+                    &connector,
+                    connector_name.as_str(),
+                    &request_details,
+                );
             }
         }
     } else {
@@ -532,6 +518,44 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Could not convert webhook effect to string")?;
     Ok((response, webhook_effect, serialized_request))
+}
+
+fn handle_incoming_webhook_error(
+    error: error_stack::Report<errors::ApiErrorResponse>,
+    connector: &ConnectorEnum,
+    connector_name: &str,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+) -> errors::RouterResult<(
+    services::ApplicationResponse<serde_json::Value>,
+    WebhookResponseTracker,
+    serde_json::Value,
+)> {
+    logger::error!(?error, "Incoming webhook flow failed");
+
+    // fetch the connector enum from the connector name
+    let connector_enum = api_models::connector_enums::Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+
+    // get the error response from the connector
+    if connector_enum.should_acknowledge_webhook_for_resource_not_found_errors() {
+        let response = connector
+            .get_webhook_api_response(
+                request_details,
+                Some(IncomingWebhookFlowError::from(error.current_context())),
+            )
+            .switch()
+            .attach_printable("Failed to get incoming webhook api response from connector")?;
+        Ok((
+            response,
+            WebhookResponseTracker::NoEffect,
+            serde_json::Value::Null,
+        ))
+    } else {
+        Err(error)
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
