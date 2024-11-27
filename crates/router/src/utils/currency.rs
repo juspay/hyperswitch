@@ -262,7 +262,7 @@ async fn successive_save_data_to_redis_local(
         .await
         .async_and_then(|_rates| release_redis_lock(state))
         .await
-        .async_and_then(|_val|  save_forex_to_local(forex.clone()))
+        .async_and_then(|_val| save_forex_to_local(forex.clone()))
         .await
         .map_or_else(
             |error| {
@@ -348,7 +348,9 @@ async fn fetch_forex_rates(
         .json::<ForexResponse>()
         .await
         .change_context(ForexCacheError::ParsingError)
-        .attach_printable("Unable to parse response received from primary api into ForexResponse")?;
+        .attach_printable(
+            "Unable to parse response received from primary api into ForexResponse",
+        )?;
 
     logger::info!("{:?}", forex_response);
 
@@ -407,7 +409,9 @@ pub async fn fallback_fetch_forex_rates(
         .json::<FallbackForexResponse>()
         .await
         .change_context(ForexCacheError::ParsingError)
-        .attach_printable("Unable to parse response received from falback api into ForexResponse")?;
+        .attach_printable(
+            "Unable to parse response received from falback api into ForexResponse",
+        )?;
 
     logger::info!("{:?}", fallback_forex_response);
     let mut conversions: HashMap<enums::Currency, CurrencyFactors> = HashMap::new();
