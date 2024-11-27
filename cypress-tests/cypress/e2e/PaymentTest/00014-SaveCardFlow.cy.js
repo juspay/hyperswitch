@@ -1,6 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -56,9 +55,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -133,9 +130,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -175,9 +170,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSManualCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("capture-call-test", () => {
@@ -231,9 +224,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -272,9 +263,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSManualCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("capture-call-test", () => {
@@ -328,9 +317,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -405,9 +392,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSManualCaptureOffSession"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
       it("capture-call-test", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
@@ -457,9 +442,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardConfirmManualCaptureOffSession"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("capture-call-test", () => {
@@ -478,9 +461,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
     }
   );
@@ -534,9 +515,7 @@ describe("Card - SaveCard payment flow test", () => {
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {

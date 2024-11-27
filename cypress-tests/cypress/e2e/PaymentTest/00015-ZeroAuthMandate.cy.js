@@ -1,6 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -51,15 +50,13 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["ZeroAuthMandate"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
     }
@@ -99,15 +96,13 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["ZeroAuthMandate"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -115,15 +110,13 @@ describe("Card - SingleUse Mandates flow test", () => {
           "card_pm"
         ]["ZeroAuthMandate"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
     }
@@ -171,9 +164,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         "ZeroAuthConfirmPayment"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Retrieve CustomerPM Call Test", () => {

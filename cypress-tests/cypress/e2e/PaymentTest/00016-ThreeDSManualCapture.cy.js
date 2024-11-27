@@ -1,7 +1,6 @@
 import captureBody from "../../fixtures/capture-flow-body.json";
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -77,9 +76,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["3DSManualCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("capture-call-test", () => {
@@ -98,9 +95,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
     });
 
@@ -141,9 +136,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["3DSManualCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("capture-call-test", () => {
@@ -162,9 +155,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
     });
   });
@@ -223,9 +214,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["3DSManualCapture"];
 
-          let configs = validateConfig(data["Configs"]);
-
-          cy.retrievePaymentCallTest(globalState, configs);
+          cy.retrievePaymentCallTest(globalState, data);
         });
 
         it("capture-call-test", () => {
@@ -244,9 +233,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["PartialCapture"];
 
-          let configs = validateConfig(data["Configs"]);
-
-          cy.retrievePaymentCallTest(globalState, configs);
+          cy.retrievePaymentCallTest(globalState, data);
         });
       });
 
@@ -287,9 +274,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["3DSManualCapture"];
 
-          let configs = validateConfig(data["Configs"]);
-
-          cy.retrievePaymentCallTest(globalState, configs);
+          cy.retrievePaymentCallTest(globalState, data);
         });
 
         it("capture-call-test", () => {
@@ -308,9 +293,7 @@ describe("Card - ThreeDS Manual payment flow test", () => {
             "card_pm"
           ]["PartialCapture"];
 
-          let configs = validateConfig(data["Configs"]);
-
-          cy.retrievePaymentCallTest(globalState, configs);
+          cy.retrievePaymentCallTest(globalState, data);
         });
       });
     }

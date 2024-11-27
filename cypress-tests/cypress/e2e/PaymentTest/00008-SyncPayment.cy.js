@@ -1,5 +1,4 @@
 import * as fixtures from "../../fixtures/imports";
-import { validateConfig } from "../../utils/featureFlags";
 import State from "../../utils/State";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
@@ -57,9 +56,6 @@ describe("Card - Sync payment flow test", () => {
     let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
       "No3DSAutoCapture"
     ];
-
-    let configs = validateConfig(data["Configs"]);
-
-    cy.retrievePaymentCallTest(globalState, configs);
+    cy.retrievePaymentCallTest(globalState, dta);
   });
 });

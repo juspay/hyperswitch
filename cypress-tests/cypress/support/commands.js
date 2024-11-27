@@ -1824,12 +1824,18 @@ Cypress.Commands.add("voidCallTest", (requestBody, data, globalState) => {
 
 Cypress.Commands.add(
   "retrievePaymentCallTest",
-  (globalState, configs, autoretries = false, attempt = 1) => {
+  (globalState, data, autoretries = false, attempt = 1) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
     const config_info = execConfig(validateConfig(configs));
-    const payment_id = globalState.get("paymentID");
     const merchant_connector_id = globalState.get(
       config_info.merchant_connector_id
     );
+    const payment_id = globalState.get("paymentID");
 
     cy.request({
       method: "GET",
@@ -2097,7 +2103,13 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitForMandatesCallTest",
-  (requestBody, amount, confirm, capture_method, globalState, configs) => {
+  (requestBody, amount, confirm, capture_method, globalState, data) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
     const config_info = execConfig(validateConfig(configs));
     const profile_id = globalState.get(config_info.profile_id);
     const merchant_connector_id = globalState.get(
@@ -2148,7 +2160,7 @@ Cypress.Commands.add(
           } else if (response.body.authentication_type === "no_three_ds") {
             if (response.body.connector === "fiuu") {
               expect(response.body.status).to.equal("failed");
-            } 
+            }
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2198,7 +2210,13 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitUsingPMId",
-  (requestBody, amount, confirm, capture_method, globalState, configs) => {
+  (requestBody, amount, confirm, capture_method, globalState, data) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
     const config_info = execConfig(validateConfig(configs));
     const profile_id = globalState.get(config_info.profile_id);
 
@@ -2233,7 +2251,7 @@ Cypress.Commands.add(
           } else if (response.body.authentication_type === "no_three_ds") {
             if (response.body.connector === "fiuu") {
               expect(response.body.status).to.equal("failed");
-            } 
+            }
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2274,7 +2292,6 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitUsingNTID",
   (requestBody, amount, confirm, capture_method, globalState) => {
-
     requestBody.amount = amount;
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
@@ -2282,11 +2299,11 @@ Cypress.Commands.add(
     if (globalState.get("connectorId") !== "cybersource") {
       return;
     }
-    
+
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const url = `${baseUrl}/payments`;
-    
+
     cy.request({
       method: "POST",
       url: url,
@@ -2298,7 +2315,7 @@ Cypress.Commands.add(
       body: requestBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-      
+
       if (response.status === 200) {
         expect(response.headers["content-type"]).to.include("application/json");
 
@@ -2312,7 +2329,7 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
           } else if (response.body.authentication_type === "no_three_ds") {
-              expect(response.body.status).to.equal("succeeded");
+            expect(response.body.status).to.equal("succeeded");
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2326,7 +2343,7 @@ Cypress.Commands.add(
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
           } else if (response.body.authentication_type === "no_three_ds") {
-              expect(response.body.status).to.equal("requires_capture");
+            expect(response.body.status).to.equal("requires_capture");
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2677,7 +2694,13 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "updatePayoutCallTest",
-  (payoutConfirmBody, reqData, resData, auto_fulfill, globalState) => {
+  (payoutConfirmBody, data, auto_fulfill, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
     payoutConfirmBody.confirm = true;
     payoutConfirmBody.auto_fulfill = auto_fulfill;
 

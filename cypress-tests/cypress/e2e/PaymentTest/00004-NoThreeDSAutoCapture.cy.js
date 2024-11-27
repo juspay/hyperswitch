@@ -62,9 +62,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         "No3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
   });
 
@@ -99,9 +97,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         "No3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
   });
 });

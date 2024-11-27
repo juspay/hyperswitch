@@ -1,6 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -51,15 +50,13 @@ describe("Card - List and revoke Mandates flow test", () => {
           "card_pm"
         ]["MandateSingleUseNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
 

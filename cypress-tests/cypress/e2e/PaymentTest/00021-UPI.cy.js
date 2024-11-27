@@ -1,6 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -72,9 +71,7 @@ describe("UPI Payments - Hyperswitch", () => {
         "UpiCollect"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Refund payment", () => {
@@ -157,9 +154,7 @@ describe("UPI Payments - Hyperswitch", () => {
         "UpiIntent"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
   });
 });

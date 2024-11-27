@@ -1,6 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -51,15 +50,13 @@ describe("Card - MultiUse Mandates flow test", () => {
           "card_pm"
         ]["MandateMultiUseNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -67,15 +64,13 @@ describe("Card - MultiUse Mandates flow test", () => {
           "card_pm"
         ]["MandateMultiUseNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
     }
@@ -127,15 +122,13 @@ describe("Card - MultiUse Mandates flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           6500,
           true,
           "manual",
           globalState,
-          configs
+          data
         );
       });
 
@@ -155,15 +148,13 @@ describe("Card - MultiUse Mandates flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           6500,
           true,
           "manual",
           globalState,
-          configs
+          data
         );
       });
 
@@ -226,15 +217,13 @@ describe("Card - MultiUse Mandates flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           6500,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
     }

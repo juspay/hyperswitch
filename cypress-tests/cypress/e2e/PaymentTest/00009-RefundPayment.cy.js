@@ -1,6 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -62,9 +61,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "No3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -136,9 +133,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "No3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -208,9 +203,7 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("refund-call-test", () => {
@@ -270,9 +263,7 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("refund-call-test", () => {
@@ -356,9 +347,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "No3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("capture-call-test", () => {
@@ -377,9 +366,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "Capture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -451,9 +438,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "No3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("capture-call-test", () => {
@@ -472,9 +457,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "Capture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -559,9 +542,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "No3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("capture-call-test", () => {
@@ -580,9 +561,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "PartialCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -654,9 +633,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "No3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("capture-call-test", () => {
@@ -675,9 +652,7 @@ describe("Card - Refund flow - No 3DS", () => {
         "PartialCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -738,15 +713,13 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["MandateMultiUseNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
 
@@ -755,15 +728,13 @@ describe("Card - Refund flow - No 3DS", () => {
           "card_pm"
         ]["MandateMultiUseNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
 
@@ -854,9 +825,7 @@ describe("Card - Refund flow - 3DS", () => {
         "3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -933,9 +902,7 @@ describe("Card - Refund flow - 3DS", () => {
         "3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -1008,9 +975,7 @@ describe("Card - Refund flow - 3DS", () => {
         "3DSAutoCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -1074,9 +1039,7 @@ describe("Card - Refund flow - 3DS", () => {
           "card_pm"
         ]["3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
-        cy.retrievePaymentCallTest(globalState, configs);
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("refund-call-test", () => {
@@ -1165,9 +1128,7 @@ describe("Card - Refund flow - 3DS", () => {
         "3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("capture-call-test", () => {
@@ -1186,9 +1147,7 @@ describe("Card - Refund flow - 3DS", () => {
         "Capture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -1265,9 +1224,7 @@ describe("Card - Refund flow - 3DS", () => {
         "3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("capture-call-test", () => {
@@ -1286,9 +1243,7 @@ describe("Card - Refund flow - 3DS", () => {
         "Capture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -1375,9 +1330,7 @@ describe("Card - Refund flow - 3DS", () => {
         "3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("capture-call-test", () => {
@@ -1396,9 +1349,7 @@ describe("Card - Refund flow - 3DS", () => {
         "PartialCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {
@@ -1475,9 +1426,7 @@ describe("Card - Refund flow - 3DS", () => {
         "3DSManualCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("capture-call-test", () => {
@@ -1496,9 +1445,7 @@ describe("Card - Refund flow - 3DS", () => {
         "PartialCapture"
       ];
 
-      let configs = validateConfig(data["Configs"]);
-
-      cy.retrievePaymentCallTest(globalState, configs);
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("refund-call-test", () => {

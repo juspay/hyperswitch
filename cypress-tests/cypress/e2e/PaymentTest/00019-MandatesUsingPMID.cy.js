@@ -1,5 +1,4 @@
 import * as fixtures from "../../fixtures/imports";
-import { validateConfig } from "../../utils/featureFlags";
 import State from "../../utils/State";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
@@ -68,15 +67,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
     }
@@ -145,15 +142,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
     }
@@ -194,15 +189,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -210,15 +203,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandateNo3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
     }
@@ -270,15 +261,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           6500,
           true,
           "manual",
           globalState,
-          configs
+          data
         );
       });
 
@@ -298,15 +287,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           6500,
           true,
           "manual",
           globalState,
-          configs
+          data
         );
       });
 
@@ -363,15 +350,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandate3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -379,15 +364,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["PaymentMethodIdMandate3DSAutoCapture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
     }
@@ -444,15 +427,13 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           "card_pm"
         ]["Capture"];
 
-        let configs = validateConfig(data["Configs"]);
-
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
           7000,
           true,
           "automatic",
           globalState,
-          configs
+          data
         );
       });
     }
