@@ -47,15 +47,37 @@ pub use super::payments_v2::{
 use crate::core::errors;
 
 pub trait PaymentIdTypeExt {
+    #[cfg(feature = "v1")]
     fn get_payment_intent_id(
         &self,
     ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError>;
+
+    #[cfg(feature = "v2")]
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::GlobalPaymentId, errors::ValidationError>;
 }
 
 impl PaymentIdTypeExt for PaymentIdType {
+    #[cfg(feature = "v1")]
     fn get_payment_intent_id(
         &self,
     ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError> {
+        match self {
+            Self::PaymentIntentId(id) => Ok(id.clone()),
+            Self::ConnectorTransactionId(_)
+            | Self::PaymentAttemptId(_)
+            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "payment_id",
+            })
+            .attach_printable("Expected payment intent ID but got connector transaction ID"),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::GlobalPaymentId, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
             Self::ConnectorTransactionId(_)

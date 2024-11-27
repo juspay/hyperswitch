@@ -1347,6 +1347,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 ebanx::transformers::EbanxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Elavon => {
+                elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Fiserv => {
                 fiserv::transformers::FiservAuthType::try_from(self.auth_type)?;
                 fiserv::transformers::FiservSessionObject::try_from(self.connector_meta_data)?;
@@ -1389,6 +1393,10 @@ impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
                 iatapay::transformers::IatapayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            // api_enums::Connector::Inespay => {
+            //     inespay::transformers::InespayAuthType::try_from(self.auth_type)?;
+            //     Ok(())
+            // }
             api_enums::Connector::Itaubank => {
                 itaubank::transformers::ItaubankAuthType::try_from(self.auth_type)?;
                 Ok(())

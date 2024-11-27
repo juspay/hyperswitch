@@ -869,6 +869,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
                 }
 
+                if let Some(merchant_order_reference_id) = &params.merchant_order_reference_id {
+                    query = query.filter(
+                        pi_dsl::merchant_order_reference_id.eq(merchant_order_reference_id.clone()),
+                    )
+                }
+
                 if let Some(profile_id) = &params.profile_id {
                     query = query.filter(pi_dsl::profile_id.eq_any(profile_id.clone()));
                 }
@@ -1038,6 +1044,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::List(params) => {
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+                if let Some(merchant_order_reference_id) = &params.merchant_order_reference_id {
+                    query = query.filter(
+                        pi_dsl::merchant_order_reference_id.eq(merchant_order_reference_id.clone()),
+                    )
                 }
                 if let Some(profile_id) = &params.profile_id {
                     query = query.filter(pi_dsl::profile_id.eq_any(profile_id.clone()));

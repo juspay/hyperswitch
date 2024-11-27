@@ -107,6 +107,7 @@ default_imp_for_authorize_session_token!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -126,6 +127,7 @@ default_imp_for_authorize_session_token!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -163,6 +165,7 @@ default_imp_for_calculate_tax!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -182,6 +185,7 @@ default_imp_for_calculate_tax!(
     connectors::Volt,
     connectors::Worldline,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -216,6 +220,7 @@ default_imp_for_session_update!(
     connectors::Fiservemea,
     connectors::Forte,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Razorpay,
     connectors::Shift4,
@@ -234,6 +239,7 @@ default_imp_for_session_update!(
     connectors::Globepay,
     connectors::Worldline,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl,
     connectors::Powertranz,
@@ -274,6 +280,7 @@ default_imp_for_post_session_tokens!(
     connectors::Fiservemea,
     connectors::Forte,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Razorpay,
     connectors::Shift4,
@@ -291,6 +298,7 @@ default_imp_for_post_session_tokens!(
     connectors::Globepay,
     connectors::Worldline,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Powertranz,
     connectors::Thunes,
     connectors::Tsys,
@@ -331,6 +339,7 @@ default_imp_for_complete_authorize!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Multisafepay,
     connectors::Nomupay,
@@ -346,6 +355,7 @@ default_imp_for_complete_authorize!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -384,6 +394,7 @@ default_imp_for_incremental_authorization!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -404,6 +415,7 @@ default_imp_for_incremental_authorization!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -442,6 +454,7 @@ default_imp_for_create_customer!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -461,6 +474,7 @@ default_imp_for_create_customer!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -498,6 +512,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Multisafepay,
     connectors::Nexinets,
@@ -515,6 +530,7 @@ default_imp_for_connector_redirect_response!(
     connectors::Tsys,
     connectors::Worldline,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zsl
 );
 
@@ -551,6 +567,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -569,6 +586,7 @@ default_imp_for_pre_processing_steps!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -607,6 +625,7 @@ default_imp_for_post_processing_steps!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -627,6 +646,7 @@ default_imp_for_post_processing_steps!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -665,6 +685,7 @@ default_imp_for_approve!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -685,6 +706,7 @@ default_imp_for_approve!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -723,6 +745,7 @@ default_imp_for_reject!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -743,6 +766,7 @@ default_imp_for_reject!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -781,6 +805,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -801,6 +826,7 @@ default_imp_for_webhook_source_verification!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -840,6 +866,7 @@ default_imp_for_accept_dispute!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -860,6 +887,7 @@ default_imp_for_accept_dispute!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -898,6 +926,7 @@ default_imp_for_submit_evidence!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -918,6 +947,7 @@ default_imp_for_submit_evidence!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -955,6 +985,7 @@ default_imp_for_defend_dispute!(
     connectors::Fiuu,
     connectors::Forte,
     connectors::Globepay,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Helcim,
     connectors::Nomupay,
@@ -976,6 +1007,7 @@ default_imp_for_defend_dispute!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1023,6 +1055,7 @@ default_imp_for_file_upload!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1043,6 +1076,7 @@ default_imp_for_file_upload!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1074,6 +1108,7 @@ default_imp_for_payouts!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Mollie,
     connectors::Multisafepay,
@@ -1093,6 +1128,7 @@ default_imp_for_payouts!(
     connectors::Volt,
     connectors::Worldline,
     connectors::Worldpay,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1133,6 +1169,7 @@ default_imp_for_payouts_create!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1153,6 +1190,7 @@ default_imp_for_payouts_create!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1193,6 +1231,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1213,6 +1252,7 @@ default_imp_for_payouts_retrieve!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1253,6 +1293,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1273,6 +1314,7 @@ default_imp_for_payouts_eligibility!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1313,6 +1355,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1333,6 +1376,7 @@ default_imp_for_payouts_fulfill!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1373,6 +1417,7 @@ default_imp_for_payouts_cancel!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1393,6 +1438,7 @@ default_imp_for_payouts_cancel!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1433,6 +1479,7 @@ default_imp_for_payouts_quote!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1453,6 +1500,7 @@ default_imp_for_payouts_quote!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1493,6 +1541,7 @@ default_imp_for_payouts_recipient!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1513,6 +1562,7 @@ default_imp_for_payouts_recipient!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1553,6 +1603,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1573,6 +1624,7 @@ default_imp_for_payouts_recipient_account!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1613,6 +1665,7 @@ default_imp_for_frm_sale!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1633,6 +1686,7 @@ default_imp_for_frm_sale!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1673,6 +1727,7 @@ default_imp_for_frm_checkout!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1693,6 +1748,7 @@ default_imp_for_frm_checkout!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1733,6 +1789,7 @@ default_imp_for_frm_transaction!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1753,6 +1810,7 @@ default_imp_for_frm_transaction!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1793,6 +1851,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1813,6 +1872,7 @@ default_imp_for_frm_fulfillment!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1853,6 +1913,7 @@ default_imp_for_frm_record_return!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1873,6 +1934,7 @@ default_imp_for_frm_record_return!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );
@@ -1910,6 +1972,7 @@ default_imp_for_revoking_mandates!(
     connectors::Forte,
     connectors::Globepay,
     connectors::Helcim,
+    connectors::Inespay,
     connectors::Jpmorgan,
     connectors::Nomupay,
     connectors::Novalnet,
@@ -1930,6 +1993,7 @@ default_imp_for_revoking_mandates!(
     connectors::Worldline,
     connectors::Worldpay,
     connectors::Volt,
+    connectors::Xendit,
     connectors::Zen,
     connectors::Zsl
 );

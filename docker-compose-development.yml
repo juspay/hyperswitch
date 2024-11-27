@@ -26,7 +26,7 @@ services:
       - POSTGRES_PASSWORD=db_pass
       - POSTGRES_DB=hyperswitch_db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
       interval: 5s
       retries: 3
       start_period: 5s
