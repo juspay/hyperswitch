@@ -3181,7 +3181,7 @@ pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
 
     cookie
         .to_str()
-        .change_context(errors::ApiErrorResponse::InvalidCookie.into())
+        .change_context(errors::ApiErrorResponse::InvalidCookie)
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
