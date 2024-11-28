@@ -31,7 +31,7 @@ describe("Connector Account Create flow test", () => {
       // The first connector is already created when creating merchant account, so start from 1
       for (let i = 1; i < multiple_connectors.count; i++) {
         cy.createBusinessProfileTest(
-          fixtures.createBusinessProfile,
+          fixtures.businessProfile.bpCreate,
           globalState,
           "profile" + i
         );
@@ -40,8 +40,8 @@ describe("Connector Account Create flow test", () => {
           fixtures.createConnectorBody,
           payment_methods_enabled,
           globalState,
-          "profile" + i,
-          "merchantConnector" + i
+          `profile${i}`,
+          `merchantConnector${i}`
         );
       }
     } else {
