@@ -40,7 +40,7 @@ where
         i64::try_from(token.exp).change_context(ApiErrorResponse::InternalServerError)?;
     let cache_ttl = token_expiry - common_utils::date_time::now_unix_timestamp();
 
-    if cache_ttl >= 0 {
+    if cache_ttl > 0 {
         set_role_info_in_cache(state, &token.role_id, &role_info, cache_ttl)
             .await
             .map_err(|e| logger::error!("Failed to set role info in cache {e:?}"))
