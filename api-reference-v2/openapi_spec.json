@@ -11144,8 +11144,11 @@
             "nullable": true
           },
           "total_tax_amount": {
-            "type": "integer",
-            "format": "int64",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "requires_shipping": {
@@ -11222,8 +11225,11 @@
             "nullable": true
           },
           "total_tax_amount": {
-            "type": "integer",
-            "format": "int64",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
             "nullable": true
           },
           "requires_shipping": {
