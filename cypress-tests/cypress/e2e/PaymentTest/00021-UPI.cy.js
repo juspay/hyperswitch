@@ -28,6 +28,7 @@ describe("UPI Payments - Hyperswitch", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "upi_pm"
       ]["PaymentIntent"];
+      
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
         data,

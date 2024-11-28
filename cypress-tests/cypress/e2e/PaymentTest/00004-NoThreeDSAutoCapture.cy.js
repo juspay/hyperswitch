@@ -1,6 +1,5 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
-import { validateConfig } from "../../utils/featureFlags";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
@@ -26,9 +25,9 @@ describe("Card - NoThreeDS payment flow test", () => {
     });
 
     it("create-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntent"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
@@ -47,9 +46,9 @@ describe("Card - NoThreeDS payment flow test", () => {
     });
 
     it("Confirm No 3DS", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
@@ -58,9 +57,9 @@ describe("Card - NoThreeDS payment flow test", () => {
     });
 
     it("retrieve-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
@@ -76,9 +75,9 @@ describe("Card - NoThreeDS payment flow test", () => {
     });
 
     it("create+confirm-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
@@ -93,9 +92,9 @@ describe("Card - NoThreeDS payment flow test", () => {
     });
 
     it("retrieve-payment-call-test", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "No3DSAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
       cy.retrievePaymentCallTest(globalState, data);
     });
