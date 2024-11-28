@@ -75,7 +75,7 @@ jobs:
       - name: Check formatting
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
-          npm run format:check && npm run lint
+          npm run format:check --prefix cypress-tests && npm run lint --prefix cypress-tests
 
           if [ $? -ne 0 ]; then
             echo "::notice::Formatting or lint check failed"
