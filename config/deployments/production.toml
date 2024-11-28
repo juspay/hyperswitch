@@ -176,7 +176,7 @@ bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay"        # M
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card 
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
-[network_transaction_id_supported_connectors]               # 
+[network_transaction_id_supported_connectors]
 connector_list = "stripe,adyen,cybersource"
 
 [payouts]
