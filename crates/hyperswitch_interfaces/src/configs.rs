@@ -47,6 +47,7 @@ pub struct Connectors {
     pub gpayments: ConnectorParams,
     pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
+    pub inespay: ConnectorParams,
     pub itaubank: ConnectorParams,
     pub jpmorgan: ConnectorParams,
     pub klarna: ConnectorParams,
@@ -92,6 +93,7 @@ pub struct Connectors {
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
+    pub xendit: ConnectorParams,
     pub zen: ConnectorParams,
     pub zsl: ConnectorParams,
 }

@@ -5911,6 +5911,7 @@
           "digitalvirgo",
           "dlocal",
           "ebanx",
+          "elavon",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -15343,17 +15344,12 @@
         "type": "object",
         "required": [
           "payment_id",
-          "client_secret",
           "session_token"
         ],
         "properties": {
           "payment_id": {
             "type": "string",
             "description": "The identifier for the payment"
-          },
-          "client_secret": {
-            "type": "string",
-            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"
           },
           "session_token": {
             "type": "array",
@@ -18123,6 +18119,7 @@
           "digitalvirgo",
           "dlocal",
           "ebanx",
+          "elavon",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -18167,6 +18164,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "xendit",
           "zen",
           "plaid",
           "zsl"
@@ -18643,6 +18641,14 @@
             "$ref": "#/components/schemas/SamsungPayTokenData"
           }
         }
+      },
+      "ScaExemptionType": {
+        "type": "string",
+        "description": "SCA Exemptions types available for authentication",
+        "enum": [
+          "low_value",
+          "transaction_risk_analysis"
+        ]
       },
       "SdkInformation": {
         "type": "object",

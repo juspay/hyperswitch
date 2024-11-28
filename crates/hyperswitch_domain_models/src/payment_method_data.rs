@@ -1,5 +1,5 @@
 use api_models::{
-    mandates,
+    mandates, payment_methods,
     payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
 use common_enums::enums as api_enums;
@@ -1705,6 +1705,16 @@ impl From<Card> for ExtendedCardInfo {
             card_type: value.card_type,
             card_issuing_country: value.card_issuing_country,
             bank_code: value.bank_code,
+        }
+    }
+}
+
+impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
+    fn from(item: GooglePayWalletData) -> Self {
+        Self {
+            last4: item.info.card_details,
+            card_network: item.info.card_network,
+            card_type: item.pm_type,
         }
     }
 }

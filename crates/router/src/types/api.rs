@@ -410,7 +410,9 @@ impl ConnectorData {
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
-                // enums::Connector::Elavon => Ok(ConnectorEnum::Old(Box::new(connector::Elavon))),
+                enums::Connector::Elavon => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
+                }
                 enums::Connector::Fiserv => Ok(ConnectorEnum::Old(Box::new(&connector::Fiserv))),
                 enums::Connector::Fiservemea => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Fiservemea::new())))
@@ -432,6 +434,9 @@ impl ConnectorData {
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
+                // enums::Connector::Inespay => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
+                // }
                 enums::Connector::Itaubank => {
                     //enums::Connector::Jpmorgan => Ok(ConnectorEnum::Old(Box::new(connector::Jpmorgan))),
                     Ok(ConnectorEnum::Old(Box::new(connector::Itaubank::new())))
@@ -496,6 +501,9 @@ impl ConnectorData {
                 enums::Connector::Worldpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Worldpay::new())))
                 }
+                // enums::Connector::Xendit => {
+                //     Ok(ConnectorEnum::Old(Box::new(connector::Xendit::new())))
+                // }
                 enums::Connector::Mifinity => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Mifinity::new())))
                 }

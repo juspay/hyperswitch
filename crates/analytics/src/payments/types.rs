@@ -104,6 +104,11 @@ where
                 .add_filter_in_range_clause(PaymentDimensions::ErrorReason, &self.error_reason)
                 .attach_printable("Error adding error reason filter")?;
         }
+        if !self.first_attempt.is_empty() {
+            builder
+                .add_filter_in_range_clause("first_attempt", &self.first_attempt)
+                .attach_printable("Error adding first attempt filter")?;
+        }
         Ok(())
     }
 }

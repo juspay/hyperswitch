@@ -704,8 +704,61 @@ pub async fn payments_connector_session(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsSessionRequest>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
-    "Session Response"
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+    let flow = Flow::PaymentsSessionToken;
+
+    let global_payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id,
+        payload: json_payload.into_inner(),
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let locking_action = internal_payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            let payment_id = req.global_payment_id;
+            let request = req.payload;
+            let operation = payments::operations::PaymentSessionIntent;
+            payments::payments_session_core::<
+                api_types::Session,
+                payment_types::PaymentsSessionResponse,
+                _,
+                _,
+                _,
+                PaymentIntentData<api_types::Session>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                operation,
+                request,
+                payment_id,
+                payments::CallConnectorAction::Trigger,
+                header_payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        locking_action,
+    ))
+    .await
 }
 
 #[cfg(feature = "v1")]
@@ -1803,6 +1856,16 @@ impl GetLockingInput for payment_types::PaymentsSessionRequest {
                 override_lock_retries: None,
             },
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl GetLockingInput for payment_types::PaymentsSessionRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+    {
+        api_locking::LockAction::NotApplicable
     }
 }
 

@@ -43,6 +43,7 @@ mod gocardless;
 mod gpayments;
 mod helcim;
 mod iatapay;
+mod inespay;
 mod itaubank;
 mod jpmorgan;
 mod mifinity;

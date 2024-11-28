@@ -933,6 +933,7 @@ diesel::table! {
         organization_id -> Varchar,
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
+        psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         #[max_length = 64]
         platform_merchant_id -> Nullable<Varchar>,
     }
@@ -1283,6 +1284,10 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        entity_type -> Varchar,
+        #[max_length = 64]
+        theme_name -> Varchar,
     }
 }
 
