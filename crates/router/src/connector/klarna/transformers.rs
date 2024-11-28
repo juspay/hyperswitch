@@ -305,7 +305,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                                     unit_price: data.amount,
                                     total_amount: data.amount * data.quantity,
                                     total_tax_amount: data.total_tax_amount,
-                                    tax_rate: data.tax_rate,
+                                    tax_rate: data.tax_rate.map(|rate| rate as f64),
                                 })
                                 .collect(),
                             merchant_urls: MerchantURLs {
@@ -480,7 +480,7 @@ pub struct CheckoutOrderLines {
     unit_price: MinorUnit,
     total_amount: MinorUnit,
     total_tax_amount: Option<MinorUnit>,
-    tax_rate: Option<i64>
+    tax_rate: Option<f64>
 }
 
 #[derive(Debug, Serialize)]

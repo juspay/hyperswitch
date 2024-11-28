@@ -5325,8 +5325,7 @@ pub struct PaymentsRetrieveRequest {
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
 }
-
-#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetailsWithAmount {
     /// Name of the product that is being purchased
     #[schema(max_length = 255, example = "shirt")]
@@ -5336,7 +5335,9 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: MinorUnit,
-    pub tax_rate: Option<i64>,
+    /// tax rate applicable to the product
+    pub tax_rate: Option<f64>,
+    /// total tax amount applicable to the product
     pub total_tax_amount: Option<MinorUnit>,
     // Does the order includes shipping
     pub requires_shipping: Option<bool>,
@@ -5358,7 +5359,7 @@ pub struct OrderDetailsWithAmount {
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
 
-#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetails {
     /// Name of the product that is being purchased
     #[schema(max_length = 255, example = "shirt")]
@@ -5366,7 +5367,9 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
-    pub tax_rate: Option<i64>,
+     /// tax rate applicable to the product
+    pub tax_rate: Option<f64>,
+    /// total tax amount applicable to the product
     pub total_tax_amount: Option<MinorUnit>,
     // Does the order include shipping
     pub requires_shipping: Option<bool>,

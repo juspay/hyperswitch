@@ -30,7 +30,9 @@ pub struct OrderDetailsWithAmount {
     pub product_type: Option<common_enums::ProductType>,
     /// The tax code for the product
     pub product_tax_code: Option<String>,
-    pub tax_rate: Option<i64>,
+    /// tax rate applicable to the product
+    pub tax_rate: Option<f64>,
+    /// total tax amount applicable to the product
     pub total_tax_amount: Option<MinorUnit>,
 }
 

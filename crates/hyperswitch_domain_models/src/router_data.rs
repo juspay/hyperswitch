@@ -84,7 +84,6 @@ pub struct RouterData<Flow, Request, Response> {
     pub additional_merchant_data: Option<api_models::admin::AdditionalMerchantData>,
 
     pub header_payload: Option<payments::HeaderPayload>,
-    // pub html_snippet: Option<String>,
     pub connector_mandate_request_reference_id: Option<String>,
 
     /// Contains the type of sca exemption required for the transaction
