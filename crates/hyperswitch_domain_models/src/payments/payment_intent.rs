@@ -1,10 +1,7 @@
 #[cfg(feature = "v2")]
 use common_enums::External3dsAuthenticationRequest;
-use common_enums::{self as storage_enums};
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
-#[cfg(feature = "v2")]
-use common_utils::types::StatementDescriptor;
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
     crypto::Encryptable,
@@ -48,7 +45,7 @@ pub trait PaymentIntentInterface {
         this: PaymentIntent,
         payment_intent: PaymentIntentUpdate,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     async fn insert_payment_intent(
@@ -56,7 +53,7 @@ pub trait PaymentIntentInterface {
         state: &KeyManagerState,
         new: PaymentIntent,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     #[cfg(feature = "v1")]
@@ -66,7 +63,7 @@ pub trait PaymentIntentInterface {
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     #[cfg(feature = "v2")]
@@ -75,7 +72,7 @@ pub trait PaymentIntentInterface {
         state: &KeyManagerState,
         id: &id_type::GlobalPaymentId,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -85,7 +82,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         filters: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -95,7 +92,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -113,7 +110,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
         merchant_key_store: &MerchantKeyStore,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -121,7 +118,7 @@ pub trait PaymentIntentInterface {
         &self,
         merchant_id: &id_type::MerchantId,
         constraints: &PaymentIntentFetchConstraints,
-        storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: common_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
@@ -137,9 +134,9 @@ pub struct CustomerData {
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
     // pub amount: Option<MinorUnit>,
-    // pub currency: Option<storage_enums::Currency>,
-    // pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    // pub status: storage_enums::IntentStatus,
+    // pub currency: Option<common_enums::Currency>,
+    // pub setup_future_usage: Option<common_enums::FutureUsage>,
+    // pub status: common_enums::IntentStatus,
     // pub customer_id: Option<id_type::CustomerId>,
     // pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
     // pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
@@ -148,7 +145,7 @@ pub struct PaymentIntentUpdateFields {
     // pub statement_descriptor: Option<String>,
     // pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     // pub metadata: Option<pii::SecretSerdeValue>,
-    // pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    // pub payment_confirm_source: Option<common_enums::PaymentSource>,
     // pub updated_by: String,
     // pub session_expiry: Option<PrimitiveDateTime>,
     // pub request_external_three_ds_authentication: Option<bool>,
@@ -157,7 +154,7 @@ pub struct PaymentIntentUpdateFields {
     // pub merchant_order_reference_id: Option<String>,
     // pub is_payment_processor_token_flow: Option<bool>,
     pub amount: Option<MinorUnit>,
-    pub currency: Option<storage_enums::Currency>,
+    pub currency: Option<common_enums::Currency>,
     pub shipping_cost: Option<MinorUnit>,
     // TODO: Check how to handle this
     // tax_details: Option<diesel_models::TaxDetails>,
@@ -173,9 +170,9 @@ pub struct PaymentIntentUpdateFields {
     pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
     pub description: Option<common_utils::types::Description>,
     pub return_url: Option<common_utils::types::Url>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
-    pub statement_descriptor: Option<StatementDescriptor>,
+    pub statement_descriptor: Option<common_utils::types::StatementDescriptor>,
     pub order_details: Option<Vec<Secret<diesel_models::types::OrderDetailsWithAmount>>>,
     pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -197,14 +194,14 @@ pub struct PaymentIntentUpdateFields {
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
     pub amount: MinorUnit,
-    pub currency: storage_enums::Currency,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub status: storage_enums::IntentStatus,
+    pub currency: common_enums::Currency,
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    pub status: common_enums::IntentStatus,
     pub customer_id: Option<id_type::CustomerId>,
     pub shipping_address_id: Option<String>,
     pub billing_address_id: Option<String>,
     pub return_url: Option<String>,
-    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_country: Option<common_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
@@ -212,7 +209,7 @@ pub struct PaymentIntentUpdateFields {
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub metadata: Option<serde_json::Value>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
-    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub payment_confirm_source: Option<common_enums::PaymentSource>,
     pub updated_by: String,
     pub fingerprint_id: Option<String>,
     pub session_expiry: Option<PrimitiveDateTime>,
@@ -229,7 +226,7 @@ pub struct PaymentIntentUpdateFields {
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
     ResponseUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         amount_captured: Option<MinorUnit>,
         return_url: Option<String>,
         updated_by: String,
@@ -243,7 +240,7 @@ pub enum PaymentIntentUpdate {
     Update(Box<PaymentIntentUpdateFields>),
     PaymentCreateUpdate {
         return_url: Option<String>,
-        status: Option<storage_enums::IntentStatus>,
+        status: Option<common_enums::IntentStatus>,
         customer_id: Option<id_type::CustomerId>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
@@ -251,13 +248,13 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     MerchantStatusUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         updated_by: String,
     },
     PGStatusUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         incremental_authorization_allowed: Option<bool>,
         updated_by: String,
     },
@@ -267,18 +264,18 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     StatusAndAttemptUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         active_attempt_id: String,
         attempt_count: i16,
         updated_by: String,
     },
     ApproveUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         merchant_decision: Option<String>,
         updated_by: String,
     },
     RejectUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         merchant_decision: Option<String>,
         updated_by: String,
     },
@@ -296,7 +293,7 @@ pub enum PaymentIntentUpdate {
         shipping_address_id: Option<String>,
     },
     ManualUpdate {
-        status: Option<storage_enums::IntentStatus>,
+        status: Option<common_enums::IntentStatus>,
         updated_by: String,
     },
     SessionResponseUpdate {
@@ -312,18 +309,18 @@ pub enum PaymentIntentUpdate {
 pub enum PaymentIntentUpdate {
     /// PreUpdate tracker of ConfirmIntent
     ConfirmIntent {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         active_attempt_id: id_type::GlobalAttemptId,
         updated_by: String,
     },
     /// PostUpdate tracker of ConfirmIntent
     ConfirmIntentPostUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         updated_by: String,
     },
     /// SyncUpdate of ConfirmIntent in PostUpdateTrackers
     SyncUpdate {
-        status: storage_enums::IntentStatus,
+        status: common_enums::IntentStatus,
         updated_by: String,
     },
     /// UpdateIntent
@@ -334,19 +331,19 @@ pub enum PaymentIntentUpdate {
 #[derive(Clone, Debug, Default)]
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
-    pub currency: Option<storage_enums::Currency>,
-    pub status: Option<storage_enums::IntentStatus>,
+    pub currency: Option<common_enums::Currency>,
+    pub status: Option<common_enums::IntentStatus>,
     pub amount_captured: Option<MinorUnit>,
     pub customer_id: Option<id_type::CustomerId>,
     pub return_url: Option<String>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub metadata: Option<serde_json::Value>,
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub active_attempt_id: Option<String>,
-    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_country: Option<common_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub description: Option<String>,
     pub statement_descriptor_name: Option<String>,
@@ -356,7 +353,7 @@ pub struct PaymentIntentUpdateInternal {
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
-    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub payment_confirm_source: Option<common_enums::PaymentSource>,
 
     pub updated_by: String,
     pub surcharge_applicable: Option<bool>,
@@ -526,16 +523,8 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     amount,
                     currency,
                     shipping_cost,
-                    skip_external_tax_calculation: skip_external_tax_calculation.map(
-                        |val| match val {
-                            super::TaxCalculationOverride::Skip => true,
-                            super::TaxCalculationOverride::Calculate => false,
-                        },
-                    ),
-                    surcharge_applicable: skip_surcharge_calculation.map(|val| match val {
-                        super::SurchargeCalculationOverride::Skip => true,
-                        super::SurchargeCalculationOverride::Calculate => false,
-                    }),
+                    skip_external_tax_calculation: skip_external_tax_calculation.map(|val| val.as_bool()),
+                    surcharge_applicable: skip_surcharge_calculation.map(|val| val.as_bool()),
                     surcharge_amount,
                     tax_on_surcharge,
                     routing_algorithm_id,
@@ -1078,11 +1067,11 @@ pub struct PaymentIntentListParams {
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
     pub connector: Option<Vec<api_models::enums::Connector>>,
-    pub currency: Option<Vec<storage_enums::Currency>>,
-    pub status: Option<Vec<storage_enums::IntentStatus>>,
-    pub payment_method: Option<Vec<storage_enums::PaymentMethod>>,
-    pub payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
-    pub authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+    pub currency: Option<Vec<common_enums::Currency>>,
+    pub status: Option<Vec<common_enums::IntentStatus>>,
+    pub payment_method: Option<Vec<common_enums::PaymentMethod>>,
+    pub payment_method_type: Option<Vec<common_enums::PaymentMethodType>>,
+    pub authentication_type: Option<Vec<common_enums::AuthenticationType>>,
     pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
     pub profile_id: Option<Vec<id_type::ProfileId>>,
     pub customer_id: Option<id_type::CustomerId>,
@@ -1090,7 +1079,7 @@ pub struct PaymentIntentListParams {
     pub ending_before_id: Option<id_type::PaymentId>,
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
-    pub card_network: Option<Vec<storage_enums::CardNetwork>>,
+    pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
 }
 

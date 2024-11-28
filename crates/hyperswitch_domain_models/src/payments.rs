@@ -184,11 +184,31 @@ impl From<Option<bool>> for TaxCalculationOverride {
 }
 
 #[cfg(feature = "v2")]
+impl TaxCalculationOverride {
+    fn as_bool(self) -> bool {
+        match self {
+            TaxCalculationOverride::Skip => true,
+            TaxCalculationOverride::Calculate => false,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 impl From<Option<bool>> for SurchargeCalculationOverride {
     fn from(value: Option<bool>) -> Self {
         match value {
             Some(true) => Self::Calculate,
             _ => Self::Skip,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl SurchargeCalculationOverride {
+    fn as_bool(self) -> bool {
+        match self {
+            SurchargeCalculationOverride::Skip => true,
+            SurchargeCalculationOverride::Calculate => false,
         }
     }
 }
