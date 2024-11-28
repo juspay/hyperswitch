@@ -343,7 +343,6 @@ impl From<JpmorganTransactionStatus> for common_enums::AttemptStatus {
     fn from(item: JpmorganTransactionStatus) -> Self {
         match item {
             JpmorganTransactionStatus::Success => Self::Charged,
-            //JpmorganTransactionStatus::Pending => Self::Pending,
             JpmorganTransactionStatus::Denied | JpmorganTransactionStatus::Error => Self::Failure,
         }
     }
@@ -371,7 +370,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
 
         let connector_response_reference_id = Some(item.response.transaction_id.clone());
 
-        let resource_id = ResponseId::ConnectorTransactionId(item.response.transaction_id.clone());
+        let resource_id = ResponseId::ConnectorTransactionId(item.response.request_id.unwrap_or_default().clone());     //change made from tranId to reqId
 
         Ok(Self {
             status,
@@ -834,6 +833,19 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
 
         let currency = Some(item.router_data.request.currency.to_string());
 
+        // let company_name : Option<String> = Some(String::from("JPMC"));
+        // let product_name : Option<String> = Some(String::from("Hyperswitch"));
+        // let version : Option<String> = Some(String::from("1.235"));
+        // let software_id : Option<String> = None;
+
+        // let merchant_software = MerchantSoftwareCapReq{
+        //     company_name,
+        //     product_name,
+        //     version,
+        //     software_id,
+        // };
+
+        // let merchant_category_code : Option<String> = item.router_data.address;
         let amount = item.amount;
         Ok(Self {
             capture_method,
@@ -1040,6 +1052,7 @@ pub struct JpmorganRefundResponse {
     pub response_message: String,
     pub transaction_reference_id: Option<String>,
     pub remaining_refundable_amount: Option<i64>,
+    //pub payment_request_id : Option<String>,
 }
 
 #[allow(dead_code)]
@@ -1097,7 +1110,6 @@ impl TryFrom<RefundsResponseRouterData<Execute, JpmorganRefundResponse>>
 
         let transaction_state = item.response.transaction_state.to_string();
         let refund_status = common_enums::RefundStatus::from_transaction_state(transaction_state);
-
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: refund_id,
