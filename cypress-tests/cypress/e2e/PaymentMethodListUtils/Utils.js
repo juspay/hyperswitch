@@ -7,7 +7,7 @@ const connectorDetails = {
 };
 
 export default function getConnectorDetails(connectorId) {
-  let x = mergeDetails(connectorId);
+  const x = mergeDetails(connectorId);
   return x;
 }
 

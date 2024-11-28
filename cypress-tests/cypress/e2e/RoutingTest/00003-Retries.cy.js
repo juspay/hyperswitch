@@ -59,8 +59,9 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Add routing config", () => {
-              let data = utils.getConnectorDetails("common")["priorityRouting"];
-              let routing_data = [
+              const data =
+                utils.getConnectorDetails("common")["priorityRouting"];
+              const routing_data = [
                 {
                   connector: "adyen",
                   merchant_connector_id: globalState.get("adyenMcaId"),
@@ -84,7 +85,8 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Activate routing config", () => {
-              let data = utils.getConnectorDetails("common")["priorityRouting"];
+              const data =
+                utils.getConnectorDetails("common")["priorityRouting"];
 
               cy.activateRoutingConfig(data, globalState);
             });
@@ -98,7 +100,7 @@ describe("Auto Retries & Step Up 3DS", () => {
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
@@ -113,7 +115,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "BluesnapConfirm"
                   ];
@@ -145,7 +147,7 @@ describe("Auto Retries & Step Up 3DS", () => {
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
@@ -160,7 +162,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "StripeConfirmSuccess"
                   ];
@@ -191,7 +193,7 @@ describe("Auto Retries & Step Up 3DS", () => {
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
@@ -206,7 +208,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "AdyenConfirmFail"
                   ];
@@ -244,8 +246,9 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Add routing config", () => {
-              let data = utils.getConnectorDetails("common")["priorityRouting"];
-              let routing_data = [
+              const data =
+                utils.getConnectorDetails("common")["priorityRouting"];
+              const routing_data = [
                 {
                   connector: "stripe",
                   merchant_connector_id: globalState.get("stripeMcaId"),
@@ -269,7 +272,8 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             it("Activate routing config", () => {
-              let data = utils.getConnectorDetails("common")["priorityRouting"];
+              const data =
+                utils.getConnectorDetails("common")["priorityRouting"];
 
               cy.activateRoutingConfig(data, globalState);
             });
@@ -283,7 +287,7 @@ describe("Auto Retries & Step Up 3DS", () => {
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
@@ -298,7 +302,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "BluesnapConfirm"
                   ];
@@ -330,7 +334,7 @@ describe("Auto Retries & Step Up 3DS", () => {
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
@@ -345,7 +349,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "AdyenConfirm"
                   ];
@@ -377,7 +381,7 @@ describe("Auto Retries & Step Up 3DS", () => {
 
             context("Make payment", () => {
               it("Payment create call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "PaymentIntent"
                   ];
@@ -392,7 +396,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
 
               it("Payment confirm call", () => {
-                let data =
+                const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
                     "StripeConfirmFail"
                   ];
@@ -436,7 +440,7 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment create call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "PaymentIntent"
               ];
@@ -451,7 +455,7 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment confirm call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "StripeConfirm3DS"
               ];
@@ -483,7 +487,7 @@ describe("Auto Retries & Step Up 3DS", () => {
       context("Make payment", () => {
         context("[Failed] Make payment", () => {
           it("Payment create call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "PaymentIntent"
               ];
@@ -498,7 +502,7 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment confirm call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "StripeConfirmFail"
               ];
@@ -513,7 +517,7 @@ describe("Auto Retries & Step Up 3DS", () => {
 
         context("[Succeeded] Make payment", () => {
           it("Payment create call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "PaymentIntent"
               ];
@@ -528,7 +532,7 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           it("Payment confirm call", () => {
-            let data =
+            const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
                 "StripeConfirmSuccess"
               ];

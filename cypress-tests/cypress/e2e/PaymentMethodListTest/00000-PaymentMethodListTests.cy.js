@@ -67,7 +67,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // creating payment with currency as EUR and no billing address
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
+        const data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
 
         const newData = {
           ...data,
@@ -86,7 +86,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which should only have ideal with stripe
       it("payment-method-list-call-test", () => {
-        let data =
+        const data =
           getConnectorDetails("stripe")["pm_list"]["PmListResponse"][
             "PmListWithStripeForIdeal"
           ];
@@ -150,7 +150,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // creating payment with currency as INR and no billing address
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
+        const data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
 
         const newData = {
           ...data,
@@ -169,7 +169,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which should only have ideal with stripe
       it("payment-method-list-call-test", () => {
-        let data =
+        const data =
           getConnectorDetails("stripe")["pm_list"]["PmListResponse"][
             "PmListNull"
           ];
@@ -233,7 +233,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // creating payment with currency as USD and billing address as US
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
+        const data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
 
         const newData = {
           ...data,
@@ -252,7 +252,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which should only have credit with Stripe and Cybersource
       it("payment-method-list-call-test", () => {
-        let data =
+        const data =
           getConnectorDetails("stripe")["pm_list"]["PmListResponse"][
             "PmListWithCreditTwoConnector"
           ];
@@ -316,7 +316,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // creating payment with currency as EUR and billing address as US
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
+        const data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
 
         const newData = {
           ...data,
@@ -335,7 +335,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which shouldn't have anything
       it("payment-method-list-call-test", () => {
-        let data =
+        const data =
           getConnectorDetails("stripe")["pm_list"]["PmListResponse"][
             "PmListNull"
           ];
@@ -401,7 +401,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // creating payment with currency as USD and billing address as IN
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
+        const data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
 
         const newData = {
           ...data,
@@ -420,7 +420,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which should have credit with stripe and cybersource and no ideal
       it("payment-method-list-call-test", () => {
-        let data =
+        const data =
           getConnectorDetails("stripe")["pm_list"]["PmListResponse"][
             "PmListWithCreditTwoConnector"
           ];
@@ -485,7 +485,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // creating payment with currency as USD and billing address as IN
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
+        const data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
 
         const newData = {
           ...data,
@@ -504,7 +504,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which should have credit with stripe and cybersource and no ideal
       it("payment-method-list-call-test", () => {
-        let data =
+        const data =
           getConnectorDetails("stripe")["pm_list"]["PmListResponse"][
             "PmListWithCreditTwoConnector"
           ];
@@ -568,7 +568,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // creating payment with currency as EUR and no billing address
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
+        const data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
 
         const newData = {
           ...data,
@@ -587,7 +587,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       // payment method list which should only have ideal with stripe
       it("payment-method-list-call-test", () => {
-        let data =
+        const data =
           getConnectorDetails("stripe")["pm_list"]["PmListResponse"][
             "PmListWithStripeForIdeal"
           ];

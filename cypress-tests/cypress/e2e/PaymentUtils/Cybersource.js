@@ -533,6 +533,9 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: "connector_1",
+      },
       Request: {},
       Response: {
         status: 200,
@@ -542,6 +545,9 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: "connector_1",
+      },
       Request: {},
       Response: {
         status: 200,
