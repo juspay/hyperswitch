@@ -196,9 +196,25 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "UpdateBusinessProfileTest",
-  (updateBusinessProfile, is_connector_agnostic_mit_enabled, globalState) => {
+  (
+    updateBusinessProfile,
+    is_connector_agnostic_mit_enabled,
+    collect_billing_details_from_wallet_connector,
+    collect_shipping_details_from_wallet_connector,
+    always_collect_billing_details_from_wallet_connector,
+    always_collect_shipping_details_from_wallet_connector,
+    globalState
+  ) => {
     updateBusinessProfile.is_connector_agnostic_mit_enabled =
       is_connector_agnostic_mit_enabled;
+    updateBusinessProfile.collect_shipping_details_from_wallet_connector =
+      collect_shipping_details_from_wallet_connector;
+    updateBusinessProfile.collect_billing_details_from_wallet_connector =
+      collect_billing_details_from_wallet_connector;
+    updateBusinessProfile.always_collect_billing_details_from_wallet_connector =
+      always_collect_billing_details_from_wallet_connector;
+    updateBusinessProfile.always_collect_shipping_details_from_wallet_connector =
+      always_collect_shipping_details_from_wallet_connector;
     const merchant_id = globalState.get("merchantId");
     const profile_id = globalState.get("profileId");
     cy.request({
@@ -213,6 +229,24 @@ Cypress.Commands.add(
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+      if (response.status === 200) {
+        globalState.set(
+          "collectBillingDetails",
+          response.body.collect_billing_details_from_wallet_connector
+        );
+        globalState.set(
+          "collectShippingDetails",
+          response.body.collect_shipping_details_from_wallet_connector
+        );
+        globalState.set(
+          "alwaysCollectBillingDetails",
+          response.body.always_collect_billing_details_from_wallet_connector
+        );
+        globalState.set(
+          "alwaysCollectShippingDetails",
+          response.body.always_collect_shipping_details_from_wallet_connector
+        );
+      }
     });
   }
 );
@@ -1001,6 +1035,33 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState) => {
     expect(response.headers["content-type"]).to.include("application/json");
     expect(response.body).to.have.property("redirect_url");
     expect(response.body).to.have.property("payment_methods");
+    if (
+      globalState.get("collectBillingDetails") === true ||
+      globalState.get("alwaysCollectBillingDetails") === true
+    ) {
+      expect(
+        response.body.collect_billing_details_from_wallets,
+        "collectBillingDetailsFromWallets"
+      ).to.be.true;
+    } else
+      expect(
+        response.body.collect_billing_details_from_wallets,
+        "collectBillingDetailsFromWallets"
+      ).to.be.false;
+
+    if (
+      globalState.get("collectShippingDetails") === true ||
+      globalState.get("alwaysCollectShippingDetails") === true
+    ) {
+      expect(
+        response.body.collect_shipping_details_from_wallets,
+        "collectShippingDetailsFromWallets"
+      ).to.be.true;
+    } else
+      expect(
+        response.body.collect_shipping_details_from_wallets,
+        "collectShippingDetailsFromWallets"
+      ).to.be.false;
     globalState.set("paymentID", paymentIntentID);
     cy.log(response);
   });
