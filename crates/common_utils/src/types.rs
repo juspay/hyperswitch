@@ -6,7 +6,7 @@ pub mod authentication;
 /// Enum for Theme Lineage
 pub mod theme;
 
-/// types that are wrappers aroung primitive types
+/// types that are wrappers around primitive types
 pub mod primitive_wrappers;
 
 use std::{
