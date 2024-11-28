@@ -282,6 +282,9 @@ impl Connector {
     pub fn is_pre_processing_required_before_authorize(&self) -> bool {
         matches!(self, Self::Airwallex)
     }
+    pub fn should_acknowledge_webhook_for_resource_not_found_errors(&self) -> bool {
+        matches!(self, Self::Adyenplatform)
+    }
     #[cfg(feature = "dummy_connector")]
     pub fn validate_dummy_connector_enabled(
         &self,
