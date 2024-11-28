@@ -1676,7 +1676,6 @@ impl PayoutLink {
         route
     }
 }
-
 pub struct Profile;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl Profile {

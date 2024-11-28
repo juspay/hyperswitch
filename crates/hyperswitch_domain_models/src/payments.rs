@@ -2,6 +2,8 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
+use api_models::payments::SessionToken;
+#[cfg(feature = "v2")]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
     self,
@@ -566,6 +568,7 @@ where
 {
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
+    pub sessions_token: Vec<SessionToken>,
 }
 
 // TODO: Check if this can be merged with existing payment data
