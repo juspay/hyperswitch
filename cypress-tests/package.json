@@ -14,9 +14,10 @@
     "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'",
     "format": "prettier --config .prettierrc . --write",
     "format:check": "prettier --config .prettierrc . --check",
+    "lint": "eslint .",
     "prepare": "husky"
   },
-  "author": "",
+  "author": "Hyperswitch",
   "license": "ISC",
   "devDependencies": {
     "@eslint/js": "^9.15.0",

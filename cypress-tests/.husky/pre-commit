@@ -1,3 +1,3 @@
 # .husky/pre-commit
-npx prettier --write --ignore-unknown .
+npm run format:check && npm run lint
 git update-index --again
