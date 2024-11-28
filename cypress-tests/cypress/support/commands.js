@@ -908,7 +908,7 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("sessionTokenCall", (globalState) => {
+Cypress.Commands.add("sessionTokenCall", (globalState, sessionTokenBody) => {
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/payments/session_tokens`,
