@@ -98,6 +98,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
+    pub transaction_flow: Option<storage_enums::TransactionFlow>,
 }
 
 impl PaymentMethod {
@@ -364,6 +365,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            transaction_flow: self.transaction_flow,
         })
     }
 
@@ -439,6 +441,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
+                transaction_flow: item.transaction_flow,
             })
         }
         .await
@@ -475,6 +478,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_token_payment_method_data: self
                 .network_token_payment_method_data
                 .map(|val| val.into()),
+            transaction_flow: self.transaction_flow,
         })
     }
 }
