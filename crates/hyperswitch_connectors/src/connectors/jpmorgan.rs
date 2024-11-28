@@ -77,6 +77,8 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     // Not Implemented (R)
 }
 
+use masking::Maskable;
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Jpmorgan
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -85,7 +87,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        println!("Entered build headers of ConnectorCommonExt impl");
         let mut headers = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -98,8 +101,20 @@ where
             headers::AUTHORIZATION.to_string(),
             format!("Bearer {}", access_token.token.peek()).into_masked(),
         );
-
+        let request_id = (
+            headers::REQUEST_ID.to_string(),
+            req.connector_request_reference_id.clone().to_string().into_masked()
+        );
+        let merchant_id = (
+            headers::MERCHANTID.to_string(),
+            req.merchant_id.get_string_repr().to_string().into_masked()
+        );
+        println!("Auth Header {:?}", auth_header);
+        println!("Request Id  {:?}", request_id);
+        println!("Merchant Id {:?}", merchant_id);
         headers.push(auth_header);
+        headers.push(request_id);
+        headers.push(merchant_id);
         Ok(headers)
     }
 }
@@ -129,6 +144,7 @@ impl ConnectorCommon for Jpmorgan {
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        println!("Entering get_auth_header");
         let auth = jpmorgan::JpmorganAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -328,6 +344,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        println!("in get_headers of authorize {:?}", self.build_headers(req, connectors));
         self.build_headers(req, connectors)
     }
 
