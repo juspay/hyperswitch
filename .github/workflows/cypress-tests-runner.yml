@@ -83,10 +83,11 @@ jobs:
             git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
 
             # Run prettier to fix formatting
-            npm run format
+            npm run format --prefix cypress-tests
 
-            # Run eslint with --fix flag to auto-fix linting issues
-            npm run lint -- --fix
+            # Run eslint to auto-fix linting issues
+            # This will not fix logical issues, but will fix formatting issues
+            npm run lint --prefix cypress-tests -- --fix
 
             # Add changes to git and commit
             git add .

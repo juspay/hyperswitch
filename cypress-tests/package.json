@@ -14,8 +14,7 @@
     "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'",
     "format": "prettier --config .prettierrc . --write",
     "format:check": "prettier --config .prettierrc . --check",
-    "lint": "eslint . -- --fix",
-    "lint:check": "eslint .",
+    "lint": "eslint .",
     "prepare": "husky"
   },
   "author": "Hyperswitch",
