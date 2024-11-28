@@ -5,32 +5,38 @@ use std::fmt::Debug;
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
 use common_utils::{
-    crypto, errors::CustomResult, ext_traits::{ByteSliceExt, BytesExt}, request::{Method, Request, RequestBuilder, RequestContent}
+    crypto,
+    errors::CustomResult,
+    ext_traits::{ByteSliceExt, BytesExt},
+    request::{Method, Request, RequestBuilder, RequestContent},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData, router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData}, router_flow_types::{
+    payment_method_data::PaymentMethodData,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
-        refunds::{Execute, RSync}, CreateConnectorCustomer, PreProcessing,
-    }, router_request_types::{
-        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData
-    }, router_response_types::{PaymentsResponseData, RefundsResponseData}, types::{
-        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData, TokenizationRouterData
-    }
+        refunds::{Execute, RSync},
+        CreateConnectorCustomer, PreProcessing,
+    },
+    router_request_types::{
+        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
+    },
 };
 use hyperswitch_interfaces::{
-    api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
-        ConnectorValidation,
-    },
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{
-        self,
-        PaymentsSyncType,Response,
-    },
+    types::{self, PaymentsSyncType, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{Mask, PeekInterface};
@@ -149,12 +155,8 @@ impl ConnectorCommon for Gocardless {
     }
 }
 
-impl
-    ConnectorIntegration<
-        CreateConnectorCustomer,
-        ConnectorCustomerData,
-        PaymentsResponseData,
-    > for Gocardless
+impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
+    for Gocardless
 {
     fn get_headers(
         &self,
@@ -209,11 +211,7 @@ impl
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<
-        RouterData<
-            CreateConnectorCustomer,
-            ConnectorCustomerData,
-            PaymentsResponseData,
-        >,
+        RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>,
         errors::ConnectorError,
     >
     where
@@ -245,12 +243,8 @@ impl
     }
 }
 
-impl
-    ConnectorIntegration<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for Gocardless
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Gocardless
 {
     fn get_headers(
         &self,
@@ -333,12 +327,8 @@ impl
     }
 }
 
-impl
-    ConnectorIntegration<
-        PreProcessing,
-        PaymentsPreProcessingData,
-        PaymentsResponseData,
-    > for Gocardless
+impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+    for Gocardless
 {
 }
 
@@ -353,9 +343,10 @@ impl ConnectorValidation for Gocardless {
             enums::CaptureMethod::Automatic => Ok(()),
             enums::CaptureMethod::Manual
             | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => Err(
-                construct_not_implemented_error_report(capture_method, self.id()),
-            ),
+            | enums::CaptureMethod::Scheduled => Err(construct_not_implemented_error_report(
+                capture_method,
+                self.id(),
+            )),
         }
     }
     fn validate_mandate_payment(
@@ -373,23 +364,14 @@ impl ConnectorValidation for Gocardless {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
-    for Gocardless
-{
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Gocardless {
     //TODO: implement sessions flow
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Gocardless
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Gocardless {}
 
-impl
-    ConnectorIntegration<
-        SetupMandate,
-        SetupMandateRequestData,
-        PaymentsResponseData,
-    > for Gocardless
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
+    for Gocardless
 {
     fn get_headers(
         &self,
@@ -469,9 +451,7 @@ impl
     }
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Gocardless
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Gocardless {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -560,9 +540,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for Gocardless
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gocardless {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -635,19 +613,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
-    for Gocardless
-{
-}
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Gocardless {}
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
-    for Gocardless
-{
-}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Gocardless {}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
-    for Gocardless
-{
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gocardless {
     fn get_headers(
         &self,
         req: &RefundsRouterData<Execute>,
@@ -732,9 +702,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData>
-    for Gocardless
-{
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Gocardless {
     fn build_request(
         &self,
         _req: &RefundSyncRouterData,
@@ -855,9 +823,7 @@ impl IncomingWebhook for Gocardless {
                 transformers::RefundsAction::Paid => IncomingWebhookEvent::RefundSuccess,
                 transformers::RefundsAction::RefundSettled
                 | transformers::RefundsAction::FundsReturned
-                | transformers::RefundsAction::Created => {
-                    IncomingWebhookEvent::EventNotSupported
-                }
+                | transformers::RefundsAction::Created => IncomingWebhookEvent::EventNotSupported,
             },
             transformers::WebhookAction::MandatesAction(action) => match action {
                 transformers::MandatesAction::Active | transformers::MandatesAction::Reinstated => {
@@ -866,9 +832,7 @@ impl IncomingWebhook for Gocardless {
                 transformers::MandatesAction::Expired
                 | transformers::MandatesAction::Cancelled
                 | transformers::MandatesAction::Failed
-                | transformers::MandatesAction::Consumed => {
-                    IncomingWebhookEvent::MandateRevoked
-                }
+                | transformers::MandatesAction::Consumed => IncomingWebhookEvent::MandateRevoked,
                 transformers::MandatesAction::Created
                 | transformers::MandatesAction::CustomerApprovalGranted
                 | transformers::MandatesAction::CustomerApprovalSkipped
@@ -876,9 +840,7 @@ impl IncomingWebhook for Gocardless {
                 | transformers::MandatesAction::Submitted
                 | transformers::MandatesAction::ResubmissionRequested
                 | transformers::MandatesAction::Replaced
-                | transformers::MandatesAction::Blocked => {
-                    IncomingWebhookEvent::EventNotSupported
-                }
+                | transformers::MandatesAction::Blocked => IncomingWebhookEvent::EventNotSupported,
             },
         };
         Ok(event_type)

@@ -21,10 +21,10 @@ use hyperswitch_domain_models::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
     },
     router_request_types::{
-        AuthenticationData, BrowserInformation, CompleteAuthorizeData,
+        AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
-        SetupMandateRequestData, ConnectorCustomerData
+        SetupMandateRequestData,
     },
     types::OrderDetailsWithAmount,
 };

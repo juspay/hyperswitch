@@ -1,17 +1,30 @@
 use std::collections::HashMap;
 
-use common_utils::{consts, errors::CustomResult};
+use common_enums::enums;
+use common_utils::{
+    consts::{PROPHETPAY_REDIRECT_URL, PROPHETPAY_TOKEN},
+    errors::CustomResult,
+    request::Method,
+};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{CardRedirectData, PaymentMethodData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::refunds::Execute,
+    router_request_types::{
+        CompleteAuthorizeData, CompleteAuthorizeRedirectResponse, PaymentsAuthorizeData, ResponseId,
+    },
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::{api, consts::NO_ERROR_CODE, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, to_connector_meta},
-    consts as const_val,
-    core::errors,
-    services,
-    types::{self, api, domain, storage::enums},
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{self, to_connector_meta},
 };
 
 pub struct ProphetpayRouterData<T> {
@@ -38,11 +51,11 @@ pub struct ProphetpayAuthType {
     pub(super) profile_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for ProphetpayAuthType {
+impl TryFrom<&ConnectorAuthType> for ProphetpayAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::SignatureKey {
+            ConnectorAuthType::SignatureKey {
                 api_key,
                 key1,
                 api_secret,
@@ -124,9 +137,7 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         if item.router_data.request.currency == api_models::enums::Currency::USD {
             match item.router_data.request.payment_method_data.clone() {
-                domain::PaymentMethodData::CardRedirect(
-                    domain::payments::CardRedirectData::CardRedirect {},
-                ) => {
+                PaymentMethodData::CardRedirect(CardRedirectData::CardRedirect {}) => {
                     let auth_data =
                         ProphetpayAuthType::try_from(&item.router_data.connector_auth_type)?;
                     Ok(Self {
@@ -165,26 +176,21 @@ pub struct ProphetpayTokenResponse {
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
-            F,
-            ProphetpayTokenResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+        ResponseRouterData<F, ProphetpayTokenResponse, PaymentsAuthorizeData, PaymentsResponseData>,
+    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             ProphetpayTokenResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let url_data = format!(
             "{}{}",
-            consts::PROPHETPAY_REDIRECT_URL,
+            PROPHETPAY_REDIRECT_URL,
             item.response.hosted_tokenize_id.expose()
         );
 
@@ -199,8 +205,8 @@ impl<F>
 
         Ok(Self {
             status: enums::AttemptStatus::AuthenticationPending,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::NoResponseId,
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
@@ -217,7 +223,7 @@ impl<F>
 fn get_redirect_url_form(
     mut redirect_url: Url,
     complete_auth_url: Option<String>,
-) -> CustomResult<services::RedirectForm, errors::ConnectorError> {
+) -> CustomResult<RedirectForm, errors::ConnectorError> {
     let mut form_fields = HashMap::<String, String>::new();
 
     form_fields.insert(
@@ -230,9 +236,9 @@ fn get_redirect_url_form(
     // Do not include query params in the endpoint
     redirect_url.set_query(None);
 
-    Ok(services::RedirectForm::Form {
+    Ok(RedirectForm::Form {
         endpoint: redirect_url.to_string(),
-        method: services::Method::Get,
+        method: Method::Get,
         form_fields,
     })
 }
@@ -271,7 +277,7 @@ impl TryFrom<&ProphetpayRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
 }
 
 fn get_card_token(
-    response: Option<types::CompleteAuthorizeRedirectResponse>,
+    response: Option<CompleteAuthorizeRedirectResponse>,
 ) -> CustomResult<String, errors::ConnectorError> {
     let res = response.ok_or(errors::ConnectorError::MissingRequiredField {
         field_name: "redirect_response",
@@ -298,7 +304,7 @@ fn get_card_token(
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     for (key, val) in queries_params {
-        if key.as_str() == consts::PROPHETPAY_TOKEN {
+        if key.as_str() == PROPHETPAY_TOKEN {
             return Ok(val);
         }
     }
@@ -372,21 +378,21 @@ pub struct ProphetpayCardTokenData {
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             ProphetpayCompleteAuthResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
+            CompleteAuthorizeData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+    > for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             ProphetpayCompleteAuthResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
+            CompleteAuthorizeData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         if item.response.success {
@@ -397,10 +403,8 @@ impl<F>
             let connector_metadata = serde_json::to_value(card_token_data).ok();
             Ok(Self {
                 status: enums::AttemptStatus::Charged,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transaction_id,
-                    ),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata,
@@ -414,7 +418,7 @@ impl<F>
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     code: item.response.response_code,
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
@@ -437,21 +441,18 @@ pub struct ProphetpaySyncResponse {
     pub transaction_id: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, ProphetpaySyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, ProphetpaySyncResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, ProphetpaySyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if item.response.success {
             Ok(Self {
                 status: enums::AttemptStatus::Charged,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transaction_id,
-                    ),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -465,8 +466,8 @@ impl<F, T>
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
-                    code: const_val::NO_ERROR_CODE.to_string(),
+                response: Err(ErrorResponse {
+                    code: NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
@@ -488,21 +489,18 @@ pub struct ProphetpayVoidResponse {
     pub transaction_id: String,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, ProphetpayVoidResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, ProphetpayVoidResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, ProphetpayVoidResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, ProphetpayVoidResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         if item.response.success {
             Ok(Self {
                 status: enums::AttemptStatus::Voided,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.transaction_id,
-                    ),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
@@ -516,8 +514,8 @@ impl<F, T>
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::VoidFailed,
-                response: Err(types::ErrorResponse {
-                    code: const_val::NO_ERROR_CODE.to_string(),
+                response: Err(ErrorResponse {
+                    code: NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
@@ -601,16 +599,16 @@ pub struct ProphetpayRefundResponse {
     pub tran_seq_number: Option<String>,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, ProphetpayRefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResponse>,
+        item: RefundsResponseRouterData<Execute, ProphetpayRefundResponse>,
     ) -> Result<Self, Self::Error> {
         if item.response.success {
             Ok(Self {
-                response: Ok(types::RefundsResponseData {
+                response: Ok(RefundsResponseData {
                     // no refund id is generated, tranSeqNumber is kept for future usage
                     connector_refund_id: item.response.tran_seq_number.ok_or(
                         errors::ConnectorError::MissingRequiredField {
@@ -624,8 +622,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, ProphetpayRefundResp
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
-                    code: const_val::NO_ERROR_CODE.to_string(),
+                response: Err(ErrorResponse {
+                    code: NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,
@@ -645,16 +643,16 @@ pub struct ProphetpayRefundSyncResponse {
     pub response_text: String,
 }
 
-impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
+impl<T> TryFrom<RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>>
     for types::RefundsRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>,
+        item: RefundsResponseRouterData<T, ProphetpayRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
         if item.response.success {
             Ok(Self {
-                response: Ok(types::RefundsResponseData {
+                response: Ok(RefundsResponseData {
                     // no refund id is generated, rather transaction id is used for referring to status in refund also
                     connector_refund_id: item.data.request.connector_transaction_id.clone(),
                     refund_status: enums::RefundStatus::Success,
@@ -664,8 +662,8 @@ impl<T> TryFrom<types::RefundsResponseRouterData<T, ProphetpayRefundSyncResponse
         } else {
             Ok(Self {
                 status: enums::AttemptStatus::Failure,
-                response: Err(types::ErrorResponse {
-                    code: const_val::NO_ERROR_CODE.to_string(),
+                response: Err(ErrorResponse {
+                    code: NO_ERROR_CODE.to_string(),
                     message: item.response.response_text.clone(),
                     reason: Some(item.response.response_text),
                     status_code: item.http_code,

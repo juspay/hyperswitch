@@ -1,15 +1,16 @@
 use api_models::payments::AddressDetails;
-
 use common_enums::{enums, CountryAlpha2, UsStatesAbbreviation};
 use common_utils::{
-    id_type, pii::{self, IpAddress}
+    id_type,
+    pii::{self, IpAddress},
 };
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, PaymentMethodData},
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::Execute,
     router_request_types::{
-        ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsSyncData, ResponseId, SetupMandateRequestData
+        ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsSyncData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
     types,
@@ -21,7 +22,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, BrowserInformationData, ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData as _, CustomerData,
+        self, AddressDetailsData, BrowserInformationData, CustomerData, ForeignTryFrom,
+        PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
 
@@ -311,12 +313,10 @@ impl TryFrom<(&BankDebitData, &types::TokenizationRouterData)> for CustomerBankA
                 };
                 Ok(Self::InternationalBankAccount(international_bank_account))
             }
-            BankDebitData::BacsBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
-                )
-                .into())
-            }
+            BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Gocardless"),
+            )
+            .into()),
         }
     }
 }
@@ -437,8 +437,7 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
             PaymentMethodToken::Token(token) => Ok(token),
-            PaymentMethodToken::ApplePayDecrypt(_)
-            | PaymentMethodToken::PazeDecrypt(_) => {
+            PaymentMethodToken::ApplePayDecrypt(_) | PaymentMethodToken::PazeDecrypt(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))
@@ -479,12 +478,10 @@ impl TryFrom<&BankDebitData> for GocardlessScheme {
             BankDebitData::AchBankDebit { .. } => Ok(Self::Ach),
             BankDebitData::SepaBankDebit { .. } => Ok(Self::SepaCore),
             BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
-            BankDebitData::BacsBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
-                )
-                .into())
-            }
+            BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
+                "Setup Mandate flow for selected payment method through Gocardless".to_string(),
+            )
+            .into()),
         }
     }
 }
@@ -697,12 +694,7 @@ impl<F>
 
 impl<F>
     TryFrom<
-        ResponseRouterData<
-            F,
-            GocardlessPaymentsResponse,
-            PaymentsSyncData,
-            PaymentsResponseData,
-        >,
+        ResponseRouterData<F, GocardlessPaymentsResponse, PaymentsSyncData, PaymentsResponseData>,
     > for RouterData<F, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
