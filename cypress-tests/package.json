@@ -12,8 +12,9 @@
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/PayoutTest/**/*'",
     "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/PaymentMethodListTest/**/*'",
     "cypress:routing": "cypress run --headless --spec 'cypress/e2e/RoutingTest/**/*'",
-    "check": "prettier --config .prettierrc '**/*.js' --check",
-    "format": "prettier --config .prettierrc '**/*.js' --write"
+    "format": "prettier --config .prettierrc . --write",
+    "format:check": "prettier --config .prettierrc . --check",
+    "prepare": "husky"
   },
   "author": "",
   "license": "ISC",
@@ -24,7 +25,9 @@
     "eslint": "^9.15.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-cypress": "^4.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
     "globals": "^15.12.0",
+    "husky": "^9.1.7",
     "jsqr": "^1.4.0",
     "prettier": "^3.4.1"
   }
