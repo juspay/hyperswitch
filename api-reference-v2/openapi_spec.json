@@ -2229,7 +2229,7 @@
           "Payment Methods"
         ],
         "summary": "Payment Method - Update",
-        "description": "Update an existing payment method of a customer. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments.",
+        "description": "Update an existing payment method of a customer.",
         "operationId": "Update Payment Method",
         "requestBody": {
           "content": {
