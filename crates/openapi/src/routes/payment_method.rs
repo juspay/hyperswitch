@@ -283,7 +283,7 @@ pub async fn payment_method_retrieve_api() {}
 
 /// Payment Method - Update
 ///
-/// Update an existing payment method of a customer. This API is useful for use cases such as updating the card number for expired cards to prevent discontinuity in recurring payments.
+/// Update an existing payment method of a customer.
 #[utoipa::path(
     patch,
     path = "/v2/payment-methods/{id}/update-saved-payment-method",
