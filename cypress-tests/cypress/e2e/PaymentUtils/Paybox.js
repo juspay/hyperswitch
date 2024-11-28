@@ -14,15 +14,17 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
-const singleUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
+const customerAcceptance = {
+  acceptance_type: "offline",
+  accepted_at: "1963-05-03T04:07:52.723Z",
+  online: {
+    ip_address: "125.0.0.1",
+    user_agent: "amet irure esse",
   },
+};
+
+const singleUseMandateData = {
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
       amount: 7000,
@@ -32,14 +34,7 @@ const singleUseMandateData = {
 };
 
 const multiUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 6500,
@@ -48,13 +43,12 @@ const multiUseMandateData = {
   },
 };
 
-const customerAcceptance = {
-  acceptance_type: "offline",
-  accepted_at: "1963-05-03T04:07:52.723Z",
-  online: {
-    ip_address: "125.0.0.1",
-    user_agent: "amet irure esse",
-  },
+const captureNotSupported = {
+  type: "invalid_request",
+  message: "Payment method type not supported",
+  code: "IR_19",
+  reason:
+    "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
 };
 
 export const connectorDetails = {
@@ -260,13 +254,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -298,13 +286,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -336,13 +318,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -374,13 +350,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -436,13 +406,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -477,13 +441,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -581,13 +539,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
