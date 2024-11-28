@@ -1,5 +1,6 @@
 use api_models::payments;
 use common_utils::{pii, types::MinorUnit};
+use diesel_models::types::OrderDetailsWithAmount;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     router_data::{KlarnaCheckoutResponse, KlarnaSdkResponse},
@@ -90,7 +91,7 @@ pub struct CheckoutRequest {
     purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
     shipping_address: Option<KlarnaShippingAddress>,
-    order_tax_amount: Option<i64>,
+    order_tax_amount: MinorUnit,
     merchant_urls: MerchantURLs,
 }
 
@@ -205,10 +206,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                         name: data.product_name.clone(),
                         quantity: data.quantity,
                         unit_price: data.amount,
-                        total_amount: data.amount * data.quantity,
-                        tax_amount: None,
-                        tax_rate: None,
-                        total_tax_amount: None,
+                        total_amount: data.amount * data.quantity
                     })
                     .collect(),
                 shipping_address: get_address_info(item.router_data.get_optional_shipping())
@@ -266,10 +264,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                                 name: data.product_name.clone(),
                                 quantity: data.quantity,
                                 unit_price: data.amount,
-                                total_amount: data.amount * data.quantity,
-                                tax_amount: None,
-                                total_tax_amount: None,
-                                tax_rate: None,
+                                total_amount: data.amount * data.quantity
                             })
                             .collect(),
                         merchant_reference1: Some(
@@ -294,34 +289,38 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
             }
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
                 match request.order_details.clone() {
-                    Some(order_details) => Ok(Self::KlarnaCheckoutAuthRequest(CheckoutRequest {
-                        purchase_country: item.router_data.get_billing_country()?,
-                        purchase_currency: request.currency,
-                        order_amount: item.amount,
-                        order_tax_amount: Some(request.order_tax_amount),
-                        order_lines: order_details
-                            .iter()
-                            .map(|data| CheckoutOrderLines {
-                                name: data.product_name.clone(),
-                                quantity: data.quantity,
-                                unit_price: data.amount,
-                                total_amount: data.amount * data.quantity,
-                                total_tax_amount: data.total_tax_amount,
-                                tax_rate: data.tax_rate,
-                            })
-                            .collect(),
-                        merchant_urls: MerchantURLs {
-                            terms: return_url.clone(),
-                            checkout: return_url.clone(),
-                            confirmation: return_url.clone(),
-                            push: return_url,
-                        },
-                        auto_capture: request.is_auto_capture()?,
-                        shipping_address: get_address_info(
-                            item.router_data.get_optional_shipping(),
-                        )
-                        .transpose()?,
-                    })),
+                    Some(order_details) => {
+                        let calculated_tax_amount = calculate_order_tax_amount(&order_details);
+
+                        Ok(Self::KlarnaCheckoutAuthRequest(CheckoutRequest {
+                            purchase_country: item.router_data.get_billing_country()?,
+                            purchase_currency: request.currency,
+                            order_amount: item.amount,
+                            order_tax_amount: calculated_tax_amount,
+                            order_lines: order_details
+                                .iter()
+                                .map(|data| CheckoutOrderLines {
+                                    name: data.product_name.clone(),
+                                    quantity: data.quantity,
+                                    unit_price: data.amount,
+                                    total_amount: data.amount * data.quantity,
+                                    total_tax_amount: data.total_tax_amount,
+                                    tax_rate: data.tax_rate,
+                                })
+                                .collect(),
+                            merchant_urls: MerchantURLs {
+                                terms: return_url.clone(),
+                                checkout: return_url.clone(),
+                                confirmation: return_url.clone(),
+                                push: return_url,
+                            },
+                            auto_capture: request.is_auto_capture()?,
+                            shipping_address: get_address_info(
+                                item.router_data.get_optional_shipping(),
+                            )
+                            .transpose()?,
+                        }))
+                    }
                     None => Err(errors::ConnectorError::NotImplemented(
                         "Order details missing".to_string(),
                     )
@@ -374,6 +373,12 @@ fn get_address_info(
             },
         )
     })
+}
+
+fn calculate_order_tax_amount(order_lines: &[OrderDetailsWithAmount]) -> MinorUnit {
+    order_lines.iter()
+        .map(|line| line.total_tax_amount.map_or(MinorUnit::zero(), |tax| tax)) 
+        .sum()
 }
 
 impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
@@ -465,10 +470,7 @@ pub struct OrderLines {
     name: String,
     quantity: u16,
     unit_price: MinorUnit,
-    total_amount: MinorUnit,
-    tax_rate: Option<i64>,
-    tax_amount: Option<i64>,
-    total_tax_amount: Option<i64>,
+    total_amount: MinorUnit
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -477,8 +479,8 @@ pub struct CheckoutOrderLines {
     quantity: u16,
     unit_price: MinorUnit,
     total_amount: MinorUnit,
-    total_tax_amount: Option<i64>,
-    tax_rate: Option<i64>,
+    total_tax_amount: Option<MinorUnit>,
+    tax_rate: Option<i64>
 }
 
 #[derive(Debug, Serialize)]

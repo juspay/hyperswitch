@@ -258,7 +258,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .amount_details
             .net_amount
             .get_amount_as_i64(),
-        order_tax_amount: 0,
         minor_amount: payment_data.payment_attempt.amount_details.net_amount,
         currency: payment_data.payment_intent.amount_details.currency,
         browser_info: None,
@@ -2445,7 +2444,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             statement_descriptor: payment_data.payment_intent.statement_descriptor_name,
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
-            order_tax_amount: 0,
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,

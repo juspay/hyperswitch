@@ -31,7 +31,7 @@ pub struct OrderDetailsWithAmount {
     /// The tax code for the product
     pub product_tax_code: Option<String>,
     pub tax_rate: Option<i64>,
-    pub total_tax_amount: Option<i64>,
+    pub total_tax_amount: Option<MinorUnit>,
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}

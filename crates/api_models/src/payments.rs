@@ -581,6 +581,7 @@ pub struct PaymentsRequest {
     // Makes the field mandatory in PaymentsCreateRequest
     pub amount: Option<Amount>,
 
+    // Total tax amount applicable to the order
     #[schema(value_type = Option<i64>, example = 6540)]
     pub order_tax_amount: Option<MinorUnit>,
 
@@ -5187,10 +5188,6 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
-            // AdditionalPaymentData::PayLater { klarna_sdk } => match klarna_sdk {
-            //     Some(sdk) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
-            //     None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
-            // },
             AdditionalPaymentData::PayLater {
                 klarna_sdk,
                 klarna_checkout,
@@ -5340,7 +5337,7 @@ pub struct OrderDetailsWithAmount {
     /// the amount per quantity of product
     pub amount: MinorUnit,
     pub tax_rate: Option<i64>,
-    pub total_tax_amount: Option<i64>,
+    pub total_tax_amount: Option<MinorUnit>,
     // Does the order includes shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product
@@ -5370,7 +5367,7 @@ pub struct OrderDetails {
     #[schema(example = 1)]
     pub quantity: u16,
     pub tax_rate: Option<i64>,
-    pub total_tax_amount: Option<i64>,
+    pub total_tax_amount: Option<MinorUnit>,
     // Does the order include shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product

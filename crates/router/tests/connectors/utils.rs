@@ -918,7 +918,6 @@ impl Default for PaymentAuthorizeType {
         let data = types::PaymentsAuthorizeData {
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
-            order_tax_amount: 0,
             minor_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,
             confirm: true,
