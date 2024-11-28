@@ -1886,7 +1886,7 @@ pub mod routes {
                         let role_id = user_role.role_id.clone();
                         let org_id = user_role.org_id.clone().unwrap_or_default();
                         async move {
-                            RoleInfo::from_role_id_in_org_scope(&state, &role_id, &org_id)
+                            RoleInfo::from_role_id_and_org_id(&state, &role_id, &org_id)
                                 .await
                                 .change_context(UserErrors::InternalServerError)
                                 .change_context(OpenSearchError::UnknownError)
@@ -2008,7 +2008,7 @@ pub mod routes {
                         let role_id = user_role.role_id.clone();
                         let org_id = user_role.org_id.clone().unwrap_or_default();
                         async move {
-                            RoleInfo::from_role_id_in_org_scope(&state, &role_id, &org_id)
+                            RoleInfo::from_role_id_and_org_id(&state, &role_id, &org_id)
                                 .await
                                 .change_context(UserErrors::InternalServerError)
                                 .change_context(OpenSearchError::UnknownError)

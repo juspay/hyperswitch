@@ -1390,7 +1390,7 @@ pub async fn list_user_roles_details(
             .collect::<HashSet<_>>()
             .into_iter()
             .map(|role_id| async {
-                let role_info = roles::RoleInfo::from_role_id_in_org_scope(
+                let role_info = roles::RoleInfo::from_role_id_and_org_id(
                     &state,
                     &role_id,
                     &user_from_token.org_id,

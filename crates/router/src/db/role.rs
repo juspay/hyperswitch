@@ -23,6 +23,7 @@ pub trait RoleInterface {
         role_id: &str,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
+    // Replace this everywhere to find_by_role_id_and_org_id
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
@@ -30,7 +31,8 @@ pub trait RoleInterface {
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
-    async fn find_role_by_role_id_in_org_scope(
+    // Change this everywhere the func name
+    async fn find_by_role_id_and_org_id(
         &self,
         role_id: &str,
         org_id: &id_type::OrganizationId,
@@ -100,13 +102,13 @@ impl RoleInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_role_by_role_id_in_org_scope(
+    async fn find_by_role_id_and_org_id(
         &self,
         role_id: &str,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Role, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Role::find_by_role_id_in_org_scope(&conn, role_id, org_id)
+        storage::Role::find_by_role_id_and_org_id(&conn, role_id, org_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -241,7 +243,7 @@ impl RoleInterface for MockDb {
             )
     }
 
-    async fn find_role_by_role_id_in_org_scope(
+    async fn find_by_role_id_and_org_id(
         &self,
         role_id: &str,
         org_id: &id_type::OrganizationId,

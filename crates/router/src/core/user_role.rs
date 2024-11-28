@@ -718,7 +718,7 @@ pub async fn list_users_in_lineage(
 
     let role_info_map =
         futures::future::try_join_all(user_roles_set.iter().map(|user_role| async {
-            roles::RoleInfo::from_role_id_in_org_scope(
+            roles::RoleInfo::from_role_id_and_org_id(
                 &state,
                 &user_role.role_id,
                 &user_from_token.org_id,

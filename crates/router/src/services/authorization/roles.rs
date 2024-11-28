@@ -95,7 +95,7 @@ impl RoleInfo {
         }
     }
 
-    pub async fn from_role_id_in_org_scope(
+    pub async fn from_role_id_and_org_id(
         state: &SessionState,
         role_id: &str,
         org_id: &id_type::OrganizationId,
@@ -105,7 +105,7 @@ impl RoleInfo {
         } else {
             state
                 .store
-                .find_role_by_role_id_in_org_scope(role_id, org_id)
+                .find_by_role_id_and_org_id(role_id, org_id)
                 .await
                 .map(Self::from)
         }
