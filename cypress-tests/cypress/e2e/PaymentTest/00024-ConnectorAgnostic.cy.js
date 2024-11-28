@@ -28,7 +28,7 @@ describe("Connector Agnostic Tests", () => {
 
       it("Create Business Profile", () => {
         cy.createBusinessProfileTest(
-          fixtures.createBusinessProfile,
+          fixtures.businessProfile.bpCreate,
           globalState
         );
       });
@@ -80,7 +80,7 @@ describe("Connector Agnostic Tests", () => {
 
       it("Create Business Profile", () => {
         cy.createBusinessProfileTest(
-          fixtures.createBusinessProfile,
+          fixtures.businessProfile.bpCreate,
           globalState
         );
       });
@@ -96,8 +96,12 @@ describe("Connector Agnostic Tests", () => {
 
       it("Enable Connector Agnostic for Business Profile", () => {
         cy.UpdateBusinessProfileTest(
-          fixtures.updateBusinessProfile,
-          true,
+          fixtures.businessProfile.bpUpdate,
+          true, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -135,7 +139,10 @@ describe("Connector Agnostic Tests", () => {
     });
 
     it("Create Business Profile", () => {
-      cy.createBusinessProfileTest(fixtures.createBusinessProfile, globalState);
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
     });
 
     it("connector-create-call-test", () => {
@@ -153,8 +160,12 @@ describe("Connector Agnostic Tests", () => {
 
     it("Enable Connector Agnostic for Business Profile", () => {
       cy.UpdateBusinessProfileTest(
-        fixtures.updateBusinessProfile,
-        true,
+        fixtures.businessProfile.bpUpdate,
+        true, // is_connector_agnostic_enabled
+        false, // collect_billing_address_from_wallet_connector
+        false, // collect_shipping_address_from_wallet_connector
+        false, // always_collect_billing_address_from_wallet_connector
+        false, // always_collect_shipping_address_from_wallet_connector
         globalState
       );
     });
@@ -192,7 +203,10 @@ describe("Connector Agnostic Tests", () => {
     });
 
     it("Create Business Profile", () => {
-      cy.createBusinessProfileTest(fixtures.createBusinessProfile, globalState);
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
     });
 
     it("connector-create-call-test", () => {
@@ -206,8 +220,12 @@ describe("Connector Agnostic Tests", () => {
 
     it("Enable Connector Agnostic for Business Profile", () => {
       cy.UpdateBusinessProfileTest(
-        fixtures.updateBusinessProfile,
-        true,
+        fixtures.businessProfile.bpUpdate,
+        true, // is_connector_agnostic_enabled
+        false, // collect_billing_address_from_wallet_connector
+        false, // collect_shipping_address_from_wallet_connector
+        false, // always_collect_billing_address_from_wallet_connector
+        false, // always_collect_shipping_address_from_wallet_connector
         globalState
       );
     });

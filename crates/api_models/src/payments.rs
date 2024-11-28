@@ -6084,6 +6084,7 @@ pub struct ApplepayErrorResponse {
     pub status_message: String,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionResponse {
     /// The identifier for the payment
@@ -6092,6 +6093,16 @@ pub struct PaymentsSessionResponse {
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     #[schema(value_type = String)]
     pub client_secret: Secret<String, pii::ClientSecret>,
+    /// The list of session token object
+    pub session_token: Vec<SessionToken>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsSessionResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::GlobalPaymentId,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
 }
