@@ -1145,6 +1145,7 @@ pub async fn create_payment_method_in_db(
     storage_scheme: enums::MerchantStorageScheme,
     payment_method_billing_address: crypto::OptionalEncryptableValue,
     card_scheme: Option<String>,
+    transaction_flow: Option<storage_enums::TransactionFlow>,
 ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
     let client_secret = pm_types::PaymentMethodClientSecret::generate(&payment_method_id);
@@ -1177,6 +1178,7 @@ pub async fn create_payment_method_in_db(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 network_token_requestor_reference_id: None,
+                transaction_flow,
             },
             storage_scheme,
         )
@@ -1231,6 +1233,7 @@ pub async fn create_payment_method_for_intent(
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
                 network_token_requestor_reference_id: None,
+                transaction_flow: None,
             },
             storage_scheme,
         )
