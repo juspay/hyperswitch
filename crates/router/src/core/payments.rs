@@ -6564,8 +6564,14 @@ pub async fn payment_external_authentication(
         &payment_attempt.clone(),
         payment_connector_name,
     ));
+    let merchant_connector_account_id = payment_attempt
+        .merchant_connector_id
+        .clone()
+        .get_required_value("merchant_connector_id")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Merchant connector id is not present in payment_attempt")?;
     let webhook_url =
-        helpers::create_webhook_url(&state.base_url, merchant_id, &authentication_connector);
+        helpers::create_webhook_url(&state.base_url, merchant_id, &merchant_connector_account_id);
 
     let authentication_details = business_profile
         .authentication_connector_details
