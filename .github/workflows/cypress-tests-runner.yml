@@ -60,6 +60,40 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v4
 
+      - name: Install Node.js
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Cypress and dependencies
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          npm ci --prefix ./cypress-tests
+
+      - name: Check formatting
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          npm run format:check && npm run lint
+
+          if [ $? -ne 0 ]; then
+            echo "::notice::Formatting or lint check failed"
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
+
+            # Run prettier to fix formatting
+            npm run format
+
+            # Run eslint with --fix flag to auto-fix linting issues
+            npm run lint -- --fix
+
+            # Add changes to git and commit
+            git add .
+            git commit --message 'chore: run formatter and lint fixes'
+            git push
+          fi
+
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
@@ -69,7 +103,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "5a3f7679-445e-4621-86c5-39bd8d26b7c5.json.gpg"
+          S3_SOURCE_FILE_NAME: "91eddfc6-2e7b-4e63-a663-5bcb630851fd.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -132,18 +166,6 @@ jobs:
         with:
           tool: just
           checksum: true
-
-      - name: Install Node.js
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install Cypress and dependencies
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: |
-          npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
         if: ${{ env.RUN_TESTS == 'true' }}
