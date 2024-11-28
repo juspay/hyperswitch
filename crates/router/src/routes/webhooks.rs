@@ -91,10 +91,9 @@ pub async fn receive_network_token_requestor_incoming_webhook<W: types::Outgoing
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
-    path: web::Path<String>,
+    _path: web::Path<String>,
 ) -> impl Responder {
     let flow = Flow::IncomingWebhookReceive;
-    let network_token_requestor_ref_id = path.into_inner();
 
     Box::pin(api::server_wrap(
         flow.clone(),
@@ -107,7 +106,6 @@ pub async fn receive_network_token_requestor_incoming_webhook<W: types::Outgoing
                 state.to_owned(),
                 req_state,
                 &req,
-                &network_token_requestor_ref_id,
                 body.clone(),
             )
         },

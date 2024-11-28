@@ -14,7 +14,7 @@ impl CallBackMapperNew {
 }
 
 impl CallBackMapper {
-    pub async fn find_by_id(conn: &PgPooledConn, id: String) -> StorageResult<Self> {
+    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id.eq(id.to_owned()),

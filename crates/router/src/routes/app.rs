@@ -1438,7 +1438,7 @@ impl Webhooks {
                     ),
             )
             .service(
-                web::resource("/network_token_requestor/ref/{network_token_requestor_ref_id}")
+                web::resource("/network_token_requestor/ref")
                     .route(
                         web::post().to(receive_network_token_requestor_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )

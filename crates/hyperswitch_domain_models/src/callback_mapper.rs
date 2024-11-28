@@ -1,4 +1,4 @@
-use common_utils::pii;
+use common_utils::{id_type, pii};
 
 use serde::{self, Deserialize, Serialize};
 
@@ -19,4 +19,14 @@ pub struct CallBackMapperNew {
     #[serde(rename = "type")]
     pub type_: String,
     pub data: pii::SecretSerdeValue,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
+pub enum CallBackMapperData{
+    NetworkTokenWebhook {
+        merchant_id: id_type::MerchantId,
+        payment_method_id: String,
+        customer_id: id_type::CustomerId,
+    },
 }

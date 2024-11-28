@@ -4,7 +4,7 @@ use api_models::{enums as api_enums, payment_methods::PaymentMethodsData};
 use cards::CardNumber;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{BytesExt, Encode},
+    ext_traits::{ByteSliceExt, BytesExt, Encode},
     id_type,
     metrics::utils::record_operation_time,
     request::RequestContent,
@@ -696,4 +696,38 @@ pub async fn delete_network_token_from_tokenization_service(
         Err(errors::NetworkTokenizationError::DeleteNetworkTokenFailed)
             .attach_printable("Delete Token at Token service failed")
     }
+}
+
+pub fn get_network_token_resource_object(
+    request_details: &api::IncomingWebhookRequestDetails<'_>,
+) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    let response: NetworkTokenWebhookResponse = request_details
+        .body
+        .parse_struct("NetworkTokenWebhookResponse")
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+    Ok(Box::new(response))
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum NetworkTokenWebhookResponse {
+    PanMetadataUpdate(PanMetadataUpdateBody),
+    NetworkTokenMetadataUpdate(NetworkTokenMetaDataUpdateBody ),
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NetworkTokenRequestorData {
+    pub card_reference: String,
+    pub customer_id: String,
+    pub expiry_year: Secret<String>,
+    pub expiry_month: Secret<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NetworkTokenMetaDataUpdateBody {
+    pub token: NetworkTokenRequestorData,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PanMetadataUpdateBody {
+    pub card: NetworkTokenRequestorData,
 }

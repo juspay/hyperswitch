@@ -1968,3 +1968,29 @@ impl pm_types::SavedPMLPaymentsInfo {
         Ok(())
     }
 }
+
+
+pub fn get_network_token_payment_method_create_request(
+    network_token_data: payment_methods::CardDetail,
+    payment_method: &domain::PaymentMethod
+) ->payment_methods::PaymentMethodCreate {
+    
+    payment_methods::PaymentMethodCreate {
+        customer_id: Some(payment_method.customer_id.clone()),
+        payment_method: payment_method.payment_method,
+        payment_method_type: payment_method.payment_method_type,
+        payment_method_issuer: payment_method.payment_method_issuer.clone(),
+        payment_method_issuer_code: payment_method.payment_method_issuer_code,
+        metadata: payment_method.metadata.clone(),
+        payment_method_data: None,
+        connector_mandate_details: None,
+        client_secret: None,
+        billing: None,
+        card: Some(network_token_data.clone()),
+        card_network: network_token_data.card_network.map(|card_network| card_network.to_string()),
+        bank_transfer: None,
+        wallet: None,
+        network_transaction_id: payment_method.network_transaction_id.clone(),
+    }
+
+}

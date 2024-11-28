@@ -232,6 +232,12 @@ impl super::settings::NetworkTokenizationService {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "private_key must not be empty".into(),
             ))
+        })?;
+
+        when(self.webhook_source_verification_key.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "webhook_source_verification_key must not be empty".into(),
+            ))
         })
     }
 }
