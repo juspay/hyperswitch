@@ -49,14 +49,14 @@ describe("Card - SingleUse Mandates flow test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
-       
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
     }
@@ -114,7 +114,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           6500,
           true,
           "manual",
-          globalState,
+          globalState
         );
       });
 
@@ -187,7 +187,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
 

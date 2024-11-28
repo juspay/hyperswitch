@@ -56,8 +56,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
-          
+          globalState
         );
       });
     }
@@ -103,7 +102,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -117,7 +116,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
     }

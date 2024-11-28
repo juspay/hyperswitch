@@ -56,7 +56,7 @@ describe("Card - List and revoke Mandates flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
 
@@ -106,9 +106,9 @@ describe("Card - List and revoke Mandates flow test", () => {
     });
 
     it("Confirm No 3DS MIT", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "MITAutoCapture"
-      ];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITAutoCapture"];
 
       cy.mitForMandatesCallTest(
         fixtures.mitConfirmBody,

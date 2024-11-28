@@ -719,7 +719,7 @@ describe("Card - Refund flow - No 3DS", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
 
@@ -727,14 +727,14 @@ describe("Card - Refund flow - No 3DS", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
-        
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
 

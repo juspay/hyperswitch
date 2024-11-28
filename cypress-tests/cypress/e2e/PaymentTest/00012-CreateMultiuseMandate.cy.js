@@ -49,28 +49,28 @@ describe("Card - MultiUse Mandates flow test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
-      
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
-      
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
     }
@@ -121,14 +121,14 @@ describe("Card - MultiUse Mandates flow test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITManualCapture"];
-       
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
           data,
           6500,
           true,
           "manual",
-          globalState,
+          globalState
         );
       });
 
@@ -154,7 +154,7 @@ describe("Card - MultiUse Mandates flow test", () => {
           6500,
           true,
           "manual",
-          globalState,
+          globalState
         );
       });
 
@@ -219,11 +219,11 @@ describe("Card - MultiUse Mandates flow test", () => {
 
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
-         data,
+          data,
           6500,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
     }

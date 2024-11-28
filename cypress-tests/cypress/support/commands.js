@@ -2079,18 +2079,14 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitForMandatesCallTest",
-  (
-    requestBody,
-    data,
-    amount,
-    confirm,
-    capture_method,
-    globalState) => {
-      const { Configs: configs = {},
-    Request: reqData,
-  Response: resData } = data || {};
-  const config_info = execConfig(validateConfig(configs));
-  const profile_id = globalState.get(config_info.profile_id);
+  (requestBody, data, amount, confirm, capture_method, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+    const config_info = execConfig(validateConfig(configs));
+    const profile_id = globalState.get(config_info.profile_id);
 
     for (const key in reqData) {
       requestBody[key] = reqData[key];
@@ -2196,15 +2192,12 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitUsingPMId",
-  (
-    requestBody,
-    data,
-    amount,
-    confirm,
-    capture_method,
-    globalState
-  , ) => {
-    const { Configs: configs = {}, Request: reqData, Response: resData } = data || {};
+  (requestBody, data, amount, confirm, capture_method, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
 
     for (const key in reqData) {
       requestBody[key] = reqData[key];
@@ -2286,22 +2279,18 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitUsingNTID",
-  (
-    requestBody,
-    data,
-    amount,
-    confirm,
-    capture_method,
-    globalState
-  , ) => {
-    const { Configs: configs = {}, Request: reqData, Response: resData } = data || {};
+  (requestBody, data, amount, confirm, capture_method, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
     const configInfo = execConfig(validateConfig(configs));
     const profileId = globalState.get(configInfo.profile_id);
 
     for (const key in reqData) {
       requestBody[key] = reqData[key];
-    }    
-    
+    }
 
     requestBody.amount = amount;
     requestBody.confirm = confirm;
@@ -2341,7 +2330,7 @@ Cypress.Commands.add(
             }
           } else if (response.body.authentication_type === "no_three_ds") {
             for (const key in resData.body) {
-            expect(resData.body[key], [key]).to.equal(response.body[key]);
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2360,7 +2349,7 @@ Cypress.Commands.add(
             }
           } else if (response.body.authentication_type === "no_three_ds") {
             for (const key in resData.body) {
-            expect(resData.body[key], [key]).to.equal(response.body[key]);
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(

@@ -73,7 +73,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
     }
@@ -148,7 +148,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
     }
@@ -195,7 +195,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -209,7 +209,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
     }
@@ -267,7 +267,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           6500,
           true,
           "manual",
-          globalState,
+          globalState
         );
       });
 
@@ -293,7 +293,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           6500,
           true,
           "manual",
-          globalState,
+          globalState
         );
       });
 
@@ -352,11 +352,11 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
-         data,
+          data,
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
       it("Confirm No 3DS MIT", () => {
@@ -366,11 +366,11 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
-         data,
+          data,
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
     }
@@ -433,7 +433,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           7000,
           true,
           "automatic",
-          globalState,
+          globalState
         );
       });
     }
