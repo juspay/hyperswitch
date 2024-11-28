@@ -12,10 +12,16 @@ use router_env::{instrument, tracing, which as router_env_which, Env};
 use url::Url;
 
 use super::helpers;
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2"),
+    not(feature = "customer_v2")
+))]
+use crate::core::payment_methods::cards::get_pm_list_context;
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payment_methods::cards::get_pm_list_context,
+        // payment_methods::cards::get_pm_list_context,
         utils as core_utils,
     },
     db::StorageInterface,
@@ -60,6 +66,7 @@ pub async fn validate_create_request(
     Option<payouts::PayoutMethodData>,
     String,
     Option<domain::Customer>,
+    Option<PaymentMethod>,
 )> {
     todo!()
 }

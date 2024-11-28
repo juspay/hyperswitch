@@ -2828,9 +2828,11 @@ pub async fn update_payment_method_connector_mandate_details(
     pm: domain::PaymentMethod,
     connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
     storage_scheme: MerchantStorageScheme,
+    transaction_flow: Option<storage_enums::TransactionFlow>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details,
+        transaction_flow,
     };
 
     db.update_payment_method(&(state.into()), key_store, pm, pm_update, storage_scheme)

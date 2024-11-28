@@ -344,16 +344,6 @@ pub async fn payouts_create_core(
         payment_method.clone(),
     )
     .await?;
-    /*
-
-
-    dummy commit
-
-
-
-
-
-    */
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let payout_type = payout_data.payouts.payout_type.to_owned();
@@ -2012,6 +2002,10 @@ fn connector_mandate_id_is_none(
     payout_data: &mut PayoutData,
     connector_data: &api::ConnectorData,
 ) -> RouterResult<bool> {
+    #[cfg(all(
+        any(feature = "v2", feature = "v1"),
+        not(feature = "payment_methods_v2")
+    ))]
     if let Some(pm) = &payout_data.payment_method {
         let connector_mandate_details = pm
             .connector_mandate_details
@@ -2166,11 +2160,12 @@ pub async fn create_recipient_disburse_account(
                 let connector_mandate_details_value =
                     serde_json::to_value(connector_mandate_details).ok();
 
-                /**************** above this is correct **********************
-                need to fetch connector_mandate_details using payment_method_id
-                */
                 let pm_id = payout_data.payouts.payout_method_id.clone();
 
+                #[cfg(all(
+                    any(feature = "v1", feature = "v2"),
+                    not(feature = "payment_methods_v2")
+                ))]
                 if let Some(payout_method_id) = pm_id {
                     let payment_method = db
                         .find_payment_method(
@@ -2186,14 +2181,7 @@ pub async fn create_recipient_disburse_account(
                     payout_data.payment_method = Some(payment_method.clone());
                     payout_data.payouts.payout_method_id =
                         Some(payment_method.payment_method_id.clone());
-
-                    // router_env::logger::info!("XXXXXXXXXXXXXXXXX");
-                    // router_env::logger::info!("{:?}", payment_method.payment_method_id.clone());
-                    // router_env::logger::info!("XXXXXXXXXXXXXXXXX");
-                    // router_env::logger::info!("{:?}", payment_method.clone());
-                    // router_env::logger::info!("XXXXXXXXXXXXXXXXX");
                 } else {
-                    // router_env::logger::info!("9999999999999999");
                     helpers::save_payout_data_to_locker(
                         state,
                         payout_data,
@@ -2564,7 +2552,20 @@ pub async fn response_handler(
     let payment_method_id: Option<String> = payout_data
         .payment_method
         .as_ref() // Safely access the `payment_method` as a reference
-        .map(|pm| pm.payment_method_id.clone());
+        .map(|pm| {
+            #[cfg(all(
+                any(feature = "v1", feature = "v2"),
+                not(feature = "payment_methods_v2")
+            ))]
+            {
+                pm.payment_method_id.clone()
+            }
+
+            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+            {
+                pm.id.clone().get_string_repr().to_string()
+            }
+        });
 
     let payout_link = payout_data.payout_link.to_owned();
     let billing_address = payout_data.billing_address.to_owned();
@@ -2654,6 +2655,7 @@ pub async fn payout_create_db_entries(
     _stored_payout_method_data: Option<&payouts::PayoutMethodData>,
     _locale: &str,
     _customer: Option<&domain::Customer>,
+    _payment_method: Option<PaymentMethod>,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
