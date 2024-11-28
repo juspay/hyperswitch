@@ -499,14 +499,6 @@ pub struct BrowserInformation {
     pub user_agent: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct MerchantURLs {
-    pub terms: Option<String>,
-    pub checkout: Option<String>,
-    pub confirmation: Option<String>,
-    pub push: Option<String>,
-}
-
 #[derive(Debug, Clone, Default, Serialize)]
 pub enum ResponseId {
     ConnectorTransactionId(String),
