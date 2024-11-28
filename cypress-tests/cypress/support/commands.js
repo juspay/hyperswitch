@@ -2079,11 +2079,23 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitForMandatesCallTest",
-  (requestBody, amount, confirm, capture_method, globalState, data) => {
-    const { Configs: configs = {} } = data || {};
+  (
+    requestBody,
+    data,
+    amount,
+    confirm,
+    capture_method,
+    globalState) => {
+      const { Configs: configs = {},
+    Request: reqData,
+  Response: resData } = data || {};
+  const config_info = execConfig(validateConfig(configs));
+  const profile_id = globalState.get(config_info.profile_id);
 
-    const config_info = execConfig(validateConfig(configs));
-    const profile_id = globalState.get(config_info.profile_id);
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }
+
     const merchant_connector_id = globalState.get(
       config_info.merchant_connector_id
     );
@@ -2129,9 +2141,12 @@ Cypress.Commands.add(
               .to.have.property("redirect_to_url");
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
+            }
           } else if (response.body.authentication_type === "no_three_ds") {
-            if (response.body.connector === "fiuu") {
-              expect(response.body.status).to.equal("failed");
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2145,11 +2160,12 @@ Cypress.Commands.add(
               .to.have.property("redirect_to_url");
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
+            }
           } else if (response.body.authentication_type === "no_three_ds") {
-            if (response.body.connector === "fiuu") {
-              expect(response.body.status).to.equal("failed");
-            } else {
-              expect(response.body.status).to.equal("requires_capture");
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2172,9 +2188,7 @@ Cypress.Commands.add(
           );
         }
       } else {
-        throw new Error(
-          `Error Response: ${response.status}\n${response.body.error.message}\n${response.body.error.code}`
-        );
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -2182,17 +2196,28 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitUsingPMId",
-  (requestBody, amount, confirm, capture_method, globalState, data) => {
-    const { Configs: configs = {} } = data || {};
+  (
+    requestBody,
+    data,
+    amount,
+    confirm,
+    capture_method,
+    globalState
+  , ) => {
+    const { Configs: configs = {}, Request: reqData, Response: resData } = data || {};
 
-    const config_info = execConfig(validateConfig(configs));
-    const profile_id = globalState.get(config_info.profile_id);
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }
+
+    const configInfo = execConfig(validateConfig(configs));
+    const profileId = globalState.get(configInfo.profile_id);
 
     requestBody.amount = amount;
     requestBody.capture_method = capture_method;
     requestBody.confirm = confirm;
     requestBody.customer_id = globalState.get("customerId");
-    requestBody.profile_id = profile_id;
+    requestBody.profile_id = profileId;
     requestBody.recurring_details.data = globalState.get("paymentMethodId");
 
     cy.request({
@@ -2216,9 +2241,12 @@ Cypress.Commands.add(
               .to.have.property("redirect_to_url");
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
+            }
           } else if (response.body.authentication_type === "no_three_ds") {
-            if (response.body.connector === "fiuu") {
-              expect(response.body.status).to.equal("failed");
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2232,11 +2260,12 @@ Cypress.Commands.add(
               .to.have.property("redirect_to_url");
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
+            }
           } else if (response.body.authentication_type === "no_three_ds") {
-            if (response.body.connector === "fiuu") {
-              expect(response.body.status).to.equal("failed");
-            } else {
-              expect(response.body.status).to.equal("requires_capture");
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
             }
           } else {
             throw new Error(
@@ -2249,9 +2278,7 @@ Cypress.Commands.add(
           );
         }
       } else {
-        throw new Error(
-          `Error Response: ${response.status}\n${response.body.error.message}\n${response.body.error.code}`
-        );
+        defaultErrorHandler(response, resData);
       }
     });
   }
@@ -2259,19 +2286,27 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "mitUsingNTID",
-  (requestBody, amount, confirm, capture_method, globalState, data) => {
-    const { Configs: configs = {} } = data || {};
+  (
+    requestBody,
+    data,
+    amount,
+    confirm,
+    capture_method,
+    globalState
+  , ) => {
+    const { Configs: configs = {}, Request: reqData, Response: resData } = data || {};
     const configInfo = execConfig(validateConfig(configs));
     const profileId = globalState.get(configInfo.profile_id);
+
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }    
+    
 
     requestBody.amount = amount;
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
     requestBody.profile_id = profileId;
-
-    if (globalState.get("connectorId") !== "cybersource") {
-      return;
-    }
 
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
@@ -2301,8 +2336,13 @@ Cypress.Commands.add(
               .to.have.property("redirect_to_url");
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
+            }
           } else if (response.body.authentication_type === "no_three_ds") {
-            expect(response.body.status).to.equal("succeeded");
+            for (const key in resData.body) {
+            expect(resData.body[key], [key]).to.equal(response.body[key]);
+            }
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2315,8 +2355,13 @@ Cypress.Commands.add(
               .to.have.property("redirect_to_url");
             const nextActionUrl = response.body.next_action.redirect_to_url;
             cy.log(nextActionUrl);
+            for (const key in resData.body) {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
+            }
           } else if (response.body.authentication_type === "no_three_ds") {
-            expect(response.body.status).to.equal("requires_capture");
+            for (const key in resData.body) {
+            expect(resData.body[key], [key]).to.equal(response.body[key]);
+            }
           } else {
             throw new Error(
               `Invalid authentication type ${response.body.authentication_type}`
@@ -2328,9 +2373,7 @@ Cypress.Commands.add(
           );
         }
       } else {
-        throw new Error(
-          `Error Response: ${response.status}\n${response.body.error.message}\n${response.body.error.code}`
-        );
+        defaultErrorHandler(response, resData);
       }
     });
   }

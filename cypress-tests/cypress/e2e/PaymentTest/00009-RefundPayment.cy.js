@@ -711,30 +711,30 @@ describe("Card - Refund flow - No 3DS", () => {
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["MandateMultiUseNo3DSAutoCapture"];
+        ]["MITAutoCapture"];
 
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
+          data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
 
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["MandateMultiUseNo3DSAutoCapture"];
-
+        ]["MITAutoCapture"];
+        
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
+          data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
 

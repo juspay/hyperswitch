@@ -192,7 +192,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             );
 
             let response = connector
-                .get_webhook_api_response(&request_details)
+                .get_webhook_api_response(&request_details, None)
                 .switch()
                 .attach_printable("Failed while early return in case of event type parsing")?;
 
@@ -367,7 +367,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     };
 
     let response = connector
-        .get_webhook_api_response(&request_details)
+        .get_webhook_api_response(&request_details, None)
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
 

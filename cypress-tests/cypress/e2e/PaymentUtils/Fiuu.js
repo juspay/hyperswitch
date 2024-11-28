@@ -360,6 +360,28 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "The currency not allow for the RecordType",
+          error_message: "The currency not allow for the RecordType",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "The currency not allow for the RecordType",
+          error_message: "The currency not allow for the RecordType",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
         payment_method: "card",

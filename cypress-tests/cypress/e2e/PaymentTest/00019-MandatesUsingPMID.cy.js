@@ -65,15 +65,15 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+        ]["MITAutoCapture"];
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
+          data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
     }
@@ -140,15 +140,15 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["Capture"];
+        ]["MITAutoCapture"];
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
+          data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
     }
@@ -187,29 +187,29 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+        ]["MITAutoCapture"];
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
+          data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentMethodIdMandateNo3DSAutoCapture"];
+        ]["MITAutoCapture"];
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
+          data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
     }
@@ -259,15 +259,15 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       it("Confirm No 3DS MIT 1", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["Capture"];
+        ]["MITManualCapture"];
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
+          data,
           6500,
           true,
           "manual",
           globalState,
-          data
         );
       });
 
@@ -285,15 +285,15 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       it("Confirm No 3DS MIT 2", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["Capture"];
+        ]["MITManualCapture"];
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
+          data,
           6500,
           true,
           "manual",
           globalState,
-          data
         );
       });
 
@@ -348,29 +348,29 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentMethodIdMandate3DSAutoCapture"];
+        ]["MITAutoCapture"];
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
+         data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["PaymentMethodIdMandate3DSAutoCapture"];
+        ]["MITAutoCapture"];
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
+         data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
     }
@@ -425,15 +425,15 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["Capture"];
+        ]["MITAutoCapture"];
 
         cy.mitUsingPMId(
           fixtures.pmIdConfirmBody,
+          data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
     }

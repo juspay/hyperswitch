@@ -48,15 +48,16 @@ describe("Card - SingleUse Mandates flow test", () => {
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ZeroAuthMandate"];
+        ]["MITAutoCapture"];
 
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
+          data,
           7000,
           true,
           "automatic",
           globalState,
-          data
+          
         );
       });
     }
@@ -94,29 +95,29 @@ describe("Card - SingleUse Mandates flow test", () => {
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ZeroAuthMandate"];
+        ]["MITAutoCapture"];
 
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
+          data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
       it("Confirm No 3DS MIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ZeroAuthMandate"];
+        ]["MITAutoCapture"];
 
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
+          data,
           7000,
           true,
           "automatic",
           globalState,
-          data
         );
       });
     }
