@@ -486,8 +486,6 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        throw_error_if_platform_merchant_authentication_required(request_headers)?;
-
         let api_key = get_api_key(request_headers)
             .change_context(errors::ApiErrorResponse::Unauthorized)?
             .trim();
@@ -3297,7 +3295,7 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
         .attach_printable("Failed to fetch merchant account for the merchant id")?;
-
+    //TODO CHANGE ALL ERROR TYPES
     if platform_org_id != connected_merchant_account.organization_id {
         return Err(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Access for merchant id Unauthorized");
@@ -3318,7 +3316,14 @@ where
         .get_id_type_from_header_if_present::<id_type::MerchantId>(
             headers::X_CONNECTED_MERCHANT_ID,
         )?
-        .filter(|_| merchant_account.is_platform_account)
+        .map(|merchant_id| {
+            merchant_account
+                .is_platform_account
+                .then(|| merchant_id)
+                .ok_or(errors::ApiErrorResponse::Unauthorized)
+        })
+        .transpose()
+        .attach_printable("Non platform_merchant_account using X_CONNECTED_MERCHANT_ID header")?
         .async_map(|merchant_id| {
             get_connected_merchant_account(
                 state,
