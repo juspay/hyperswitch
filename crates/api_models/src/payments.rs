@@ -314,11 +314,9 @@ pub struct PaymentsUpdateIntentRequest {
     pub authentication_type: Option<api_enums::AuthenticationType>,
 
     /// The billing details of the payment. This address will be used for invoicing.
-    #[schema(value_type = Option<Address>)]
     pub billing: Option<Address>,
 
     /// The shipping address for the payment
-    #[schema(value_type = Option<Address>)]
     pub shipping: Option<Address>,
 
     /// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
@@ -357,7 +355,7 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<Vec<PaymentMethodType>>)]
     pub allowed_payment_method_types: Option<Vec<api_enums::PaymentMethodType>>,
 
-    /// Metadata is useful for storing additional, unstructured information on an object.
+    /// Metadata is useful for storing additional, unstructured information on an object. This metadata will override the metadata that was passed in payments
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 

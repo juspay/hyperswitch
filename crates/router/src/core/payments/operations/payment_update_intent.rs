@@ -10,7 +10,8 @@ use common_utils::{
 use diesel_models::{types::FeatureMetadata, PaymentIntentNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payments::payment_intent::PaymentIntentUpdate, ApiModelToDieselModelConvertor,
+    payments::payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
+    ApiModelToDieselModelConvertor,
 };
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -263,41 +264,42 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
 
         let intent = payment_data.payment_intent.clone();
 
-        let payment_intent_update = PaymentIntentUpdate::UpdateIntent {
-            amount: Some(intent.amount_details.order_amount),
-            currency: Some(intent.amount_details.currency),
-            shipping_cost: intent.amount_details.shipping_cost,
-            skip_external_tax_calculation: Some(
-                intent.amount_details.skip_external_tax_calculation,
-            ),
-            skip_surcharge_calculation: Some(intent.amount_details.skip_surcharge_calculation),
-            surcharge_amount: intent.amount_details.surcharge_amount,
-            tax_on_surcharge: intent.amount_details.tax_on_surcharge,
-            routing_algorithm_id: intent.routing_algorithm_id,
-            capture_method: Some(intent.capture_method),
-            authentication_type: Some(intent.authentication_type),
-            billing_address: Box::new(intent.billing_address),
-            shipping_address: Box::new(intent.shipping_address),
-            customer_present: Some(intent.customer_present),
-            description: Box::new(intent.description),
-            return_url: Box::new(intent.return_url),
-            setup_future_usage: Some(intent.setup_future_usage),
-            apply_mit_exemption: Some(intent.apply_mit_exemption),
-            statement_descriptor: Box::new(intent.statement_descriptor),
-            order_details: Box::new(intent.order_details),
-            allowed_payment_method_types: Box::new(intent.allowed_payment_method_types),
-            metadata: Box::new(intent.metadata),
-            connector_metadata: Box::new(intent.connector_metadata),
-            feature_metadata: Box::new(intent.feature_metadata),
-            enable_payment_link: Some(intent.enable_payment_link),
-            request_incremental_authorization: Some(intent.request_incremental_authorization),
-            session_expiry: Some(intent.session_expiry),
-            frm_metadata: Box::new(intent.frm_metadata),
-            request_external_three_ds_authentication: Some(
-                intent.request_external_three_ds_authentication,
-            ),
-            updated_by: Box::new(intent.updated_by),
-        };
+        let payment_intent_update =
+            PaymentIntentUpdate::UpdateIntent(Box::new(PaymentIntentUpdateFields {
+                amount: Some(intent.amount_details.order_amount),
+                currency: Some(intent.amount_details.currency),
+                shipping_cost: intent.amount_details.shipping_cost,
+                skip_external_tax_calculation: Some(
+                    intent.amount_details.skip_external_tax_calculation,
+                ),
+                skip_surcharge_calculation: Some(intent.amount_details.skip_surcharge_calculation),
+                surcharge_amount: intent.amount_details.surcharge_amount,
+                tax_on_surcharge: intent.amount_details.tax_on_surcharge,
+                routing_algorithm_id: intent.routing_algorithm_id,
+                capture_method: Some(intent.capture_method),
+                authentication_type: Some(intent.authentication_type),
+                billing_address: intent.billing_address,
+                shipping_address: intent.shipping_address,
+                customer_present: Some(intent.customer_present),
+                description: intent.description,
+                return_url: intent.return_url,
+                setup_future_usage: Some(intent.setup_future_usage),
+                apply_mit_exemption: Some(intent.apply_mit_exemption),
+                statement_descriptor: intent.statement_descriptor,
+                order_details: intent.order_details,
+                allowed_payment_method_types: intent.allowed_payment_method_types,
+                metadata: intent.metadata,
+                connector_metadata: intent.connector_metadata,
+                feature_metadata: intent.feature_metadata,
+                enable_payment_link: Some(intent.enable_payment_link),
+                request_incremental_authorization: Some(intent.request_incremental_authorization),
+                session_expiry: Some(intent.session_expiry),
+                frm_metadata: intent.frm_metadata,
+                request_external_three_ds_authentication: Some(
+                    intent.request_external_three_ds_authentication,
+                ),
+                updated_by: intent.updated_by,
+            }));
 
         let new_payment_intent = db
             .update_payment_intent(

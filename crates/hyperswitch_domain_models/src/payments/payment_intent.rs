@@ -1,6 +1,4 @@
 #[cfg(feature = "v2")]
-use api_models::payments::Address;
-#[cfg(feature = "v2")]
 use common_enums::External3dsAuthenticationRequest;
 use common_enums::{self as storage_enums};
 #[cfg(feature = "v2")]
@@ -138,26 +136,61 @@ pub struct CustomerData {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
+    // pub amount: Option<MinorUnit>,
+    // pub currency: Option<storage_enums::Currency>,
+    // pub setup_future_usage: Option<storage_enums::FutureUsage>,
+    // pub status: storage_enums::IntentStatus,
+    // pub customer_id: Option<id_type::CustomerId>,
+    // pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
+    // pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
+    // pub return_url: Option<String>,
+    // pub description: Option<String>,
+    // pub statement_descriptor: Option<String>,
+    // pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    // pub metadata: Option<pii::SecretSerdeValue>,
+    // pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    // pub updated_by: String,
+    // pub session_expiry: Option<PrimitiveDateTime>,
+    // pub request_external_three_ds_authentication: Option<bool>,
+    // pub frm_metadata: Option<pii::SecretSerdeValue>,
+    // pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    // pub merchant_order_reference_id: Option<String>,
+    // pub is_payment_processor_token_flow: Option<bool>,
     pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
+    pub shipping_cost: Option<MinorUnit>,
+    // TODO: Check how to handle this
+    // tax_details: Option<diesel_models::TaxDetails>,
+    pub skip_external_tax_calculation: Option<super::TaxCalculationOverride>,
+    pub skip_surcharge_calculation: Option<super::SurchargeCalculationOverride>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub tax_on_surcharge: Option<MinorUnit>,
+    pub routing_algorithm_id: Option<id_type::RoutingId>,
+    pub capture_method: Option<common_enums::CaptureMethod>,
+    pub authentication_type: Option<common_enums::AuthenticationType>,
+    pub billing_address: Option<Encryptable<crate::address::Address>>,
+    pub shipping_address: Option<Encryptable<crate::address::Address>>,
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    pub description: Option<common_utils::types::Description>,
+    pub return_url: Option<common_utils::types::Url>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub status: storage_enums::IntentStatus,
-    pub customer_id: Option<id_type::CustomerId>,
-    pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub return_url: Option<String>,
-    pub description: Option<String>,
-    pub statement_descriptor: Option<String>,
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
+    pub statement_descriptor: Option<StatementDescriptor>,
+    pub order_details: Option<Vec<Secret<diesel_models::types::OrderDetailsWithAmount>>>,
+    pub allowed_payment_method_types: Option<Vec<common_enums::PaymentMethodType>>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-    pub updated_by: String,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<diesel_models::types::FeatureMetadata>,
+    pub enable_payment_link: Option<common_enums::EnablePaymentLinkRequest>,
+    // TODO: check how to use this
+    // payment_link_config: Box<Option<api_models::admin::PaymentLinkConfigRequest>>,
+    pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
     pub session_expiry: Option<PrimitiveDateTime>,
-    pub request_external_three_ds_authentication: Option<bool>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
-    pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub merchant_order_reference_id: Option<String>,
-    pub is_payment_processor_token_flow: Option<bool>,
+    pub request_external_three_ds_authentication: Option<External3dsAuthenticationRequest>,
+
+    // updated_by is set internally, field not present in request
+    pub updated_by: String,
 }
 
 #[cfg(feature = "v1")]
@@ -294,43 +327,7 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
     },
     /// UpdateIntent
-    UpdateIntent {
-        amount: Option<MinorUnit>,
-        currency: Option<storage_enums::Currency>,
-        shipping_cost: Option<MinorUnit>,
-        // TODO: Check how to handle this
-        // tax_details: Option<diesel_models::TaxDetails>,
-        skip_external_tax_calculation: Option<super::TaxCalculationOverride>,
-        skip_surcharge_calculation: Option<super::SurchargeCalculationOverride>,
-        surcharge_amount: Option<MinorUnit>,
-        tax_on_surcharge: Option<MinorUnit>,
-        routing_algorithm_id: Option<id_type::RoutingId>,
-        capture_method: Option<common_enums::CaptureMethod>,
-        authentication_type: Option<common_enums::AuthenticationType>,
-        billing_address: Box<Option<Encryptable<Secret<Address>>>>,
-        shipping_address: Box<Option<Encryptable<Secret<Address>>>>,
-        customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
-        description: Box<Option<common_utils::types::Description>>,
-        return_url: Box<Option<common_utils::types::Url>>,
-        setup_future_usage: Option<storage_enums::FutureUsage>,
-        apply_mit_exemption: Option<common_enums::MitExemptionRequest>,
-        statement_descriptor: Box<Option<StatementDescriptor>>,
-        order_details: Box<Option<Vec<Secret<diesel_models::types::OrderDetailsWithAmount>>>>,
-        allowed_payment_method_types: Box<Option<Vec<common_enums::PaymentMethodType>>>,
-        metadata: Box<Option<pii::SecretSerdeValue>>,
-        connector_metadata: Box<Option<pii::SecretSerdeValue>>,
-        feature_metadata: Box<Option<diesel_models::types::FeatureMetadata>>,
-        enable_payment_link: Option<common_enums::EnablePaymentLinkRequest>,
-        // TODO: check how to use this
-        // payment_link_config: Box<Option<api_models::admin::PaymentLinkConfigRequest>>,
-        request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
-        session_expiry: Option<PrimitiveDateTime>,
-        frm_metadata: Box<Option<pii::SecretSerdeValue>>,
-        request_external_three_ds_authentication: Option<External3dsAuthenticationRequest>,
-
-        // updated_by is set internally, field not present in request
-        updated_by: Box<String>,
-    },
+    UpdateIntent(Box<PaymentIntentUpdateFields>),
 }
 
 #[cfg(feature = "v1")]
@@ -489,94 +486,99 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 request_external_three_ds_authentication: None,
                 updated_by,
             },
-            PaymentIntentUpdate::UpdateIntent {
-                amount,
-                currency,
-                shipping_cost,
-                skip_external_tax_calculation,
-                skip_surcharge_calculation,
-                surcharge_amount,
-                tax_on_surcharge,
-                routing_algorithm_id,
-                capture_method,
-                authentication_type,
-                billing_address,
-                shipping_address,
-                customer_present,
-                description,
-                return_url,
-                setup_future_usage,
-                apply_mit_exemption,
-                statement_descriptor,
-                order_details,
-                allowed_payment_method_types,
-                metadata,
-                connector_metadata,
-                feature_metadata,
-                enable_payment_link,
-                request_incremental_authorization,
-                session_expiry,
-                frm_metadata,
-                request_external_three_ds_authentication,
-                updated_by,
-            } => Self {
-                status: None,
-                active_attempt_id: None,
-                modified_at: common_utils::date_time::now(),
+            PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
+                let PaymentIntentUpdateFields {
+                    amount,
+                    currency,
+                    shipping_cost,
+                    skip_external_tax_calculation,
+                    skip_surcharge_calculation,
+                    surcharge_amount,
+                    tax_on_surcharge,
+                    routing_algorithm_id,
+                    capture_method,
+                    authentication_type,
+                    billing_address,
+                    shipping_address,
+                    customer_present,
+                    description,
+                    return_url,
+                    setup_future_usage,
+                    apply_mit_exemption,
+                    statement_descriptor,
+                    order_details,
+                    allowed_payment_method_types,
+                    metadata,
+                    connector_metadata,
+                    feature_metadata,
+                    enable_payment_link,
+                    request_incremental_authorization,
+                    session_expiry,
+                    frm_metadata,
+                    request_external_three_ds_authentication,
+                    updated_by,
+                } = *boxed_intent;
+                Self {
+                    status: None,
+                    active_attempt_id: None,
+                    modified_at: common_utils::date_time::now(),
 
-                amount,
-                currency,
-                shipping_cost,
-                skip_external_tax_calculation: skip_external_tax_calculation.map(|val| match val {
-                    super::TaxCalculationOverride::Skip => true,
-                    super::TaxCalculationOverride::Calculate => false,
-                }),
-                surcharge_applicable: skip_surcharge_calculation.map(|val| match val {
-                    super::SurchargeCalculationOverride::Skip => true,
-                    super::SurchargeCalculationOverride::Calculate => false,
-                }),
-                surcharge_amount,
-                tax_on_surcharge,
-                routing_algorithm_id,
-                capture_method,
-                authentication_type,
-                billing_address: billing_address.map(Encryption::from),
-                shipping_address: shipping_address.map(Encryption::from),
-                customer_present: customer_present.map(|val| val.as_bool()),
-                description: *description,
-                return_url: *return_url,
-                setup_future_usage,
-                apply_mit_exemption: apply_mit_exemption.map(|val| val.as_bool()),
-                statement_descriptor: *statement_descriptor,
-                order_details: *order_details,
-                // .map(|order_details| {
-                //     order_details
-                //         .into_iter()
-                //         .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
-                //         .collect::<Result<Vec<_>, _>>()
-                // })
-                // .and_then(|r| r.ok()),
-                allowed_payment_method_types: allowed_payment_method_types
-                    .map(|allowed_payment_method_types| {
-                        allowed_payment_method_types.encode_to_value()
-                    })
-                    .and_then(|r| r.ok().map(Secret::new)),
-                // .transpose()
-                // .ok().flatten()
-                // .map(Secret::new),
-                metadata: *metadata,
-                connector_metadata: *connector_metadata,
-                feature_metadata: *feature_metadata,
-                // .map(|val| diesel_models::types::FeatureMetadata::convert_from(val)),
-                enable_payment_link: enable_payment_link.map(|val| val.as_bool()),
-                request_incremental_authorization,
-                session_expiry,
-                frm_metadata: *frm_metadata,
-                request_external_three_ds_authentication: request_external_three_ds_authentication
-                    .map(|val| val.as_bool()),
+                    amount,
+                    currency,
+                    shipping_cost,
+                    skip_external_tax_calculation: skip_external_tax_calculation.map(
+                        |val| match val {
+                            super::TaxCalculationOverride::Skip => true,
+                            super::TaxCalculationOverride::Calculate => false,
+                        },
+                    ),
+                    surcharge_applicable: skip_surcharge_calculation.map(|val| match val {
+                        super::SurchargeCalculationOverride::Skip => true,
+                        super::SurchargeCalculationOverride::Calculate => false,
+                    }),
+                    surcharge_amount,
+                    tax_on_surcharge,
+                    routing_algorithm_id,
+                    capture_method,
+                    authentication_type,
+                    billing_address: billing_address.map(Encryption::from),
+                    shipping_address: shipping_address.map(Encryption::from),
+                    customer_present: customer_present.map(|val| val.as_bool()),
+                    description: description,
+                    return_url: return_url,
+                    setup_future_usage,
+                    apply_mit_exemption: apply_mit_exemption.map(|val| val.as_bool()),
+                    statement_descriptor: statement_descriptor,
+                    order_details: order_details,
+                    // .map(|order_details| {
+                    //     order_details
+                    //         .into_iter()
+                    //         .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
+                    //         .collect::<Result<Vec<_>, _>>()
+                    // })
+                    // .and_then(|r| r.ok()),
+                    allowed_payment_method_types: allowed_payment_method_types
+                        .map(|allowed_payment_method_types| {
+                            allowed_payment_method_types.encode_to_value()
+                        })
+                        .and_then(|r| r.ok().map(Secret::new)),
+                    // .transpose()
+                    // .ok().flatten()
+                    // .map(Secret::new),
+                    metadata: metadata,
+                    connector_metadata: connector_metadata,
+                    feature_metadata: feature_metadata,
+                    // .map(|val| diesel_models::types::FeatureMetadata::convert_from(val)),
+                    enable_payment_link: enable_payment_link.map(|val| val.as_bool()),
+                    request_incremental_authorization,
+                    session_expiry,
+                    frm_metadata: frm_metadata,
+                    request_external_three_ds_authentication:
+                        request_external_three_ds_authentication.map(|val| val.as_bool()),
 
-                updated_by: *updated_by,
-            },
+                    updated_by: updated_by,
+                }
+            }
         }
     }
 }
