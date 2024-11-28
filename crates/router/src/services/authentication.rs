@@ -2545,7 +2545,8 @@ where
     T: serde::de::DeserializeOwned,
     A: SessionStateInfo + Sync,
 {
-    let cookie_token_result = get_cookie_from_header(headers).and_then(cookies::parse_cookie);
+    let cookie_token_result =
+        get_cookie_from_header(headers).and_then(cookies::get_jwt_from_cookies);
     let auth_header_token_result = get_jwt_from_authorization_header(headers);
     let force_cookie = state.conf().user.force_cookies;
 
@@ -3112,7 +3113,7 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(headers::AUTHORIZATION).is_some()
         || get_cookie_from_header(headers)
-            .and_then(cookies::parse_cookie)
+            .and_then(cookies::get_jwt_from_cookies)
             .is_ok()
 }
 
@@ -3174,10 +3175,13 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
 }
 
 pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
-    headers
+    let cookie = headers
         .get(cookies::get_cookie_header())
-        .and_then(|header_value| header_value.to_str().ok())
-        .ok_or(errors::ApiErrorResponse::InvalidCookie.into())
+        .ok_or(report!(errors::ApiErrorResponse::CookieNotFound))?;
+
+    cookie
+        .to_str()
+        .change_context(errors::ApiErrorResponse::InvalidCookie.into())
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
