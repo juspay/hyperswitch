@@ -640,10 +640,11 @@ pub async fn save_payout_data_to_locker(
     _payout_data: &mut PayoutData,
     _customer_id: &id_type::CustomerId,
     _payout_method_data: &api::PayoutMethodData,
+    _connector_mandate_details: Option<serde_json::Value>,
     _merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    todo!()
+    Ok(())
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
