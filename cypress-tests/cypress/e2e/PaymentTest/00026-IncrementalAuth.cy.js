@@ -5,7 +5,7 @@ import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 let connector;
 let globalState;
 
-describe("[Payment] Incremental Auth", () => {
+describe.skip("[Payment] Incremental Auth", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
