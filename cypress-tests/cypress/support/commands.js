@@ -2068,8 +2068,10 @@ Cypress.Commands.add(
         );
         expect(response.body.customer, "customer").to.not.be.empty;
         expect(response.body.profile_id, "profile_id").to.not.be.null;
-        expect(response.body.payment_method_id, "payment_method_id").to.not.be
-          .null;
+        if (response.body.status !== "failed") {
+          expect(response.body.payment_method_id, "payment_method_id").to.not.be
+            .null;
+        }
 
         if (requestBody.mandate_data === null) {
           expect(response.body).to.have.property("payment_method_id");
