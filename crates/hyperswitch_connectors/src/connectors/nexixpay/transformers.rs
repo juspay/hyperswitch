@@ -534,15 +534,23 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
 
                 match item.router_data.request.payment_method_data {
                     PaymentMethodData::Card(ref req_card) => {
-                        Ok(Self::NexixpayNonMandatePaymentRequest(Box::new(
-                            NexixpayNonMandatePaymentRequest {
-                                card: NexixpayCard {
-                                    pan: req_card.card_number.clone(),
-                                    expiry_date: req_card.get_expiry_date_as_mmyy()?,
+                        if item.router_data.is_three_ds() {
+                            Ok(Self::NexixpayNonMandatePaymentRequest(Box::new(
+                                NexixpayNonMandatePaymentRequest {
+                                    card: NexixpayCard {
+                                        pan: req_card.card_number.clone(),
+                                        expiry_date: req_card.get_expiry_date_as_mmyy()?,
+                                    },
+                                    recurrence: recurrence_request_obj,
                                 },
-                                recurrence: recurrence_request_obj,
-                            },
-                        )))
+                            )))
+                        } else {
+                            Err(errors::ConnectorError::NotSupported {
+                                message: "No threeds is not supported".to_string(),
+                                connector: "nexixpay",
+                            }
+                            .into())
+                        }
                     }
                     PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::Wallet(_)

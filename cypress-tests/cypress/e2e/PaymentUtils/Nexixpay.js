@@ -27,7 +27,7 @@ const multiUseMandateData = {
   },
   mandate_type: {
     multi_use: {
-      amount: 3545,
+      amount: 8000,
       currency: "EUR",
     },
   },
@@ -44,7 +44,7 @@ const singleUseMandateData = {
   },
   mandate_type: {
     multi_use: {
-      amount: 3545,
+      amount: 8000,
       currency: "EUR",
     },
   },
@@ -72,7 +72,7 @@ export const connectorDetails = {
     PaymentIntent: {
       Request: {
         currency: "EUR",
-        amount: 3545,
+        amount: 6500,
         customer_acceptance: null,
         setup_future_usage: "on_session",
         billing: {
@@ -93,6 +93,22 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
+      Request: {
+        currency: "EUR",
+        amount: 6500,
+        authentication_type: "no_three_ds",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
         },
       },
     },
@@ -167,7 +183,6 @@ export const connectorDetails = {
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
-        amount: 3545,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -189,9 +204,13 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "No threeds is not supported",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -219,11 +238,15 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "No threeds is not supported",
+            code: "IR_00",
+          },
         },
-      },
+      }
     },
     Capture: {
       Request: {
@@ -237,9 +260,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
-          amount: 3545,
-          amount_capturable: 0,
-          amount_received: 3545,
+          amount: 6500,
+          amount_capturable: 6500,
+          amount_received: null,
         },
       },
     },
@@ -249,8 +272,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
-          amount: 3545,
-          amount_capturable: 0,
+          amount: 6500,
+          amount_capturable: 6500,
           amount_received: 100,
         },
       },
@@ -312,7 +335,6 @@ export const connectorDetails = {
     MandateMultiUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        amount: 3545,
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -343,7 +365,6 @@ export const connectorDetails = {
     MandateMultiUse3DSManualCapture: {
       Request: {
         payment_method: "card",
-        amount: 3545,
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -375,7 +396,6 @@ export const connectorDetails = {
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        amount: 3545,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -396,16 +416,19 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "No threeds is not supported",
+            code: "IR_00",
+          },
         },
-      },
+      }
     },
     MandateMultiUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        amount: 3545,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -426,16 +449,19 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "No threeds is not supported",
+            code: "IR_00",
+          },
         },
-      },
+      }
     },
     MandateSingleUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        amount: 3545,
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -465,7 +491,6 @@ export const connectorDetails = {
     MandateSingleUse3DSManualCapture: {
       Request: {
         payment_method: "card",
-        amount: 3545,
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -495,7 +520,6 @@ export const connectorDetails = {
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        amount: 3545,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -516,16 +540,19 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "No threeds is not supported",
+            code: "IR_00",
+          },
         },
-      },
+      }
     },
     MandateSingleUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        amount: 3545,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -546,11 +573,15 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "invalid_request",
+            message: "No threeds is not supported",
+            code: "IR_00",
+          },
         },
-      },
+      }
     },
   },
 };
