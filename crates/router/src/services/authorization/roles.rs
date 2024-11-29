@@ -78,7 +78,7 @@ impl RoleInfo {
             })
     }
 
-    pub async fn from_role_id_in_merchant_scope(
+    pub async fn from_role_id_in_lineage(
         state: &SessionState,
         role_id: &str,
         merchant_id: &id_type::MerchantId,
@@ -89,7 +89,7 @@ impl RoleInfo {
         } else {
             state
                 .store
-                .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+                .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id)
                 .await
                 .map(Self::from)
         }

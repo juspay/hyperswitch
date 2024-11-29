@@ -26,6 +26,7 @@ impl Role {
         .await
     }
 
+    // TODO:remove once find_by_role_id_in_lineage is stable
     pub async fn find_by_role_id_in_merchant_scope(
         conn: &PgPooledConn,
         role_id: &str,
@@ -39,6 +40,26 @@ impl Role {
                     .eq(org_id.to_owned())
                     .and(dsl::scope.eq(RoleScope::Organization))),
             ),
+        )
+        .await
+    }
+
+    pub async fn find_by_role_id_in_lineage(
+        conn: &PgPooledConn,
+        role_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::role_id
+                .eq(role_id.to_owned())
+                .and(dsl::org_id.eq(org_id.to_owned()))
+                .and(
+                    dsl::scope.eq(RoleScope::Organization).or(dsl::merchant_id
+                        .eq(merchant_id.to_owned())
+                        .and(dsl::scope.eq(RoleScope::Merchant))),
+                ),
         )
         .await
     }

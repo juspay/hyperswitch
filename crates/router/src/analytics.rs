@@ -1847,15 +1847,10 @@ pub mod routes {
             json_payload.into_inner(),
             |state, auth: UserFromToken, req, _| async move {
                 let role_id = auth.role_id;
-                let role_info = RoleInfo::from_role_id_in_merchant_scope(
-                    &state,
-                    &role_id,
-                    &auth.merchant_id,
-                    &auth.org_id,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .change_context(OpenSearchError::UnknownError)?;
+                let role_info = RoleInfo::from_role_id_and_org_id(&state, &role_id, &auth.org_id)
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .change_context(OpenSearchError::UnknownError)?;
                 let permission_groups = role_info.get_permission_groups();
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
                     return Err(OpenSearchError::AccessForbiddenError)?;
@@ -1970,15 +1965,10 @@ pub mod routes {
             indexed_req,
             |state, auth: UserFromToken, req, _| async move {
                 let role_id = auth.role_id;
-                let role_info = RoleInfo::from_role_id_in_merchant_scope(
-                    &state,
-                    &role_id,
-                    &auth.merchant_id,
-                    &auth.org_id,
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)
-                .change_context(OpenSearchError::UnknownError)?;
+                let role_info = RoleInfo::from_role_id_and_org_id(&state, &role_id, &auth.org_id)
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .change_context(OpenSearchError::UnknownError)?;
                 let permission_groups = role_info.get_permission_groups();
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
                     return Err(OpenSearchError::AccessForbiddenError)?;

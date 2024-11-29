@@ -3502,6 +3502,7 @@ impl RoleInterface for KafkaStore {
         self.diesel_store.find_role_by_role_id(role_id).await
     }
 
+    //TODO:remove once find_by_role_id_in_lineage is stable
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
@@ -3510,6 +3511,17 @@ impl RoleInterface for KafkaStore {
     ) -> CustomResult<storage::Role, errors::StorageError> {
         self.diesel_store
             .find_role_by_role_id_in_merchant_scope(role_id, merchant_id, org_id)
+            .await
+    }
+
+    async fn find_role_by_role_id_in_lineage(
+        &self,
+        role_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store
+            .find_role_by_role_id_in_lineage(role_id, merchant_id, org_id)
             .await
     }
 
