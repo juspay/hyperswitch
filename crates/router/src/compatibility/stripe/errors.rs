@@ -280,6 +280,8 @@ pub enum StripeErrorCode {
     AmountConversionFailed { amount_type: &'static str },
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Bad Request")]
     PlatformBadRequest,
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Platform Unauthorized Request")]
+    PlatformUnauthorizedRequest,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -678,8 +680,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::MissingTenantId => Self::InvalidTenant,
             errors::ApiErrorResponse::AmountConversionFailed { amount_type } => {
                 Self::AmountConversionFailed { amount_type }
-            }
-            errors::ApiErrorResponse::PlatfromAccountAuthNotSupported => Self::PlatformBadRequest,
+            },
+            errors::ApiErrorResponse::PlatformAccountAuthNotSupported => Self::PlatformBadRequest,
+            errors::ApiErrorResponse::InvalidPlatformOperation => Self::PlatformUnauthorizedRequest,
         }
     }
 }
@@ -689,7 +692,7 @@ impl actix_web::ResponseError for StripeErrorCode {
         use reqwest::StatusCode;
 
         match self {
-            Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::Unauthorized | Self::PlatformUnauthorizedRequest => StatusCode::UNAUTHORIZED,
             Self::InvalidRequestUrl | Self::GenericNotFoundError { .. } => StatusCode::NOT_FOUND,
             Self::ParameterUnknown { .. } | Self::HyperswitchUnprocessableEntity { .. } => {
                 StatusCode::UNPROCESSABLE_ENTITY

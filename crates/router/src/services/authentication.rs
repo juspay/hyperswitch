@@ -3337,18 +3337,18 @@ where
             &state.store().get_master_key().to_vec().into(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
+        .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)
         .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
     let connected_merchant_account = state
         .store()
         .find_merchant_account_by_merchant_id(key_manager_state, &connected_merchant_id, &key_store)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
+        .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)
         .attach_printable("Failed to fetch merchant account for the merchant id")?;
     //TODO CHANGE ALL ERROR TYPES
     if platform_org_id != connected_merchant_account.organization_id {
-        return Err(errors::ApiErrorResponse::Unauthorized)
+        return Err(errors::ApiErrorResponse::InvalidPlatformOperation)
             .attach_printable("Access for merchant id Unauthorized");
     }
 
@@ -3371,7 +3371,7 @@ where
             merchant_account
                 .is_platform_account
                 .then(|| merchant_id)
-                .ok_or(errors::ApiErrorResponse::Unauthorized)
+                .ok_or(errors::ApiErrorResponse::InvalidPlatformOperation)
         })
         .transpose()
         .attach_printable("Non platform_merchant_account using X_CONNECTED_MERCHANT_ID header")?
@@ -3400,6 +3400,6 @@ fn throw_error_if_platform_merchant_authentication_required(
             headers::X_CONNECTED_MERCHANT_ID,
         )?
         .map_or(Ok(()), |_| {
-            Err(errors::ApiErrorResponse::PlatfromAccountAuthNotSupported.into())
+            Err(errors::ApiErrorResponse::PlatformAccountAuthNotSupported.into())
         })
 }
