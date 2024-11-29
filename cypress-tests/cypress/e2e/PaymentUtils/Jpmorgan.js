@@ -32,13 +32,13 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
-        trigger_skip: true,
+        status: 501,
         body: {
-          // status: "requires_customer_action",
-          status: "succeeded"
-          // setup_future_usage: "on_session",
-          // payment_method_data: payment_method_data_3ds,
+          error: {
+            type: "invalid_request",
+            message: "Three_ds payments is not supported by Jpmorgan",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -54,13 +54,13 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
-        trigger_skip: true,
+        status: 501,
         body: {
-          //status: "requires_customer_action",
-          status: "succeeded"
-          // setup_future_usage: "on_session",
-          // payment_method_data: payment_method_data_3ds,
+          error: {
+            type: "invalid_request",
+            message: "Three_ds payments is not supported by Jpmorgan",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -156,7 +156,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        //trigger_skip: true,
         body: {
           status: "succeeded",
         },
@@ -172,22 +171,10 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        //trigger_skip: true,
         body: {
           status: "succeeded",
         },
       },
-      // Response: {
-      //   status: 400,
-      //   //trigger_skip: true,
-      //   body: {
-      //     error: {
-      //       type : "invalid_request",
-      //       message : "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-      //       code : "IR_14",
-      //     }
-      //   },
-      // },
     },
     manualPaymentPartialRefund: {
       Request: {
@@ -195,12 +182,10 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        //currency: "USD",
         customer_acceptance: null,
       },
       Response: {
         status: 200,
-        //trigger_skip: true,
         body: {
           status: "succeeded",
         },
@@ -216,7 +201,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        //trigger_skip: true,
         body: {
           status: "succeeded",
         },
