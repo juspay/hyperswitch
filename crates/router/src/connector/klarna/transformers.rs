@@ -264,7 +264,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                                 name: data.product_name.clone(),
                                 quantity: data.quantity,
                                 unit_price: data.amount,
-                                total_amount: data.amount * data.quantity
+                                total_amount: data.amount * data.quantity,
                             })
                             .collect(),
                         merchant_reference1: Some(
@@ -376,8 +376,9 @@ fn get_address_info(
 }
 
 fn calculate_order_tax_amount(order_lines: &[OrderDetailsWithAmount]) -> MinorUnit {
-    order_lines.iter()
-        .map(|line| line.total_tax_amount.map_or(MinorUnit::zero(), |tax| tax)) 
+    order_lines
+        .iter()
+        .map(|line| line.total_tax_amount.map_or(MinorUnit::zero(), |tax| tax))
         .sum()
 }
 
@@ -470,7 +471,7 @@ pub struct OrderLines {
     name: String,
     quantity: u16,
     unit_price: MinorUnit,
-    total_amount: MinorUnit
+    total_amount: MinorUnit,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
