@@ -2345,12 +2345,23 @@ pub async fn sso_sign(
     .await?;
 
     // TODO: Use config to handle not found error
-    let user_from_db = state
+    let user_from_db: domain::UserFromStorage = state
         .global_store
         .find_user_by_email(&email.into_inner())
         .await
         .map(Into::into)
         .to_not_found_response(UserErrors::UserNotFound)?;
+
+    if !user_from_db.is_verified() {
+        state
+            .global_store
+            .update_user_by_user_id(
+                user_from_db.get_user_id(),
+                storage_user::UserUpdate::VerifyUser,
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+    }
 
     let next_flow = if let Some(user_from_single_purpose_token) = user_from_single_purpose_token {
         let current_flow =
