@@ -1016,7 +1016,8 @@ where
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
-    // If payment_id is not present in request, generate new payment_id
+    // If payment_id has not been generated (Create-Intent), generate new payment_id, otherwise use existing
+    // payment_id (Get-Intent, Update-Intent etc.)
     let payment_id = match payment_id {
         Some(id) => id,
         None => id_type::GlobalPaymentId::generate(state.conf.cell_information.id.clone()),
