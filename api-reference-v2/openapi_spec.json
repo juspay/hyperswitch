@@ -1928,6 +1928,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the payment intent",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": {
+              "X-Profile-Id": "pro_abcdefghijklmnop"
+            }
           }
         ],
         "requestBody": {
@@ -2742,6 +2754,75 @@
           },
           "skip_surcharge_calculation": {
             "$ref": "#/components/schemas/SurchargeCalculationOverride"
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "AmountDetailsUpdate": {
+        "type": "object",
+        "properties": {
+          "order_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "skip_external_tax_calculation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaxCalculationOverride"
+              }
+            ],
+            "nullable": true
+          },
+          "skip_surcharge_calculation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeCalculationOverride"
+              }
+            ],
+            "nullable": true
           },
           "surcharge_amount": {
             "allOf": [
@@ -15432,7 +15513,7 @@
           "amount_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/AmountDetails"
+                "$ref": "#/components/schemas/AmountDetailsUpdate"
               }
             ],
             "nullable": true
@@ -15537,7 +15618,7 @@
           },
           "metadata": {
             "type": "object",
-            "description": "Metadata is useful for storing additional, unstructured information on an object.",
+            "description": "Metadata is useful for storing additional, unstructured information on an object. This metadata will override the metadata that was passed in payments",
             "nullable": true
           },
           "connector_metadata": {

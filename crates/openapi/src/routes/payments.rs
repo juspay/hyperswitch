@@ -661,7 +661,13 @@ pub fn payments_get_intent() {}
 #[utoipa::path(
   put,
   path = "/v2/payments/{id}/update-intent",
-  params (("id" = String, Path, description = "The unique identifier for the Payment Intent")),
+  params (("id" = String, Path, description = "The unique identifier for the Payment Intent"),
+      (
+        "X-Profile-Id" = String, Header,
+        description = "Profile ID associated to the payment intent",
+        example = json!({"X-Profile-Id": "pro_abcdefghijklmnop"})
+      ),
+    ),
   request_body(
       content = PaymentsUpdateIntentRequest,
       examples(

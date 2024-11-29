@@ -546,7 +546,6 @@ pub struct AmountDetails {
     tax_on_surcharge: Option<MinorUnit>,
 }
 
-
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct AmountDetailsUpdate {

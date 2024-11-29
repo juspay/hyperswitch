@@ -5,9 +5,8 @@ use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, ValueExt},
-    types::MinorUnit,
 };
-use diesel_models::{types::FeatureMetadata, PaymentIntentNew};
+use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payments::payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
@@ -100,7 +99,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentsUpdateIntentRequest,
         merchant_account: &domain::MerchantAccount,
-        profile: &domain::Profile,
+        _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {

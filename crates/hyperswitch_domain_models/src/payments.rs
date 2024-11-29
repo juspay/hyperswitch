@@ -183,7 +183,6 @@ impl From<Option<bool>> for TaxCalculationOverride {
     }
 }
 
-
 #[cfg(feature = "v2")]
 impl TaxCalculationOverride {
     fn as_bool(self) -> bool {
@@ -301,12 +300,21 @@ impl AmountDetails {
 
     pub fn update_from_request(self, req: &api_models::payments::AmountDetailsUpdate) -> Self {
         Self {
-            order_amount: req.order_amount().unwrap_or(self.order_amount.into()).into(),
+            order_amount: req
+                .order_amount()
+                .unwrap_or(self.order_amount.into())
+                .into(),
             currency: req.currency().unwrap_or(self.currency),
             shipping_cost: req.shipping_cost().or(self.shipping_cost),
             tax_details: self.tax_details,
-            skip_external_tax_calculation: req.skip_external_tax_calculation().map(Into::into).unwrap_or(self.skip_external_tax_calculation),
-            skip_surcharge_calculation: req.skip_surcharge_calculation().map(Into::into).unwrap_or(self.skip_surcharge_calculation),
+            skip_external_tax_calculation: req
+                .skip_external_tax_calculation()
+                .map(Into::into)
+                .unwrap_or(self.skip_external_tax_calculation),
+            skip_surcharge_calculation: req
+                .skip_surcharge_calculation()
+                .map(Into::into)
+                .unwrap_or(self.skip_surcharge_calculation),
             surcharge_amount: req.surcharge_amount().or(self.surcharge_amount),
             tax_on_surcharge: req.tax_on_surcharge().or(self.tax_on_surcharge),
             amount_captured: self.amount_captured,

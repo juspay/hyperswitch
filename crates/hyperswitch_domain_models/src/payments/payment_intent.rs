@@ -523,7 +523,8 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     amount,
                     currency,
                     shipping_cost,
-                    skip_external_tax_calculation: skip_external_tax_calculation.map(|val| val.as_bool()),
+                    skip_external_tax_calculation: skip_external_tax_calculation
+                        .map(|val| val.as_bool()),
                     surcharge_applicable: skip_surcharge_calculation.map(|val| val.as_bool()),
                     surcharge_amount,
                     tax_on_surcharge,
