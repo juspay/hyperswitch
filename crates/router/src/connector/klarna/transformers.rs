@@ -206,7 +206,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                         name: data.product_name.clone(),
                         quantity: data.quantity,
                         unit_price: data.amount,
-                        total_amount: data.amount * data.quantity
+                        total_amount: data.amount * data.quantity,
                     })
                     .collect(),
                 shipping_address: get_address_info(item.router_data.get_optional_shipping())
@@ -481,7 +481,7 @@ pub struct CheckoutOrderLines {
     unit_price: MinorUnit,
     total_amount: MinorUnit,
     total_tax_amount: Option<MinorUnit>,
-    tax_rate: Option<f64>
+    tax_rate: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]

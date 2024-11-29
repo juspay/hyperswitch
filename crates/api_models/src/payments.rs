@@ -5367,7 +5367,7 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
-     /// tax rate applicable to the product
+    /// tax rate applicable to the product
     pub tax_rate: Option<f64>,
     /// total tax amount applicable to the product
     pub total_tax_amount: Option<MinorUnit>,
