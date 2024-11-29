@@ -18,7 +18,7 @@ use strum::Display;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::PaymentsAuthorizeRequestData,
+    utils::{PaymentsAuthorizeRequestData, RouterData as OtherRouterData},
 };
 pub struct JpmorganRouterData<T> {
     pub amount: MinorUnit,
@@ -137,6 +137,13 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
+                if item.router_data.is_three_ds(){
+                    return Err(errors::ConnectorError::NotSupported{
+                        message : "Three_ds payments".to_string(),
+                        connector : "Jpmorgan"
+                }
+                    .into());
+                }
                 let capture_method = if let Some(method) = item.router_data.request.capture_method {
                     map_capture_method(method)
                 } else {
