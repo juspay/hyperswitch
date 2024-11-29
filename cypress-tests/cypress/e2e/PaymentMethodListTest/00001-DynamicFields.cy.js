@@ -71,7 +71,7 @@ describe("Dynamic Fields Verification", () => {
       }
     );
     context(
-      "Verify the Dynamic fields - Passing curreny USD and with billing address",
+      "Verify the Dynamic fields - Passing currency USD and with billing address",
       () => {
         it("Create Payment Intent", () => {
           let data = getConnectorDetails("stripe")["pm_list"]["PaymentIntent"];
