@@ -187,8 +187,8 @@ impl From<Option<bool>> for TaxCalculationOverride {
 impl TaxCalculationOverride {
     fn as_bool(self) -> bool {
         match self {
-            TaxCalculationOverride::Skip => false,
-            TaxCalculationOverride::Calculate => true,
+            Self::Skip => false,
+            Self::Calculate => true,
         }
     }
 }
@@ -207,8 +207,8 @@ impl From<Option<bool>> for SurchargeCalculationOverride {
 impl SurchargeCalculationOverride {
     fn as_bool(self) -> bool {
         match self {
-            SurchargeCalculationOverride::Skip => false,
-            SurchargeCalculationOverride::Calculate => true,
+            Self::Skip => false,
+            Self::Calculate => true,
         }
     }
 }

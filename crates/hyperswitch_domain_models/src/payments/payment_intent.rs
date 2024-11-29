@@ -534,12 +534,12 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     billing_address: billing_address.map(Encryption::from),
                     shipping_address: shipping_address.map(Encryption::from),
                     customer_present: customer_present.map(|val| val.as_bool()),
-                    description: description,
-                    return_url: return_url,
+                    description,
+                    return_url,
                     setup_future_usage,
                     apply_mit_exemption: apply_mit_exemption.map(|val| val.as_bool()),
-                    statement_descriptor: statement_descriptor,
-                    order_details: order_details,
+                    statement_descriptor,
+                    order_details,
                     // .map(|order_details| {
                     //     order_details
                     //         .into_iter()
@@ -555,18 +555,18 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     // .transpose()
                     // .ok().flatten()
                     // .map(Secret::new),
-                    metadata: metadata,
-                    connector_metadata: connector_metadata,
-                    feature_metadata: feature_metadata,
+                    metadata,
+                    connector_metadata,
+                    feature_metadata,
                     // .map(|val| diesel_models::types::FeatureMetadata::convert_from(val)),
                     enable_payment_link: enable_payment_link.map(|val| val.as_bool()),
                     request_incremental_authorization,
                     session_expiry,
-                    frm_metadata: frm_metadata,
+                    frm_metadata,
                     request_external_three_ds_authentication:
                         request_external_three_ds_authentication.map(|val| val.as_bool()),
 
-                    updated_by: updated_by,
+                    updated_by,
                 }
             }
         }
