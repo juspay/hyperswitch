@@ -14323,8 +14323,9 @@
             "minimum": 0
           },
           "tax_rate": {
-            "type": "integer",
-            "format": "int64",
+            "type": "number",
+            "format": "double",
+            "description": "tax rate applicable to the product",
             "nullable": true
           },
           "total_tax_amount": {
@@ -14404,8 +14405,9 @@
             "$ref": "#/components/schemas/MinorUnit"
           },
           "tax_rate": {
-            "type": "integer",
-            "format": "int64",
+            "type": "number",
+            "format": "double",
+            "description": "tax rate applicable to the product",
             "nullable": true
           },
           "total_tax_amount": {
