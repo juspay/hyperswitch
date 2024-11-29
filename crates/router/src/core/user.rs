@@ -614,6 +614,10 @@ async fn handle_existing_user_invitation(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             invitee_user_from_db.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             &user_from_token.profile_id,
@@ -630,6 +634,10 @@ async fn handle_existing_user_invitation(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             invitee_user_from_db.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             &user_from_token.profile_id,
@@ -660,6 +668,10 @@ async fn handle_existing_user_invitation(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: invitee_user_from_db.get_user_id(),
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             org_id,
             merchant_id,
             profile_id,
@@ -962,6 +974,10 @@ pub async fn resend_invite(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             &user_from_token.profile_id,
@@ -985,6 +1001,10 @@ pub async fn resend_invite(
             .global_store
             .find_user_role_by_user_id_and_lineage(
                 user.get_user_id(),
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
                 &user_from_token.profile_id,
@@ -1064,6 +1084,10 @@ pub async fn accept_invite_from_email_token_only_flow(
         utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
             &state,
             &user_token.user_id,
+            user_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             entity.entity_id.clone(),
             entity.entity_type,
         )
@@ -1074,6 +1098,10 @@ pub async fn accept_invite_from_email_token_only_flow(
     let (update_v1_result, update_v2_result) = utils::user_role::update_v1_and_v2_user_roles_in_db(
         &state,
         user_from_db.get_user_id(),
+        user_token
+            .tenant_id
+            .as_ref()
+            .unwrap_or(&state.tenant.tenant_id),
         &org_id,
         merchant_id.as_ref(),
         profile_id.as_ref(),
@@ -1260,6 +1288,10 @@ pub async fn list_user_roles_details(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: required_user.get_user_id(),
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             org_id: Some(&user_from_token.org_id),
             merchant_id: (requestor_role_info.get_entity_type() <= EntityType::Merchant)
                 .then_some(&user_from_token.merchant_id),
@@ -2446,6 +2478,10 @@ pub async fn list_orgs_for_user(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: user_from_token.user_id.as_str(),
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             org_id: None,
             merchant_id: None,
             profile_id: None,
@@ -2511,6 +2547,10 @@ pub async fn list_merchants_for_user_in_org(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id: user_from_token.user_id.as_str(),
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: Some(&user_from_token.org_id),
                     merchant_id: None,
                     profile_id: None,
@@ -2590,6 +2630,10 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id: user_from_token.user_id.as_str(),
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: Some(&user_from_token.org_id),
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: None,
@@ -2666,6 +2710,10 @@ pub async fn switch_org_for_user(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: &user_from_token.user_id,
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             org_id: Some(&request.org_id),
             merchant_id: None,
             profile_id: None,
@@ -2839,6 +2887,10 @@ pub async fn switch_merchant_for_user_in_org(
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &user_from_token.user_id,
+                        tenant_id: user_from_token
+                            .tenant_id
+                            .as_ref()
+                            .unwrap_or(&state.tenant.tenant_id),
                         org_id: Some(&user_from_token.org_id),
                         merchant_id: Some(&request.merchant_id),
                         profile_id: None,
@@ -2955,6 +3007,10 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload{
                     user_id:&user_from_token.user_id,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: Some(&user_from_token.org_id),
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id:Some(&request.profile_id),

@@ -3048,6 +3048,7 @@ impl UserRoleInterface for KafkaStore {
     async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
@@ -3056,6 +3057,7 @@ impl UserRoleInterface for KafkaStore {
         self.diesel_store
             .find_user_role_by_user_id_and_lineage(
                 user_id,
+                tenant_id,
                 org_id,
                 merchant_id,
                 profile_id,
@@ -3067,6 +3069,7 @@ impl UserRoleInterface for KafkaStore {
     async fn update_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
@@ -3076,6 +3079,7 @@ impl UserRoleInterface for KafkaStore {
         self.diesel_store
             .update_user_role_by_user_id_and_lineage(
                 user_id,
+                tenant_id,
                 org_id,
                 merchant_id,
                 profile_id,
@@ -3088,6 +3092,7 @@ impl UserRoleInterface for KafkaStore {
     async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
@@ -3096,6 +3101,7 @@ impl UserRoleInterface for KafkaStore {
         self.diesel_store
             .delete_user_role_by_user_id_and_lineage(
                 user_id,
+                tenant_id,
                 org_id,
                 merchant_id,
                 profile_id,
