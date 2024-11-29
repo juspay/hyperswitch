@@ -22,6 +22,60 @@ env:
   RUST_MIN_STACK: 10485760
 
 jobs:
+  formatter:
+    name: Run formatter and address lints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Cypress and dependencies
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          npm ci --prefix ./cypress-tests
+
+      - name: Check formatting
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          npm run format:check --prefix cypress-tests
+          FORMAT_EXIT=$?
+          npm run lint --prefix cypress-tests
+          LINT_EXIT=$?
+
+          if [ $FORMAT_EXIT -ne 0 ] || [ $LINT_EXIT -ne 0 ]; then
+            echo "::notice::Formatting or lint check failed"
+            
+            # Ensure we're on the correct branch
+            # For PR, GitHub Actions checks out a merge commit
+            # We need to checkout the head of the PR
+            if [ -n "$GITHUB_HEAD_REF" ]; then
+              git checkout $GITHUB_HEAD_REF
+            fi
+            
+            git config --local user.name 'hyperswitch-bot[bot]'
+            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
+
+            # Run fixes
+            npm run format --prefix cypress-tests
+            npm run lint --prefix cypress-tests -- --fix
+
+            # Commit and push changes
+            if [ -n "$(git status --porcelain)" ]; then
+              git add cypress-tests
+              git commit --message 'chore(cypress): run formatter and address lints'
+              git push origin HEAD
+            else
+              echo "No changes to commit after formatting"
+            fi
+          fi
+
   runner:
     name: Run Cypress tests
     runs-on: ubuntu-latest
@@ -59,41 +113,6 @@ jobs:
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: actions/checkout@v4
-
-      - name: Install Node.js
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install Cypress and dependencies
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: |
-          npm ci --prefix ./cypress-tests
-
-      - name: Check formatting
-        if: ${{ env.RUN_TESTS == 'true' }}
-        run: |
-          npm run format:check --prefix cypress-tests && npm run lint --prefix cypress-tests
-
-          if [ $? -ne 0 ]; then
-            echo "::notice::Formatting or lint check failed"
-            git config --local user.name 'hyperswitch-bot[bot]'
-            git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
-
-            # Run prettier to fix formatting
-            npm run format --prefix cypress-tests
-
-            # Run eslint to auto-fix linting issues
-            # This will not fix logical issues, but will fix formatting issues
-            npm run lint --prefix cypress-tests -- --fix
-
-            # Add changes to git and commit
-            git add .
-            git commit --message 'chore: run formatter and lint fixes'
-            git push
-          fi
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -167,6 +186,18 @@ jobs:
         with:
           tool: just
           checksum: true
+
+      - name: Install Node.js
+        if: ${{ env.RUN_TESTS == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Cypress and dependencies
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          npm ci --prefix ./cypress-tests
 
       - name: Run database migrations
         if: ${{ env.RUN_TESTS == 'true' }}

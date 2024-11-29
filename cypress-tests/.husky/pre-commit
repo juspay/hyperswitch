@@ -1,3 +1,0 @@
-# .husky/pre-commit
-npm run format:check && npm run lint
-git update-index --again
