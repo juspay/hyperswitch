@@ -65,6 +65,25 @@ pub enum Granularity {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AnalyticsRequest {
+    pub payment_intent: Option<GetPaymentIntentMetricRequest>,
+    pub payment_attempt: Option<GetPaymentMetricRequest>,
+    pub refund: Option<GetRefundMetricRequest>,
+    pub dispute: Option<GetDisputeMetricRequest>,
+}
+
+impl Default for AnalyticsRequest {
+    fn default() -> Self {
+        Self {
+            payment_intent: None,
+            payment_attempt: None,
+            refund: None,
+            dispute: None,
+        }
+    }
+}
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GetPaymentMetricRequest {
     pub time_series: Option<TimeSeries>,
     pub time_range: TimeRange,

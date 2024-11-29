@@ -23,10 +23,11 @@ pub mod routes {
         GetFrmFilterRequest, GetFrmMetricRequest, GetPaymentFiltersRequest,
         GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest, GetPaymentMetricRequest,
         GetRefundFilterRequest, GetRefundMetricRequest, GetSdkEventFiltersRequest,
-        GetSdkEventMetricRequest, ReportRequest,
+        GetSdkEventMetricRequest, ReportRequest, AnalyticsRequest,
     };
     use common_enums::EntityType;
-    use common_utils::types::TimeRange;
+    use common_utils::{errors::CustomResult, types::TimeRange};
+    use currency_conversion::types::ExchangeRates;
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
 
@@ -47,6 +48,17 @@ pub mod routes {
         types::{domain::UserEmail, storage::UserRole},
     };
 
+    async fn request_validator(_req_type: AnalyticsRequest, state: &crate::routes::SessionState) -> CustomResult<(bool, Option<ExchangeRates>), AnalyticsError> {
+        // other validation logic based on `req_type` goes here
+
+        let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
+            Some(get_forex_exchange_rates(state.clone()).await?)
+        } else {
+            None
+        };
+        
+        Ok((ex_rates.is_some(), ex_rates))
+    }
     pub struct Analytics;
 
     impl Analytics {
@@ -405,11 +417,8 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
-                    Some(get_forex_exchange_rates(state.clone()).await?)
-                } else {
-                    None
-                };
+                let validator_response = request_validator(AnalyticsRequest{payment_attempt: Some(req.clone()), payment_intent: None, refund: None, dispute: None}, &state).await?;
+                let ex_rates = validator_response.1;
                 analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -448,11 +457,9 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
-                    Some(get_forex_exchange_rates(state.clone()).await?)
-                } else {
-                    None
-                };
+                
+let validator_response = request_validator(AnalyticsRequest{payment_attempt: Some(req.clone()), payment_intent: None, refund: None, dispute: None}, &state).await?;
+                let ex_rates = validator_response.1;
                 analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -499,11 +506,9 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
-                    Some(get_forex_exchange_rates(state.clone()).await?)
-                } else {
-                    None
-                };
+                
+let validator_response = request_validator(AnalyticsRequest{payment_attempt: Some(req.clone()), payment_intent: None, refund: None, dispute: None}, &state).await?;
+                let ex_rates = validator_response.1;
                 analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -544,11 +549,9 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
-                    Some(get_forex_exchange_rates(state.clone()).await?)
-                } else {
-                    None
-                };
+                
+let validator_response = request_validator(AnalyticsRequest{payment_intent: Some(req.clone()), ..Default::default()}, &state).await?;
+                let ex_rates = validator_response.1;
                 analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -587,11 +590,9 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
-                    Some(get_forex_exchange_rates(state.clone()).await?)
-                } else {
-                    None
-                };
+                
+let validator_response = request_validator(AnalyticsRequest{payment_intent: Some(req.clone()), ..Default::default()}, &state).await?;
+                let ex_rates = validator_response.1;
                 analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -638,11 +639,9 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
-                    Some(get_forex_exchange_rates(state.clone()).await?)
-                } else {
-                    None
-                };
+                
+let validator_response = request_validator(AnalyticsRequest{payment_intent: Some(req.clone()), ..Default::default()}, &state).await?;
+                let ex_rates = validator_response.1;
                 analytics::payment_intents::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -683,11 +682,9 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
-                    Some(get_forex_exchange_rates(state.clone()).await?)
-                } else {
-                    None
-                };
+                
+let validator_response = request_validator(AnalyticsRequest{refund: Some(req.clone()), ..Default::default()}, &state).await?;
+                let ex_rates = validator_response.1;
                 analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -726,11 +723,9 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
-                    Some(get_forex_exchange_rates(state.clone()).await?)
-                } else {
-                    None
-                };
+                
+let validator_response = request_validator(AnalyticsRequest{refund: Some(req.clone()), ..Default::default()}, &state).await?;
+                let ex_rates = validator_response.1;
                 analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
@@ -777,11 +772,9 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
-                    Some(get_forex_exchange_rates(state.clone()).await?)
-                } else {
-                    None
-                };
+                
+                    let validator_response = request_validator(AnalyticsRequest{refund: Some(req.clone()), ..Default::default()}, &state).await?;
+                    let ex_rates = validator_response.1;
                 analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
