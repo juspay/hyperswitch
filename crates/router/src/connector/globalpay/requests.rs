@@ -388,7 +388,6 @@ pub enum AuthorizationMode {
     /// requested amount.
     ///  pub example: PARTIAL
     ///
-    ///
     /// Describes whether the device can process partial authorizations.
     Partial,
 }

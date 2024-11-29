@@ -1,6 +1,4 @@
-//!
 //! Serde-related.
-//!
 
 pub use erased_serde::Serialize as ErasedSerialize;
 pub use serde::{de, Deserialize, Serialize, Serializer};
@@ -17,7 +15,6 @@ use crate::{Secret, Strategy, StrongSecret, ZeroizableSecret};
 ///
 /// This is done deliberately to prevent accidental exfiltration of secrets
 /// via `serde` serialization.
-///
 
 #[cfg_attr(docsrs, cfg(feature = "serde"))]
 pub trait SerializableSecret: Serialize {}
@@ -87,7 +84,6 @@ where
     }
 }
 
-///
 /// Masked serialization.
 ///
 /// the default behaviour for secrets is to serialize in exposed format since the common use cases
@@ -99,7 +95,6 @@ pub fn masked_serialize<T: Serialize>(value: &T) -> Result<Value, serde_json::Er
     })
 }
 
-///
 /// Masked serialization.
 ///
 /// Trait object for supporting serialization to Value while accounting for masking

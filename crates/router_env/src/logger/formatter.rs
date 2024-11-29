@@ -1,6 +1,4 @@
-//!
 //! Formatting [layer](https://docs.rs/tracing-subscriber/0.3.15/tracing_subscriber/layer/trait.Layer.html) for Router.
-//!
 
 use std::{
     collections::{HashMap, HashSet},

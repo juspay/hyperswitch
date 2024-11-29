@@ -1,6 +1,4 @@
-//!
 //! Diesel-related.
-//!
 
 use diesel::{
     backend::Backend,
