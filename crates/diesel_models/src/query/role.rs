@@ -109,9 +109,11 @@ impl Role {
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> StorageResult<Vec<Self>> {
-        let predicate = dsl::merchant_id.eq(merchant_id.to_owned()).or(dsl::org_id
-            .eq(org_id.to_owned())
-            .and(dsl::scope.eq(RoleScope::Organization)));
+        let predicate = dsl::org_id.eq(org_id.to_owned()).and(
+            dsl::scope.eq(RoleScope::Organization).or(dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::scope.eq(RoleScope::Merchant))),
+        );
 
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -136,9 +138,10 @@ impl Role {
 
         if let Some(merchant_id) = merchant_id {
             query = query.filter(
-                dsl::merchant_id
+                (dsl::merchant_id
                     .eq(merchant_id)
-                    .or(dsl::scope.eq(RoleScope::Organization)),
+                    .and(dsl::scope.eq(RoleScope::Merchant)))
+                .or(dsl::scope.eq(RoleScope::Organization)),
             );
         }
 
