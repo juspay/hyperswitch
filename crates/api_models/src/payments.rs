@@ -301,7 +301,7 @@ pub struct PaymentsGetIntentRequest {
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct PaymentsUpdateIntentRequest {
-    pub amount_details: Option<AmountDetails>,
+    pub amount_details: Option<AmountDetailsUpdate>,
 
     /// The routing algorithm id to be used for the payment
     #[schema(value_type = Option<String>)]
@@ -546,6 +546,35 @@ pub struct AmountDetails {
     tax_on_surcharge: Option<MinorUnit>,
 }
 
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AmountDetailsUpdate {
+    /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
+    #[schema(value_type = Option<u64>, example = 6540)]
+    #[serde(default, deserialize_with = "amount::deserialize_option")]
+    order_amount: Option<Amount>,
+    /// The currency of the order
+    #[schema(example = "USD", value_type = Option<Currency>)]
+    currency: Option<common_enums::Currency>,
+    /// The shipping cost of the order. This has to be collected from the merchant
+    shipping_cost: Option<MinorUnit>,
+    /// Tax amount related to the order. This will be calculated by the external tax provider
+    order_tax_amount: Option<MinorUnit>,
+    /// The action to whether calculate tax by calling external tax provider or not
+    #[serde(default)]
+    #[schema(value_type = Option<TaxCalculationOverride>)]
+    skip_external_tax_calculation: Option<common_enums::TaxCalculationOverride>,
+    /// The action to whether calculate surcharge or not
+    #[serde(default)]
+    #[schema(value_type = Option<SurchargeCalculationOverride>)]
+    skip_surcharge_calculation: Option<common_enums::SurchargeCalculationOverride>,
+    /// The surcharge amount to be added to the order, collected from the merchant
+    surcharge_amount: Option<MinorUnit>,
+    /// tax on surcharge amount
+    tax_on_surcharge: Option<MinorUnit>,
+}
+
 #[cfg(feature = "v2")]
 pub struct AmountDetailsSetter {
     pub order_amount: Amount,
@@ -658,6 +687,33 @@ impl AmountDetails {
     }
 }
 
+#[cfg(feature = "v2")]
+impl AmountDetailsUpdate {
+    pub fn order_amount(&self) -> Option<Amount> {
+        self.order_amount
+    }
+    pub fn currency(&self) -> Option<common_enums::Currency> {
+        self.currency
+    }
+    pub fn shipping_cost(&self) -> Option<MinorUnit> {
+        self.shipping_cost
+    }
+    pub fn order_tax_amount(&self) -> Option<MinorUnit> {
+        self.order_tax_amount
+    }
+    pub fn skip_external_tax_calculation(&self) -> Option<common_enums::TaxCalculationOverride> {
+        self.skip_external_tax_calculation.clone()
+    }
+    pub fn skip_surcharge_calculation(&self) -> Option<common_enums::SurchargeCalculationOverride> {
+        self.skip_surcharge_calculation.clone()
+    }
+    pub fn surcharge_amount(&self) -> Option<MinorUnit> {
+        self.surcharge_amount
+    }
+    pub fn tax_on_surcharge(&self) -> Option<MinorUnit> {
+        self.tax_on_surcharge
+    }
+}
 #[cfg(feature = "v1")]
 #[derive(
     Default,
