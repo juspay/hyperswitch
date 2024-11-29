@@ -385,6 +385,7 @@ Cypress.Commands.add(
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
     createConnectorBody.connector_label = connectorLabel;
+    createConnectorBody.profile_id = globalState.get("profileId");
     createConnectorBody.payment_methods_enabled = payment_methods_enabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
@@ -831,6 +832,57 @@ Cypress.Commands.add(
         } else {
           expect(0).to.equal(response.body["payment_methods"].length);
         }
+      } else {
+        defaultErrorHandler(response, res_data);
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "paymentMethodListTestWithRequiredFields",
+  (res_data, globalState) => {
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${globalState.get("clientSecret")}`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        const responsePaymentMethods = response.body["payment_methods"];
+        const responseRequiredFields =
+          responsePaymentMethods[0]["payment_method_types"][0][
+            "required_fields"
+          ];
+
+        const expectedRequiredFields =
+          res_data["payment_methods"][0]["payment_method_types"][0][
+            "required_fields"
+          ];
+
+        Object.keys(expectedRequiredFields).forEach((key) => {
+          const expectedField = expectedRequiredFields[key];
+          const responseField = responseRequiredFields[key];
+
+          expect(responseField).to.exist;
+          expect(responseField.required_field).to.equal(
+            expectedField.required_field
+          );
+          expect(responseField.display_name).to.equal(
+            expectedField.display_name
+          );
+          expect(responseField.field_type).to.deep.equal(
+            expectedField.field_type
+          );
+          expect(responseField.value).to.equal(expectedField.value);
+        });
       } else {
         defaultErrorHandler(response, res_data);
       }

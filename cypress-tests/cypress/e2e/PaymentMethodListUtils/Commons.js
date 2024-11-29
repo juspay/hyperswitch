@@ -15,6 +15,10 @@ export const card_credit_enabled = [
         payment_method_type: "credit",
         card_networks: ["Visa"],
         minimum_amount: 0,
+        accepted_currencies: {
+          type: "enable_only",
+          list: ["USD",],
+        },
         maximum_amount: 68607706,
         recurring_enabled: false,
         installment_payment_enabled: true,

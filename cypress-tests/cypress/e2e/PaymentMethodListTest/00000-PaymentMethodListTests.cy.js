@@ -1,6 +1,7 @@
 import apiKeyCreateBody from "../../fixtures/create-api-key-body.json";
 import createConnectorBody from "../../fixtures/create-connector-body.json";
 import merchantCreateBody from "../../fixtures/merchant-create-body.json";
+import customerCreateBody from "../../fixtures/create-customer-body.json";
 import State from "../../utils/State";
 import {
   bank_redirect_ideal_and_credit_enabled,
@@ -39,6 +40,9 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
 
       it("api-key-create-call-test", () => {
         cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+      });
+      it("customer-create-call-test", () => {
+        cy.createCustomerCallTest(customerCreateBody, globalState);
       });
 
       // stripe connector create with ideal enabled
