@@ -1,17 +1,23 @@
-use common_utils::types::MinorUnit;
+use common_enums::enums;
+use common_utils::{ext_traits::OptionExt, request::Method, types::MinorUnit};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    payment_method_data::{PaymentMethodData, WalletData},
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::ResponseId,
+    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types,
+};
+use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{PaymentsAuthorizeRequestData, RouterData},
-    consts,
-    core::errors,
-    pii::Secret,
-    services,
-    types::{self, api, domain, storage::enums, transformers::ForeignFrom},
-    utils::OptionExt,
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{PaymentsAuthorizeRequestData, RouterData as _},
 };
 
 #[derive(Debug, Serialize)]
@@ -92,7 +98,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
         item: &RapydRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let (capture, payment_method_options) = match item.router_data.payment_method {
-            diesel_models::enums::PaymentMethod::Card => {
+            enums::PaymentMethod::Card => {
                 let three_ds_enabled = matches!(
                     item.router_data.auth_type,
                     enums::AuthenticationType::ThreeDs
@@ -111,7 +117,7 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
             _ => (None, None),
         };
         let payment_method = match item.router_data.request.payment_method_data {
-            domain::PaymentMethodData::Card(ref ccard) => {
+            PaymentMethodData::Card(ref ccard) => {
                 Some(PaymentMethod {
                     pm_type: "in_amex_card".to_owned(), //[#369] Map payment method type based on country
                     fields: Some(PaymentFields {
@@ -129,13 +135,13 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                     digital_wallet: None,
                 })
             }
-            domain::PaymentMethodData::Wallet(ref wallet_data) => {
+            PaymentMethodData::Wallet(ref wallet_data) => {
                 let digital_wallet = match wallet_data {
-                    domain::WalletData::GooglePay(data) => Some(RapydWallet {
+                    WalletData::GooglePay(data) => Some(RapydWallet {
                         payment_type: "google_pay".to_string(),
                         token: Some(Secret::new(data.tokenization_data.token.to_owned())),
                     }),
-                    domain::WalletData::ApplePay(data) => Some(RapydWallet {
+                    WalletData::ApplePay(data) => Some(RapydWallet {
                         payment_type: "apple_pay".to_string(),
                         token: Some(Secret::new(data.payment_data.to_string())),
                     }),
@@ -175,10 +181,10 @@ pub struct RapydAuthType {
     pub secret_key: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
+impl TryFrom<&ConnectorAuthType> for RapydAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
                 access_key: api_key.to_owned(),
                 secret_key: key1.to_owned(),
@@ -209,30 +215,28 @@ pub enum RapydPaymentStatus {
     New,
 }
 
-impl ForeignFrom<(RapydPaymentStatus, NextAction)> for enums::AttemptStatus {
-    fn foreign_from(item: (RapydPaymentStatus, NextAction)) -> Self {
-        let (status, next_action) = item;
-        match (status, next_action) {
-            (RapydPaymentStatus::Closed, _) => Self::Charged,
-            (
-                RapydPaymentStatus::Active,
-                NextAction::ThreedsVerification | NextAction::PendingConfirmation,
-            ) => Self::AuthenticationPending,
-            (
-                RapydPaymentStatus::Active,
-                NextAction::PendingCapture | NextAction::NotApplicable,
-            ) => Self::Authorized,
-            (
-                RapydPaymentStatus::CanceledByClientOrBank
-                | RapydPaymentStatus::Expired
-                | RapydPaymentStatus::ReversedByRapyd,
-                _,
-            ) => Self::Voided,
-            (RapydPaymentStatus::Error, _) => Self::Failure,
-            (RapydPaymentStatus::New, _) => Self::Authorizing,
+// impl ForeignFrom<(RapydPaymentStatus, NextAction)> for enums::AttemptStatus {
+fn get_status(status: RapydPaymentStatus, next_action: NextAction) -> enums::AttemptStatus {
+    match (status, next_action) {
+        (RapydPaymentStatus::Closed, _) => enums::AttemptStatus::Charged,
+        (
+            RapydPaymentStatus::Active,
+            NextAction::ThreedsVerification | NextAction::PendingConfirmation,
+        ) => enums::AttemptStatus::AuthenticationPending,
+        (RapydPaymentStatus::Active, NextAction::PendingCapture | NextAction::NotApplicable) => {
+            enums::AttemptStatus::Authorized
         }
+        (
+            RapydPaymentStatus::CanceledByClientOrBank
+            | RapydPaymentStatus::Expired
+            | RapydPaymentStatus::ReversedByRapyd,
+            _,
+        ) => enums::AttemptStatus::Voided,
+        (RapydPaymentStatus::Error, _) => enums::AttemptStatus::Failure,
+        (RapydPaymentStatus::New, _) => enums::AttemptStatus::Authorizing,
     }
 }
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RapydPaymentsResponse {
@@ -357,12 +361,12 @@ pub struct RefundResponseData {
     pub failure_reason: Option<String>,
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
+        item: RefundsResponseRouterData<Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let (connector_refund_id, refund_status) = match item.response.data {
             Some(data) => (data.id, enums::RefundStatus::from(data.status)),
@@ -372,7 +376,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
             ),
         };
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id,
                 refund_status,
             }),
@@ -381,12 +385,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
-    for types::RefundsRouterData<api::RSync>
-{
+impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for types::RefundsRouterData<RSync> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
+        item: RefundsResponseRouterData<RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
         let (connector_refund_id, refund_status) = match item.response.data {
             Some(data) => (data.id, enums::RefundStatus::from(data.status)),
@@ -396,7 +398,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
             ),
         };
         Ok(Self {
-            response: Ok(types::RefundsResponseData {
+            response: Ok(RefundsResponseData {
                 connector_refund_id,
                 refund_status,
             }),
@@ -425,24 +427,21 @@ impl TryFrom<&RapydRouterData<&types::PaymentsCaptureRouterData>> for CaptureReq
     }
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, RapydPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, RapydPaymentsResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, RapydPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attempt_status = enums::AttemptStatus::foreign_from((
-                    data.status.to_owned(),
-                    data.next_action.to_owned(),
-                ));
+                let attempt_status =
+                    get_status(data.status.to_owned(), data.next_action.to_owned());
                 match attempt_status {
-                    diesel_models::enums::AttemptStatus::Failure => (
+                    enums::AttemptStatus::Failure => (
                         enums::AttemptStatus::Failure,
-                        Err(types::ErrorResponse {
+                        Err(ErrorResponse {
                             code: data
                                 .failure_code
                                 .to_owned()
@@ -466,15 +465,13 @@ impl<F, T>
                             })
                             .transpose()?;
 
-                        let redirection_data = redirection_url
-                            .map(|url| services::RedirectForm::from((url, services::Method::Get)));
+                        let redirection_data =
+                            redirection_url.map(|url| RedirectForm::from((url, Method::Get)));
 
                         (
                             attempt_status,
-                            Ok(types::PaymentsResponseData::TransactionResponse {
-                                resource_id: types::ResponseId::ConnectorTransactionId(
-                                    data.id.to_owned(),
-                                ), //transaction_id is also the field but this id is used to initiate a refund
+                            Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::ConnectorTransactionId(data.id.to_owned()), //transaction_id is also the field but this id is used to initiate a refund
                                 redirection_data: Box::new(redirection_data),
                                 mandate_reference: Box::new(None),
                                 connector_metadata: None,
@@ -491,7 +488,7 @@ impl<F, T>
             }
             None => (
                 enums::AttemptStatus::Failure,
-                Err(types::ErrorResponse {
+                Err(ErrorResponse {
                     code: item.response.status.error_code,
                     status_code: item.http_code,
                     message: item.response.status.status.unwrap_or_default(),
@@ -574,7 +571,7 @@ impl From<ResponseData> for RapydPaymentsResponse {
     fn from(value: ResponseData) -> Self {
         Self {
             status: Status {
-                error_code: consts::NO_ERROR_CODE.to_owned(),
+                error_code: NO_ERROR_CODE.to_owned(),
                 status: None,
                 message: None,
                 response_code: None,
@@ -589,7 +586,7 @@ impl From<RefundResponseData> for RefundResponse {
     fn from(value: RefundResponseData) -> Self {
         Self {
             status: Status {
-                error_code: consts::NO_ERROR_CODE.to_owned(),
+                error_code: NO_ERROR_CODE.to_owned(),
                 status: None,
                 message: None,
                 response_code: None,
