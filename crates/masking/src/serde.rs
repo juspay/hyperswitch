@@ -118,7 +118,7 @@ impl<T: Serialize + ErasedSerialize> ErasedMaskSerialize for T {
     }
 }
 
-impl<'a> Serialize for dyn ErasedMaskSerialize + 'a {
+impl Serialize for dyn ErasedMaskSerialize + '_ {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -127,7 +127,7 @@ impl<'a> Serialize for dyn ErasedMaskSerialize + 'a {
     }
 }
 
-impl<'a> Serialize for dyn ErasedMaskSerialize + 'a + Send {
+impl Serialize for dyn ErasedMaskSerialize + '_ + Send {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
