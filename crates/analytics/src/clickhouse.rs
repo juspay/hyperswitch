@@ -139,6 +139,9 @@ impl AnalyticsDataSource for ClickhouseClient {
             | AnalyticsCollection::Dispute => {
                 TableEngine::CollapsingMergeTree { sign: "sign_flag" }
             }
+            AnalyticsCollection::DisputeSessionized => {
+                TableEngine::CollapsingMergeTree { sign: "sign_flag" }
+            }
             AnalyticsCollection::SdkEvents
             | AnalyticsCollection::SdkEventsAnalytics
             | AnalyticsCollection::ApiEvents
@@ -439,6 +442,7 @@ impl ToSql<ClickhouseClient> for AnalyticsCollection {
             Self::ConnectorEvents => Ok("connector_events_audit".to_string()),
             Self::OutgoingWebhookEvent => Ok("outgoing_webhook_events_audit".to_string()),
             Self::Dispute => Ok("dispute".to_string()),
+            Self::DisputeSessionized => Ok("sessionizer_dispute".to_string()),
             Self::ActivePaymentsAnalytics => Ok("active_payments".to_string()),
         }
     }

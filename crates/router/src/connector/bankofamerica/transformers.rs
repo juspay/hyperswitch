@@ -319,6 +319,7 @@ impl TryFrom<&types::SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -362,6 +363,7 @@ impl<F, T>
                             .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                         mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     }
                 });
                 let mut mandate_status =
@@ -398,6 +400,7 @@ impl<F, T>
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
                     | common_enums::PaymentMethod::RealTimePayment
+                    | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
@@ -1093,6 +1096,7 @@ impl TryFrom<&BankOfAmericaRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::Crypto(_)
                     | domain::PaymentMethodData::Reward
                     | domain::PaymentMethodData::RealTimePayment(_)
+                    | domain::PaymentMethodData::MobilePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
@@ -1512,6 +1516,7 @@ fn get_payment_response(
                             .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                         mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     });
 
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -1585,6 +1590,7 @@ impl<F>
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
                     | common_enums::PaymentMethod::RealTimePayment
+                    | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking
@@ -1802,6 +1808,7 @@ impl<F>
                     | common_enums::PaymentMethod::BankDebit
                     | common_enums::PaymentMethod::Reward
                     | common_enums::PaymentMethod::RealTimePayment
+                    | common_enums::PaymentMethod::MobilePayment
                     | common_enums::PaymentMethod::Upi
                     | common_enums::PaymentMethod::Voucher
                     | common_enums::PaymentMethod::OpenBanking

@@ -16,6 +16,23 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
+const singleUseMandateData = {
+  customer_acceptance: {
+    acceptance_type: "offline",
+    accepted_at: "1963-05-03T04:07:52.723Z",
+    online: {
+      ip_address: "125.0.0.1",
+      user_agent: "amet irure esse",
+    },
+  },
+  mandate_type: {
+    single_use: {
+      amount: 8000,
+      currency: "USD",
+    },
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -45,7 +62,7 @@ export const connectorDetails = {
         status: 200,
         trigger_skip: true,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
         },
       },
     },
@@ -173,6 +190,38 @@ export const connectorDetails = {
         },
       },
     },
+    manualPaymentRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     SyncRefund: {
       Request: {
         payment_method: "card",
@@ -190,14 +239,76 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
       Response: {
-        status: 501,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Paypal is not implemented",
-            code: "IR_00",
-          },
+          status: "succeeded",
+        },
+      },
+    },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
+      Request: {
+        currency: "USD",
+        amount: 6500,
+        authentication_type: "no_three_ds",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
         },
       },
     },
@@ -333,7 +444,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "NOT_AUTHORIZED",
+          error_code: "PERMISSION_DENIED",
         },
       },
     },
@@ -370,7 +481,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "NOT_AUTHORIZED",
+          error_code: "PERMISSION_DENIED",
         },
       },
     },

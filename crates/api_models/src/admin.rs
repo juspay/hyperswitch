@@ -1313,10 +1313,6 @@ pub struct MerchantConnectorListResponse {
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 
-    /// Metadata is useful for storing additional, unstructured information on an object.
-    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
-
     /// A boolean value to indicate if the connector is in Test mode. By default, its value is false.
     #[schema(default = false, example = false)]
     pub test_mode: Option<bool>,
@@ -1349,13 +1345,6 @@ pub struct MerchantConnectorListResponse {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
-
-    #[schema(value_type = Option<AdditionalMerchantData>)]
-    pub additional_merchant_data: Option<AdditionalMerchantData>,
-
-    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
-    #[schema(value_type = Option<ConnectorWalletDetails>)]
-    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1423,10 +1412,6 @@ pub struct MerchantConnectorListResponse {
     ]))]
     pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 
-    /// Metadata is useful for storing additional, unstructured information on an object.
-    #[schema(value_type = Option<Object>,max_length = 255,example = json!({ "city": "NY", "unit": "245" }))]
-    pub metadata: Option<pii::SecretSerdeValue>,
-
     /// A boolean value to indicate if the connector is disabled. By default, its value is false.
     #[schema(default = false, example = false)]
     pub disabled: Option<bool>,
@@ -1443,13 +1428,6 @@ pub struct MerchantConnectorListResponse {
 
     #[schema(value_type = ConnectorStatus, example = "inactive")]
     pub status: api_enums::ConnectorStatus,
-
-    #[schema(value_type = Option<AdditionalMerchantData>)]
-    pub additional_merchant_data: Option<AdditionalMerchantData>,
-
-    /// The connector_wallets_details is used to store wallet details such as certificates and wallet credentials
-    #[schema(value_type = Option<ConnectorWalletDetails>)]
-    pub connector_wallets_details: Option<ConnectorWalletDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1980,8 +1958,7 @@ pub struct ProfileCreate {
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
-    /// If set to `true` is_network_tokenization_enabled will be checked.
+    /// Indicates if network tokenization is enabled or not.
     #[serde(default)]
     pub is_network_tokenization_enabled: bool,
 
@@ -2008,7 +1985,7 @@ pub struct ProfileCreate {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<url::Url>,
+    pub return_url: Option<common_utils::types::Url>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]
@@ -2095,8 +2072,7 @@ pub struct ProfileCreate {
     #[serde(default)]
     pub is_tax_connector_enabled: bool,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
-    /// If set to `true` is_network_tokenization_enabled will be checked.
+    /// Indicates if network tokenization is enabled or not.
     #[serde(default)]
     pub is_network_tokenization_enabled: bool,
 }
@@ -2217,8 +2193,7 @@ pub struct ProfileResponse {
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
-    /// If set to `true` is_network_tokenization_enabled will be checked.
+    /// Indicates if network tokenization is enabled or not.
     #[schema(default = false, example = false)]
     pub is_network_tokenization_enabled: bool,
 
@@ -2247,7 +2222,7 @@ pub struct ProfileResponse {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<String>,
+    pub return_url: Option<common_utils::types::Url>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]
@@ -2337,10 +2312,12 @@ pub struct ProfileResponse {
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: bool,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
-    /// If set to `true` is_network_tokenization_enabled will be checked.
+    /// Indicates if network tokenization is enabled or not.
     #[schema(default = false, example = false)]
     pub is_network_tokenization_enabled: bool,
+
+    /// Indicates if CVV should be collected during payment or not.
+    pub should_collect_cvv_during_payment: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2455,7 +2432,7 @@ pub struct ProfileUpdate {
     #[serde(default)]
     pub dynamic_routing_algorithm: Option<serde_json::Value>,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// Indicates if network tokenization is enabled or not.
     pub is_network_tokenization_enabled: Option<bool>,
 
     /// Indicates if is_auto_retries_enabled is enabled or not.
@@ -2475,7 +2452,7 @@ pub struct ProfileUpdate {
 
     /// The URL to redirect after the completion of the operation
     #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
-    pub return_url: Option<url::Url>,
+    pub return_url: Option<common_utils::types::Url>,
 
     /// A boolean value to indicate if payment response hash needs to be enabled
     #[schema(default = true, example = true)]
@@ -2564,7 +2541,7 @@ pub struct ProfileUpdate {
     /// If set to `true` tax_connector_id will be checked.
     pub is_tax_connector_enabled: Option<bool>,
 
-    /// Indicates if is_network_tokenization_enabled is enabled or not.
+    /// Indicates if network tokenization is enabled or not.
     pub is_network_tokenization_enabled: Option<bool>,
 }
 
@@ -2693,6 +2670,9 @@ pub struct PaymentLinkConfigRequest {
     /// Enable saved payment method option for payment link
     #[schema(default = false, example = true)]
     pub enabled_saved_payment_method: Option<bool>,
+    /// Hide card nickname field option for payment link
+    #[schema(default = false, example = true)]
+    pub hide_card_nickname_field: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
 }
@@ -2736,6 +2716,8 @@ pub struct PaymentLinkConfig {
     pub display_sdk_only: bool,
     /// Enable saved payment method option for payment link
     pub enabled_saved_payment_method: bool,
+    /// Hide card nickname field option for payment link
+    pub hide_card_nickname_field: bool,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link

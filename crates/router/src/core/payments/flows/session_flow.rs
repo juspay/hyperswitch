@@ -6,6 +6,8 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnitForConnector},
 };
 use error_stack::{Report, ResultExt};
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::payments::PaymentIntentData;
 use masking::ExposeInterface;
 use router_env::metrics::add_attributes;
 
@@ -26,6 +28,50 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(feature = "v2")]
+#[async_trait]
+impl
+    ConstructFlowSpecificData<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for PaymentIntentData<api::Session>
+{
+    async fn construct_router_data<'a>(
+        &self,
+        state: &routes::SessionState,
+        connector_id: &str,
+        merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccount,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+    ) -> RouterResult<types::PaymentsSessionRouterData> {
+        Box::pin(transformers::construct_payment_router_data_for_sdk_session(
+            state,
+            self.clone(),
+            connector_id,
+            merchant_account,
+            key_store,
+            customer,
+            merchant_connector_account,
+            merchant_recipient_data,
+            header_payload,
+        ))
+        .await
+    }
+
+    async fn get_merchant_recipient_data<'a>(
+        &self,
+        _state: &routes::SessionState,
+        _merchant_account: &domain::MerchantAccount,
+        _key_store: &domain::MerchantKeyStore,
+        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _connector: &api::ConnectorData,
+    ) -> RouterResult<Option<types::MerchantRecipientData>> {
+        Ok(None)
+    }
+}
+
+#[cfg(feature = "v1")]
 #[async_trait]
 impl
     ConstructFlowSpecificData<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
@@ -189,20 +235,11 @@ async fn create_applepay_session_token(
         )
     } else {
         // Get the apple pay metadata
-        let connector_apple_pay_wallet_details =
-            helpers::get_applepay_metadata(router_data.connector_wallets_details.clone())
-                .map_err(|error| {
-                    logger::debug!(
-                        "Apple pay connector wallets details parsing failed in create_applepay_session_token {:?}",
-                        error
-                    )
-                })
-                .ok();
-
-        let apple_pay_metadata = match connector_apple_pay_wallet_details {
-            Some(apple_pay_wallet_details) => apple_pay_wallet_details,
-            None => helpers::get_applepay_metadata(router_data.connector_meta_data.clone())?,
-        };
+        let apple_pay_metadata =
+            helpers::get_applepay_metadata(router_data.connector_meta_data.clone())
+                .attach_printable(
+                    "Failed to to fetch apple pay certificates during session call",
+                )?;
 
         // Get payment request data , apple pay session request and merchant keys
         let (

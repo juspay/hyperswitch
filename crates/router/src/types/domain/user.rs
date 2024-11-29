@@ -1,4 +1,8 @@
-use std::{collections::HashSet, ops, str::FromStr};
+use std::{
+    collections::HashSet,
+    ops::{Deref, Not},
+    str::FromStr,
+};
 
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
@@ -99,7 +103,7 @@ impl UserEmail {
     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
         use validator::ValidateEmail;
 
-        let email_string = email.expose();
+        let email_string = email.expose().to_lowercase();
         let email =
             pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
 
@@ -119,21 +123,8 @@ impl UserEmail {
     }
 
     pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
-        use validator::ValidateEmail;
-
-        let email_string = email.peek();
-        if email_string.validate_email() {
-            let (_username, domain) = match email_string.split_once('@') {
-                Some((u, d)) => (u, d),
-                None => return Err(UserErrors::EmailParsingError.into()),
-            };
-            if BLOCKED_EMAIL.contains(domain) {
-                return Err(UserErrors::InvalidEmailError.into());
-            }
-            Ok(Self(email))
-        } else {
-            Err(UserErrors::EmailParsingError.into())
-        }
+        let email_string = email.expose().map(|inner| inner.to_lowercase());
+        Self::new(email_string)
     }
 
     pub fn into_inner(self) -> pii::Email {
@@ -153,7 +144,7 @@ impl TryFrom<pii::Email> for UserEmail {
     }
 }
 
-impl ops::Deref for UserEmail {
+impl Deref for UserEmail {
     type Target = Secret<String, pii::EmailStrategy>;
 
     fn deref(&self) -> &Self::Target {
@@ -565,8 +556,22 @@ pub struct NewUser {
     user_id: String,
     name: UserName,
     email: UserEmail,
-    password: Option<UserPassword>,
+    password: Option<NewUserPassword>,
     new_merchant: NewUserMerchant,
+}
+
+#[derive(Clone)]
+pub struct NewUserPassword {
+    password: UserPassword,
+    is_temporary: bool,
+}
+
+impl Deref for NewUserPassword {
+    type Target = UserPassword;
+
+    fn deref(&self) -> &Self::Target {
+        &self.password
+    }
 }
 
 impl NewUser {
@@ -587,7 +592,9 @@ impl NewUser {
     }
 
     pub fn get_password(&self) -> Option<UserPassword> {
-        self.password.clone()
+        self.password
+            .as_ref()
+            .map(|password| password.deref().clone())
     }
 
     pub async fn insert_user_in_db(
@@ -669,7 +676,10 @@ impl NewUser {
 
         let org_user_role = self
             .get_no_level_user_role(role_id, user_status)
-            .add_entity(OrganizationLevel { org_id });
+            .add_entity(OrganizationLevel {
+                tenant_id: state.tenant.tenant_id.clone(),
+                org_id,
+            });
 
         org_user_role.insert_in_v2(&state).await
     }
@@ -697,7 +707,9 @@ impl TryFrom<NewUser> for storage_user::UserNew {
             totp_status: TotpStatus::NotSet,
             totp_secret: None,
             totp_recovery_codes: None,
-            last_password_modified_at: value.password.is_some().then_some(now),
+            last_password_modified_at: value
+                .password
+                .and_then(|password_inner| password_inner.is_temporary.not().then_some(now)),
         })
     }
 }
@@ -708,7 +720,10 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let user_id = uuid::Uuid::new_v4().to_string();
         let new_merchant = NewUserMerchant::try_from(value)?;
 
@@ -729,7 +744,10 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -770,7 +788,10 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = UserPassword::new(value.password.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
         let new_merchant = NewUserMerchant::try_from((value, org_id))?;
 
         Ok(Self {
@@ -789,16 +810,21 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
     fn try_from(value: UserMerchantCreateRequestWithToken) -> Result<Self, Self::Error> {
         let user = value.0.clone();
         let new_merchant = NewUserMerchant::try_from(value)?;
+        let password = user
+            .0
+            .password
+            .map(UserPassword::new_password_without_validation)
+            .transpose()?
+            .map(|password| NewUserPassword {
+                password,
+                is_temporary: false,
+            });
 
         Ok(Self {
             user_id: user.0.user_id,
             name: UserName::new(user.0.name)?,
             email: user.0.email.clone().try_into()?,
-            password: user
-                .0
-                .password
-                .map(UserPassword::new_password_without_validation)
-                .transpose()?,
+            password,
             new_merchant,
         })
     }
@@ -810,8 +836,10 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
-        let password = cfg!(not(feature = "email"))
-            .then_some(UserPassword::new(password::get_temp_password())?);
+        let password = cfg!(not(feature = "email")).then_some(NewUserPassword {
+            password: UserPassword::new(password::get_temp_password())?,
+            is_temporary: true,
+        });
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
@@ -1078,17 +1106,20 @@ pub struct NoLevel;
 
 #[derive(Clone)]
 pub struct OrganizationLevel {
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Clone)]
 pub struct MerchantLevel {
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
 pub struct ProfileLevel {
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
@@ -1125,6 +1156,7 @@ impl NewUserRole<NoLevel> {
 }
 
 pub struct EntityInfo {
+    tenant_id: id_type::TenantId,
     org_id: id_type::OrganizationId,
     merchant_id: Option<id_type::MerchantId>,
     profile_id: Option<id_type::ProfileId>,
@@ -1137,6 +1169,7 @@ impl From<OrganizationLevel> for EntityInfo {
         Self {
             entity_id: value.org_id.get_string_repr().to_owned(),
             entity_type: EntityType::Organization,
+            tenant_id: value.tenant_id,
             org_id: value.org_id,
             merchant_id: None,
             profile_id: None,
@@ -1149,6 +1182,7 @@ impl From<MerchantLevel> for EntityInfo {
         Self {
             entity_id: value.merchant_id.get_string_repr().to_owned(),
             entity_type: EntityType::Merchant,
+            tenant_id: value.tenant_id,
             org_id: value.org_id,
             profile_id: None,
             merchant_id: Some(value.merchant_id),
@@ -1161,6 +1195,7 @@ impl From<ProfileLevel> for EntityInfo {
         Self {
             entity_id: value.profile_id.get_string_repr().to_owned(),
             entity_type: EntityType::Profile,
+            tenant_id: value.tenant_id,
             org_id: value.org_id,
             merchant_id: Some(value.merchant_id),
             profile_id: Some(value.profile_id),
@@ -1187,6 +1222,7 @@ where
             entity_id: Some(entity.entity_id),
             entity_type: Some(entity.entity_type),
             version: UserRoleVersion::V2,
+            tenant_id: entity.tenant_id,
         }
     }
 
@@ -1196,7 +1232,7 @@ where
         let new_v2_role = self.convert_to_new_v2_role(entity.into());
 
         state
-            .store
+            .global_store
             .insert_user_role(new_v2_role)
             .await
             .change_context(UserErrors::InternalServerError)

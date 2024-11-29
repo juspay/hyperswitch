@@ -151,7 +151,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        connector_transaction_id: &str,
+        connector_transaction_id: &ConnectorTransactionId,
         payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
@@ -215,8 +215,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
-    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -235,6 +235,36 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
+    }
+
+    #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_txn_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentAttempt::find_by_profile_id_connector_transaction_id(
+            &conn,
+            profile_id,
+            connector_txn_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(er.current_context());
+            er.change_context(new_err)
+        })?
+        .convert(
+            key_manager_state,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[cfg(feature = "v1")]
@@ -375,7 +405,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        attempt_id: &str,
+        attempt_id: &common_utils::id_type::GlobalAttemptId,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -756,7 +786,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        connector_transaction_id: &str,
+        connector_transaction_id: &ConnectorTransactionId,
         payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
@@ -781,8 +811,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
                 let lookup_id = format!(
-                    "pa_conn_trans_{}_{connector_transaction_id}",
-                    merchant_id.get_string_repr()
+                    "pa_conn_trans_{}_{}",
+                    merchant_id.get_string_repr(),
+                    connector_transaction_id.get_id()
                 );
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
@@ -933,8 +964,29 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
-    #[cfg(feature = "v1")]
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
+        &self,
+        key_manager_state: &KeyManagerState,
+        merchant_key_store: &MerchantKeyStore,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_transaction_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, errors::StorageError> {
+        // Ignoring storage scheme for v2 implementation
+        self.router_store
+            .find_payment_attempt_by_profile_id_connector_transaction_id(
+                key_manager_state,
+                merchant_key_store,
+                profile_id,
+                connector_transaction_id,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[instrument(skip_all)]
+    #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -1132,7 +1184,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         &self,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &MerchantKeyStore,
-        attempt_id: &str,
+        attempt_id: &common_utils::id_type::GlobalAttemptId,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         // Ignoring storage scheme for v2 implementation

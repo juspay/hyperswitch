@@ -339,6 +339,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CreateCustomerProfileRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -399,6 +400,7 @@ impl<F, T>
                                 ),
                             payment_method_id: None,
                             mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
                         },
                     )),
                     connector_metadata: None,
@@ -525,6 +527,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::MandatePayment
                     | domain::PaymentMethodData::Reward
                     | domain::PaymentMethodData::RealTimePayment(_)
+                    | domain::PaymentMethodData::MobilePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
@@ -586,6 +589,7 @@ impl
                 | domain::PaymentMethodData::MandatePayment
                 | domain::PaymentMethodData::Reward
                 | domain::PaymentMethodData::RealTimePayment(_)
+                | domain::PaymentMethodData::MobilePayment(_)
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::Voucher(_)
                 | domain::PaymentMethodData::GiftCard(_)
@@ -647,7 +651,7 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let mandate_id = connector_mandate_id
-            .connector_mandate_id
+            .get_connector_mandate_id()
             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
         Ok(Self {
             transaction_type: TransactionType::try_from(item.router_data.request.capture_method)?,
@@ -1113,6 +1117,7 @@ impl<F, T>
                         ),
                         payment_method_id: None,
                         mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     }
                 });
 

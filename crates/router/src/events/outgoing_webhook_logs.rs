@@ -26,8 +26,14 @@ pub struct OutgoingWebhookEvent {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "outgoing_webhook_event_type", rename_all = "snake_case")]
 pub enum OutgoingWebhookEventContent {
+    #[cfg(feature = "v1")]
     Payment {
         payment_id: common_utils::id_type::PaymentId,
+        content: Value,
+    },
+    #[cfg(feature = "v2")]
+    Payment {
+        payment_id: common_utils::id_type::GlobalPaymentId,
         content: Value,
     },
     Payout {
@@ -61,11 +67,51 @@ pub enum OutgoingWebhookEventContent {
 pub trait OutgoingWebhookEventMetric {
     fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent>;
 }
+
+#[cfg(feature = "v1")]
 impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
     fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent> {
         match self {
             Self::PaymentDetails(payment_payload) => Some(OutgoingWebhookEventContent::Payment {
                 payment_id: payment_payload.payment_id.clone(),
+                content: masking::masked_serialize(&payment_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
+            }),
+            Self::RefundDetails(refund_payload) => Some(OutgoingWebhookEventContent::Refund {
+                payment_id: refund_payload.payment_id.clone(),
+                refund_id: refund_payload.get_refund_id_as_string(),
+                content: masking::masked_serialize(&refund_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
+            }),
+            Self::DisputeDetails(dispute_payload) => Some(OutgoingWebhookEventContent::Dispute {
+                payment_id: dispute_payload.payment_id.clone(),
+                attempt_id: dispute_payload.attempt_id.clone(),
+                dispute_id: dispute_payload.dispute_id.clone(),
+                content: masking::masked_serialize(&dispute_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
+            }),
+            Self::MandateDetails(mandate_payload) => Some(OutgoingWebhookEventContent::Mandate {
+                payment_method_id: mandate_payload.payment_method_id.clone(),
+                mandate_id: mandate_payload.mandate_id.clone(),
+                content: masking::masked_serialize(&mandate_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
+            }),
+            #[cfg(feature = "payouts")]
+            Self::PayoutDetails(payout_payload) => Some(OutgoingWebhookEventContent::Payout {
+                payout_id: payout_payload.payout_id.clone(),
+                content: masking::masked_serialize(&payout_payload)
+                    .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
+    fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent> {
+        match self {
+            Self::PaymentDetails(payment_payload) => Some(OutgoingWebhookEventContent::Payment {
+                payment_id: payment_payload.id.clone(),
                 content: masking::masked_serialize(&payment_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),

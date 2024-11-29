@@ -94,6 +94,8 @@ pub enum UserErrors {
     MaxTotpAttemptsReached,
     #[error("Maximum attempts reached for Recovery Code")]
     MaxRecoveryCodeAttemptsReached,
+    #[error("Forbidden tenant id")]
+    ForbiddenTenantId,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -239,6 +241,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MaxRecoveryCodeAttemptsReached => {
                 AER::BadRequest(ApiError::new(sub_code, 49, self.get_error_message(), None))
             }
+            Self::ForbiddenTenantId => {
+                AER::BadRequest(ApiError::new(sub_code, 50, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -289,6 +294,7 @@ impl UserErrors {
             Self::AuthConfigParsingError => "Auth config parsing error",
             Self::SSOFailed => "Invalid SSO request",
             Self::JwtProfileIdMissing => "profile_id missing in JWT",
+            Self::ForbiddenTenantId => "Forbidden tenant id",
         }
     }
 }

@@ -245,6 +245,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -618,7 +619,7 @@ impl
                 PaymentSolution::ApplePay | PaymentSolution::SamsungPay => network
                     .as_ref()
                     .map(|card_network| match card_network.to_lowercase().as_str() {
-                        "amex" => "aesk",
+                        "amex" => "internet",
                         "discover" => "dipb",
                         "mastercard" => "spa",
                         "visa" => "internet",
@@ -1117,12 +1118,16 @@ fn build_bill_to(
     Ok(address_details
         .and_then(|addr| {
             addr.address.as_ref().map(|addr| BillTo {
-                first_name: addr.first_name.clone(),
-                last_name: addr.last_name.clone(),
-                address1: addr.line1.clone(),
-                locality: addr.city.clone(),
-                administrative_area: addr.to_state_code_as_optional().ok().flatten(),
-                postal_code: addr.zip.clone(),
+                first_name: addr.first_name.remove_new_line(),
+                last_name: addr.last_name.remove_new_line(),
+                address1: addr.line1.remove_new_line(),
+                locality: addr.city.remove_new_line(),
+                administrative_area: addr
+                    .to_state_code_as_optional()
+                    .ok()
+                    .flatten()
+                    .remove_new_line(),
+                postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
                 email,
             })
@@ -1966,6 +1971,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     | domain::PaymentMethodData::Crypto(_)
                     | domain::PaymentMethodData::Reward
                     | domain::PaymentMethodData::RealTimePayment(_)
+                    | domain::PaymentMethodData::MobilePayment(_)
                     | domain::PaymentMethodData::Upi(_)
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
@@ -2077,6 +2083,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -2555,6 +2562,7 @@ fn get_payment_response(
                             .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                         mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
                     });
 
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -2803,6 +2811,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsPreProcessingRouterData>>
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -2918,6 +2927,7 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsCompleteAuthorizeRouterData>
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -3283,6 +3293,7 @@ impl
                         .map(|payment_instrument| payment_instrument.id.expose()),
                     payment_method_id: None,
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 });
         let mut mandate_status = enums::AttemptStatus::foreign_from((
             item.response
@@ -4050,5 +4061,24 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         //"042" is the type code for Masetro Cards(International). For Maestro Cards(UK-Domestic) the mapping should be "024"
         common_enums::CardNetwork::Maestro => Some("042"),
         common_enums::CardNetwork::Interac | common_enums::CardNetwork::RuPay => None,
+    }
+}
+
+pub trait RemoveNewLine {
+    fn remove_new_line(&self) -> Self;
+}
+
+impl RemoveNewLine for Option<Secret<String>> {
+    fn remove_new_line(&self) -> Self {
+        self.clone().map(|masked_value| {
+            let new_string = masked_value.expose().replace("\n", " ");
+            Secret::new(new_string)
+        })
+    }
+}
+
+impl RemoveNewLine for Option<String> {
+    fn remove_new_line(&self) -> Self {
+        self.clone().map(|value| value.replace("\n", " "))
     }
 }

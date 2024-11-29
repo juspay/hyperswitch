@@ -569,6 +569,10 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let first_attempt: Option<bool> = row.try_get("first_attempt").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
         Ok(Self {
             currency,
             status,
@@ -584,6 +588,7 @@ impl<'a> FromRow<'a, PgRow> for super::payments::filters::PaymentFilterRow {
             card_last_4,
             card_issuer,
             error_reason,
+            first_attempt,
         })
     }
 }
@@ -601,6 +606,45 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::metrics::PaymentIntentMe
                 e => Err(e),
             })?;
         let profile_id: Option<String> = row.try_get("profile_id").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let connector: Option<String> = row.try_get("connector").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let authentication_type: Option<DBEnumWrapper<AuthenticationType>> =
+            row.try_get("authentication_type").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let payment_method: Option<String> =
+            row.try_get("payment_method").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let payment_method_type: Option<String> =
+            row.try_get("payment_method_type").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let card_network: Option<String> = row.try_get("card_network").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let merchant_id: Option<String> = row.try_get("merchant_id").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let card_last_4: Option<String> = row.try_get("card_last_4").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let card_issuer: Option<String> = row.try_get("card_issuer").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let error_reason: Option<String> = row.try_get("error_reason").or_else(|e| match e {
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
@@ -627,6 +671,15 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::metrics::PaymentIntentMe
             status,
             currency,
             profile_id,
+            connector,
+            authentication_type,
+            payment_method,
+            payment_method_type,
+            card_network,
+            merchant_id,
+            card_last_4,
+            card_issuer,
+            error_reason,
             first_attempt,
             total,
             count,
@@ -652,10 +705,63 @@ impl<'a> FromRow<'a, PgRow> for super::payment_intents::filters::PaymentIntentFi
             ColumnNotFound(_) => Ok(Default::default()),
             e => Err(e),
         })?;
+        let connector: Option<String> = row.try_get("connector").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let authentication_type: Option<DBEnumWrapper<AuthenticationType>> =
+            row.try_get("authentication_type").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let payment_method: Option<String> =
+            row.try_get("payment_method").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let payment_method_type: Option<String> =
+            row.try_get("payment_method_type").or_else(|e| match e {
+                ColumnNotFound(_) => Ok(Default::default()),
+                e => Err(e),
+            })?;
+        let card_network: Option<String> = row.try_get("card_network").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let merchant_id: Option<String> = row.try_get("merchant_id").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let card_last_4: Option<String> = row.try_get("card_last_4").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let card_issuer: Option<String> = row.try_get("card_issuer").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let error_reason: Option<String> = row.try_get("error_reason").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
+        let customer_id: Option<String> = row.try_get("customer_id").or_else(|e| match e {
+            ColumnNotFound(_) => Ok(Default::default()),
+            e => Err(e),
+        })?;
         Ok(Self {
             status,
             currency,
             profile_id,
+            connector,
+            authentication_type,
+            payment_method,
+            payment_method_type,
+            card_network,
+            merchant_id,
+            card_last_4,
+            card_issuer,
+            error_reason,
+            customer_id,
         })
     }
 }
@@ -826,6 +932,8 @@ impl ToSql<SqlxClient> for AnalyticsCollection {
             Self::OutgoingWebhookEvent => Err(error_stack::report!(ParsingError::UnknownError)
                 .attach_printable("OutgoingWebhookEvents table is not implemented for Sqlx"))?,
             Self::Dispute => Ok("dispute".to_string()),
+            Self::DisputeSessionized => Err(error_stack::report!(ParsingError::UnknownError)
+                .attach_printable("DisputeSessionized table is not implemented for Sqlx"))?,
         }
     }
 }

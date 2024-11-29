@@ -406,6 +406,9 @@ pub fn payments_connector_session() {}
 #[utoipa::path(
     post,
     path = "/v2/payments/{payment_id}/create-external-sdk-tokens",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
     request_body=PaymentsSessionRequest,
     responses(
         (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
@@ -620,7 +623,7 @@ pub fn payments_post_session_tokens() {}
       ),
   ),
   responses(
-      (status = 200, description = "Payment created", body = PaymentsCreateIntentResponse),
+      (status = 200, description = "Payment created", body = PaymentsIntentResponse),
       (status = 400, description = "Missing Mandatory fields")
   ),
   tag = "Payments",
@@ -630,6 +633,25 @@ pub fn payments_post_session_tokens() {}
 #[cfg(feature = "v2")]
 pub fn payments_create_intent() {}
 
+/// Payments - Get Intent
+///
+/// **Get a payment intent object when id is passed in path**
+///
+/// You will require the 'API - Key' from the Hyperswitch dashboard to make the call.
+#[utoipa::path(
+  get,
+  path = "/v2/payments/{id}/get-intent",
+  params (("id" = String, Path, description = "The unique identifier for the Payment Intent")),
+  responses(
+      (status = 200, description = "Payment Intent", body = PaymentsIntentResponse),
+      (status = 404, description = "Payment Intent not found")
+  ),
+  tag = "Payments",
+  operation_id = "Get the Payment Intent details",
+  security(("api_key" = [])),
+)]
+#[cfg(feature = "v2")]
+pub fn payments_get_intent() {}
 /// Payments - Confirm Intent
 ///
 /// **Confirms a payment intent object with the payment method data**
@@ -669,3 +691,33 @@ pub fn payments_create_intent() {}
 )]
 #[cfg(feature = "v2")]
 pub fn payments_confirm_intent() {}
+
+/// Payments - Get
+///
+/// Retrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment
+#[utoipa::path(
+    get,
+    path = "/v2/payments/{id}",
+    params(
+        ("id" = String, Path, description = "The global payment id"),
+        ("force_sync" = ForceSync, Query, description = "A boolean to indicate whether to force sync the payment status. Value can be true or false")
+    ),
+    responses(
+        (status = 200, description = "Gets the payment with final status", body = PaymentsRetrieveResponse),
+        (status = 404, description = "No payment found with the given id")
+    ),
+    tag = "Payments",
+    operation_id = "Retrieve a Payment",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub fn payment_status() {}
+
+#[derive(utoipa::ToSchema)]
+#[schema(rename_all = "lowercase")]
+pub(crate) enum ForceSync {
+    /// Force sync with the connector / processor to update the status
+    True,
+    /// Do not force sync with the connector / processor. Get the status which is available in the database
+    False,
+}

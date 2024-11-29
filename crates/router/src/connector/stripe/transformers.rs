@@ -697,6 +697,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Alma
             | enums::PaymentMethodType::ClassicReward
             | enums::PaymentMethodType::Dana
+            | enums::PaymentMethodType::DirectCarrierBilling
             | enums::PaymentMethodType::Efecty
             | enums::PaymentMethodType::Evoucher
             | enums::PaymentMethodType::GoPay
@@ -1344,6 +1345,7 @@ fn create_stripe_payment_method(
 
         domain::PaymentMethodData::Upi(_)
         | domain::PaymentMethodData::RealTimePayment(_)
+        | domain::PaymentMethodData::MobilePayment(_)
         | domain::PaymentMethodData::MandatePayment
         | domain::PaymentMethodData::OpenBanking(_)
         | domain::PaymentMethodData::CardToken(_)
@@ -1709,7 +1711,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                     connector_mandate_ids,
                 )) => (
                     None,
-                    connector_mandate_ids.connector_mandate_id,
+                    connector_mandate_ids.get_connector_mandate_id(),
                     StripeBillingAddress::default(),
                     get_payment_method_type_for_saved_payment_method_payment(item)?,
                 ),
@@ -1757,6 +1759,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
                         | domain::payments::PaymentMethodData::MandatePayment
                         | domain::payments::PaymentMethodData::Reward
                         | domain::payments::PaymentMethodData::RealTimePayment(_)
+                        | domain::payments::PaymentMethodData::MobilePayment(_)
                         | domain::payments::PaymentMethodData::Upi(_)
                         | domain::payments::PaymentMethodData::Voucher(_)
                         | domain::payments::PaymentMethodData::GiftCard(_)
@@ -2450,6 +2453,7 @@ impl<F, T>
                 connector_mandate_id,
                 payment_method_id,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             }
         });
 
@@ -2655,6 +2659,7 @@ impl<F, T>
                     connector_mandate_id,
                     payment_method_id: Some(payment_method_id),
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 }
             });
 
@@ -2746,6 +2751,7 @@ impl<F, T>
                 connector_mandate_id,
                 payment_method_id,
                 mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
             }
         });
         let status = enums::AttemptStatus::from(item.response.status);
@@ -3371,6 +3377,7 @@ impl
             | Some(domain::PaymentMethodData::Crypto(..))
             | Some(domain::PaymentMethodData::Reward)
             | Some(domain::PaymentMethodData::RealTimePayment(..))
+            | Some(domain::PaymentMethodData::MobilePayment(..))
             | Some(domain::PaymentMethodData::MandatePayment)
             | Some(domain::PaymentMethodData::Upi(..))
             | Some(domain::PaymentMethodData::GiftCard(..))
@@ -3633,7 +3640,8 @@ pub struct WebhookEventObjectData {
     pub id: String,
     pub object: WebhookEventObjectType,
     pub amount: Option<i32>,
-    pub currency: String,
+    #[serde(default, deserialize_with = "connector_util::convert_uppercase")]
+    pub currency: enums::Currency,
     pub payment_intent: Option<String>,
     pub client_secret: Option<Secret<String>>,
     pub reason: Option<String>,
@@ -3828,6 +3836,7 @@ impl
             | domain::PaymentMethodData::Crypto(_)
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::GiftCard(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::CardRedirect(_)

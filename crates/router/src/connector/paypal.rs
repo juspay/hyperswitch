@@ -17,7 +17,8 @@ use transformers as paypal;
 
 use self::transformers::{auth_headers, PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
 use super::utils::{
-    ConnectorErrorType, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+    ConnectorErrorType, PaymentMethodDataType, PaymentsAuthorizeRequestData,
+    PaymentsCompleteAuthorizeRequestData,
 };
 use crate::{
     configs::settings,
@@ -332,6 +333,18 @@ impl ConnectorValidation for Paypal {
             ),
         }
     }
+    fn validate_mandate_payment(
+        &self,
+        pm_type: Option<types::storage::enums::PaymentMethodType>,
+        pm_data: domain::PaymentMethodData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let mandate_supported_pmd = std::collections::HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::PaypalSdk,
+        ]);
+        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+    }
 }
 
 impl
@@ -639,19 +652,78 @@ impl
         types::PaymentsResponseData,
     > for Paypal
 {
+    fn get_headers(
+        &self,
+        req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}v3/vault/payment-tokens/",
+            self.base_url(connectors)
+        ))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::SetupMandateRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = paypal::PaypalZeroMandateRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
     fn build_request(
         &self,
-        _req: &types::RouterData<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-            types::PaymentsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Setup Mandate flow for Paypal".to_string())
-                .into(),
-        )
+        req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .set_body(types::SetupMandateType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::SetupMandateRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
+        let response: paypal::PaypalSetupMandatesResponse = res
+            .response
+            .parse_struct("PaypalSetupMandatesResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -1988,7 +2060,7 @@ impl api::IncomingWebhook for Paypal {
                         payload.dispute_amount.value.get_amount_as_string(),
                         payload.dispute_amount.currency_code,
                     )?,
-                    currency: payload.dispute_amount.currency_code.to_string(),
+                    currency: payload.dispute_amount.currency_code,
                     dispute_stage: api_models::enums::DisputeStage::from(
                         payload.dispute_life_cycle_stage.clone(),
                     ),

@@ -1,6 +1,6 @@
 use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::{id_type, types::keymanager::KeyManagerState};
 use diesel_models::enums as storage_enums;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
@@ -74,7 +74,7 @@ impl PaymentAttemptInterface for MockDb {
         &self,
         _key_manager_state: &KeyManagerState,
         _merchant_key_store: &MerchantKeyStore,
-        _attempt_id: &str,
+        _attempt_id: &id_type::GlobalAttemptId,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -97,6 +97,19 @@ impl PaymentAttemptInterface for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _connector_txn_id: &str,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PaymentAttempt, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_attempt_by_profile_id_connector_transaction_id(
+        &self,
+        _key_manager_state: &KeyManagerState,
+        _merchant_key_store: &MerchantKeyStore,
+        _profile_id: &id_type::ProfileId,
+        _connector_transaction_id: &str,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -241,7 +254,7 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        _connector_transaction_id: &str,
+        _connector_transaction_id: &common_utils::types::ConnectorTransactionId,
         _payment_id: &common_utils::id_type::PaymentId,
         _merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,

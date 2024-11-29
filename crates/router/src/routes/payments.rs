@@ -123,13 +123,13 @@ pub async fn payments_create_intent(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth: auth::AuthenticationDataV2, req, req_state| {
+        |state, auth: auth::AuthenticationData, req, req_state| {
             payments::payments_intent_core::<
-                api_types::CreateIntent,
-                payment_types::PaymentsCreateIntentResponse,
+                api_types::PaymentCreateIntent,
+                payment_types::PaymentsIntentResponse,
                 _,
                 _,
-                PaymentIntentData<api_types::CreateIntent>,
+                PaymentIntentData<api_types::PaymentCreateIntent>,
             >(
                 state,
                 req_state,
@@ -151,6 +151,57 @@ pub async fn payments_create_intent(
                 req.headers(),
             ),
         },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsGetIntent, payment_id))]
+pub async fn payments_get_intent(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    use api_models::payments::PaymentsGetIntentRequest;
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+
+    let flow = Flow::PaymentsGetIntent;
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let payload = PaymentsGetIntentRequest {
+        id: path.into_inner(),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            payments::payments_intent_core::<
+                api_types::PaymentGetIntent,
+                payment_types::PaymentsIntentResponse,
+                _,
+                _,
+                PaymentIntentData<api_types::PaymentGetIntent>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                payments::operations::PaymentGetIntent,
+                req,
+                header_payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -644,8 +695,61 @@ pub async fn payments_connector_session(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     json_payload: web::Json<payment_types::PaymentsSessionRequest>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
 ) -> impl Responder {
-    "Session Response"
+    use hyperswitch_domain_models::payments::PaymentIntentData;
+    let flow = Flow::PaymentsSessionToken;
+
+    let global_payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id,
+        payload: json_payload.into_inner(),
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let locking_action = internal_payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            let payment_id = req.global_payment_id;
+            let request = req.payload;
+            let operation = payments::operations::PaymentSessionIntent;
+            payments::payments_session_core::<
+                api_types::Session,
+                payment_types::PaymentsSessionResponse,
+                _,
+                _,
+                _,
+                PaymentIntentData<api_types::Session>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                operation,
+                request,
+                payment_id,
+                payments::CallConnectorAction::Trigger,
+                header_payload.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::PublishableKeyAuth),
+        locking_action,
+    ))
+    .await
 }
 
 #[cfg(feature = "v1")]
@@ -1735,6 +1839,16 @@ impl GetLockingInput for payment_types::PaymentsSessionRequest {
     }
 }
 
+#[cfg(feature = "v2")]
+impl GetLockingInput for payment_types::PaymentsSessionRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+    {
+        api_locking::LockAction::NotApplicable
+    }
+}
+
 #[cfg(feature = "v1")]
 impl GetLockingInput for payment_types::PaymentsDynamicTaxCalculationRequest {
     fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
@@ -1787,6 +1901,23 @@ impl GetLockingInput for payments::PaymentsRedirectResponseData {
                 }
             }
             _ => api_locking::LockAction::NotApplicable,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl GetLockingInput for payments::PaymentsRedirectResponseData {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
         }
     }
 }
@@ -2007,6 +2138,56 @@ mod internal_payload_types {
 }
 
 #[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentStartRedirection, payment_id))]
+pub async fn payments_start_redirection(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<api_models::payments::PaymentStartRedirectionParams>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentStartRedirection;
+
+    let global_payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let publishable_key = &payload.publishable_key;
+    let profile_id = &payload.profile_id;
+
+    let payment_start_redirection_request = api_models::payments::PaymentStartRedirectionRequest {
+        id: global_payment_id.clone(),
+    };
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id: global_payment_id.clone(),
+        payload: payment_start_redirection_request.clone(),
+    };
+
+    let locking_action = internal_payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payment_start_redirection_request.clone(),
+        |state, auth: auth::AuthenticationData, _req, req_state| async {
+            payments::payment_start_redirection(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                payment_start_redirection_request.clone(),
+            )
+            .await
+        },
+        &auth::PublishableKeyAndProfileIdAuth {
+            publishable_key: publishable_key.clone(),
+            profile_id: profile_id.clone(),
+        },
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirmIntent, payment_id))]
 pub async fn payment_confirm_intent(
     state: web::Data<app::AppState>,
@@ -2038,13 +2219,6 @@ pub async fn payment_confirm_intent(
         }
     };
 
-    // TODO: handle client secret auth
-    // let (auth_type, auth_flow) =
-    //     match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
-    //         Ok(auth) => auth,
-    //         Err(e) => return api::log_and_return_error_response(e),
-    //     };
-
     let locking_action = internal_payload.get_locking_input(flow.clone());
 
     Box::pin(api::server_wrap(
@@ -2052,7 +2226,7 @@ pub async fn payment_confirm_intent(
         state,
         &req,
         internal_payload,
-        |state, auth: auth::AuthenticationDataV2, req, req_state| async {
+        |state, auth: auth::AuthenticationData, req, req_state| async {
             let payment_id = req.global_payment_id;
             let request = req.payload;
 
@@ -2082,5 +2256,132 @@ pub async fn payment_confirm_intent(
         &auth::PublishableKeyAuth,
         locking_action,
     ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip(state, req), fields(flow, payment_id))]
+pub async fn payment_status(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<api_models::payments::PaymentsRetrieveRequest>,
+    path: web::Path<common_utils::id_type::GlobalPaymentId>,
+) -> impl Responder {
+    use hyperswitch_domain_models::payments::PaymentStatusData;
+
+    let flow = match payload.force_sync {
+        true => Flow::PaymentsRetrieveForceSync,
+        false => Flow::PaymentsRetrieve,
+    };
+
+    let global_payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", global_payment_id.get_string_repr());
+
+    let internal_payload = internal_payload_types::PaymentsGenericRequestWithResourceId {
+        global_payment_id,
+        payload: payload.into_inner(),
+    };
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let locking_action = internal_payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        internal_payload,
+        |state, auth: auth::AuthenticationData, req, req_state| async {
+            let payment_id = req.global_payment_id;
+            let request = req.payload;
+
+            let operation = payments::operations::PaymentGet;
+
+            Box::pin(payments::payments_core::<
+                api_types::PSync,
+                api_models::payments::PaymentsRetrieveResponse,
+                _,
+                _,
+                _,
+                PaymentStatusData<api_types::PSync>,
+            >(
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.profile,
+                auth.key_store,
+                operation,
+                request,
+                payment_id,
+                payments::CallConnectorAction::Trigger,
+                header_payload.clone(),
+            ))
+            .await
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentRead,
+            },
+            req.headers(),
+        ),
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsRedirect, payment_id))]
+pub async fn payments_finish_redirection(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: Option<web::Form<serde_json::Value>>,
+    path: web::Path<(
+        common_utils::id_type::GlobalPaymentId,
+        String,
+        common_utils::id_type::ProfileId,
+    )>,
+) -> impl Responder {
+    let flow = Flow::PaymentsRedirect;
+    let (payment_id, publishable_key, profile_id) = path.into_inner();
+    let param_string = req.query_string();
+
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let payload = payments::PaymentsRedirectResponseData {
+        payment_id,
+        json_payload: json_payload.map(|payload| payload.0),
+        query_params: param_string.to_string(),
+    };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, req_state| {
+            <payments::PaymentRedirectSync as PaymentRedirectFlow>::handle_payments_redirect_response(
+                &payments::PaymentRedirectSync {},
+                state,
+                req_state,
+                auth.merchant_account,
+                auth.key_store,
+                auth.profile,
+                req,
+            )
+        },
+        &auth::PublishableKeyAndProfileIdAuth {
+            publishable_key: publishable_key.clone(),
+            profile_id: profile_id.clone(),
+        },
+        locking_action,
+    )
     .await
 }

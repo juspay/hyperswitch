@@ -19,13 +19,13 @@ pub use api_models::payments::{
     VerifyResponse, WalletData,
 };
 #[cfg(feature = "v2")]
-pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsCreateIntentResponse};
+pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsIntentResponse};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-    CreateConnectorCustomer, CreateIntent, IncrementalAuthorization, InitPayment, PSync,
-    PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
-    Session, SetupMandate, Void,
+    CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent,
+    PaymentGetIntent, PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+    SdkSessionUpdate, Session, SetupMandate, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
@@ -45,15 +45,37 @@ pub use super::payments_v2::{
 use crate::core::errors;
 
 pub trait PaymentIdTypeExt {
+    #[cfg(feature = "v1")]
     fn get_payment_intent_id(
         &self,
     ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError>;
+
+    #[cfg(feature = "v2")]
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::GlobalPaymentId, errors::ValidationError>;
 }
 
 impl PaymentIdTypeExt for PaymentIdType {
+    #[cfg(feature = "v1")]
     fn get_payment_intent_id(
         &self,
     ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError> {
+        match self {
+            Self::PaymentIntentId(id) => Ok(id.clone()),
+            Self::ConnectorTransactionId(_)
+            | Self::PaymentAttemptId(_)
+            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "payment_id",
+            })
+            .attach_printable("Expected payment intent ID but got connector transaction ID"),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::GlobalPaymentId, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
             Self::ConnectorTransactionId(_)

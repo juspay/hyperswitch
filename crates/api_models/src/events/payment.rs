@@ -2,7 +2,8 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 #[cfg(feature = "v2")]
 use super::{
-    PaymentsConfirmIntentResponse, PaymentsCreateIntentRequest, PaymentsCreateIntentResponse,
+    PaymentStartRedirectionRequest, PaymentsConfirmIntentResponse, PaymentsCreateIntentRequest,
+    PaymentsGetIntentRequest, PaymentsIntentResponse,
 };
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -17,7 +18,7 @@ use crate::{
         ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRenderRequest,
         PaymentMethodCollectLinkRequest, PaymentMethodCollectLinkResponse,
         PaymentMethodDeleteResponse, PaymentMethodListRequest, PaymentMethodListResponse,
-        PaymentMethodResponse, PaymentMethodUpdate,
+        PaymentMethodMigrateResponse, PaymentMethodResponse, PaymentMethodUpdate,
     },
     payments::{
         self, ExtendedCardInfoResponse, PaymentIdType, PaymentListConstraints,
@@ -150,7 +151,16 @@ impl ApiEventMetric for PaymentsCreateIntentRequest {
 }
 
 #[cfg(feature = "v2")]
-impl ApiEventMetric for PaymentsCreateIntentResponse {
+impl ApiEventMetric for PaymentsGetIntentRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentsIntentResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
@@ -160,6 +170,15 @@ impl ApiEventMetric for PaymentsCreateIntentResponse {
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentsConfirmIntentResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for super::PaymentsRetrieveResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),
@@ -177,11 +196,47 @@ impl ApiEventMetric for PaymentsResponse {
 }
 
 impl ApiEventMetric for PaymentMethodResponse {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::PaymentMethod {
             payment_method_id: self.payment_method_id.clone(),
             payment_method: self.payment_method,
             payment_method_type: self.payment_method_type,
+        })
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.payment_method_id.clone(),
+            payment_method: self.payment_method_type,
+            payment_method_type: self.payment_method_subtype,
+        })
+    }
+}
+
+impl ApiEventMetric for PaymentMethodMigrateResponse {
+    #[cfg(all(
+        any(feature = "v1", feature = "v2"),
+        not(feature = "payment_methods_v2")
+    ))]
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.payment_method_response.payment_method_id.clone(),
+            payment_method: self.payment_method_response.payment_method,
+            payment_method_type: self.payment_method_response.payment_method_type,
+        })
+    }
+
+    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::PaymentMethod {
+            payment_method_id: self.payment_method_response.payment_method_id.clone(),
+            payment_method: self.payment_method_response.payment_method_type,
+            payment_method_type: self.payment_method_response.payment_method_subtype,
         })
     }
 }
@@ -347,11 +402,19 @@ impl ApiEventMetric for PaymentsManualUpdateResponse {
     }
 }
 
-#[cfg(feature = "v1")]
 impl ApiEventMetric for PaymentsSessionResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.payment_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for PaymentStartRedirectionRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
         })
     }
 }

@@ -9,6 +9,8 @@ use crate::enums as storage_enums;
 use crate::schema::payment_intent;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_intent;
+#[cfg(feature = "v2")]
+use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
@@ -31,12 +33,12 @@ pub struct PaymentIntent {
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub client_secret: common_utils::types::ClientSecret,
-    pub active_attempt_id: Option<String>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<masking::Secret<OrderDetailsWithAmount>>)]
+    pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
     pub attempt_count: i16,
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_link_id: Option<String>,
@@ -70,6 +72,7 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 #[cfg(feature = "v1")]
@@ -134,6 +137,7 @@ pub struct PaymentIntent {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
@@ -150,6 +154,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub display_sdk_only: Option<bool>,
     /// Enable saved payment method option for payment link
     pub enabled_saved_payment_method: Option<bool>,
+    /// Hide card nickname field option for payment link
+    pub hide_card_nickname_field: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
 }
@@ -205,7 +211,7 @@ impl TaxDetails {
     }
 
     /// Get the default tax amount
-    fn get_default_tax_amount(&self) -> Option<MinorUnit> {
+    pub fn get_default_tax_amount(&self) -> Option<MinorUnit> {
         self.default
             .as_ref()
             .map(|default_tax_details| default_tax_details.order_tax_amount)
@@ -248,12 +254,12 @@ pub struct PaymentIntentNew {
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub client_secret: common_utils::types::ClientSecret,
-    pub active_attempt_id: Option<String>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
+    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<masking::Secret<OrderDetailsWithAmount>>)]
+    pub order_details: Option<Vec<masking::Secret<OrderDetailsWithAmount>>>,
     pub allowed_payment_method_types: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
-    pub feature_metadata: Option<pii::SecretSerdeValue>,
+    pub feature_metadata: Option<FeatureMetadata>,
     pub attempt_count: i16,
     pub profile_id: common_utils::id_type::ProfileId,
     pub payment_link_id: Option<String>,
@@ -348,6 +354,7 @@ pub struct PaymentIntentNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 #[cfg(feature = "v2")]
@@ -356,6 +363,7 @@ pub enum PaymentIntentUpdate {
     /// Update the payment intent details on payment intent confirmation, before calling the connector
     ConfirmIntent {
         status: storage_enums::IntentStatus,
+        active_attempt_id: common_utils::id_type::GlobalAttemptId,
         updated_by: String,
     },
     /// Update the payment intent details on payment intent confirmation, after calling the connector
@@ -518,7 +526,7 @@ pub struct PaymentIntentUpdateInternal {
     // pub setup_future_usage: Option<storage_enums::FutureUsage>,
     // pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
-    // pub active_attempt_id: Option<String>,
+    pub active_attempt_id: Option<common_utils::id_type::GlobalAttemptId>,
     // pub description: Option<String>,
     // pub statement_descriptor: Option<String>,
     // #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
@@ -592,7 +600,7 @@ impl PaymentIntentUpdate {
             // setup_future_usage,
             // metadata,
             modified_at: _,
-            // active_attempt_id,
+            active_attempt_id,
             // description,
             // statement_descriptor,
             // order_details,
@@ -618,7 +626,7 @@ impl PaymentIntentUpdate {
             // setup_future_usage: setup_future_usage.or(source.setup_future_usage),
             // metadata: metadata.or(source.metadata),
             modified_at: common_utils::date_time::now(),
-            // active_attempt_id: active_attempt_id.unwrap_or(source.active_attempt_id),
+            active_attempt_id: active_attempt_id.or(source.active_attempt_id),
             // description: description.or(source.description),
             // statement_descriptor: statement_descriptor.or(source.statement_descriptor),
             // order_details: order_details.or(source.order_details),
@@ -733,13 +741,19 @@ impl PaymentIntentUpdate {
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
-            PaymentIntentUpdate::ConfirmIntent { status, updated_by } => Self {
+            PaymentIntentUpdate::ConfirmIntent {
+                status,
+                active_attempt_id,
+                updated_by,
+            } => Self {
                 status: Some(status),
+                active_attempt_id: Some(active_attempt_id),
                 modified_at: common_utils::date_time::now(),
                 updated_by,
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
                 status: Some(status),
+                active_attempt_id: None,
                 modified_at: common_utils::date_time::now(),
                 updated_by,
             },

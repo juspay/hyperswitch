@@ -252,6 +252,7 @@ impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
                     connector_mandate_id: Some(buyer_key.expose()),
                     payment_method_id: None,
                     mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
                 }
             })),
             connector_metadata: None,
@@ -429,6 +430,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
@@ -677,6 +679,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -744,6 +747,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
             | Some(PaymentMethodData::MandatePayment)
             | Some(PaymentMethodData::Reward)
             | Some(PaymentMethodData::RealTimePayment(_))
+            | Some(PaymentMethodData::MobilePayment(_))
             | Some(PaymentMethodData::Upi(_))
             | Some(PaymentMethodData::Voucher(_))
             | Some(PaymentMethodData::GiftCard(_))
@@ -786,6 +790,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
