@@ -17,7 +17,7 @@ export const card_credit_enabled = [
         minimum_amount: 0,
         accepted_currencies: {
           type: "enable_only",
-          list: ["USD",],
+          list: ["USD"],
         },
         maximum_amount: 68607706,
         recurring_enabled: false,
