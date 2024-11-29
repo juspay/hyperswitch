@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use api_models::admin::MerchantConnectorInfo;
 use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
-    types::{ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit},
+    types::{ConnectorTransactionId, MinorUnit},
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
@@ -446,7 +446,7 @@ pub async fn refund_retrieve_core(
 
     let payment_attempt = db
         .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
-            refund.get_connector_transaction_id(),
+            &refund.connector_transaction_id,
             payment_id,
             merchant_id,
             merchant_account.storage_scheme,
@@ -1451,7 +1451,7 @@ pub async fn trigger_refund_execute_workflow(
 
             let payment_attempt = db
                 .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
-                    refund.get_connector_transaction_id(),
+                    &refund.connector_transaction_id,
                     &refund_core.payment_id,
                     &refund.merchant_id,
                     merchant_account.storage_scheme,
