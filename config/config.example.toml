@@ -252,6 +252,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
+redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -403,6 +404,7 @@ two_factor_auth_expiry_in_secs = 300 # Number of seconds after which 2FA should 
 totp_issuer_name = "Hyperswitch"     # Name of the issuer for TOTP
 base_url = ""                        # Base url used for user specific redirects and emails
 force_two_factor_auth = false        # Whether to force two factor authentication for all users
+force_cookies = true                 # Whether to use only cookies for JWT extraction and authentication
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
@@ -786,6 +788,10 @@ check_token_status_url= ""    # base url to check token status from token servic
 [network_tokenization_supported_connectors]
 connector_list = "cybersource" # Supported connectors for network tokenization
 
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource" # Supported connectors for network transaction id
+
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
 port = 7000        # Client Port
+service = "dynamo" # Service name

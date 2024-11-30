@@ -14432,14 +14432,17 @@
         ],
         "properties": {
           "organization_name": {
-            "type": "string"
+            "type": "string",
+            "description": "Name of the organization"
           },
           "organization_details": {
             "type": "object",
+            "description": "Details about the organization",
             "nullable": true
           },
           "metadata": {
             "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           }
         },
@@ -14455,20 +14458,24 @@
         "properties": {
           "organization_id": {
             "type": "string",
+            "description": "The unique identifier for the Organization",
             "example": "org_q98uSGAYbjEwqs0mJwnz",
             "maxLength": 64,
             "minLength": 1
           },
           "organization_name": {
             "type": "string",
+            "description": "Name of the Organization",
             "nullable": true
           },
           "organization_details": {
             "type": "object",
+            "description": "Details about the organization",
             "nullable": true
           },
           "metadata": {
             "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "modified_at": {
@@ -14486,14 +14493,17 @@
         "properties": {
           "organization_name": {
             "type": "string",
+            "description": "Name of the organization",
             "nullable": true
           },
           "organization_details": {
             "type": "object",
+            "description": "Details about the organization",
             "nullable": true
           },
           "metadata": {
             "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           }
         },
@@ -15170,7 +15180,8 @@
           "sdk_layout",
           "display_sdk_only",
           "enabled_saved_payment_method",
-          "hide_card_nickname_field"
+          "hide_card_nickname_field",
+          "show_card_form_by_default"
         ],
         "properties": {
           "theme": {
@@ -15200,6 +15211,10 @@
           "hide_card_nickname_field": {
             "type": "boolean",
             "description": "Hide card nickname field option for payment link"
+          },
+          "show_card_form_by_default": {
+            "type": "boolean",
+            "description": "Show card form by default for payment link"
           },
           "allowed_domains": {
             "type": "array",
@@ -15269,6 +15284,13 @@
             "type": "boolean",
             "description": "Hide card nickname field option for payment link",
             "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "show_card_form_by_default": {
+            "type": "boolean",
+            "description": "Show card form by default for payment link",
+            "default": true,
             "example": true,
             "nullable": true
           },

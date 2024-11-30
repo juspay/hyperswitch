@@ -280,6 +280,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Razorpay => Self::Razorpay,
+            // api_enums::Connector::Redsys => Self::Redsys,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -1944,6 +1945,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
             hide_card_nickname_field: item.hide_card_nickname_field,
+            show_card_form_by_default: item.show_card_form_by_default,
         }
     }
 }
@@ -1960,6 +1962,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
             hide_card_nickname_field: item.hide_card_nickname_field,
+            show_card_form_by_default: item.show_card_form_by_default,
             transaction_details: None,
         }
     }

@@ -78,15 +78,17 @@ const payment_method_data_3ds = {
   billing: null
 };
 
-const singleUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
+const offileCustomerAcceptance = {
+  acceptance_type: "offline",
+  accepted_at: "1963-05-03T04:07:52.723Z",
+  online: {
+    ip_address: "125.0.0.1",
+    user_agent: "amet irure esse",
   },
+};
+
+const singleUseMandateData = {
+  customer_acceptance: offileCustomerAcceptance,
   mandate_type: {
     single_use: {
       amount: 8000,
@@ -102,7 +104,8 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-      }, Response: {
+      },
+      Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
@@ -117,7 +120,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
         },
-        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         billing: billing,
@@ -127,7 +129,7 @@ export const connectorDetails = {
         body: {
           status: "requires_capture",
           payment_method: "card",
-          payment_method_type: "debit",
+          payment_method_type: "credit",
           attempt_count: 1,
           payment_method_data: paymentMethodDataNoThreeDsResponse,
         },
@@ -140,16 +142,15 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
         },
-        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           payment_method: "card",
-          payment_method_type: "debit",
+          payment_method_type: "credit",
           attempt_count: 1,
           payment_method_data: paymentMethodDataNoThreeDsResponse,
         },
@@ -168,9 +169,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           amount: 6500,
-          amount_capturable: 6500,
+          amount_capturable: 0,
         },
       },
     },
@@ -187,9 +188,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "partially_captured",
           amount: 6500,
-          amount_capturable: 6500,
+          amount_capturable: 0,
         },
       },
     },
@@ -226,23 +227,38 @@ export const connectorDetails = {
         },
         currency: "USD",
         setup_future_usage: "on_session",
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: offileCustomerAcceptance,
       },
       Response: {
-        status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Missing required param: payment_method_data",
-            code: "IR_04"
-          }
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardUseNo3DSManualCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: offileCustomerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    SaveCardConfirmManualCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },
@@ -255,21 +271,42 @@ export const connectorDetails = {
         currency: "USD",
         setup_future_usage: "on_session",
         browser_info,
-        customer_acceptance: {
-          acceptance_type: "offline",
-          accepted_at: "1963-05-03T04:07:52.723Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "amet irure esse",
-          },
-        },
+        customer_acceptance: offileCustomerAcceptance,
       },
       Response: {
         status: 200,
         body: {
-          status: "processing"
+          status: "succeeded"
         },
       }
+    },
+    SaveCardUseNo3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: offileCustomerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SaveCardConfirmAutoCaptureOffSession: {
+      Request: {
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
     },
     "3DSManualCapture": {
       Request: {
@@ -278,7 +315,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDsTestCardDetailsRequest,
         },
-        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
         browser_info,
@@ -313,10 +349,6 @@ export const connectorDetails = {
         },
       },
     },
-
-    /**
-     * Variation cases
-     */
     CaptureCapturedAmount: {
       Request: {
         Request: {
@@ -334,7 +366,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
+              "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
             code: "IR_14",
           },
         },
@@ -346,7 +378,6 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
         },
-        currency: "USD",
         customer_acceptance: null,
       },
       Response: {
@@ -355,37 +386,17 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "You cannot confirm this payment because it has status processing",
+              "You cannot confirm this payment because it has status succeeded",
             code: "IR_16",
           },
         },
       },
     },
-
-    /**
-     * Not implemented or not ready for running test cases
-     * - Refunds
-     * - Mandates
-     */
     Refund: {
       Request: {},
       Response: {
         body: {
-          error: {
-            type: "invalid_request",
-            message: "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14"
-          }
-        }
-      },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
+          status: "succeeded"
         },
       },
     },
@@ -393,11 +404,35 @@ export const connectorDetails = {
       Request: {},
       Response: {
         body: {
-          error: {
-            type: "invalid_request",
-            message: "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14"
-          }
+          status: "succeeded"
+        }
+      }
+    },
+    manualPaymentRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        currency: "USD",
+      },
+      Response: {
+        body: {
+          status: "succeeded"
+        }
+      }
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        currency: "USD",
+      },
+      Response: {
+        body: {
+          status: "succeeded"
         }
       }
     },
@@ -405,13 +440,73 @@ export const connectorDetails = {
       Request: {},
       Response: {
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Refund does not exist in our records.",
-            code: "HE_02"
-          }
+          status: "succeeded"
         }
       }
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
     },
     ZeroAuthMandate: {
       Request: {
@@ -423,12 +518,116 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
       Response: {
+        trigger_skip: true,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Setup Mandate flow for Worldpay is not implemented",
-            code: "IR_00"
-          }
+          error_code: "internalErrorOccurred",
+          error_message: "We cannot currently process your request. Please contact support.",
+          status: "failed",
+          payment_method_id: null
+        },
+      },
+    },
+    ZeroAuthPaymentIntent: {
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    ZeroAuthConfirmPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        trigger_skip: true,
+        status: 200,
+        body: {
+          error_code: "internalErrorOccurred",
+          error_message: "We cannot currently process your request. Please contact support.",
+          status: "failed",
+          payment_method_id: null
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: offileCustomerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: offileCustomerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDsTestCardDetailsRequest,
+        },
+        currency: "USD",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: offileCustomerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDsTestCardDetailsRequest,
+        },
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: offileCustomerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },

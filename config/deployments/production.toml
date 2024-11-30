@@ -97,6 +97,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://api.juspay.in"
+redsys.base_url = "https://sis.redsys.es:25443/sis/realizarPago"
 riskified.base_url = "https://wh.riskified.com/api/"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -152,6 +153,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Production"
 base_url = "https://live.hyperswitch.io"
 force_two_factor_auth = true
+force_cookies = false
 
 [frm]
 enabled = false
@@ -175,6 +177,8 @@ bank_redirect.giropay.connector_list = "adyen,globalpay,multisafepay"        # M
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card 
 card.debit = { connector_list = "cybersource" }             # Update Mandate supported payment method type and connector for card 
 
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource"
 
 [payouts]
 payout_eligibility = true            # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility

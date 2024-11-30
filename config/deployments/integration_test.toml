@@ -93,6 +93,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
+redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
 riskified.base_url = "https://sandbox.riskified.com/api"
@@ -145,6 +146,7 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch Integ"
 base_url = "https://integ.hyperswitch.io"
 force_two_factor_auth = false
+force_cookies = true
 
 [frm]
 enabled = true

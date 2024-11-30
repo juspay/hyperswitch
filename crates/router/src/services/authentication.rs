@@ -273,6 +273,7 @@ pub struct UserFromToken {
 
 pub struct UserIdFromAuth {
     pub user_id: String,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 #[cfg(feature = "olap")]
@@ -858,6 +859,49 @@ where
             Ok((
                 UserIdFromAuth {
                     user_id: payload.user_id.clone(),
+                    tenant_id: payload.tenant_id,
+                },
+                AuthenticationType::SinglePurposeOrLoginJwt {
+                    user_id: payload.user_id,
+                    purpose: payload.purpose,
+                    role_id: payload.role_id,
+                },
+            ))
+        } else {
+            Err(errors::ApiErrorResponse::InvalidJwtToken.into())
+        }
+    }
+}
+
+#[cfg(feature = "olap")]
+#[derive(Debug)]
+pub struct AnyPurposeOrLoginTokenAuth;
+
+#[cfg(feature = "olap")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserIdFromAuth, A> for AnyPurposeOrLoginTokenAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserIdFromAuth, AuthenticationType)> {
+        let payload =
+            parse_jwt_payload::<A, SinglePurposeOrLoginToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+
+        let purpose_exists = payload.purpose.is_some();
+        let role_id_exists = payload.role_id.is_some();
+
+        if purpose_exists ^ role_id_exists {
+            Ok((
+                UserIdFromAuth {
+                    user_id: payload.user_id.clone(),
+                    tenant_id: payload.tenant_id,
                 },
                 AuthenticationType::SinglePurposeOrLoginJwt {
                     user_id: payload.user_id,
@@ -2503,17 +2547,28 @@ where
     T: serde::de::DeserializeOwned,
     A: SessionStateInfo + Sync,
 {
-    let token = match get_cookie_from_header(headers).and_then(cookies::parse_cookie) {
-        Ok(cookies) => cookies,
-        Err(error) => {
-            let token = get_jwt_from_authorization_header(headers);
-            if token.is_err() {
-                logger::error!(?error);
-            }
-            token?.to_owned()
-        }
+    let cookie_token_result =
+        get_cookie_from_header(headers).and_then(cookies::get_jwt_from_cookies);
+    let auth_header_token_result = get_jwt_from_authorization_header(headers);
+    let force_cookie = state.conf().user.force_cookies;
+
+    logger::info!(
+        user_agent = ?headers.get(headers::USER_AGENT),
+        header_names = ?headers.keys().collect::<Vec<_>>(),
+        is_token_equal =
+            auth_header_token_result.as_deref().ok() == cookie_token_result.as_deref().ok(),
+        cookie_error = ?cookie_token_result.as_ref().err(),
+        token_error = ?auth_header_token_result.as_ref().err(),
+        force_cookie,
+    );
+
+    let final_token = if force_cookie {
+        cookie_token_result?
+    } else {
+        auth_header_token_result?.to_owned()
     };
-    decode_jwt(&token, state).await
+
+    decode_jwt(&final_token, state).await
 }
 
 #[cfg(feature = "v1")]
@@ -3013,7 +3068,7 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(headers::AUTHORIZATION).is_some()
         || get_cookie_from_header(headers)
-            .and_then(cookies::parse_cookie)
+            .and_then(cookies::get_jwt_from_cookies)
             .is_ok()
 }
 
@@ -3075,10 +3130,13 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
 }
 
 pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
-    headers
+    let cookie = headers
         .get(cookies::get_cookie_header())
-        .and_then(|header_value| header_value.to_str().ok())
-        .ok_or(errors::ApiErrorResponse::InvalidCookie.into())
+        .ok_or(report!(errors::ApiErrorResponse::CookieNotFound))?;
+
+    cookie
+        .to_str()
+        .change_context(errors::ApiErrorResponse::InvalidCookie)
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
