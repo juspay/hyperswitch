@@ -1392,14 +1392,16 @@ async fn get_pm_list_context(
                 }
             })
         }
-        None => Some(PaymentMethodListContext::TemporaryToken {
-            token_data: is_payment_associated.then_some(
-                storage::PaymentTokenData::temporary_generic(generate_id(
-                    consts::ID_LENGTH,
-                    "token",
-                )),
-            ),
-        }),
+        Some(payment_methods::PaymentMethodsData::WalletDetails(_)) | None => {
+            Some(PaymentMethodListContext::TemporaryToken {
+                token_data: is_payment_associated.then_some(
+                    storage::PaymentTokenData::temporary_generic(generate_id(
+                        consts::ID_LENGTH,
+                        "token",
+                    )),
+                ),
+            })
+        }
     };
 
     Ok(payment_method_retrieval_context)
