@@ -5,6 +5,7 @@ import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 let globalState;
 
 describe("Dynamic Fields Verification", () => {
+
   context("Verify the Dynamic fields for card", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -20,6 +21,7 @@ describe("Dynamic Fields Verification", () => {
       "Verify the Dynamic fields - Payment without billing address",
       () => {
         let should_continue = true;
+
         it("Create Business Profile", () => {
           cy.createBusinessProfileTest(
             fixtures.businessProfile.bpCreate,
@@ -35,6 +37,7 @@ describe("Dynamic Fields Verification", () => {
             globalState
           );
         });
+
         it("Create Payment Intent", () => {
           let data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
@@ -63,6 +66,8 @@ describe("Dynamic Fields Verification", () => {
       }
     );
     context("Verify the Dynamic fields - Payment with billing address", () => {
+      let should_continue = true;
+
       it("Create Payment Intent", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -78,18 +83,24 @@ describe("Dynamic Fields Verification", () => {
           "automatic",
           globalState
         );
+        if (should_continue)
+          should_continue = utils.should_continue_further(res_data);
       });
 
       it("Payment Method List", () => {
+        let should_continue = true;
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "pm_list"
         ]["PmListResponse"]["pmListDynamicFieldWithBilling"];
         cy.paymentMethodListTestWithRequiredFields(data, globalState);
       });
     });
+    
     context(
       "Verify the Dynamic fields - Payment with billing First and Last name",
       () => {
+        let should_continue = true;
+
         it("Create Payment Intent", () => {
           let data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
@@ -105,6 +116,8 @@ describe("Dynamic Fields Verification", () => {
             "automatic",
             globalState
           );
+          if (should_continue)
+            should_continue = utils.should_continue_further(res_data);
         });
 
         it("Payment Method List", () => {
@@ -115,7 +128,10 @@ describe("Dynamic Fields Verification", () => {
         });
       }
     );
+
     context("Verify the Dynamic fields - Payment with billing Email", () => {
+      let should_continue = true;
+
       it("Create Payment Intent", () => {
         let data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -131,6 +147,8 @@ describe("Dynamic Fields Verification", () => {
           "automatic",
           globalState
         );
+        if (should_continue)
+          should_continue = utils.should_continue_further(res_data);
       });
 
       it("Payment Method List", () => {
