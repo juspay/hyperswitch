@@ -3149,7 +3149,7 @@ pub fn get_banks(
                 .iter()
                 .skip(1)
                 .fold(first_element.to_owned(), |acc, hs| {
-                    acc.intersection(hs).cloned().collect()
+                    acc.intersection(hs).copied().collect()
                 });
         }
 
