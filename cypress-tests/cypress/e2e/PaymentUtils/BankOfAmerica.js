@@ -674,96 +674,6 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentWithoutBilling: {
-      Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "off_session",
-        authentication_type: "no_three_ds",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
-    PaymentWithBilling: {
-      Request: {
-        currency: "USD",
-        setup_future_usage: "off_session",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "CA",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "CA",
-            zip: "94122",
-            country: "PL",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9111222333",
-            country_code: "+91",
-          },
-        },
-        email: "hyperswitch.example@gmail.com",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
-    PaymentWithFullName: {
-      Request: {
-        currency: "USD",
-        setup_future_usage: "off_session",
-        billing: {
-          address: {
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9111222333",
-            country_code: "+91",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
-    PaymentWithBillingEmail: {
-      Request: {
-        currency: "USD",
-        setup_future_usage: "off_session",
-        email: "hyperswitch_sdk_demo_id1@gmail.com",
-        billing: {
-          address: {
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9111222333",
-            country_code: "+91",
-          },
-          email: "hyperswitch.example@gmail.com",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
   },
   pm_list: {
     PmListResponse: {
@@ -1012,7 +922,7 @@ export const connectorDetails = {
                   },
                 ],
                 required_fields: {
-                  "email": {
+                  email: {
                     required_field: "email",
                     display_name: "email",
                     field_type: "user_email_address",
