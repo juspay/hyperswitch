@@ -5,7 +5,6 @@ import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 let globalState;
 
 describe("Dynamic Fields Verification", () => {
-
   context("Verify the Dynamic fields for card", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -65,6 +64,7 @@ describe("Dynamic Fields Verification", () => {
         });
       }
     );
+
     context("Verify the Dynamic fields - Payment with billing address", () => {
       let should_continue = true;
 
@@ -95,7 +95,7 @@ describe("Dynamic Fields Verification", () => {
         cy.paymentMethodListTestWithRequiredFields(data, globalState);
       });
     });
-    
+
     context(
       "Verify the Dynamic fields - Payment with billing First and Last name",
       () => {
