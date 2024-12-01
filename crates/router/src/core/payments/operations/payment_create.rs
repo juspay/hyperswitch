@@ -1135,33 +1135,39 @@ impl PaymentCreate {
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
-            additional_pm_data = payment_method_info
-                .as_ref()
-                .and_then(|pm_info| {
-                    pm_info
-                        .payment_method_data
-                        .clone()
-                        .map(|x| x.into_inner().expose())
-                        .and_then(|v| {
-                            serde_json::from_value::<PaymentMethodsData>(v)
-                                .map_err(|err| {
-                                    logger::error!(
-                                        "Unable to deserialize payment methods data: {:?}",
-                                        err
-                                    )
+            additional_pm_data = payment_method_info.as_ref().and_then(|pm_info| {
+                pm_info
+                    .payment_method_data
+                    .clone()
+                    .map(|x| x.into_inner().expose())
+                    .and_then(|v| {
+                        serde_json::from_value::<PaymentMethodsData>(v)
+                            .map_err(|err| {
+                                logger::error!(
+                                    "Unable to deserialize payment methods data: {:?}",
+                                    err
+                                )
+                            })
+                            .ok()
+                    })
+                    .and_then(|pmd| match pmd {
+                        PaymentMethodsData::Card(card) => {
+                            Some(api_models::payments::AdditionalPaymentData::Card(Box::new(
+                                api::CardDetailFromLocker::from(card).into(),
+                            )))
+                        }
+                        PaymentMethodsData::WalletDetails(wallet) => match payment_method_type {
+                            Some(enums::PaymentMethodType::GooglePay) => {
+                                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                    apple_pay: None,
+                                    google_pay: Some(wallet.into()),
                                 })
-                                .ok()
-                        })
-                        .and_then(|pmd| match pmd {
-                            PaymentMethodsData::Card(crd) => {
-                                Some(api::CardDetailFromLocker::from(crd))
                             }
                             _ => None,
-                        })
-                })
-                .map(|card| {
-                    api_models::payments::AdditionalPaymentData::Card(Box::new(card.into()))
-                });
+                        },
+                        _ => None,
+                    })
+            });
         };
 
         let additional_pm_data_value = additional_pm_data
@@ -1472,6 +1478,7 @@ impl PaymentCreate {
             shipping_cost: request.shipping_cost,
             tax_details: None,
             skip_external_tax_calculation,
+            psd2_sca_exemption_type: request.psd2_sca_exemption_type,
         })
     }
 

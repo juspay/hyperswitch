@@ -7,7 +7,7 @@ use std::collections::HashMap;
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use common_utils::{
-    ext_traits::AsyncExt,
+    ext_traits::{AsyncExt, ValueExt},
     types::{
         ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit, SplitPaymentsRequest,
         SplitRefundRequest,
@@ -367,6 +367,16 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
+    utils::trigger_refund_outgoing_webhook(
+        state,
+        merchant_account,
+        &response,
+        payment_attempt.profile_id.clone(),
+        key_store,
+    )
+    .await
+    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+    .ok();
     Ok(response)
 }
 
@@ -440,7 +450,7 @@ pub async fn refund_retrieve_core(
 
     let payment_attempt = db
         .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
-            refund.get_connector_transaction_id(),
+            &refund.connector_transaction_id,
             payment_id,
             merchant_id,
             merchant_account.storage_scheme,
@@ -471,7 +481,7 @@ pub async fn refund_retrieve_core(
         .transpose()?;
 
     let response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
-        sync_refund_with_gateway(
+        Box::pin(sync_refund_with_gateway(
             &state,
             &merchant_account,
             &key_store,
@@ -480,7 +490,7 @@ pub async fn refund_retrieve_core(
             &refund,
             creds_identifier,
             split_refunds_req,
-        )
+        ))
         .await
     } else {
         Ok(refund)
@@ -673,6 +683,16 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
+    utils::trigger_refund_outgoing_webhook(
+        state,
+        merchant_account,
+        &response,
+        payment_attempt.profile_id.clone(),
+        key_store,
+    )
+    .await
+    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+    .ok();
     Ok(response)
 }
 
@@ -1444,7 +1464,7 @@ pub async fn trigger_refund_execute_workflow(
 
             let payment_attempt = db
                 .find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
-                    refund.get_connector_transaction_id(),
+                    &refund.connector_transaction_id,
                     &refund_core.payment_id,
                     &refund.merchant_id,
                     merchant_account.storage_scheme,

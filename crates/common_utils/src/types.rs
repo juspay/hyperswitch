@@ -845,7 +845,7 @@ mod client_secret_type {
             Ok(row)
         }
     }
-
+    crate::impl_serializable_secret_id_type!(ClientSecret);
     #[cfg(test)]
     mod client_secret_tests {
         #![allow(clippy::expect_used)]

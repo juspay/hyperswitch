@@ -58,7 +58,7 @@ where
             .switch()?;
 
         query_builder
-            .add_select_column("(attempt_count == 1) as first_attempt".to_string())
+            .add_select_column("(attempt_count = 1) as first_attempt".to_string())
             .switch()?;
 
         query_builder
