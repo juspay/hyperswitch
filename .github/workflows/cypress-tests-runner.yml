@@ -23,11 +23,13 @@ env:
 
 jobs:
   formatter:
-    name: Run formatter and address lints
+    name: Run formatter on Cypress tests and address lints
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -51,14 +53,7 @@ jobs:
 
           if [ $FORMAT_EXIT -ne 0 ] || [ $LINT_EXIT -ne 0 ]; then
             echo "::notice::Formatting or lint check failed"
-            
-            # Ensure we're on the correct branch
-            # For PR, GitHub Actions checks out a merge commit
-            # We need to checkout the head of the PR
-            if [ -n "$GITHUB_HEAD_REF" ]; then
-              git checkout $GITHUB_HEAD_REF
-            fi
-            
+
             git config --local user.name 'hyperswitch-bot[bot]'
             git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
 
