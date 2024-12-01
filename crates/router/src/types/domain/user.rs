@@ -19,6 +19,7 @@ use diesel_models::{
     user_role::{UserRole, UserRoleNew},
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_domain_models::merchant_account::MerchantAccount;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
@@ -308,6 +309,17 @@ impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
     }
 }
 
+impl From<(user_api::CreateTenantRequest, MerchantAccount)> for NewUserOrganization {
+    fn from((_value, merchant_account): (user_api::CreateTenantRequest, MerchantAccount)) -> Self {
+        let new_organization = api_org::OrganizationNew {
+            org_id: merchant_account.get_org_id().clone(),
+            org_name: None,
+        };
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        Self(db_organization)
+    }
+}
+
 #[derive(Clone)]
 pub struct MerchantId(String);
 
@@ -522,6 +534,19 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: InviteeUserRequestWithInvitedUserToken) -> UserResult<Self> {
         let merchant_id = value.clone().1.merchant_id;
+        let new_organization = NewUserOrganization::from(value);
+        Ok(Self {
+            company_name: None,
+            merchant_id,
+            new_organization,
+        })
+    }
+}
+
+impl TryFrom<(user_api::CreateTenantRequest, MerchantAccount)> for NewUserMerchant {
+    type Error = error_stack::Report<UserErrors>;
+    fn try_from(value: (user_api::CreateTenantRequest, MerchantAccount)) -> UserResult<Self> {
+        let merchant_id = value.1.get_id().clone();
         let new_organization = NewUserOrganization::from(value);
         Ok(Self {
             company_name: None,
@@ -852,6 +877,31 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
     }
 }
 
+impl TryFrom<(user_api::CreateTenantRequest, MerchantAccount)> for NewUser {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(
+        (value, merchant_account): (user_api::CreateTenantRequest, MerchantAccount),
+    ) -> UserResult<Self> {
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let email = value.email.clone().try_into()?;
+        let name = UserName::new(value.name.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
+        let new_merchant = NewUserMerchant::try_from((value, merchant_account))?;
+
+        Ok(Self {
+            user_id,
+            name,
+            email,
+            password: Some(password),
+            new_merchant,
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct UserFromStorage(pub storage_user::User);
 
@@ -1105,6 +1155,11 @@ impl RecoveryCodes {
 pub struct NoLevel;
 
 #[derive(Clone)]
+pub struct TenantLevel {
+    pub tenant_id: id_type::TenantId,
+}
+
+#[derive(Clone)]
 pub struct OrganizationLevel {
     pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
@@ -1157,11 +1212,24 @@ impl NewUserRole<NoLevel> {
 
 pub struct EntityInfo {
     tenant_id: id_type::TenantId,
-    org_id: id_type::OrganizationId,
+    org_id: Option<id_type::OrganizationId>,
     merchant_id: Option<id_type::MerchantId>,
     profile_id: Option<id_type::ProfileId>,
     entity_id: String,
     entity_type: EntityType,
+}
+
+impl From<TenantLevel> for EntityInfo {
+    fn from(value: TenantLevel) -> Self {
+        Self {
+            entity_id: value.tenant_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Tenant,
+            tenant_id: value.tenant_id,
+            org_id: None,
+            merchant_id: None,
+            profile_id: None,
+        }
+    }
 }
 
 impl From<OrganizationLevel> for EntityInfo {
@@ -1170,7 +1238,7 @@ impl From<OrganizationLevel> for EntityInfo {
             entity_id: value.org_id.get_string_repr().to_owned(),
             entity_type: EntityType::Organization,
             tenant_id: value.tenant_id,
-            org_id: value.org_id,
+            org_id: Some(value.org_id),
             merchant_id: None,
             profile_id: None,
         }
@@ -1183,9 +1251,9 @@ impl From<MerchantLevel> for EntityInfo {
             entity_id: value.merchant_id.get_string_repr().to_owned(),
             entity_type: EntityType::Merchant,
             tenant_id: value.tenant_id,
-            org_id: value.org_id,
-            profile_id: None,
+            org_id: Some(value.org_id),
             merchant_id: Some(value.merchant_id),
+            profile_id: None,
         }
     }
 }
@@ -1196,7 +1264,7 @@ impl From<ProfileLevel> for EntityInfo {
             entity_id: value.profile_id.get_string_repr().to_owned(),
             entity_type: EntityType::Profile,
             tenant_id: value.tenant_id,
-            org_id: value.org_id,
+            org_id: Some(value.org_id),
             merchant_id: Some(value.merchant_id),
             profile_id: Some(value.profile_id),
         }
@@ -1216,7 +1284,7 @@ where
             last_modified_by: self.last_modified_by,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            org_id: Some(entity.org_id),
+            org_id: entity.org_id,
             merchant_id: entity.merchant_id,
             profile_id: entity.profile_id,
             entity_id: Some(entity.entity_id),

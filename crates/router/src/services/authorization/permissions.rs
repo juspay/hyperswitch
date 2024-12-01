@@ -33,7 +33,7 @@ generate_permissions! {
         },
         Account: {
             scopes: [Read, Write],
-            entities: [Profile, Merchant, Organization]
+            entities: [Profile, Merchant, Organization, Tenant]
         },
         Connector: {
             scopes: [Read, Write],
@@ -95,6 +95,7 @@ pub fn get_resource_name(resource: &Resource, entity_type: &EntityType) -> &'sta
         (Resource::Account, EntityType::Profile) => "Business Profile Account",
         (Resource::Account, EntityType::Merchant) => "Merchant Account",
         (Resource::Account, EntityType::Organization) => "Organization Account",
+        (Resource::Account, EntityType::Tenant) => "Tenant Account",
     }
 }
 

@@ -87,6 +87,14 @@ where
         state: &KeyManagerState,
         merchant_ids: Vec<common_utils::id_type::MerchantId>,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn list_all_merchant_accounts(
+        &self,
+        state: &KeyManagerState,
+        limit: Option<u32>,
+        offset: Option<u32>,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -411,6 +419,58 @@ impl MerchantAccountInterface for Store {
         Ok(merchant_accounts)
     }
 
+    #[cfg(feature = "olap")]
+    #[instrument(skip_all)]
+    async fn list_all_merchant_accounts(
+        &self,
+        state: &KeyManagerState,
+        limit: Option<u32>,
+        offset: Option<u32>,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        let encrypted_merchant_accounts =
+            storage::MerchantAccount::list_all_merchant_accounts(&conn, limit, offset)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+        let db_master_key = self.get_master_key().to_vec().into();
+        let merchant_key_stores = self
+            .list_multiple_key_stores(
+                state,
+                encrypted_merchant_accounts
+                    .iter()
+                    .map(|merchant_account| merchant_account.get_id())
+                    .cloned()
+                    .collect(),
+                &db_master_key,
+            )
+            .await?;
+        let key_stores_by_id: HashMap<_, _> = merchant_key_stores
+            .iter()
+            .map(|key_store| (key_store.merchant_id.to_owned(), key_store))
+            .collect();
+        let merchant_accounts =
+            futures::future::try_join_all(encrypted_merchant_accounts.into_iter().map(
+                |merchant_account| async {
+                    let key_store = key_stores_by_id.get(merchant_account.get_id()).ok_or(
+                        errors::StorageError::ValueNotFound(format!(
+                            "merchant_key_store with merchant_id = {:?}",
+                            merchant_account.get_id()
+                        )),
+                    )?;
+                    merchant_account
+                        .convert(
+                            state,
+                            key_store.key.get_inner(),
+                            key_store.merchant_id.clone().into(),
+                        )
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                },
+            ))
+            .await?;
+        Ok(merchant_accounts)
+    }
+
     async fn update_all_merchant_account(
         &self,
         merchant_account: storage::MerchantAccountUpdate,
@@ -693,6 +753,44 @@ impl MerchantAccountInterface for MockDb {
             .await
             .into_iter()
             .collect()
+    }
+
+    #[cfg(feature = "olap")]
+    async fn list_all_merchant_accounts(
+        &self,
+        state: &KeyManagerState,
+        limit: Option<u32>,
+        offset: Option<u32>,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        let accounts = self.merchant_accounts.lock().await;
+        let offset = offset.unwrap_or(0).try_into().unwrap_or(0);
+        let limit = limit.map_or(accounts.len(), |l| l.try_into().unwrap_or(accounts.len()));
+
+        let filtered_accounts = accounts
+            .iter()
+            .skip(offset)
+            .take(limit)
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let futures = filtered_accounts.into_iter().map(|account| async {
+            let key_store = self
+                .get_merchant_key_store_by_merchant_id(
+                    state,
+                    account.get_id(),
+                    &self.get_master_key().to_vec().into(),
+                )
+                .await;
+            match key_store {
+                Ok(key) => account
+                    .convert(state, key.key.get_inner(), key.merchant_id.clone().into())
+                    .await
+                    .change_context(errors::StorageError::DecryptionError),
+                Err(err) => Err(err),
+            }
+        });
+
+        futures::future::try_join_all(futures).await
     }
 }
 

@@ -274,7 +274,7 @@ pub async fn list_roles_with_info(
     let user_role_entity = user_role_info.get_entity_type();
     let custom_roles =
         match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
-            EntityType::Organization => state
+            EntityType::Tenant | EntityType::Organization => state
                 .store
                 .list_roles_for_org_by_parameters(
                     &user_from_token.org_id,
@@ -347,7 +347,7 @@ pub async fn list_roles_at_entity_level(
         .collect::<Vec<_>>();
 
     let custom_roles = match req.entity_type {
-        EntityType::Organization => state
+        EntityType::Tenant | EntityType::Organization => state
             .store
             .list_roles_for_org_by_parameters(
                 &user_from_token.org_id,

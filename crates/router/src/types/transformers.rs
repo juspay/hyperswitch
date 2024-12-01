@@ -1672,6 +1672,24 @@ impl ForeignFrom<api_models::organization::OrganizationCreateRequest>
     }
 }
 
+impl ForeignFrom<api_models::user::UserOrgCreateRequest>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::user::UserOrgCreateRequest) -> Self {
+        let org_new = api_models::organization::OrganizationNew::new(None);
+        let api_models::user::UserOrgCreateRequest {
+            organization_name,
+            organization_details,
+            metadata,
+            ..
+        } = item;
+        let mut org_new_db = Self::new(org_new.org_id, Some(organization_name));
+        org_new_db.organization_details = organization_details;
+        org_new_db.metadata = metadata;
+        org_new_db
+    }
+}
+
 impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMappingNew {
     fn foreign_from(value: gsm_api_types::GsmCreateRequest) -> Self {
         Self {
