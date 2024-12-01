@@ -45,30 +45,20 @@ jobs:
 
       - name: Check formatting
         if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
         run: |
-          npm run format:check --prefix cypress-tests
-          FORMAT_EXIT=$?
-          npm run lint --prefix cypress-tests
-          LINT_EXIT=$?
+          npm run format --prefix cypress-tests
+          npm run lint --prefix cypress-tests -- --fix
 
-          if [ $FORMAT_EXIT -ne 0 ] || [ $LINT_EXIT -ne 0 ]; then
-            echo "::notice::Formatting or lint check failed"
+          if ! git diff --exit-code --quiet -- cypress-tests; then
+            echo "::notice::Cypress formatting and lint check failed"
 
             git config --local user.name 'hyperswitch-bot[bot]'
             git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
 
-            # Run fixes
-            npm run format --prefix cypress-tests
-            npm run lint --prefix cypress-tests -- --fix
-
-            # Commit and push changes
-            if [ -n "$(git status --porcelain)" ]; then
-              git add cypress-tests
-              git commit --message 'chore(cypress): run formatter and address lints'
-              git push origin HEAD
-            else
-              echo "No changes to commit after formatting"
-            fi
+            git add cypress-tests
+            git commit --message 'chore(cypress): run formatter and address lints'
+            git push
           fi
 
   runner:
