@@ -603,12 +603,6 @@ impl StringMajorUnit {
     pub fn zero() -> Self {
         Self("0".to_string())
     }
-
-    /// forms a new StringMajorUnit default unit i.e zero
-    pub fn zero() -> Self {
-        Self("0".to_string())
-    }
-
     /// Get string amount from struct to be removed in future
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
