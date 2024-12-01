@@ -18,6 +18,7 @@ function normalise(input) {
     paypal: "Paypal",
     wellsfargo: "Wellsfargo",
     fiuu: "Fiuu",
+    noon: "Noon"
     // Add more known exceptions here
   };
 
@@ -54,6 +55,13 @@ const successfulThreeDSTestCardDetails = {
   card_exp_year: "25",
   card_holder_name: "morino",
   card_cvc: "999",
+};
+
+const PaymentMethodCardDetails = {
+  card_number: "4111111145551142",
+  card_exp_month: "03",
+  card_exp_year: "30",
+  card_holder_name: "Joseph Doe",
 };
 
 const singleUseMandateData = {
@@ -707,6 +715,38 @@ export const connectorDetails = {
         },
       },
     }),
+    manualPaymentRefund: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    }),
+    manualPaymentPartialRefund: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    }),
     PartialRefund: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -817,6 +857,23 @@ export const connectorDetails = {
         mandate_data: singleUseMandateData,
       },
     }),
+    ZeroAuthPaymentIntent: getCustomExchange({
+      Request: {
+        amount: 0,
+        setup_future_usage: "off_session",
+        currency: "USD",
+        payment_type: "setup_mandate",
+      },
+    }),
+    ZeroAuthConfirmPayment: getCustomExchange({
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+    }),
     SaveCardUseNo3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -879,6 +936,19 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
       },
     }),
+    SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Request: {
+        setup_future_usage: "off_session",
+        billing: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          billing: null,
+        },
+      },
+    },
     SaveCardUseNo3DSManualCapture: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -897,6 +967,19 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentMethod: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_issuer: "Gpay",
+        payment_method_issuer_code: "jp_hdfc",
+        card: PaymentMethodCardDetails,
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -989,7 +1072,11 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: "Json deserialize error: invalid card number length",
+          error: {
+            error_type: "invalid_request",
+            message: "Json deserialize error: invalid card number length",
+            code: "IR_06"
+          },
         },
       },
     },
@@ -1093,8 +1180,11 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error:
-            "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
+          error: {
+            error_type: "invalid_request",
+            message: "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
+            code: "IR_06"
+          },
         },
       },
     },
@@ -1118,8 +1208,11 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error:
-            "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
+          error: {
+            error_type: "invalid_request",
+            message: "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
+            code: "IR_06"
+          },
         },
       },
     },
@@ -1142,8 +1235,11 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error:
-            "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`",
+          error: {
+            error_type: "invalid_request",
+            message: "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`, `mobile_payment`",
+            code: "IR_06"
+          },
         },
       },
     },

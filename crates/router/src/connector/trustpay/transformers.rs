@@ -430,6 +430,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -1789,7 +1790,7 @@ pub struct WebhookReferences {
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookAmount {
     pub amount: f64,
-    pub currency: String,
+    pub currency: enums::Currency,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

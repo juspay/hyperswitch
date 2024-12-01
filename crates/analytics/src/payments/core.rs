@@ -228,7 +228,7 @@ pub async fn get_metrics(
     let mut total_payment_processed_count_without_smart_retries = 0;
     let mut total_failure_reasons_count = 0;
     let mut total_failure_reasons_count_without_smart_retries = 0;
-    let mut total_payment_processed_amount_usd = 0;
+    let mut total_payment_processed_amount_in_usd = 0;
     let mut total_payment_processed_amount_without_smart_retries_usd = 0;
     let query_data: Vec<MetricsBucketResponse> = metrics_accumulator
         .into_iter()
@@ -251,9 +251,9 @@ pub async fn get_metrics(
                     })
                     .map(|amount| (amount * rust_decimal::Decimal::new(100, 0)).to_u64())
                     .unwrap_or_default();
-                collected_values.payment_processed_amount_usd = amount_in_usd;
+                collected_values.payment_processed_amount_in_usd = amount_in_usd;
                 total_payment_processed_amount += amount;
-                total_payment_processed_amount_usd += amount_in_usd.unwrap_or(0);
+                total_payment_processed_amount_in_usd += amount_in_usd.unwrap_or(0);
             }
             if let Some(count) = collected_values.payment_processed_count {
                 total_payment_processed_count += count;
@@ -299,7 +299,7 @@ pub async fn get_metrics(
         query_data,
         meta_data: [PaymentsAnalyticsMetadata {
             total_payment_processed_amount: Some(total_payment_processed_amount),
-            total_payment_processed_amount_usd: Some(total_payment_processed_amount_usd),
+            total_payment_processed_amount_in_usd: Some(total_payment_processed_amount_in_usd),
             total_payment_processed_amount_without_smart_retries: Some(
                 total_payment_processed_amount_without_smart_retries,
             ),

@@ -5,7 +5,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use router_env::logger;
-use time::PrimitiveDateTime;
 
 use crate::{
     clickhouse::ClickhouseClient,
@@ -13,29 +12,19 @@ use crate::{
     types::{AnalyticsCollection, DBEnumWrapper, MetricsError, MetricsResult},
 };
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize, Hash)]
-pub struct PaymentIntentMetricRow {
-    pub profile_id: Option<String>,
-    pub connector: Option<String>,
-    pub authentication_type: Option<DBEnumWrapper<enums::AuthenticationType>>,
-    pub payment_method: Option<String>,
-    pub payment_method_type: Option<String>,
-    pub card_network: Option<String>,
-    pub merchant_id: Option<String>,
-    pub card_last_4: Option<String>,
-    pub card_issuer: Option<String>,
-    pub error_reason: Option<String>,
-    pub first_attempt: Option<i64>,
-    pub total: Option<bigdecimal::BigDecimal>,
-    pub count: Option<i64>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub start_bucket: Option<PrimitiveDateTime>,
-    #[serde(with = "common_utils::custom_serde::iso8601::option")]
-    pub end_bucket: Option<PrimitiveDateTime>,
-}
-
 #[derive(
-    Debug, Default, serde::Deserialize, strum::AsRefStr, strum::EnumString, strum::Display,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum SessionizerRefundStatus {
@@ -45,13 +34,36 @@ pub enum SessionizerRefundStatus {
     PartialRefunded,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionizerDisputeStatus {
+    DisputePresent,
+    #[default]
+    NotDisputed,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SankeyRow {
+    pub count: i64,
     pub status: DBEnumWrapper<enums::IntentStatus>,
     #[serde(default)]
     pub refunds_status: Option<DBEnumWrapper<SessionizerRefundStatus>>,
-    pub attempt_count: i64,
-    pub count: i64,
+    #[serde(default)]
+    pub dispute_status: Option<DBEnumWrapper<SessionizerDisputeStatus>>,
+    pub first_attempt: i64,
 }
 
 impl TryInto<SankeyRow> for serde_json::Value {
@@ -90,7 +102,12 @@ pub async fn get_sankey_data(
         .change_context(MetricsError::QueryBuildingError)?;
 
     query_builder
-        .add_select_column("attempt_count")
+        .add_select_column("dispute_status")
+        .attach_printable("Error adding select clause")
+        .change_context(MetricsError::QueryBuildingError)?;
+
+    query_builder
+        .add_select_column("(attempt_count = 1) as first_attempt")
         .attach_printable("Error adding select clause")
         .change_context(MetricsError::QueryBuildingError)?;
 
@@ -112,7 +129,12 @@ pub async fn get_sankey_data(
         .change_context(MetricsError::QueryBuildingError)?;
 
     query_builder
-        .add_group_by_clause("attempt_count")
+        .add_group_by_clause("dispute_status")
+        .attach_printable("Error adding group by clause")
+        .change_context(MetricsError::QueryBuildingError)?;
+
+    query_builder
+        .add_group_by_clause("first_attempt")
         .attach_printable("Error adding group by clause")
         .change_context(MetricsError::QueryBuildingError)?;
 

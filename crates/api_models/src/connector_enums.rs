@@ -71,9 +71,10 @@ pub enum Connector {
     Cybersource,
     Datatrans,
     Deutschebank,
-    // Digitalvirgo, template code for future usage
+    Digitalvirgo,
     Dlocal,
     Ebanx,
+    Elavon,
     Fiserv,
     Fiservemea,
     Fiuu,
@@ -83,6 +84,7 @@ pub enum Connector {
     Gocardless,
     Gpayments,
     Helcim,
+    // Inespay,
     Iatapay,
     Itaubank,
     //Jpmorgan,
@@ -94,6 +96,7 @@ pub enum Connector {
     Nexinets,
     Nexixpay,
     Nmi,
+    // Nomupay,
     Noon,
     Novalnet,
     Nuvei,
@@ -110,6 +113,7 @@ pub enum Connector {
     Prophetpay,
     Rapyd,
     Razorpay,
+    // Redsys,
     Shift4,
     Square,
     Stax,
@@ -128,6 +132,7 @@ pub enum Connector {
     Signifyd,
     Plaid,
     Riskified,
+    // Xendit,
     Zen,
     Zsl,
 }
@@ -211,8 +216,10 @@ impl Connector {
             | Self::Coinbase
             | Self::Cryptopay
             | Self::Deutschebank
+            | Self::Digitalvirgo
             | Self::Dlocal
             | Self::Ebanx
+            | Self::Elavon
             | Self::Fiserv
             | Self::Fiservemea
             | Self::Fiuu
@@ -223,6 +230,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
+			// | Self::Inespay
             | Self::Itaubank
             //| Self::Jpmorgan
             | Self::Klarna
@@ -231,6 +239,7 @@ impl Connector {
             | Self::Multisafepay
             | Self::Nexinets
             | Self::Nexixpay
+            // | Self::Nomupay
             | Self::Novalnet
             | Self::Nuvei
             | Self::Opennode
@@ -243,6 +252,7 @@ impl Connector {
             | Self::Powertranz
             | Self::Prophetpay
             | Self::Rapyd
+			// | Self::Redsys
             | Self::Shift4
             | Self::Square
             | Self::Stax
@@ -256,6 +266,7 @@ impl Connector {
             | Self::Wise
             | Self::Worldline
             | Self::Worldpay
+            // | Self::Xendit
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd
@@ -272,6 +283,9 @@ impl Connector {
     }
     pub fn is_pre_processing_required_before_authorize(&self) -> bool {
         matches!(self, Self::Airwallex)
+    }
+    pub fn should_acknowledge_webhook_for_resource_not_found_errors(&self) -> bool {
+        matches!(self, Self::Adyenplatform)
     }
     #[cfg(feature = "dummy_connector")]
     pub fn validate_dummy_connector_enabled(

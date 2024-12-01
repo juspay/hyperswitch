@@ -95,6 +95,7 @@ impl PaymentIntentInterface for MockDb {
         Ok(new)
     }
 
+    #[cfg(feature = "v1")]
     // safety: only used for testing
     #[allow(clippy::unwrap_used)]
     async fn update_payment_intent(
@@ -128,6 +129,20 @@ impl PaymentIntentInterface for MockDb {
         .change_context(StorageError::DecryptionError)?;
 
         Ok(payment_intent.clone())
+    }
+
+    #[cfg(feature = "v2")]
+    // safety: only used for testing
+    #[allow(clippy::unwrap_used)]
+    async fn update_payment_intent(
+        &self,
+        state: &KeyManagerState,
+        this: PaymentIntent,
+        update: PaymentIntentUpdate,
+        key_store: &MerchantKeyStore,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> CustomResult<PaymentIntent, StorageError> {
+        todo!()
     }
 
     #[cfg(feature = "v1")]

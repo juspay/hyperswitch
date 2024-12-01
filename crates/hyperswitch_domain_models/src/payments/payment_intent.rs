@@ -271,12 +271,19 @@ pub enum PaymentIntentUpdate {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaymentIntentUpdate {
+    /// PreUpdate tracker of ConfirmIntent
     ConfirmIntent {
         status: storage_enums::IntentStatus,
-        updated_by: String,
         active_attempt_id: id_type::GlobalAttemptId,
+        updated_by: String,
     },
+    /// PostUpdate tracker of ConfirmIntent
     ConfirmIntentPostUpdate {
+        status: storage_enums::IntentStatus,
+        updated_by: String,
+    },
+    /// SyncUpdate of ConfirmIntent in PostUpdateTrackers
+    SyncUpdate {
         status: storage_enums::IntentStatus,
         updated_by: String,
     },
@@ -359,22 +366,58 @@ pub struct PaymentIntentUpdateInternal {
     pub tax_details: Option<diesel_models::TaxDetails>,
 }
 
-// TODO: convert directly to diesel_models::PaymentIntentUpdateInternal
+// This conversion is used in the `update_payment_intent` function
+#[cfg(feature = "v2")]
+impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
+    fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
+        match payment_intent_update {
+            PaymentIntentUpdate::ConfirmIntent {
+                status,
+                active_attempt_id,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                active_attempt_id: Some(active_attempt_id),
+                modified_at: common_utils::date_time::now(),
+                updated_by,
+            },
+            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
+                status: Some(status),
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                updated_by,
+            },
+            PaymentIntentUpdate::SyncUpdate { status, updated_by } => Self {
+                status: Some(status),
+                active_attempt_id: None,
+                modified_at: common_utils::date_time::now(),
+                updated_by,
+            },
+        }
+    }
+}
+
+// This conversion is required for the `apply_changeset` function used for mockdb
 #[cfg(feature = "v2")]
 impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     fn from(payment_intent_update: PaymentIntentUpdate) -> Self {
         match payment_intent_update {
             PaymentIntentUpdate::ConfirmIntent {
                 status,
-                updated_by,
                 active_attempt_id,
+                updated_by,
             } => Self {
                 status: Some(status),
-                updated_by,
                 active_attempt_id: Some(active_attempt_id),
+                updated_by,
                 ..Default::default()
             },
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
+                status: Some(status),
+                updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::SyncUpdate { status, updated_by } => Self {
                 status: Some(status),
                 updated_by,
                 ..Default::default()
@@ -584,25 +627,21 @@ use diesel_models::{
     PaymentIntentUpdate as DieselPaymentIntentUpdate,
     PaymentIntentUpdateFields as DieselPaymentIntentUpdateFields,
 };
-#[cfg(feature = "v2")]
-impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
-    fn from(value: PaymentIntentUpdate) -> Self {
-        match value {
-            PaymentIntentUpdate::ConfirmIntent {
-                status,
-                updated_by,
-                active_attempt_id,
-            } => Self::ConfirmIntent {
-                status,
-                updated_by,
-                active_attempt_id,
-            },
-            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => {
-                Self::ConfirmIntentPostUpdate { status, updated_by }
-            }
-        }
-    }
-}
+
+// TODO: check where this conversion is used
+// #[cfg(feature = "v2")]
+// impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
+//     fn from(value: PaymentIntentUpdate) -> Self {
+//         match value {
+//             PaymentIntentUpdate::ConfirmIntent { status, updated_by } => {
+//                 Self::ConfirmIntent { status, updated_by }
+//             }
+//             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => {
+//                 Self::ConfirmIntentPostUpdate { status, updated_by }
+//             }
+//         }
+//     }
+// }
 
 #[cfg(feature = "v1")]
 impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
@@ -963,6 +1002,7 @@ pub struct PaymentIntentListParams {
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<storage_enums::CardNetwork>>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
@@ -997,6 +1037,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
             order: Default::default(),
             card_network: None,
+            merchant_order_reference_id: None,
         }))
     }
 }
@@ -1022,6 +1063,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             limit: None,
             order: Default::default(),
             card_network: None,
+            merchant_order_reference_id: None,
         }))
     }
 }
@@ -1045,6 +1087,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             merchant_connector_id,
             order,
             card_network,
+            merchant_order_reference_id,
         } = value;
         if let Some(payment_intent_id) = payment_id {
             Self::Single { payment_intent_id }
@@ -1068,6 +1111,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
                 order,
                 card_network,
+                merchant_order_reference_id,
             }))
         }
     }
@@ -1244,6 +1288,7 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present: Some(customer_present.as_bool()),
             payment_link_config,
             routing_algorithm_id,
+            psd2_sca_exemption_type: None,
         })
     }
     async fn convert_back(
@@ -1512,6 +1557,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
         })
     }
 
@@ -1599,6 +1645,7 @@ impl behaviour::Conversion for PaymentIntent {
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
+                psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
             })
         }
         .await
@@ -1661,6 +1708,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
         })
     }
 }

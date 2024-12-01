@@ -40,10 +40,12 @@ where
         i64::try_from(token.exp).change_context(ApiErrorResponse::InternalServerError)?;
     let cache_ttl = token_expiry - common_utils::date_time::now_unix_timestamp();
 
-    set_role_info_in_cache(state, &token.role_id, &role_info, cache_ttl)
-        .await
-        .map_err(|e| logger::error!("Failed to set role info in cache {e:?}"))
-        .ok();
+    if cache_ttl > 0 {
+        set_role_info_in_cache(state, &token.role_id, &role_info, cache_ttl)
+            .await
+            .map_err(|e| logger::error!("Failed to set role info in cache {e:?}"))
+            .ok();
+    }
     Ok(role_info)
 }
 
@@ -110,6 +112,22 @@ pub fn check_permission(
             }
             .into(),
         )
+}
+
+pub fn check_tenant(
+    token_tenant_id: Option<id_type::TenantId>,
+    header_tenant_id: &id_type::TenantId,
+) -> RouterResult<()> {
+    if let Some(tenant_id) = token_tenant_id {
+        if tenant_id != *header_tenant_id {
+            return Err(ApiErrorResponse::InvalidJwtToken).attach_printable(format!(
+                "Token tenant ID: '{}' does not match Header tenant ID: '{}'",
+                tenant_id.get_string_repr().to_owned(),
+                header_tenant_id.get_string_repr().to_owned()
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {

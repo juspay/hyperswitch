@@ -37,7 +37,7 @@ impl
         _merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_connector_account: &domain::MerchantConnectorAccount,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<
@@ -146,6 +146,7 @@ impl
             additional_merchant_data: None,
             header_payload,
             connector_mandate_request_reference_id: None,
+            psd2_sca_exemption_type: None,
         };
 
         Ok(router_data)
