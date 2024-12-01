@@ -173,6 +173,7 @@ pub async fn recon_merchant_account_update(
                     state.conf.proxy.https_url.as_ref(),
                 )
                 .await
+                .inspect_err(|err| router_env::logger::error!("Failed to compose and send email notifying them of recon activation: {}", err))
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to compose and send email for ReconActivation");
         }
