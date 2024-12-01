@@ -2583,7 +2583,7 @@ pub async fn list_orgs_for_user(
             .await
             .change_context(UserErrors::InternalServerError)?
             .into_iter()
-            .filter_map(|merchant_account| Some(merchant_account.get_org_id().to_owned()))
+            .map(|merchant_account| merchant_account.get_org_id().to_owned())
             .collect::<HashSet<_>>()
     } else {
         state

@@ -249,12 +249,10 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
     )>,
 > {
     match entity_type {
-        EntityType::Tenant => {
-            return Err(UserErrors::InvalidRoleOperationWithMessage(
-                "Tenant roles are not allowed for this operation".to_string(),
-            )
-            .into());
-        }
+        EntityType::Tenant => Err(UserErrors::InvalidRoleOperationWithMessage(
+            "Tenant roles are not allowed for this operation".to_string(),
+        )
+        .into()),
         EntityType::Organization => {
             let Ok(org_id) =
                 id_type::OrganizationId::try_from(std::borrow::Cow::from(entity_id.clone()))

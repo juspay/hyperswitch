@@ -124,7 +124,7 @@ pub struct UserOrgCreateRequest {
     pub organization_name: String,
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub merchant_name: Option<String>,
+    pub company_name: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
