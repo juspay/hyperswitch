@@ -1339,7 +1339,7 @@ pub async fn create_org_for_user(
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error while creating a merchant")?;
-    
+
     Ok(ApplicationResponse::StatusOk)
 }
 
