@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-pub use common_utils::types::{ChargeRefunds, MinorUnit};
+pub use common_utils::types::{ChargeRefunds, MinorUnit, SplitRefundRequest};
 use common_utils::{pii, types::TimeRange};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -57,8 +57,8 @@ pub struct RefundRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
-    #[schema(value_type = Option<ChargeRefunds>)]
-    pub charges: Option<ChargeRefunds>,
+    #[schema(value_type = Option<SplitRefundRequest>)]
+    pub split_refunds: Option<SplitRefundRequest>,
 }
 
 #[cfg(feature = "v2")]

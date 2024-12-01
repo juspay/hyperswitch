@@ -1,5 +1,9 @@
 use common_enums::{PaymentMethodType, RequestIncrementalAuthorization};
-use common_utils::{encryption::Encryption, pii, types::MinorUnit};
+use common_utils::{
+    encryption::Encryption,
+    pii,
+    types::{MinorUnit, SplitPaymentsRequest},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -136,6 +140,7 @@ pub struct PaymentIntent {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub split_payments: Option<SplitPaymentsRequest>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
@@ -352,6 +357,7 @@ pub struct PaymentIntentNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub split_payments: Option<SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v2")]

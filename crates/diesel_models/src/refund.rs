@@ -1,6 +1,9 @@
 use common_utils::{
     pii,
-    types::{ChargeRefunds, ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit},
+    types::{
+        ChargeRefunds, ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit,
+        SplitRefundRequest,
+    },
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
@@ -53,6 +56,7 @@ pub struct Refund {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub connector_refund_data: Option<String>,
     pub connector_transaction_data: Option<String>,
+    pub split_refunds: Option<SplitRefundRequest>,
 }
 
 #[derive(
@@ -98,6 +102,7 @@ pub struct RefundNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub connector_refund_data: Option<String>,
     pub connector_transaction_data: Option<String>,
+    pub split_refunds: Option<SplitRefundRequest>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

@@ -5,7 +5,7 @@ use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
     id_type, pii,
-    types::{self as common_types, MinorUnit},
+    types::{self as common_types, MinorUnit, SplitPaymentsRequest},
 };
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
@@ -61,7 +61,7 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
-    pub charges: Option<PaymentCharges>,
+    pub split_payments: Option<SplitPaymentsRequest>,
 
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
@@ -106,13 +106,6 @@ pub struct SyncIntegrityObject {
     pub amount: Option<MinorUnit>,
     /// Sync currency
     pub currency: Option<storage_enums::Currency>,
-}
-
-#[derive(Debug, serde::Deserialize, Clone)]
-pub struct PaymentCharges {
-    pub charge_type: api_models::enums::PaymentChargeType,
-    pub fees: MinorUnit,
-    pub transfer_account_id: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -444,8 +437,7 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
-    pub charges: Option<PaymentCharges>,
-
+    pub split_payments: Option<SplitPaymentsRequest>,
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
 }
@@ -611,7 +603,7 @@ pub struct RefundsData {
     pub connector_metadata: Option<serde_json::Value>,
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
-    pub charges: Option<ChargeRefunds>,
+    pub split_refunds: Option<SplitRefundsRequest>,
 
     // New amount for amount frame work
     pub minor_payment_amount: MinorUnit,
@@ -625,6 +617,19 @@ pub struct RefundIntegrityObject {
     pub currency: storage_enums::Currency,
     /// refund amount
     pub refund_amount: MinorUnit,
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub enum SplitRefundsRequest {
+    StripeSplitRefund(StripeSplitRefund),
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct StripeSplitRefund {
+    pub charge_id: String,
+    pub transfer_account_id: String,
+    pub charge_type: api_models::enums::PaymentChargeType,
+    pub options: ChargeRefundsOptions,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]

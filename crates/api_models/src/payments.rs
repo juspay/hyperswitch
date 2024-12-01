@@ -16,7 +16,7 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{MinorUnit, StringMajorUnit},
+    types::{MinorUnit, SplitPaymentsRequest, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
@@ -845,7 +845,7 @@ pub struct PaymentsRequest {
     pub recurring_details: Option<RecurringDetails>,
 
     /// Fee information to be charged on the payment being collected
-    pub charges: Option<PaymentChargeRequest>,
+    pub split_payments: Option<SplitPaymentsRequest>,
 
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
@@ -1047,22 +1047,6 @@ mod payments_request_test {
             Some(vec!["customer_id and customer.id"])
         );
     }
-}
-
-/// Fee information to be charged on the payment being collected
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct PaymentChargeRequest {
-    /// Stripe's charge type
-    #[schema(value_type = PaymentChargeType, example = "direct")]
-    pub charge_type: api_enums::PaymentChargeType,
-
-    /// Platform fees to be collected on the payment
-    #[schema(value_type = i64, example = 6540)]
-    pub fees: MinorUnit,
-
-    /// Identifier for the reseller's account to send the funds to
-    pub transfer_account_id: String,
 }
 
 /// Details of surcharge applied on this payment, if applicable

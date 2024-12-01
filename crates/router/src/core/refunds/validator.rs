@@ -1,3 +1,4 @@
+use common_utils::types::SplitRefundRequest;
 use error_stack::report;
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
@@ -147,26 +148,34 @@ pub fn validate_for_valid_refunds(
 }
 
 pub fn validate_charge_refund(
-    charges: &common_utils::types::ChargeRefunds,
+    charges: &SplitRefundRequest,
     charge_type: &api_enums::PaymentChargeType,
 ) -> RouterResult<types::ChargeRefundsOptions> {
     match charge_type {
-        api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Direct) => Ok(
-            types::ChargeRefundsOptions::Direct(types::DirectChargeRefund {
-                revert_platform_fee: charges
-                    .revert_platform_fee
-                    .get_required_value("revert_platform_fee")?,
-            }),
-        ),
-        api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Destination) => Ok(
-            types::ChargeRefundsOptions::Destination(types::DestinationChargeRefund {
-                revert_platform_fee: charges
-                    .revert_platform_fee
-                    .get_required_value("revert_platform_fee")?,
-                revert_transfer: charges
-                    .revert_transfer
-                    .get_required_value("revert_transfer")?,
-            }),
-        ),
+        api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Direct) => {
+            let SplitRefundRequest::StripeSplitRefundRequest(stripe_charge) = charges;
+
+            Ok(types::ChargeRefundsOptions::Direct(
+                types::DirectChargeRefund {
+                    revert_platform_fee: stripe_charge
+                        .revert_platform_fee
+                        .get_required_value("revert_platform_fee")?,
+                },
+            ))
+        }
+        api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Destination) => {
+            let SplitRefundRequest::StripeSplitRefundRequest(stripe_charge) = charges;
+
+            Ok(types::ChargeRefundsOptions::Destination(
+                types::DestinationChargeRefund {
+                    revert_platform_fee: stripe_charge
+                        .revert_platform_fee
+                        .get_required_value("revert_platform_fee")?,
+                    revert_transfer: stripe_charge
+                        .revert_transfer
+                        .get_required_value("revert_transfer")?,
+                },
+            ))
+        }
     }
 }

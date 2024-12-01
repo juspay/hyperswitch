@@ -1,32 +1,38 @@
-use common_utils::{ext_traits::ValueExt, pii, types::ChargeRefunds};
-use error_stack::{Report, ResultExt};
+use common_utils::types::{SplitPaymentsRequest, SplitRefundRequest};
+use error_stack::Report;
 use hyperswitch_domain_models::router_request_types;
-use masking::PeekInterface;
 
 use super::validator;
 use crate::{core::errors, types::transformers::ForeignTryFrom};
 
-impl ForeignTryFrom<(ChargeRefunds, pii::SecretSerdeValue)>
-    for router_request_types::ChargeRefunds
+impl ForeignTryFrom<(SplitRefundRequest, SplitPaymentsRequest)>
+    for router_request_types::SplitRefundsRequest
 {
     type Error = Report<errors::ApiErrorResponse>;
-    fn foreign_try_from(item: (ChargeRefunds, pii::SecretSerdeValue)) -> Result<Self, Self::Error> {
-        let (refund_charges, charges) = item;
-        let payment_charges: router_request_types::PaymentCharges = charges
-            .peek()
-            .clone()
-            .parse_value("PaymentCharges")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse charges into PaymentCharges")?;
 
-        Ok(Self {
-            charge_id: refund_charges.charge_id.clone(),
-            charge_type: payment_charges.charge_type.clone(),
-            transfer_account_id: payment_charges.transfer_account_id,
-            options: validator::validate_charge_refund(
-                &refund_charges,
-                &payment_charges.charge_type,
-            )?,
-        })
+    fn foreign_try_from(
+        item: (SplitRefundRequest, SplitPaymentsRequest),
+    ) -> Result<Self, Self::Error> {
+        let (refund_request, payment_charges) = item;
+
+        match refund_request {
+            SplitRefundRequest::StripeSplitRefundRequest(stripe_refund) => match payment_charges {
+                SplitPaymentsRequest::StripeSplitPayment(stripe_payment) => {
+                    let options = validator::validate_charge_refund(
+                        &SplitRefundRequest::StripeSplitRefundRequest(stripe_refund.clone()),
+                        &stripe_payment.charge_type,
+                    )?;
+
+                    Ok(Self::StripeSplitRefund(
+                        router_request_types::StripeSplitRefund {
+                            charge_id: stripe_refund.charge_id,
+                            transfer_account_id: stripe_payment.transfer_account_id,
+                            charge_type: stripe_payment.charge_type,
+                            options,
+                        },
+                    ))
+                }
+            },
+        }
     }
 }
