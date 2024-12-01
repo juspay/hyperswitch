@@ -1738,7 +1738,7 @@ fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<Addi
     })
 }
 
-fn get_channel_type(pm_type: &Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
+fn get_channel_type(pm_type: Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
     pm_type.as_ref().and_then(|pmt| match pmt {
         storage_enums::PaymentMethodType::GoPay | storage_enums::PaymentMethodType::Vipps => {
             Some(Channel::Web)
@@ -3135,7 +3135,7 @@ impl
         let additional_data = get_additional_data(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((wallet_data, item.router_data))?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let channel = get_channel_type(&item.router_data.request.payment_method_type);
+        let channel = get_channel_type(item.router_data.request.payment_method_type);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;

@@ -56,7 +56,7 @@ where
         dimensions: &[RefundDimensions],
         auth: &AuthInfo,
         filters: &RefundFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>>;
@@ -77,7 +77,7 @@ where
         dimensions: &[RefundDimensions],
         auth: &AuthInfo,
         filters: &RefundFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {

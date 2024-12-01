@@ -553,8 +553,8 @@ mod tests {
 
 // Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitration
 pub fn validate_dispute_stage(
-    prev_dispute_stage: &DisputeStage,
-    dispute_stage: &DisputeStage,
+    prev_dispute_stage: DisputeStage,
+    dispute_stage: DisputeStage,
 ) -> bool {
     match prev_dispute_stage {
         DisputeStage::PreDispute => true,
@@ -596,7 +596,7 @@ pub fn validate_dispute_stage_and_dispute_status(
     dispute_stage: DisputeStage,
     dispute_status: DisputeStatus,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let dispute_stage_validation = validate_dispute_stage(&prev_dispute_stage, &dispute_stage);
+    let dispute_stage_validation = validate_dispute_stage(prev_dispute_stage, dispute_stage);
     let dispute_status_validation = if dispute_stage == prev_dispute_stage {
         validate_dispute_status(prev_dispute_status, dispute_status)
     } else {

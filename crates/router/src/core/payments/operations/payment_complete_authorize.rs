@@ -75,7 +75,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,

@@ -775,7 +775,7 @@ where
 
     let apple_pay_flow = payments::decide_apple_pay_flow(
         state,
-        &payment_data.payment_attempt.payment_method_type,
+        payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
     );
 

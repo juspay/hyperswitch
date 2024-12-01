@@ -383,7 +383,7 @@ pub async fn payouts_confirm_core(
     let status = payout_attempt.status;
 
     helpers::validate_payout_status_against_not_allowed_statuses(
-        &status,
+        status,
         &[
             storage_enums::PayoutStatus::Cancelled,
             storage_enums::PayoutStatus::Success,

@@ -64,7 +64,7 @@ impl api::RefundExecute for Cashtocode {}
 impl api::RefundSync for Cashtocode {}
 
 fn get_b64_auth_cashtocode(
-    payment_method_type: &Option<enums::PaymentMethodType>,
+    payment_method_type: Option<enums::PaymentMethodType>,
     auth_type: &transformers::CashtocodeAuth,
 ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
     fn construct_basic_auth(
@@ -202,7 +202,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             &req.request.currency,
         ))?;
 
-        let mut api_key = get_b64_auth_cashtocode(&req.request.payment_method_type, &auth_type)?;
+        let mut api_key = get_b64_auth_cashtocode(req.request.payment_method_type, &auth_type)?;
 
         header.append(&mut api_key);
         Ok(header)

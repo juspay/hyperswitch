@@ -1674,7 +1674,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         Ok((
             (),
@@ -1707,7 +1707,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         Ok((
             UserFromToken {
@@ -1747,7 +1747,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -1810,7 +1810,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         // Check if token has access to Organization that has been requested in the route
         if payload.org_id != self.organization_id {
@@ -1855,7 +1855,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let merchant_id_from_header = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
@@ -1894,7 +1894,7 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let merchant_id_from_header = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
@@ -1964,7 +1964,7 @@ where
                 .get_required_value(headers::X_PROFILE_ID)?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let merchant_id_from_header = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
@@ -2041,7 +2041,7 @@ where
         }
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let merchant_id_from_header = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
@@ -2110,7 +2110,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         // Check if token has access to MerchantId that has been requested through query param
         if payload.merchant_id != self.merchant_id {
@@ -2151,7 +2151,7 @@ where
         }
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2215,7 +2215,7 @@ where
         }
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2286,7 +2286,7 @@ where
         }
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2360,7 +2360,7 @@ where
         }
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2427,7 +2427,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2492,7 +2492,7 @@ where
                 .get_required_value(headers::X_PROFILE_ID)?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.required_permission, &role_info)?;
+        authorization::check_permission(self.required_permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2592,7 +2592,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2656,7 +2656,7 @@ where
             .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -2729,7 +2729,7 @@ where
         )?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
@@ -3178,7 +3178,7 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state

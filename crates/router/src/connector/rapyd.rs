@@ -53,7 +53,7 @@ impl Rapyd {
         http_method: &str,
         url_path: &str,
         body: &str,
-        timestamp: &i64,
+        timestamp: i64,
         salt: &str,
     ) -> CustomResult<String, errors::ConnectorError> {
         let rapyd::RapydAuthType {
@@ -233,7 +233,7 @@ impl
         let body = types::PaymentsAuthorizeType::get_request_body(self, req, connectors)?;
         let req_body = body.get_inner_value().expose();
         let signature =
-            self.generate_signature(&auth, "post", "/v1/payments", &req_body, &timestamp, &salt)?;
+            self.generate_signature(&auth, "post", "/v1/payments", &req_body, timestamp, &salt)?;
         let headers = vec![
             ("access_key".to_string(), auth.access_key.into_masked()),
             ("salt".to_string(), salt.into_masked()),
@@ -361,7 +361,7 @@ impl
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let url_path = format!("/v1/payments/{}", req.request.connector_transaction_id);
         let signature =
-            self.generate_signature(&auth, "delete", &url_path, "", &timestamp, &salt)?;
+            self.generate_signature(&auth, "delete", &url_path, "", timestamp, &salt)?;
 
         let headers = vec![
             ("access_key".to_string(), auth.access_key.into_masked()),
@@ -460,7 +460,7 @@ impl
                 .get_connector_transaction_id()
                 .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
         );
-        let signature = self.generate_signature(&auth, "get", &url_path, "", &timestamp, &salt)?;
+        let signature = self.generate_signature(&auth, "get", &url_path, "", timestamp, &salt)?;
 
         let headers = vec![
             ("access_key".to_string(), auth.access_key.into_masked()),
@@ -563,7 +563,7 @@ impl
         let body = types::PaymentsCaptureType::get_request_body(self, req, connectors)?;
         let req_body = body.get_inner_value().expose();
         let signature =
-            self.generate_signature(&auth, "post", &url_path, &req_body, &timestamp, &salt)?;
+            self.generate_signature(&auth, "post", &url_path, &req_body, timestamp, &salt)?;
         let headers = vec![
             ("access_key".to_string(), auth.access_key.into_masked()),
             ("salt".to_string(), salt.into_masked()),
@@ -700,7 +700,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         let req_body = body.get_inner_value().expose();
         let auth: rapyd::RapydAuthType = rapyd::RapydAuthType::try_from(&req.connector_auth_type)?;
         let signature =
-            self.generate_signature(&auth, "post", "/v1/refunds", &req_body, &timestamp, &salt)?;
+            self.generate_signature(&auth, "post", "/v1/refunds", &req_body, timestamp, &salt)?;
         let headers = vec![
             ("access_key".to_string(), auth.access_key.into_masked()),
             ("salt".to_string(), salt.into_masked()),

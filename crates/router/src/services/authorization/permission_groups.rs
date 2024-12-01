@@ -128,13 +128,13 @@ impl ParentGroupExt for ParentGroup {
                     .resources()
                     .iter()
                     .filter(|res| res.entities().iter().any(|entity| entity <= &entity_type))
-                    .map(|res| permissions::get_resource_name(res, &entity_type))
+                    .map(|res| permissions::get_resource_name(*res, entity_type))
                     .collect::<Vec<_>>()
                     .join(", ");
 
                 Some((
                     parent,
-                    format!("{} {}", permissions::get_scope_name(&scopes), resources),
+                    format!("{} {}", permissions::get_scope_name(scopes), resources),
                 ))
             })
             .collect()

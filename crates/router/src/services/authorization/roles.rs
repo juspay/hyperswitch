@@ -70,7 +70,7 @@ impl RoleInfo {
             .collect()
     }
 
-    pub fn check_permission_exists(&self, required_permission: &Permission) -> bool {
+    pub fn check_permission_exists(&self, required_permission: Permission) -> bool {
         required_permission.entity_type() <= self.entity_type
             && self.get_permission_groups().iter().any(|group| {
                 required_permission.scope() <= group.scope()

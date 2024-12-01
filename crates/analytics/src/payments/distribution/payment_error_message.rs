@@ -35,7 +35,7 @@ where
         dimensions: &[PaymentDimensions],
         auth: &AuthInfo,
         filters: &PaymentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>> {
@@ -89,7 +89,7 @@ where
             .attach_printable("Error grouping by distribution_for")
             .switch()?;
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")

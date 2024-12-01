@@ -115,7 +115,7 @@ impl AnalyticsProvider {
         dimensions: &[PaymentDimensions],
         auth: &AuthInfo,
         filters: &PaymentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(PaymentMetricsBucketIdentifier, PaymentMetricRow)>> {
         // Metrics to get the fetch time for each payment metric
@@ -219,7 +219,7 @@ impl AnalyticsProvider {
         dimensions: &[PaymentDimensions],
         auth: &AuthInfo,
         filters: &PaymentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>> {
         // Metrics to get the fetch time for each payment metric
@@ -329,7 +329,7 @@ impl AnalyticsProvider {
         dimensions: &[PaymentIntentDimensions],
         auth: &AuthInfo,
         filters: &PaymentIntentFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(PaymentIntentMetricsBucketIdentifier, PaymentIntentMetricRow)>>
     {
@@ -434,7 +434,7 @@ impl AnalyticsProvider {
         dimensions: &[RefundDimensions],
         auth: &AuthInfo,
         filters: &RefundFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
@@ -534,7 +534,7 @@ impl AnalyticsProvider {
         dimensions: &[FrmDimensions],
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &FrmFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<Vec<(FrmMetricsBucketIdentifier, FrmMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
@@ -634,7 +634,7 @@ impl AnalyticsProvider {
         dimensions: &[DisputeDimensions],
         auth: &AuthInfo,
         filters: &DisputeFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
         // Metrics to get the fetch time for each refund metric
@@ -734,7 +734,7 @@ impl AnalyticsProvider {
         dimensions: &[SdkEventDimensions],
         publishable_key: &str,
         filters: &SdkEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(SdkEventMetricsBucketIdentifier, SdkEventMetricRow)>> {
         match self {
@@ -799,7 +799,7 @@ impl AnalyticsProvider {
         metric: &AuthEventMetrics,
         merchant_id: &common_utils::id_type::MerchantId,
         publishable_key: &str,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
         match self {
@@ -830,7 +830,7 @@ impl AnalyticsProvider {
         dimensions: &[ApiEventDimensions],
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &ApiEventFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
     ) -> types::MetricsResult<HashSet<(ApiEventMetricsBucketIdentifier, ApiEventMetricRow)>> {
         match self {

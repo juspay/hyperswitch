@@ -189,8 +189,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCaptureRouterData>> for PayboxCap
         let auth_data: PayboxAuthType =
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
-            .to_string();
+        let currency = item.router_data.request.currency.iso_4217().to_string();
         let paybox_meta_data: PayboxMeta =
             utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
         let format_time = common_utils::date_time::format_date(
@@ -387,9 +386,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                     item.router_data.request.capture_method,
                     item.router_data.request.is_mandate_payment(),
                 )?;
-                let currency =
-                    diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
-                        .to_string();
+                let currency = item.router_data.request.currency.iso_4217().to_string();
                 let expiration_date =
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
                 let format_time = common_utils::date_time::format_date(
@@ -884,8 +881,7 @@ impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefun
         let auth_data: PayboxAuthType =
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
-            .to_string();
+        let currency = item.router_data.request.currency.iso_4217().to_string();
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
             DateFormat::DDMMYYYYHHmmss,
@@ -1079,9 +1075,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
                     item.router_data.request.capture_method,
                     item.router_data.request.is_mandate_payment(),
                 )?;
-                let currency =
-                    diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
-                        .to_string();
+                let currency = item.router_data.request.currency.iso_4217().to_string();
                 let expiration_date =
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
                 let format_time = common_utils::date_time::format_date(
@@ -1196,8 +1190,7 @@ impl
             Some(enums::CaptureMethod::Manual) => Ok(MANDATE_AUTH_ONLY.to_string()),
             _ => Err(errors::ConnectorError::CaptureMethodNotSupported),
         }?;
-        let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
-            .to_string();
+        let currency = item.router_data.request.currency.iso_4217().to_string();
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
             DateFormat::DDMMYYYYHHmmss,
