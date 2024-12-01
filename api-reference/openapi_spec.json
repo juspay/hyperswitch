@@ -867,7 +867,6 @@
           "Payments"
         ],
         "summary": "Payments - Complete Authorize",
-        "description": "\n",
         "operationId": "Complete Authorize a Payment",
         "parameters": [
           {
@@ -918,7 +917,6 @@
           "Payments"
         ],
         "summary": "Payments - Post Session Tokens",
-        "description": "\n",
         "operationId": "Create Post Session Tokens for a Payment",
         "requestBody": {
           "content": {
@@ -6757,7 +6755,7 @@
                   },
                   "bank_account_bic": {
                     "type": "string",
-                    "description": "Bank account details for Giropay\nBank account bic code",
+                    "description": "Bank account bic code",
                     "nullable": true
                   },
                   "bank_account_iban": {
