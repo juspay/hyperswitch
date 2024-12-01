@@ -42,6 +42,7 @@ impl CallBackMapperInterface for Store {
         ))
     }
 
+    #[instrument(skip_all)]
     async fn find_call_back_mapper_by_id(
         &self,
         id: &str,
@@ -65,6 +66,7 @@ impl CallBackMapperInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
+    #[instrument(skip_all)]
     async fn find_call_back_mapper_by_id(
         &self,
         _id: &str,
