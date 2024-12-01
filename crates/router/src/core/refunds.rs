@@ -7,11 +7,8 @@ use std::collections::HashMap;
 #[cfg(feature = "olap")]
 use api_models::admin::MerchantConnectorInfo;
 use common_utils::{
-    ext_traits::{AsyncExt, ValueExt},
-    types::{
-        ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit, SplitPaymentsRequest,
-        SplitRefundRequest,
-    },
+    ext_traits::AsyncExt,
+    types::{ConnectorTransactionId, MinorUnit, SplitPaymentsRequest, SplitRefundRequest},
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};

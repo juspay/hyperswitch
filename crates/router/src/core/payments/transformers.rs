@@ -7,14 +7,11 @@ use api_models::payments::{
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
     consts::X_HS_LATENCY,
-    fp_utils,
-    pii::Email,
+    fp_utils, pii,
     types::{
         self as common_utils_type, AmountConvertor, MinorUnit, SplitPaymentsRequest,
         StringMajorUnitForConnector,
     },
-    fp_utils, pii,
-    types::{self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::{
     ephemeral_key,
