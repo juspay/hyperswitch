@@ -3333,7 +3333,7 @@ pub struct ReconToken {
     pub exp: u64,
     pub org_id: id_type::OrganizationId,
     pub profile_id: id_type::ProfileId,
-    pub tenant_id: Option<String>,
+    pub tenant_id: Option<id_type::TenantId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acl: Option<String>,
 }
@@ -3346,7 +3346,7 @@ impl ReconToken {
         settings: &Settings,
         org_id: id_type::OrganizationId,
         profile_id: id_type::ProfileId,
-        tenant_id: Option<String>,
+        tenant_id: Option<id_type::TenantId>,
         role_info: authorization::roles::RoleInfo,
     ) -> UserResult<String> {
         let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
