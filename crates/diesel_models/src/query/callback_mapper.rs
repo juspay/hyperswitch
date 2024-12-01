@@ -2,19 +2,19 @@ use diesel::{associations::HasTable, ExpressionMethods};
 
 use super::generics;
 use crate::{
-    callback_mapper::{CallBackMapper, CallBackMapperNew},
+    callback_mapper::{CallbackMapper, CallbackMapperNew},
     schema::callback_mapper::dsl,
     PgPooledConn, StorageResult,
 };
 
-impl CallBackMapperNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<CallBackMapper> {
+impl CallbackMapperNew {
+    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<CallbackMapper> {
         generics::generic_insert(conn, self).await
     }
 }
 
-impl CallBackMapper {
-    pub async fn find_by_id(conn: &PgPooledConn, id: String) -> StorageResult<Self> {
+impl CallbackMapper {
+    pub async fn find_by_id(conn: &PgPooledConn, id: &str) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id.eq(id.to_owned()),
