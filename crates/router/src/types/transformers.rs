@@ -101,8 +101,8 @@ impl
             merchant_id: item.merchant_id.to_owned(),
             customer_id: Some(item.customer_id.to_owned()),
             payment_method_id: item.get_id().clone(),
-            payment_method: item.payment_method,
-            payment_method_type: item.payment_method_type,
+            payment_method: item.get_payment_method_type(),
+            payment_method_type: item.get_payment_method_subtype(),
             card: card_details,
             recurring_enabled: false,
             installment_payment_enabled: false,
@@ -234,7 +234,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Digitalvirgo => Self::Digitalvirgo,
             api_enums::Connector::Dlocal => Self::Dlocal,
             api_enums::Connector::Ebanx => Self::Ebanx,
-            // api_enums::Connector::Elavon => Self::Elavon,
+            api_enums::Connector::Elavon => Self::Elavon,
             api_enums::Connector::Fiserv => Self::Fiserv,
             api_enums::Connector::Fiservemea => Self::Fiservemea,
             api_enums::Connector::Fiuu => Self::Fiuu,
@@ -249,6 +249,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             }
             api_enums::Connector::Helcim => Self::Helcim,
             api_enums::Connector::Iatapay => Self::Iatapay,
+            // api_enums::Connector::Inespay => Self::Inespay,
             api_enums::Connector::Itaubank => Self::Itaubank,
             //api_enums::Connector::Jpmorgan => Self::Jpmorgan,
             api_enums::Connector::Klarna => Self::Klarna,
@@ -279,6 +280,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Prophetpay => Self::Prophetpay,
             api_enums::Connector::Rapyd => Self::Rapyd,
             api_enums::Connector::Razorpay => Self::Razorpay,
+            // api_enums::Connector::Redsys => Self::Redsys,
             api_enums::Connector::Shift4 => Self::Shift4,
             api_enums::Connector::Signifyd => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
@@ -303,6 +305,7 @@ impl ForeignTryFrom<api_enums::Connector> for common_enums::RoutableConnectors {
             api_enums::Connector::Wise => Self::Wise,
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
+            // api_enums::Connector::Xendit => Self::Xendit,
             api_enums::Connector::Zen => Self::Zen,
             api_enums::Connector::Zsl => Self::Zsl,
             #[cfg(feature = "dummy_connector")]
@@ -886,7 +889,13 @@ impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
             payment_id: dispute.payment_id,
             attempt_id: dispute.attempt_id,
             amount: dispute.amount,
-            currency: dispute.currency,
+            currency: dispute.dispute_currency.unwrap_or(
+                dispute
+                    .currency
+                    .to_uppercase()
+                    .parse_enum("Currency")
+                    .unwrap_or_default(),
+            ),
             dispute_stage: dispute.dispute_stage,
             dispute_status: dispute.dispute_status,
             connector: dispute.connector,
@@ -1022,7 +1031,6 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             test_mode: item.test_mode,
             disabled: item.disabled,
             payment_methods_enabled,
-            metadata: item.metadata,
             business_country: item.business_country,
             business_label: item.business_label,
             business_sub_label: item.business_sub_label,
@@ -1031,31 +1039,6 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             applepay_verified_domains: item.applepay_verified_domains,
             pm_auth_config: item.pm_auth_config,
             status: item.status,
-            additional_merchant_data: item
-                .additional_merchant_data
-                .map(|data| {
-                    let data = data.into_inner();
-                    serde_json::Value::parse_value::<router_types::AdditionalMerchantData>(
-                        data.expose(),
-                        "AdditionalMerchantData",
-                    )
-                    .attach_printable("Unable to deserialize additional_merchant_data")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                })
-                .transpose()?
-                .map(api_models::admin::AdditionalMerchantData::foreign_from),
-            connector_wallets_details: item
-                .connector_wallets_details
-                .map(|data| {
-                    data.into_inner()
-                        .expose()
-                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
-                            "ConnectorWalletDetails",
-                        )
-                        .attach_printable("Unable to deserialize connector_wallets_details")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                })
-                .transpose()?,
         };
         #[cfg(feature = "v2")]
         let response = Self {
@@ -1065,37 +1048,11 @@ impl ForeignTryFrom<domain::MerchantConnectorAccount>
             connector_label: item.connector_label,
             disabled: item.disabled,
             payment_methods_enabled,
-            metadata: item.metadata,
             frm_configs,
             profile_id: item.profile_id,
             applepay_verified_domains: item.applepay_verified_domains,
             pm_auth_config: item.pm_auth_config,
             status: item.status,
-            additional_merchant_data: item
-                .additional_merchant_data
-                .map(|data| {
-                    let data = data.into_inner();
-                    serde_json::Value::parse_value::<router_types::AdditionalMerchantData>(
-                        data.expose(),
-                        "AdditionalMerchantData",
-                    )
-                    .attach_printable("Unable to deserialize additional_merchant_data")
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                })
-                .transpose()?
-                .map(api_models::admin::AdditionalMerchantData::foreign_from),
-            connector_wallets_details: item
-                .connector_wallets_details
-                .map(|data| {
-                    data.into_inner()
-                        .expose()
-                        .parse_value::<api_models::admin::ConnectorWalletDetails>(
-                            "ConnectorWalletDetails",
-                        )
-                        .attach_printable("Unable to deserialize connector_wallets_details")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                })
-                .transpose()?,
         };
         Ok(response)
     }
@@ -1988,6 +1945,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
             hide_card_nickname_field: item.hide_card_nickname_field,
+            show_card_form_by_default: item.show_card_form_by_default,
         }
     }
 }
@@ -2004,6 +1962,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
             hide_card_nickname_field: item.hide_card_nickname_field,
+            show_card_form_by_default: item.show_card_form_by_default,
             transaction_details: None,
         }
     }

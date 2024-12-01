@@ -6144,6 +6144,27 @@
         ],
         "description": "Masked payout method details for bank payout method"
       },
+      "BankCodeResponse": {
+        "type": "object",
+        "required": [
+          "bank_name",
+          "eligible_connectors"
+        ],
+        "properties": {
+          "bank_name": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BankNames"
+            }
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "BankDebitAdditionalData": {
         "oneOf": [
           {
@@ -6413,6 +6434,20 @@
             "type": "object"
           }
         ]
+      },
+      "BankDebitTypes": {
+        "type": "object",
+        "required": [
+          "eligible_connectors"
+        ],
+        "properties": {
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       },
       "BankHolderType": {
         "type": "string",
@@ -7637,6 +7672,25 @@
           }
         ]
       },
+      "BankTransferTypes": {
+        "type": "object",
+        "required": [
+          "eligible_connectors"
+        ],
+        "properties": {
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The list of eligible connectors for a given payment experience",
+            "example": [
+              "stripe",
+              "adyen"
+            ]
+          }
+        }
+      },
       "BankType": {
         "type": "string",
         "enum": [
@@ -8362,6 +8416,41 @@
           "Maestro"
         ]
       },
+      "CardNetworkTypes": {
+        "type": "object",
+        "required": [
+          "eligible_connectors"
+        ],
+        "properties": {
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The list of eligible connectors for a given card network",
+            "example": [
+              "stripe",
+              "adyen"
+            ]
+          }
+        }
+      },
       "CardPayout": {
         "type": "object",
         "required": [
@@ -8654,6 +8743,7 @@
           "digitalvirgo",
           "dlocal",
           "ebanx",
+          "elavon",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -9951,8 +10041,7 @@
             "description": "The dispute amount"
           },
           "currency": {
-            "type": "string",
-            "description": "The three-letter ISO currency code"
+            "$ref": "#/components/schemas/Currency"
           },
           "dispute_stage": {
             "$ref": "#/components/schemas/DisputeStage"
@@ -13071,11 +13160,6 @@
             ],
             "nullable": true
           },
-          "metadata": {
-            "type": "object",
-            "description": "Metadata is useful for storing additional, unstructured information on an object.",
-            "nullable": true
-          },
           "test_mode": {
             "type": "boolean",
             "description": "A boolean value to indicate if the connector is in Test mode. By default, its value is false.",
@@ -13133,22 +13217,6 @@
           },
           "status": {
             "$ref": "#/components/schemas/ConnectorStatus"
-          },
-          "additional_merchant_data": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AdditionalMerchantData"
-              }
-            ],
-            "nullable": true
-          },
-          "connector_wallets_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ConnectorWalletDetails"
-              }
-            ],
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -14364,14 +14432,17 @@
         ],
         "properties": {
           "organization_name": {
-            "type": "string"
+            "type": "string",
+            "description": "Name of the organization"
           },
           "organization_details": {
             "type": "object",
+            "description": "Details about the organization",
             "nullable": true
           },
           "metadata": {
             "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           }
         },
@@ -14387,20 +14458,24 @@
         "properties": {
           "organization_id": {
             "type": "string",
+            "description": "The unique identifier for the Organization",
             "example": "org_q98uSGAYbjEwqs0mJwnz",
             "maxLength": 64,
             "minLength": 1
           },
           "organization_name": {
             "type": "string",
+            "description": "Name of the Organization",
             "nullable": true
           },
           "organization_details": {
             "type": "object",
+            "description": "Details about the organization",
             "nullable": true
           },
           "metadata": {
             "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           },
           "modified_at": {
@@ -14418,14 +14493,17 @@
         "properties": {
           "organization_name": {
             "type": "string",
+            "description": "Name of the organization",
             "nullable": true
           },
           "organization_details": {
             "type": "object",
+            "description": "Details about the organization",
             "nullable": true
           },
           "metadata": {
             "type": "object",
+            "description": "Metadata is useful for storing additional, unstructured information on an object.",
             "nullable": true
           }
         },
@@ -15066,6 +15144,33 @@
           "collect_otp"
         ]
       },
+      "PaymentExperienceTypes": {
+        "type": "object",
+        "required": [
+          "eligible_connectors"
+        ],
+        "properties": {
+          "payment_experience_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentExperience"
+              }
+            ],
+            "nullable": true
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The list of eligible connectors for a given payment experience",
+            "example": [
+              "stripe",
+              "adyen"
+            ]
+          }
+        }
+      },
       "PaymentLinkConfig": {
         "type": "object",
         "required": [
@@ -15075,7 +15180,8 @@
           "sdk_layout",
           "display_sdk_only",
           "enabled_saved_payment_method",
-          "hide_card_nickname_field"
+          "hide_card_nickname_field",
+          "show_card_form_by_default"
         ],
         "properties": {
           "theme": {
@@ -15105,6 +15211,10 @@
           "hide_card_nickname_field": {
             "type": "boolean",
             "description": "Hide card nickname field option for payment link"
+          },
+          "show_card_form_by_default": {
+            "type": "boolean",
+            "description": "Show card form by default for payment link"
           },
           "allowed_domains": {
             "type": "array",
@@ -15174,6 +15284,13 @@
             "type": "boolean",
             "description": "Hide card nickname field option for payment link",
             "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "show_card_form_by_default": {
+            "type": "boolean",
+            "description": "Show card form by default for payment link",
+            "default": true,
             "example": true,
             "nullable": true
           },
@@ -16066,28 +16183,6 @@
           "jp_bacs"
         ]
       },
-      "PaymentMethodList": {
-        "type": "object",
-        "required": [
-          "payment_method"
-        ],
-        "properties": {
-          "payment_method": {
-            "$ref": "#/components/schemas/PaymentMethod"
-          },
-          "payment_method_types": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodType"
-            },
-            "description": "This is a sub-category of payment method.",
-            "example": [
-              "credit"
-            ],
-            "nullable": true
-          }
-        }
-      },
       "PaymentMethodListResponse": {
         "type": "object",
         "required": [
@@ -16111,19 +16206,9 @@
           "payment_methods": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/PaymentMethodList"
+              "$ref": "#/components/schemas/ResponsePaymentMethodsEnabled"
             },
-            "description": "Information about the payment method",
-            "example": [
-              {
-                "payment_experience": null,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ]
-              }
-            ]
+            "description": "Information about the payment method"
           },
           "mandate_payment": {
             "$ref": "#/components/schemas/MandateType"
@@ -16957,6 +17042,14 @@
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
             "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17326,6 +17419,14 @@
           "skip_external_tax_calculation": {
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -18521,6 +18622,14 @@
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
             "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19553,6 +19662,14 @@
           "skip_external_tax_calculation": {
             "type": "boolean",
             "description": "Whether to calculate tax for this payment intent",
+            "nullable": true
+          },
+          "psd2_sca_exemption_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -22387,6 +22504,97 @@
           }
         }
       },
+      "ResponsePaymentMethodTypes": {
+        "type": "object",
+        "required": [
+          "payment_method_type"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "payment_experience": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentExperienceTypes"
+            },
+            "description": "The list of payment experiences enabled, if applicable for a payment method type",
+            "nullable": true
+          },
+          "card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetworkTypes"
+            },
+            "description": "The list of card networks enabled, if applicable for a payment method type",
+            "nullable": true
+          },
+          "bank_names": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BankCodeResponse"
+            },
+            "description": "The list of banks enabled, if applicable for a payment method type",
+            "nullable": true
+          },
+          "bank_debits": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankDebitTypes"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_transfers": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransferTypes"
+              }
+            ],
+            "nullable": true
+          },
+          "required_fields": {
+            "type": "object",
+            "description": "Required fields for the payment_method_type.",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RequiredFieldInfo"
+            },
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "pm_auth_connector": {
+            "type": "string",
+            "description": "auth service connector label for this payment method type, if exists",
+            "nullable": true
+          }
+        }
+      },
+      "ResponsePaymentMethodsEnabled": {
+        "type": "object",
+        "required": [
+          "payment_method",
+          "payment_method_types"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
+            },
+            "description": "The list of payment method types enabled for a connector account"
+          }
+        }
+      },
       "RetrieveApiKeyResponse": {
         "type": "object",
         "description": "The response body for retrieving an API Key.",
@@ -22618,6 +22826,7 @@
           "digitalvirgo",
           "dlocal",
           "ebanx",
+          "elavon",
           "fiserv",
           "fiservemea",
           "fiuu",
@@ -22662,6 +22871,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "xendit",
           "zen",
           "plaid",
           "zsl"
@@ -23129,6 +23339,14 @@
             "$ref": "#/components/schemas/SamsungPayTokenData"
           }
         }
+      },
+      "ScaExemptionType": {
+        "type": "string",
+        "description": "SCA Exemptions types available for authentication",
+        "enum": [
+          "low_value",
+          "transaction_risk_analysis"
+        ]
       },
       "SdkInformation": {
         "type": "object",

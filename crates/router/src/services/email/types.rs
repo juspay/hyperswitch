@@ -1,9 +1,6 @@
 use api_models::user::dashboard_metadata::ProdIntent;
 use common_enums::EntityType;
-use common_utils::{
-    errors::{self, CustomResult},
-    pii,
-};
+use common_utils::{errors::CustomResult, pii};
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::{ExposeInterface, Secret};
@@ -57,6 +54,7 @@ pub enum EmailBody {
         api_key_name: String,
         prefix: String,
     },
+    WelcomeToCommunity,
 }
 
 pub mod html {
@@ -145,6 +143,9 @@ Email         : {user_email}
                 prefix = prefix,
                 expires_in = expires_in,
             ),
+            EmailBody::WelcomeToCommunity => {
+                include_str!("assets/welcome_to_community.html").to_string()
+            }
         }
     }
 }
@@ -179,7 +180,7 @@ impl EmailToken {
         entity: Option<Entity>,
         flow: domain::Origin,
         settings: &configs::Settings,
-    ) -> CustomResult<String, UserErrors> {
+    ) -> UserResult<String> {
         let expiration_duration = std::time::Duration::from_secs(consts::EMAIL_TOKEN_TIME_IN_SECS);
         let exp = jwt::generate_exp(expiration_duration)?.as_secs();
         let token_payload = Self {
@@ -191,8 +192,10 @@ impl EmailToken {
         jwt::generate_jwt(&token_payload, settings).await
     }
 
-    pub fn get_email(&self) -> CustomResult<pii::Email, errors::ParsingError> {
+    pub fn get_email(&self) -> UserResult<domain::UserEmail> {
         pii::Email::try_from(self.email.clone())
+            .change_context(UserErrors::InternalServerError)
+            .and_then(domain::UserEmail::from_pii_email)
     }
 
     pub fn get_entity(&self) -> Option<&Entity> {
@@ -500,6 +503,24 @@ impl EmailData for ApiKeyExpiryReminder {
             subject: self.subject.to_string(),
             body: external_services::email::IntermediateString::new(body),
             recipient,
+        })
+    }
+}
+
+pub struct WelcomeToCommunity {
+    pub recipient_email: domain::UserEmail,
+    pub subject: &'static str,
+}
+
+#[async_trait::async_trait]
+impl EmailData for WelcomeToCommunity {
+    async fn get_email_data(&self) -> CustomResult<EmailContents, EmailError> {
+        let body = html::get_html_body(EmailBody::WelcomeToCommunity);
+
+        Ok(EmailContents {
+            subject: self.subject.to_string(),
+            body: external_services::email::IntermediateString::new(body),
+            recipient: self.recipient_email.clone().into_inner(),
         })
     }
 }

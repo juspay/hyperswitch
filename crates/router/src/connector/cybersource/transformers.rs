@@ -619,8 +619,8 @@ impl
                 PaymentSolution::ApplePay | PaymentSolution::SamsungPay => network
                     .as_ref()
                     .map(|card_network| match card_network.to_lowercase().as_str() {
-                        "amex" => "aesk",
-                        "discover" => "dipb",
+                        "amex" => "internet",
+                        "discover" => "internet",
                         "mastercard" => "spa",
                         "visa" => "internet",
                         _ => "internet",
