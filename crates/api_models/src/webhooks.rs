@@ -76,8 +76,14 @@ pub enum WebhookFlow {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 /// This enum tells about the affect a webhook had on an object
 pub enum WebhookResponseTracker {
+    #[cfg(feature = "v1")]
     Payment {
         payment_id: common_utils::id_type::PaymentId,
+        status: common_enums::IntentStatus,
+    },
+    #[cfg(feature = "v2")]
+    Payment {
+        payment_id: common_utils::id_type::GlobalPaymentId,
         status: common_enums::IntentStatus,
     },
     #[cfg(feature = "payouts")]
@@ -85,14 +91,28 @@ pub enum WebhookResponseTracker {
         payout_id: String,
         status: common_enums::PayoutStatus,
     },
+    #[cfg(feature = "v1")]
     Refund {
         payment_id: common_utils::id_type::PaymentId,
         refund_id: String,
         status: common_enums::RefundStatus,
     },
+    #[cfg(feature = "v2")]
+    Refund {
+        payment_id: common_utils::id_type::GlobalPaymentId,
+        refund_id: String,
+        status: common_enums::RefundStatus,
+    },
+    #[cfg(feature = "v1")]
     Dispute {
         dispute_id: String,
         payment_id: common_utils::id_type::PaymentId,
+        status: common_enums::DisputeStatus,
+    },
+    #[cfg(feature = "v2")]
+    Dispute {
+        dispute_id: String,
+        payment_id: common_utils::id_type::GlobalPaymentId,
         status: common_enums::DisputeStatus,
     },
     Mandate {
@@ -103,7 +123,20 @@ pub enum WebhookResponseTracker {
 }
 
 impl WebhookResponseTracker {
+    #[cfg(feature = "v1")]
     pub fn get_payment_id(&self) -> Option<common_utils::id_type::PaymentId> {
+        match self {
+            Self::Payment { payment_id, .. }
+            | Self::Refund { payment_id, .. }
+            | Self::Dispute { payment_id, .. } => Some(payment_id.to_owned()),
+            Self::NoEffect | Self::Mandate { .. } => None,
+            #[cfg(feature = "payouts")]
+            Self::Payout { .. } => None,
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_payment_id(&self) -> Option<common_utils::id_type::GlobalPaymentId> {
         match self {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
@@ -227,18 +260,36 @@ pub struct OutgoingWebhook {
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 #[serde(tag = "type", content = "object", rename_all = "snake_case")]
+#[cfg(feature = "v1")]
 pub enum OutgoingWebhookContent {
     #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
-    PaymentDetails(payments::PaymentsResponse),
+    PaymentDetails(Box<payments::PaymentsResponse>),
     #[schema(value_type = RefundResponse, title = "RefundResponse")]
-    RefundDetails(refunds::RefundResponse),
+    RefundDetails(Box<refunds::RefundResponse>),
     #[schema(value_type = DisputeResponse, title = "DisputeResponse")]
     DisputeDetails(Box<disputes::DisputeResponse>),
     #[schema(value_type = MandateResponse, title = "MandateResponse")]
     MandateDetails(Box<mandates::MandateResponse>),
     #[cfg(feature = "payouts")]
     #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
-    PayoutDetails(payouts::PayoutCreateResponse),
+    PayoutDetails(Box<payouts::PayoutCreateResponse>),
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(tag = "type", content = "object", rename_all = "snake_case")]
+#[cfg(feature = "v2")]
+pub enum OutgoingWebhookContent {
+    #[schema(value_type = PaymentsResponse, title = "PaymentsResponse")]
+    PaymentDetails(Box<payments::PaymentsRetrieveResponse>),
+    #[schema(value_type = RefundResponse, title = "RefundResponse")]
+    RefundDetails(Box<refunds::RefundResponse>),
+    #[schema(value_type = DisputeResponse, title = "DisputeResponse")]
+    DisputeDetails(Box<disputes::DisputeResponse>),
+    #[schema(value_type = MandateResponse, title = "MandateResponse")]
+    MandateDetails(Box<mandates::MandateResponse>),
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
+    PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 
 #[derive(Debug, Clone, Serialize)]

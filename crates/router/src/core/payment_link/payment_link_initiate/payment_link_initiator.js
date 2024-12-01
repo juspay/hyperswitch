@@ -56,6 +56,8 @@ function initializeSDK() {
         height: 55,
       },
     },
+    showCardFormByDefault: paymentDetails.show_card_form_by_default,
+    hideCardNicknameField: false,
   };
   // @ts-ignore
   unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);

@@ -34,9 +34,9 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         _merchant_account: &domain::MerchantAccount,
         _key_store: &domain::MerchantKeyStore,
         _customer: &Option<domain::Customer>,
-        _merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        _merchant_connector_account: &domain::MerchantConnectorAccount,
         _merchant_recipient_data: Option<MerchantRecipientData>,
-        _header_payload: Option<api_models::payments::HeaderPayload>,
+        _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>>
     {
         todo!()
@@ -52,7 +52,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
         _merchant_recipient_data: Option<MerchantRecipientData>,
-        header_payload: Option<api_models::payments::HeaderPayload>,
+        header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
     ) -> RouterResult<RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>>
     {
         let status = storage_enums::AttemptStatus::Pending;
@@ -128,6 +128,8 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             integrity_check: Ok(()),
             additional_merchant_data: None,
             header_payload,
+            connector_mandate_request_reference_id: None,
+            psd2_sca_exemption_type: None,
         };
 
         Ok(router_data)

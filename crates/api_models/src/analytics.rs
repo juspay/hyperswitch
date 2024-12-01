@@ -203,7 +203,9 @@ pub struct AnalyticsMetadata {
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentsAnalyticsMetadata {
     pub total_payment_processed_amount: Option<u64>,
+    pub total_payment_processed_amount_in_usd: Option<u64>,
     pub total_payment_processed_amount_without_smart_retries: Option<u64>,
+    pub total_payment_processed_amount_without_smart_retries_usd: Option<u64>,
     pub total_payment_processed_count: Option<u64>,
     pub total_payment_processed_count_without_smart_retries: Option<u64>,
     pub total_failure_reasons_count: Option<u64>,
@@ -218,10 +220,19 @@ pub struct PaymentIntentsAnalyticsMetadata {
     pub total_smart_retried_amount_without_smart_retries: Option<u64>,
     pub total_payment_processed_amount: Option<u64>,
     pub total_payment_processed_amount_without_smart_retries: Option<u64>,
+    pub total_smart_retried_amount_in_usd: Option<u64>,
+    pub total_smart_retried_amount_without_smart_retries_in_usd: Option<u64>,
+    pub total_payment_processed_amount_in_usd: Option<u64>,
+    pub total_payment_processed_amount_without_smart_retries_in_usd: Option<u64>,
     pub total_payment_processed_count: Option<u64>,
     pub total_payment_processed_count_without_smart_retries: Option<u64>,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct RefundsAnalyticsMetadata {
+    pub total_refund_processed_amount: Option<u64>,
+    pub total_refund_processed_amount_in_usd: Option<u64>,
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentFiltersRequest {
@@ -336,6 +347,11 @@ pub struct SdkEventFilterValue {
 }
 
 #[derive(Debug, serde::Serialize)]
+pub struct DisputesAnalyticsMetadata {
+    pub total_disputed_amount: Option<u64>,
+    pub total_dispute_lost_amount: Option<u64>,
+}
+#[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MetricsResponse<T> {
     pub query_data: Vec<T>,
@@ -356,6 +372,18 @@ pub struct PaymentIntentsMetricsResponse<T> {
     pub meta_data: [PaymentIntentsAnalyticsMetadata; 1],
 }
 
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefundsMetricsResponse<T> {
+    pub query_data: Vec<T>,
+    pub meta_data: [RefundsAnalyticsMetadata; 1],
+}
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DisputesMetricsResponse<T> {
+    pub query_data: Vec<T>,
+    pub meta_data: [DisputesAnalyticsMetadata; 1],
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetApiEventFiltersRequest {
@@ -430,17 +458,9 @@ pub struct GetDisputeMetricRequest {
 #[derive(Clone, Debug, Default, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct SankeyResponse {
-    pub normal_success: i64,
-    pub normal_failure: i64,
-    pub cancelled: i64,
-    pub smart_retried_success: i64,
-    pub smart_retried_failure: i64,
-    pub pending: i64,
-    pub partial_refunded: i64,
-    pub refunded: i64,
-    pub disputed: i64,
-    pub pm_awaited: i64,
-    pub customer_awaited: i64,
-    pub merchant_awaited: i64,
-    pub confirmation_awaited: i64,
+    pub count: i64,
+    pub status: String,
+    pub refunds_status: Option<String>,
+    pub dispute_status: Option<String>,
+    pub first_attempt: i64,
 }

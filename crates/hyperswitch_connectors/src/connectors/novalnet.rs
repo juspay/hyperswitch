@@ -37,7 +37,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    errors,
+    disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
@@ -195,8 +195,12 @@ impl ConnectorValidation for Novalnet {
         pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd: HashSet<PaymentMethodDataType> =
-            HashSet::from([PaymentMethodDataType::Card]);
+        let mandate_supported_pmd: HashSet<PaymentMethodDataType> = HashSet::from([
+            PaymentMethodDataType::Card,
+            PaymentMethodDataType::GooglePay,
+            PaymentMethodDataType::PaypalRedirect,
+            PaymentMethodDataType::ApplePay,
+        ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
@@ -872,5 +876,45 @@ impl webhooks::IncomingWebhook for Novalnet {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(notif))
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
+        let notif: transformers::NovalnetWebhookNotificationResponse =
+            get_webhook_object_from_body(request.body)
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let (amount, currency, reason, reason_code) = match notif.transaction {
+            novalnet::NovalnetWebhookTransactionData::CaptureTransactionData(data) => {
+                (data.amount, data.currency, None, None)
+            }
+            novalnet::NovalnetWebhookTransactionData::CancelTransactionData(data) => {
+                (data.amount, data.currency, None, None)
+            }
+
+            novalnet::NovalnetWebhookTransactionData::RefundsTransactionData(data) => {
+                (data.amount, data.currency, None, None)
+            }
+
+            novalnet::NovalnetWebhookTransactionData::SyncTransactionData(data) => {
+                (data.amount, data.currency, data.reason, data.reason_code)
+            }
+        };
+
+        let dispute_status =
+            novalnet::get_novalnet_dispute_status(notif.event.event_type).to_string();
+        Ok(disputes::DisputePayload {
+            amount: novalnet::option_to_result(amount)?.to_string(),
+            currency: novalnet::option_to_result(currency)?,
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: notif.event.tid.to_string(),
+            connector_reason: reason,
+            connector_reason_code: reason_code,
+            challenge_required_by: None,
+            connector_status: dispute_status,
+            created_at: None,
+            updated_at: None,
+        })
     }
 }

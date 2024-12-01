@@ -70,10 +70,19 @@ where
         .clone()
         .map(|gsm| gsm.step_up_possible)
         .unwrap_or(false);
+
+    #[cfg(feature = "v1")]
     let is_no_three_ds_payment = matches!(
         payment_data.get_payment_attempt().authentication_type,
         Some(storage_enums::AuthenticationType::NoThreeDs)
     );
+
+    #[cfg(feature = "v2")]
+    let is_no_three_ds_payment = matches!(
+        payment_data.get_payment_attempt().authentication_type,
+        storage_enums::AuthenticationType::NoThreeDs
+    );
+
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
@@ -282,6 +291,7 @@ fn get_flow_name<F>() -> RouterResult<String> {
         .to_string())
 }
 
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn do_retry<F, ApiRequest, FData, D>(
@@ -338,7 +348,7 @@ where
         payments::CallConnectorAction::Trigger,
         validate_result,
         schedule_time,
-        api::HeaderPayload::default(),
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
         frm_suggestion,
         business_profile,
         true,
@@ -415,7 +425,7 @@ where
         }) => {
             let encoded_data = payment_data.get_payment_attempt().encoded_data.clone();
 
-            let authentication_data = redirection_data
+            let authentication_data = (*redirection_data)
                 .as_ref()
                 .map(Encode::encode_to_value)
                 .transpose()

@@ -1,9 +1,11 @@
 pub mod transformers;
-use std::fmt::Debug;
 
 use api_models::enums;
 use base64::Engine;
-use common_utils::request::RequestContent;
+use common_utils::{
+    request::RequestContent,
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
 use router_env::logger;
@@ -29,8 +31,18 @@ use crate::{
     utils::BytesExt,
 };
 
-#[derive(Debug, Clone)]
-pub struct Klarna;
+#[derive(Clone)]
+pub struct Klarna {
+    amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+}
+
+impl Klarna {
+    pub fn new() -> &'static Self {
+        &Self {
+            amount_converter: &MinorUnitForConnector,
+        }
+    }
+}
 
 impl ConnectorCommon for Klarna {
     fn id(&self) -> &'static str {
@@ -215,12 +227,12 @@ impl
         req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = klarna::KlarnaRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = klarna::KlarnaRouterData::from((amount, req));
 
         let connector_req = klarna::KlarnaSessionRequest::try_from(&connector_router_data)?;
         // encode only for for urlencoded things.
@@ -342,12 +354,12 @@ impl
         req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = klarna::KlarnaRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount_to_capture,
             req.request.currency,
-            req.request.amount_to_capture,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = klarna::KlarnaRouterData::from((amount, req));
         let connector_req = klarna::KlarnaCaptureRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
@@ -536,7 +548,8 @@ impl
                         | common_enums::PaymentExperience::InvokeSdkClient
                         | common_enums::PaymentExperience::LinkWallet
                         | common_enums::PaymentExperience::OneClick
-                        | common_enums::PaymentExperience::RedirectToUrl,
+                        | common_enums::PaymentExperience::RedirectToUrl
+                        | common_enums::PaymentExperience::CollectOtp,
                         common_enums::PaymentMethodType::Ach
                         | common_enums::PaymentMethodType::Affirm
                         | common_enums::PaymentMethodType::AfterpayClearpay
@@ -565,6 +578,7 @@ impl
                         | common_enums::PaymentMethodType::Dana
                         | common_enums::PaymentMethodType::DanamonVa
                         | common_enums::PaymentMethodType::Debit
+                        | common_enums::PaymentMethodType::DirectCarrierBilling
                         | common_enums::PaymentMethodType::Efecty
                         | common_enums::PaymentMethodType::Eps
                         | common_enums::PaymentMethodType::Evoucher
@@ -649,6 +663,7 @@ impl
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::OpenBanking(_)
@@ -670,12 +685,12 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = klarna::KlarnaRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
             req.request.currency,
-            req.request.amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = klarna::KlarnaRouterData::from((amount, req));
         let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
 
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -847,12 +862,12 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_router_data = klarna::KlarnaRouterData::try_from((
-            &self.get_currency_unit(),
+        let amount = connector_utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_refund_amount,
             req.request.currency,
-            req.request.refund_amount,
-            req,
-        ))?;
+        )?;
+        let connector_router_data = klarna::KlarnaRouterData::from((amount, req));
         let connector_req = klarna::KlarnaRefundRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }

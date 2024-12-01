@@ -1,6 +1,5 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models::verifications;
-use common_enums::EntityType;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
@@ -9,6 +8,7 @@ use crate::{
     services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
+#[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::Verification))]
 pub async fn apple_pay_merchant_registration(
     state: web::Data<AppState>,
@@ -34,8 +34,7 @@ pub async fn apple_pay_merchant_registration(
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
-                permission: Permission::MerchantAccountWrite,
-                minimum_entity_level: EntityType::Profile,
+                permission: Permission::ProfileAccountWrite,
             },
             req.headers(),
         ),
@@ -70,7 +69,6 @@ pub async fn retrieve_apple_pay_verified_domains(
             &auth::HeaderAuth(auth::ApiKeyAuth),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
-                minimum_entity_level: EntityType::Merchant,
             },
             req.headers(),
         ),

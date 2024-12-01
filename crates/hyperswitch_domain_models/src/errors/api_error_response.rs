@@ -274,6 +274,11 @@ pub enum ApiErrorResponse {
     LinkConfigurationError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_41", message = "Payout validation failed")]
     PayoutFailed { data: Option<serde_json::Value> },
+    #[error(
+        error_type = ErrorType::InvalidRequestError, code = "IR_42",
+        message = "Cookies are not found in the request"
+    )]
+    CookieNotFound,
 
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
@@ -627,6 +632,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::PayoutFailed { data } => {
                 AER::BadRequest(ApiError::new("IR", 41, "Payout failed while processing with connector.", Some(Extra { data: data.clone(), ..Default::default()})))
             },
+            Self::CookieNotFound => {
+                AER::Unauthorized(ApiError::new("IR", 42, "Cookies are not found in the request", None))
+            },
 
             Self::WebhookAuthenticationFailed => {
                 AER::Unauthorized(ApiError::new("WE", 1, "Webhook authentication failed", None))
@@ -644,7 +652,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))
             },
             Self::WebhookInvalidMerchantSecret => {
-                AER::BadRequest(ApiError::new("WE", 6, "Merchant Secret set for webhook source verificartion is invalid", None))
+                AER::BadRequest(ApiError::new("WE", 6, "Merchant Secret set for webhook source verification is invalid", None))
             }
             Self::IntegrityCheckFailed {
                 reason,

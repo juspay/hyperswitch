@@ -7,7 +7,7 @@ use std::{
 use api_models::payouts::{self, PayoutVendorAccountDetails};
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, OrderDetailsWithAmount},
+    payments,
 };
 use base64::Engine;
 use common_utils::{
@@ -18,7 +18,7 @@ use common_utils::{
     pii::{self, Email, IpAddress},
     types::{AmountConvertor, MinorUnit},
 };
-use diesel_models::enums;
+use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates,
@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
         SyncIntegrityObject,
     },
 };
-use masking::{ExposeInterface, Secret};
+use masking::{Deserialize, ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
@@ -713,7 +713,7 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.connector_mandate_id.clone()
+                    connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
                 | None
@@ -799,6 +799,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_total_surcharge_amount(&self) -> Option<i64>;
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
 }
 
 pub trait PaymentMethodTokenizationRequestData {
@@ -861,7 +862,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.connector_mandate_id.clone()
+                    connector_mandate_ids.get_connector_mandate_id()
                 }
                 Some(payments::MandateReferenceId::NetworkMandateId(_))
                 | None
@@ -979,6 +980,21 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("authentication_data"))
     }
+
+    /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_request_reference_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+            .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
+    }
 }
 
 pub trait ConnectorCustomerData {
@@ -1058,6 +1074,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_mandate_payment(&self) -> bool;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
@@ -1097,6 +1114,20 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 .as_ref()
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
+    }
+    /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_request_reference_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+            .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
 }
 
@@ -1924,8 +1955,7 @@ pub trait MandateReferenceData {
 
 impl MandateReferenceData for payments::ConnectorMandateReferenceId {
     fn get_connector_mandate_id(&self) -> Result<String, Error> {
-        self.connector_mandate_id
-            .clone()
+        self.get_connector_mandate_id()
             .ok_or_else(missing_field_err("mandate_id"))
     }
 }
@@ -2435,31 +2465,13 @@ impl FraudCheckRecordReturnRequest for fraud_check::FraudCheckRecordReturnData {
     }
 }
 
-pub trait AccessPaymentAttemptInfo {
-    fn get_browser_info(
-        &self,
-    ) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>>;
-}
-
-impl AccessPaymentAttemptInfo for PaymentAttempt {
-    fn get_browser_info(
-        &self,
-    ) -> Result<Option<BrowserInformation>, error_stack::Report<ApiErrorResponse>> {
-        self.browser_info
-            .clone()
-            .map(|b| b.parse_value("BrowserInformation"))
-            .transpose()
-            .change_context(ApiErrorResponse::InvalidDataValue {
-                field_name: "browser_info",
-            })
-    }
-}
-
+#[cfg(feature = "v1")]
 pub trait PaymentsAttemptData {
     fn get_browser_info(&self)
         -> Result<BrowserInformation, error_stack::Report<ApiErrorResponse>>;
 }
 
+#[cfg(feature = "v1")]
 impl PaymentsAttemptData for PaymentAttempt {
     fn get_browser_info(
         &self,
@@ -2811,6 +2823,7 @@ pub enum PaymentMethodDataType {
     VietQr,
     OpenBanking,
     NetworkToken,
+    DirectCarrierBilling,
 }
 
 impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
@@ -2997,6 +3010,9 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
             domain::payments::PaymentMethodData::OpenBanking(data) => match data {
                 hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
             },
+            domain::payments::PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
+                hyperswitch_domain_models::payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => Self::DirectCarrierBilling,
+            },
         }
     }
 }
@@ -3126,4 +3142,15 @@ impl NetworkTokenData for domain::NetworkTokenData {
         }
         Secret::new(year)
     }
+}
+
+pub fn convert_uppercase<'de, D, T>(v: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Debug + std::fmt::Display + std::error::Error,
+{
+    use serde::de::Error;
+    let output = <&str>::deserialize(v)?;
+    output.to_uppercase().parse::<T>().map_err(D::Error::custom)
 }

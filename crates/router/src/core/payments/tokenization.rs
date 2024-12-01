@@ -5,7 +5,9 @@ use std::collections::HashMap;
     not(feature = "payment_methods_v2")
 ))]
 use api_models::payment_methods::PaymentMethodsData;
-use api_models::payments::ConnectorMandateReferenceId;
+use api_models::{
+    payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
+};
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_utils::{
     crypto::Encryptable,
@@ -32,7 +34,7 @@ use crate::{
         self,
         api::{self, CardDetailFromLocker, CardDetailsPaymentMethod, PaymentMethodCreateExt},
         domain,
-        storage::{self, enums as storage_enums},
+        storage::enums as storage_enums,
     },
     utils::{generate_id, OptionExt},
 };
@@ -80,6 +82,7 @@ pub async fn save_payment_method<FData>(
     billing_name: Option<Secret<String>>,
     payment_method_billing_address: Option<&api::Address>,
     business_profile: &domain::Profile,
+    mut original_connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -155,22 +158,23 @@ where
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to serialize customer acceptance to value")?;
 
-            let (connector_mandate_id, mandate_metadata) = match responses {
-                types::PaymentsResponseData::TransactionResponse {
-                    ref mandate_reference,
-                    ..
-                } => {
-                    if let Some(mandate_ref) = mandate_reference {
-                        (
-                            mandate_ref.connector_mandate_id.clone(),
-                            mandate_ref.mandate_metadata.clone(),
-                        )
-                    } else {
-                        (None, None)
+            let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
+                match responses {
+                    types::PaymentsResponseData::TransactionResponse {
+                        mandate_reference, ..
+                    } => {
+                        if let Some(ref mandate_ref) = *mandate_reference {
+                            (
+                                mandate_ref.connector_mandate_id.clone(),
+                                mandate_ref.mandate_metadata.clone(),
+                                mandate_ref.connector_mandate_request_reference_id.clone(),
+                            )
+                        } else {
+                            (None, None, None)
+                        }
                     }
-                }
-                _ => (None, None),
-            };
+                    _ => (None, None, None),
+                };
 
             let pm_id = if customer_acceptance.is_some() {
                 let payment_method_create_request =
@@ -180,6 +184,7 @@ where
                         payment_method_type,
                         &customer_id.clone(),
                         billing_name,
+                        payment_method_billing_address,
                     )
                     .await?;
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
@@ -245,15 +250,26 @@ where
                     None => None,
                 };
 
-                let pm_card_details = resp.card.as_ref().map(|card| {
-                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
-                });
+                let optional_pm_details = match (
+                    resp.card.as_ref(),
+                    save_payment_method_data.request.get_payment_method_data(),
+                ) {
+                    (Some(card), _) => Some(PaymentMethodsData::Card(
+                        CardDetailsPaymentMethod::from(card.clone()),
+                    )),
+                    (
+                        _,
+                        domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
+                    ) => Some(PaymentMethodsData::WalletDetails(
+                        PaymentMethodDataWalletInfo::from(googlepay),
+                    )),
+                    _ => None,
+                };
+
                 let key_manager_state = state.into();
                 let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
-                    pm_card_details
-                        .async_map(|pm_card| {
-                            create_encrypted_data(&key_manager_state, key_store, pm_card)
-                        })
+                    optional_pm_details
+                        .async_map(|pm| create_encrypted_data(&key_manager_state, key_store, pm))
                         .await
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -607,7 +623,8 @@ where
                                 Ok(customer_payment_methods) => Ok(customer_payment_methods
                                     .iter()
                                     .find(|payment_method| {
-                                        payment_method.payment_method_type == payment_method_type
+                                        payment_method.get_payment_method_subtype()
+                                            == payment_method_type
                                     })
                                     .cloned()),
                                 Err(error) => {
@@ -689,12 +706,24 @@ where
             };
             // check if there needs to be a config if yes then remove it to a different place
             let connector_mandate_reference_id = if connector_mandate_id.is_some() {
-                Some(ConnectorMandateReferenceId {
-                    connector_mandate_id: connector_mandate_id.clone(),
-                    payment_method_id: None,
-                    update_history: None,
-                    mandate_metadata: mandate_metadata.clone(),
-                })
+                if let Some(ref mut record) = original_connector_mandate_reference_id {
+                    record.update(
+                        connector_mandate_id,
+                        None,
+                        None,
+                        mandate_metadata,
+                        connector_mandate_request_reference_id,
+                    );
+                    Some(record.clone())
+                } else {
+                    Some(ConnectorMandateReferenceId::new(
+                        connector_mandate_id,
+                        None,
+                        None,
+                        mandate_metadata,
+                        connector_mandate_request_reference_id,
+                    ))
+                }
             } else {
                 None
             };
@@ -728,6 +757,7 @@ pub async fn save_payment_method<FData>(
     _billing_name: Option<Secret<String>>,
     _payment_method_billing_address: Option<&api::Address>,
     _business_profile: &domain::Profile,
+    _connector_mandate_request_reference_id: Option<String>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
 where
     FData: mandate::MandateBehaviour + Clone,
@@ -956,7 +986,7 @@ pub async fn save_network_token_in_locker(
         {
             Ok((token_response, network_token_requestor_ref_id)) => {
                 // Only proceed if the tokenization was successful
-                let card_data = api::CardDetail {
+                let network_token_data = api::CardDetail {
                     card_number: token_response.token.clone(),
                     card_exp_month: token_response.token_expiry_month.clone(),
                     card_exp_year: token_response.token_expiry_year.clone(),
@@ -971,7 +1001,7 @@ pub async fn save_network_token_in_locker(
                 let (res, dc) = Box::pin(payment_methods::cards::add_card_to_locker(
                     state,
                     payment_method_request,
-                    &card_data,
+                    &network_token_data,
                     &customer_id,
                     merchant_account,
                     None,
@@ -1127,14 +1157,16 @@ pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn add_connector_mandate_details_in_payment_method(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
-    mandate_metadata: Option<serde_json::Value>,
-) -> Option<storage::PaymentsMandateReference> {
+    mandate_metadata: Option<Secret<serde_json::Value>>,
+    connector_mandate_request_reference_id: Option<String>,
+) -> Option<diesel_models::PaymentsMandateReference> {
     let mut mandate_details = HashMap::new();
 
     if let Some((mca_id, connector_mandate_id)) =
@@ -1142,54 +1174,61 @@ pub fn add_connector_mandate_details_in_payment_method(
     {
         mandate_details.insert(
             mca_id,
-            storage::PaymentsMandateReferenceRecord {
+            diesel_models::PaymentsMandateReferenceRecord {
                 connector_mandate_id,
                 payment_method_type,
                 original_payment_authorized_amount: authorized_amount,
                 original_payment_authorized_currency: authorized_currency,
                 mandate_metadata,
                 connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                connector_mandate_request_reference_id,
             },
         );
-        Some(storage::PaymentsMandateReference(mandate_details))
+        Some(diesel_models::PaymentsMandateReference(mandate_details))
     } else {
         None
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v1")]
 pub fn update_connector_mandate_details(
-    mandate_details: Option<storage::PaymentsMandateReference>,
+    mandate_details: Option<diesel_models::PaymentsMandateReference>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     authorized_amount: Option<i64>,
     authorized_currency: Option<storage_enums::Currency>,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
-    mandate_metadata: Option<serde_json::Value>,
+    mandate_metadata: Option<Secret<serde_json::Value>>,
+    connector_mandate_request_reference_id: Option<String>,
 ) -> RouterResult<Option<serde_json::Value>> {
     let mandate_reference = match mandate_details {
         Some(mut payment_mandate_reference) => {
             if let Some((mca_id, connector_mandate_id)) =
                 merchant_connector_id.clone().zip(connector_mandate_id)
             {
-                let updated_record = storage::PaymentsMandateReferenceRecord {
+                let updated_record = diesel_models::PaymentsMandateReferenceRecord {
                     connector_mandate_id: connector_mandate_id.clone(),
                     payment_method_type,
                     original_payment_authorized_amount: authorized_amount,
                     original_payment_authorized_currency: authorized_currency,
                     mandate_metadata: mandate_metadata.clone(),
                     connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                    connector_mandate_request_reference_id: connector_mandate_request_reference_id
+                        .clone(),
                 };
 
                 payment_mandate_reference
                     .entry(mca_id)
                     .and_modify(|pm| *pm = updated_record)
-                    .or_insert(storage::PaymentsMandateReferenceRecord {
+                    .or_insert(diesel_models::PaymentsMandateReferenceRecord {
                         connector_mandate_id,
                         payment_method_type,
                         original_payment_authorized_amount: authorized_amount,
                         original_payment_authorized_currency: authorized_currency,
                         mandate_metadata: mandate_metadata.clone(),
                         connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                        connector_mandate_request_reference_id,
                     });
                 Some(payment_mandate_reference)
             } else {
@@ -1203,6 +1242,7 @@ pub fn update_connector_mandate_details(
             merchant_connector_id,
             connector_mandate_id,
             mandate_metadata,
+            connector_mandate_request_reference_id,
         ),
     };
     let connector_mandate_details = mandate_reference

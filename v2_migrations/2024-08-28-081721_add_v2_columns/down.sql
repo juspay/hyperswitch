@@ -10,7 +10,8 @@ ALTER TABLE business_profile DROP COLUMN routing_algorithm_id,
     DROP COLUMN order_fulfillment_time_origin,
     DROP COLUMN frm_routing_algorithm_id,
     DROP COLUMN payout_routing_algorithm_id,
-    DROP COLUMN default_fallback_routing;
+    DROP COLUMN default_fallback_routing,
+    DROP COLUMN should_collect_cvv_during_payment;
 
 DROP TYPE "OrderFulfillmentTimeOrigin";
 
@@ -39,4 +40,6 @@ ALTER TABLE payment_attempt DROP COLUMN payment_method_type_v2,
     DROP COLUMN authentication_applied,
     DROP COLUMN external_reference_id,
     DROP COLUMN tax_on_surcharge,
+    DROP COLUMN payment_method_billing_address,
+    DROP COLUMN redirection_data,
     DROP COLUMN connector_payment_data;

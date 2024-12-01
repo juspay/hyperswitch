@@ -430,6 +430,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -727,8 +728,8 @@ fn handle_cards_response(
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::ConnectorTransactionId(response.instance_id.clone()),
-        redirection_data,
-        mandate_reference: None,
+        redirection_data: Box::new(redirection_data),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
@@ -754,11 +755,11 @@ fn handle_bank_redirects_response(
         resource_id: types::ResponseId::ConnectorTransactionId(
             response.payment_request_id.to_string(),
         ),
-        redirection_data: Some(services::RedirectForm::from((
+        redirection_data: Box::new(Some(services::RedirectForm::from((
             response.gateway_url,
             services::Method::Get,
-        ))),
-        mandate_reference: None,
+        )))),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
@@ -791,8 +792,8 @@ fn handle_bank_redirects_error_response(
     });
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
@@ -852,8 +853,8 @@ fn handle_bank_redirects_sync_response(
                 .payment_request_id
                 .clone(),
         ),
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
@@ -900,8 +901,8 @@ pub fn handle_webhook_response(
     };
     let payment_response_data = types::PaymentsResponseData::TransactionResponse {
         resource_id: types::ResponseId::NoResponseId,
-        redirection_data: None,
-        mandate_reference: None,
+        redirection_data: Box::new(None),
+        mandate_reference: Box::new(None),
         connector_metadata: None,
         network_txn_id: None,
         connector_response_reference_id: None,
@@ -1789,7 +1790,7 @@ pub struct WebhookReferences {
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookAmount {
     pub amount: f64,
-    pub currency: String,
+    pub currency: enums::Currency,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

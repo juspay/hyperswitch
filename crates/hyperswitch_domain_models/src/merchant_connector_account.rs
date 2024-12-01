@@ -1,3 +1,7 @@
+#[cfg(feature = "v2")]
+use api_models::admin;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -9,17 +13,25 @@ use common_utils::{
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+#[cfg(feature = "v2")]
+use router_env::logger;
 use rustc_hash::FxHashMap;
+use serde_json::Value;
 
 use super::behaviour;
+#[cfg(feature = "v2")]
+use crate::errors::api_error_response::ApiErrorResponse;
+#[cfg(feature = "v2")]
+use crate::router_data;
 use crate::type_encryption::{crypto_operation, CryptoOperation};
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct MerchantConnectorAccount {
     pub merchant_id: id_type::MerchantId,
     pub connector_name: String,
-    pub connector_account_details: Encryptable<pii::SecretSerdeValue>,
+    #[encrypt]
+    pub connector_account_details: Encryptable<Secret<Value>>,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
@@ -38,8 +50,10 @@ pub struct MerchantConnectorAccount {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
-    pub connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
-    pub additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
+    #[encrypt]
+    pub connector_wallets_details: Option<Encryptable<Secret<Value>>>,
+    #[encrypt]
+    pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
 }
 
@@ -51,12 +65,13 @@ impl MerchantConnectorAccount {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,
     pub merchant_id: id_type::MerchantId,
     pub connector_name: String,
-    pub connector_account_details: Encryptable<pii::SecretSerdeValue>,
+    #[encrypt]
+    pub connector_account_details: Encryptable<Secret<Value>>,
     pub disabled: Option<bool>,
     pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
     pub connector_type: enums::ConnectorType,
@@ -70,8 +85,10 @@ pub struct MerchantConnectorAccount {
     pub applepay_verified_domains: Option<Vec<String>>,
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
-    pub connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
-    pub additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
+    #[encrypt]
+    pub connector_wallets_details: Option<Encryptable<Secret<Value>>>,
+    #[encrypt]
+    pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
 }
 
@@ -79,6 +96,43 @@ pub struct MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
+    }
+
+    pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
+        self.metadata.clone()
+    }
+
+    pub fn get_parsed_payment_methods_enabled(
+        &self,
+    ) -> Vec<CustomResult<admin::PaymentMethodsEnabled, ApiErrorResponse>> {
+        self.payment_methods_enabled
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|payment_methods_enabled| {
+                payment_methods_enabled
+                    .parse_value::<admin::PaymentMethodsEnabled>("payment_methods_enabled")
+                    .change_context(ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_methods_enabled",
+                    })
+            })
+            .collect()
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        self.disabled.unwrap_or(false)
+    }
+
+    pub fn get_connector_account_details(
+        &self,
+    ) -> error_stack::Result<router_data::ConnectorAuthType, common_utils::errors::ParsingError>
+    {
+        use common_utils::ext_traits::ValueExt;
+
+        self.connector_account_details
+            .get_inner()
+            .clone()
+            .parse_value("ConnectorAuthType")
     }
 }
 
@@ -88,20 +142,20 @@ pub enum MerchantConnectorAccountUpdate {
     Update {
         connector_type: Option<enums::ConnectorType>,
         connector_name: Option<String>,
-        connector_account_details: Option<Encryptable<pii::SecretSerdeValue>>,
+        connector_account_details: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
         test_mode: Option<bool>,
         disabled: Option<bool>,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
         payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
         frm_configs: Option<Vec<pii::SecretSerdeValue>>,
-        connector_webhook_details: Option<pii::SecretSerdeValue>,
+        connector_webhook_details: Box<Option<pii::SecretSerdeValue>>,
         applepay_verified_domains: Option<Vec<String>>,
-        pm_auth_config: Option<pii::SecretSerdeValue>,
+        pm_auth_config: Box<Option<pii::SecretSerdeValue>>,
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
-        connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
-        additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
+        connector_wallets_details: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
+        additional_merchant_data: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
     },
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
@@ -113,18 +167,18 @@ pub enum MerchantConnectorAccountUpdate {
 pub enum MerchantConnectorAccountUpdate {
     Update {
         connector_type: Option<enums::ConnectorType>,
-        connector_account_details: Option<Encryptable<pii::SecretSerdeValue>>,
+        connector_account_details: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
         disabled: Option<bool>,
         payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
         frm_configs: Option<Vec<pii::SecretSerdeValue>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         applepay_verified_domains: Option<Vec<String>>,
-        pm_auth_config: Option<pii::SecretSerdeValue>,
+        pm_auth_config: Box<Option<pii::SecretSerdeValue>>,
         connector_label: Option<String>,
         status: Option<enums::ConnectorStatus>,
-        connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
-        additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
+        connector_wallets_details: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
+        additional_merchant_data: Box<Option<Encryptable<pii::SecretSerdeValue>>>,
     },
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
@@ -179,11 +233,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         let decrypted_data = crypto_operation(
             state,
             type_name!(Self::DstType),
-            CryptoOperation::BatchDecrypt(EncryptedMca::to_encryptable(EncryptedMca {
-                connector_account_details: other.connector_account_details,
-                additional_merchant_data: other.additional_merchant_data,
-                connector_wallets_details: other.connector_wallets_details,
-            })),
+            CryptoOperation::BatchDecrypt(EncryptedMerchantConnectorAccount::to_encryptable(
+                EncryptedMerchantConnectorAccount {
+                    connector_account_details: other.connector_account_details,
+                    additional_merchant_data: other.additional_merchant_data,
+                    connector_wallets_details: other.connector_wallets_details,
+                },
+            )),
             identifier.clone(),
             key.peek(),
         )
@@ -193,11 +249,10 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             message: "Failed while decrypting connector account details".to_string(),
         })?;
 
-        let decrypted_data = EncryptedMca::from_encryptable(decrypted_data).change_context(
-            ValidationError::InvalidValue {
+        let decrypted_data = EncryptedMerchantConnectorAccount::from_encryptable(decrypted_data)
+            .change_context(ValidationError::InvalidValue {
                 message: "Failed while decrypting connector account details".to_string(),
-            },
-        )?;
+            })?;
 
         Ok(Self {
             merchant_id: other.merchant_id,
@@ -308,11 +363,13 @@ impl behaviour::Conversion for MerchantConnectorAccount {
         let decrypted_data = crypto_operation(
             state,
             type_name!(Self::DstType),
-            CryptoOperation::BatchDecrypt(EncryptedMca::to_encryptable(EncryptedMca {
-                connector_account_details: other.connector_account_details,
-                additional_merchant_data: other.additional_merchant_data,
-                connector_wallets_details: other.connector_wallets_details,
-            })),
+            CryptoOperation::BatchDecrypt(EncryptedMerchantConnectorAccount::to_encryptable(
+                EncryptedMerchantConnectorAccount {
+                    connector_account_details: other.connector_account_details,
+                    additional_merchant_data: other.additional_merchant_data,
+                    connector_wallets_details: other.connector_wallets_details,
+                },
+            )),
             identifier.clone(),
             key.peek(),
         )
@@ -322,11 +379,10 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             message: "Failed while decrypting connector account details".to_string(),
         })?;
 
-        let decrypted_data = EncryptedMca::from_encryptable(decrypted_data).change_context(
-            ValidationError::InvalidValue {
+        let decrypted_data = EncryptedMerchantConnectorAccount::from_encryptable(decrypted_data)
+            .change_context(ValidationError::InvalidValue {
                 message: "Failed while decrypting connector account details".to_string(),
-            },
-        )?;
+            })?;
 
         Ok(Self {
             id: other.id,
@@ -413,9 +469,9 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 frm_configs: None,
                 frm_config: frm_configs,
                 modified_at: Some(date_time::now()),
-                connector_webhook_details,
+                connector_webhook_details: *connector_webhook_details,
                 applepay_verified_domains,
-                pm_auth_config,
+                pm_auth_config: *pm_auth_config,
                 connector_label,
                 status,
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
@@ -475,7 +531,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 modified_at: Some(date_time::now()),
                 connector_webhook_details,
                 applepay_verified_domains,
-                pm_auth_config,
+                pm_auth_config: *pm_auth_config,
                 connector_label,
                 status,
                 connector_wallets_details: connector_wallets_details.map(Encryption::from),
@@ -503,120 +559,73 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
     }
 }
 
-pub struct McaFromRequestfromUpdate {
-    pub connector_account_details: Option<pii::SecretSerdeValue>,
-    pub connector_wallets_details: Option<pii::SecretSerdeValue>,
-    pub additional_merchant_data: Option<pii::SecretSerdeValue>,
-}
-pub struct McaFromRequest {
-    pub connector_account_details: pii::SecretSerdeValue,
-    pub connector_wallets_details: Option<pii::SecretSerdeValue>,
-    pub additional_merchant_data: Option<pii::SecretSerdeValue>,
-}
+common_utils::create_list_wrapper!(
+    MerchantConnectorAccounts,
+    MerchantConnectorAccount,
+    impl_functions: {
+        #[cfg(feature = "v2")]
+        pub fn get_connector_and_supporting_payment_method_type_for_session_call(
+            &self,
+        ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType)> {
+            let connector_and_supporting_payment_method_type = self.iter().flat_map(|connector_account| {
+                connector_account
+                    .get_parsed_payment_methods_enabled()
+                    // TODO: make payment_methods_enabled strict type in DB
+                    .into_iter()
+                    .filter_map(|parsed_payment_method_result| {
+                        parsed_payment_method_result
+                            .inspect_err(|err| {
+                                logger::error!(session_token_parsing_error=?err);
+                            })
+                            .ok()
+                    })
+                    .flat_map(|parsed_payment_methods_enabled| {
+                        parsed_payment_methods_enabled
+                            .payment_method_types
+                            .unwrap_or_default()
+                            .into_iter()
+                            .filter(|payment_method_type| {
+                                let is_invoke_sdk_client = matches!(
+                                    payment_method_type.payment_experience,
+                                    Some(api_models::enums::PaymentExperience::InvokeSdkClient)
+                                );
+                                is_invoke_sdk_client
+                            })
+                            .map(|payment_method_type| {
+                                (connector_account, payment_method_type.payment_method_type)
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>()
+            }).collect();
+            connector_and_supporting_payment_method_type
+        }
+        pub fn filter_based_on_profile_and_connector_type(
+            self,
+            profile_id: &id_type::ProfileId,
+            connector_type: common_enums::ConnectorType,
+        ) -> Self {
+            self.into_iter()
+                .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
+                .collect()
+        }
+        pub fn is_merchant_connector_account_id_in_connector_mandate_details(
+            &self,
+            profile_id: Option<&id_type::ProfileId>,
+            connector_mandate_details: &diesel_models::PaymentsMandateReference,
+        ) -> bool {
+            let mca_ids = self
+                .iter()
+                .filter(|mca| {
+                    mca.disabled.is_some_and(|disabled| !disabled)
+                        && profile_id.is_some_and(|profile_id| *profile_id == mca.profile_id)
+                })
+                .map(|mca| mca.get_id())
+                .collect::<std::collections::HashSet<_>>();
 
-pub struct DecryptedMca {
-    pub connector_account_details: Encryptable<pii::SecretSerdeValue>,
-    pub connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
-    pub additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
-}
-
-pub struct EncryptedMca {
-    pub connector_account_details: Encryption,
-    pub connector_wallets_details: Option<Encryption>,
-    pub additional_merchant_data: Option<Encryption>,
-}
-
-pub struct DecryptedUpdateMca {
-    pub connector_account_details: Option<Encryptable<pii::SecretSerdeValue>>,
-    pub connector_wallets_details: Option<Encryptable<pii::SecretSerdeValue>>,
-    pub additional_merchant_data: Option<Encryptable<pii::SecretSerdeValue>>,
-}
-
-impl ToEncryptable<DecryptedMca, Secret<serde_json::Value>, Encryption> for EncryptedMca {
-    fn from_encryptable(
-        mut hashmap: FxHashMap<String, Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<DecryptedMca, common_utils::errors::ParsingError> {
-        Ok(DecryptedMca {
-            connector_account_details: hashmap.remove("connector_account_details").ok_or(
-                error_stack::report!(common_utils::errors::ParsingError::EncodeError(
-                    "Unable to convert from HashMap to DecryptedMca",
-                )),
-            )?,
-            connector_wallets_details: hashmap.remove("connector_wallets_details"),
-            additional_merchant_data: hashmap.remove("additional_merchant_data"),
-        })
+            connector_mandate_details
+                .keys()
+                .any(|mca_id| mca_ids.contains(mca_id))
+        }
     }
-
-    fn to_encryptable(self) -> FxHashMap<String, Encryption> {
-        let mut map = FxHashMap::with_capacity_and_hasher(3, Default::default());
-
-        map.insert(
-            "connector_account_details".to_string(),
-            self.connector_account_details,
-        );
-        self.connector_wallets_details
-            .map(|s| map.insert("connector_wallets_details".to_string(), s));
-        self.additional_merchant_data
-            .map(|s| map.insert("additional_merchant_data".to_string(), s));
-        map
-    }
-}
-
-impl ToEncryptable<DecryptedUpdateMca, Secret<serde_json::Value>, Secret<serde_json::Value>>
-    for McaFromRequestfromUpdate
-{
-    fn from_encryptable(
-        mut hashmap: FxHashMap<String, Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<DecryptedUpdateMca, common_utils::errors::ParsingError> {
-        Ok(DecryptedUpdateMca {
-            connector_account_details: hashmap.remove("connector_account_details"),
-            connector_wallets_details: hashmap.remove("connector_wallets_details"),
-            additional_merchant_data: hashmap.remove("additional_merchant_data"),
-        })
-    }
-
-    fn to_encryptable(self) -> FxHashMap<String, Secret<serde_json::Value>> {
-        let mut map = FxHashMap::with_capacity_and_hasher(3, Default::default());
-
-        self.connector_account_details
-            .map(|cad| map.insert("connector_account_details".to_string(), cad));
-
-        self.connector_wallets_details
-            .map(|s| map.insert("connector_wallets_details".to_string(), s));
-        self.additional_merchant_data
-            .map(|s| map.insert("additional_merchant_data".to_string(), s));
-        map
-    }
-}
-
-impl ToEncryptable<DecryptedMca, Secret<serde_json::Value>, Secret<serde_json::Value>>
-    for McaFromRequest
-{
-    fn from_encryptable(
-        mut hashmap: FxHashMap<String, Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<DecryptedMca, common_utils::errors::ParsingError> {
-        Ok(DecryptedMca {
-            connector_account_details: hashmap.remove("connector_account_details").ok_or(
-                error_stack::report!(common_utils::errors::ParsingError::EncodeError(
-                    "Unable to convert from HashMap to DecryptedMca",
-                )),
-            )?,
-            connector_wallets_details: hashmap.remove("connector_wallets_details"),
-            additional_merchant_data: hashmap.remove("additional_merchant_data"),
-        })
-    }
-
-    fn to_encryptable(self) -> FxHashMap<String, Secret<serde_json::Value>> {
-        let mut map = FxHashMap::with_capacity_and_hasher(3, Default::default());
-
-        map.insert(
-            "connector_account_details".to_string(),
-            self.connector_account_details,
-        );
-        self.connector_wallets_details
-            .map(|s| map.insert("connector_wallets_details".to_string(), s));
-        self.additional_merchant_data
-            .map(|s| map.insert("additional_merchant_data".to_string(), s));
-        map
-    }
-}
+);

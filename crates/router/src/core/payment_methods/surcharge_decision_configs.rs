@@ -375,7 +375,9 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
     payment_intent: &storage::PaymentIntent,
     customer_payment_method_list: &mut [api_models::payment_methods::CustomerPaymentMethod],
 ) -> ConditionalConfigResult<types::SurchargeMetadata> {
-    let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.id.clone());
+    // let mut surcharge_metadata = types::SurchargeMetadata::new(payment_attempt.id.clone());
+    let mut surcharge_metadata = todo!();
+
     let surcharge_source = match (
         payment_attempt.get_surcharge_details(),
         algorithm_ref.surcharge_config_algo_id,
@@ -410,9 +412,10 @@ pub async fn perform_surcharge_decision_management_for_saved_cards(
             .get_required_value("payment_token")
             .change_context(ConfigError::InputConstructionError)?;
 
-        backend_input.payment_method.payment_method = Some(customer_payment_method.payment_method);
+        backend_input.payment_method.payment_method =
+            Some(customer_payment_method.payment_method_type);
         backend_input.payment_method.payment_method_type =
-            customer_payment_method.payment_method_type;
+            customer_payment_method.payment_method_subtype;
 
         let card_network = match customer_payment_method.payment_method_data.as_ref() {
             Some(api_models::payment_methods::PaymentMethodListData::Card(card)) => {

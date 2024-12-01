@@ -1,8 +1,10 @@
+#[cfg(feature = "v1")]
+pub use api_models::payments::PaymentsRequest;
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, CustomerDetailsResponse, HeaderPayload, MandateAmountData,
-    MandateData, MandateTransactionType, MandateType, MandateValidationFields, NextActionType,
-    OnlineMandate, OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
+    CryptoData, CustomerAcceptance, CustomerDetailsResponse, MandateAmountData, MandateData,
+    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
+    OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
     PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentListResponse,
     PaymentListResponseV2, PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse,
     PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse,
@@ -11,19 +13,19 @@ pub use api_models::payments::{
     PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
     PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
     PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
-    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
-    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
-    UrlDetails, VerifyRequest, VerifyResponse, WalletData,
+    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsResponse, PaymentsResponseForm,
+    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
+    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
+    VerifyResponse, WalletData,
 };
 #[cfg(feature = "v2")]
-pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsCreateIntentResponse};
+pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsIntentResponse};
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
     Approve, Authorize, AuthorizeSessionToken, Balance, CalculateTax, Capture, CompleteAuthorize,
-    CreateConnectorCustomer, CreateIntent, IncrementalAuthorization, InitPayment, PSync,
-    PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject, SdkSessionUpdate,
-    Session, SetupMandate, Void,
+    CreateConnectorCustomer, IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent,
+    PaymentGetIntent, PaymentMethodToken, PostProcessing, PostSessionTokens, PreProcessing, Reject,
+    SdkSessionUpdate, Session, SetupMandate, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
@@ -42,18 +44,38 @@ pub use super::payments_v2::{
 };
 use crate::core::errors;
 
-impl super::Router for PaymentsRequest {}
-
 pub trait PaymentIdTypeExt {
+    #[cfg(feature = "v1")]
     fn get_payment_intent_id(
         &self,
     ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError>;
+
+    #[cfg(feature = "v2")]
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::GlobalPaymentId, errors::ValidationError>;
 }
 
 impl PaymentIdTypeExt for PaymentIdType {
+    #[cfg(feature = "v1")]
     fn get_payment_intent_id(
         &self,
     ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError> {
+        match self {
+            Self::PaymentIntentId(id) => Ok(id.clone()),
+            Self::ConnectorTransactionId(_)
+            | Self::PaymentAttemptId(_)
+            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "payment_id",
+            })
+            .attach_printable("Expected payment intent ID but got connector transaction ID"),
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_payment_intent_id(
+        &self,
+    ) -> errors::CustomResult<common_utils::id_type::GlobalPaymentId, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
             Self::ConnectorTransactionId(_)
@@ -89,6 +111,7 @@ impl MandateValidationFieldsExt for MandateValidationFields {
     }
 }
 
+#[cfg(feature = "v1")]
 #[cfg(test)]
 mod payments_test {
     #![allow(clippy::expect_used, clippy::unwrap_used)]

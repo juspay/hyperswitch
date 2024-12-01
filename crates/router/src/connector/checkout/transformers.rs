@@ -129,6 +129,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -375,6 +376,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::CardRedirect(_)
@@ -688,8 +690,8 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
         };
         let payments_response_data = types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-            redirection_data,
-            mandate_reference: None,
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(None),
             connector_metadata: Some(connector_meta),
             network_txn_id: None,
             connector_response_reference_id: Some(
@@ -741,8 +743,8 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         };
         let payments_response_data = types::PaymentsResponseData::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-            redirection_data,
-            mandate_reference: None,
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(None),
             connector_metadata: None,
             network_txn_id: None,
             connector_response_reference_id: Some(
@@ -819,8 +821,8 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<PaymentVoidResponse>>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(response.action_id.clone()),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -920,8 +922,8 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
-                redirection_data: None,
-                mandate_reference: None,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: item.response.reference,
@@ -1250,7 +1252,7 @@ pub struct CheckoutDisputeWebhookData {
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
     pub amount: i32,
-    pub currency: String,
+    pub currency: enums::Currency,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub evidence_required_by: Option<PrimitiveDateTime>,
     pub reason_code: Option<String>,

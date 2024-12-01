@@ -83,4 +83,7 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
     DROP COLUMN mandate_details,
     DROP COLUMN mandate_data,
     DROP COLUMN tax_amount,
-    DROP COLUMN straight_through_algorithm;
+    DROP COLUMN straight_through_algorithm,
+    DROP COLUMN confirm,
+    DROP COLUMN authentication_data,
+    DROP COLUMN payment_method_billing_address_id;

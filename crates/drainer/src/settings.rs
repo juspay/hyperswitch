@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use common_utils::{ext_traits::ConfigExt, DbConnectionParams};
+use common_utils::{ext_traits::ConfigExt, id_type, DbConnectionParams};
 use config::{Environment, File};
 use external_services::managers::{
     encryption_management::EncryptionManagementConfig, secrets_management::SecretsManagementConfig,
@@ -122,24 +122,59 @@ pub struct Multitenancy {
     pub tenants: TenantConfig,
 }
 impl Multitenancy {
-    pub fn get_tenants(&self) -> &HashMap<String, Tenant> {
+    pub fn get_tenants(&self) -> &HashMap<id_type::TenantId, Tenant> {
         &self.tenants.0
     }
-    pub fn get_tenant_names(&self) -> Vec<String> {
-        self.tenants.0.keys().cloned().collect()
+    pub fn get_tenant_ids(&self) -> Vec<id_type::TenantId> {
+        self.tenants
+            .0
+            .values()
+            .map(|tenant| tenant.tenant_id.clone())
+            .collect()
     }
-    pub fn get_tenant(&self, tenant_id: &str) -> Option<&Tenant> {
+    pub fn get_tenant(&self, tenant_id: &id_type::TenantId) -> Option<&Tenant> {
         self.tenants.0.get(tenant_id)
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(transparent)]
-pub struct TenantConfig(pub HashMap<String, Tenant>);
+#[derive(Debug, Clone, Default)]
+pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
-#[derive(Debug, Deserialize, Clone, Default)]
+impl<'de> Deserialize<'de> for TenantConfig {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Inner {
+            base_url: String,
+            schema: String,
+            redis_key_prefix: String,
+            clickhouse_database: String,
+        }
+
+        let hashmap = <HashMap<id_type::TenantId, Inner>>::deserialize(deserializer)?;
+
+        Ok(Self(
+            hashmap
+                .into_iter()
+                .map(|(key, value)| {
+                    (
+                        key.clone(),
+                        Tenant {
+                            tenant_id: key,
+                            base_url: value.base_url,
+                            schema: value.schema,
+                            redis_key_prefix: value.redis_key_prefix,
+                            clickhouse_database: value.clickhouse_database,
+                        },
+                    )
+                })
+                .collect(),
+        ))
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Tenant {
-    pub name: String,
+    pub tenant_id: id_type::TenantId,
     pub base_url: String,
     pub schema: String,
     pub redis_key_prefix: String,

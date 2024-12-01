@@ -60,15 +60,26 @@ pub enum ApiEventsType {
     PaymentMethodList {
         payment_id: Option<String>,
     },
+    #[cfg(feature = "v1")]
     Webhooks {
         connector: String,
         payment_id: Option<id_type::PaymentId>,
     },
+    #[cfg(feature = "v2")]
+    Webhooks {
+        connector: id_type::MerchantConnectorAccountId,
+        payment_id: Option<id_type::GlobalPaymentId>,
+    },
     Routing,
     ResourceListAPI,
+    #[cfg(feature = "v1")]
     PaymentRedirectionResponse {
         connector: Option<String>,
         payment_id: Option<id_type::PaymentId>,
+    },
+    #[cfg(feature = "v2")]
+    PaymentRedirectionResponse {
+        payment_id: id_type::GlobalPaymentId,
     },
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created
@@ -98,6 +109,15 @@ impl ApiEventMetric for () {}
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for id_type::PaymentId {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for id_type::GlobalPaymentId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.clone(),

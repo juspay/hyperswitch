@@ -1,7 +1,11 @@
+mod payments;
 use std::num::{ParseFloatError, TryFromIntError};
 
+pub use payments::ProductType;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
+
+pub use super::connector_enums::RoutableConnectors;
 
 #[doc(hidden)]
 pub mod diesel_exports {
@@ -16,7 +20,7 @@ pub mod diesel_exports {
         DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
         DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
         DbRequestIncrementalAuthorization as RequestIncrementalAuthorization,
-        DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbScaExemptionType as ScaExemptionType, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
     };
 }
 
@@ -138,132 +142,6 @@ pub enum AttemptStatus {
     PaymentMethodAwaited,
     ConfirmationAwaited,
     DeviceDataCollectionPending,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-    strum::EnumIter,
-    strum::VariantNames,
-    ToSchema,
-)]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-/// Connectors eligible for payments routing
-pub enum RoutableConnectors {
-    Adyenplatform,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "phonypay")]
-    #[strum(serialize = "phonypay")]
-    DummyConnector1,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "fauxpay")]
-    #[strum(serialize = "fauxpay")]
-    DummyConnector2,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "pretendpay")]
-    #[strum(serialize = "pretendpay")]
-    DummyConnector3,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "stripe_test")]
-    #[strum(serialize = "stripe_test")]
-    DummyConnector4,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "adyen_test")]
-    #[strum(serialize = "adyen_test")]
-    DummyConnector5,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "checkout_test")]
-    #[strum(serialize = "checkout_test")]
-    DummyConnector6,
-    #[cfg(feature = "dummy_connector")]
-    #[serde(rename = "paypal_test")]
-    #[strum(serialize = "paypal_test")]
-    DummyConnector7,
-    Aci,
-    Adyen,
-    Airwallex,
-    Authorizedotnet,
-    Bankofamerica,
-    Billwerk,
-    Bitpay,
-    Bambora,
-    Bamboraapac,
-    Bluesnap,
-    Boku,
-    Braintree,
-    Cashtocode,
-    Checkout,
-    Coinbase,
-    Cryptopay,
-    Cybersource,
-    Datatrans,
-    Deutschebank,
-    // Digitalvirgo, template code for future usage
-    Dlocal,
-    Ebanx,
-    Fiserv,
-    Fiservemea,
-    Fiuu,
-    Forte,
-    Globalpay,
-    Globepay,
-    Gocardless,
-    Helcim,
-    Iatapay,
-    Itaubank,
-    Klarna,
-    Mifinity,
-    Mollie,
-    Multisafepay,
-    Nexinets,
-    Nexixpay,
-    Nmi,
-    Noon,
-    Novalnet,
-    Nuvei,
-    // Opayo, added as template code for future usage
-    Opennode,
-    // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
-    Paybox,
-    Payme,
-    Payone,
-    Paypal,
-    Payu,
-    Placetopay,
-    Powertranz,
-    Prophetpay,
-    Rapyd,
-    Razorpay,
-    Riskified,
-    Shift4,
-    Signifyd,
-    Square,
-    Stax,
-    Stripe,
-    // Taxjar,
-    Trustpay,
-    // Thunes
-    // Tsys,
-    Tsys,
-    Volt,
-    Wellsfargo,
-    // Wellsfargopayout,
-    Wise,
-    Worldline,
-    Worldpay,
-    Zen,
-    Plaid,
-    Zsl,
 }
 
 impl AttemptStatus {
@@ -1391,18 +1269,54 @@ pub enum MerchantStorageScheme {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum IntentStatus {
+    /// The payment has succeeded. Refunds and disputes can be initiated.
+    /// Manual retries are not allowed to be performed.
     Succeeded,
+    /// The payment has failed. Refunds and disputes cannot be initiated.
+    /// This payment can be retried manually with a new payment attempt.
     Failed,
+    /// This payment has been cancelled.
     Cancelled,
+    /// This payment is still being processed by the payment processor.
+    /// The status update might happen through webhooks or polling with the connector.
     Processing,
+    /// The payment is waiting on some action from the customer.
     RequiresCustomerAction,
+    /// The payment is waiting on some action from the merchant
+    /// This would be in case of manual fraud approval
     RequiresMerchantAction,
+    /// The payment is waiting to be confirmed with the payment method by the customer.
     RequiresPaymentMethod,
     #[default]
     RequiresConfirmation,
+    /// The payment has been authorized, and it waiting to be captured.
     RequiresCapture,
+    /// The payment has been captured partially. The remaining amount is cannot be captured.
     PartiallyCaptured,
+    /// The payment has been captured partially and the remaining amount is capturable
     PartiallyCapturedAndCapturable,
+}
+
+impl IntentStatus {
+    /// Indicates whether the syncing with the connector should be allowed or not
+    pub fn should_force_sync_with_connector(&self) -> bool {
+        match self {
+            // Confirm has not happened yet
+            Self::RequiresConfirmation
+            | Self::RequiresPaymentMethod
+            // Once the status is success, failed or cancelled need not force sync with the connector
+            | Self::Succeeded
+            | Self::Failed
+            | Self::Cancelled
+            |  Self::PartiallyCaptured
+            |  Self::RequiresCapture => false,
+            Self::Processing
+            | Self::RequiresCustomerAction
+            | Self::RequiresMerchantAction
+            | Self::PartiallyCapturedAndCapturable
+            => true,
+        }
+    }
 }
 
 /// Indicates that you intend to make future payments with the payment methods used for this Payment. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
@@ -1555,6 +1469,8 @@ pub enum PaymentExperience {
     InvokePaymentApp,
     /// Contains the data for displaying wait screen
     DisplayWaitScreen,
+    /// Represents that otp needs to be collect and contains if consent is required
+    CollectOtp,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display)]
@@ -1683,7 +1599,10 @@ pub enum PaymentMethodType {
     Mifinity,
     #[serde(rename = "open_banking_pis")]
     OpenBankingPIS,
+    DirectCarrierBilling,
 }
+
+impl masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(
@@ -1721,6 +1640,7 @@ pub enum PaymentMethod {
     Voucher,
     GiftCard,
     OpenBanking,
+    MobilePayment,
 }
 
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
@@ -1746,6 +1666,29 @@ pub enum PaymentType {
     NewMandate,
     SetupMandate,
     RecurringMandate,
+}
+
+/// SCA Exemptions types available for authentication
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ScaExemptionType {
+    #[default]
+    LowValue,
+    TransactionRiskAnalysis,
 }
 
 #[derive(
@@ -2870,10 +2813,55 @@ pub enum PermissionGroup {
     AnalyticsView,
     UsersView,
     UsersManage,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     MerchantDetailsView,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     MerchantDetailsManage,
+    // TODO: To be deprecated, make sure DB is migrated before removing
     OrganizationManage,
     ReconOps,
+    AccountView,
+    AccountManage,
+}
+
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
+pub enum ParentGroup {
+    Operations,
+    Connectors,
+    Workflows,
+    Analytics,
+    Users,
+    Recon,
+    Account,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Resource {
+    Payment,
+    Refund,
+    ApiKey,
+    Account,
+    Connector,
+    Routing,
+    Dispute,
+    Mandate,
+    Customer,
+    Analytics,
+    ThreeDsDecisionManager,
+    SurchargeDecisionManager,
+    User,
+    WebhookEvent,
+    Payout,
+    Report,
+    Recon,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum PermissionScope {
+    Read = 0,
+    Write = 1,
 }
 
 /// Name of banks supported by Hyperswitch
