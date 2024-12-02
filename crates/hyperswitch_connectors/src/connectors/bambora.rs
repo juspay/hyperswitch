@@ -126,14 +126,12 @@ impl ConnectorCommon for Bambora {
         card_payment_method.insert(
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                availability_status: enums::PaymentMethodStage::Live,
                 supports_mandates: false,
             },
         );
         card_payment_method.insert(
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                availability_status: enums::PaymentMethodStage::Live,
                 supports_mandates: false,
             },
         );

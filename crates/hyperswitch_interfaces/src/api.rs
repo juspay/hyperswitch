@@ -19,7 +19,7 @@ pub mod refunds_v2;
 
 use common_enums::{
     enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType},
-    PaymentMethod, PaymentMethodStage,
+    PaymentMethod,
 };
 use common_utils::{
     errors::CustomResult,
@@ -358,8 +358,7 @@ pub trait ConnectorValidation: ConnectorCommon {
         &self,
         payment_method_type: &Option<PaymentMethodType>,
         payment_method: &PaymentMethod,
-        is_mandate_payment: bool,
-        test_mode: bool,
+        is_mandate_payment: bool
     ) -> CustomResult<(), errors::ConnectorError> {
         match self.get_supported_payment_methods() {
             Some(supported_payment_methods) => {
@@ -383,19 +382,12 @@ pub trait ConnectorValidation: ConnectorCommon {
                             })?;
                         // Validate the payment method type based on its availability and mandate support
                         match (
-                            test_mode,
                             is_mandate_payment,
-                            payment_method_type_information.availability_status.clone(),
                             payment_method_type_information.supports_mandates,
                         ) {
-                            // Test mode mandate payment
-                            (true, true, PaymentMethodStage::Live | PaymentMethodStage::Beta, true) |
+                            (true, true) |
                             // Test mode payment
-                            (true, false, PaymentMethodStage::Live | PaymentMethodStage::Beta, _) |
-                            // Live mode mandate payment
-                            (false, true, PaymentMethodStage::Live, true) |
-                            // Live mode payment
-                            (false, false, PaymentMethodStage::Live, _) => Ok(()),
+                            (false, _)  => Ok(()),
                             // If none of the cases match, return an unsupported error
                             _ => Err(errors::ConnectorError::NotSupported {
                                 message: format!("{:?}, {:?}", payment_method_type, payment_method),

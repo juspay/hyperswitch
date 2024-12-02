@@ -1,7 +1,7 @@
 //! Types interface
 use std::collections::HashMap;
 
-use common_enums::{PaymentMethod, PaymentMethodStage, PaymentMethodType};
+use common_enums::{PaymentMethod, PaymentMethodType};
 use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_flow_types::{
@@ -192,9 +192,6 @@ pub type DefendDisputeType =
 /// Represents details of a payment method.
 #[derive(Debug, Clone)]
 pub struct PaymentMethodDetails {
-    /// The availability status of the payment method based on the environment (e.g., live, beta, upcoming).
-    pub availability_status: PaymentMethodStage,
-
     /// Indicates whether mandates are supported by this payment method.
     pub supports_mandates: bool,
 }

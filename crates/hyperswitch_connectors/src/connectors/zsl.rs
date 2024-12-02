@@ -35,7 +35,7 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self, PaymentMethodDetails, PaymentMethodTypeMetadata, Response, SupportedPaymentMethods},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{ExposeInterface, Secret};
@@ -95,6 +95,20 @@ impl ConnectorCommon for Zsl {
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.zsl.base_url.as_ref()
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        let mut supported_payment_methods = SupportedPaymentMethods::new();
+        let mut bank_transfer_payment_method = PaymentMethodTypeMetadata::new();
+        bank_transfer_payment_method.insert(
+            enums::PaymentMethodType::LocalBankTransfer,
+            PaymentMethodDetails {
+                supports_mandates: false,
+            },
+        );
+        supported_payment_methods.insert(enums::PaymentMethod::BankTransfer,
+             bank_transfer_payment_method);
+        Some(supported_payment_methods)
     }
 
     fn build_error_response(

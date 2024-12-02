@@ -354,20 +354,17 @@ impl ConnectorValidation for ConnectorEnum {
         payment_method_type: &Option<common_enums::PaymentMethodType>,
         payment_method: &common_enums::PaymentMethod,
         is_mandate_payment: bool,
-        test_mode: bool,
     ) -> CustomResult<(), errors::ConnectorError> {
         match self {
             Self::Old(connector) => connector.validate_payment_method(
                 payment_method_type,
                 payment_method,
-                is_mandate_payment,
-                test_mode,
+                is_mandate_payment
             ),
             Self::New(connector) => connector.validate_payment_method(
                 payment_method_type,
                 payment_method,
                 is_mandate_payment,
-                test_mode,
             ),
         }
     }

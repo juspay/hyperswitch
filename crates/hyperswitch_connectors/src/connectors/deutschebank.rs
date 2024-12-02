@@ -143,7 +143,6 @@ impl ConnectorCommon for Deutschebank {
         bank_debit_payment_method.insert(
             enums::PaymentMethodType::Sepa,
             PaymentMethodDetails {
-                availability_status: enums::PaymentMethodStage::Live,
                 supports_mandates: true,
             },
         );

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -13,8 +15,9 @@ pub struct FeatureMatrixRequest {
 #[derive(Clone, Debug, Serialize)]
 pub struct SupportedPaymentMethod {
     pub payment_method: enums::PaymentMethodType,
-    pub availability_status: enums::PaymentMethodStage,
     pub supports_mandates: bool,
+    pub supported_countries: Option<HashSet<enums::CountryAlpha2>>,
+    pub supported_currencies: Option<HashSet<enums::Currency>>
 }
 
 #[cfg(feature = "v1")]

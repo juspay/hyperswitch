@@ -1643,33 +1643,6 @@ pub enum PaymentMethod {
     MobilePayment,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::VariantNames,
-    strum::EnumIter,
-    strum::EnumString,
-    ToSchema,
-)]
-#[strum(serialize_all = "snake_case")]
-pub enum PaymentMethodStage {
-    /// Payment Method available in production
-    #[default]
-    Live,
-    /// Payment Method available in sandbox
-    Beta,
-    /// Payment Method not available
-    Upcoming,
-}
-
 /// The type of the payment that differentiates between normal and various types of mandate payments. Use 'setup_mandate' in case of zero auth flow.
 #[derive(
     Clone,
