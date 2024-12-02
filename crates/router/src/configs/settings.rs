@@ -887,6 +887,10 @@ impl Settings<SecuredSecret> {
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.into()))?;
 
+        self.theme_storage
+            .validate()
+            .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
         Ok(())
     }
 }

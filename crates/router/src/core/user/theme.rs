@@ -1,8 +1,13 @@
 use api_models::user::theme as theme_api;
-use common_utils::{ext_traits::Encode, types::theme::ThemeLineage};
+use common_utils::{
+    ext_traits::{ByteSliceExt, Encode},
+    types::theme::ThemeLineage,
+};
 use diesel_models::user::theme::ThemeNew;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
+use masking::ExposeInterface;
+use rdkafka::message::ToBytes;
 use uuid::Uuid;
 
 use crate::{
@@ -27,8 +32,10 @@ pub async fn get_theme_using_lineage(
     )
     .await?;
 
-    let parsed_data =
-        serde_json::from_slice(&file).change_context(UserErrors::InternalServerError)?;
+    let parsed_data = file
+        .to_bytes()
+        .parse_struct("ThemeData")
+        .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
         theme_id: theme.theme_id,
@@ -58,8 +65,10 @@ pub async fn get_theme_using_theme_id(
     )
     .await?;
 
-    let parsed_data =
-        serde_json::from_slice(&file).change_context(UserErrors::InternalServerError)?;
+    let parsed_data = file
+        .to_bytes()
+        .parse_struct("ThemeData")
+        .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
         theme_id: theme.theme_id,
@@ -91,7 +100,7 @@ pub async fn upload_file_to_theme_storage(
     theme_utils::upload_file_to_theme_bucket(
         &state,
         &theme_utils::get_specific_file_key(&theme_id, &request.asset_name),
-        request.asset_data.clone(),
+        request.asset_data.expose(),
     )
     .await?;
 
@@ -132,8 +141,10 @@ pub async fn create_theme(
     )
     .await?;
 
-    let parsed_data =
-        serde_json::from_slice(&file).change_context(UserErrors::InternalServerError)?;
+    let parsed_data = file
+        .to_bytes()
+        .parse_struct("ThemeData")
+        .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
         theme_id: db_theme.theme_id,
@@ -204,7 +215,7 @@ pub async fn delete_theme(
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
 
-    // TODO: Delete theme folder from the theme storage.
+    // TODO (#6717): Delete theme folder from the theme storage.
     // Currently there is no simple or easy way to delete a whole folder from S3.
     // So, we are not deleting the theme folder from the theme storage.
 

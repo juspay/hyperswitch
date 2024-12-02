@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use common_utils::{id_type, types::theme::ThemeLineage};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
@@ -7,39 +9,47 @@ use crate::{
     routes::SessionState,
 };
 
-pub fn get_theme_dir_key(theme_id: &str) -> String {
-    format!("themes/{}", theme_id)
+fn get_theme_dir_key(theme_id: &str) -> PathBuf {
+    ["themes", theme_id].iter().collect()
 }
 
-pub fn get_specific_file_key(theme_id: &str, file_name: &str) -> String {
-    format!("{}/{}", get_theme_dir_key(theme_id), file_name)
+pub fn get_specific_file_key(theme_id: &str, file_name: &str) -> PathBuf {
+    let mut path = get_theme_dir_key(theme_id);
+    path.push(file_name);
+    path
 }
 
-pub fn get_theme_file_key(theme_id: &str) -> String {
+pub fn get_theme_file_key(theme_id: &str) -> PathBuf {
     get_specific_file_key(theme_id, "theme.json")
+}
+
+fn path_buf_to_str(path: &PathBuf) -> UserResult<&str> {
+    path.to_str()
+        .ok_or(UserErrors::InternalServerError)
+        .attach_printable(format!("Failed to convert path {:#?} to string", path))
 }
 
 pub async fn retrieve_file_from_theme_bucket(
     state: &SessionState,
-    path: &str,
+    path: &PathBuf,
 ) -> UserResult<Vec<u8>> {
     state
         .theme_storage_client
-        .retrieve_file(path)
+        .retrieve_file(path_buf_to_str(path)?)
         .await
         .change_context(UserErrors::ErrorRetrievingFile)
 }
 
 pub async fn upload_file_to_theme_bucket(
     state: &SessionState,
-    path: &str,
+    path: &PathBuf,
     data: Vec<u8>,
 ) -> UserResult<()> {
     state
         .theme_storage_client
-        .upload_file(path, data)
+        .upload_file(path_buf_to_str(path)?, data)
         .await
-        .change_context(UserErrors::InternalServerError)
+        .change_context(UserErrors::ErrorUploadingFile)
 }
 
 pub async fn validate_lineage(state: &SessionState, lineage: &ThemeLineage) -> UserResult<()> {

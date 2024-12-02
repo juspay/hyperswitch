@@ -1,6 +1,7 @@
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use common_enums::EntityType;
 use common_utils::{id_type, types::theme::ThemeLineage};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]
@@ -17,7 +18,6 @@ pub struct GetThemeResponse {
 
 #[derive(Debug, MultipartForm)]
 pub struct UploadFileAssetData {
-    #[multipart]
     pub asset_name: Text<String>,
     #[multipart(limit = "10MB")]
     pub asset_data: Bytes,
@@ -27,7 +27,7 @@ pub struct UploadFileAssetData {
 pub struct UploadFileRequest {
     pub lineage: ThemeLineage,
     pub asset_name: String,
-    pub asset_data: Vec<u8>,
+    pub asset_data: Secret<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -48,78 +48,78 @@ pub struct UpdateThemeRequest {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ThemeData {
-    pub settings: Settings,
-    pub urls: Option<Urls>,
+    settings: Settings,
+    urls: Option<Urls>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
-    pub colors: Colors,
-    pub typography: Option<Typography>,
-    pub buttons: Buttons,
-    pub borders: Option<Borders>,
-    pub spacing: Option<Spacing>,
+    colors: Colors,
+    typography: Option<Typography>,
+    buttons: Buttons,
+    borders: Option<Borders>,
+    spacing: Option<Spacing>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Colors {
-    pub primary: String,
-    pub sidebar: String,
+    primary: String,
+    sidebar: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Typography {
-    pub font_family: Option<String>,
-    pub font_size: Option<String>,
-    pub heading_font_size: Option<String>,
-    pub text_color: Option<String>,
-    pub link_color: Option<String>,
-    pub link_hover_color: Option<String>,
+    font_family: Option<String>,
+    font_size: Option<String>,
+    heading_font_size: Option<String>,
+    text_color: Option<String>,
+    link_color: Option<String>,
+    link_hover_color: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Buttons {
-    pub primary: PrimaryButton,
-    pub secondary: Option<SecondaryButton>,
+    primary: PrimaryButton,
+    secondary: Option<SecondaryButton>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PrimaryButton {
-    pub background_color: Option<String>,
-    pub text_color: Option<String>,
-    pub hover_background_color: String,
+    background_color: Option<String>,
+    text_color: Option<String>,
+    hover_background_color: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SecondaryButton {
-    pub background_color: Option<String>,
-    pub text_color: Option<String>,
-    pub hover_background_color: Option<String>,
+    background_color: Option<String>,
+    text_color: Option<String>,
+    hover_background_color: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Borders {
-    pub default_radius: Option<String>,
-    pub border_color: Option<String>,
+    default_radius: Option<String>,
+    border_color: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Spacing {
-    pub padding: Option<String>,
-    pub margin: Option<String>,
+    padding: Option<String>,
+    margin: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Urls {
-    pub favicon_url: Option<String>,
-    pub logo_url: Option<String>,
+    favicon_url: Option<String>,
+    logo_url: Option<String>,
 }

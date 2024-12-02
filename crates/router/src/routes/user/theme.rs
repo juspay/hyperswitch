@@ -2,6 +2,7 @@ use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::user::theme as theme_api;
 use common_utils::types::theme::ThemeLineage;
+use masking::Secret;
 use router_env::Flow;
 
 use crate::{
@@ -62,7 +63,7 @@ pub async fn upload_file_to_theme_storage(
     let payload = theme_api::UploadFileRequest {
         lineage: query.into_inner(),
         asset_name: payload.asset_name.into_inner(),
-        asset_data: payload.asset_data.data.to_vec(),
+        asset_data: Secret::new(payload.asset_data.data.to_vec()),
     };
 
     Box::pin(api::server_wrap(

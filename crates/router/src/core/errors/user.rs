@@ -96,6 +96,8 @@ pub enum UserErrors {
     MaxRecoveryCodeAttemptsReached,
     #[error("Forbidden tenant id")]
     ForbiddenTenantId,
+    #[error("Error Uploading file to Theme Storage")]
+    ErrorUploadingFile,
     #[error("Error Retrieving file from Theme Storage")]
     ErrorRetrievingFile,
     #[error("Theme not found")]
@@ -252,20 +254,23 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ForbiddenTenantId => {
                 AER::BadRequest(ApiError::new(sub_code, 50, self.get_error_message(), None))
             }
+            Self::ErrorUploadingFile => {
+                AER::InternalServerError(ApiError::new(sub_code, 51, self.get_error_message(), None))
+            }
             Self::ErrorRetrievingFile => AER::InternalServerError(ApiError::new(
                 sub_code,
-                51,
+                52,
                 self.get_error_message(),
                 None,
             )),
             Self::ThemeNotFound => {
-                AER::NotFound(ApiError::new(sub_code, 52, self.get_error_message(), None))
+                AER::NotFound(ApiError::new(sub_code, 53, self.get_error_message(), None))
             }
             Self::ThemeAlreadyExists => {
-                AER::BadRequest(ApiError::new(sub_code, 53, self.get_error_message(), None))
+                AER::BadRequest(ApiError::new(sub_code, 54, self.get_error_message(), None))
             }
             Self::InvalidThemeLineage(_) => {
-                AER::BadRequest(ApiError::new(sub_code, 54, self.get_error_message(), None))
+                AER::BadRequest(ApiError::new(sub_code, 55, self.get_error_message(), None))
             }
         }
     }
@@ -326,6 +331,7 @@ impl UserErrors {
             Self::SSOFailed => "Invalid SSO request".to_string(),
             Self::JwtProfileIdMissing => "profile_id missing in JWT".to_string(),
             Self::ForbiddenTenantId => "Forbidden tenant id".to_string(),
+            Self::ErrorUploadingFile => "Error Uploading file to Theme Storage".to_string(),
             Self::ErrorRetrievingFile => "Error Retrieving file from Theme Storage".to_string(),
             Self::ThemeNotFound => "Theme not found".to_string(),
             Self::ThemeAlreadyExists => "Theme with lineage already exists".to_string(),

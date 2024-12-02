@@ -8,8 +8,7 @@ use crate::{
 /// Enum for having all the required lineage for every level.
 /// Currently being used for theme related APIs and queries.
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "entity_type")]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "entity_type", rename_all = "snake_case")]
 pub enum ThemeLineage {
     // TODO: Add back Tenant variant when we introduce Tenant Variant in EntityType
     // /// Tenant lineage variant
