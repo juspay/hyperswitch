@@ -7779,9 +7779,11 @@
       "ErrorCategory": {
         "type": "string",
         "enum": [
-          "issuer_decline",
-          "processor_decline",
-          "technical_error_with_processor"
+          "frm_decline",
+          "processor_downtime",
+          "processor_decline_unauthorized",
+          "issue_with_payment_method",
+          "processor_decline_incorrect_data"
         ]
       },
       "ErrorDetails": {
@@ -7811,31 +7813,6 @@
             "nullable": true
           }
         }
-      },
-      "ErrorSubCategory": {
-        "type": "string",
-        "enum": [
-          "auth_failure",
-          "card_decline",
-          "expired_card",
-          "frm",
-          "general",
-          "incorrect_account",
-          "incorrect_card",
-          "incorrect_cvv",
-          "incorrect_data",
-          "insufficient_funds",
-          "partial",
-          "restricted",
-          "bad_request",
-          "configuration_error",
-          "customer_error",
-          "incorrect_auth",
-          "unauthorized",
-          "server_error",
-          "timeout",
-          "upstream"
-        ]
       },
       "EventClass": {
         "type": "string",
@@ -9203,14 +9180,6 @@
               }
             ],
             "nullable": true
-          },
-          "error_sub_category": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ErrorSubCategory"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -9352,14 +9321,6 @@
               }
             ],
             "nullable": true
-          },
-          "error_sub_category": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ErrorSubCategory"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -9461,14 +9422,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ErrorCategory"
-              }
-            ],
-            "nullable": true
-          },
-          "error_sub_category": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ErrorSubCategory"
               }
             ],
             "nullable": true
