@@ -126,7 +126,7 @@ impl JWTFlow {
     ) -> UserResult<Secret<String>> {
         let (org_id, merchant_id, profile_id) = match user_role.entity_type {
             Some(common_enums::EntityType::Tenant) => {
-                let key_manager_state = &(&*state).into();
+                let key_manager_state = &state.into();
 
                 let merchant_account = state
                     .store

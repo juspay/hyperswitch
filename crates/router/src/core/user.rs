@@ -28,6 +28,8 @@ use user_api::dashboard_metadata::SetMetaDataRequest;
 use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
+#[cfg(feature = "v1")]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
@@ -1276,10 +1278,9 @@ pub async fn create_tenant_user(
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get merchants list for org")?
-        .first()
+        .pop()
         .ok_or(UserErrors::InternalServerError)
-        .attach_printable("No merchants found for the tenancy")?
-        .clone();
+        .attach_printable("No merchants found in the tenancy")?;
 
     let new_user = domain::NewUser::try_from((request, existing_merchant))?;
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
@@ -1318,7 +1319,7 @@ pub async fn create_org_for_user(
     state: SessionState,
     req: user_api::UserOrgCreateRequest,
 ) -> UserResponse<()> {
-    let db_organization = crate::types::transformers::ForeignFrom::foreign_from(req.clone());
+    let db_organization = ForeignFrom::foreign_from(req.clone());
     let org: diesel_models::organization::Organization = state
         .store
         .insert_organization(db_organization)
@@ -2559,19 +2560,19 @@ pub async fn list_orgs_for_user(
         )
         .into());
     }
-
-    let orgs = if matches!(role_info.get_entity_type(), EntityType::Tenant) {
-        let key_manager_state = &(&state).into();
-        state
-            .store
-            .list_all_merchant_accounts(key_manager_state, None, None)
-            .await
-            .change_context(UserErrors::InternalServerError)?
-            .into_iter()
-            .map(|merchant_account| merchant_account.get_org_id().to_owned())
-            .collect::<HashSet<_>>()
-    } else {
-        state
+    let orgs = match role_info.get_entity_type() {
+        EntityType::Tenant => {
+            let key_manager_state = &(&state).into();
+            state
+                .store
+                .list_all_merchant_accounts(key_manager_state, None, None)
+                .await
+                .change_context(UserErrors::InternalServerError)?
+                .into_iter()
+                .map(|merchant_account| merchant_account.get_org_id().to_owned())
+                .collect::<HashSet<_>>()
+        }
+        EntityType::Organization | EntityType::Merchant | EntityType::Profile => state
             .global_store
             .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                 user_id: user_from_token.user_id.as_str(),
@@ -2591,7 +2592,7 @@ pub async fn list_orgs_for_user(
             .change_context(UserErrors::InternalServerError)?
             .into_iter()
             .filter_map(|user_role| user_role.org_id)
-            .collect::<HashSet<_>>()
+            .collect::<HashSet<_>>(),
     };
 
     let resp = futures::future::try_join_all(
@@ -2804,7 +2805,7 @@ pub async fn switch_org_for_user(
         .into());
     }
 
-    let (merchant_id, profile_id) = match role_info.get_entity_type() {
+    let (merchant_id, profile_id, role_id) = match role_info.get_entity_type() {
         EntityType::Tenant => {
             let merchant_id = state
                 .store
@@ -2812,11 +2813,11 @@ pub async fn switch_org_for_user(
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to get merchant list for org")?
-                .first()
-                .ok_or(UserErrors::InternalServerError)
-                .attach_printable("No merchants found for org id")?
+                .pop()
+                .ok_or(UserErrors::InvalidRoleOperation)
+                .attach_printable("No merchants found for the org id")?
                 .get_id()
-                .clone();
+                .to_owned();
 
             let key_store = state
                 .store
@@ -2838,7 +2839,7 @@ pub async fn switch_org_for_user(
                 .get_id()
                 .to_owned();
 
-            (merchant_id, profile_id)
+            (merchant_id, profile_id, user_from_token.role_id)
         }
         EntityType::Organization | EntityType::Merchant | EntityType::Profile => {
             let user_role = state
@@ -2868,7 +2869,7 @@ pub async fn switch_org_for_user(
             let (merchant_id, profile_id) =
                 utils::user_role::get_single_merchant_id_and_profile_id(&state, &user_role).await?;
 
-            (merchant_id, profile_id)
+            (merchant_id, profile_id, user_role.role_id)
         }
     };
 
@@ -2877,7 +2878,7 @@ pub async fn switch_org_for_user(
         user_from_token.user_id,
         merchant_id.clone(),
         request.org_id.clone(),
-        user_from_token.role_id.clone(),
+        role_id.clone(),
         profile_id.clone(),
         user_from_token.tenant_id,
     )
@@ -2885,7 +2886,7 @@ pub async fn switch_org_for_user(
 
     utils::user_role::set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
         &state,
-        &user_from_token.role_id,
+        &role_id,
         &merchant_id,
         &request.org_id,
     )
