@@ -89,6 +89,8 @@ pub const EMAIL_SUBJECT_APPROVAL_RECON_REQUEST: &str =
 
 pub const ROLE_INFO_CACHE_PREFIX: &str = "CR_INFO_";
 
+pub const CARD_TESTING_GUARD_PREFIX: &str = "CARD_TEST_GUARD_INFO_";
+
 #[cfg(feature = "olap")]
 pub const VERIFY_CONNECTOR_ID_PREFIX: &str = "conn_verify";
 #[cfg(feature = "olap")]

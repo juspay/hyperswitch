@@ -1476,6 +1476,60 @@ pub fn validate_customer_information(
 }
 
 #[cfg(feature = "v1")]
+pub async fn validate_card_testing_attack(
+    state: &SessionState,
+    request: &api_models::payments::PaymentsRequest,
+) -> RouterResult<()> {
+
+    let payment_method_data =
+        request.payment_method_data
+            .as_ref()
+            .and_then(|request_payment_method_data| {
+                request_payment_method_data.payment_method_data.as_ref()
+            });
+
+    let card_number = payment_method_data.as_ref().and_then(|pmd| {
+        if let api_models::payments::PaymentMethodData::Card(card) = pmd {
+            Some(card.card_number.get_card_no())
+        } else {
+            None
+        }
+        });
+    
+    //TODO: Generate Fingerprint for card number
+    let fingerprint = "xyz";
+
+    let unsuccessful_payment_threshold = 3;
+
+    let mut should_payment_be_blocked = false;
+
+    match services::card_testing_guard::get_blocked_count_from_cache(state, fingerprint).await {
+        Ok(Some(unsuccessful_payment_count)) => {
+            logger::info!("COUNT: {}", unsuccessful_payment_count);
+            if unsuccessful_payment_count >= unsuccessful_payment_threshold {
+                should_payment_be_blocked = true;
+            }
+        }
+        Ok(None) => {
+            logger::info!("ENTRY NOT FOUND IN CACHE");
+        }
+        Err(err) => {
+            eprintln!("Failed to get blocked count: {:?}", err);
+        }
+    }
+
+    if should_payment_be_blocked {
+        Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "Blocked due to suspicious activity"
+            ),
+        })?
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(feature = "v1")]
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
 #[instrument(skip_all)]

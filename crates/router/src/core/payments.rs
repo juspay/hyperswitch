@@ -273,6 +273,8 @@ where
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
+    operation.to_validate_request()?.validate_request_with_state(state, &req, &merchant_account).await?;
+
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
     let operations::GetTrackerResponse {

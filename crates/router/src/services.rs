@@ -14,6 +14,7 @@ pub mod pm_auth;
 
 #[cfg(feature = "olap")]
 pub mod openidconnect;
+pub mod card_testing_guard;
 
 use std::sync::Arc;
 
