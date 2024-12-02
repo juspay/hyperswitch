@@ -1,4 +1,4 @@
-use common_enums::{ErrorCategory, ErrorSubCategory};
+use common_enums::ErrorCategory;
 use utoipa::ToSchema;
 
 use crate::enums::Connector;
@@ -29,8 +29,6 @@ pub struct GsmCreateRequest {
     pub unified_message: Option<String>,
     /// category in which error belongs to
     pub error_category: Option<ErrorCategory>,
-    /// sub-category in which error belongs to
-    pub error_sub_category: Option<ErrorSubCategory>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -95,8 +93,6 @@ pub struct GsmUpdateRequest {
     pub unified_message: Option<String>,
     /// category in which error belongs to
     pub error_category: Option<ErrorCategory>,
-    /// sub-category in which error belongs to
-    pub error_sub_category: Option<ErrorSubCategory>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -152,6 +148,4 @@ pub struct GsmResponse {
     pub unified_message: Option<String>,
     /// category in which error belongs to
     pub error_category: Option<ErrorCategory>,
-    /// sub-category in which error belongs to
-    pub error_sub_category: Option<ErrorSubCategory>,
 }

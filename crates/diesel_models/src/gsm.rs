@@ -1,6 +1,6 @@
 //! Gateway status mapping
 
-use common_enums::{ErrorCategory, ErrorSubCategory};
+use common_enums::ErrorCategory;
 use common_utils::{
     custom_serde,
     events::{ApiEventMetric, ApiEventsType},
@@ -41,7 +41,6 @@ pub struct GatewayStatusMap {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
-    pub error_sub_category: Option<ErrorSubCategory>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable)]
@@ -59,7 +58,6 @@ pub struct GatewayStatusMappingNew {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
-    pub error_sub_category: Option<ErrorSubCategory>,
 }
 
 #[derive(
@@ -79,7 +77,7 @@ pub struct GatewayStatusMapperUpdateInternal {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
-    pub error_sub_category: Option<ErrorSubCategory>,
+
     pub last_modified: PrimitiveDateTime,
 }
 
@@ -92,7 +90,6 @@ pub struct GatewayStatusMappingUpdate {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
-    pub error_sub_category: Option<ErrorSubCategory>,
 }
 
 impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
@@ -105,7 +102,6 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             unified_code,
             unified_message,
             error_category,
-            error_sub_category,
         } = value;
         Self {
             status,
@@ -115,7 +111,6 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             unified_code,
             unified_message,
             error_category,
-            error_sub_category,
             last_modified: common_utils::date_time::now(),
             connector: None,
             flow: None,

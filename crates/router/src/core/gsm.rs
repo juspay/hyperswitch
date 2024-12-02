@@ -68,7 +68,6 @@ pub async fn update_gsm_rule(
         unified_code,
         unified_message,
         error_category,
-        error_sub_category,
     } = gsm_request;
     GsmInterface::update_gsm_rule(
         db,
@@ -85,7 +84,6 @@ pub async fn update_gsm_rule(
             unified_code,
             unified_message,
             error_category,
-            error_sub_category,
         },
     )
     .await

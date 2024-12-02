@@ -554,7 +554,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::ListBlocklistQuery,
         api_models::enums::BlocklistDataKind,
         api_models::enums::ErrorCategory,
-        api_models::enums::ErrorSubCategory,
         api_models::webhook_events::EventListItemResponse,
         api_models::webhook_events::EventRetrieveResponse,
         api_models::webhook_events::OutgoingWebhookRequestContent,
