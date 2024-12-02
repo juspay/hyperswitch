@@ -76,6 +76,7 @@ pub struct Connectors {
     pub prophetpay: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub razorpay: ConnectorParamsWithKeys,
+    pub redsys: ConnectorParams,
     pub riskified: ConnectorParams,
     pub shift4: ConnectorParams,
     pub signifyd: ConnectorParams,
