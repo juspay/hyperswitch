@@ -1356,6 +1356,63 @@ impl Default for settings::RequiredFields {
                                 }
                             ),
                             (
+                                enums::Connector::Elavon,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap::from(
+                                        [
+                                            (
+                                                "payment_method_data.card.card_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_number".to_string(),
+                                                    display_name: "card_number".to_string(),
+                                                    field_type: enums::FieldType::UserCardNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_month".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                    display_name: "card_exp_month".to_string(),
+                                                    field_type: enums::FieldType::UserCardExpiryMonth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_year".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                    display_name: "card_exp_year".to_string(),
+                                                    field_type: enums::FieldType::UserCardExpiryYear,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_cvc".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
+                                                    field_type: enums::FieldType::UserCardCvc,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.email".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.email".to_string(),
+                                                    display_name: "email".to_string(),
+                                                    field_type: enums::FieldType::UserEmailAddress,
+                                                    value: None,
+                                            }
+                                            ),
+
+                                        ]
+                                    ),
+                                    common: HashMap::new(),
+                                }
+                            ),
+                            (
                                 enums::Connector::Fiserv,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
@@ -3075,35 +3132,39 @@ impl Default for settings::RequiredFields {
                                 enums::Connector::Worldpay,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::from([
-                                        (
-                                            "payment_method_data.card.card_number".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.card.card_number".to_string(),
-                                                display_name: "card_number".to_string(),
-                                                field_type: enums::FieldType::UserCardNumber,
-                                                value: None,
-                                            }
-                                        ),
-                                        (
-                                            "payment_method_data.card.card_exp_month".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.card.card_exp_month".to_string(),
-                                                display_name: "card_exp_month".to_string(),
-                                                field_type: enums::FieldType::UserCardExpiryMonth,
-                                                value: None,
-                                            }
-                                        ),
-                                        (
-                                            "payment_method_data.card.card_exp_year".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.card.card_exp_year".to_string(),
-                                                display_name: "card_exp_year".to_string(),
-                                                field_type: enums::FieldType::UserCardExpiryYear,
-                                                value: None,
-                                            }
-                                        )
-                                    ]),
+                                    non_mandate: {
+                                        let mut pmd_fields = HashMap::from([
+                                            (
+                                                "payment_method_data.card.card_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_number".to_string(),
+                                                    display_name: "card_number".to_string(),
+                                                    field_type: enums::FieldType::UserCardNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_month".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                    display_name: "card_exp_month".to_string(),
+                                                    field_type: enums::FieldType::UserCardExpiryMonth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_year".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                    display_name: "card_exp_year".to_string(),
+                                                    field_type: enums::FieldType::UserCardExpiryYear,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]);
+                                        pmd_fields.extend(get_worldpay_billing_required_fields());
+                                        pmd_fields
+                                    },
                                     common: HashMap::new(),
                                 }
                             ),
@@ -4397,6 +4458,63 @@ impl Default for settings::RequiredFields {
                                             )
                                         ]
                                     ),
+                                }
+                            ),
+                            (
+                                enums::Connector::Elavon,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap::from(
+                                        [
+                                            (
+                                                "payment_method_data.card.card_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_number".to_string(),
+                                                    display_name: "card_number".to_string(),
+                                                    field_type: enums::FieldType::UserCardNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_month".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                    display_name: "card_exp_month".to_string(),
+                                                    field_type: enums::FieldType::UserCardExpiryMonth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_year".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                    display_name: "card_exp_year".to_string(),
+                                                    field_type: enums::FieldType::UserCardExpiryYear,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_cvc".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
+                                                    field_type: enums::FieldType::UserCardCvc,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "billing.email".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.billing.email".to_string(),
+                                                    display_name: "email".to_string(),
+                                                    field_type: enums::FieldType::UserEmailAddress,
+                                                    value: None,
+                                            }
+                                            ),
+
+                                        ]
+                                    ),
+                                    common: HashMap::new(),
                                 }
                             ),
                             (
@@ -6210,35 +6328,39 @@ impl Default for settings::RequiredFields {
                                 enums::Connector::Worldpay,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::from([
-                                        (
-                                            "payment_method_data.card.card_number".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.card.card_number".to_string(),
-                                                display_name: "card_number".to_string(),
-                                                field_type: enums::FieldType::UserCardNumber,
-                                                value: None,
-                                            }
-                                        ),
-                                        (
-                                            "payment_method_data.card.card_exp_month".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.card.card_exp_month".to_string(),
-                                                display_name: "card_exp_month".to_string(),
-                                                field_type: enums::FieldType::UserCardExpiryMonth,
-                                                value: None,
-                                            }
-                                        ),
-                                        (
-                                            "payment_method_data.card.card_exp_year".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "payment_method_data.card.card_exp_year".to_string(),
-                                                display_name: "card_exp_year".to_string(),
-                                                field_type: enums::FieldType::UserCardExpiryYear,
-                                                value: None,
-                                            }
-                                        )
-                                    ]),
+                                    non_mandate: {
+                                        let mut pmd_fields = HashMap::from([
+                                            (
+                                                "payment_method_data.card.card_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_number".to_string(),
+                                                    display_name: "card_number".to_string(),
+                                                    field_type: enums::FieldType::UserCardNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_month".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                    display_name: "card_exp_month".to_string(),
+                                                    field_type: enums::FieldType::UserCardExpiryMonth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_year".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                    display_name: "card_exp_year".to_string(),
+                                                    field_type: enums::FieldType::UserCardExpiryYear,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]);
+                                        pmd_fields.extend(get_worldpay_billing_required_fields());
+                                        pmd_fields
+                                    },
                                     common: HashMap::new(),
                                 }
                             ),
@@ -12621,4 +12743,164 @@ impl Default for settings::RequiredFields {
                     )
         ]))
     }
+}
+
+pub fn get_worldpay_billing_required_fields() -> HashMap<String, RequiredFieldInfo> {
+    HashMap::from([
+        (
+            "billing.address.zip".to_string(),
+            RequiredFieldInfo {
+                required_field: "billing.address.zip".to_string(),
+                display_name: "zip".to_string(),
+                field_type: enums::FieldType::UserAddressPincode,
+                value: None,
+            },
+        ),
+        (
+            "billing.address.country".to_string(),
+            RequiredFieldInfo {
+                required_field: "billing.address.country".to_string(),
+                display_name: "country".to_string(),
+                field_type: enums::FieldType::UserAddressCountry {
+                    options: vec![
+                        "AF".to_string(),
+                        "AU".to_string(),
+                        "AW".to_string(),
+                        "AZ".to_string(),
+                        "BS".to_string(),
+                        "BH".to_string(),
+                        "BD".to_string(),
+                        "BB".to_string(),
+                        "BZ".to_string(),
+                        "BM".to_string(),
+                        "BT".to_string(),
+                        "BO".to_string(),
+                        "BA".to_string(),
+                        "BW".to_string(),
+                        "BR".to_string(),
+                        "BN".to_string(),
+                        "BG".to_string(),
+                        "BI".to_string(),
+                        "KH".to_string(),
+                        "CA".to_string(),
+                        "CV".to_string(),
+                        "KY".to_string(),
+                        "CL".to_string(),
+                        "CO".to_string(),
+                        "KM".to_string(),
+                        "CD".to_string(),
+                        "CR".to_string(),
+                        "CZ".to_string(),
+                        "DZ".to_string(),
+                        "DK".to_string(),
+                        "DJ".to_string(),
+                        "ST".to_string(),
+                        "DO".to_string(),
+                        "EC".to_string(),
+                        "EG".to_string(),
+                        "SV".to_string(),
+                        "ER".to_string(),
+                        "ET".to_string(),
+                        "FK".to_string(),
+                        "FJ".to_string(),
+                        "GM".to_string(),
+                        "GE".to_string(),
+                        "GH".to_string(),
+                        "GI".to_string(),
+                        "GT".to_string(),
+                        "GN".to_string(),
+                        "GY".to_string(),
+                        "HT".to_string(),
+                        "HN".to_string(),
+                        "HK".to_string(),
+                        "HU".to_string(),
+                        "IS".to_string(),
+                        "IN".to_string(),
+                        "ID".to_string(),
+                        "IR".to_string(),
+                        "IQ".to_string(),
+                        "IE".to_string(),
+                        "IL".to_string(),
+                        "IT".to_string(),
+                        "JM".to_string(),
+                        "JP".to_string(),
+                        "JO".to_string(),
+                        "KZ".to_string(),
+                        "KE".to_string(),
+                        "KW".to_string(),
+                        "LA".to_string(),
+                        "LB".to_string(),
+                        "LS".to_string(),
+                        "LR".to_string(),
+                        "LY".to_string(),
+                        "LT".to_string(),
+                        "MO".to_string(),
+                        "MK".to_string(),
+                        "MG".to_string(),
+                        "MW".to_string(),
+                        "MY".to_string(),
+                        "MV".to_string(),
+                        "MR".to_string(),
+                        "MU".to_string(),
+                        "MX".to_string(),
+                        "MD".to_string(),
+                        "MN".to_string(),
+                        "MA".to_string(),
+                        "MZ".to_string(),
+                        "MM".to_string(),
+                        "NA".to_string(),
+                        "NZ".to_string(),
+                        "NI".to_string(),
+                        "NG".to_string(),
+                        "KP".to_string(),
+                        "NO".to_string(),
+                        "AR".to_string(),
+                        "PK".to_string(),
+                        "PG".to_string(),
+                        "PY".to_string(),
+                        "PE".to_string(),
+                        "UY".to_string(),
+                        "PH".to_string(),
+                        "PL".to_string(),
+                        "GB".to_string(),
+                        "QA".to_string(),
+                        "OM".to_string(),
+                        "RO".to_string(),
+                        "RU".to_string(),
+                        "RW".to_string(),
+                        "WS".to_string(),
+                        "SG".to_string(),
+                        "ST".to_string(),
+                        "ZA".to_string(),
+                        "KR".to_string(),
+                        "LK".to_string(),
+                        "SH".to_string(),
+                        "SD".to_string(),
+                        "SR".to_string(),
+                        "SZ".to_string(),
+                        "SE".to_string(),
+                        "CH".to_string(),
+                        "SY".to_string(),
+                        "TW".to_string(),
+                        "TJ".to_string(),
+                        "TZ".to_string(),
+                        "TH".to_string(),
+                        "TT".to_string(),
+                        "TN".to_string(),
+                        "TR".to_string(),
+                        "UG".to_string(),
+                        "UA".to_string(),
+                        "US".to_string(),
+                        "UZ".to_string(),
+                        "VU".to_string(),
+                        "VE".to_string(),
+                        "VN".to_string(),
+                        "ZM".to_string(),
+                        "ZW".to_string(),
+                    ],
+                },
+                value: None,
+            },
+        ),
+    ])
 }

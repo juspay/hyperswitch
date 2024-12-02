@@ -899,6 +899,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
     }
 }
 

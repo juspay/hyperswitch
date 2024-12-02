@@ -5328,14 +5328,6 @@ pub async fn get_card_details_with_locker_fallback(
     })
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn get_card_details_with_locker_fallback(
-    pm: &domain::PaymentMethod,
-    state: &routes::SessionState,
-) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
-    todo!()
-}
-
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
@@ -5363,14 +5355,6 @@ pub async fn get_card_details_without_locker_fallback(
         );
         get_card_details_from_locker(state, pm).await?
     })
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn get_card_details_without_locker_fallback(
-    pm: &domain::PaymentMethod,
-    state: &routes::SessionState,
-) -> errors::RouterResult<api::CardDetailFromLocker> {
-    todo!()
 }
 
 #[cfg(all(
@@ -5453,19 +5437,20 @@ pub async fn get_masked_bank_details(
             PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
                 mask: bank_details.mask,
             })),
+            PaymentMethodsData::WalletDetails(_) => Ok(None),
         },
         None => Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable("Unable to fetch payment method data"),
     }
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn get_bank_account_connector_details(
     pm: &domain::PaymentMethod,
 ) -> errors::RouterResult<Option<BankAccountTokenData>> {
-    #[cfg(all(
-        any(feature = "v2", feature = "v1"),
-        not(feature = "payment_methods_v2")
-    ))]
     let payment_method_data = pm
         .payment_method_data
         .clone()
@@ -5480,18 +5465,18 @@ pub async fn get_bank_account_connector_details(
         )
         .transpose()?;
 
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    let payment_method_data = pm
-        .payment_method_data
-        .clone()
-        .map(|x| x.into_inner().expose().into_inner());
-
     match payment_method_data {
         Some(pmd) => match pmd {
             PaymentMethodsData::Card(_) => Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "Card is not a valid entity".to_string(),
             }
             .into()),
+            PaymentMethodsData::WalletDetails(_) => {
+                Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Wallet is not a valid entity".to_string(),
+                }
+                .into())
+            }
             PaymentMethodsData::BankDetails(bank_details) => {
                 let connector_details = bank_details
                     .connector_details
