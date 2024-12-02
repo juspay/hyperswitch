@@ -25,7 +25,7 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
             .attach_printable("Role groups cannot be empty");
     }
 
-    let unique_groups: HashSet<_> = groups.iter().cloned().collect();
+    let unique_groups: HashSet<_> = groups.iter().copied().collect();
 
     if unique_groups.contains(&PermissionGroup::OrganizationManage) {
         return Err(report!(UserErrors::InvalidRoleOperation))
@@ -133,6 +133,7 @@ pub async fn set_role_permissions_in_cache_if_required(
 pub async fn update_v1_and_v2_user_roles_in_db(
     state: &SessionState,
     user_id: &str,
+    tenant_id: &id_type::TenantId,
     org_id: &id_type::OrganizationId,
     merchant_id: Option<&id_type::MerchantId>,
     profile_id: Option<&id_type::ProfileId>,
@@ -145,6 +146,7 @@ pub async fn update_v1_and_v2_user_roles_in_db(
         .global_store
         .update_user_role_by_user_id_and_lineage(
             user_id,
+            tenant_id,
             org_id,
             merchant_id,
             profile_id,
@@ -161,6 +163,7 @@ pub async fn update_v1_and_v2_user_roles_in_db(
         .global_store
         .update_user_role_by_user_id_and_lineage(
             user_id,
+            tenant_id,
             org_id,
             merchant_id,
             profile_id,
@@ -210,6 +213,7 @@ pub async fn get_single_merchant_id(
 pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
     state: &SessionState,
     user_id: &str,
+    tenant_id: &id_type::TenantId,
     entity_id: String,
     entity_type: EntityType,
 ) -> UserResult<
@@ -231,6 +235,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id,
+                    tenant_id,
                     org_id: Some(&org_id),
                     merchant_id: None,
                     profile_id: None,
@@ -275,6 +280,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id,
+                    tenant_id,
                     org_id: None,
                     merchant_id: Some(&merchant_id),
                     profile_id: None,
@@ -320,6 +326,7 @@ pub async fn get_lineage_for_user_id_and_entity_for_accepting_invite(
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id,
+                    tenant_id: &state.tenant.tenant_id,
                     org_id: None,
                     merchant_id: None,
                     profile_id: Some(&profile_id),

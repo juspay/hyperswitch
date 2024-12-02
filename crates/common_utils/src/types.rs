@@ -334,7 +334,6 @@ impl AmountConvertor for FloatMajorUnitForConnector {
 }
 
 /// Connector required amount type
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct MinorUnitForConnector;
 
@@ -503,7 +502,6 @@ impl Sum for MinorUnit {
 }
 
 /// Connector specific types to send
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
 pub struct StringMinorUnit(String);
 
@@ -749,7 +747,7 @@ mod client_secret_type {
         {
             struct ClientSecretVisitor;
 
-            impl<'de> Visitor<'de> for ClientSecretVisitor {
+            impl Visitor<'_> for ClientSecretVisitor {
                 type Value = ClientSecret;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -845,7 +843,7 @@ mod client_secret_type {
             Ok(row)
         }
     }
-
+    crate::impl_serializable_secret_id_type!(ClientSecret);
     #[cfg(test)]
     mod client_secret_tests {
         #![allow(clippy::expect_used)]

@@ -72,6 +72,7 @@ pub struct PaymentIntent {
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 #[cfg(feature = "v1")]
@@ -136,6 +137,7 @@ pub struct PaymentIntent {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
@@ -154,6 +156,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub enabled_saved_payment_method: Option<bool>,
     /// Hide card nickname field option for payment link
     pub hide_card_nickname_field: Option<bool>,
+    /// Show card form by default for payment link
+    pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
 }
@@ -352,6 +356,7 @@ pub struct PaymentIntentNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 #[cfg(feature = "v2")]

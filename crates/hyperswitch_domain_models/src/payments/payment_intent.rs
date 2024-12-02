@@ -1051,6 +1051,7 @@ pub struct PaymentIntentListParams {
     pub limit: Option<u32>,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<storage_enums::CardNetwork>>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
@@ -1085,6 +1086,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
             order: Default::default(),
             card_network: None,
+            merchant_order_reference_id: None,
         }))
     }
 }
@@ -1110,6 +1112,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             limit: None,
             order: Default::default(),
             card_network: None,
+            merchant_order_reference_id: None,
         }))
     }
 }
@@ -1133,6 +1136,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             merchant_connector_id,
             order,
             card_network,
+            merchant_order_reference_id,
         } = value;
         if let Some(payment_intent_id) = payment_id {
             Self::Single { payment_intent_id }
@@ -1156,6 +1160,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
                 order,
                 card_network,
+                merchant_order_reference_id,
             }))
         }
     }
@@ -1332,6 +1337,7 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present: Some(customer_present.as_bool()),
             payment_link_config,
             routing_algorithm_id,
+            psd2_sca_exemption_type: None,
         })
     }
     async fn convert_back(
@@ -1600,6 +1606,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
         })
     }
 
@@ -1687,6 +1694,7 @@ impl behaviour::Conversion for PaymentIntent {
                 is_payment_processor_token_flow: storage_model.is_payment_processor_token_flow,
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
+                psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
             })
         }
         .await
@@ -1749,6 +1757,7 @@ impl behaviour::Conversion for PaymentIntent {
             shipping_cost: self.shipping_cost,
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
+            psd2_sca_exemption_type: self.psd2_sca_exemption_type,
         })
     }
 }

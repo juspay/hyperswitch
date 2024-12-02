@@ -180,7 +180,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaPaymentAttempt<'a> {
+impl super::KafkaMessage for KafkaPaymentAttempt<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}",

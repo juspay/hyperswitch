@@ -1,3 +1,7 @@
+#[cfg(feature = "v2")]
+use api_models::admin;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     crypto::Encryptable,
     date_time,
@@ -9,10 +13,14 @@ use common_utils::{
 use diesel_models::{enums, merchant_connector_account::MerchantConnectorAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+#[cfg(feature = "v2")]
+use router_env::logger;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 use super::behaviour;
+#[cfg(feature = "v2")]
+use crate::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use crate::router_data;
 use crate::type_encryption::{crypto_operation, CryptoOperation};
@@ -88,6 +96,27 @@ pub struct MerchantConnectorAccount {
 impl MerchantConnectorAccount {
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
+    }
+
+    pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
+        self.metadata.clone()
+    }
+
+    pub fn get_parsed_payment_methods_enabled(
+        &self,
+    ) -> Vec<CustomResult<admin::PaymentMethodsEnabled, ApiErrorResponse>> {
+        self.payment_methods_enabled
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|payment_methods_enabled| {
+                payment_methods_enabled
+                    .parse_value::<admin::PaymentMethodsEnabled>("payment_methods_enabled")
+                    .change_context(ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_methods_enabled",
+                    })
+            })
+            .collect()
     }
 
     pub fn is_disabled(&self) -> bool {
@@ -530,31 +559,73 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
     }
 }
 
-#[derive(Debug)]
-pub struct MerchantConnectorAccounts(Vec<MerchantConnectorAccount>);
+common_utils::create_list_wrapper!(
+    MerchantConnectorAccounts,
+    MerchantConnectorAccount,
+    impl_functions: {
+        #[cfg(feature = "v2")]
+        pub fn get_connector_and_supporting_payment_method_type_for_session_call(
+            &self,
+        ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType)> {
+            let connector_and_supporting_payment_method_type = self.iter().flat_map(|connector_account| {
+                connector_account
+                    .get_parsed_payment_methods_enabled()
+                    // TODO: make payment_methods_enabled strict type in DB
+                    .into_iter()
+                    .filter_map(|parsed_payment_method_result| {
+                        parsed_payment_method_result
+                            .inspect_err(|err| {
+                                logger::error!(session_token_parsing_error=?err);
+                            })
+                            .ok()
+                    })
+                    .flat_map(|parsed_payment_methods_enabled| {
+                        parsed_payment_methods_enabled
+                            .payment_method_types
+                            .unwrap_or_default()
+                            .into_iter()
+                            .filter(|payment_method_type| {
+                                let is_invoke_sdk_client = matches!(
+                                    payment_method_type.payment_experience,
+                                    Some(api_models::enums::PaymentExperience::InvokeSdkClient)
+                                );
+                                is_invoke_sdk_client
+                            })
+                            .map(|payment_method_type| {
+                                (connector_account, payment_method_type.payment_method_type)
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>()
+            }).collect();
+            connector_and_supporting_payment_method_type
+        }
+        pub fn filter_based_on_profile_and_connector_type(
+            self,
+            profile_id: &id_type::ProfileId,
+            connector_type: common_enums::ConnectorType,
+        ) -> Self {
+            self.into_iter()
+                .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
+                .collect()
+        }
+        pub fn is_merchant_connector_account_id_in_connector_mandate_details(
+            &self,
+            profile_id: Option<&id_type::ProfileId>,
+            connector_mandate_details: &diesel_models::PaymentsMandateReference,
+        ) -> bool {
+            let mca_ids = self
+                .iter()
+                .filter(|mca| {
+                    mca.disabled.is_some_and(|disabled| !disabled)
+                        && profile_id.is_some_and(|profile_id| *profile_id == mca.profile_id)
+                })
+                .map(|mca| mca.get_id())
+                .collect::<std::collections::HashSet<_>>();
 
-impl MerchantConnectorAccounts {
-    pub fn new(merchant_connector_accounts: Vec<MerchantConnectorAccount>) -> Self {
-        Self(merchant_connector_accounts)
+            connector_mandate_details
+                .keys()
+                .any(|mca_id| mca_ids.contains(mca_id))
+        }
     }
-
-    pub fn is_merchant_connector_account_id_in_connector_mandate_details(
-        &self,
-        profile_id: Option<&id_type::ProfileId>,
-        connector_mandate_details: &diesel_models::PaymentsMandateReference,
-    ) -> bool {
-        let mca_ids = self
-            .0
-            .iter()
-            .filter(|mca| {
-                mca.disabled.is_some_and(|disabled| !disabled)
-                    && profile_id.is_some_and(|profile_id| *profile_id == mca.profile_id)
-            })
-            .map(|mca| mca.get_id())
-            .collect::<std::collections::HashSet<_>>();
-
-        connector_mandate_details
-            .keys()
-            .any(|mca_id| mca_ids.contains(mca_id))
-    }
-}
+);
