@@ -132,6 +132,10 @@ impl UserEmail {
         self.0
     }
 
+    pub fn get_inner(&self) -> &pii::Email {
+        &self.0
+    }
+
     pub fn get_secret(self) -> Secret<String, pii::EmailStrategy> {
         (*self.0).clone()
     }
@@ -642,7 +646,7 @@ impl NewUser {
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
         if state
             .global_store
-            .find_user_by_email(&self.get_email().into_inner())
+            .find_user_by_email(&self.get_email())
             .await
             .is_ok()
         {
