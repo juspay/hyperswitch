@@ -254,9 +254,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ForbiddenTenantId => {
                 AER::BadRequest(ApiError::new(sub_code, 50, self.get_error_message(), None))
             }
-            Self::ErrorUploadingFile => {
-                AER::InternalServerError(ApiError::new(sub_code, 51, self.get_error_message(), None))
-            }
+            Self::ErrorUploadingFile => AER::InternalServerError(ApiError::new(
+                sub_code,
+                51,
+                self.get_error_message(),
+                None,
+            )),
             Self::ErrorRetrievingFile => AER::InternalServerError(ApiError::new(
                 sub_code,
                 52,
