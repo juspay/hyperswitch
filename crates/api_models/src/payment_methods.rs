@@ -778,7 +778,7 @@ pub struct PaymentMethodResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentMethodResponse {
     /// Unique identifier for a merchant
-    #[schema(example = "merchant_1671528864", value_type = String)]
+    #[schema(value_type = String, example = "merchant_1671528864")]
     pub merchant_id: id_type::MerchantId,
 
     /// The unique identifier of the customer.
