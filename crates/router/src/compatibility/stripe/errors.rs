@@ -680,7 +680,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::MissingTenantId => Self::InvalidTenant,
             errors::ApiErrorResponse::AmountConversionFailed { amount_type } => {
                 Self::AmountConversionFailed { amount_type }
-            },
+            }
             errors::ApiErrorResponse::PlatformAccountAuthNotSupported => Self::PlatformBadRequest,
             errors::ApiErrorResponse::InvalidPlatformOperation => Self::PlatformUnauthorizedRequest,
         }

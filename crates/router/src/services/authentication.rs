@@ -623,7 +623,7 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: Some(key_id),
                 } => {
-                    let auth = construct_authentication_data(state, &merchant_id).await?;
+                    let auth = construct_authentication_data(state, &merchant_id, request_headers).await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::ApiKey {
@@ -637,7 +637,7 @@ where
                     merchant_id: Some(merchant_id),
                     key_id: None,
                 } => {
-                    let auth = construct_authentication_data(state, &merchant_id).await?;
+                    let auth = construct_authentication_data(state, &merchant_id, request_headers).await?;
                     Ok((
                         auth.clone(),
                         AuthenticationType::PublishableKey {
@@ -711,9 +711,10 @@ where
 async fn construct_authentication_data<A>(
     state: &A,
     merchant_id: &id_type::MerchantId,
+    request_headers: &HeaderMap,
 ) -> RouterResult<AuthenticationData>
 where
-    A: SessionStateInfo,
+    A: SessionStateInfo + Sync,
 {
     let key_store = state
         .store()
@@ -736,9 +737,13 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+    // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
+    let (merchant, platform_merchant_account) =
+    get_platform_merchant_account(state, request_headers, merchant).await?;
+
     let auth = AuthenticationData {
         merchant_account: merchant,
-        platform_merchant_account: None,
+        platform_merchant_account,
         key_store,
         profile_id: None,
     };
