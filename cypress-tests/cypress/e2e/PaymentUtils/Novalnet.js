@@ -1,7 +1,7 @@
 const successfulNo3DSCardDetails = {
   card_number: "4200000000000000",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "Max Mustermann",
   card_cvc: "123",
 };
@@ -9,7 +9,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "Max Mustermann",
   card_cvc: "123",
 };
