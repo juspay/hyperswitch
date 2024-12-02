@@ -305,7 +305,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                                     unit_price: data.amount,
                                     total_amount: data.amount * data.quantity,
                                     total_tax_amount: data.total_tax_amount,
-                                    tax_rate: data.tax_rate.map(|rate| rate as f64),
+                                    tax_rate: data.tax_rate,
                                 })
                                 .collect(),
                             merchant_urls: MerchantURLs {

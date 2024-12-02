@@ -578,10 +578,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<u64>, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     #[mandatory_in(PaymentsCreateRequest = u64)]
-    // Makes the field mandatory in PaymentsCreateRequest
+    /// Makes the field mandatory in PaymentsCreateRequest
     pub amount: Option<Amount>,
 
-    // Total tax amount applicable to the order
+    /// Total tax amount applicable to the order
     #[schema(value_type = Option<i64>, example = 6540)]
     pub order_tax_amount: Option<MinorUnit>,
 
