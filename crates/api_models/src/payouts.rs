@@ -185,7 +185,8 @@ pub struct PayoutCreateRequest {
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
 
-    pub payment_method_id: Option<String>,
+    /// Identifier for payout method
+    pub payout_method_id: Option<String>,
 }
 
 impl PayoutCreateRequest {
@@ -571,7 +572,8 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<String>, max_length = 1024, example = "Invalid card details")]
     pub unified_message: Option<UnifiedMessage>,
 
-    pub payment_method_id: Option<String>,
+    /// Identifier for payout method
+    pub payout_method_id: Option<String>,
 }
 
 /// The payout method information for response

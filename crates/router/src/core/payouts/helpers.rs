@@ -3,7 +3,7 @@ use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
-    ext_traits::{AsyncExt, StringExt},
+    ext_traits::{AsyncExt, StringExt, ValueExt},
     fp_utils, id_type, payout_method_utils as payout_additional, pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
@@ -192,6 +192,50 @@ pub async fn make_payout_method_data(
         // Ignore if nothing is passed
         _ => Ok(None),
     }
+}
+
+pub fn should_create_connector_transfer_method(
+    payout_data: &PayoutData,
+    connector_data: &api::ConnectorData,
+) -> RouterResult<Option<String>> {
+    let connector_mandate_id = if let Some(pm) = &payout_data.payment_method {
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
+        let connector_mandate_details = pm
+            .connector_mandate_details
+            .clone()
+            .map(|details| {
+                details.parse_value::<diesel_models::PaymentsMandateReference>(
+                    "connector_mandate_details",
+                )
+            })
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize connector mandate details")?;
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        let connector_mandate_details = pm.connector_mandate_details.clone();
+        if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
+            connector_mandate_details
+                .clone()
+                .and_then(|payments_mandate_reference| {
+                    payments_mandate_reference
+                        .get(merchant_connector_id)
+                        .map(|payments_mandate_reference_record| {
+                            payments_mandate_reference_record
+                                .connector_mandate_id
+                                .clone()
+                        })
+                })
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    
+    Ok(connector_mandate_id)
 }
 
 #[cfg(all(
@@ -540,7 +584,7 @@ pub async fn save_payout_data_to_locker(
                 None,
                 None,
                 None,
-                Some(storage_enums::TransactionFlow::Payouts),
+                Some(storage_enums::PaymentDirection::Payout),
             )
             .await?,
         );
@@ -644,7 +688,7 @@ pub async fn save_payout_data_to_locker(
     _merchant_account: &domain::MerchantAccount,
     _key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
-    Ok(())
+    todo!()
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]

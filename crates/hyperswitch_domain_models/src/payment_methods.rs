@@ -69,7 +69,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
-    pub transaction_flow: Option<storage_enums::TransactionFlow>,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -98,7 +98,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: OptionalEncryptableValue,
-    pub transaction_flow: Option<storage_enums::TransactionFlow>,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 impl PaymentMethod {

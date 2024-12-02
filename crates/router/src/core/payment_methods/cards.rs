@@ -145,7 +145,7 @@ pub async fn create_payment_method(
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: crypto::OptionalEncryptableValue,
-    transaction_flow: Option<storage_enums::TransactionFlow>,
+    transaction_flow: Option<storage_enums::PaymentDirection>,
 ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
     let customer = db
@@ -347,7 +347,7 @@ pub async fn get_or_insert_payment_method(
                     None,
                     None,
                     None,
-                    Some(storage_enums::TransactionFlow::Payment),
+                    Some(storage_enums::PaymentDirection::Payin),
                 )
                 .await
             } else {
@@ -830,7 +830,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
-                transaction_flow: Some(storage_enums::TransactionFlow::Payment),
+                transaction_flow: Some(storage_enums::PaymentDirection::Payin),
             },
             merchant_account.storage_scheme,
         )
@@ -1080,7 +1080,7 @@ pub async fn get_client_secret_or_add_payment_method(
             None,
             None,
             None,
-            Some(storage_enums::TransactionFlow::Payment),
+            Some(storage_enums::PaymentDirection::Payin),
         )
         .await?;
 
@@ -1174,7 +1174,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
             None,
             None,
             None,
-            Some(storage_enums::TransactionFlow::Payment),
+            Some(storage_enums::PaymentDirection::Payin),
         )
         .await?;
         migration_status.connector_mandate_details_migrated(
@@ -1694,7 +1694,7 @@ pub async fn add_payment_method(
                 None,
                 None,
                 None,
-                Some(storage_enums::TransactionFlow::Payment),
+                Some(storage_enums::PaymentDirection::Payin),
             )
             .await?;
 
@@ -1957,7 +1957,7 @@ pub async fn save_migration_payment_method(
                 None,
                 None,
                 None,
-                Some(storage_enums::TransactionFlow::Payment),
+                Some(storage_enums::PaymentDirection::Payin),
             )
             .await?;
 
@@ -2004,7 +2004,7 @@ pub async fn insert_payment_method(
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: crypto::OptionalEncryptableValue,
-    transaction_flow: Option<storage_enums::TransactionFlow>,
+    transaction_flow: Option<storage_enums::PaymentDirection>,
 ) -> errors::RouterResult<domain::PaymentMethod> {
     let pm_card_details = resp
         .card
@@ -2828,7 +2828,7 @@ pub async fn update_payment_method_connector_mandate_details(
     pm: domain::PaymentMethod,
     connector_mandate_details: Option<diesel_models::PaymentsMandateReference>,
     storage_scheme: MerchantStorageScheme,
-    transaction_flow: Option<storage_enums::TransactionFlow>,
+    transaction_flow: Option<storage_enums::PaymentDirection>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details,
@@ -2852,7 +2852,7 @@ pub async fn update_payment_method_connector_mandate_details(
     pm: domain::PaymentMethod,
     connector_mandate_details: Option<serde_json::Value>,
     storage_scheme: MerchantStorageScheme,
-    transaction_flow: Option<storage_enums::TransactionFlow>,
+    transaction_flow: Option<storage_enums::PaymentDirection>,
 ) -> errors::CustomResult<(), errors::VaultError> {
     let pm_update = payment_method::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
         connector_mandate_details,
