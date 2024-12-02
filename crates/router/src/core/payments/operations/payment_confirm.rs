@@ -1652,6 +1652,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             utils::flatten_join_error(payment_attempt_fut),
             utils::flatten_join_error(customer_fut)
         )?;
+        
+        let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, "xyz", 3600).await;
 
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
@@ -1673,9 +1675,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     }
 }
 
-impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>>
-    for PaymentConfirm
-{
+#[async_trait]
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> for PaymentConfirm {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
@@ -1733,5 +1734,21 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 ),
             },
         ))
+    }
+    
+    async fn validate_request_with_state(
+        &self,
+        state: &SessionState,
+        request: &api::PaymentsRequest,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<()> {
+
+        let _merchant_id = merchant_account.get_id();
+
+        //TODO: Check if Card Testing Guard is enabled for this merchant
+        
+        helpers::validate_card_testing_attack(state, request).await?;
+
+        Ok(())
     }
 }
