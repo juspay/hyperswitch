@@ -33,7 +33,6 @@ describe.skip("[Payment] Incremental Auth", () => {
 
       const newData = {
         ...data,
-        Configs: { CONNECTOR_CREDENTIAL: { value: "connector_2" } },
         Request: {
           ...data.Request,
           request_incremental_authorization: true,
@@ -55,12 +54,7 @@ describe.skip("[Payment] Incremental Auth", () => {
         "card_pm"
       ]["SaveCardUseNo3DSManualCaptureOffSession"];
 
-      const newData = {
-        ...data,
-        Configs: { CONNECTOR_CREDENTIAL: { value: "connector_2" } },
-      };
-
-      cy.confirmCallTest(fixtures.confirmBody, newData, true, globalState);
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -100,14 +94,9 @@ describe.skip("[Payment] Incremental Auth", () => {
         "card_pm"
       ]["PaymentIntentOffSession"];
 
-      const newData = {
-        ...data,
-        Configs: { CONNECTOR_CREDENTIAL: { value: "connector_2" } },
-      };
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        newData,
+        data,
         "no_three_ds",
         "manual",
         globalState
@@ -120,14 +109,9 @@ describe.skip("[Payment] Incremental Auth", () => {
         "card_pm"
       ]["SaveCardUseNo3DSManualCaptureOffSession"];
 
-      const newData = {
-        ...data,
-        Configs: { CONNECTOR_CREDENTIAL: { value: "connector_2" } },
-      };
-
       cy.saveCardConfirmCallTest(
         fixtures.saveCardConfirmBody,
-        newData,
+        data,
         globalState
       );
 
