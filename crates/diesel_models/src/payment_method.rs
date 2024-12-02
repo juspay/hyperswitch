@@ -64,7 +64,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
-    pub transaction_flow: Option<storage_enums::TransactionFlow>,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -93,7 +93,7 @@ pub struct PaymentMethod {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
-    pub transaction_flow: Option<storage_enums::TransactionFlow>,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 impl PaymentMethod {
@@ -154,7 +154,7 @@ pub struct PaymentMethodNew {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
-    pub transaction_flow: Option<storage_enums::TransactionFlow>,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -183,7 +183,7 @@ pub struct PaymentMethodNew {
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
     pub network_token_payment_method_data: Option<Encryption>,
-    pub transaction_flow: Option<storage_enums::TransactionFlow>,
+    pub transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 impl PaymentMethodNew {
@@ -251,7 +251,7 @@ pub enum PaymentMethodUpdate {
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<serde_json::Value>,
-        transaction_flow: Option<storage_enums::TransactionFlow>,
+        transaction_flow: Option<storage_enums::PaymentDirection>,
     },
     NetworkTokenDataUpdate {
         network_token_requestor_reference_id: Option<String>,
@@ -296,7 +296,7 @@ pub enum PaymentMethodUpdate {
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<PaymentsMandateReference>,
-        transaction_flow: Option<storage_enums::TransactionFlow>,
+        transaction_flow: Option<storage_enums::PaymentDirection>,
     },
 }
 
@@ -328,7 +328,7 @@ pub struct PaymentMethodUpdateInternal {
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
-    transaction_flow: Option<storage_enums::TransactionFlow>,
+    transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
@@ -404,7 +404,7 @@ pub struct PaymentMethodUpdateInternal {
     last_modified: PrimitiveDateTime,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
-    transaction_flow: Option<storage_enums::TransactionFlow>,
+    transaction_flow: Option<storage_enums::PaymentDirection>,
 }
 
 #[cfg(all(
