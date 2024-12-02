@@ -9,6 +9,7 @@ pub use super::authentication_v2::{
     ConnectorAuthenticationV2, ConnectorPostAuthenticationV2, ConnectorPreAuthenticationV2,
     ConnectorPreAuthenticationVersionCallV2, ExternalAuthenticationV2,
 };
+use super::unified_authentication_service::UasPostAuthentication;
 use crate::core::errors;
 
 #[derive(Debug, Clone)]
@@ -118,6 +119,8 @@ pub trait ExternalAuthentication:
     + ConnectorPostAuthentication
 {
 }
+
+
 
 #[derive(Clone)]
 pub struct AuthenticationConnectorData {

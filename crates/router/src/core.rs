@@ -53,3 +53,5 @@ pub mod verification;
 pub mod verify_connector;
 #[cfg(feature = "v1")]
 pub mod webhooks;
+
+pub mod unified_authentication_service;

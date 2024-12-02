@@ -86,6 +86,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub header_payload: Option<payments::HeaderPayload>,
 
     pub connector_mandate_request_reference_id: Option<String>,
+
+    pub authentication_id: Option<String>
 }
 
 // Different patterns of authentication.

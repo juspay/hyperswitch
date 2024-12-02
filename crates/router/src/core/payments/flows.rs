@@ -2753,3 +2753,141 @@ default_imp_for_post_session_tokens!(
     connector::Wellsfargopayout,
     connector::Wise
 );
+
+macro_rules! default_imp_for_uas_pre_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::UasPreAuthentication for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::UasPreAuthentication,
+                types::UasPreAuthenticationRequestData,
+                types::UasAuthenticationResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::UasPreAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+    api::UasPreAuthentication,
+    types::UasPreAuthenticationRequestData,
+    types::UasAuthenticationResponseData
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_uas_pre_authentication!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Adyenplatform,
+    connector::Authorizedotnet,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Ebanx,
+    connector::Globalpay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Netcetera,
+    connector::Nuvei,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Paybox,
+    connector::Payme,
+    connector::Payone,
+    connector::Placetopay,
+    connector::Plaid,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Wellsfargo,
+    connector::Wellsfargopayout,
+    connector::Wise
+);
+
+macro_rules! default_imp_for_uas_post_authentication {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::UasPostAuthentication for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+                api::UasPostAuthentication,
+                types::UasPostAuthenticationRequestData,
+                types::UasAuthenticationResponseData
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::UasPostAuthentication for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+    api::UasPostAuthentication,
+    types::UasPostAuthenticationRequestData,
+    types::UasAuthenticationResponseData
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_uas_post_authentication!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Adyenplatform,
+    connector::Authorizedotnet,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Checkout,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Ebanx,
+    connector::Globalpay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Netcetera,
+    connector::Nuvei,
+    connector::Nmi,
+    connector::Noon,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Paybox,
+    connector::Payme,
+    connector::Payone,
+    connector::Placetopay,
+    connector::Plaid,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Stripe,
+    connector::Threedsecureio,
+    connector::Trustpay,
+    connector::Wellsfargo,
+    connector::Wellsfargopayout,
+    connector::Wise
+);

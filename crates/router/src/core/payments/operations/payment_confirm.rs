@@ -1020,6 +1020,33 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    async fn call_unified_authentication_service_if_eligible<'a>(
+        &'a self,
+        state: &SessionState,
+        payment_data: &mut PaymentData<F>,
+        should_continue_confirm_transaction: &mut bool,
+        connector_call_type: &ConnectorCallType,
+        business_profile: &domain::Profile,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        // let unified_authentication_flow =
+        //     helpers::get_unified_authentication_service_operation_during_confirm(
+        //         state,
+        //         key_store,
+        //         business_profile,
+        //         payment_data,
+        //         connector_call_type,
+        //     )
+        //     .await?;
+        // match unified_authentication_flow {
+        //     helpers::UnifiedAuthenticationOperation::ClickToPay {pre_authentication_flow_details, post_authentication_flow_details} => {
+                
+        //     }
+        // }
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
