@@ -228,7 +228,7 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    callback_mapper (id) {
+    callback_mapper (id, type_) {
         #[max_length = 128]
         id -> Varchar,
         #[sql_name = "type"]
