@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use api_models::admin::MerchantConnectorInfo;
 use common_utils::{
     ext_traits::AsyncExt,
-    types::{ConnectorTransactionId, MinorUnit, SplitPaymentsRequest, SplitRefundRequest},
+    types::{ConnectorTransactionId, MinorUnit, SplitPaymentsRequest},
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
@@ -473,7 +473,11 @@ pub async fn refund_retrieve_core(
         .clone()
         .zip(refund.split_refunds.clone())
         .map(|(split_payments, split_refunds)| {
-            ForeignTryFrom::foreign_try_from((split_refunds, split_payments))
+            ForeignTryFrom::foreign_try_from((
+                split_refunds,
+                split_payments,
+                payment_attempt.charge_id.clone(),
+            ))
         })
         .transpose()?;
 
@@ -745,39 +749,24 @@ pub async fn validate_and_create_refund(
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
 
-    let split_refunds = match (
-        payment_intent.split_payments.as_ref(),
-        payment_attempt.charge_id.as_ref(),
-    ) {
-        (Some(split_payments), Some(charge_id)) => {
+    let split_refunds = match payment_intent.split_payments.as_ref() {
+        Some(SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
             let refund_request = req
                 .split_refunds
                 .clone()
                 .get_required_value("split_refunds")?;
 
-            // let stripe_refund = match refund_request {
-            //     SplitRefundRequest::StripeSplitRefundRequest(ref stripe_refund) => stripe_refund,
-            // };
-            let SplitRefundRequest::StripeSplitRefundRequest(ref stripe_refund) = refund_request;
-
-            utils::when(*charge_id != stripe_refund.charge_id, || {
-                Err(report!(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "split_refunds.charge_id",
-                }))
-                .attach_printable("charge_id sent in request mismatches with original charge_id")
-            })?;
-
-            // let stripe_payment = match split_payments {
-            //     SplitPaymentsRequest::StripeSplitPayment(payment) => payment,
-            // };
-            let SplitPaymentsRequest::StripeSplitPayment(stripe_payment) = split_payments;
-
             let options =
                 validator::validate_charge_refund(&refund_request, &stripe_payment.charge_type)?;
 
-            // Construct SplitRefundsRequest
+            let charge_id = payment_attempt.charge_id.clone().ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "Transaction in invalid. Missing field \"charge_id\" in payment_attempt.",
+                )
+            })?;
+
             Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
-                charge_id: stripe_refund.charge_id.clone(),
+                charge_id,
                 charge_type: stripe_payment.charge_type.clone(),
                 transfer_account_id: stripe_payment.transfer_account_id.clone(),
                 options,
@@ -785,6 +774,53 @@ pub async fn validate_and_create_refund(
         }
         _ => None,
     };
+
+    // let split_refunds = match (
+    //     payment_intent.split_payments.as_ref(),
+    //     payment_attempt.charge_id.as_ref(),
+    // ) {
+    //     (Some(split_payments), Some(charge_id)) => {
+    //         let refund_request = req
+    //             .split_refunds
+    //             .clone()
+    //             .get_required_value("split_refunds")?;
+
+    //         // let stripe_refund = match refund_request {
+    //         //     SplitRefundRequest::StripeSplitRefundRequest(ref stripe_refund) => stripe_refund,
+    //         // };
+    //         let SplitRefundRequest::StripeSplitRefundRequest(ref stripe_refund) = refund_request;
+
+    //         // utils::when(*charge_id != stripe_refund.charge_id, || {
+    //         //     Err(report!(errors::ApiErrorResponse::InvalidDataValue {
+    //         //         field_name: "split_refunds.charge_id",
+    //         //     }))
+    //         //     .attach_printable("charge_id sent in request mismatches with original charge_id")
+    //         // })?;
+
+    //         // let stripe_payment = match split_payments {
+    //         //     SplitPaymentsRequest::StripeSplitPayment(payment) => payment,
+    //         // };
+    //         let SplitPaymentsRequest::StripeSplitPayment(stripe_payment) = split_payments;
+
+    //         let options =
+    //             validator::validate_charge_refund(&refund_request, &stripe_payment.charge_type)?;
+
+    //         let charge_id = payment_attempt.charge_id.clone().ok_or_else(|| {
+    //             report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+    //                 "Transaction in invalid. Missing field \"charge_id\" in payment_attempt.",
+    //             )
+    //         })?;
+
+    //         // Construct SplitRefundsRequest
+    //         Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
+    //             charge_id,
+    //             charge_type: stripe_payment.charge_type.clone(),
+    //             transfer_account_id: stripe_payment.transfer_account_id.clone(),
+    //             options,
+    //         }))
+    //     }
+    //     _ => None,
+    // };
 
     // Only for initial dev and testing
     let refund_type = req.refund_type.unwrap_or_default();
@@ -1480,50 +1516,26 @@ pub async fn trigger_refund_execute_workflow(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            let split_refunds = match (
-                payment_intent.split_payments.as_ref(),
-                payment_attempt.charge_id.as_ref(),
-            ) {
-                (Some(split_payments), Some(charge_id)) => {
+            let split_refunds = match payment_intent.split_payments.as_ref() {
+                Some(SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
                     let refund_request = refund
                         .split_refunds
                         .clone()
                         .get_required_value("split_refunds")?;
 
-                    // Match the enum variant of SplitRefundRequest
-                    // let stripe_refund = match refund_request {
-                    //     SplitRefundRequest::StripeSplitRefundRequest(ref stripe_refund) => {
-                    //         stripe_refund
-                    //     }
-                    // };
-                    let SplitRefundRequest::StripeSplitRefundRequest(ref stripe_refund) =
-                        refund_request;
-
-                    // Validate charge_id
-                    utils::when(*charge_id != stripe_refund.charge_id, || {
-                        Err(report!(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "split_refunds.charge_id",
-                        }))
-                        .attach_printable(
-                            "charge_id sent in request mismatches with original charge_id",
-                        )
-                    })?;
-
-                    // Match the variant of SplitPaymentsRequest
-                    // let stripe_payment = match split_payments {
-                    //     SplitPaymentsRequest::StripeSplitPayment(payment) => payment,
-                    // };
-                    let SplitPaymentsRequest::StripeSplitPayment(stripe_payment) = split_payments;
-
-                    // Validate refund options with correct `charge_type`
                     let options = validator::validate_charge_refund(
                         &refund_request,
                         &stripe_payment.charge_type,
                     )?;
 
-                    // Construct SplitRefundsRequest
+                    let charge_id = payment_attempt.charge_id.clone().ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                "Transaction in invalid. Missing field \"charge_id\" in payment_attempt.",
+            )
+                    })?;
+
                     Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
-                        charge_id: stripe_refund.charge_id.clone(),
+                        charge_id,
                         charge_type: stripe_payment.charge_type.clone(),
                         transfer_account_id: stripe_payment.transfer_account_id.clone(),
                         options,
@@ -1531,6 +1543,62 @@ pub async fn trigger_refund_execute_workflow(
                 }
                 _ => None,
             };
+
+            // let split_refunds = match (
+            //     payment_intent.split_payments.as_ref(),
+            //     payment_attempt.charge_id.as_ref(),
+            // ) {
+            //     (Some(split_payments), Some(charge_id)) => {
+            //         let refund_request = refund
+            //             .split_refunds
+            //             .clone()
+            //             .get_required_value("split_refunds")?;
+
+            //         // Match the enum variant of SplitRefundRequest
+            //         // let stripe_refund = match refund_request {
+            //         //     SplitRefundRequest::StripeSplitRefundRequest(ref stripe_refund) => {
+            //         //         stripe_refund
+            //         //     }
+            //         // };
+            //         let SplitRefundRequest::StripeSplitRefundRequest(ref stripe_refund) =
+            //             refund_request;
+
+            //         // Validate charge_id
+            //         // utils::when(*charge_id != stripe_refund.charge_id, || {
+            //         //     Err(report!(errors::ApiErrorResponse::InvalidDataValue {
+            //         //         field_name: "split_refunds.charge_id",
+            //         //     }))
+            //         //     .attach_printable(
+            //         //         "charge_id sent in request mismatches with original charge_id",
+            //         //     )
+            //         // })?;
+
+            //         // Match the variant of SplitPaymentsRequest
+            //         // let stripe_payment = match split_payments {
+            //         //     SplitPaymentsRequest::StripeSplitPayment(payment) => payment,
+            //         // };
+            //         let SplitPaymentsRequest::StripeSplitPayment(stripe_payment) = split_payments;
+
+            //         // Validate refund options with correct `charge_type`
+            //         let options = validator::validate_charge_refund(
+            //             &refund_request,
+            //             &stripe_payment.charge_type,
+            //         )?;
+            //         let charge_id = payment_attempt.charge_id.clone().ok_or_else(|| {
+            //             report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+            //                 "Transaction in invalid. Missing field \"charge_id\" in payment_attempt.",
+            //             )
+            //         })?;
+            //         // Construct SplitRefundsRequest
+            //         Some(SplitRefundsRequest::StripeSplitRefund(StripeSplitRefund {
+            //             charge_id,
+            //             charge_type: stripe_payment.charge_type.clone(),
+            //             transfer_account_id: stripe_payment.transfer_account_id.clone(),
+            //             options,
+            //         }))
+            //     }
+            //     _ => None,
+            // };
             //trigger refund request to gateway
             let updated_refund = Box::pin(trigger_refund_to_gateway(
                 state,
