@@ -18,10 +18,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Automatic CIT and MIT payment flow test",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -39,8 +39,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS CIT", () => {
@@ -58,8 +58,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -82,10 +82,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   context(
     "Card - NoThreeDS Create and Confirm Manual CIT and MIT payment flow test",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -103,8 +103,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS CIT", () => {
@@ -122,8 +122,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("cit-capture-call-test", () => {
@@ -133,8 +133,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -157,10 +157,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -180,8 +180,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -218,10 +218,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -241,8 +241,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("cit-capture-call-test", () => {
@@ -252,8 +252,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT 1", () => {
@@ -278,8 +278,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT 2", () => {
@@ -304,8 +304,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -313,10 +313,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   context(
     "Card - ThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -336,8 +336,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Handle redirection", () => {
@@ -379,10 +379,10 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
   context(
     "Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -402,8 +402,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Handle redirection", () => {
@@ -418,8 +418,8 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {

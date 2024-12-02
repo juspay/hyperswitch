@@ -5,7 +5,7 @@ import * as utils from "../RoutingUtils/Utils";
 let globalState;
 
 describe("Priority Based Routing Test", () => {
-  let should_continue = true;
+  let shouldContinue = true;
 
   context("Login", () => {
     before("seed global state", () => {
@@ -70,24 +70,21 @@ describe("Priority Based Routing Test", () => {
         routing_data,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["priorityRouting"];
 
       cy.retrieveRoutingConfig(data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("activate-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["priorityRouting"];
 
       cy.activateRoutingConfig(data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment-routing-test", () => {
@@ -102,8 +99,7 @@ describe("Priority Based Routing Test", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -152,24 +148,21 @@ describe("Priority Based Routing Test", () => {
         routing_data,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["priorityRouting"];
 
       cy.retrieveRoutingConfig(data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("activate-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["priorityRouting"];
 
       cy.activateRoutingConfig(data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment-routing-test", () => {
@@ -183,8 +176,7 @@ describe("Priority Based Routing Test", () => {
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {

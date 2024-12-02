@@ -17,10 +17,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
   context("Card - NoThreeDS Manual Full Capture payment flow test", () => {
     context("payment Create and Confirm", () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -38,8 +38,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("payment_methods-call-test", () => {
@@ -53,8 +53,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -72,8 +72,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -86,10 +86,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     });
 
     context("Payment Create+Confirm", () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -107,8 +107,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -126,8 +126,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -144,10 +144,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
     "Card - NoThreeDS Manual Partial Capture payment flow test - Create and Confirm",
     () => {
       context("payment Create and Payment Confirm", () => {
-        let should_continue = true; // variable that will be used to skip tests if a previous test fails
+        let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
         beforeEach(function () {
-          if (!should_continue) {
+          if (!shouldContinue) {
             this.skip();
           }
         });
@@ -165,8 +165,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             globalState
           );
 
-          if (should_continue)
-            should_continue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
         });
 
         it("payment_methods-call-test", () => {
@@ -180,8 +180,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
           cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-          if (should_continue)
-            should_continue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
         });
 
         it("retrieve-payment-call-test", () => {
@@ -199,8 +199,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
           cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
 
-          if (should_continue)
-            should_continue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
         });
 
         it("retrieve-payment-call-test", () => {
@@ -213,10 +213,10 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
       });
 
       context("payment + Confirm", () => {
-        let should_continue = true; // variable that will be used to skip tests if a previous test fails
+        let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
         beforeEach(function () {
-          if (!should_continue) {
+          if (!shouldContinue) {
             this.skip();
           }
         });
@@ -234,8 +234,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
             globalState
           );
 
-          if (should_continue)
-            should_continue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
         });
 
         it("retrieve-payment-call-test", () => {
@@ -253,8 +253,8 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
 
           cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
 
-          if (should_continue)
-            should_continue = utils.should_continue_further(data);
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
         });
 
         it("retrieve-payment-call-test", () => {

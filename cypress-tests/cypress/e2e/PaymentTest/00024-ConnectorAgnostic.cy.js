@@ -18,10 +18,10 @@ describe("Connector Agnostic Tests", () => {
   context(
     "Connector Agnostic Disabled for Profile 1 and Enabled for Profile 2",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -59,8 +59,8 @@ describe("Connector Agnostic Tests", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm Payment", () => {
@@ -70,8 +70,8 @@ describe("Connector Agnostic Tests", () => {
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("List Payment Method for Customer using Client Secret", () => {
@@ -119,8 +119,8 @@ describe("Connector Agnostic Tests", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("List Payment Method for Customer", () => {
@@ -130,10 +130,10 @@ describe("Connector Agnostic Tests", () => {
   );
 
   context("Connector Agnostic Enabled for Profile 1 and Profile 2", () => {
-    let should_continue = true;
+    let shouldContinue = true;
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -183,8 +183,7 @@ describe("Connector Agnostic Tests", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Confirm Payment", () => {
@@ -194,8 +193,7 @@ describe("Connector Agnostic Tests", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("List Payment Method for Customer using Client Secret", () => {
@@ -243,8 +241,7 @@ describe("Connector Agnostic Tests", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("List Payment Method for Customer", () => {

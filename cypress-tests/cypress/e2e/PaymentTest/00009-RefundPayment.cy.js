@@ -16,10 +16,10 @@ describe("Card - Refund flow - No 3DS", () => {
   });
 
   context("Card - Full Refund flow test for No-3DS", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -37,8 +37,7 @@ describe("Card - Refund flow - No 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -52,8 +51,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -71,8 +69,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -82,16 +79,15 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("Card - Partial Refund flow test for No-3DS", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -109,8 +105,7 @@ describe("Card - Refund flow - No 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -124,8 +119,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -143,8 +137,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 1200, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("refund-call-test", () => {
@@ -154,8 +147,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 1200, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -165,18 +157,17 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context(
     "Fully Refund Card-NoThreeDS payment flow test Create+Confirm",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -194,8 +185,8 @@ describe("Card - Refund flow - No 3DS", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -213,8 +204,8 @@ describe("Card - Refund flow - No 3DS", () => {
 
         cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("sync-refund-call-test", () => {
@@ -224,8 +215,8 @@ describe("Card - Refund flow - No 3DS", () => {
 
         cy.syncRefundCallTest(data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -233,10 +224,10 @@ describe("Card - Refund flow - No 3DS", () => {
   context(
     "Partially Refund Card-NoThreeDS payment flow test Create+Confirm",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -254,8 +245,8 @@ describe("Card - Refund flow - No 3DS", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -273,8 +264,8 @@ describe("Card - Refund flow - No 3DS", () => {
 
         cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("refund-call-test", () => {
@@ -284,8 +275,8 @@ describe("Card - Refund flow - No 3DS", () => {
 
         cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("sync-refund-call-test", () => {
@@ -295,17 +286,17 @@ describe("Card - Refund flow - No 3DS", () => {
 
         cy.syncRefundCallTest(data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
 
   context("Card - Full Refund for fully captured No-3DS payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -323,8 +314,7 @@ describe("Card - Refund flow - No 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -338,8 +328,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -357,8 +346,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -376,8 +364,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -387,16 +374,15 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("Card - Partial Refund for fully captured No-3DS payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -414,8 +400,7 @@ describe("Card - Refund flow - No 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -429,8 +414,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -448,8 +432,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -467,8 +450,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("refund-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -477,8 +459,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -488,8 +469,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("list-refund-call-test", () => {
       cy.listRefundCallTest(fixtures.listRefundCall, globalState);
@@ -497,10 +477,10 @@ describe("Card - Refund flow - No 3DS", () => {
   });
 
   context("Card - Full Refund for partially captured No-3DS payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -518,8 +498,7 @@ describe("Card - Refund flow - No 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -533,8 +512,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -552,8 +530,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -571,8 +548,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 100, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -582,16 +558,15 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("Card - partial Refund for partially captured No-3DS payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -609,8 +584,7 @@ describe("Card - Refund flow - No 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -624,8 +598,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -643,8 +616,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -662,8 +634,7 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 100, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -673,18 +644,17 @@ describe("Card - Refund flow - No 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context(
     "Card - Full Refund for Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -704,8 +674,8 @@ describe("Card - Refund flow - No 3DS", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -745,8 +715,8 @@ describe("Card - Refund flow - No 3DS", () => {
 
         cy.refundCallTest(fixtures.refundBody, data, 7000, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("sync-refund-call-test", () => {
@@ -756,8 +726,8 @@ describe("Card - Refund flow - No 3DS", () => {
 
         cy.syncRefundCallTest(data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -775,10 +745,10 @@ describe("Card - Refund flow - 3DS", () => {
   });
 
   context("Card - Full Refund flow test for 3DS", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -796,8 +766,7 @@ describe("Card - Refund flow - 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -811,8 +780,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle redirection", () => {
@@ -835,8 +803,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -846,16 +813,15 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("Card - Partial Refund flow test for 3DS", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -873,8 +839,7 @@ describe("Card - Refund flow - 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -888,8 +853,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle redirection", () => {
@@ -912,8 +876,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 1200, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("refund-call-test", () => {
@@ -923,8 +886,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 1200, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -934,16 +896,15 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("Fully Refund Card-ThreeDS payment flow test Create+Confirm", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -961,8 +922,7 @@ describe("Card - Refund flow - 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle redirection", () => {
@@ -985,8 +945,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -996,18 +955,17 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context(
     "Partially Refund Card-ThreeDS payment flow test Create+Confirm",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -1025,8 +983,8 @@ describe("Card - Refund flow - 3DS", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Handle redirection", () => {
@@ -1049,8 +1007,8 @@ describe("Card - Refund flow - 3DS", () => {
 
         cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("refund-call-test", () => {
@@ -1060,8 +1018,8 @@ describe("Card - Refund flow - 3DS", () => {
 
         cy.refundCallTest(fixtures.refundBody, data, 3000, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("sync-refund-call-test", () => {
@@ -1071,17 +1029,17 @@ describe("Card - Refund flow - 3DS", () => {
 
         cy.syncRefundCallTest(data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
 
   context("Card - Full Refund for fully captured 3DS payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -1099,8 +1057,7 @@ describe("Card - Refund flow - 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -1114,8 +1071,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle redirection", () => {
@@ -1138,8 +1094,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -1157,8 +1112,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -1168,16 +1122,15 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("Card - Partial Refund for fully captured 3DS payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -1195,8 +1148,7 @@ describe("Card - Refund flow - 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -1210,8 +1162,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle redirection", () => {
@@ -1234,8 +1185,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -1253,8 +1203,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 5000, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
     it("refund-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -1263,8 +1212,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 1500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -1274,16 +1222,15 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("Card - Full Refund for partially captured 3DS payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -1301,8 +1248,7 @@ describe("Card - Refund flow - 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -1316,8 +1262,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle redirection", () => {
@@ -1340,8 +1285,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -1359,8 +1303,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 100, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -1370,16 +1313,15 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("Card - partial Refund for partially captured 3DS payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -1397,8 +1339,7 @@ describe("Card - Refund flow - 3DS", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -1412,8 +1353,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle redirection", () => {
@@ -1436,8 +1376,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -1455,8 +1394,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 50, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("sync-refund-call-test", () => {
@@ -1466,8 +1404,7 @@ describe("Card - Refund flow - 3DS", () => {
 
       cy.syncRefundCallTest(data, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 });

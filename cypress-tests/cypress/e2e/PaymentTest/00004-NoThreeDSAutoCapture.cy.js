@@ -16,10 +16,10 @@ describe("Card - NoThreeDS payment flow test", () => {
   });
 
   context("Card-NoThreeDS payment flow test Create and confirm", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -37,8 +37,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -52,8 +51,7 @@ describe("Card - NoThreeDS payment flow test", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -66,10 +64,10 @@ describe("Card - NoThreeDS payment flow test", () => {
   });
 
   context("Card-NoThreeDS payment flow test Create+Confirm", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -87,8 +85,7 @@ describe("Card - NoThreeDS payment flow test", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {

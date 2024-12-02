@@ -10,7 +10,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Blik Create and Confirm flow test", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -19,7 +19,7 @@ describe("Bank Redirect tests", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -36,8 +36,7 @@ describe("Bank Redirect tests", () => {
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -56,13 +55,12 @@ describe("Bank Redirect tests", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("EPS Create and Confirm flow test", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -71,7 +69,7 @@ describe("Bank Redirect tests", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -88,8 +86,7 @@ describe("Bank Redirect tests", () => {
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -108,8 +105,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle bank redirect redirection", () => {
@@ -126,7 +122,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("iDEAL Create and Confirm flow test", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -135,7 +131,7 @@ describe("Bank Redirect tests", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -152,8 +148,7 @@ describe("Bank Redirect tests", () => {
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -172,8 +167,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle bank redirect redirection", () => {
@@ -189,7 +183,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Sofort Create and Confirm flow test", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -198,7 +192,7 @@ describe("Bank Redirect tests", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -214,8 +208,7 @@ describe("Bank Redirect tests", () => {
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -234,8 +227,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle bank redirect redirection", () => {
@@ -251,7 +243,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Przelewy24 Create and Confirm flow test", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -260,7 +252,7 @@ describe("Bank Redirect tests", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -276,8 +268,7 @@ describe("Bank Redirect tests", () => {
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -296,8 +287,7 @@ describe("Bank Redirect tests", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle bank redirect redirection", () => {

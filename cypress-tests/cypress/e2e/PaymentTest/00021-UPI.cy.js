@@ -5,7 +5,7 @@ import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 let globalState;
 
 describe("UPI Payments - Hyperswitch", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   context("[Payment] [UPI - UPI Collect] Create & Confirm + Refund", () => {
     before("seed global state", () => {
@@ -19,7 +19,7 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -37,8 +37,7 @@ describe("UPI Payments - Hyperswitch", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("List Merchant payment methods", () => {
@@ -52,8 +51,7 @@ describe("UPI Payments - Hyperswitch", () => {
 
       cy.confirmUpiCall(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle UPI Redirection", () => {
@@ -82,14 +80,13 @@ describe("UPI Payments - Hyperswitch", () => {
 
       cy.refundCallTest(fixtures.refundBody, data, 6500, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   // Skipping UPI Intent intentionally as connector is throwing 5xx during redirection
   context.skip("[Payment] [UPI - UPI Intent] Create & Confirm", () => {
-    should_continue = true; // variable that will be used to skip tests if a previous test fails
+    shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -102,7 +99,7 @@ describe("UPI Payments - Hyperswitch", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -120,8 +117,7 @@ describe("UPI Payments - Hyperswitch", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("List Merchant payment methods", () => {
@@ -135,8 +131,7 @@ describe("UPI Payments - Hyperswitch", () => {
 
       cy.confirmUpiCall(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle UPI Redirection", () => {

@@ -18,10 +18,10 @@ describe("Card - MultiUse Mandates flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -41,8 +41,8 @@ describe("Card - MultiUse Mandates flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -79,10 +79,10 @@ describe("Card - MultiUse Mandates flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -102,8 +102,8 @@ describe("Card - MultiUse Mandates flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("cit-capture-call-test", () => {
@@ -113,8 +113,8 @@ describe("Card - MultiUse Mandates flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT 1", () => {
@@ -139,8 +139,8 @@ describe("Card - MultiUse Mandates flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT 2", () => {
@@ -165,8 +165,8 @@ describe("Card - MultiUse Mandates flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -174,10 +174,10 @@ describe("Card - MultiUse Mandates flow test", () => {
   context(
     "Card - ThreeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -197,8 +197,8 @@ describe("Card - MultiUse Mandates flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("cit-capture-call-test", () => {
@@ -208,8 +208,8 @@ describe("Card - MultiUse Mandates flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {

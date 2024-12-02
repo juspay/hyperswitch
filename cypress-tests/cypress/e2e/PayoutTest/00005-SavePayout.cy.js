@@ -6,7 +6,7 @@ let globalState;
 let payoutBody;
 
 describe("[Payout] Saved Card", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -14,7 +14,7 @@ describe("[Payout] Saved Card", () => {
 
       // Check if the connector supports card payouts (based on the connector configuration in creds)
       if (!globalState.get("payoutsExecution")) {
-        should_continue = false;
+        shouldContinue = false;
       }
     });
   });
@@ -24,13 +24,13 @@ describe("[Payout] Saved Card", () => {
   });
 
   beforeEach(function () {
-    if (!should_continue) {
+    if (!shouldContinue) {
       this.skip();
     }
   });
 
   context("[Payout] [Card] Onboard customer prior to transaction", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     // This is needed to get customer payment methods
     beforeEach("seed global state", () => {
@@ -66,8 +66,7 @@ describe("[Payout] Saved Card", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -78,10 +77,10 @@ describe("[Payout] Saved Card", () => {
   context(
     "[Payout] [Card] Save payment method after successful transaction",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -97,8 +96,8 @@ describe("[Payout] Saved Card", () => {
 
         cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("list customer payment methods", () => {
@@ -118,8 +117,8 @@ describe("[Payout] Saved Card", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payout-call-test", () => {
@@ -130,7 +129,7 @@ describe("[Payout] Saved Card", () => {
 });
 
 describe("[Payout] Saved Bank transfer", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -138,7 +137,7 @@ describe("[Payout] Saved Bank transfer", () => {
 
       // Check if the connector supports card payouts (based on the connector configuration in creds)
       if (!globalState.get("payoutsExecution")) {
-        should_continue = false;
+        shouldContinue = false;
       }
     });
   });
@@ -148,7 +147,7 @@ describe("[Payout] Saved Bank transfer", () => {
   });
 
   beforeEach(function () {
-    if (!should_continue) {
+    if (!shouldContinue) {
       this.skip();
     }
   });
@@ -156,7 +155,7 @@ describe("[Payout] Saved Bank transfer", () => {
   context(
     "[Payout] [Bank Transfer] Onboard Customer Prior to Transaction",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
       beforeEach("reset payoutBody", () => {
         payoutBody = Cypress._.cloneDeep(fixtures.createPayoutBody);
       });
@@ -190,8 +189,8 @@ describe("[Payout] Saved Bank transfer", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payout-call-test", () => {
@@ -203,10 +202,10 @@ describe("[Payout] Saved Bank transfer", () => {
   context(
     "[Payout] [Bank Transfer] Save payment method after successful transaction",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -222,8 +221,8 @@ describe("[Payout] Saved Bank transfer", () => {
 
         cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("list customer payment methods", () => {
@@ -243,8 +242,8 @@ describe("[Payout] Saved Bank transfer", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payout-call-test", () => {

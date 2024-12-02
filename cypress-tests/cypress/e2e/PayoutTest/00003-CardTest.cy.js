@@ -5,7 +5,7 @@ import * as utils from "../PayoutUtils/Utils";
 let globalState;
 
 describe("[Payout] Cards", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -13,7 +13,7 @@ describe("[Payout] Cards", () => {
 
       // Check if the connector supports card payouts (based on the connector configuration in creds)
       if (!globalState.get("payoutsExecution")) {
-        should_continue = false;
+        shouldContinue = false;
       }
     });
   });
@@ -23,16 +23,16 @@ describe("[Payout] Cards", () => {
   });
 
   beforeEach(function () {
-    if (!should_continue) {
+    if (!shouldContinue) {
       this.skip();
     }
   });
 
   context("Payout Card with Auto Fulfill", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -50,8 +50,7 @@ describe("[Payout] Cards", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -60,10 +59,10 @@ describe("[Payout] Cards", () => {
   });
 
   context("Payout Card with Manual Fulfill - Create Confirm", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -80,8 +79,7 @@ describe("[Payout] Cards", () => {
         false,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("fulfill-payout-call-test", () => {
@@ -90,8 +88,7 @@ describe("[Payout] Cards", () => {
       ]["Fulfill"];
 
       cy.fulfillPayoutCallTest({}, data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {

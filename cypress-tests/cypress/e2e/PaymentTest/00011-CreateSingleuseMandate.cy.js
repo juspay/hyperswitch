@@ -18,10 +18,10 @@ describe("Card - SingleUse Mandates flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -41,8 +41,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -65,10 +65,10 @@ describe("Card - SingleUse Mandates flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -88,8 +88,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("cit-capture-call-test", () => {
@@ -99,8 +99,8 @@ describe("Card - SingleUse Mandates flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -125,8 +125,8 @@ describe("Card - SingleUse Mandates flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("list-mandate-call-test", () => {
@@ -138,10 +138,10 @@ describe("Card - SingleUse Mandates flow test", () => {
   context(
     "Card - No threeDS Create + Confirm Manual CIT and MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -161,8 +161,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("cit-capture-call-test", () => {
@@ -172,8 +172,8 @@ describe("Card - SingleUse Mandates flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {

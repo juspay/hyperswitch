@@ -19,11 +19,11 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS automatic capture payment- Create+Confirm [on_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -45,8 +45,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue) {
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue) {
+          shouldContinue = utils.should_continue_further(data);
         }
       });
 
@@ -75,8 +75,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -86,8 +86,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -95,11 +95,11 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS manual full capture payment- Create+Confirm [on_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -121,8 +121,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -150,8 +150,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -161,8 +161,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -180,8 +180,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -189,11 +189,11 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS manual partial capture payment- Create + Confirm [on_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -215,8 +215,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -244,8 +244,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -255,8 +255,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
       it("retrieve-payment-call-test", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -273,8 +273,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -282,11 +282,11 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS automatic capture payment [off_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -308,8 +308,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -337,8 +337,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -348,8 +348,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -357,10 +357,10 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS manual capture payment- Create+Confirm [off_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
@@ -383,8 +383,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -401,8 +401,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -422,8 +422,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -433,8 +433,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -452,8 +452,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -469,11 +469,11 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS automatic capture payment - create and confirm [off_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -495,8 +495,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-payment-call-test", () => {
@@ -506,8 +506,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -535,8 +535,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
@@ -546,19 +546,19 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
   context(
     "Use billing address from payment method during subsequent payment[off_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -580,8 +580,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-payment-call-test", () => {
@@ -591,8 +591,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -612,8 +612,8 @@ describe("Card - SaveCard payment flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test-without-billing", () => {
@@ -623,8 +623,8 @@ describe("Card - SaveCard payment flow test", () => {
 
         cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );

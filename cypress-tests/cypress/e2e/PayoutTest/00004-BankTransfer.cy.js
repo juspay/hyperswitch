@@ -6,7 +6,7 @@ let globalState;
 
 // TODO: Add test for Bank Transfer - ACH
 describe.skip("[Payout] [Bank Transfer - ACH]", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -14,7 +14,7 @@ describe.skip("[Payout] [Bank Transfer - ACH]", () => {
 
       // Check if the connector supports card payouts (based on the connector configuration in creds)
       if (!globalState.get("payoutsExecution")) {
-        should_continue = false;
+        shouldContinue = false;
       }
     });
   });
@@ -24,7 +24,7 @@ describe.skip("[Payout] [Bank Transfer - ACH]", () => {
   });
 
   beforeEach(function () {
-    if (!should_continue) {
+    if (!shouldContinue) {
       this.skip();
     }
   });
@@ -32,7 +32,7 @@ describe.skip("[Payout] [Bank Transfer - ACH]", () => {
 
 // TODO: Add test for Bank Transfer - BACS
 describe.skip("[Payout] [Bank Transfer - BACS]", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -40,7 +40,7 @@ describe.skip("[Payout] [Bank Transfer - BACS]", () => {
 
       // Check if the connector supports card payouts (based on the connector configuration in creds)
       if (!globalState.get("payoutsExecution")) {
-        should_continue = false;
+        shouldContinue = false;
       }
     });
   });
@@ -50,14 +50,14 @@ describe.skip("[Payout] [Bank Transfer - BACS]", () => {
   });
 
   beforeEach(function () {
-    if (!should_continue) {
+    if (!shouldContinue) {
       this.skip();
     }
   });
 });
 
 describe("[Payout] [Bank Transfer - SEPA]", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -65,7 +65,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
 
       // Check if the connector supports card payouts (based on the connector configuration in creds)
       if (!globalState.get("payoutsExecution")) {
-        should_continue = false;
+        shouldContinue = false;
       }
     });
   });
@@ -75,16 +75,16 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
   });
 
   beforeEach(function () {
-    if (!should_continue) {
+    if (!shouldContinue) {
       this.skip();
     }
   });
 
   context("[Payout] [Bank transfer - SEPA] Auto Fulfill", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -101,8 +101,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
         true,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -111,10 +110,10 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
   });
 
   context("[Payout] [Bank transfer - SEPA] Manual Fulfill", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -131,8 +130,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
         false,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("fulfill-payout-call-test", () => {
@@ -141,8 +139,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
       ]["sepa"]["Fulfill"];
 
       cy.fulfillPayoutCallTest({}, data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {

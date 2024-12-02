@@ -188,7 +188,7 @@ describe("Corner cases", () => {
   });
 
   context("[Payment] Capture greater amount", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -201,7 +201,7 @@ describe("Corner cases", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -219,8 +219,7 @@ describe("Corner cases", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Capture call", () => {
@@ -230,13 +229,12 @@ describe("Corner cases", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 65000, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("[Payment] Capture successful payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -249,7 +247,7 @@ describe("Corner cases", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -267,8 +265,7 @@ describe("Corner cases", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -286,13 +283,12 @@ describe("Corner cases", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 65000, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("[Payment] Confirm successful payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -305,7 +301,7 @@ describe("Corner cases", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -323,8 +319,7 @@ describe("Corner cases", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -342,13 +337,12 @@ describe("Corner cases", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("[Payment] Void successful payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -361,7 +355,7 @@ describe("Corner cases", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -379,8 +373,7 @@ describe("Corner cases", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -410,13 +403,12 @@ describe("Corner cases", () => {
 
       cy.voidCallTest(fixtures.voidBody, newData, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("[Payment] 3DS with greater capture", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -429,7 +421,7 @@ describe("Corner cases", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -447,8 +439,7 @@ describe("Corner cases", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -479,13 +470,12 @@ describe("Corner cases", () => {
 
       cy.captureCallTest(fixtures.captureBody, data, 65000, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("[Payment] Refund exceeds captured Amount", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -498,7 +488,7 @@ describe("Corner cases", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -516,8 +506,7 @@ describe("Corner cases", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -546,13 +535,12 @@ describe("Corner cases", () => {
       };
 
       cy.refundCallTest(fixtures.refundBody, newData, 65000, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("[Payment] Refund unsuccessful payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -565,7 +553,7 @@ describe("Corner cases", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -583,8 +571,7 @@ describe("Corner cases", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {
@@ -614,13 +601,12 @@ describe("Corner cases", () => {
 
       cy.refundCallTest(fixtures.refundBody, newData, 65000, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
   context("[Payment] Recurring mandate with greater mandate amount", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -633,7 +619,7 @@ describe("Corner cases", () => {
     });
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -652,8 +638,7 @@ describe("Corner cases", () => {
         "new_mandate",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("cit-capture-call-test", () => {
@@ -662,8 +647,7 @@ describe("Corner cases", () => {
       ]["Capture"];
 
       cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Retrieve payment", () => {

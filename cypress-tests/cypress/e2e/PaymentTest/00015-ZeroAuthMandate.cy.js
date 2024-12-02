@@ -18,10 +18,10 @@ describe("Card - SingleUse Mandates flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and Single use MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -41,8 +41,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -64,10 +64,10 @@ describe("Card - SingleUse Mandates flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and Multi use MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -87,8 +87,8 @@ describe("Card - SingleUse Mandates flow test", () => {
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
@@ -123,10 +123,10 @@ describe("Card - SingleUse Mandates flow test", () => {
   );
 
   context("Card - Zero Auth Payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -144,8 +144,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Confirm No 3DS payment", () => {
@@ -155,8 +154,7 @@ describe("Card - SingleUse Mandates flow test", () => {
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Retrieve Payment Call Test", () => {
@@ -184,8 +182,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Confirm Recurring Payment", () => {
@@ -199,8 +196,7 @@ describe("Card - SingleUse Mandates flow test", () => {
         globalState
       );
 
-      if (should_continue)
-        should_continue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 });
