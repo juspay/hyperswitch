@@ -142,14 +142,25 @@ pub struct ValidateResult {
     pub requeue: bool,
 }
 
+#[async_trait]
 #[cfg(feature = "v1")]
 #[allow(clippy::type_complexity)]
 pub trait ValidateRequest<F, R, D> {
+    
     fn validate_request<'b>(
         &'b self,
         request: &R,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
+
+    async fn validate_request_with_state(
+        &self,
+        state:  &SessionState,
+        request: &R,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v2")]
