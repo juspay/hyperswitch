@@ -77,6 +77,7 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub split_payments: Option<SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v1")]
