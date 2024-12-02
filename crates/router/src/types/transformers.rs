@@ -1964,6 +1964,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             hide_card_nickname_field: item.hide_card_nickname_field,
             show_card_form_by_default: item.show_card_form_by_default,
             transaction_details: None,
+            background_image: item.background_image,
         }
     }
 }

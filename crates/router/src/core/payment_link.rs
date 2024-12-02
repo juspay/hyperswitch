@@ -129,6 +129,7 @@ pub async fn form_payment_link_data(
                 show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
                 transaction_details: None,
+                background_image: None,
             }
         };
 
@@ -648,7 +649,11 @@ pub fn get_payment_link_config_based_on_priority(
         show_card_form_by_default,
         allowed_domains,
         transaction_details: payment_create_link_config
-            .and_then(|payment_link_config| payment_link_config.theme_config.transaction_details),
+            .as_ref()
+            .and_then(|payment_link_config| payment_link_config.theme_config.transaction_details.clone()),
+        background_image: payment_create_link_config
+            .as_ref()
+            .and_then(|payment_link_config| payment_link_config.theme_config.background_image.clone()),
     };
 
     Ok((payment_link_config, domain_name))
@@ -752,6 +757,7 @@ pub async fn get_payment_link_status(
             show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
             transaction_details: None,
+            background_image: None,
         }
     };
 
