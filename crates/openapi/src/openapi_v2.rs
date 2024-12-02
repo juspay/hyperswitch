@@ -158,6 +158,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::payout_method_utils::PaypalAdditionalData,
         common_utils::payout_method_utils::VenmoAdditionalData,
         common_utils::types::SplitPaymentsRequest,
+        common_utils::types::StripeSplitPayment,
         api_models::refunds::RefundRequest,
         api_models::refunds::RefundsCreateRequest,
         api_models::refunds::RefundErrorDetails,
