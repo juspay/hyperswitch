@@ -81,7 +81,7 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        connector_transaction_id: &str,
+        connector_transaction_id: &ConnectorTransactionId,
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
