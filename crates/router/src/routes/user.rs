@@ -244,6 +244,8 @@ pub async fn create_tenant_user(
     ))
     .await
 }
+
+#[cfg(feature = "v1")]
 pub async fn user_org_create(
     state: web::Data<AppState>,
     req: HttpRequest,

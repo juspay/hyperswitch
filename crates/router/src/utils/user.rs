@@ -287,8 +287,8 @@ pub fn create_merchant_account_request_for_org(
     org: organization::Organization,
 ) -> UserResult<api_models::admin::MerchantAccountCreate> {
     let merchant_id = if matches!(env::which(), env::Env::Production) {
-        id_type::MerchantId::try_from(domain::MerchantId::new(req.company_name.clone().ok_or(
-            UserErrors::InvalidRoleOperationWithMessage("Company name required".to_string()),
+        id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.clone().ok_or(
+            UserErrors::InvalidRoleOperationWithMessage("Merchant name required".to_string()),
         )?)?)?
     } else {
         id_type::MerchantId::new_from_unix_timestamp()
@@ -314,27 +314,5 @@ pub fn create_merchant_account_request_for_org(
         enable_payment_response_hash: None,
         redirect_to_merchant_with_http_post: None,
         pm_collect_link_config: None,
-    })
-}
-
-#[cfg(feature = "v2")]
-pub fn create_merchant_account_request_for_org(
-    req: user_api::UserOrgCreateRequest,
-    org: organization::Organization,
-) -> UserResult<api_models::admin::MerchantAccountCreate> {
-    let merchant_name = if let Some(company_name) = org.company_name.clone() {
-        MerchantName::try_from(company_name)
-    } else {
-        MerchantName::try_new("merchant".to_string())
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("merchant name validation failed")
-    }
-    .map(Secret::new)?;
-
-    Ok(api_models::admin::MerchantAccountCreate {
-        merchant_name,
-        organization_id: Some(org.get_organization_id()),
-        metadata: None,
-        merchant_details: None,
     })
 }

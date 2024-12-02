@@ -1313,6 +1313,7 @@ pub async fn create_tenant_user(
     Ok(ApplicationResponse::StatusOk)
 }
 
+#[cfg(feature = "v1")]
 pub async fn create_org_for_user(
     state: SessionState,
     req: user_api::UserOrgCreateRequest,
