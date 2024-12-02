@@ -90,25 +90,6 @@ describe("Card - Refund flow - No 3DS", () => {
   context("Card - Partial Refund flow test for No-3DS", () => {
     let should_continue = true; // variable that will be used to skip tests if a previous test fails
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
     beforeEach(function () {
       if (!should_continue) {
         this.skip();
