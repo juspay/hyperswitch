@@ -26,7 +26,7 @@ impl GlobalRefundId {
     }
 
     /// Generate a new GlobalRefundId from a cell id
-    pub fn generate(cell_id: crate::id_type::CellId) -> Self {
+    pub fn generate(cell_id: &crate::id_type::CellId) -> Self {
         let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Refund);
         Self(global_id)
     }

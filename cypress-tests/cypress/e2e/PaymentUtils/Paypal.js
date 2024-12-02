@@ -3,7 +3,7 @@ import { getCustomExchange } from "./Commons";
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -11,7 +11,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4868719460707704",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
