@@ -119,7 +119,7 @@ pub async fn get_user_from_db_by_email(
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
         .global_store
-        .find_user_by_email(&email.into_inner())
+        .find_user_by_email(&email)
         .await
         .map(UserFromStorage::from)
 }
