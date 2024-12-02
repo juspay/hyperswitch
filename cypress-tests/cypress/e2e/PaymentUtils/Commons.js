@@ -143,6 +143,7 @@ export const getCustomExchange = (overrides) => {
 
   return {
     ...defaultExchange,
+    ...(overrides.Configs ? { Configs: overrides.Configs } : {}),
     Request: {
       ...defaultExchange.Request,
       ...(overrides.Request || {}),
