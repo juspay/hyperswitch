@@ -24,7 +24,7 @@ pub struct UserRole {
     pub entity_id: Option<String>,
     pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
 }
 
 impl UserRole {
@@ -88,7 +88,7 @@ pub struct UserRoleNew {
     pub entity_id: Option<String>,
     pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]

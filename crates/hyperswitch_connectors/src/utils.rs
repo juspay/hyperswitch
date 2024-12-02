@@ -2259,3 +2259,20 @@ impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
         }
     }
 }
+
+pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
+    xml_data: &[u8],
+) -> Result<T, errors::ConnectorError> {
+    let response_str = std::str::from_utf8(xml_data)
+        .map_err(|e| {
+            router_env::logger::error!("Error converting response data to UTF-8: {:?}", e);
+            errors::ConnectorError::ResponseDeserializationFailed
+        })?
+        .trim();
+    let result: T = quick_xml::de::from_str(response_str).map_err(|e| {
+        router_env::logger::error!("Error deserializing XML response: {:?}", e);
+        errors::ConnectorError::ResponseDeserializationFailed
+    })?;
+
+    Ok(result)
+}

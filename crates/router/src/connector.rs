@@ -47,13 +47,14 @@ pub use hyperswitch_connectors::connectors::{
     digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, elavon, elavon::Elavon, fiserv,
     fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, forte, forte::Forte,
     globepay, globepay::Globepay, gocardless, gocardless::Gocardless, helcim, helcim::Helcim,
-    jpmorgan, jpmorgan::Jpmorgan, mollie, mollie::Mollie, multisafepay, multisafepay::Multisafepay,
-    nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay,
-    novalnet, novalnet::Novalnet, payeezy, payeezy::Payeezy, payu, payu::Payu, powertranz,
-    powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay,
-    razorpay::Razorpay, shift4, shift4::Shift4, square, square::Square, stax, stax::Stax, taxjar,
-    taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline,
-    worldline::Worldline, worldpay, worldpay::Worldpay, zen, zen::Zen, zsl, zsl::Zsl,
+    inespay, inespay::Inespay, jpmorgan, jpmorgan::Jpmorgan, mollie, mollie::Mollie, multisafepay,
+    multisafepay::Multisafepay, nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay,
+    nomupay, nomupay::Nomupay, novalnet, novalnet::Novalnet, payeezy, payeezy::Payeezy, payu,
+    payu::Payu, powertranz, powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd,
+    rapyd::Rapyd, razorpay, razorpay::Razorpay, redsys, redsys::Redsys, shift4, shift4::Shift4,
+    square, square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys,
+    tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline, worldpay, worldpay::Worldpay,
+    xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]
