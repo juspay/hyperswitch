@@ -1346,7 +1346,7 @@ pub async fn create_payment_method_in_db(
     storage_scheme: enums::MerchantStorageScheme,
     payment_method_billing_address: crypto::OptionalEncryptableValue,
     card_scheme: Option<String>,
-    transaction_flow: Option<storage_enums::TransactionFlow>,
+    transaction_flow: Option<storage_enums::PaymentDirection>,
 ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
     let current_time = common_utils::date_time::now();
