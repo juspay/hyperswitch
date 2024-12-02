@@ -16,6 +16,7 @@ pub mod workflows;
 
 #[cfg(feature = "olap")]
 pub mod analytics;
+pub mod analytics_validator;
 pub mod events;
 pub mod middleware;
 pub mod services;

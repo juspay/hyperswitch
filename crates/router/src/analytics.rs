@@ -26,15 +26,14 @@ pub mod routes {
         GetSdkEventMetricRequest, ReportRequest, AnalyticsRequest,
     };
     use common_enums::EntityType;
-    use common_utils::{errors::CustomResult, types::TimeRange};
-    use currency_conversion::types::ExchangeRates;
+    use common_utils::types::TimeRange;
+    
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
-
     use crate::{
         consts::opensearch::SEARCH_INDEXES,
         core::{
-            api_locking, currency::get_forex_exchange_rates, errors::user::UserErrors,
+            api_locking, errors::user::UserErrors,
             verification::utils,
         },
         db::{user::UserInterface, user_role::ListUserRolesByUserIdPayload},
@@ -46,19 +45,10 @@ pub mod routes {
             ApplicationResponse,
         },
         types::{domain::UserEmail, storage::UserRole},
+        analytics_validator::request_validator,
     };
 
-    async fn request_validator(_req_type: AnalyticsRequest, state: &crate::routes::SessionState) -> CustomResult<(bool, Option<ExchangeRates>), AnalyticsError> {
-        // other validation logic based on `req_type` goes here
 
-        let ex_rates = if state.conf.analytics.get_inner().get_forex_enabled() {
-            Some(get_forex_exchange_rates(state.clone()).await?)
-        } else {
-            None
-        };
-        
-        Ok((ex_rates.is_some(), ex_rates))
-    }
     pub struct Analytics;
 
     impl Analytics {
