@@ -88,7 +88,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
-                total_amount: StringMajorUnit::new("0".to_string()),
+                total_amount: StringMajorUnit::zero(),
                 currency: item.request.currency,
             },
             bill_to: Some(bill_to),
