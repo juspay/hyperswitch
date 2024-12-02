@@ -473,7 +473,6 @@ impl RoutingAlgorithmRef {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-
 pub struct RoutingDictionaryRecord {
     #[schema(value_type = String)]
     pub id: common_utils::id_type::RoutingId,

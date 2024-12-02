@@ -1448,7 +1448,7 @@ pub enum OpenBankingUKIssuer {
 
 pub struct AdyenTestBankNames<'a>(&'a str);
 
-impl<'a> TryFrom<&common_enums::BankNames> for AdyenTestBankNames<'a> {
+impl TryFrom<&common_enums::BankNames> for AdyenTestBankNames<'_> {
     type Error = Error;
     fn try_from(bank: &common_enums::BankNames) -> Result<Self, Self::Error> {
         Ok(match bank {
@@ -1501,7 +1501,7 @@ impl<'a> TryFrom<&common_enums::BankNames> for AdyenTestBankNames<'a> {
 
 pub struct AdyenBankNames<'a>(&'a str);
 
-impl<'a> TryFrom<&common_enums::BankNames> for AdyenBankNames<'a> {
+impl TryFrom<&common_enums::BankNames> for AdyenBankNames<'_> {
     type Error = Error;
     fn try_from(bank: &common_enums::BankNames) -> Result<Self, Self::Error> {
         Ok(match bank {
@@ -1550,9 +1550,7 @@ impl TryFrom<&types::ConnectorAuthType> for AdyenAuthType {
     }
 }
 
-impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
-    for AdyenPaymentRequest<'a>
-{
+impl TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>> for AdyenPaymentRequest<'_> {
     type Error = Error;
     fn try_from(
         item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -1612,7 +1610,7 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-impl<'a> TryFrom<&types::PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'a> {
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'_> {
     type Error = Error;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let payment_method = match &item.request.payment_method_data {
@@ -1863,8 +1861,8 @@ fn build_shopper_reference(
     })
 }
 
-impl<'a> TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)>
-    for AdyenPaymentMethod<'a>
+impl TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)>
+    for AdyenPaymentMethod<'_>
 {
     type Error = Error;
     fn try_from(
@@ -1911,8 +1909,8 @@ impl<'a> TryFrom<(&domain::BankDebitData, &types::PaymentsAuthorizeRouterData)>
     }
 }
 
-impl<'a> TryFrom<(&domain::VoucherData, &types::PaymentsAuthorizeRouterData)>
-    for AdyenPaymentMethod<'a>
+impl TryFrom<(&domain::VoucherData, &types::PaymentsAuthorizeRouterData)>
+    for AdyenPaymentMethod<'_>
 {
     type Error = Error;
     fn try_from(
@@ -1958,7 +1956,7 @@ impl<'a> TryFrom<(&domain::VoucherData, &types::PaymentsAuthorizeRouterData)>
     }
 }
 
-impl<'a> TryFrom<&domain::GiftCardData> for AdyenPaymentMethod<'a> {
+impl TryFrom<&domain::GiftCardData> for AdyenPaymentMethod<'_> {
     type Error = Error;
     fn try_from(gift_card_data: &domain::GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
@@ -1992,7 +1990,7 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
     }
 }
 
-impl<'a> TryFrom<(&domain::Card, Option<Secret<String>>)> for AdyenPaymentMethod<'a> {
+impl TryFrom<(&domain::Card, Option<Secret<String>>)> for AdyenPaymentMethod<'_> {
     type Error = Error;
     fn try_from(
         (card, card_holder_name): (&domain::Card, Option<Secret<String>>),
@@ -2068,8 +2066,8 @@ impl TryFrom<&utils::CardIssuer> for CardBrand {
     }
 }
 
-impl<'a> TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
-    for AdyenPaymentMethod<'a>
+impl TryFrom<(&domain::WalletData, &types::PaymentsAuthorizeRouterData)>
+    for AdyenPaymentMethod<'_>
 {
     type Error = Error;
     fn try_from(
@@ -2206,7 +2204,7 @@ pub fn check_required_field<'a, T>(
         })
 }
 
-impl<'a>
+impl
     TryFrom<(
         &domain::PayLaterData,
         &Option<api_enums::CountryAlpha2>,
@@ -2216,7 +2214,7 @@ impl<'a>
         &Option<Secret<String>>,
         &Option<Address>,
         &Option<Address>,
-    )> for AdyenPaymentMethod<'a>
+    )> for AdyenPaymentMethod<'_>
 {
     type Error = Error;
     fn try_from(
@@ -2329,12 +2327,12 @@ impl<'a>
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &domain::BankRedirectData,
         Option<bool>,
         &types::PaymentsAuthorizeRouterData,
-    )> for AdyenPaymentMethod<'a>
+    )> for AdyenPaymentMethod<'_>
 {
     type Error = Error;
     fn try_from(
@@ -2492,11 +2490,11 @@ impl<'a>
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &domain::BankTransferData,
         &types::PaymentsAuthorizeRouterData,
-    )> for AdyenPaymentMethod<'a>
+    )> for AdyenPaymentMethod<'_>
 {
     type Error = Error;
     fn try_from(
@@ -2564,7 +2562,7 @@ fn get_optional_shopper_email(item: &types::PaymentsAuthorizeRouterData) -> Opti
     }
 }
 
-impl<'a> TryFrom<&domain::payments::CardRedirectData> for AdyenPaymentMethod<'a> {
+impl TryFrom<&domain::payments::CardRedirectData> for AdyenPaymentMethod<'_> {
     type Error = Error;
     fn try_from(
         card_redirect_data: &domain::payments::CardRedirectData,
@@ -2583,11 +2581,11 @@ impl<'a> TryFrom<&domain::payments::CardRedirectData> for AdyenPaymentMethod<'a>
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         payments::MandateReferenceId,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
     fn try_from(
@@ -2719,11 +2717,11 @@ impl<'a>
         })
     }
 }
-impl<'a>
+impl
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::Card,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
     fn try_from(
@@ -2784,11 +2782,11 @@ impl<'a>
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::BankDebitData,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
 
@@ -2842,11 +2840,11 @@ impl<'a>
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::VoucherData,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
 
@@ -2903,11 +2901,11 @@ impl<'a>
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::BankTransferData,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
 
@@ -2956,11 +2954,11 @@ impl<'a>
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::GiftCardData,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
 
@@ -3009,11 +3007,11 @@ impl<'a>
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::BankRedirectData,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
     fn try_from(
@@ -3117,11 +3115,11 @@ fn get_shopper_email(
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::WalletData,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
     fn try_from(
@@ -3192,11 +3190,11 @@ impl<'a>
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::PayLaterData,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
     fn try_from(
@@ -3268,11 +3266,11 @@ impl<'a>
     }
 }
 
-impl<'a>
+impl
     TryFrom<(
         &AdyenRouterData<&types::PaymentsAuthorizeRouterData>,
         &domain::payments::CardRedirectData,
-    )> for AdyenPaymentRequest<'a>
+    )> for AdyenPaymentRequest<'_>
 {
     type Error = Error;
     fn try_from(
@@ -5098,7 +5096,6 @@ impl TryFrom<&types::DefendDisputeRouterData> for AdyenDefendDisputeRequest {
 
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct Evidence {
     defense_documents: Vec<DefenseDocuments>,
     merchant_account_code: Secret<String>,
@@ -5107,7 +5104,6 @@ pub struct Evidence {
 
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct DefenseDocuments {
     content: Secret<String>,
     content_type: Option<String>,

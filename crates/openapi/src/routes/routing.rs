@@ -68,7 +68,6 @@ pub async fn routing_link_config() {}
 /// Routing - Retrieve
 ///
 /// Retrieve a routing algorithm
-
 #[utoipa::path(
     get,
     path = "/routing/{routing_algorithm_id}",
@@ -91,7 +90,6 @@ pub async fn routing_retrieve_config() {}
 /// Routing - Retrieve
 ///
 /// Retrieve a routing algorithm with its algorithm id
-
 #[utoipa::path(
     get,
     path = "/v2/routing-algorithm/{id}",

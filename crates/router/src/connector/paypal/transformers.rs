@@ -2970,7 +2970,6 @@ pub struct PaypalSourceVerificationRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-
 pub struct PaypalSourceVerificationResponse {
     pub verification_status: PaypalSourceVerificationStatus,
 }
