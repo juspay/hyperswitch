@@ -1041,7 +1041,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         //     .await?;
         // match unified_authentication_flow {
         //     helpers::UnifiedAuthenticationOperation::ClickToPay {pre_authentication_flow_details, post_authentication_flow_details} => {
-                
+
         //     }
         // }
         Ok(())

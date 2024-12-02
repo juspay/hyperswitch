@@ -48,10 +48,14 @@ pub use hyperswitch_domain_models::{
     },
     router_data_v2::{
         AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2,
+        MandateRevokeFlowData, PaymentFlowData, RefundFlowData, RouterDataV2, UasFlowData,
         WebhookSourceVerifyData,
     },
     router_request_types::{
+        unified_authentication_service::{
+            UasAuthenticationResponseData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
+        },
         AcceptDisputeRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         BrowserInformation, ChargeRefunds, ChargeRefundsOptions, CompleteAuthorizeData,
         CompleteAuthorizeRedirectResponse, ConnectorCustomerData, DefendDisputeRequestData,
@@ -63,7 +67,7 @@ pub use hyperswitch_domain_models::{
         PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData, RefundsData, ResponseId,
         RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
         SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
-        VerifyWebhookSourceRequestData, unified_authentication_service::UasPreAuthenticationRequestData, unified_authentication_service::UasAuthenticationResponseData, unified_authentication_service::UasPostAuthenticationRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, CaptureSyncResponse, DefendDisputeResponse, MandateReference,
@@ -948,6 +952,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             connector_mandate_request_reference_id: data
                 .connector_mandate_request_reference_id
                 .clone(),
+            authentication_id: None,
         }
     }
 }
@@ -1013,6 +1018,7 @@ impl<F1, F2>
             additional_merchant_data: data.additional_merchant_data.clone(),
             header_payload: data.header_payload.clone(),
             connector_mandate_request_reference_id: None,
+            authentication_id: None,
         }
     }
 }

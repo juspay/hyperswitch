@@ -37,6 +37,7 @@ pub mod payouts_v2;
 pub mod refunds_v2;
 
 pub mod unified_authentication_service;
+pub mod unified_authentication_service_v2;
 
 use std::{fmt::Debug, str::FromStr};
 
@@ -60,7 +61,7 @@ pub use self::payouts::*;
 pub use self::{
     admin::*, api_keys::*, authentication::*, configs::*, customers::*, disputes::*, files::*,
     payment_link::*, payment_methods::*, payments::*, poll::*, refunds::*, refunds_v2::*,
-    webhooks::*, unified_authentication_service::*,
+    unified_authentication_service::*, webhooks::*,
 };
 use super::transformers::ForeignTryFrom;
 use crate::{
@@ -128,7 +129,7 @@ impl<
             + ConnectorMandateRevoke
             + ExternalAuthentication
             + TaxCalculation
-            + UnifiedAuthenticationService
+            + UnifiedAuthenticationService,
     > Connector for T
 {
 }
@@ -148,7 +149,7 @@ pub trait ConnectorV2:
     + FraudCheckV2
     + ConnectorMandateRevokeV2
     + ExternalAuthenticationV2
-    + 
+    + UnifiedAuthenticationServiceV2
 {
 }
 impl<
@@ -165,7 +166,8 @@ impl<
             + ConnectorVerifyWebhookSourceV2
             + FraudCheckV2
             + ConnectorMandateRevokeV2
-            + ExternalAuthenticationV2,
+            + ExternalAuthenticationV2
+            + UnifiedAuthenticationServiceV2,
     > ConnectorV2 for T
 {
 }

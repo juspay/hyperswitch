@@ -8,7 +8,8 @@ use hyperswitch_domain_models::{
     router_data_v2::{
         flow_common_types::{
             AccessTokenFlowData, DisputesFlowData, ExternalAuthenticationFlowData, FilesFlowData,
-            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, WebhookSourceVerifyData, UasFlowData
+            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, UasFlowData,
+            WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -689,7 +690,6 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp>
     }
 }
 
-
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowData {
     fn from_old_router_data(
         old_router_data: &RouterData<T, Req, Resp>,
@@ -698,7 +698,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowD
         Self: Sized,
     {
         let resource_common_data = Self {
-            authenticate_by: old_router_data.connector,
+            authenticate_by: old_router_data.connector.clone(),
             source_authentication_id: todo!(),
         };
         Ok(RouterDataV2 {

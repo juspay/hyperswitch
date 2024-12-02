@@ -150,9 +150,8 @@ pub struct FilesFlowData {
     pub connector_request_reference_id: String,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct UasFlowData {
     pub authenticate_by: String,
-    pub source_authentication_id: String
+    pub source_authentication_id: String,
 }

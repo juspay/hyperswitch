@@ -1,5 +1,3 @@
-
-
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct UasPreAuthenticationRequestData {
     pub service_details: Option<ServiceDetails>,
@@ -18,7 +16,6 @@ pub struct ServiceSessionIds {
     pub x_src_flow_id: Option<String>,
 }
 
-
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct TransactionDetails {
     pub amount: common_utils::types::FloatMajorUnit,
@@ -27,13 +24,13 @@ pub struct TransactionDetails {
 
 #[derive(Clone, Debug)]
 pub struct UasPostAuthenticationRequestData;
- 
+
 #[derive(Debug, Clone)]
 pub enum UasAuthenticationResponseData {
     PreAuthentication {},
     PostAuthentication {
-        authentication_details: PostAuthenticationDetails
-    }
+        authentication_details: PostAuthenticationDetails,
+    },
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -50,7 +47,6 @@ pub struct TokenDetails {
     pub token_expiration_month: String,
     pub token_expiration_year: String,
 }
-
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct DynamicData {

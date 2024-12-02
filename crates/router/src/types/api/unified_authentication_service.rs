@@ -1,15 +1,21 @@
+use hyperswitch_domain_models::{
+    router_data::RouterData,
+    router_request_types::unified_authentication_service::{
+        UasAuthenticationResponseData, UasPostAuthenticationRequestData,
+        UasPreAuthenticationRequestData,
+    },
+};
 
-use hyperswitch_domain_models::router_request_types::unified_authentication_service::{UasPreAuthenticationRequestData, UasPostAuthenticationRequestData, UasAuthenticationResponseData};
+pub use super::unified_authentication_service_v2::{
+    UasPostAuthenticationV2, UasPreAuthenticationV2, UnifiedAuthenticationServiceV2,
+};
 use crate::services;
-use hyperswitch_domain_models::router_data::RouterData;
 
 #[derive(Debug, Clone)]
 pub struct PreAuthenticate;
 
 pub trait UnifiedAuthenticationService:
-    super::ConnectorCommon
-    + UasPreAuthentication
-    + UasPostAuthentication
+    super::ConnectorCommon + UasPreAuthentication + UasPostAuthentication
 {
 }
 
@@ -34,12 +40,8 @@ pub trait UasPostAuthentication:
 {
 }
 
-
-pub type UasPostAuthenticationRouterData = RouterData<
-    PostAuthenticate,
-    UasPostAuthenticationRequestData,
-    UasAuthenticationResponseData,
->;
+pub type UasPostAuthenticationRouterData =
+    RouterData<PostAuthenticate, UasPostAuthenticationRequestData, UasAuthenticationResponseData>;
 
 pub type UasPostAuthenticationType = dyn services::ConnectorIntegration<
     PostAuthenticate,
@@ -47,16 +49,11 @@ pub type UasPostAuthenticationType = dyn services::ConnectorIntegration<
     UasAuthenticationResponseData,
 >;
 
-pub type UasPreAuthenticationRouterData = RouterData<
-    PreAuthenticate,
-    UasPreAuthenticationRequestData,
-    UasAuthenticationResponseData,
->;
+pub type UasPreAuthenticationRouterData =
+    RouterData<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>;
 
 pub type UasPreAuthenticationType = dyn services::ConnectorIntegration<
     PreAuthenticate,
     UasPreAuthenticationRequestData,
     UasAuthenticationResponseData,
 >;
-
-

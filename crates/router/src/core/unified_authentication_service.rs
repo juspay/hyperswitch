@@ -1,30 +1,34 @@
 use std::marker::PhantomData;
 
-use crate::{consts, services};
-use crate::{
-    core::payments::PaymentData, 
-    db::domain, 
-    routes::SessionState,
-    services::execute_connector_processing_step
+use common_utils::{
+    ext_traits::ValueExt,
+    types::{AmountConvertor, FloatMajorUnitForConnector},
 };
-use crate::types::{api, RouterData};
 use diesel_models::authentication::{Authentication, AuthenticationNew};
-use hyperswitch_domain_models::payment_methods::PaymentMethod;
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
+    errors::api_error_response::ApiErrorResponse,
+    payment_address::PaymentAddress,
     router_data::{ConnectorAuthType, ErrorResponse},
-    router_data_v2::UasFlowData
-}
-    ;
-use serde::Deserialize;
-use super::errors::{ConnectorErrorExt, RouterResult, StorageErrorExt};
-use super::payments;
-use super::payments::helpers::MerchantConnectorAccountType;
-use hyperswitch_domain_models::{payment_address::PaymentAddress, errors::api_error_response::ApiErrorResponse};
-use common_utils::types::{AmountConvertor, FloatMajorUnitForConnector};
-use error_stack::Report;
+    router_data_v2::UasFlowData,
+    router_request_types::unified_authentication_service::{UasPreAuthenticationRequestData, ServiceDetails, TransactionDetails, ServiceSessionIds},
+};
+use common_enums::PaymentMethod;
 
-use hyperswitch_domain_models::router_request_types::UasPreAuthenticationRequestData;
-
+use super::{
+    errors::{ConnectorErrorExt, RouterResult, StorageErrorExt},
+    payments,
+    payments::helpers::MerchantConnectorAccountType,
+};
+use crate::{
+    consts,
+    core::payments::PaymentData,
+    db::domain,
+    routes::SessionState,
+    services,
+    services::execute_connector_processing_step,
+    types::{api, RouterData},
+};
 
 const IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW: &str =
     "irrelevant_attempt_id_in_AUTHENTICATION_flow";
@@ -32,35 +36,36 @@ const IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW: &str =
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_AUTHENTICATION_flow";
 
-pub trait UnifiedAuthenticationService<F: Clone>  {
+pub trait UnifiedAuthenticationService<F: Clone> {
     async fn pre_authentication(
         _state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         _payment_data: &mut PaymentData<F>,
-        merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
-        ) -> RouterResult<()> {
-            Ok(())
-        }
-    
-    fn post_authentication(state: &SessionState,
+        merchant_connector_account: &MerchantConnectorAccountType,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+
+    fn post_authentication(
+        state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         business_profile: &domain::Profile,
         payment_data: &mut PaymentData<F>,
-        merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
-        ) -> RouterResult<()> {
-            Ok(())
-        }
-    
+        merchant_connector_account: &MerchantConnectorAccountType,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+
     fn confirmation(
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         business_profile: &domain::Profile,
         payment_data: &mut PaymentData<F>,
-        merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
-        ) -> RouterResult<()> {
-            Ok(())
-        }
+        merchant_connector_account: &MerchantConnectorAccountType,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
 }
 
 pub struct ClickToPay;
@@ -77,84 +82,89 @@ pub struct ClickToPay;
 //     source_authetication_id: String,
 // }
 
-#[derive(Clone, Debug, Deserialize)]
-pub struct ServiceDetails {
-    pub merchant_transaction_id: Option<String>,
-    pub correlation_id: Option<String>,
-    pub x_src_flow_id: Option<String>
-}
 
-#[derive(Clone, Debug, Deserialize)]
-pub struct TransactionDetails {
-    pub amount: common_utils::types::FloatMajorUnit,
-    pub currency: common_enums::Currency
-}
-
-
-impl<F:Clone> UnifiedAuthenticationService<F> for ClickToPay {
+impl<F: Clone> UnifiedAuthenticationService<F> for ClickToPay {
     async fn pre_authentication(
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         business_profile: &domain::Profile,
         payment_data: &mut PaymentData<F>,
         merchant_connector_account: &MerchantConnectorAccountType,
-        ) -> RouterResult<()> {
-        let pre_authentication_data = UasPreAuthenticationRequestData::try_from(payment_data)?;
-        let payment_method = payment_data.payment_method_info.unwrap();
-        let pre_auth_router_data: api::unified_authentication_service::UasPreAuthenticationRouterData = construct_uas_router_data("ctp_mastercard".to_string(), payment_method, payment_data.payment_attempt.merchant_id, None, pre_authentication_data, merchant_connector_account)?;
-        let store_authentication_in_db = create_new_authentication(state, payment_data.payment_attempt.merchant_id, "ctp_mastercard".to_string(), business_profile.get_id(), payment_data.payment_intent.get_id(), merchant_connector_account.get_id()).await?;
+    ) -> RouterResult<()> {
+        let pre_authentication_data =
+            UasPreAuthenticationRequestData::try_from(payment_data.clone())?;
+        let payment_method = payment_data.payment_attempt.payment_method.clone().unwrap();
+        let store_authentication_in_db = create_new_authentication(
+            state,
+            payment_data.payment_attempt.merchant_id.clone(),
+            "ctp_mastercard".to_string(),
+            business_profile.get_id().clone(),
+            Some(payment_data.payment_intent.get_id().clone()),
+            merchant_connector_account.get_mca_id(),
+        )
+        .await?;
+        let pre_auth_router_data: api::unified_authentication_service::UasPreAuthenticationRouterData = construct_uas_router_data("ctp_mastercard".to_string(), payment_method, payment_data.payment_attempt.merchant_id.clone(), None, pre_authentication_data, merchant_connector_account, Some(store_authentication_in_db.authentication_id))?;
 
-        
-        let response = do_auth_connector_call(state, "unified_authentication_service".to_string(), pre_auth_router_data)
-        .await?;   
+        let response = do_auth_connector_call(
+            state,
+            "unified_authentication_service".to_string(),
+            pre_auth_router_data,
+        )
+        .await?;
 
         Ok(())
+    }
 
-        }
-    
-    fn post_authentication(state: &SessionState,
+    fn post_authentication(
+        state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         business_profile: &domain::Profile,
         payment_data: &mut PaymentData<F>,
-        merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
-        ) -> RouterResult<()> {
-            Ok(())
-        
-        }
-    
+        merchant_connector_account: &MerchantConnectorAccountType,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
+
     fn confirmation(
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         business_profile: &domain::Profile,
         payment_data: &mut PaymentData<F>,
-        merchant_connector_account: &payments_helpers::MerchantConnectorAccountType,
-        ) -> RouterResult<()> {
-            Ok(())
-        }
+        merchant_connector_account: &MerchantConnectorAccountType,
+    ) -> RouterResult<()> {
+        Ok(())
+    }
 }
 
-impl<F:Clone> TryFrom<&mut PaymentData<F>> for UasPreAuthenticationRequestData {
+impl<F: Clone> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestData {
     type Error = Report<ApiErrorResponse>;
-    fn try_from(payment_data: &mut PaymentData<F>) -> Result<Self, Self::Error> {
-
+    fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         let service_details = ServiceDetails {
-            merchant_transaction_id: None,
-            correlation_id: None,
-            x_src_flow_id: None
+            service_session_ids: Some(ServiceSessionIds {
+                merchant_transaction_id: None,
+                correlation_id: None,
+                x_src_flow_id: None,
+            })
         };
         let required_conversion = FloatMajorUnitForConnector;
 
-        let amount = required_conversion.convert(payment_data.payment_attempt.net_amount.get_order_amount())?;
+        let amount = required_conversion
+            .convert(
+                payment_data.payment_attempt.net_amount.get_order_amount(),
+                payment_data.payment_attempt.currency.unwrap(),
+            )
+            .unwrap();
         let transaction_details = TransactionDetails {
             amount,
-            currency: payment_data.payment_attempt.currency
+            currency: payment_data.payment_attempt.currency.unwrap(),
         };
 
         Ok(UasPreAuthenticationRequestData {
             service_details: Some(service_details),
             transaction_details: Some(transaction_details),
         })
-    }}
+    }
+}
 
 pub fn construct_uas_router_data<F: Clone, Req, Res>(
     authentication_connector_name: String,
@@ -163,7 +173,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
     address: Option<PaymentAddress>,
     request_data: Req,
     merchant_connector_account: &MerchantConnectorAccountType,
-    authentication_id: Option<String>
+    authentication_id: Option<String>,
 ) -> RouterResult<RouterData<F, Req, Res>> {
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: ConnectorAuthType = merchant_connector_account
@@ -234,16 +244,12 @@ where
     Res: std::fmt::Debug + Clone + 'static,
     F: std::fmt::Debug + Clone + 'static,
     dyn api::Connector + Sync: services::api::ConnectorIntegration<F, Req, Res>,
-    dyn api::ConnectorV2 + Sync:
-        services::api::ConnectorIntegrationV2<F, UasFlowData, Req, Res>,
+    dyn api::ConnectorV2 + Sync: services::api::ConnectorIntegrationV2<F, UasFlowData, Req, Res>,
 {
     let connector_data =
         api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector_name)?;
-    let connector_integration: services::BoxedUnifiedAuthenticationServiceInterface<
-        F,
-        Req,
-        Res,
-    > = connector_data.connector.get_connector_integration();
+    let connector_integration: services::BoxedUnifiedAuthenticationServiceInterface<F, Req, Res> =
+        connector_data.connector.get_connector_integration();
     let router_data = execute_connector_processing_step(
         state,
         connector_integration,
@@ -262,7 +268,7 @@ pub async fn create_new_authentication(
     authentication_connector: String,
     profile_id: common_utils::id_type::ProfileId,
     payment_id: Option<common_utils::id_type::PaymentId>,
-    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<Authentication> {
     let authentication_id =
         common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
@@ -296,7 +302,7 @@ pub async fn create_new_authentication(
         acs_signed_content: None,
         profile_id,
         payment_id,
-        merchant_connector_id,
+        merchant_connector_id: merchant_connector_id.unwrap(),
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,

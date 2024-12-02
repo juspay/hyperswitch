@@ -16,7 +16,7 @@ use common_utils::{
     pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState, ToEncryptable},
-        MinorUnit, FloatMajorUnitForConnector, AmountConvertor
+        AmountConvertor, FloatMajorUnitForConnector, MinorUnit,
     },
 };
 use diesel_models::enums::{self};
@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
         payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
         PaymentIntent,
     },
-    router_data::{KlarnaSdkResponse, ConnectorAuthType},
+    router_data::{ConnectorAuthType, KlarnaSdkResponse},
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
@@ -5840,7 +5840,6 @@ pub fn validate_mandate_data_and_future_usage(
 //     source_authetication_id: String,
 //     auth_creds : ConnectorAuthType
 // }
-
 
 pub enum PaymentExternalAuthenticationFlow {
     PreAuthenticationFlow {
