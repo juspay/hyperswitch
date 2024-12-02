@@ -227,6 +227,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent,
+            sessions_token: vec![],
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -315,6 +316,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         let payment_data = payments::PaymentIntentData {
             flow: PhantomData,
             payment_intent: new_payment_intent,
+            sessions_token: vec![],
         };
 
         Ok((Box::new(self), payment_data))
