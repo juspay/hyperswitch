@@ -215,7 +215,6 @@ pub enum RapydPaymentStatus {
     New,
 }
 
-// impl ForeignFrom<(RapydPaymentStatus, NextAction)> for enums::AttemptStatus {
 fn get_status(status: RapydPaymentStatus, next_action: NextAction) -> enums::AttemptStatus {
     match (status, next_action) {
         (RapydPaymentStatus::Closed, _) => enums::AttemptStatus::Charged,
@@ -236,7 +235,6 @@ fn get_status(status: RapydPaymentStatus, next_action: NextAction) -> enums::Att
         (RapydPaymentStatus::New, _) => enums::AttemptStatus::Authorizing,
     }
 }
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RapydPaymentsResponse {
