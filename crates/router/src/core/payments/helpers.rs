@@ -2948,11 +2948,13 @@ pub fn make_merchant_url_with_response(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Expected client secret to be `Some`")?;
 
+    let payment_id = redirection_response.payment_id.get_string_repr().to_owned();
     let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
             &[
                 ("status", status_check.to_string()),
+                ("payment_id", payment_id),
                 (
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
@@ -2971,6 +2973,7 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
+                ("payment_id", payment_id),
                 (
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
@@ -4671,7 +4674,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network,
+                                card_network: card_info.card_network,
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,

@@ -561,11 +561,15 @@ impl Payments {
                 )
                 .service(web::resource("").route(web::get().to(payments::payment_status)))
                 .service(
-                    web::resource("/start_redirection")
+                    web::resource("/start-redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
-                    web::resource("/finish_redirection/{publishable_key}/{profile_id}")
+                    web::resource("/saved-payment-methods")
+                        .route(web::get().to(list_customer_payment_method_for_payment)),
+                )
+                .service(
+                    web::resource("/finish-redirection/{publishable_key}/{profile_id}")
                         .route(web::get().to(payments::payments_finish_redirection)),
                 ),
         );
@@ -720,7 +724,7 @@ pub struct Routing;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/routing_algorithm")
+        web::scope("/v2/routing-algorithm")
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("").route(web::post().to(|state, req, payload| {
@@ -973,7 +977,7 @@ impl Customers {
         #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
         {
             route = route.service(
-                web::resource("/{customer_id}/saved_payment_methods")
+                web::resource("/{customer_id}/saved-payment-methods")
                     .route(web::get().to(list_customer_payment_method_api)),
             );
         }
@@ -1118,7 +1122,7 @@ impl Payouts {
 #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2",))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment_methods").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
         route = route
             .service(web::resource("").route(web::post().to(create_payment_method_api)))
             .service(
@@ -1130,7 +1134,7 @@ impl PaymentMethods {
                     .route(web::post().to(confirm_payment_method_intent_api)),
             )
             .service(
-                web::resource("/{id}/update_saved_payment_method")
+                web::resource("/{id}/update-saved-payment-method")
                     .route(web::patch().to(payment_method_update_api)),
             )
             .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)))
@@ -1272,7 +1276,7 @@ impl Organization {
                             .route(web::put().to(admin::organization_update)),
                     )
                     .service(
-                        web::resource("/merchant_accounts")
+                        web::resource("/merchant-accounts")
                             .route(web::get().to(admin::merchant_account_list)),
                     ),
             )
@@ -1284,7 +1288,7 @@ pub struct MerchantAccount;
 #[cfg(all(feature = "v2", feature = "olap"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/merchant_accounts")
+        web::scope("/v2/merchant-accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::merchant_account_create)))
             .service(
@@ -1334,7 +1338,7 @@ pub struct MerchantConnectorAccount;
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v2"))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/connector_accounts").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/connector-accounts").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
@@ -1531,7 +1535,7 @@ pub struct ApiKeys;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl ApiKeys {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/api_keys")
+        web::scope("/v2/api-keys")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(api_keys::api_key_create)))
             .service(web::resource("/list").route(web::get().to(api_keys::api_key_list)))
@@ -1681,7 +1685,6 @@ impl PayoutLink {
         route
     }
 }
-
 pub struct Profile;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl Profile {
@@ -1697,16 +1700,16 @@ impl Profile {
                             .route(web::put().to(profiles::profile_update)),
                     )
                     .service(
-                        web::resource("/connector_accounts")
+                        web::resource("/connector-accounts")
                             .route(web::get().to(admin::connector_list)),
                     )
                     .service(
-                        web::resource("/fallback_routing")
+                        web::resource("/fallback-routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
                             .route(web::patch().to(routing::routing_update_default_config)),
                     )
                     .service(
-                        web::resource("/activate_routing_algorithm").route(web::patch().to(
+                        web::resource("/activate-routing-algorithm").route(web::patch().to(
                             |state, req, path, payload| {
                                 routing::routing_link_config(
                                     state,
@@ -1719,7 +1722,7 @@ impl Profile {
                         )),
                     )
                     .service(
-                        web::resource("/deactivate_routing_algorithm").route(web::patch().to(
+                        web::resource("/deactivate-routing-algorithm").route(web::patch().to(
                             |state, req, path| {
                                 routing::routing_unlink_config(
                                     state,
@@ -1730,7 +1733,7 @@ impl Profile {
                             },
                         )),
                     )
-                    .service(web::resource("/routing_algorithm").route(web::get().to(
+                    .service(web::resource("/routing-algorithm").route(web::get().to(
                         |state, req, query_params, path| {
                             routing::routing_retrieve_linked_config(
                                 state,
