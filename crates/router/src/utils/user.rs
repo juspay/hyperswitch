@@ -287,18 +287,18 @@ pub fn create_merchant_account_request_for_org(
     org: organization::Organization,
 ) -> UserResult<api_models::admin::MerchantAccountCreate> {
     let merchant_id = if matches!(env::which(), env::Env::Production) {
-        id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.clone().ok_or(
-            UserErrors::InvalidRoleOperationWithMessage("Merchant name required".to_string()),
-        )?)?)?
+        id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.clone())?)?
     } else {
         id_type::MerchantId::new_from_unix_timestamp()
     };
+
+    let company_name = domain::UserCompanyName::new(req.merchant_name.clone())?;
     Ok(api_models::admin::MerchantAccountCreate {
         merchant_id,
         metadata: None,
         locker_id: None,
         return_url: None,
-        merchant_name: None,
+        merchant_name: Some(Secret::new(company_name.get_secret())),
         webhook_details: None,
         publishable_key: None,
         organization_id: Some(org.get_organization_id()),

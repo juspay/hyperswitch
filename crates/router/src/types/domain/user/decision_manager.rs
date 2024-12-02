@@ -124,18 +124,61 @@ impl JWTFlow {
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
-        let (merchant_id, profile_id) =
-            utils::user_role::get_single_merchant_id_and_profile_id(state, user_role).await?;
+        let (org_id, merchant_id, profile_id) = match user_role.entity_type {
+            Some(common_enums::EntityType::Tenant) => {
+                let key_manager_state = &(&*state).into();
+
+                let merchant_account = state
+                    .store
+                    .list_all_merchant_accounts(key_manager_state, Some(1), None)
+                    .await
+                    .change_context(UserErrors::InternalServerError)?
+                    .pop()
+                    .ok_or(UserErrors::InternalServerError)?;
+
+                let merchant_id = merchant_account.get_id().to_owned();
+                let org_id = merchant_account.get_org_id().to_owned();
+
+                let key_store = state
+                    .store
+                    .get_merchant_key_store_by_merchant_id(
+                        &state.into(),
+                        &merchant_id,
+                        &state.store.get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)?;
+
+                let profile_id = state
+                    .store
+                    .list_profile_by_merchant_id(&state.into(), &key_store, &merchant_id)
+                    .await
+                    .change_context(UserErrors::InternalServerError)?
+                    .pop()
+                    .ok_or(UserErrors::InternalServerError)?
+                    .get_id()
+                    .to_owned();
+                (org_id, merchant_id, profile_id)
+            }
+            _ => {
+                let org_id = user_role
+                    .org_id
+                    .clone()
+                    .ok_or(report!(UserErrors::InternalServerError))
+                    .attach_printable("org_id not found")?;
+
+                let (merchant_id, profile_id) =
+                    utils::user_role::get_single_merchant_id_and_profile_id(state, user_role)
+                        .await?;
+                (org_id, merchant_id, profile_id)
+            }
+        };
         auth::AuthToken::new_token(
             next_flow.user.get_user_id().to_string(),
             merchant_id,
             user_role.role_id.clone(),
             &state.conf,
-            user_role
-                .org_id
-                .clone()
-                .ok_or(report!(UserErrors::InternalServerError))
-                .attach_printable("org_id not found")?,
+            org_id,
             profile_id,
             Some(user_role.tenant_id.clone()),
         )
