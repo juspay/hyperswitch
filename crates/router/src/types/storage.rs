@@ -11,6 +11,7 @@ pub mod cards_info;
 pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
+pub mod dynamic_routing_stats;
 pub mod dispute;
 pub mod enums;
 pub mod ephemeral_key;
@@ -68,7 +69,7 @@ pub use self::{
     merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
     payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,
     routing_algorithm::*, unified_translations::*, user::*, user_authentication_method::*,
-    user_role::*,
+    user_role::*, dynamic_routing_stats::*,
 };
 use crate::types::api::routing;
 

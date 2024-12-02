@@ -1,5 +1,5 @@
 --- Your SQL goes here
-CREATE TYPE "ConclusiveClassification" AS ENUM(
+CREATE TYPE "SuccessBasedRoutingConclusiveState" AS ENUM(
   'true_positive',
   'false_positive',
   'true_negative',
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS dynamic_routing_stats (
     capture_method VARCHAR(255),
     authentication_type VARCHAR(255),
     payment_status VARCHAR(255),
-    conclusive_classification "ConclusiveClassification",
+    conclusive_classification "SuccessBasedRoutingConclusiveState",
     created_at TIMESTAMP NOT NULL,
     modified_at TIMESTAMP NOT NULL,
     PRIMARY KEY(payment_id)

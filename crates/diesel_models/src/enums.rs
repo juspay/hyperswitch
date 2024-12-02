@@ -23,6 +23,7 @@ pub mod diesel_exports {
         DbScaExemptionType as ScaExemptionType, DbTotpStatus as TotpStatus,
         DbTransactionType as TransactionType, DbUserRoleVersion as UserRoleVersion,
         DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+        DbSuccessBasedRoutingConclusiveState as SuccessBasedRoutingConclusiveState,
     };
 }
 pub use common_enums::*;

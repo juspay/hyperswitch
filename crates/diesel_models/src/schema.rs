@@ -392,6 +392,39 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    dynamic_routing_stats (payment_id) {
+        #[max_length = 255]
+        payment_id -> Varchar,
+        #[max_length = 64]
+        tenant_id -> Varchar,
+        #[max_length = 255]
+        merchant_id -> Varchar,
+        #[max_length = 255]
+        profile_id -> Varchar,
+        #[max_length = 255]
+        success_based_routing_connector -> Nullable<Varchar>,
+        #[max_length = 255]
+        payment_connector -> Nullable<Varchar>,
+        #[max_length = 255]
+        currency -> Nullable<Varchar>,
+        #[max_length = 255]
+        payment_method -> Nullable<Varchar>,
+        #[max_length = 255]
+        capture_method -> Nullable<Varchar>,
+        #[max_length = 255]
+        authentication_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        payment_status -> Nullable<Varchar>,
+        conclusive_classification -> Nullable<SuccessBasedRoutingConclusiveState>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     events (event_id) {
         #[max_length = 64]
         event_id -> Varchar,
@@ -1411,6 +1444,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     customers,
     dashboard_metadata,
     dispute,
+    dynamic_routing_stats,
     events,
     file_metadata,
     fraud_check,
