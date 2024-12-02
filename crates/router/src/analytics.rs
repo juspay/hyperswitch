@@ -407,7 +407,7 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                let validator_response = request_validator(AnalyticsRequest{payment_attempt: Some(req.clone()), payment_intent: None, refund: None, dispute: None}, &state).await?;
+                let validator_response = request_validator(AnalyticsRequest{payment_attempt: Some(req.clone()), ..Default::default()}, &state).await?;
                 let ex_rates = validator_response.1;
                 analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
@@ -448,7 +448,7 @@ pub mod routes {
                     org_id: org_id.clone(),
                 };
                 
-let validator_response = request_validator(AnalyticsRequest{payment_attempt: Some(req.clone()), payment_intent: None, refund: None, dispute: None}, &state).await?;
+let validator_response = request_validator(AnalyticsRequest{payment_attempt: Some(req.clone()), ..Default::default()}, &state).await?;
                 let ex_rates = validator_response.1;
                 analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
@@ -497,7 +497,7 @@ let validator_response = request_validator(AnalyticsRequest{payment_attempt: Som
                     profile_ids: vec![profile_id.clone()],
                 };
                 
-let validator_response = request_validator(AnalyticsRequest{payment_attempt: Some(req.clone()), payment_intent: None, refund: None, dispute: None}, &state).await?;
+let validator_response = request_validator(AnalyticsRequest{payment_attempt: Some(req.clone()), ..Default::default()}, &state).await?;
                 let ex_rates = validator_response.1;
                 analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
