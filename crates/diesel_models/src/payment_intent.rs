@@ -366,6 +366,7 @@ pub enum PaymentIntentUpdate {
     /// Update the payment intent details on payment intent confirmation, after calling the connector
     ConfirmIntentPostUpdate {
         status: storage_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
         updated_by: String,
     },
 }
@@ -517,7 +518,7 @@ pub struct PaymentIntentUpdateInternal {
     // pub amount: Option<MinorUnit>,
     // pub currency: Option<storage_enums::Currency>,
     pub status: Option<storage_enums::IntentStatus>,
-    // pub amount_captured: Option<MinorUnit>,
+    pub amount_captured: Option<MinorUnit>,
     // pub customer_id: Option<common_utils::id_type::CustomerId>,
     // pub return_url: Option<>,
     // pub setup_future_usage: Option<storage_enums::FutureUsage>,
@@ -591,7 +592,7 @@ impl PaymentIntentUpdate {
             // amount,
             // currency,
             status,
-            // amount_captured,
+            amount_captured,
             // customer_id,
             // return_url,
             // setup_future_usage,
@@ -617,7 +618,7 @@ impl PaymentIntentUpdate {
             // amount: amount.unwrap_or(source.amount),
             // currency: currency.unwrap_or(source.currency),
             status: status.unwrap_or(source.status),
-            // amount_captured: amount_captured.or(source.amount_captured),
+            amount_captured: amount_captured.or(source.amount_captured),
             // customer_id: customer_id.or(source.customer_id),
             // return_url: return_url.or(source.return_url),
             // setup_future_usage: setup_future_usage.or(source.setup_future_usage),
@@ -747,9 +748,15 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 active_attempt_id: Some(active_attempt_id),
                 modified_at: common_utils::date_time::now(),
                 updated_by,
+                amount_captured: None,
             },
-            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
                 status: Some(status),
+                amount_captured,
                 active_attempt_id: None,
                 modified_at: common_utils::date_time::now(),
                 updated_by,

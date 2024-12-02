@@ -557,6 +557,9 @@ impl Payments {
                 .service(
                     web::resource("/finish_redirection/{publishable_key}/{profile_id}")
                         .route(web::get().to(payments::payments_finish_redirection)),
+                )
+                .service(
+                    web::resource("/capture").route(web::post().to(payments::payments_capture)),
                 ),
         );
 

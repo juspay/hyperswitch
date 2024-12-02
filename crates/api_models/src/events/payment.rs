@@ -13,6 +13,7 @@ use crate::payment_methods::CustomerPaymentMethodsListResponse;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 use crate::payment_methods::CustomerPaymentMethodsListResponse;
 use crate::{
+    events,
     payment_methods::{
         CustomerDefaultPaymentMethodResponse, DefaultPaymentMethod, ListCountriesCurrenciesRequest,
         ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRenderRequest,
@@ -413,6 +414,15 @@ impl ApiEventMetric for PaymentsSessionResponse {
 
 #[cfg(feature = "v2")]
 impl ApiEventMetric for PaymentStartRedirectionRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Payment {
+            payment_id: self.id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for events::PaymentsCaptureResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
             payment_id: self.id.clone(),

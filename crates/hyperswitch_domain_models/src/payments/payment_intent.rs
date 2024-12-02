@@ -280,11 +280,18 @@ pub enum PaymentIntentUpdate {
     /// PostUpdate tracker of ConfirmIntent
     ConfirmIntentPostUpdate {
         status: storage_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
         updated_by: String,
     },
     /// SyncUpdate of ConfirmIntent in PostUpdateTrackers
     SyncUpdate {
         status: storage_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
+        updated_by: String,
+    },
+    CaptureUpdate {
+        status: storage_enums::IntentStatus,
+        amount_captured: Option<MinorUnit>,
         updated_by: String,
     },
 }
@@ -379,17 +386,39 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
                 modified_at: common_utils::date_time::now(),
+                amount_captured: None,
                 updated_by,
             },
-            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
                 status: Some(status),
+                amount_captured,
                 active_attempt_id: None,
                 modified_at: common_utils::date_time::now(),
                 updated_by,
             },
-            PaymentIntentUpdate::SyncUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::SyncUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
                 status: Some(status),
                 active_attempt_id: None,
+                amount_captured,
+                modified_at: common_utils::date_time::now(),
+                updated_by,
+            },
+            PaymentIntentUpdate::CaptureUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                active_attempt_id: None,
+                amount_captured,
                 modified_at: common_utils::date_time::now(),
                 updated_by,
             },
@@ -412,13 +441,33 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::ConfirmIntentPostUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
                 status: Some(status),
+                amount_captured,
                 updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::SyncUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::SyncUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
                 status: Some(status),
+                amount_captured,
+                updated_by,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::CaptureUpdate {
+                status,
+                amount_captured,
+                updated_by,
+            } => Self {
+                status: Some(status),
+                amount_captured,
                 updated_by,
                 ..Default::default()
             },
