@@ -61,8 +61,8 @@ jobs:
         shell: bash
         run: |
           # Checks return exit code 1 if failed and hence we use `|| true` to avoid failing the check
-          npm run format:check --prefix cypress-tests || true
-          npm run lint --prefix cypress-tests || true
+          npm run format:check --prefix cypress-tests
+          npm run lint --prefix cypress-tests
 
       - name: Check formatting
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
