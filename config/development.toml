@@ -712,7 +712,6 @@ authentication_analytics_topic = "hyperswitch-authentication-events"
 
 [analytics]
 source = "sqlx"
-forex_enabled = true
 forex_enabled = false
 
 [analytics.clickhouse]
