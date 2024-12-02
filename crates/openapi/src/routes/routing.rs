@@ -37,7 +37,7 @@ pub async fn routing_create_config() {}
         (status = 403, description = "Forbidden"),
     ),
    tag = "Routing",
-   operation_id = "Create a routing algprithm",
+   operation_id = "Create a routing algorithm",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn routing_create_config() {}
@@ -264,7 +264,7 @@ pub async fn routing_update_default_config_for_profile() {}
     params(
         ("account_id" = String, Path, description = "Merchant id"),
         ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
-        ("enable" = SuccessBasedRoutingFeatures, Query, description = "Feature to enable for success based routing"),
+        ("enable" = DynamicRoutingFeatures, Query, description = "Feature to enable for success based routing"),
     ),
     responses(
         (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
@@ -275,7 +275,33 @@ pub async fn routing_update_default_config_for_profile() {}
         (status = 403, description = "Forbidden"),
     ),
    tag = "Routing",
-   operation_id = "Toggle success based dynamic routing algprithm",
+   operation_id = "Toggle success based dynamic routing algorithm",
    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn toggle_success_based_routing() {}
+
+#[cfg(feature = "v1")]
+/// Routing - Toggle elimination routing for profile
+///
+/// Create a elimination based dynamic routing algorithm
+#[utoipa::path(
+    post,
+    path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/elimination/toggle",
+    params(
+        ("account_id" = String, Path, description = "Merchant id"),
+        ("profile_id" = String, Path, description = "Profile id under which Dynamic routing needs to be toggled"),
+        ("enable" = DynamicRoutingFeatures, Query, description = "Feature to enable for success based routing"),
+    ),
+    responses(
+        (status = 200, description = "Routing Algorithm created", body = RoutingDictionaryRecord),
+        (status = 400, description = "Request body is malformed"),
+        (status = 500, description = "Internal server error"),
+        (status = 404, description = "Resource missing"),
+        (status = 422, description = "Unprocessable request"),
+        (status = 403, description = "Forbidden"),
+    ),
+   tag = "Routing",
+   operation_id = "Toggle elimination routing algorithm",
+   security(("api_key" = []), ("jwt_key" = []))
+)]
+pub async fn toggle_elimination_routing() {}

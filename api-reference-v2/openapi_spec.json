@@ -1278,7 +1278,7 @@
         ],
         "summary": "Routing - Create",
         "description": "Create a routing algorithm",
-        "operationId": "Create a routing algprithm",
+        "operationId": "Create a routing algorithm",
         "requestBody": {
           "content": {
             "application/json": {
