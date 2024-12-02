@@ -647,6 +647,8 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
     business_profile: &domain::Profile,
     success_based_routing_config_params_interpolator: SuccessBasedRoutingConfigParamsInterpolator,
 ) -> RouterResult<()> {
+    use diesel_models::dynamic_routing_stats::DynamicRoutingStatsNew;
+
     let success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
         business_profile
             .dynamic_routing_algorithm
@@ -746,6 +748,27 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             payment_connector.to_string(),
             first_success_based_connector.to_string(),
         );
+
+        let dynamic_routing_stats = DynamicRoutingStatsNew::new(
+            state.tenant.tenant_id.get_string_repr().to_owned(),
+            payment_attempt.payment_id.get_string_repr().to_string(),
+            payment_attempt.merchant_id.get_string_repr().to_string(),
+            payment_attempt.profile_id.get_string_repr().to_string(),
+            first_success_based_connector.map(|connector| connector.to_string()),
+            Some(payment_connector.to_string()),
+            payment_attempt.currency,
+            payment_attempt.payment_method,
+            payment_attempt.capture_method,
+            payment_attempt.authentication_type,
+            Some(payment_attempt.status.to_string()),
+            Some(outcome),
+            common_utils::date_time::now(),
+        );
+
+        state
+            .store
+            .insert_dynamic_routing_stat_entry(dynamic_routing_stats)
+            .await?;
 
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
             &metrics::CONTEXT,

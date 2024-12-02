@@ -17,13 +17,12 @@ pub struct DynamicRoutingStatsNew {
     pub capture_method: Option<String>,
     pub authentication_type: Option<String>,
     pub payment_status: Option<String>,
-    pub conclusive_classification: Option<String>,
+    pub conclusive_classification: Option<common_enums::SuccessBasedRoutingConclusiveState>,
     pub created_at: time::PrimitiveDateTime,
-    pub modified_at: time::PrimitiveDateTime,
 }
 
 #[derive(
-    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Deserialize, Serialize,
+    Clone, Debug, Eq, PartialEq, Queryable, Selectable, Deserialize, Serialize, Insertable,
 )]
 #[diesel(table_name = dynamic_routing_stats, primary_key(payment_id), check_for_backend(diesel::pg::Pg))]
 pub struct DynamicRoutingStats {
@@ -40,5 +39,38 @@ pub struct DynamicRoutingStats {
     pub payment_status: Option<String>,
     pub conclusive_classification: Option<common_enums::SuccessBasedRoutingConclusiveState>,
     pub created_at: time::PrimitiveDateTime,
-    pub modified_at: time::PrimitiveDateTime,
+}
+
+impl DynamicRoutingStatsNew {
+    pub fn new(
+        payment_id: String,
+        tenant_id: String,
+        merchant_id: String,
+        profile_id: String,
+        success_based_routing_connector: Option<String>,
+        payment_connector: Option<String>,
+        currency: Option<String>,
+        payment_method: Option<String>,
+        capture_method: Option<String>,
+        authentication_type: Option<String>,
+        payment_status: Option<String>,
+        conclusive_classification: Option<common_enums::SuccessBasedRoutingConclusiveState>,
+        created_at: time::PrimitiveDateTime,
+    ) -> Self {
+        Self {
+            payment_id,
+            tenant_id,
+            merchant_id,
+            profile_id,
+            success_based_routing_connector,
+            payment_connector,
+            currency,
+            payment_method,
+            capture_method,
+            authentication_type,
+            payment_status,
+            conclusive_classification,
+            created_at,
+        }
+    }
 }

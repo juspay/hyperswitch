@@ -9,4 +9,3 @@ impl DynamicRoutingStatsNew {
         generics::generic_insert(conn, self).await
     }
 }
-

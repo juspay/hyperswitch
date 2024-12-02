@@ -15,7 +15,7 @@ pub trait DynamicRoutingStatsInterface {
     async fn insert_dynamic_routing_stat_entry(
         &self,
         dynamic_routing_stat_new: storage::DynamicRoutingStatsNew,
-    ) -> CustomResult<storage::Blocklist, errors::StorageError>;
+    ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -31,7 +31,6 @@ impl DynamicRoutingStatsInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
-
 }
 
 #[async_trait::async_trait]
@@ -39,11 +38,10 @@ impl DynamicRoutingStatsInterface for MockDb {
     #[instrument(skip_all)]
     async fn insert_dynamic_routing_stat_entry(
         &self,
-        _dynamic_routing_stat: storage::DynamicRoutingStats,
+        _dynamic_routing_stat: storage::DynamicRoutingStatsNew,
     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
-
 }
 
 #[async_trait::async_trait]
@@ -51,8 +49,10 @@ impl DynamicRoutingStatsInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn insert_dynamic_routing_stat_entry(
         &self,
-        dynamic_routing_stat: storage::DynamicRoutingStats,
+        dynamic_routing_stat: storage::DynamicRoutingStatsNew,
     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
-        self.diesel_store.insert_dynamic_routing_stat_entry(dynamic_routing_stat).await
+        self.diesel_store
+            .insert_dynamic_routing_stat_entry(dynamic_routing_stat)
+            .await
     }
 }
