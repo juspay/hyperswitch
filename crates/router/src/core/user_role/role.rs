@@ -199,13 +199,25 @@ pub async fn update_role(
         utils::user_role::validate_role_groups(groups)?;
     }
 
-    let role_info =
-        roles::RoleInfo::from_role_id_and_org_id(&state, role_id, &user_from_token.org_id)
-            .await
-            .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+    let role_info = roles::RoleInfo::from_role_id_in_lineage(
+        &state,
+        role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleOperation)?;
+
+    let user_from_token_role_info = roles::RoleInfo::from_role_id_and_org_id(
+        &state,
+        &user_from_token.role_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if matches!(role_info.get_scope(), RoleScope::Organization)
-        && user_from_token.role_id != common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN
+        && user_from_token_role_info.get_entity_type() != EntityType::Organization
     {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Non org admin user changing org level role");

@@ -2679,7 +2679,7 @@ pub async fn switch_org_for_user(
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_org_id(
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(
         &state,
         &user_role.role_id,
         &request.org_id,
@@ -2862,8 +2862,7 @@ pub async fn switch_merchant_for_user_in_org(
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_org_id(&state, &role_id, &org_id)
-        .await;
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(&state, &role_id, &org_id).await;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
@@ -2962,7 +2961,7 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
     )
     .await?;
 
-    utils::user_role::set_role_permissions_in_cache_by_role_id_org_id(
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(
         &state,
         &role_id,
         &user_from_token.org_id,

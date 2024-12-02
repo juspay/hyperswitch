@@ -81,7 +81,7 @@ pub async fn set_role_permissions_in_cache_by_user_role(
         .is_ok()
 }
 
-pub async fn set_role_permissions_in_cache_by_role_id_org_id(
+pub async fn set_role_info_in_cache_by_role_id_org_id(
     state: &SessionState,
     role_id: &str,
     org_id: &id_type::OrganizationId,
