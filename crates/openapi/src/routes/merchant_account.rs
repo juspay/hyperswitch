@@ -50,7 +50,7 @@ pub async fn merchant_account_create() {}
 /// Before creating the merchant account, it is mandatory to create an organization.
 #[utoipa::path(
     post,
-    path = "/v2/merchant_accounts",
+    path = "/v2/merchant-accounts",
     params(
       (
         "X-Organization-Id" = String, Header,
@@ -128,7 +128,7 @@ pub async fn retrieve_merchant_account() {}
 /// Retrieve a *merchant* account details.
 #[utoipa::path(
     get,
-    path = "/v2/merchant_accounts/{id}",
+    path = "/v2/merchant-accounts/{id}",
     params (("id" = String, Path, description = "The unique identifier for the merchant account")),
     responses(
         (status = 200, description = "Merchant Account Retrieved", body = MerchantAccountResponse),
@@ -190,7 +190,7 @@ pub async fn update_merchant_account() {}
 /// Updates details of an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
 #[utoipa::path(
     put,
-    path = "/v2/merchant_accounts/{id}",
+    path = "/v2/merchant-accounts/{id}",
     request_body (
         content = MerchantAccountUpdate,
         examples(
@@ -300,7 +300,7 @@ pub async fn payment_connector_list_profile() {}
 /// List profiles for an Merchant
 #[utoipa::path(
     get,
-    path = "/v2/merchant_accounts/{id}/profiles",
+    path = "/v2/merchant-accounts/{id}/profiles",
     params (("id" = String, Path, description = "The unique identifier for the Merchant")),
     responses(
         (status = 200, description = "profile list retrieved successfully", body = Vec<ProfileResponse>),
