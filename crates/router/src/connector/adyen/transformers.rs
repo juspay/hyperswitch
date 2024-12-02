@@ -4263,6 +4263,9 @@ pub struct AdyenAdditionalDataWH {
     pub chargeback_reason_code: Option<String>,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub defense_period_ends_at: Option<PrimitiveDateTime>,
+    /// Enable recurring details in dashboard to receive this ID, https://docs.adyen.com/online-payments/tokenization/create-and-use-tokens#test-and-go-live
+    #[serde(rename = "recurring.recurringDetailReference")]
+    pub recurring_detail_reference: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize)]
