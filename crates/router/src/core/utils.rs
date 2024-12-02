@@ -24,7 +24,7 @@ use uuid::Uuid;
 
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
-use super::payouts::PayoutData;
+use super::payouts::{helpers as payout_helpers, PayoutData};
 #[cfg(feature = "payouts")]
 use crate::core::payments;
 use crate::{
@@ -148,32 +148,8 @@ pub async fn construct_payout_router_data<'a, F>(
             _ => None,
         };
 
-    let mut connector_mandate_id = None;
-    if let Some(pm) = &payout_data.payment_method {
-        let connector_mandate_details = pm
-            .connector_mandate_details
-            .clone()
-            .map(|details| {
-                details.parse_value::<diesel_models::PaymentsMandateReference>(
-                    "connector_mandate_details",
-                )
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize connector mandate details")?;
-
-        if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
-            if let Some(mandate_reference_record) = connector_mandate_details
-                .clone()
-                .get_required_value("connector_mandate_details")
-                .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                .attach_printable("there were no connector mandate details")?
-                .get(merchant_connector_id)
-            {
-                connector_mandate_id = Some(mandate_reference_record.connector_mandate_id.clone());
-            }
-        }
-    }
+    let connector_mandate_id =
+        payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
 
     let router_data = types::RouterData {
         flow: PhantomData,

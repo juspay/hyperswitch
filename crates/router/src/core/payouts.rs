@@ -28,6 +28,10 @@ use diesel_models::{
     enums as storage_enums,
     generic_link::{GenericLinkNew, PayoutLink},
 };
+#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+use diesel_models::{
+    PaymentsMandateReference, PaymentsMandateReferenceRecord as PaymentsMandateReferenceRecordV2,
+};
 use error_stack::{report, ResultExt};
 #[cfg(feature = "olap")]
 use futures::future::join_all;
@@ -1990,45 +1994,6 @@ pub async fn update_retrieve_payout_tracker<F, T>(
     Ok(())
 }
 
-/*
- */
-fn connector_mandate_id_is_none(
-    payout_data: &mut PayoutData,
-    connector_data: &api::ConnectorData,
-) -> RouterResult<bool> {
-    #[cfg(all(
-        any(feature = "v2", feature = "v1"),
-        not(feature = "payment_methods_v2")
-    ))]
-    if let Some(pm) = &payout_data.payment_method {
-        let connector_mandate_details = pm
-            .connector_mandate_details
-            .clone()
-            .map(|details| {
-                details.parse_value::<diesel_models::PaymentsMandateReference>(
-                    "connector_mandate_details",
-                )
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to deserialize connector mandate details")?;
-
-        if let Some(merchant_connector_id) = connector_data.merchant_connector_id.as_ref() {
-            if let Some(_mandate_reference_record) = connector_mandate_details
-                .clone()
-                .get_required_value("connector_mandate_details")
-                .change_context(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
-                .attach_printable("there were no connector mandate details")?
-                .get(merchant_connector_id)
-            {
-                return Ok(false);
-            }
-        }
-        return Ok(true);
-    }
-    Ok(true)
-}
-
 pub async fn complete_create_recipient_disburse_account(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -2045,7 +2010,8 @@ pub async fn complete_create_recipient_disburse_account(
         && connector_data
             .connector_name
             .supports_vendor_disburse_account_create_for_payout()
-        && connector_mandate_id_is_none(payout_data, connector_data)?
+        && helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?
+            .is_none()
     {
         Box::pin(create_recipient_disburse_account(
             state,
@@ -2132,11 +2098,11 @@ pub async fn create_recipient_disburse_account(
                 connector_data.merchant_connector_id.clone(),
             ) {
                 let connector_mandate_details = HashMap::from([(
-                    merchant_connector_id, // which connector was called  [MCA]
+                    merchant_connector_id.clone(),
                     PaymentsMandateReferenceRecord {
-                        connector_mandate_id: connector_payout_id, // what does the connector return
+                        connector_mandate_id: connector_payout_id.clone(),
                         payment_method_type: Some(api_enums::PaymentMethodType::foreign_from(
-                            payout_method_data,
+                            &payout_method_data.clone(),
                         )),
                         original_payment_authorized_amount: Some(
                             payout_data.payouts.amount.get_amount_as_i64(),
@@ -2150,39 +2116,74 @@ pub async fn create_recipient_disburse_account(
                 let connector_mandate_details_value =
                     serde_json::to_value(connector_mandate_details).ok();
 
-                let pm_id = payout_data.payouts.payout_method_id.clone();
+                if let Some(pm_method) = payout_data.payment_method.clone() {
+                    let pm_update =
+                        diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
+                            #[cfg(all(
+                                any(feature = "v1", feature = "v2"),
+                                not(feature = "payment_methods_v2")
+                            ))]
+                            connector_mandate_details: connector_mandate_details_value,
 
-                #[cfg(all(
-                    any(feature = "v1", feature = "v2"),
-                    not(feature = "payment_methods_v2")
-                ))]
-                if let Some(payout_method_id) = pm_id {
-                    let payment_method = db
-                        .find_payment_method(
+                            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+                            connector_mandate_details: Some(PaymentsMandateReference(
+                                HashMap::from([(
+                                    merchant_connector_id,
+                                    PaymentsMandateReferenceRecordV2 {
+                                        connector_mandate_id: connector_payout_id,
+                                        payment_method_subtype: Some(
+                                            api_enums::PaymentMethodType::foreign_from(
+                                                payout_method_data,
+                                            ),
+                                        ),
+                                        original_payment_authorized_amount: Some(
+                                            payout_data.payouts.amount.get_amount_as_i64(),
+                                        ),
+                                        original_payment_authorized_currency: Some(
+                                            payout_data.payouts.destination_currency,
+                                        ),
+                                        mandate_metadata: None,
+                                        connector_mandate_status: None,
+                                        connector_mandate_request_reference_id: None,
+                                    },
+                                )]),
+                            )),
+
+                            transaction_flow: Some(storage_enums::PaymentDirection::Payout),
+                        };
+
+                    payout_data.payment_method = Some(
+                        db.update_payment_method(
                             &(state.into()),
                             key_store,
-                            &payout_method_id, // need to get from api request
+                            pm_method,
+                            pm_update,
                             merchant_account.storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-                        .attach_printable("Unable to find payment method")?;
-
-                    payout_data.payment_method = Some(payment_method.clone());
-                    payout_data.payouts.payout_method_id =
-                        Some(payment_method.payment_method_id.clone());
+                        .attach_printable("Unable to find payment method")?,
+                    );
                 } else {
-                    helpers::save_payout_data_to_locker(
-                        state,
-                        payout_data,
-                        &customer_details.customer_id,
-                        payout_method_data,
-                        connector_mandate_details_value,
-                        merchant_account,
-                        key_store,
-                    )
-                    .await
-                    .attach_printable("Failed to save payout data to locker")?;
+                    #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
+                    let customer_id = Some(customer_details.customer_id);
+
+                    #[cfg(all(feature = "v2", feature = "customer_v2"))]
+                    let customer_id = customer_details.merchant_reference_id;
+
+                    if let Some(customer_id) = customer_id {
+                        helpers::save_payout_data_to_locker(
+                            state,
+                            payout_data,
+                            &customer_id,
+                            payout_method_data,
+                            connector_mandate_details_value,
+                            merchant_account,
+                            key_store,
+                        )
+                        .await
+                        .attach_printable("Failed to save payout data to locker")?;
+                    }
                 };
             }
         }
@@ -2531,23 +2532,20 @@ pub async fn response_handler(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let payouts = payout_data.payouts.to_owned();
 
-    let payment_method_id: Option<String> = payout_data
-        .payment_method
-        .as_ref() // Safely access the `payment_method` as a reference
-        .map(|pm| {
-            #[cfg(all(
-                any(feature = "v1", feature = "v2"),
-                not(feature = "payment_methods_v2")
-            ))]
-            {
-                pm.payment_method_id.clone()
-            }
+    let payout_method_id: Option<String> = payout_data.payment_method.as_ref().map(|pm| {
+        #[cfg(all(
+            any(feature = "v1", feature = "v2"),
+            not(feature = "payment_methods_v2")
+        ))]
+        {
+            pm.payment_method_id.clone()
+        }
 
-            #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-            {
-                pm.id.clone().get_string_repr().to_string()
-            }
-        });
+        #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
+        {
+            pm.id.clone().get_string_repr().to_string()
+        }
+    });
 
     let payout_link = payout_data.payout_link.to_owned();
     let billing_address = payout_data.billing_address.to_owned();
@@ -2620,7 +2618,7 @@ pub async fn response_handler(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse payout link's URL")?,
-        payment_method_id,
+        payout_method_id,
     };
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -3036,7 +3034,7 @@ pub async fn make_payout_data(
             db.find_payment_method(
                 &(state.into()),
                 key_store,
-                &pm_id, // need to get from api request
+                &pm_id,
                 merchant_account.storage_scheme,
             )
             .await

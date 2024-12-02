@@ -21,7 +21,6 @@ use crate::core::payment_methods::cards::get_pm_list_context;
 use crate::{
     core::{
         errors::{self, RouterResult},
-        // payment_methods::cards::get_pm_list_context,
         utils as core_utils,
     },
     db::StorageInterface,
@@ -148,28 +147,6 @@ pub async fn validate_create_request(
         None
     };
 
-    // // payout_token
-    // let payout_method_data = match (req.payout_token.as_ref(), customer.as_ref()) {
-    //     (Some(_), None) => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-    //         field_name: "customer or customer_id when payout_token is provided"
-    //     })),
-    //     (Some(payout_token), Some(customer)) => {
-    //         helpers::make_payout_method_data(
-    //             state,
-    //             req.payout_method_data.as_ref(),
-    //             Some(payout_token),
-    //             &customer.customer_id,
-    //             merchant_account.get_id(),
-    //             req.payout_type,
-    //             merchant_key_store,
-    //             None,
-    //             merchant_account.storage_scheme,
-    //         )
-    //         .await
-    //     }
-    //     _ => Ok(None),
-    // }?;
-
     #[cfg(feature = "v1")]
     let profile_id = core_utils::get_profile_id_from_business_details(
         &state.into(),
@@ -193,10 +170,15 @@ pub async fn validate_create_request(
         })
         .attach_printable("Profile id is a mandatory parameter")?;
 
-    // fetching payment_method using req.payment_method_id and passing it from here
     let payment_method: Option<PaymentMethod> =
-        if let Some(payment_method_id) = req.payment_method_id.clone() {
-            match customer.as_ref() {
+        match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
+            (Some(_), Some(_)) => {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Only one of payout_method_id or payout_token should be provided."
+                        .to_string(),
+                }))
+            }
+            (None, Some(payment_method_id)) => match customer.as_ref() {
                 Some(customer) => {
                     let payment_method = db
                         .find_payment_method(
@@ -208,24 +190,25 @@ pub async fn validate_create_request(
                         .await
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
                         .attach_printable("Unable to find payment method")?;
+
                     utils::when(payment_method.customer_id != customer.customer_id, || {
                         Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "payment method does not belong to this customer_id".to_string()
+                        message: "Payment method does not belong to this customer_id".to_string(),
                     })
                     .attach_printable(
                         "customer_id in payment_method does not match with customer_id in request",
                     ))
                     })?;
-                    Some(payment_method)
+                    Ok(Some(payment_method))
                 }
                 None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "customer_id when payment_method_id is passed",
-                }))?,
-            }
-        } else {
-            None
-        };
+                })),
+            },
+            _ => Ok(None),
+        }?;
 
+    // payout_token
     let payout_method_data = match (
         req.payout_token.as_ref(),
         customer.as_ref(),
