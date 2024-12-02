@@ -28,30 +28,10 @@ describe.skip("[Payment] Incremental Auth", () => {
 
     it("[Payment] Create Payment Intent", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"]["PaymentIntentOffSession"];
+        "card_pm"
+      ]["PaymentIntentOffSession"];
 
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-        const newData = {
+      const newData = {
         ...data,
         Configs: { CONNECTOR_CREDENTIAL: "connector_2" },
         Request: {
