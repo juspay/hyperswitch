@@ -130,7 +130,7 @@ pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpR
         &http_req,
         (),
         |state, user, _, _| user_core::signout(state, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::AnyPurposeOrLoginTokenAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -691,6 +691,7 @@ pub async fn check_two_factor_auth_status_with_attempts(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_sso_auth_url(
     state: web::Data<AppState>,
     req: HttpRequest,

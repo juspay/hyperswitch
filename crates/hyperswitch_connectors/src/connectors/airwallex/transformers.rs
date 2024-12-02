@@ -212,6 +212,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -828,7 +829,7 @@ pub struct AirwallexObjectData {
 pub struct AirwallexDisputeObject {
     pub payment_intent_id: String,
     pub dispute_amount: i64,
-    pub dispute_currency: String,
+    pub dispute_currency: enums::Currency,
     pub stage: AirwallexDisputeStage,
     pub dispute_id: String,
     pub dispute_reason_type: Option<String>,

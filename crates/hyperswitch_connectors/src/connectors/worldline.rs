@@ -41,7 +41,7 @@ use hyperswitch_interfaces::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, PaymentsVoidType,
         RefundExecuteType, RefundSyncType, Response,
     },
-    webhooks,
+    webhooks::{self, IncomingWebhookFlowError},
 };
 use masking::{ExposeInterface, Mask, PeekInterface};
 use ring::hmac;
@@ -814,6 +814,7 @@ impl webhooks::IncomingWebhook for Worldline {
     fn get_webhook_api_response(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<
         hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
         errors::ConnectorError,

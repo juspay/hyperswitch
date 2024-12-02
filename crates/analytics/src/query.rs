@@ -457,6 +457,13 @@ impl<T: AnalyticsDataSource> ToSql<T> for common_utils::id_type::CustomerId {
     }
 }
 
+impl<T: AnalyticsDataSource> ToSql<T> for bool {
+    fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
+        let flag = *self;
+        Ok(i8::from(flag).to_string())
+    }
+}
+
 /// Implement `ToSql` on arrays of types that impl `ToString`.
 macro_rules! impl_to_sql_for_to_string {
     ($($type:ty),+) => {

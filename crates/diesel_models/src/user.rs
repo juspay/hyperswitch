@@ -6,8 +6,9 @@ use time::PrimitiveDateTime;
 use crate::{diesel_impl::OptionalDieselArray, enums::TotpStatus, schema::users};
 
 pub mod dashboard_metadata;
-
 pub mod sample_data;
+pub mod theme;
+
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
 #[diesel(table_name = users, primary_key(user_id), check_for_backend(diesel::pg::Pg))]
 pub struct User {

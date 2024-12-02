@@ -1,5 +1,5 @@
 use api_models::{
-    mandates,
+    mandates, payment_methods,
     payments::{additional_info as payment_additional_types, ExtendedCardInfo},
 };
 use common_enums::enums as api_enums;
@@ -36,6 +36,7 @@ pub enum PaymentMethodData {
     CardToken(CardToken),
     OpenBanking(OpenBankingData),
     NetworkToken(NetworkTokenData),
+    MobilePayment(MobilePaymentData),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,6 +64,7 @@ impl PaymentMethodData {
             Self::Voucher(_) => Some(common_enums::PaymentMethod::Voucher),
             Self::GiftCard(_) => Some(common_enums::PaymentMethod::GiftCard),
             Self::OpenBanking(_) => Some(common_enums::PaymentMethod::OpenBanking),
+            Self::MobilePayment(_) => Some(common_enums::PaymentMethod::MobilePayment),
             Self::CardToken(_) | Self::MandatePayment => None,
         }
     }
@@ -598,6 +600,17 @@ pub struct NetworkTokenData {
     pub nick_name: Option<Secret<String>>,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MobilePaymentData {
+    DirectCarrierBilling {
+        /// The phone number of the user
+        msisdn: String,
+        /// Unique user identifier
+        client_uid: Option<String>,
+    },
+}
+
 impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
     fn from(api_model_payment_method_data: api_models::payments::PaymentMethodData) -> Self {
         match api_model_payment_method_data {
@@ -644,6 +657,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             }
             api_models::payments::PaymentMethodData::OpenBanking(ob_data) => {
                 Self::OpenBanking(From::from(ob_data))
+            }
+            api_models::payments::PaymentMethodData::MobilePayment(mobile_payment_data) => {
+                Self::MobilePayment(From::from(mobile_payment_data))
             }
         }
     }
@@ -1397,6 +1413,27 @@ impl From<OpenBankingData> for api_models::payments::OpenBankingData {
     }
 }
 
+impl From<api_models::payments::MobilePaymentData> for MobilePaymentData {
+    fn from(value: api_models::payments::MobilePaymentData) -> Self {
+        match value {
+            api_models::payments::MobilePaymentData::DirectCarrierBilling {
+                msisdn,
+                client_uid,
+            } => Self::DirectCarrierBilling { msisdn, client_uid },
+        }
+    }
+}
+
+impl From<MobilePaymentData> for api_models::payments::MobilePaymentData {
+    fn from(value: MobilePaymentData) -> Self {
+        match value {
+            MobilePaymentData::DirectCarrierBilling { msisdn, client_uid } => {
+                Self::DirectCarrierBilling { msisdn, client_uid }
+            }
+        }
+    }
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizedCardValue1 {
@@ -1647,6 +1684,14 @@ impl GetPaymentMethodType for OpenBankingData {
     }
 }
 
+impl GetPaymentMethodType for MobilePaymentData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::DirectCarrierBilling { .. } => api_enums::PaymentMethodType::DirectCarrierBilling,
+        }
+    }
+}
+
 impl From<Card> for ExtendedCardInfo {
     fn from(value: Card) -> Self {
         Self {
@@ -1660,6 +1705,16 @@ impl From<Card> for ExtendedCardInfo {
             card_type: value.card_type,
             card_issuing_country: value.card_issuing_country,
             bank_code: value.bank_code,
+        }
+    }
+}
+
+impl From<GooglePayWalletData> for payment_methods::PaymentMethodDataWalletInfo {
+    fn from(item: GooglePayWalletData) -> Self {
+        Self {
+            last4: item.info.card_details,
+            card_network: item.info.card_network,
+            card_type: item.pm_type,
         }
     }
 }

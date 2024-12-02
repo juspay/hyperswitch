@@ -733,7 +733,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             .label
             .to_string();
 
-        let (first_success_based_connector, merchant_connector_id) = first_success_based_connector_label
+        let (first_success_based_connector, _) = first_success_based_connector_label
             .split_once(':')
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
@@ -751,19 +751,17 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             &metrics::CONTEXT,
             1,
             &add_attributes([
-                ("tenant", state.tenant.tenant_id.clone()),
                 (
-                    "merchant_id",
-                    payment_attempt.merchant_id.get_string_repr().to_string(),
+                    "tenant",
+                    state.tenant.tenant_id.get_string_repr().to_owned(),
                 ),
                 (
-                    "profile_id",
-                    payment_attempt.profile_id.get_string_repr().to_string(),
-                ),
-                ("merchant_connector_id", merchant_connector_id.to_string()),
-                (
-                    "payment_id",
-                    payment_attempt.payment_id.get_string_repr().to_string(),
+                    "merchant_profile_id",
+                    format!(
+                        "{}:{}",
+                        payment_attempt.merchant_id.get_string_repr(),
+                        payment_attempt.profile_id.get_string_repr()
+                    ),
                 ),
                 (
                     "success_based_routing_connector",

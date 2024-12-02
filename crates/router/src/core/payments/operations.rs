@@ -17,6 +17,8 @@ pub mod payment_reject;
 pub mod payment_response;
 #[cfg(feature = "v1")]
 pub mod payment_session;
+#[cfg(feature = "v2")]
+pub mod payment_session_intent;
 #[cfg(feature = "v1")]
 pub mod payment_start;
 #[cfg(feature = "v1")]
@@ -46,10 +48,6 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
-pub use self::payment_confirm_intent::PaymentIntentConfirm;
-#[cfg(feature = "v2")]
-pub use self::payment_create_intent::PaymentIntentCreate;
-#[cfg(feature = "v2")]
 pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
@@ -63,6 +61,11 @@ pub use self::{
     payment_status::PaymentStatus, payment_update::PaymentUpdate,
     payments_incremental_authorization::PaymentIncrementalAuthorization,
     tax_calculation::PaymentSessionUpdate,
+};
+#[cfg(feature = "v2")]
+pub use self::{
+    payment_confirm_intent::PaymentIntentConfirm, payment_create_intent::PaymentIntentCreate,
+    payment_session_intent::PaymentSessionIntent,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
@@ -144,16 +147,15 @@ pub trait ValidateRequest<F, R, D> {
 
 #[cfg(feature = "v2")]
 pub trait ValidateRequest<F, R, D> {
-    fn validate_request<'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         request: &R,
         merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
+    ) -> RouterResult<ValidateResult>;
 }
 
 #[cfg(feature = "v2")]
-pub struct GetTrackerResponse<'a, F: Clone, R, D> {
-    pub operation: BoxedOperation<'a, F, R, D>,
+pub struct GetTrackerResponse<D> {
     pub payment_data: D,
 }
 
@@ -183,8 +185,6 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
-    // TODO: this need not return the operation, since operation does not change in v2
-    // Operation remains the same from start to finish
     #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
@@ -196,7 +196,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         profile: &domain::Profile,
         mechant_key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
+    ) -> RouterResult<GetTrackerResponse<D>>;
 }
 
 #[async_trait]

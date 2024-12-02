@@ -1,7 +1,5 @@
 //! Commonly used constants
 
-use std::collections::HashSet;
-
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;
 
@@ -51,25 +49,11 @@ pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 /// Header Key for application overhead of a request
 pub const X_HS_LATENCY: &str = "x-hs-latency";
 
-/// Default Payment Link Background color
-pub const DEFAULT_BACKGROUND_COLOR: &str = "#212E46";
-
-/// Default product Img Link
-pub const DEFAULT_PRODUCT_IMG: &str =
-    "https://live.hyperswitch.io/payment-link-assets/cart_placeholder.png";
-
-/// Default Merchant Logo Link
-pub const DEFAULT_MERCHANT_LOGO: &str =
-    "https://live.hyperswitch.io/payment-link-assets/Merchant_placeholder.png";
-
 /// Redirect url for Prophetpay
 pub const PROPHETPAY_REDIRECT_URL: &str = "https://ccm-thirdparty.cps.golf/hp/tokenize/";
 
 /// Variable which store the card token for Prophetpay
 pub const PROPHETPAY_TOKEN: &str = "cctoken";
-
-/// Default SDK Layout
-pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
@@ -79,15 +63,6 @@ pub const DEFAULT_INTENT_FULFILLMENT_TIME: i64 = 15 * 60;
 
 /// Payment order fulfillment time (in seconds)
 pub const DEFAULT_ORDER_FULFILLMENT_TIME: i64 = 15 * 60;
-
-/// Default bool for Display sdk only
-pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
-
-/// Default bool to enable saved payment method
-pub const DEFAULT_ENABLE_SAVED_PAYMENT_METHOD: bool = false;
-
-/// Default allowed domains for payment links
-pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
 
 /// Default ttl for Extended card info  in redis (in seconds)
 pub const DEFAULT_TTL_FOR_EXTENDED_CARD_INFO: u16 = 15 * 60;
@@ -158,6 +133,9 @@ pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
 pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 22;
 /// Payout flow identifier used for performing GSM operations
 pub const PAYOUT_FLOW_STR: &str = "payout_flow";
+
+/// length of the publishable key
+pub const PUBLISHABLE_KEY_LENGTH: u16 = 39;
 
 /// The number of bytes allocated for the hashed connector transaction ID.
 /// Total number of characters equals CONNECTOR_TRANSACTION_ID_HASH_BYTES times 2.

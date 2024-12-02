@@ -88,6 +88,10 @@ pub enum RefundMetrics {
     RefundCount,
     RefundSuccessCount,
     RefundProcessedAmount,
+    SessionizedRefundSuccessRate,
+    SessionizedRefundCount,
+    SessionizedRefundSuccessCount,
+    SessionizedRefundProcessedAmount,
 }
 
 pub mod metric_behaviour {
@@ -176,6 +180,7 @@ pub struct RefundMetricsBucketValue {
     pub refund_count: Option<u64>,
     pub refund_success_count: Option<u64>,
     pub refund_processed_amount: Option<u64>,
+    pub refund_processed_amount_in_usd: Option<u64>,
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketResponse {

@@ -91,6 +91,44 @@ source = "kafka"
 
 After making this change, save the file and restart your application for the changes to take effect.
 
+## Setting up Forex APIs
+
+To use Forex services, you need to sign up and get your API keys from the following providers:
+
+1. Primary Service 
+   - Sign up for a free account and get your Primary API key [here](https://openexchangerates.org/).
+   - It will be in dashboard, labeled as `app_id`.
+
+2. Fallback Service
+   - Sign up for a free account and get your Fallback API key [here](https://apilayer.com/marketplace/exchangerate_host-api).
+   - It will be in dashboard, labeled as `access key`.
+
+### Configuring Forex APIs
+
+To configure the Forex APIs, update the `config/development.toml` or `config/docker_compose.toml` file with your API keys:
+
+```toml
+[forex_api]
+api_key = "YOUR API KEY HERE" # Replace the placeholder with your Primary API Key
+fallback_api_key = "YOUR API KEY HERE" # Replace the placeholder with your Fallback API Key 
+```
+### Important Note
+```bash
+ERROR router::services::api: error: {"error":{"type":"api","message":"Failed to fetch currency exchange rate","code":"HE_00"}}
+│
+├─▶ Failed to fetch currency exchange rate
+│
+╰─▶ Could not acquire the lock for cache entry
+```
+
+_If you get the above error after setting up, simply remove the `redis` key `"{forex_cache}_lock"` by running this in shell_
+
+```bash
+redis-cli del "{forex_cache}_lock"
+```
+
+After making these changes, save the file and restart your application for the changes to take effect.
+
 ## Enabling Data Features in Dashboard
 
 To check the data features in the dashboard, you need to enable them in the `config/dashboard.toml` configuration file.

@@ -12,6 +12,7 @@ pub mod session_update_flow;
 pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
+use hyperswitch_interfaces::api::payouts::Payouts;
 
 #[cfg(feature = "frm")]
 use crate::types::fraud_check as frm_types;
@@ -482,6 +483,7 @@ default_imp_for_connector_request_id!(
     connector::Gocardless,
     connector::Gpayments,
     connector::Iatapay,
+    connector::Inespay,
     connector::Itaubank,
     connector::Jpmorgan,
     connector::Klarna,
@@ -509,6 +511,7 @@ default_imp_for_connector_request_id!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
+    connector::Redsys,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,
@@ -969,88 +972,49 @@ default_imp_for_post_processing_steps!(
 macro_rules! default_imp_for_payouts {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::Payouts for $path::$connector {}
+            impl Payouts for $path::$connector {}
     )*
     };
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
+impl<const T: u8> Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
     connector::Aci,
-    connector::Airwallex,
-    connector::Amazonpay,
     connector::Authorizedotnet,
-    connector::Bambora,
     connector::Bamboraapac,
     connector::Bankofamerica,
-    connector::Billwerk,
-    connector::Bitpay,
     connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
-    connector::Cashtocode,
     connector::Checkout,
-    connector::Cryptopay,
-    connector::Coinbase,
     connector::Datatrans,
-    connector::Deutschebank,
-    connector::Digitalvirgo,
-    connector::Dlocal,
-    connector::Elavon,
-    connector::Fiserv,
-    connector::Fiservemea,
-    connector::Fiuu,
-    connector::Forte,
     connector::Globalpay,
-    connector::Globepay,
     connector::Gocardless,
     connector::Gpayments,
-    connector::Helcim,
     connector::Iatapay,
     connector::Itaubank,
-    connector::Jpmorgan,
     connector::Klarna,
     connector::Mifinity,
-    connector::Mollie,
-    connector::Multisafepay,
     connector::Netcetera,
-    connector::Nexinets,
-    connector::Nexixpay,
     connector::Nmi,
-    connector::Nomupay,
     connector::Noon,
-    connector::Novalnet,
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
     connector::Paybox,
-    connector::Payeezy,
     connector::Payme,
-    connector::Payu,
     connector::Placetopay,
     connector::Plaid,
-    connector::Powertranz,
     connector::Prophetpay,
     connector::Rapyd,
-    connector::Razorpay,
     connector::Riskified,
-    connector::Shift4,
     connector::Signifyd,
-    connector::Square,
-    connector::Stax,
-    connector::Taxjar,
     connector::Threedsecureio,
     connector::Trustpay,
-    connector::Tsys,
-    connector::Volt,
     connector::Wellsfargo,
-    connector::Wellsfargopayout,
-    connector::Worldline,
-    connector::Worldpay,
-    connector::Zen,
-    connector::Zsl
+    connector::Wellsfargopayout
 );
 
 #[cfg(feature = "payouts")]
@@ -1807,6 +1771,7 @@ default_imp_for_fraud_check!(
     connector::Gpayments,
     connector::Helcim,
     connector::Iatapay,
+    connector::Inespay,
     connector::Itaubank,
     connector::Jpmorgan,
     connector::Klarna,
@@ -1835,6 +1800,7 @@ default_imp_for_fraud_check!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
+    connector::Redsys,
     connector::Shift4,
     connector::Square,
     connector::Stax,
@@ -2470,6 +2436,7 @@ default_imp_for_connector_authentication!(
     connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
+    connector::Inespay,
     connector::Itaubank,
     connector::Jpmorgan,
     connector::Klarna,
@@ -2497,6 +2464,7 @@ default_imp_for_connector_authentication!(
     connector::Prophetpay,
     connector::Rapyd,
     connector::Razorpay,
+    connector::Redsys,
     connector::Riskified,
     connector::Shift4,
     connector::Signifyd,

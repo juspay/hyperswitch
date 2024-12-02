@@ -51,8 +51,8 @@ pub mod routes {
 
     impl Analytics {
         #[cfg(feature = "v2")]
-        pub fn server(_state: AppState) -> Scope {
-            todo!()
+        pub fn server(state: AppState) -> Scope {
+            web::scope("/analytics").app_data(web::Data::new(state))
         }
         #[cfg(feature = "v1")]
         pub fn server(state: AppState) -> Scope {
@@ -659,7 +659,8 @@ pub mod routes {
                     org_id: org_id.clone(),
                     merchant_ids: vec![merchant_id.clone()],
                 };
-                analytics::refunds::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -697,7 +698,8 @@ pub mod routes {
                 let auth: AuthInfo = AuthInfo::OrgLevel {
                     org_id: org_id.clone(),
                 };
-                analytics::refunds::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -743,7 +745,8 @@ pub mod routes {
                     merchant_id: merchant_id.clone(),
                     profile_ids: vec![profile_id.clone()],
                 };
-                analytics::refunds::get_metrics(&state.pool, &auth, req)
+                let ex_rates = get_forex_exchange_rates(state.clone()).await?;
+                analytics::refunds::get_metrics(&state.pool, &ex_rates, &auth, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -789,6 +792,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetSdkEventMetricRequest` element.
@@ -827,6 +831,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetActivePaymentsMetricRequest` element.
@@ -866,6 +871,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetAuthEventMetricRequest` element.
@@ -1145,6 +1151,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_sdk_event_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1238,6 +1245,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_profile_sdk_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1853,9 +1861,10 @@ pub mod routes {
                     return Err(OpenSearchError::AccessForbiddenError)?;
                 }
                 let user_roles: HashSet<UserRole> = state
-                    .store
+                    .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
+                        tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: Some(&auth.org_id),
                         merchant_id: None,
                         profile_id: None,
@@ -1976,9 +1985,10 @@ pub mod routes {
                     return Err(OpenSearchError::AccessForbiddenError)?;
                 }
                 let user_roles: HashSet<UserRole> = state
-                    .store
+                    .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
+                        tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: Some(&auth.org_id),
                         merchant_id: None,
                         profile_id: None,
