@@ -33,7 +33,7 @@ describe.skip("[Payment] Incremental Auth", () => {
 
       const newData = {
         ...data,
-        Configs: { CONNECTOR_CREDENTIAL: "connector_2" },
+        Configs: { CONNECTOR_CREDENTIAL: { value: "connector_2" } },
         Request: {
           ...data.Request,
           request_incremental_authorization: true,
@@ -57,7 +57,7 @@ describe.skip("[Payment] Incremental Auth", () => {
 
       const newData = {
         ...data,
-        Configs: { CONNECTOR_CREDENTIAL: "connector_2" },
+        Configs: { CONNECTOR_CREDENTIAL: { value: "connector_2" } },
       };
 
       cy.confirmCallTest(fixtures.confirmBody, newData, true, globalState);
@@ -102,7 +102,7 @@ describe.skip("[Payment] Incremental Auth", () => {
 
       const newData = {
         ...data,
-        Configs: { CONNECTOR_CREDENTIAL: "connector_2" },
+        Configs: { CONNECTOR_CREDENTIAL: { value: "connector_2" } },
       };
 
       cy.createPaymentIntentTest(
@@ -122,7 +122,7 @@ describe.skip("[Payment] Incremental Auth", () => {
 
       const newData = {
         ...data,
-        Configs: { CONNECTOR_CREDENTIAL: "connector_2" },
+        Configs: { CONNECTOR_CREDENTIAL: { value: "connector_2" } },
       };
 
       cy.saveCardConfirmCallTest(

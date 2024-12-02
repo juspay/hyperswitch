@@ -1,6 +1,16 @@
 /* eslint-disable no-console */
 const config_fields = ["CONNECTOR_CREDENTIAL", "DELAY", "TRIGGER_SKIP"];
 
+const DEFAULT_CONNECTOR = "connector_1";
+const DEFAULT_CREDENTIALS = {
+  profile_id: "profileId",
+  merchant_connector_id: "merchantConnectorId",
+};
+const CONNECTOR_2_CREDENTIALS = {
+  profile_id: "profile1Id",
+  merchant_connector_id: "merchantConnector1Id",
+};
+
 // Helper function for type and range validation
 function validateType(value, type) {
   if (typeof value !== type) {
@@ -15,7 +25,7 @@ function validateType(value, type) {
 // Helper function to validate specific config keys based on schema rules
 function validateConfigValue(key, value) {
   // At present, there are only 2 api keys for connectors. Will be scaled based on the need
-  const CONNECTOR_CREDENTIAL = ["connector_1", "connector_2"];
+  const SUPPORTED_CONNECTOR_CREDENTIAL = ["connector_1", "connector_2"];
 
   if (config_fields.includes(key)) {
     switch (key) {
@@ -39,9 +49,17 @@ function validateConfigValue(key, value) {
         break;
 
       case "CONNECTOR_CREDENTIAL":
-        if (!CONNECTOR_CREDENTIAL.includes(value)) {
+        if (typeof value !== "object" || value === null) {
+          console.error("CONNECTOR_CREDENTIAL must be an object.");
+          return false;
+        }
+        // Validate structure
+        if (
+          !value.value ||
+          !SUPPORTED_CONNECTOR_CREDENTIAL.includes(value.value)
+        ) {
           console.error(
-            `Config ${key} is invalid. Value should be one of ${CONNECTOR_CREDENTIAL.join(", ")}.`
+            `Config ${key}.value must be one of ${SUPPORTED_CONNECTOR_CREDENTIAL.join(", ")}.`
           );
           return false;
         }
@@ -86,31 +104,53 @@ export function validateConfig(configObject) {
 }
 
 export function execConfig(configs) {
-  if (typeof configs !== "undefined" && typeof configs === "object") {
-    if (configs?.DELAY?.STATUS) {
-      cy.wait(configs.DELAY.TIMEOUT);
-    }
+  // Handle delay if present
+  if (configs?.DELAY?.STATUS) {
+    cy.wait(configs.DELAY.TIMEOUT);
+  }
+  if (
+    typeof configs?.CONNECTOR_CREDENTIAL === "undefined" ||
+    configs?.CONNECTOR_CREDENTIAL.value === "null"
+  ) {
+    return DEFAULT_CREDENTIALS;
+  }
 
-    if (
-      typeof configs?.CONNECTOR_CREDENTIAL === "undefined" ||
-      configs?.CONNECTOR_CREDENTIAL === "null"
-    ) {
-      return {
-        profile_id: "profileId",
-        merchant_connector_id: "merchantConnectorId",
-      };
-    } else {
-      if (configs.CONNECTOR_CREDENTIAL === "connector_1") {
-        return {
-          profile_id: "profileId",
-          merchant_connector_id: "merchantConnectorId",
-        };
-      } else if (configs.CONNECTOR_CREDENTIAL === "connector_2") {
-        return {
-          profile_id: "profile1Id",
-          merchant_connector_id: "merchantConnector1Id",
-        };
-      }
-    }
+  // Get connector configuration
+  const connectorType = determineConnectorConfig(configs.CONNECTOR_CREDENTIAL);
+
+  // Return credentials based on connector type
+  return connectorType === "connector_2"
+    ? CONNECTOR_2_CREDENTIALS
+    : DEFAULT_CREDENTIALS;
+}
+
+function determineConnectorConfig(connectorConfig) {
+  // Return default if config is undefined or null
+  if (!connectorConfig || connectorConfig.value === "null") {
+    return DEFAULT_CONNECTOR;
+  }
+
+  const { specName = null, value } = connectorConfig;
+
+  // If value is not provided, return default
+  if (!value) {
+    return DEFAULT_CONNECTOR;
+  }
+
+  // If no specName or not an array, return value directly
+  if (!specName || !Array.isArray(specName) || specName.length === 0) {
+    return value;
+  }
+
+  // Check if current spec matches any in specName
+  const currentSpec = Cypress.spec.name.toLowerCase();
+  try {
+    const matchesSpec = specName.some(
+      (name) => name && currentSpec.includes(name.toLowerCase())
+    );
+    return matchesSpec ? value : DEFAULT_CONNECTOR;
+  } catch (error) {
+    console.error("Error matching spec names:", error);
+    return DEFAULT_CONNECTOR;
   }
 }
