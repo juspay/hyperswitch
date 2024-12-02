@@ -77,7 +77,6 @@ pub struct GatewayStatusMapperUpdateInternal {
     pub unified_code: Option<String>,
     pub unified_message: Option<String>,
     pub error_category: Option<ErrorCategory>,
-
     pub last_modified: PrimitiveDateTime,
 }
 

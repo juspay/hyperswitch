@@ -522,8 +522,6 @@ diesel::table! {
         unified_message -> Nullable<Varchar>,
         #[max_length = 64]
         error_category -> Nullable<Varchar>,
-        #[max_length = 64]
-        error_sub_category -> Nullable<Varchar>,
     }
 }
 
