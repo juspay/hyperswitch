@@ -125,7 +125,7 @@ impl PaymentIntent {
         publishable_key: String,
     ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
         let start_redirection_url = &format!(
-            "{}/v2/payments/{}/start_redirection?publishable_key={}&profile_id={}",
+            "{}/v2/payments/{}/start-redirection?publishable_key={}&profile_id={}",
             base_url,
             self.get_id().get_string_repr(),
             publishable_key,
@@ -144,7 +144,7 @@ impl PaymentIntent {
         publishable_key: &str,
     ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
         let finish_redirection_url = format!(
-            "{base_url}/v2/payments/{}/finish_redirection/{publishable_key}/{}",
+            "{base_url}/v2/payments/{}/finish-redirection/{publishable_key}/{}",
             self.id.get_string_repr(),
             self.profile_id.get_string_repr()
         );
