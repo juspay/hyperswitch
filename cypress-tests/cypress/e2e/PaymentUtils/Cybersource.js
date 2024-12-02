@@ -107,12 +107,6 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: "incrementalAuth",
-          value: "connector_2",
-        },
-      },
       Request: {
         currency: "USD",
         amount: 6500,
@@ -725,8 +719,7 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCaptureOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
-          specName: "incrementalAuth",
-          value: "connector_2",
+          value: "connector_1",
         },
       },
       Request: {
