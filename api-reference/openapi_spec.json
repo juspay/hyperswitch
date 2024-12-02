@@ -15046,30 +15046,6 @@
           }
         }
       },
-      "PaymentChargeRequest": {
-        "type": "object",
-        "description": "Fee information to be charged on the payment being collected",
-        "required": [
-          "charge_type",
-          "fees",
-          "transfer_account_id"
-        ],
-        "properties": {
-          "charge_type": {
-            "$ref": "#/components/schemas/PaymentChargeType"
-          },
-          "fees": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Platform fees to be collected on the payment",
-            "example": 6540
-          },
-          "transfer_account_id": {
-            "type": "string",
-            "description": "Identifier for the reseller's account to send the funds to"
-          }
-        }
-      },
       "PaymentChargeResponse": {
         "type": "object",
         "description": "Fee information to be charged on the payment being collected",
@@ -17023,10 +16999,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
+                "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
             "nullable": true
@@ -17401,10 +17377,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
+                "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
             "nullable": true
@@ -18603,10 +18579,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
+                "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
             "nullable": true
@@ -19644,10 +19620,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeRequest"
+                "$ref": "#/components/schemas/SplitPaymentsRequest"
               }
             ],
             "nullable": true
@@ -22247,10 +22223,10 @@
             ],
             "nullable": true
           },
-          "charges": {
+          "split_refunds": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ChargeRefunds"
+                "$ref": "#/components/schemas/SplitRefundRequest"
               }
             ],
             "nullable": true
@@ -23797,6 +23773,38 @@
           }
         ]
       },
+      "SplitPaymentsRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe_split_payment"
+            ],
+            "properties": {
+              "stripe_split_payment": {
+                "$ref": "#/components/schemas/StripeSplitPayment"
+              }
+            }
+          }
+        ],
+        "description": "Charge specific"
+      },
+      "SplitRefundRequest": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe_split_refund_request"
+            ],
+            "properties": {
+              "stripe_split_refund_request": {
+                "$ref": "#/components/schemas/StripeSplitRefundRequest"
+              }
+            }
+          }
+        ],
+        "description": "Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details."
+      },
       "StraightThroughAlgorithm": {
         "oneOf": [
           {
@@ -23873,6 +23881,48 @@
           "direct",
           "destination"
         ]
+      },
+      "StripeSplitPayment": {
+        "type": "object",
+        "description": "Stripe Split Payment",
+        "required": [
+          "charge_type",
+          "application_fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "application_fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees to be collected on the payment",
+            "example": 6540
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account to send the funds to"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StripeSplitRefundRequest": {
+        "type": "object",
+        "description": "Charge specific fields for controlling the revert of funds from either platform or connected account for Stripe. Check sub-fields for more details.",
+        "properties": {
+          "revert_platform_fee": {
+            "type": "boolean",
+            "description": "Identifier for charge created for the payment\nToggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the destination account.",
+            "nullable": true
+          },
+          "revert_transfer": {
+            "type": "boolean",
+            "description": "Toggle for reverting the transfer that was made during the charge.\nIf set to false, the funds are pulled from the main platform's account.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "SuccessBasedRoutingFeatures": {
         "type": "string",
