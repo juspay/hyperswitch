@@ -1905,10 +1905,8 @@ mod custom_serde {
 
         use super::*;
 
-        #[allow(
-            clippy::trivially_copy_pass_by_ref,
-            reason = "`serde::Serialize` needs it to accept `&Country`"
-        )]
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1941,10 +1939,8 @@ mod custom_serde {
 
         use super::*;
 
-        #[allow(
-            clippy::trivially_copy_pass_by_ref,
-            reason = "`serde::Serialize` needs it to accept `&Country`"
-        )]
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
@@ -1977,10 +1973,8 @@ mod custom_serde {
 
         use super::*;
 
-        #[allow(
-            clippy::trivially_copy_pass_by_ref,
-            reason = "`serde::Serialize` needs it to accept `&Country`"
-        )]
+        // `serde::Serialize` implementation needs the function to accept `&Country`
+        #[allow(clippy::trivially_copy_pass_by_ref)]
         pub fn serialize<S>(code: &Country, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
