@@ -13,7 +13,9 @@ use error_stack::{report, ResultExt};
 use futures::FutureExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::payments::{PaymentConfirmData, PaymentStatusData};
+use hyperswitch_domain_models::payments::{
+    PaymentConfirmData, PaymentIntentData, PaymentStatusData,
+};
 use router_derive;
 use router_env::{instrument, logger, metrics::add_attributes, tracing};
 use storage_impl::DataModelExt;

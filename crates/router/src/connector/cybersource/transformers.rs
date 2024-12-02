@@ -619,7 +619,7 @@ impl
                     .as_ref()
                     .map(|card_network| match card_network.to_lowercase().as_str() {
                         "amex" => "internet",
-                        "discover" => "dipb",
+                        "discover" => "internet",
                         "mastercard" => "spa",
                         "visa" => "internet",
                         _ => "internet",
