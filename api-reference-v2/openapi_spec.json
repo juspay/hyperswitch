@@ -6121,88 +6121,6 @@
           "greater_than_equal"
         ]
       },
-      "ConfirmIntentAmountDetailsResponse": {
-        "type": "object",
-        "required": [
-          "currency",
-          "skip_external_tax_calculation",
-          "skip_surcharge_calculation",
-          "net_amount",
-          "amount_capturable"
-        ],
-        "properties": {
-          "order_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
-            "example": 6540,
-            "minimum": 0
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
-          "shipping_cost": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "order_tax_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "skip_external_tax_calculation": {
-            "$ref": "#/components/schemas/TaxCalculationOverride"
-          },
-          "skip_surcharge_calculation": {
-            "$ref": "#/components/schemas/SurchargeCalculationOverride"
-          },
-          "surcharge_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "tax_on_surcharge": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "net_amount": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "amount_to_capture": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "amount_capturable": {
-            "$ref": "#/components/schemas/MinorUnit"
-          },
-          "amount_captured": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          }
-        }
-      },
       "Connector": {
         "type": "string",
         "description": "A connector is an integration to fulfill payments",
@@ -12044,6 +11962,88 @@
           }
         }
       },
+      "PaymentAmountDetailsResponse": {
+        "type": "object",
+        "required": [
+          "currency",
+          "skip_external_tax_calculation",
+          "skip_surcharge_calculation",
+          "net_amount",
+          "amount_capturable"
+        ],
+        "properties": {
+          "order_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)",
+            "example": 6540,
+            "minimum": 0
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "shipping_cost": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "order_tax_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "skip_external_tax_calculation": {
+            "$ref": "#/components/schemas/TaxCalculationOverride"
+          },
+          "skip_surcharge_calculation": {
+            "$ref": "#/components/schemas/SurchargeCalculationOverride"
+          },
+          "surcharge_amount": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "tax_on_surcharge": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "net_amount": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_to_capture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_capturable": {
+            "$ref": "#/components/schemas/MinorUnit"
+          },
+          "amount_captured": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MinorUnit"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentAttemptResponse": {
         "type": "object",
         "required": [
@@ -13869,42 +13869,12 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
-        "required": [
-          "amount_to_capture"
-        ],
         "properties": {
-          "merchant_id": {
-            "type": "string",
-            "description": "The unique identifier for the merchant",
-            "nullable": true
-          },
           "amount_to_capture": {
             "type": "integer",
             "format": "int64",
-            "description": "The Amount to be captured/ debited from the user's payment method.",
-            "example": 6540
-          },
-          "refund_uncaptured_amount": {
-            "type": "boolean",
-            "description": "Decider to refund the uncaptured amount",
-            "nullable": true
-          },
-          "statement_descriptor_suffix": {
-            "type": "string",
-            "description": "Provides information about a card payment that customers see on their statements.",
-            "nullable": true
-          },
-          "statement_descriptor_prefix": {
-            "type": "string",
-            "description": "Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.",
-            "nullable": true
-          },
-          "merchant_connector_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MerchantConnectorDetailsWrap"
-              }
-            ],
+            "description": "The Amount to be captured/ debited from the user's payment method. If not passed the full amount will be captured.",
+            "example": 6540,
             "nullable": true
           }
         }
@@ -14006,7 +13976,7 @@
             "$ref": "#/components/schemas/IntentStatus"
           },
           "amount": {
-            "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+            "$ref": "#/components/schemas/PaymentAmountDetailsResponse"
           },
           "connector": {
             "type": "string",
@@ -15742,7 +15712,7 @@
             "$ref": "#/components/schemas/IntentStatus"
           },
           "amount": {
-            "$ref": "#/components/schemas/ConfirmIntentAmountDetailsResponse"
+            "$ref": "#/components/schemas/PaymentAmountDetailsResponse"
           },
           "connector": {
             "type": "string",
