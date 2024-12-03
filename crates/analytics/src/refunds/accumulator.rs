@@ -90,7 +90,7 @@ impl RefundDistributionAccumulator for RefundReasonDistributionAccumulator {
                 .clone()
                 .map(|i| i.to_i64().unwrap_or_default())
                 .unwrap_or_default(),
-            refund_reason: distribution.refund_reason.clone().unwrap_or("".to_string()),
+            refund_reason: distribution.refund_reason.clone().unwrap_or_default(),
         })
     }
 
