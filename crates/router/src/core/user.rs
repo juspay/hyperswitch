@@ -216,12 +216,12 @@ pub async fn connect_account(
             .await;
         logger::info!(?send_email_result);
 
-        return Ok(ApplicationResponse::Json(
+        Ok(ApplicationResponse::Json(
             user_api::ConnectAccountResponse {
                 is_email_sent: send_email_result.is_ok(),
                 user_id: user_from_db.get_user_id().to_string(),
             },
-        ));
+        ))
     } else if find_user
         .as_ref()
         .map_err(|e| e.current_context().is_db_not_found())

@@ -11,8 +11,8 @@ use crate::{
     core::errors::{self, CustomResult},
     logger,
 };
-#[async_trait::async_trait]
 
+#[async_trait::async_trait]
 pub trait PaymentLinkDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
