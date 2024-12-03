@@ -382,7 +382,7 @@ pub async fn migrate_payment_method(
     key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodMigrateResponse> {
     let mut req = req;
-    let card_details = &req.card.clone().get_required_value("card")?;
+    let card_details = &req.card.get_required_value("card")?;
 
     let card_number_validation_result =
         cards::CardNumber::from_str(card_details.card_number.peek());
@@ -1178,8 +1178,8 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
                         .and_then(|val| (!val.0.is_empty()).then_some(false))
                 }),
         );
-
-        migration_status.card_migrated(false); //card is not migrated in this case
+        //card is not migrated in this case
+        migration_status.card_migrated(false);
 
         if res.status == enums::PaymentMethodStatus::AwaitingData {
             add_payment_method_status_update_task(
