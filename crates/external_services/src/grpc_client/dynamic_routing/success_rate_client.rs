@@ -4,7 +4,6 @@ use api_models::routing::{
 };
 use common_utils::{ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
-
 pub use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalSuccessRateConfig,
     CalSuccessRateRequest, CalSuccessRateResponse,
