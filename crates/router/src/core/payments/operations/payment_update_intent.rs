@@ -4,7 +4,8 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsUpdateIntentRequest};
 use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{AsyncExt, ValueExt},
+    ext_traits::{Encode, ValueExt},
+    types::keymanager::ToEncryptable,
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
@@ -12,26 +13,58 @@ use hyperswitch_domain_models::{
     payments::payment_intent::{PaymentIntentUpdate, PaymentIntentUpdateFields},
     ApiModelToDieselModelConvertor,
 };
-use masking::Secret;
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payment_methods::cards::create_encrypted_data,
-        payments::{self, operations},
+        payments::{
+            self,
+            operations::{self, ValidateStatusForOperation},
+        },
     },
     db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},
     types::{
-        api, domain,
+        api,
+        domain::{self, types as domain_types},
         storage::{self, enums},
     },
 };
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentUpdateIntent;
+
+impl ValidateStatusForOperation for PaymentUpdateIntent {
+    /// Validate if the current operation can be performed on the current status of the payment intent
+    fn validate_status_for_operation(
+        &self,
+        intent_status: common_enums::IntentStatus,
+    ) -> Result<(), errors::ApiErrorResponse> {
+        match intent_status {
+            common_enums::IntentStatus::RequiresPaymentMethod => Ok(()),
+            common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Failed
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::Processing
+            | common_enums::IntentStatus::RequiresCustomerAction
+            | common_enums::IntentStatus::RequiresMerchantAction
+            | common_enums::IntentStatus::RequiresCapture
+            | common_enums::IntentStatus::PartiallyCaptured
+            | common_enums::IntentStatus::RequiresConfirmation
+            | common_enums::IntentStatus::PartiallyCapturedAndCapturable => {
+                Err(errors::ApiErrorResponse::PaymentUnexpectedState {
+                    current_flow: format!("{self:?}"),
+                    field_name: "status".to_string(),
+                    current_value: intent_status.to_string(),
+                    states: ["requires_payment_method".to_string()].join(", "),
+                })
+            }
+        }
+    }
+}
 
 impl<F: Send + Clone> Operation<F, PaymentsUpdateIntentRequest> for &PaymentUpdateIntent {
     type Data = payments::PaymentIntentData<F>;
@@ -111,6 +144,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        self.validate_status_for_operation(payment_intent.status)?;
+
         let PaymentsUpdateIntentRequest {
             amount_details,
             routing_algorithm_id,
@@ -137,46 +172,38 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             request_external_three_ds_authentication,
         } = request.clone();
 
-        // TODO: Use Batch Encryption
-        let billing_address = billing
-            .clone()
-            .async_map(|billing_details| {
-                create_encrypted_data(key_manager_state, key_store, billing_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt billing details")?
-            .map(|encrypted_value| {
-                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to deserialize decrypted value to Address")?;
+        let batch_encrypted_data = domain_types::crypto_operation(
+            key_manager_state,
+            common_utils::type_name!(hyperswitch_domain_models::payments::PaymentIntent),
+            domain_types::CryptoOperation::BatchEncrypt(
+                hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent::to_encryptable(
+                    hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent {
+                        shipping_address: shipping.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(masking::Secret::new),
+                        billing_address: billing.map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(masking::Secret::new),
+                        customer_details: None,
+                    },
+                ),
+            ),
+            common_utils::types::keymanager::Identifier::Merchant(merchant_account.get_id().to_owned()),
+            key_store.key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_batchoperation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed while encrypting payment intent details".to_string())?;
 
-        let shipping_address = shipping
-            .clone()
-            .async_map(|shipping_details| {
-                create_encrypted_data(key_manager_state, key_store, shipping_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?
-            .map(|encrypted_value| {
-                encrypted_value.deserialize_inner_value(|value| value.parse_value("Address"))
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to deserialize decrypted value to Address")?;
+        let decrypted_payment_intent =
+             hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent::from_encryptable(batch_encrypted_data)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting payment intent details")?;
 
         let order_details = order_details.clone().map(|order_details| {
             order_details
                 .into_iter()
                 .map(|order_detail| {
-                    Secret::new(diesel_models::types::OrderDetailsWithAmount::convert_from(
-                        order_detail,
-                    ))
+                    masking::Secret::new(
+                        diesel_models::types::OrderDetailsWithAmount::convert_from(order_detail),
+                    )
                 })
                 .collect()
         });
@@ -211,8 +238,26 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             request_external_three_ds_authentication: request_external_three_ds_authentication
                 .unwrap_or(payment_intent.request_external_three_ds_authentication),
             frm_metadata: frm_metadata.or(payment_intent.frm_metadata),
-            billing_address,
-            shipping_address,
+            billing_address: decrypted_payment_intent
+                .billing_address
+                .as_ref()
+                .map(|data| {
+                    data.clone()
+                        .deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode billing address")?,
+            shipping_address: decrypted_payment_intent
+                .shipping_address
+                .as_ref()
+                .map(|data| {
+                    data.clone()
+                        .deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode shipping address")?,
             capture_method: capture_method.unwrap_or(payment_intent.capture_method),
             authentication_type: authentication_type.unwrap_or(payment_intent.authentication_type),
             enable_payment_link: enable_payment_link.unwrap_or(payment_intent.enable_payment_link),
@@ -245,7 +290,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
-        payment_data: payments::PaymentIntentData<F>,
+        mut payment_data: payments::PaymentIntentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
@@ -313,11 +358,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not update Intent")?;
 
-        let payment_data = payments::PaymentIntentData {
-            flow: PhantomData,
-            payment_intent: new_payment_intent,
-            sessions_token: vec![],
-        };
+        payment_data.payment_intent = new_payment_intent;
 
         Ok((Box::new(self), payment_data))
     }

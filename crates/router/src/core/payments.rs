@@ -1003,7 +1003,7 @@ pub async fn payments_intent_operation_core<F, Req, Op, D>(
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
-    payment_id: Option<id_type::GlobalPaymentId>,
+    payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>)>
 where
@@ -1019,13 +1019,6 @@ where
     let _validate_result = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
-
-    // If payment_id has not been generated (Create-Intent), generate new payment_id, otherwise use existing
-    // payment_id (Get-Intent, Update-Intent etc.)
-    let payment_id = match payment_id {
-        Some(id) => id,
-        None => id_type::GlobalPaymentId::generate(state.conf.cell_information.id.clone()),
-    };
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
@@ -1454,7 +1447,7 @@ pub async fn payments_intent_core<F, Res, Req, Op, D>(
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
-    payment_id: Option<id_type::GlobalPaymentId>,
+    payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
 where

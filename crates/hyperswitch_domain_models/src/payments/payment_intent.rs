@@ -1,6 +1,4 @@
 #[cfg(feature = "v2")]
-use common_enums::External3dsAuthenticationRequest;
-#[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
     consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
@@ -133,26 +131,6 @@ pub struct CustomerData {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentIntentUpdateFields {
-    // pub amount: Option<MinorUnit>,
-    // pub currency: Option<common_enums::Currency>,
-    // pub setup_future_usage: Option<common_enums::FutureUsage>,
-    // pub status: common_enums::IntentStatus,
-    // pub customer_id: Option<id_type::CustomerId>,
-    // pub shipping_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    // pub billing_address: Option<Encryptable<Secret<serde_json::Value>>>,
-    // pub return_url: Option<String>,
-    // pub description: Option<String>,
-    // pub statement_descriptor: Option<String>,
-    // pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    // pub metadata: Option<pii::SecretSerdeValue>,
-    // pub payment_confirm_source: Option<common_enums::PaymentSource>,
-    // pub updated_by: String,
-    // pub session_expiry: Option<PrimitiveDateTime>,
-    // pub request_external_three_ds_authentication: Option<bool>,
-    // pub frm_metadata: Option<pii::SecretSerdeValue>,
-    // pub customer_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    // pub merchant_order_reference_id: Option<String>,
-    // pub is_payment_processor_token_flow: Option<bool>,
     pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub shipping_cost: Option<MinorUnit>,
@@ -184,7 +162,8 @@ pub struct PaymentIntentUpdateFields {
     pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
-    pub request_external_three_ds_authentication: Option<External3dsAuthenticationRequest>,
+    pub request_external_three_ds_authentication:
+        Option<common_enums::External3dsAuthenticationRequest>,
 
     // updated_by is set internally, field not present in request
     pub updated_by: String,
@@ -540,25 +519,14 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     apply_mit_exemption: apply_mit_exemption.map(|val| val.as_bool()),
                     statement_descriptor,
                     order_details,
-                    // .map(|order_details| {
-                    //     order_details
-                    //         .into_iter()
-                    //         .map(|order_detail| order_detail.encode_to_value().map(Secret::new))
-                    //         .collect::<Result<Vec<_>, _>>()
-                    // })
-                    // .and_then(|r| r.ok()),
                     allowed_payment_method_types: allowed_payment_method_types
                         .map(|allowed_payment_method_types| {
                             allowed_payment_method_types.encode_to_value()
                         })
                         .and_then(|r| r.ok().map(Secret::new)),
-                    // .transpose()
-                    // .ok().flatten()
-                    // .map(Secret::new),
                     metadata,
                     connector_metadata,
                     feature_metadata,
-                    // .map(|val| diesel_models::types::FeatureMetadata::convert_from(val)),
                     enable_payment_link: enable_payment_link.map(|val| val.as_bool()),
                     request_incremental_authorization,
                     session_expiry,
@@ -1475,9 +1443,9 @@ impl behaviour::Conversion for PaymentIntent {
                     .unwrap_or_default(),
                 authorization_count: storage_model.authorization_count,
                 session_expiry: storage_model.session_expiry,
-                request_external_three_ds_authentication: External3dsAuthenticationRequest::from(
-                    storage_model.request_external_three_ds_authentication,
-                ),
+                request_external_three_ds_authentication: storage_model
+                    .request_external_three_ds_authentication
+                    .into(),
                 frm_metadata: storage_model.frm_metadata,
                 customer_details: data.customer_details,
                 billing_address,
@@ -1488,15 +1456,9 @@ impl behaviour::Conversion for PaymentIntent {
                 organization_id: storage_model.organization_id,
                 authentication_type: storage_model.authentication_type.unwrap_or_default(),
                 prerouting_algorithm: storage_model.prerouting_algorithm,
-                enable_payment_link: common_enums::EnablePaymentLinkRequest::from(
-                    storage_model.enable_payment_link,
-                ),
-                apply_mit_exemption: common_enums::MitExemptionRequest::from(
-                    storage_model.apply_mit_exemption,
-                ),
-                customer_present: common_enums::PresenceOfCustomerDuringPayment::from(
-                    storage_model.customer_present,
-                ),
+                enable_payment_link: storage_model.enable_payment_link.into(),
+                apply_mit_exemption: storage_model.apply_mit_exemption.into(),
+                customer_present: storage_model.customer_present.into(),
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
             })

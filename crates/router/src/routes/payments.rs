@@ -118,6 +118,9 @@ pub async fn payments_create_intent(
             return api::log_and_return_error_response(err);
         }
     };
+    let global_payment_id =
+        common_utils::id_type::GlobalPaymentId::generate(state.conf.cell_information.id.clone());
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -138,7 +141,7 @@ pub async fn payments_create_intent(
                 auth.key_store,
                 payments::operations::PaymentIntentCreate,
                 req,
-                None,
+                global_payment_id.clone(),
                 header_payload.clone(),
             )
         },
@@ -201,7 +204,7 @@ pub async fn payments_get_intent(
                 auth.key_store,
                 payments::operations::PaymentGetIntent,
                 req,
-                Some(global_payment_id.clone()),
+                global_payment_id.clone(),
                 header_payload.clone(),
             )
         },
@@ -256,7 +259,7 @@ pub async fn payments_update_intent(
                 auth.key_store,
                 payments::operations::PaymentUpdateIntent,
                 req.payload,
-                Some(global_payment_id.clone()),
+                global_payment_id.clone(),
                 header_payload.clone(),
             )
         },
