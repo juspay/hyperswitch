@@ -1004,9 +1004,7 @@ impl
         &self,
         payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
     ) -> Option<MinorUnit> {
-        let Some(payment_attempt) = payment_data.payment_attempt.as_ref() else {
-            return None;
-        };
+        let payment_attempt = payment_data.payment_attempt.as_ref()?;
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
@@ -1036,9 +1034,7 @@ impl
         &self,
         payment_data: &payments::PaymentStatusData<router_flow_types::PSync>,
     ) -> Option<MinorUnit> {
-        let Some(payment_attempt) = payment_data.payment_attempt.as_ref() else {
-            return None;
-        };
+        let payment_attempt = payment_data.payment_attempt.as_ref()?;
 
         // Based on the status of the response, we can determine the amount capturable
         let intent_status = common_enums::IntentStatus::from(self.status);
