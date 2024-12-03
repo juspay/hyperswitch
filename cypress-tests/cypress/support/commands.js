@@ -867,7 +867,7 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "paymentMethodListTestWithRequiredFields",
-  (res_data, globalState) => {
+  (data, globalState) => {
     cy.request({
       method: "GET",
       url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${globalState.get("clientSecret")}`,
@@ -889,7 +889,7 @@ Cypress.Commands.add(
           ];
 
         const expectedRequiredFields =
-          res_data["payment_methods"][0]["payment_method_types"][0][
+          data["payment_methods"][0]["payment_method_types"][0][
             "required_fields"
           ];
 
@@ -910,7 +910,7 @@ Cypress.Commands.add(
           expect(responseField.value).to.equal(expectedField.value);
         });
       } else {
-        defaultErrorHandler(response, res_data);
+        defaultErrorHandler(response, data);
       }
     });
   }
