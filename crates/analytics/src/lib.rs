@@ -914,10 +914,10 @@ pub enum AnalyticsConfig {
 impl AnalyticsConfig {
     pub fn get_forex_enabled(&self) -> bool {
         match self {
-            AnalyticsConfig::Sqlx { forex_enabled, .. }
-            | AnalyticsConfig::Clickhouse { forex_enabled, .. }
-            | AnalyticsConfig::CombinedCkh { forex_enabled, .. }
-            | AnalyticsConfig::CombinedSqlx { forex_enabled, .. } => *forex_enabled,
+            Self::Sqlx { forex_enabled, .. }
+            | Self::Clickhouse { forex_enabled, .. }
+            | Self::CombinedCkh { forex_enabled, .. }
+            | Self::CombinedSqlx { forex_enabled, .. } => *forex_enabled,
         }
     }
 }

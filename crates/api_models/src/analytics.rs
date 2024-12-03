@@ -66,7 +66,7 @@ pub trait ForexMetric {
     fn is_forex_metric(&self) -> bool;
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnalyticsRequest {
     pub payment_intent: Option<GetPaymentIntentMetricRequest>,
@@ -75,16 +75,6 @@ pub struct AnalyticsRequest {
     pub dispute: Option<GetDisputeMetricRequest>,
 }
 
-impl Default for AnalyticsRequest {
-    fn default() -> Self {
-        Self {
-            payment_intent: None,
-            payment_attempt: None,
-            refund: None,
-            dispute: None,
-        }
-    }
-}
 impl AnalyticsRequest {
     pub fn requires_forex_functionality(&self) -> bool {
         self.payment_attempt
