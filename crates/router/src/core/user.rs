@@ -2583,7 +2583,11 @@ pub async fn list_orgs_for_user(
             let key_manager_state = &(&state).into();
             state
                 .store
-                .list_merchant_and_org_ids(key_manager_state, consts::user::ORG_LIST_LIMIT_FOR_TENANT, 0)
+                .list_merchant_and_org_ids(
+                    key_manager_state,
+                    consts::user::ORG_LIST_LIMIT_FOR_TENANT,
+                    0,
+                )
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
