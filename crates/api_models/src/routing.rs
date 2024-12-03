@@ -705,7 +705,6 @@ pub struct ToggleDynamicRoutingPath {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct EliminationRoutingConfig {
     pub params: Option<Vec<DynamicRoutingConfigParams>>,
-    // pub labels: Option<Vec<String>>,
     pub elimination_analyser_config: Option<EliminationAnalyserConfig>,
 }
 

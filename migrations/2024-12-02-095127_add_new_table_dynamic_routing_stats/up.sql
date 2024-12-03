@@ -11,16 +11,14 @@ CREATE TABLE IF NOT EXISTS dynamic_routing_stats (
     tenant_id VARCHAR(64) NOT NULL,
     merchant_id VARCHAR(255) NOT NULL,
     profile_id VARCHAR(255) NOT NULL,
-    success_based_routing_connector VARCHAR(255),
-    payment_connector VARCHAR(255),
+    success_based_routing_connector VARCHAR(255) NOT NULL,
+    payment_connector VARCHAR(255) NOT NULL,
     currency VARCHAR(255),
     payment_method VARCHAR(255),
     capture_method VARCHAR(255),
     authentication_type VARCHAR(255),
-    payment_status VARCHAR(255),
-    conclusive_classification "SuccessBasedRoutingConclusiveState",
+    payment_status VARCHAR(255) NOT NULL,
+    conclusive_classification "SuccessBasedRoutingConclusiveState" NOT NULL,
     created_at TIMESTAMP NOT NULL,
     PRIMARY KEY(payment_id)
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS payment_id_index ON dynamic_routing_stats (payment_id);

@@ -11,9 +11,9 @@ use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
-use diesel_models::configs;
 #[cfg(feature = "v1")]
 use diesel_models::routing_algorithm;
+use diesel_models::{configs, dynamic_routing_stats::DynamicRoutingStatsNew};
 use error_stack::ResultExt;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
@@ -651,8 +651,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
     business_profile: &domain::Profile,
     success_based_routing_config_params_interpolator: SuccessBasedRoutingConfigParamsInterpolator,
 ) -> RouterResult<()> {
-    use diesel_models::dynamic_routing_stats::DynamicRoutingStatsNew;
-
     let success_based_dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef =
         business_profile
             .dynamic_routing_algorithm
@@ -758,27 +756,22 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             payment_attempt.payment_id.get_string_repr().to_string(),
             payment_attempt.merchant_id.get_string_repr().to_string(),
             payment_attempt.profile_id.get_string_repr().to_string(),
-            Some(first_success_based_connector.to_string()),
-            Some(payment_connector.to_string()),
-            Some(
-                payment_attempt
-                    .currency
-                    .map_or_else(|| "None".to_string(), |currency| currency.to_string()),
-            ),
-            Some(payment_attempt.payment_method.map_or_else(
-                || "None".to_string(),
-                |payment_method| payment_method.to_string(),
-            )),
-            Some(payment_attempt.capture_method.map_or_else(
-                || "None".to_string(),
-                |capture_method| capture_method.to_string(),
-            )),
-            Some(payment_attempt.authentication_type.map_or_else(
-                || "None".to_string(),
-                |authentication_type| authentication_type.to_string(),
-            )),
-            Some(payment_attempt.status.to_string()),
-            Some(outcome),
+            first_success_based_connector.to_string(),
+            payment_connector.to_string(),
+            payment_attempt
+                .currency
+                .map(|currency| currency.to_string()),
+            payment_attempt
+                .payment_method
+                .map(|payment_method| payment_method.to_string()),
+            payment_attempt
+                .capture_method
+                .map(|capture_method| capture_method.to_string()),
+            payment_attempt
+                .authentication_type
+                .map(|authentication_type| authentication_type.to_string()),
+            payment_attempt.status.to_string(),
+            outcome,
             common_utils::date_time::now(),
         );
 
@@ -847,10 +840,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             .store
             .insert_dynamic_routing_stat_entry(dynamic_routing_stats)
             .await
-            .map_err(|e| {
-                logger::error!(dynamic_routing_db_metrics_error=?e);
-                errors::ApiErrorResponse::InternalServerError
-            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to push dynamic routing stats to db")?;
 
         client

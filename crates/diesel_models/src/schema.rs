@@ -402,9 +402,9 @@ diesel::table! {
         #[max_length = 255]
         profile_id -> Varchar,
         #[max_length = 255]
-        success_based_routing_connector -> Nullable<Varchar>,
+        success_based_routing_connector -> Varchar,
         #[max_length = 255]
-        payment_connector -> Nullable<Varchar>,
+        payment_connector -> Varchar,
         #[max_length = 255]
         currency -> Nullable<Varchar>,
         #[max_length = 255]
@@ -414,8 +414,8 @@ diesel::table! {
         #[max_length = 255]
         authentication_type -> Nullable<Varchar>,
         #[max_length = 255]
-        payment_status -> Nullable<Varchar>,
-        conclusive_classification -> Nullable<SuccessBasedRoutingConclusiveState>,
+        payment_status -> Varchar,
+        conclusive_classification -> SuccessBasedRoutingConclusiveState,
         created_at -> Timestamp,
     }
 }
