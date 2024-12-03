@@ -23,7 +23,7 @@ pub enum DynamicRoutingError {
         /// The required field name
         field: String,
     },
-    /// Error from Dynamic Routing Server while perfrming success_rate analysis
+    /// Error from Dynamic Routing Server while performing success_rate analysis
     #[error("Error from Dynamic Routing Server while perfrming success_rate analysis : {0}")]
     SuccessRateBasedRoutingFailure(String),
     /// Error from Dynamic Routing Server while perfrming elimination
