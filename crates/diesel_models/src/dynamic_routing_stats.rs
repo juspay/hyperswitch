@@ -43,8 +43,8 @@ pub struct DynamicRoutingStats {
 
 impl DynamicRoutingStatsNew {
     pub fn new(
-        payment_id: String,
         tenant_id: String,
+        payment_id: String,
         merchant_id: String,
         profile_id: String,
         success_based_routing_connector: Option<String>,
