@@ -19,7 +19,7 @@ use crate::user::{
     SignUpWithMerchantIdRequest, SsoSignInRequest, SwitchMerchantRequest,
     SwitchOrganizationRequest, SwitchProfileRequest, TokenResponse, TwoFactorAuthStatusResponse,
     TwoFactorStatus, UpdateUserAccountDetailsRequest, UpdateUserAuthenticationMethodRequest,
-    UserFromEmailRequest, UserMerchantCreate, UserOrgCreateRequest, VerifyEmailRequest,
+    UserFromEmailRequest, UserMerchantCreate, UserOrgMerchantCreateRequest, VerifyEmailRequest,
     VerifyRecoveryCodeRequest, VerifyTotpRequest,
 };
 
@@ -47,7 +47,7 @@ common_utils::impl_api_event_type!(
         SwitchProfileRequest,
         CreateInternalUserRequest,
         CreateTenantRequest,
-        UserOrgCreateRequest,
+        UserOrgMerchantCreateRequest,
         UserMerchantCreate,
         AuthorizeResponse,
         ConnectAccountRequest,

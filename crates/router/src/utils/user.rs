@@ -283,7 +283,7 @@ pub fn is_sso_auth_type(auth_type: &UserAuthType) -> bool {
 
 #[cfg(feature = "v1")]
 pub fn create_merchant_account_request_for_org(
-    req: user_api::UserOrgCreateRequest,
+    req: user_api::UserOrgMerchantCreateRequest,
     org: organization::Organization,
 ) -> UserResult<api_models::admin::MerchantAccountCreate> {
     let merchant_id = if matches!(env::which(), env::Env::Production) {

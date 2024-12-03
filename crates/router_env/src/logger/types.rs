@@ -399,7 +399,7 @@ pub enum Flow {
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
     /// Create Org in a given tenancy
-    UserOrgCreate,
+    UserOrgMerchantCreate,
     /// Generate Sample Data
     GenerateSampleData,
     /// Delete Sample Data

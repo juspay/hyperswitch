@@ -249,16 +249,16 @@ pub async fn create_tenant_user(
 pub async fn user_org_create(
     state: web::Data<AppState>,
     req: HttpRequest,
-    json_payload: web::Json<user_api::UserOrgCreateRequest>,
+    json_payload: web::Json<user_api::UserOrgMerchantCreateRequest>,
 ) -> HttpResponse {
-    let flow = Flow::UserOrgCreate;
+    let flow = Flow::UserOrgMerchantCreate;
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         json_payload.into_inner(),
         |state, _auth: auth::UserFromToken, json_payload, _| {
-            user_core::create_org_for_user(state, json_payload)
+            user_core::create_org_merchant_for_user(state, json_payload)
         },
         &auth::JWTAuth {
             permission: Permission::TenantAccountWrite,

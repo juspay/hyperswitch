@@ -126,38 +126,11 @@ impl JWTFlow {
     ) -> UserResult<Secret<String>> {
         let (org_id, merchant_id, profile_id) = match user_role.entity_type {
             Some(common_enums::EntityType::Tenant) => {
-                let key_manager_state = &state.into();
-
-                let merchant_account = state
-                    .store
-                    .list_all_merchant_accounts(key_manager_state, Some(1), None)
-                    .await
-                    .change_context(UserErrors::InternalServerError)?
-                    .pop()
-                    .ok_or(UserErrors::InternalServerError)?;
-
-                let merchant_id = merchant_account.get_id().to_owned();
-                let org_id = merchant_account.get_org_id().to_owned();
-
-                let key_store = state
-                    .store
-                    .get_merchant_key_store_by_merchant_id(
-                        &state.into(),
-                        &merchant_id,
-                        &state.store.get_master_key().to_vec().into(),
-                    )
-                    .await
-                    .change_context(UserErrors::InternalServerError)?;
-
-                let profile_id = state
-                    .store
-                    .list_profile_by_merchant_id(&state.into(), &key_store, &merchant_id)
-                    .await
-                    .change_context(UserErrors::InternalServerError)?
-                    .pop()
-                    .ok_or(UserErrors::InternalServerError)?
-                    .get_id()
-                    .to_owned();
+                let org_id = utils::user_role::get_single_org_id(state, user_role).await?;
+                let merchant_id =
+                    utils::user_role::get_single_merchant_id(state, user_role, &org_id).await?;
+                let profile_id =
+                    utils::user_role::get_single_profile_id(state, user_role, &merchant_id).await?;
                 (org_id, merchant_id, profile_id)
             }
             _ => {

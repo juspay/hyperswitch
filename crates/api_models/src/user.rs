@@ -120,7 +120,7 @@ pub struct CreateTenantRequest {
     pub password: Secret<String>,
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct UserOrgCreateRequest {
+pub struct UserOrgMerchantCreateRequest {
     pub organization_name: String,
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,

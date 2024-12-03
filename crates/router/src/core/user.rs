@@ -1272,9 +1272,9 @@ pub async fn create_tenant_user(
 ) -> UserResponse<()> {
     let key_manager_state = &(&state).into();
 
-    let existing_merchant = state
+    let (merchant_id, _) = state
         .store
-        .list_all_merchant_accounts(key_manager_state, Some(1), None)
+        .list_merchant_and_org_ids(key_manager_state, 1, 0)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get merchants list for org")?
@@ -1282,7 +1282,25 @@ pub async fn create_tenant_user(
         .ok_or(UserErrors::InternalServerError)
         .attach_printable("No merchants found in the tenancy")?;
 
-    let new_user = domain::NewUser::try_from((request, existing_merchant))?;
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            key_manager_state,
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error while fetching the key store by merchant_id")?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error while fetching the merchant_account by merchant_id")?;
+
+    let new_user = domain::NewUser::try_from((request, merchant_account))?;
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);
 
@@ -1315,9 +1333,9 @@ pub async fn create_tenant_user(
 }
 
 #[cfg(feature = "v1")]
-pub async fn create_org_for_user(
+pub async fn create_org_merchant_for_user(
     state: SessionState,
-    req: user_api::UserOrgCreateRequest,
+    req: user_api::UserOrgMerchantCreateRequest,
 ) -> UserResponse<()> {
     let db_organization = ForeignFrom::foreign_from(req.clone());
     let org: diesel_models::organization::Organization = state
@@ -2565,11 +2583,11 @@ pub async fn list_orgs_for_user(
             let key_manager_state = &(&state).into();
             state
                 .store
-                .list_all_merchant_accounts(key_manager_state, None, None)
+                .list_merchant_and_org_ids(key_manager_state, consts::user::ORG_LIST_LIMIT_FOR_TENANT, 0)
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
-                .map(|merchant_account| merchant_account.get_org_id().to_owned())
+                .map(|(_, org_id)| org_id) // Extract the org_id from the tuple
                 .collect::<HashSet<_>>()
         }
         EntityType::Organization | EntityType::Merchant | EntityType::Profile => state

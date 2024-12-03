@@ -324,6 +324,24 @@ impl From<(user_api::CreateTenantRequest, MerchantAccount)> for NewUserOrganizat
     }
 }
 
+impl ForeignFrom<api_models::user::UserOrgMerchantCreateRequest>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::user::UserOrgMerchantCreateRequest) -> Self {
+        let org_new = api_models::organization::OrganizationNew::new(None);
+        let api_models::user::UserOrgMerchantCreateRequest {
+            organization_name,
+            organization_details,
+            metadata,
+            ..
+        } = item;
+        let mut org_new_db = Self::new(org_new.org_id, Some(organization_name));
+        org_new_db.organization_details = organization_details;
+        org_new_db.metadata = metadata;
+        org_new_db
+    }
+}
+
 #[derive(Clone)]
 pub struct MerchantId(String);
 

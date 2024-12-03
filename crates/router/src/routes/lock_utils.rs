@@ -227,7 +227,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::SwitchOrg
             | Flow::SwitchMerchantV2
             | Flow::SwitchProfile
-            | Flow::UserOrgCreate
+            | Flow::UserOrgMerchantCreate
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
