@@ -18,44 +18,41 @@ describe("Card - SingleUse Mandates flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and Single use MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ZeroAuthMandate"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
-          req_data,
-          res_data,
+          data,
           0,
           true,
           "automatic",
           "setup_mandate",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
-          req_data,
-          res_data,
+          data,
           7000,
           true,
           "automatic",
@@ -67,44 +64,41 @@ describe("Card - SingleUse Mandates flow test", () => {
   context(
     "Card - NoThreeDS Create + Confirm Automatic CIT and Multi use MIT payment flow test",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
 
       it("Confirm No 3DS CIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["ZeroAuthMandate"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
-          req_data,
-          res_data,
+          data,
           0,
           true,
           "automatic",
           "setup_mandate",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
-          req_data,
-          res_data,
+          data,
           7000,
           true,
           "automatic",
@@ -112,15 +106,13 @@ describe("Card - SingleUse Mandates flow test", () => {
         );
       });
       it("Confirm No 3DS MIT", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["MITAutoCapture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
-          req_data,
-          res_data,
+          data,
           7000,
           true,
           "automatic",
@@ -131,51 +123,46 @@ describe("Card - SingleUse Mandates flow test", () => {
   );
 
   context("Card - Zero Auth Payment", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
 
     it("Create No 3DS Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "ZeroAuthPaymentIntent"
-      ];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ZeroAuthPaymentIntent"];
+
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Confirm No 3DS payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "ZeroAuthConfirmPayment"
-      ];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.confirmCallTest(
-        fixtures.confirmBody,
-        req_data,
-        res_data,
-        true,
-        globalState
-      );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ZeroAuthConfirmPayment"];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Retrieve Payment Call Test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ZeroAuthConfirmPayment"];
+
+      cy.retrievePaymentCallTest(globalState, data);
     });
 
     it("Retrieve CustomerPM Call Test", () => {
@@ -183,38 +170,33 @@ describe("Card - SingleUse Mandates flow test", () => {
     });
 
     it("Create Recurring Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
+
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Confirm Recurring Payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardConfirmAutoCaptureOffSession"
-      ];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardConfirmAutoCaptureOffSession"];
 
       cy.saveCardConfirmCallTest(
         fixtures.saveCardConfirmBody,
-        req_data,
-        res_data,
+        data,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 });

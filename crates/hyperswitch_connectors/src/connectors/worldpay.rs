@@ -54,8 +54,8 @@ use response::{
     WP_CORRELATION_ID,
 };
 use ring::hmac;
-use transformers::{self as worldpay};
 
+use self::transformers as worldpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,

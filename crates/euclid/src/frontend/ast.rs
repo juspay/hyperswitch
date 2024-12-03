@@ -135,7 +135,6 @@ pub struct IfStatement {
 ///     }
 /// }
 /// ```
-
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 #[aliases(RuleConnectorSelection = Rule<ConnectorSelection>)]

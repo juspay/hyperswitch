@@ -1199,7 +1199,7 @@ struct ConnectorAuthTypeAndMetadataValidation<'a> {
     connector_meta_data: &'a Option<pii::SecretSerdeValue>,
 }
 
-impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
+impl ConnectorAuthTypeAndMetadataValidation<'_> {
     pub fn validate_auth_and_metadata_type(
         &self,
     ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
@@ -1576,7 +1576,7 @@ struct ConnectorAuthTypeValidation<'a> {
     auth_type: &'a types::ConnectorAuthType,
 }
 
-impl<'a> ConnectorAuthTypeValidation<'a> {
+impl ConnectorAuthTypeValidation<'_> {
     fn validate_connector_auth_type(
         &self,
     ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
@@ -1666,7 +1666,7 @@ struct ConnectorStatusAndDisabledValidation<'a> {
     current_status: &'a api_enums::ConnectorStatus,
 }
 
-impl<'a> ConnectorStatusAndDisabledValidation<'a> {
+impl ConnectorStatusAndDisabledValidation<'_> {
     fn validate_status_and_disabled(
         &self,
     ) -> RouterResult<(api_enums::ConnectorStatus, Option<bool>)> {
@@ -1709,7 +1709,7 @@ struct PaymentMethodsEnabled<'a> {
     payment_methods_enabled: &'a Option<Vec<api_models::admin::PaymentMethodsEnabled>>,
 }
 
-impl<'a> PaymentMethodsEnabled<'a> {
+impl PaymentMethodsEnabled<'_> {
     fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<pii::SecretSerdeValue>>> {
         let mut vec = Vec::new();
         let payment_methods_enabled = match self.payment_methods_enabled.clone() {
@@ -1735,7 +1735,7 @@ struct ConnectorMetadata<'a> {
     connector_metadata: &'a Option<pii::SecretSerdeValue>,
 }
 
-impl<'a> ConnectorMetadata<'a> {
+impl ConnectorMetadata<'_> {
     fn validate_apple_pay_certificates_in_mca_metadata(&self) -> RouterResult<()> {
         self.connector_metadata
             .clone()
@@ -1826,7 +1826,7 @@ struct ConnectorTypeAndConnectorName<'a> {
     connector_name: &'a api_enums::Connector,
 }
 
-impl<'a> ConnectorTypeAndConnectorName<'a> {
+impl ConnectorTypeAndConnectorName<'_> {
     fn get_routable_connector(&self) -> RouterResult<Option<api_enums::RoutableConnectors>> {
         let mut routable_connector =
             api_enums::RoutableConnectors::from_str(&self.connector_name.to_string()).ok();

@@ -8,9 +8,9 @@ const globalState = new State({
   connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
 });
 
-const connectorName = normalise(globalState.get("connectorId"));
+const connectorName = normalize(globalState.get("connectorId"));
 
-function normalise(input) {
+function normalize(input) {
   const exceptions = {
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",
@@ -18,7 +18,7 @@ function normalise(input) {
     paypal: "Paypal",
     wellsfargo: "Wellsfargo",
     fiuu: "Fiuu",
-    noon: "Noon"
+    noon: "Noon",
     // Add more known exceptions here
   };
 
@@ -44,7 +44,7 @@ function normalise(input) {
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
 };
@@ -52,7 +52,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "morino",
   card_cvc: "999",
 };
@@ -143,6 +143,7 @@ export const getCustomExchange = (overrides) => {
 
   return {
     ...defaultExchange,
+    ...(overrides.Configs ? { Configs: overrides.Configs } : {}),
     Request: {
       ...defaultExchange.Request,
       ...(overrides.Request || {}),

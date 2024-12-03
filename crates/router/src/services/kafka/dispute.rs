@@ -71,7 +71,7 @@ impl<'a> KafkaDispute<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaDispute<'a> {
+impl super::KafkaMessage for KafkaDispute<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}",

@@ -1263,7 +1263,7 @@ pub async fn perform_success_based_routing(
         )?;
 
     if success_based_algo_ref.enabled_feature
-        == api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection
+        == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
     {
         logger::debug!(
             "performing success_based_routing for profile {}",
