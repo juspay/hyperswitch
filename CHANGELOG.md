@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.11.27.0-hotfix1
+
+### Bug Fixes
+
+- **connector:** [Cybersource] change commerce indicator for discover cards in apple pay ([#6728](https://github.com/juspay/hyperswitch/pull/6728)) ([`344a882`](https://github.com/juspay/hyperswitch/commit/344a88292ef530468f7502f180a31119b99f5850))
+
+- - -
+
 ## 2024.11.27.0
 
 ### Features
