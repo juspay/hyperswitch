@@ -3320,18 +3320,12 @@ pub async fn delete_connector(
             id: id.clone().get_string_repr().to_string(),
         })?;
 
-    let business_profile = crate::core::utils::validate_and_get_business_profile(
-        db,
-        key_manager_state,
-        &key_store,
-        Some(&mca.profile_id),
-        merchant_id,
-    )
-    .await?
-    .get_required_value("Profile")
-    .change_context(errors::ApiErrorResponse::ProfileNotFound {
-        id: mca.profile_id.get_string_repr().to_owned(),
-    })?;
+    let business_profile = db
+        .find_business_profile_by_profile_id(key_manager_state, &key_store, &mca.profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: mca.profile_id.get_string_repr().to_owned(),
+        })?;
 
     let merchant_default_config_delete = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &Some(
