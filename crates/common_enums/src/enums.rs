@@ -3278,7 +3278,6 @@ pub enum DeleteStatus {
     serde::Serialize,
     strum::Display,
     Hash,
-    ToSchema,
     strum::EnumString,
 )]
 #[serde(rename_all = "snake_case")]
