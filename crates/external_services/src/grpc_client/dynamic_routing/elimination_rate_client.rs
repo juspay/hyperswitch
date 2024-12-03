@@ -2,7 +2,7 @@ use api_models::routing::{
     EliminationAnalyserConfig as EliminationConfig, RoutableConnectorChoice,
     RoutableConnectorChoiceWithBucketName,
 };
-use common_utils::transformers::ForeignTryFrom;
+use common_utils::{ext_traits::OptionExt, transformers::ForeignTryFrom};
 pub use elimination_rate::{
     elimination_analyser_client::EliminationAnalyserClient, EliminationAnalyserConfig,
     EliminationRequest, EliminationResponse, InvalidateBucketRequest, InvalidateBucketResponse,
@@ -141,8 +141,18 @@ impl ForeignTryFrom<EliminationConfig> for EliminationAnalyserConfig {
     type Error = error_stack::Report<DynamicRoutingError>;
     fn foreign_try_from(config: EliminationConfig) -> Result<Self, Self::Error> {
         Ok(Self {
-            bucket_size: config.bucket_size,
-            bucket_ttl_in_mins: config.bucket_ttl_in_mins,
+            bucket_size: config
+                .bucket_size
+                .get_required_value("bucket_size")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "bucket_size".to_string(),
+                })?,
+            bucket_ttl_in_mins: config
+                .bucket_ttl_in_mins
+                .get_required_value("bucket_ttl_in_mins")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "bucket_ttl_in_mins".to_string(),
+                })?,
         })
     }
 }
@@ -150,8 +160,18 @@ impl ForeignTryFrom<EliminationConfig> for UpdateEliminationBucketConfig {
     type Error = error_stack::Report<DynamicRoutingError>;
     fn foreign_try_from(config: EliminationConfig) -> Result<Self, Self::Error> {
         Ok(Self {
-            bucket_size: config.bucket_size,
-            bucket_ttl_in_mins: config.bucket_ttl_in_mins,
+            bucket_size: config
+                .bucket_size
+                .get_required_value("bucket_size")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "bucket_size".to_string(),
+                })?,
+            bucket_ttl_in_mins: config
+                .bucket_ttl_in_mins
+                .get_required_value("bucket_ttl_in_mins")
+                .change_context(DynamicRoutingError::MissingRequiredField {
+                    field: "bucket_ttl_in_mins".to_string(),
+                })?,
         })
     }
 }
