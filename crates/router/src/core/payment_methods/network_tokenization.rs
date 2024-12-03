@@ -712,7 +712,7 @@ pub fn get_network_token_resource_object(
 #[serde(untagged)]
 pub enum NetworkTokenWebhookResponse {
     PanMetadataUpdate(PanMetadataUpdateBody),
-    NetworkTokenMetadataUpdate(NetworkTokenMetaDataUpdateBody ),
+    NetworkTokenMetadataUpdate(NetworkTokenMetaDataUpdateBody),
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NetworkTokenRequestorData {

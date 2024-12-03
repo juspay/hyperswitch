@@ -119,7 +119,7 @@ pub enum WebhookResponseTracker {
         mandate_id: String,
         status: common_enums::MandateStatus,
     },
-    PaymentMethod{
+    PaymentMethod {
         payment_method_id: String,
         status: common_enums::PaymentMethodStatus,
     },
@@ -141,9 +141,14 @@ impl WebhookResponseTracker {
 
     pub fn get_payment_method_id(&self) -> Option<String> {
         match self {
-            Self::PaymentMethod { payment_method_id, .. } => Some(payment_method_id.to_owned()),
-            Self::Payment { .. } | Self::Refund { .. }
-            | Self::Dispute { .. } | Self::NoEffect | Self::Mandate { .. } => None,
+            Self::PaymentMethod {
+                payment_method_id, ..
+            } => Some(payment_method_id.to_owned()),
+            Self::Payment { .. }
+            | Self::Refund { .. }
+            | Self::Dispute { .. }
+            | Self::NoEffect
+            | Self::Mandate { .. } => None,
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
         }

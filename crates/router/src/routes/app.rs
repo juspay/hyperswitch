@@ -1440,11 +1440,19 @@ impl Webhooks {
             .service(
                 web::resource("/network_token_requestor/ref")
                     .route(
-                        web::post().to(receive_network_token_requestor_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                        web::post().to(receive_network_token_requestor_incoming_webhook::<
+                            webhook_type::OutgoingWebhook,
+                        >),
                     )
-                    .route(web::get().to(receive_network_token_requestor_incoming_webhook::<webhook_type::OutgoingWebhook>))
                     .route(
-                        web::put().to(receive_network_token_requestor_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                        web::get().to(receive_network_token_requestor_incoming_webhook::<
+                            webhook_type::OutgoingWebhook,
+                        >),
+                    )
+                    .route(
+                        web::put().to(receive_network_token_requestor_incoming_webhook::<
+                            webhook_type::OutgoingWebhook,
+                        >),
                     ),
             );
 

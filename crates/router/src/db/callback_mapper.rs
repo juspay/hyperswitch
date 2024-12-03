@@ -37,9 +37,7 @@ impl CallBackMapperInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
-        Ok(domain::CallBackMapper::from_storage_model(
-            storage_model,
-        ))
+        Ok(domain::CallBackMapper::from_storage_model(storage_model))
     }
 
     #[instrument(skip_all)]

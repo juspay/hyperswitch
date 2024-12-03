@@ -47,8 +47,8 @@ use crate::{
     },
     types::{
         api::{
-            self, mandates::MandateResponseExt, ConnectorCommon,
-            ConnectorData, GetToken, IncomingWebhook,
+            self, mandates::MandateResponseExt, ConnectorCommon, ConnectorData, GetToken,
+            IncomingWebhook,
         },
         domain,
         storage::{self, enums},
@@ -581,14 +581,11 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
     //source verification
     let nt_service = match &state.conf.network_tokenization_service {
         Some(nt_service) => Ok(nt_service.get_inner()),
-        None => {
-            Err(report!(
-                errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError))
-        }
+        None => Err(report!(
+            errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)),
     }?;
-
 
     Authorization::new(request_details.headers.get("Authorization"))
         .verify_webhook_source(nt_service)
@@ -600,23 +597,28 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)
         .change_context(errors::ApiErrorResponse::WebhookUnprocessableEntity)?;
 
-    let (merchant_id, payment_method_id, _customer_id) = payment_methods::fetch_merchant_id_payment_method_id_customer_id_from_callback_mapper(state, &response)
+    let (merchant_id, payment_method_id, _customer_id) =
+        payment_methods::fetch_merchant_id_payment_method_id_customer_id_from_callback_mapper(
+            state, &response,
+        )
         .await?;
-    
-    
+
     metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
         &metrics::CONTEXT,
         1,
         &[metrics::KeyValue::new(MERCHANT_ID, merchant_id.clone())],
     );
 
-    
-
     let event_object = network_tokenization::get_network_token_resource_object(&request_details)
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let (payment_method, merchant_account, key_store) =
-        payment_methods::fetch_payment_method_for_network_token_webhooks(state, &merchant_id, &payment_method_id).await?;
+        payment_methods::fetch_payment_method_for_network_token_webhooks(
+            state,
+            &merchant_id,
+            &payment_method_id,
+        )
+        .await?;
 
     let serialized_request = event_object
         .masked_serialize()

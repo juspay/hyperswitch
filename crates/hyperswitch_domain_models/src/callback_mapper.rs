@@ -1,7 +1,5 @@
 use common_utils::{id_type, pii};
-
 use serde::{self, Deserialize, Serialize};
-
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CallBackMapper {
@@ -23,7 +21,7 @@ pub struct CallBackMapperNew {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
-pub enum CallBackMapperData{
+pub enum CallBackMapperData {
     NetworkTokenWebhook {
         merchant_id: id_type::MerchantId,
         payment_method_id: String,
