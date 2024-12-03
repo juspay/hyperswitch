@@ -1,19 +1,22 @@
 use std::marker::PhantomData;
 
+use common_enums::PaymentMethod;
 use common_utils::{
     ext_traits::ValueExt,
     types::{AmountConvertor, FloatMajorUnitForConnector},
 };
-use diesel_models::authentication::{Authentication, AuthenticationNew};
+use diesel_models::authentication::{Authentication, AuthenticationNew, AuthenticationUpdate};
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     payment_address::PaymentAddress,
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::UasFlowData,
-    router_request_types::unified_authentication_service::{UasPreAuthenticationRequestData, ServiceDetails, TransactionDetails, ServiceSessionIds},
+    router_request_types::unified_authentication_service::{
+        ServiceDetails, ServiceSessionIds, TransactionDetails, UasAuthenticationResponseData,
+        UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+    },
 };
-use common_enums::PaymentMethod;
 
 use super::{
     errors::{ConnectorErrorExt, RouterResult, StorageErrorExt},
@@ -36,65 +39,49 @@ const IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW: &str =
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_AUTHENTICATION_flow";
 
+#[async_trait::async_trait]
 pub trait UnifiedAuthenticationService<F: Clone> {
     async fn pre_authentication(
         _state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
         _payment_data: &mut PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
-    ) -> RouterResult<()> {
-        Ok(())
-    }
+        _merchant_connector_account: &MerchantConnectorAccountType,
+    ) -> RouterResult<Authentication>;
 
-    fn post_authentication(
-        state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
-        business_profile: &domain::Profile,
-        payment_data: &mut PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
-    ) -> RouterResult<()> {
-        Ok(())
-    }
+    async fn post_authentication(
+        _state: &SessionState,
+        _key_store: &domain::MerchantKeyStore,
+        _business_profile: &domain::Profile,
+        _payment_data: &mut PaymentData<F>,
+        _merchant_connector_account: &MerchantConnectorAccountType,
+        _authentication: Option<Authentication>,
+    ) -> RouterResult<Authentication>;
 
     fn confirmation(
-        state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
-        business_profile: &domain::Profile,
-        payment_data: &mut PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
-    ) -> RouterResult<()> {
-        Ok(())
-    }
+        _state: &SessionState,
+        _key_store: &domain::MerchantKeyStore,
+        _business_profile: &domain::Profile,
+        _payment_data: &mut PaymentData<F>,
+        _merchant_connector_account: &MerchantConnectorAccountType,
+    ) -> RouterResult<()>;
 }
 
 pub struct ClickToPay;
 
-// #[derive(Clone, Debug, Deserialize)]
-// pub struct ClickToPayPreAuthentication {
-//     source_authetication_id: String,
-//     service_details: ServiceDetails,
-//     transaction_details: TransactionDetails,
-// }
-
-// #[derive(Clone, Debug, Deserialize)]
-// pub struct ClickToPayPostAuthentication {
-//     source_authetication_id: String,
-// }
-
-
-impl<F: Clone> UnifiedAuthenticationService<F> for ClickToPay {
+#[async_trait::async_trait]
+impl<F: Clone + Send> UnifiedAuthenticationService<F> for ClickToPay {
     async fn pre_authentication(
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
+        _key_store: &domain::MerchantKeyStore,
         business_profile: &domain::Profile,
         payment_data: &mut PaymentData<F>,
         merchant_connector_account: &MerchantConnectorAccountType,
-    ) -> RouterResult<()> {
+    ) -> RouterResult<Authentication> {
         let pre_authentication_data =
             UasPreAuthenticationRequestData::try_from(payment_data.clone())?;
         let payment_method = payment_data.payment_attempt.payment_method.clone().unwrap();
-        let store_authentication_in_db = create_new_authentication(
+        let store_authentication_in_db: Authentication = create_new_authentication(
             state,
             payment_data.payment_attempt.merchant_id.clone(),
             "ctp_mastercard".to_string(),
@@ -103,7 +90,17 @@ impl<F: Clone> UnifiedAuthenticationService<F> for ClickToPay {
             merchant_connector_account.get_mca_id(),
         )
         .await?;
-        let pre_auth_router_data: api::unified_authentication_service::UasPreAuthenticationRouterData = construct_uas_router_data("ctp_mastercard".to_string(), payment_method, payment_data.payment_attempt.merchant_id.clone(), None, pre_authentication_data, merchant_connector_account, Some(store_authentication_in_db.authentication_id))?;
+        let pre_auth_router_data: api::unified_authentication_service::UasPreAuthenticationRouterData = construct_uas_router_data(
+            "ctp_mastercard".to_string(),
+            payment_method,
+            payment_data.payment_attempt.merchant_id.clone(),
+            None,
+            pre_authentication_data,
+            merchant_connector_account,
+            Some(store_authentication_in_db.authentication_id.clone()),
+        )?;
+        payment_data.payment_attempt.authentication_id =
+            Some(store_authentication_in_db.authentication_id.clone());
 
         let response = do_auth_connector_call(
             state,
@@ -112,25 +109,87 @@ impl<F: Clone> UnifiedAuthenticationService<F> for ClickToPay {
         )
         .await?;
 
-        Ok(())
+        let upadated_authentication =
+            update_trackers(state, response.clone(), store_authentication_in_db).await?;
+
+        Ok(upadated_authentication)
     }
 
-    fn post_authentication(
+    async fn post_authentication(
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
-        business_profile: &domain::Profile,
+        _key_store: &domain::MerchantKeyStore,
+        _business_profile: &domain::Profile,
         payment_data: &mut PaymentData<F>,
         merchant_connector_account: &MerchantConnectorAccountType,
-    ) -> RouterResult<()> {
-        Ok(())
+        authentication: Option<Authentication>,
+    ) -> RouterResult<Authentication> {
+        let payment_method = payment_data.payment_attempt.payment_method.clone().unwrap();
+        let post_authentication_data = UasPostAuthenticationRequestData;
+        let authentication_id = payment_data
+            .payment_attempt
+            .authentication_id
+            .clone()
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing authentication id in payment attempt")?;
+
+        let post_auth_router_data: api::unified_authentication_service::UasPostAuthenticationRouterData = construct_uas_router_data(
+            "ctp_mastercard".to_string(),
+            payment_method,
+            payment_data.payment_attempt.merchant_id.clone(),
+            None,
+            post_authentication_data,
+            merchant_connector_account,
+            Some(authentication_id.clone()),
+        ).unwrap();
+
+        let response = do_auth_connector_call(
+            state,
+            "unified_authentication_service".to_string(),
+            post_auth_router_data,
+        )
+        .await?;
+
+        let network_token = if let Ok(UasAuthenticationResponseData::PostAuthentication {
+            authentication_details,
+        }) = response.response.clone()
+        {
+            Some(
+                hyperswitch_domain_models::payment_method_data::NetworkTokenData {
+                    token_number: authentication_details.token_details.payment_token,
+                    token_exp_month: authentication_details.token_details.token_expiration_month,
+                    token_exp_year: authentication_details.token_details.token_expiration_year,
+                    token_cryptogram: None,
+                    card_issuer: None,
+                    card_network: None,
+                    card_type: None,
+                    card_issuing_country: None,
+                    bank_code: None,
+                    nick_name: None,
+                },
+            )
+        } else {
+            None
+        };
+
+        payment_data.payment_method_data =
+            network_token.map(|token| domain::PaymentMethodData::NetworkToken(token));
+
+        let previous_authentication_state = authentication
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing authentication table details after pre_authentication")?;
+
+        let updated_authentication =
+            update_trackers(state, response.clone(), previous_authentication_state).await?;
+
+        Ok(updated_authentication)
     }
 
     fn confirmation(
-        state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
-        business_profile: &domain::Profile,
-        payment_data: &mut PaymentData<F>,
-        merchant_connector_account: &MerchantConnectorAccountType,
+        _state: &SessionState,
+        _key_store: &domain::MerchantKeyStore,
+        _business_profile: &domain::Profile,
+        _payment_data: &mut PaymentData<F>,
+        _merchant_connector_account: &MerchantConnectorAccountType,
     ) -> RouterResult<()> {
         Ok(())
     }
@@ -144,7 +203,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestData {
                 merchant_transaction_id: None,
                 correlation_id: None,
                 x_src_flow_id: None,
-            })
+            }),
         };
         let required_conversion = FloatMajorUnitForConnector;
 
@@ -317,4 +376,50 @@ pub async fn create_new_authentication(
                 authentication_id
             ),
         })
+}
+
+pub async fn update_trackers<F: Clone, Req>(
+    state: &SessionState,
+    router_data: RouterData<F, Req, UasAuthenticationResponseData>,
+    authentication: Authentication,
+) -> RouterResult<Authentication> {
+    let authentication_update = match router_data.response {
+        Ok(response) => match response {
+            UasAuthenticationResponseData::PreAuthentication {} => {
+                AuthenticationUpdate::AuthenticationStatusUpdate {
+                    trans_status: common_enums::TransactionStatus::InformationOnly,
+                    authentication_status: common_enums::AuthenticationStatus::Pending,
+                }
+            }
+            UasAuthenticationResponseData::PostAuthentication {
+                authentication_details,
+            } => AuthenticationUpdate::PostAuthenticationUpdate {
+                authentication_status: common_enums::AuthenticationStatus::Success,
+                trans_status: common_enums::TransactionStatus::Success,
+                authentication_value: authentication_details
+                    .dynamic_data_details
+                    .and_then(|data| data.dynamic_data_value),
+                eci: authentication_details.eci,
+            },
+        },
+        Err(error) => AuthenticationUpdate::ErrorUpdate {
+            connector_authentication_id: error.connector_transaction_id,
+            authentication_status: common_enums::AuthenticationStatus::Failed,
+            error_message: error
+                .reason
+                .map(|reason| format!("message: {}, reason: {}", error.message, reason))
+                .or(Some(error.message)),
+            error_code: Some(error.code),
+        },
+    };
+
+    state
+        .store
+        .update_authentication_by_merchant_id_authentication_id(
+            authentication,
+            authentication_update,
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while updating authentication for uas")
 }

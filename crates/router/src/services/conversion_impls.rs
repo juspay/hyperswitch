@@ -1,3 +1,4 @@
+use error_stack::ResultExt;
 #[cfg(feature = "frm")]
 use hyperswitch_domain_models::router_data_v2::flow_common_types::FrmFlowData;
 #[cfg(feature = "payouts")]
@@ -699,7 +700,13 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowD
     {
         let resource_common_data = Self {
             authenticate_by: old_router_data.connector.clone(),
-            source_authentication_id: todo!(),
+            source_authentication_id: old_router_data
+                .authentication_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "source_authentication_id",
+                })
+                .attach_printable("missing authentication id for uas")?,
         };
         Ok(RouterDataV2 {
             flow: std::marker::PhantomData,

@@ -38,6 +38,7 @@ use crate::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
         },
+        unified_authentication_service::{ClickToPay, UnifiedAuthenticationService},
         utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
@@ -1026,24 +1027,46 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         should_continue_confirm_transaction: &mut bool,
-        connector_call_type: &ConnectorCallType,
+        _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        // let unified_authentication_flow =
-        //     helpers::get_unified_authentication_service_operation_during_confirm(
-        //         state,
-        //         key_store,
-        //         business_profile,
-        //         payment_data,
-        //         connector_call_type,
-        //     )
-        //     .await?;
-        // match unified_authentication_flow {
-        //     helpers::UnifiedAuthenticationOperation::ClickToPay {pre_authentication_flow_details, post_authentication_flow_details} => {
+        let is_click_to_pay_enabled = true;
 
-        //     }
-        // }
+        if let Some(payment_method) = payment_data.payment_attempt.payment_method {
+            if payment_method == storage_enums::PaymentMethod::Card && is_click_to_pay_enabled {
+                let connector_mca = helpers::get_merchant_connector_account(
+                    state,
+                    &business_profile.merchant_id,
+                    None,
+                    key_store,
+                    business_profile.get_id(),
+                    "ctp_mastercard".to_string().as_str(),
+                    None,
+                )
+                .await?;
+
+                let pre_authentication = ClickToPay::pre_authentication(
+                    state,
+                    key_store,
+                    business_profile,
+                    payment_data,
+                    &connector_mca,
+                )
+                .await?;
+                ClickToPay::post_authentication(
+                    state,
+                    key_store,
+                    business_profile,
+                    payment_data,
+                    &connector_mca,
+                    Some(pre_authentication),
+                )
+                .await?;
+                *should_continue_confirm_transaction = true;
+            }
+        }
+
         Ok(())
     }
 

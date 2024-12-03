@@ -1,3 +1,5 @@
+use masking::Secret;
+
 #[derive(Clone, serde::Deserialize, Debug, serde::Serialize)]
 pub struct UasPreAuthenticationRequestData {
     pub service_details: Option<ServiceDetails>,
@@ -42,10 +44,10 @@ pub struct PostAuthenticationDetails {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct TokenDetails {
-    pub payment_token: String,
+    pub payment_token: cards::CardNumber,
     pub payment_account_reference: String,
-    pub token_expiration_month: String,
-    pub token_expiration_year: String,
+    pub token_expiration_month: Secret<String>,
+    pub token_expiration_year: Secret<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]

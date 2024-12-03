@@ -16,7 +16,7 @@ use common_utils::{
     pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState, ToEncryptable},
-        AmountConvertor, FloatMajorUnitForConnector, MinorUnit,
+        MinorUnit,
     },
 };
 use diesel_models::enums::{self};
@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
         payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
         PaymentIntent,
     },
-    router_data::{ConnectorAuthType, KlarnaSdkResponse},
+    router_data::KlarnaSdkResponse,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
