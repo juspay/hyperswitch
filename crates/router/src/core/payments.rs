@@ -4329,7 +4329,7 @@ pub fn if_not_create_change_operation<'a, Op, F>(
     status: storage_enums::IntentStatus,
     confirm: Option<bool>,
     current: &'a Op,
-) -> BoxedOperation<'_, F, api::PaymentsRequest, PaymentData<F>>
+) -> BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>
 where
     F: Send + Clone,
     Op: Operation<F, api::PaymentsRequest, Data = PaymentData<F>> + Send + Sync,
@@ -4353,7 +4353,7 @@ where
 pub fn is_confirm<'a, F: Clone + Send, R, Op>(
     operation: &'a Op,
     confirm: Option<bool>,
-) -> BoxedOperation<'_, F, R, PaymentData<F>>
+) -> BoxedOperation<'a, F, R, PaymentData<F>>
 where
     PaymentConfirm: Operation<F, R, Data = PaymentData<F>>,
     &'a PaymentConfirm: Operation<F, R, Data = PaymentData<F>>,
@@ -5061,7 +5061,7 @@ where
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid straight through algorithm format found in payment attempt")?
-            .unwrap_or_else(|| storage::PaymentRoutingInfo {
+            .unwrap_or(storage::PaymentRoutingInfo {
                 algorithm: None,
                 pre_routing_results: None,
             }),

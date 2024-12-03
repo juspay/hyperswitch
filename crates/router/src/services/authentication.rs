@@ -1323,7 +1323,6 @@ where
 #[derive(Debug)]
 pub struct EphemeralKeyAuth;
 
-// #[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
 where
@@ -2987,7 +2986,6 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
 }
 
-#[cfg(feature = "v1")]
 pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
@@ -3023,44 +3021,6 @@ where
     Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
 }
 
-#[cfg(feature = "v2")]
-pub fn check_client_secret_and_get_auth<T>(
-    headers: &HeaderMap,
-    payload: &impl ClientSecretFetch,
-) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
-    api::AuthFlow,
-)>
-where
-    T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-{
-    let api_key = get_api_key(headers)?;
-    if api_key.starts_with("pk_") {
-        payload
-            .get_client_secret()
-            .check_value_present("client_secret")
-            .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret",
-            })?;
-        return Ok((
-            Box::new(HeaderAuth(PublishableKeyAuth)),
-            api::AuthFlow::Client,
-        ));
-    }
-
-    if payload.get_client_secret().is_some() {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "client_secret is not a valid parameter".to_owned(),
-        }
-        .into());
-    }
-
-    Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
-}
-
-#[cfg(feature = "v1")]
 pub async fn get_ephemeral_or_other_auth<T>(
     headers: &HeaderMap,
     is_merchant_flow: bool,
@@ -3093,7 +3053,6 @@ where
     }
 }
 
-#[cfg(feature = "v1")]
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
@@ -3104,13 +3063,6 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     } else {
         Ok(Box::new(EphemeralKeyAuth))
     }
-}
-
-#[cfg(feature = "v2")]
-pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
-    headers: &HeaderMap,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
-    todo!()
 }
 
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {

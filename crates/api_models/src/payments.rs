@@ -2609,7 +2609,6 @@ pub enum AdditionalPaymentData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-
 pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
 }
@@ -2656,7 +2655,6 @@ pub enum BankRedirectData {
     Giropay {
         /// The billing details for bank redirection
         billing_details: Option<BankRedirectBilling>,
-        /// Bank account details for Giropay
 
         #[schema(value_type = Option<String>)]
         /// Bank account bic code
@@ -3834,7 +3832,6 @@ pub enum WalletResponseData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-
 pub struct KlarnaSdkPaymentMethodResponse {
     pub payment_type: Option<String>,
 }
@@ -4348,7 +4345,6 @@ pub struct ReceiverDetails {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
-
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -6507,7 +6503,7 @@ mod payment_id_type {
     struct PaymentIdVisitor;
     struct OptionalPaymentIdVisitor;
 
-    impl<'de> Visitor<'de> for PaymentIdVisitor {
+    impl Visitor<'_> for PaymentIdVisitor {
         type Value = PaymentIdType;
 
         fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -6585,7 +6581,7 @@ mod payment_id_type {
     struct PaymentIdVisitor;
     struct OptionalPaymentIdVisitor;
 
-    impl<'de> Visitor<'de> for PaymentIdVisitor {
+    impl Visitor<'_> for PaymentIdVisitor {
         type Value = PaymentIdType;
 
         fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -6659,7 +6655,7 @@ pub mod amount {
 
     // This is defined to provide guarded deserialization of amount
     // which itself handles zero and non-zero values internally
-    impl<'de> de::Visitor<'de> for AmountVisitor {
+    impl de::Visitor<'_> for AmountVisitor {
         type Value = Amount;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -6859,7 +6855,6 @@ pub struct PaymentLinkStatusDetails {
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-
 pub struct PaymentLinkListConstraints {
     /// limit on the number of objects to return
     pub limit: Option<i64>,

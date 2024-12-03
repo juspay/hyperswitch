@@ -1,6 +1,4 @@
-//!
 //! Types.
-//!
 
 use serde::Deserialize;
 use strum::{Display, EnumString};
@@ -9,12 +7,9 @@ pub use tracing::{
     Level, Value,
 };
 
-///
 /// Category and tag of log event.
 ///
 /// Don't hesitate to add your variant if it is missing here.
-///
-
 #[derive(Debug, Default, Deserialize, Clone, Display, EnumString)]
 pub enum Tag {
     /// General.
@@ -518,9 +513,7 @@ pub enum Flow {
     PaymentStartRedirection,
 }
 
-///
 /// Trait for providing generic behaviour to flow metric
-///
 pub trait FlowMetric: ToString + std::fmt::Debug + Clone {}
 impl FlowMetric for Flow {}
 
