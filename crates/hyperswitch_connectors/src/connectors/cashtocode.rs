@@ -30,7 +30,7 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{PaymentsAuthorizeType, Response},
-    webhooks,
+    webhooks::{self, IncomingWebhookFlowError},
 };
 use masking::{Mask, PeekInterface, Secret};
 use transformers as cashtocode;
@@ -420,6 +420,7 @@ impl webhooks::IncomingWebhook for Cashtocode {
     fn get_webhook_api_response(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         let status = "EXECUTED".to_string();
         let obj: transformers::CashtocodePaymentsSyncResponse = request

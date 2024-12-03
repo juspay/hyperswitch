@@ -128,7 +128,7 @@ impl<'a> TryFrom<CacheRedact<'a>> for RedisValue {
     }
 }
 
-impl<'a> TryFrom<RedisValue> for CacheRedact<'a> {
+impl TryFrom<RedisValue> for CacheRedact<'_> {
     type Error = Report<errors::ValidationError>;
 
     fn try_from(v: RedisValue) -> Result<Self, Self::Error> {

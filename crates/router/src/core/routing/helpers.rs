@@ -360,7 +360,7 @@ impl MerchantConnectorAccounts {
 }
 
 #[cfg(feature = "v2")]
-impl<'h> RoutingAlgorithmHelpers<'h> {
+impl RoutingAlgorithmHelpers<'_> {
     fn connector_choice(
         &self,
         choice: &routing_types::RoutableConnectorChoice,

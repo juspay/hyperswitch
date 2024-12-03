@@ -8,9 +8,9 @@ const globalState = new State({
   connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
 });
 
-const connectorName = normalise(globalState.get("connectorId"));
+const connectorName = normalize(globalState.get("connectorId"));
 
-function normalise(input) {
+function normalize(input) {
   const exceptions = {
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",
@@ -18,7 +18,7 @@ function normalise(input) {
     paypal: "Paypal",
     wellsfargo: "Wellsfargo",
     fiuu: "Fiuu",
-    noon: "Noon"
+    noon: "Noon",
     // Add more known exceptions here
   };
 
@@ -44,7 +44,7 @@ function normalise(input) {
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
 };
@@ -52,7 +52,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "10",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "morino",
   card_cvc: "999",
 };
@@ -143,6 +143,7 @@ export const getCustomExchange = (overrides) => {
 
   return {
     ...defaultExchange,
+    ...(overrides.Configs ? { Configs: overrides.Configs } : {}),
     Request: {
       ...defaultExchange.Request,
       ...(overrides.Request || {}),
@@ -1075,7 +1076,7 @@ export const connectorDetails = {
           error: {
             error_type: "invalid_request",
             message: "Json deserialize error: invalid card number length",
-            code: "IR_06"
+            code: "IR_06",
           },
         },
       },
@@ -1182,8 +1183,9 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
-            code: "IR_06"
+            message:
+              "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
+            code: "IR_06",
           },
         },
       },
@@ -1210,8 +1212,9 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
-            code: "IR_06"
+            message:
+              "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
+            code: "IR_06",
           },
         },
       },
@@ -1237,8 +1240,9 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`, `mobile_payment`",
-            code: "IR_06"
+            message:
+              "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`, `mobile_payment`",
+            code: "IR_06",
           },
         },
       },
