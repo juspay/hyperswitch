@@ -755,7 +755,7 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = Option<Object>, example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    ///  A timestamp (ISO 8601 code) that determines when the customer was created
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
@@ -801,7 +801,7 @@ pub struct PaymentMethodResponse {
     #[schema(example = true)]
     pub recurring_enabled: bool,
 
-    ///  A timestamp (ISO 8601 code) that determines when the customer was created
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
     #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
@@ -1802,10 +1802,10 @@ pub struct CustomerPaymentMethod {
     #[schema(example = json!({"mask": "0000"}))]
     pub bank: Option<MaskedBankDetails>,
 
-    ///  A timestamp (ISO 8601 code) that determines when the customer was created
-    #[schema(value_type = Option<PrimitiveDateTime>,example = "2023-01-18T11:04:09.922Z")]
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created: Option<time::PrimitiveDateTime>,
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
+    #[schema(value_type = PrimitiveDateTime, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created: time::PrimitiveDateTime,
 
     /// Surcharge details for this saved card
     pub surcharge_details: Option<SurchargeDetailsResponse>,
@@ -1890,7 +1890,7 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    ///  A timestamp (ISO 8601 code) that determines when the customer was created
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
     #[schema(value_type = Option<PrimitiveDateTime>,example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,

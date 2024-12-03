@@ -51,9 +51,9 @@ impl EuclidParsable for DummyOutput {
         )(input)
     }
 }
-pub fn skip_ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> ParseResult<&str, O>
+pub fn skip_ws<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> ParseResult<&'a str, O>
 where
-    F: FnMut(&'a str) -> ParseResult<&str, O> + 'a,
+    F: FnMut(&'a str) -> ParseResult<&'a str, O> + 'a,
 {
     sequence::preceded(pchar::multispace0, inner)
 }
