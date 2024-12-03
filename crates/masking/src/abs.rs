@@ -1,6 +1,4 @@
-//!
 //! Abstract data types.
-//!
 
 use crate::Secret;
 

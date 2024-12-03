@@ -6,7 +6,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::enums::{self as storage_enums};
+use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
 use crate::schema::payment_attempt;
 #[cfg(feature = "v2")]
@@ -765,7 +765,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub browser_info: Option<serde_json::Value>,
     // payment_token: Option<String>,
     pub error_code: Option<String>,
-    // connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<pii::SecretSerdeValue>,
     // payment_method_data: Option<serde_json::Value>,
     // payment_experience: Option<storage_enums::PaymentExperience>,
     // preprocessing_step_id: Option<String>,

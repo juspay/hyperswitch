@@ -58,10 +58,6 @@ where
             .switch()?;
 
         query_builder
-            .add_select_column("(attempt_count == 1) as first_attempt".to_string())
-            .switch()?;
-
-        query_builder
             .add_select_column(Aggregate::Min {
                 field: "created_at",
                 alias: Some("start_bucket"),
@@ -89,11 +85,6 @@ where
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
-
-        query_builder
-            .add_group_by_clause("first_attempt")
-            .attach_printable("Error grouping by first_attempt")
-            .switch()?;
 
         if let Some(granularity) = granularity.as_ref() {
             granularity

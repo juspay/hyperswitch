@@ -2,7 +2,6 @@ use diesel::{Identifiable, Insertable, Queryable, Selectable};
 
 use crate::schema::reverse_lookup;
 
-///
 /// This reverse lookup table basically looks up id's and get result_id that you want. This is
 /// useful for KV where you can't lookup without key
 #[derive(
