@@ -2680,6 +2680,8 @@ pub struct PaymentLinkConfigRequest {
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
     /// Configurations for image
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    /// Custom layout for details section
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2711,7 +2713,7 @@ pub struct TransactionDetailsUiConfiguration {
 pub struct PaymentLinkBackgroundImageConfig {
     /// URL of the image
     #[schema(value_type = String, example = "https://hyperswitch.io/favicon.ico")]
-    pub url: url::Url,
+    pub url: common_utils::types::Url,
     /// Position of the image in the UI
     #[schema(value_type = Option<ElementPosition>, example = "top-left")]
     pub position: Option<api_enums::ElementPosition>,
@@ -2744,6 +2746,8 @@ pub struct PaymentLinkConfig {
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
     /// Configurations for image
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    /// Custom layout for details section
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

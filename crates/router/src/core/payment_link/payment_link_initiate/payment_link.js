@@ -570,7 +570,6 @@ function renderPaymentDetails(paymentDetails) {
   // Create merchant logo's node
   var merchantLogoNode = document.createElement("img");
   merchantLogoNode.src = paymentDetails.merchant_logo;
-  merchantLogoNode.setAttribute("width", "48"); // Set width to 100 pixels
   merchantLogoNode.setAttribute("height", "48");
 
   // Create expiry node

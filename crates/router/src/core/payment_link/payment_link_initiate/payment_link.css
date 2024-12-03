@@ -144,7 +144,7 @@ body {
 #hyper-checkout-merchant-image,
 #hyper-checkout-cart-image {
   height: 64px;
-  width: 64px;
+  padding: 0 10px;
   border-radius: 4px;
   display: flex;
   align-self: flex-start;
@@ -153,8 +153,7 @@ body {
 }
 
 #hyper-checkout-merchant-image > img {
-  height: 48px;
-  width: 48px;
+  height: 40px;
 }
 
 #hyper-checkout-cart-image {

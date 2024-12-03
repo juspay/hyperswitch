@@ -130,6 +130,7 @@ pub async fn form_payment_link_data(
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
                 transaction_details: None,
                 background_image: None,
+                details_layout: None,
             }
         };
 
@@ -648,6 +649,9 @@ pub fn get_payment_link_config_based_on_priority(
         hide_card_nickname_field,
         show_card_form_by_default,
         allowed_domains,
+        details_layout: payment_create_link_config
+        .as_ref()
+        .and_then(|payment_link_config| payment_link_config.theme_config.details_layout.clone()),
         transaction_details: payment_create_link_config
             .as_ref()
             .and_then(|payment_link_config| payment_link_config.theme_config.transaction_details.clone()),
@@ -758,6 +762,7 @@ pub async fn get_payment_link_status(
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
             transaction_details: None,
             background_image: None,
+            details_layout: None,
         }
     };
 

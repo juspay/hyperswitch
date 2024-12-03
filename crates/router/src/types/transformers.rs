@@ -1946,6 +1946,10 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             enabled_saved_payment_method: item.enabled_saved_payment_method,
             hide_card_nickname_field: item.hide_card_nickname_field,
             show_card_form_by_default: item.show_card_form_by_default,
+            details_layout: item.details_layout,
+            background_image: item
+                .background_image
+                .map(|background_image| background_image.foreign_into()),
         }
     }
 }
@@ -1964,7 +1968,38 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkConfigRequest>
             hide_card_nickname_field: item.hide_card_nickname_field,
             show_card_form_by_default: item.show_card_form_by_default,
             transaction_details: None,
-            background_image: item.background_image,
+            details_layout: item.details_layout,
+            background_image: item
+                .background_image
+                .map(|background_image| background_image.foreign_into()),
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::PaymentLinkBackgroundImageConfig>
+    for api_models::admin::PaymentLinkBackgroundImageConfig
+{
+    fn foreign_from(
+        item: diesel_models::business_profile::PaymentLinkBackgroundImageConfig,
+    ) -> Self {
+        Self {
+            url: item.url,
+            position: item.position,
+            size: item.size,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::PaymentLinkBackgroundImageConfig>
+    for diesel_models::business_profile::PaymentLinkBackgroundImageConfig
+{
+    fn foreign_from(
+        item: api_models::admin::PaymentLinkBackgroundImageConfig,
+    ) -> Self {
+        Self {
+            url: item.url,
+            position: item.position,
+            size: item.size,
         }
     }
 }
