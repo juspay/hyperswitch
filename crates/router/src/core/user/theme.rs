@@ -189,8 +189,10 @@ pub async fn update_theme(
     )
     .await?;
 
-    let parsed_data =
-        serde_json::from_slice(&file).change_context(UserErrors::InternalServerError)?;
+    let parsed_data = file
+        .to_bytes()
+        .parse_struct("ThemeData")
+        .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(theme_api::GetThemeResponse {
         theme_id: db_theme.theme_id,

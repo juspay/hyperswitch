@@ -54,7 +54,7 @@ pub struct ThemeData {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Settings {
+struct Settings {
     colors: Colors,
     typography: Option<Typography>,
     buttons: Buttons,
@@ -64,14 +64,14 @@ pub struct Settings {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Colors {
+struct Colors {
     primary: String,
     sidebar: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Typography {
+struct Typography {
     font_family: Option<String>,
     font_size: Option<String>,
     heading_font_size: Option<String>,
@@ -82,14 +82,14 @@ pub struct Typography {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Buttons {
+struct Buttons {
     primary: PrimaryButton,
     secondary: Option<SecondaryButton>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct PrimaryButton {
+struct PrimaryButton {
     background_color: Option<String>,
     text_color: Option<String>,
     hover_background_color: String,
@@ -97,7 +97,7 @@ pub struct PrimaryButton {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct SecondaryButton {
+struct SecondaryButton {
     background_color: Option<String>,
     text_color: Option<String>,
     hover_background_color: Option<String>,
@@ -105,21 +105,21 @@ pub struct SecondaryButton {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Borders {
+struct Borders {
     default_radius: Option<String>,
     border_color: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Spacing {
+struct Spacing {
     padding: Option<String>,
     margin: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Urls {
+struct Urls {
     favicon_url: Option<String>,
     logo_url: Option<String>,
 }
