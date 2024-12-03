@@ -301,3 +301,6 @@ api_key="API Key"
 
 [nomupay]
 api_key="API Key"
+
+[unifiedauthenticationservice]
+api_key="API Key"

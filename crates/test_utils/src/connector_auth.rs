@@ -89,6 +89,7 @@ pub struct ConnectorAuthentication {
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
     pub tsys: Option<SignatureKey>,
+    pub unifiedauthenticationservice: Option<HeaderKey>,
     pub volt: Option<HeaderKey>,
     pub wellsfargo: Option<HeaderKey>,
     // pub wellsfargopayout: Option<HeaderKey>,

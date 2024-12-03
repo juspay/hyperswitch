@@ -165,6 +165,7 @@ cards = [
     "thunes",
     "trustpay",
     "tsys",
+    "unifiedauthenticationservice",
     "volt",
     "wellsfargo",
     "wellsfargopayout",
@@ -287,6 +288,7 @@ worldpay.base_url = "https://try.access.worldpay.com/"
 xendit.base_url = "https://api.xendit.co"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
+unifiedauthenticationservice.base_url = "http://localhost:8000"
 volt.base_url = "https://api.sandbox.volt.io/"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"

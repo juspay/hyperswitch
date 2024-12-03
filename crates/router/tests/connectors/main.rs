@@ -82,6 +82,7 @@ mod stripe;
 mod taxjar;
 mod trustpay;
 mod tsys;
+mod unifiedauthenticationservice;
 mod utils;
 mod volt;
 mod wellsfargo;
