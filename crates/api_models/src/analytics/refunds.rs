@@ -30,7 +30,7 @@ pub enum RefundType {
     RetryRefund,
 }
 
-use super::{NameDescription, TimeRange};
+use super::{ForexMetric, NameDescription, TimeRange};
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct RefundFilters {
     #[serde(default)]
@@ -92,6 +92,14 @@ pub enum RefundMetrics {
     SessionizedRefundCount,
     SessionizedRefundSuccessCount,
     SessionizedRefundProcessedAmount,
+}
+impl ForexMetric for RefundMetrics {
+    fn is_forex_metric(&self) -> bool {
+        matches!(
+            self,
+            Self::RefundProcessedAmount | Self::SessionizedRefundProcessedAmount
+        )
+    }
 }
 
 pub mod metric_behaviour {

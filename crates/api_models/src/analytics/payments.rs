@@ -5,7 +5,7 @@ use std::{
 
 use common_utils::id_type;
 
-use super::{NameDescription, TimeRange};
+use super::{ForexMetric, NameDescription, TimeRange};
 use crate::enums::{
     AttemptStatus, AuthenticationType, CardNetwork, Connector, Currency, PaymentMethod,
     PaymentMethodType,
@@ -117,6 +117,17 @@ pub enum PaymentMetrics {
     FailureReasons,
 }
 
+impl ForexMetric for PaymentMetrics {
+    fn is_forex_metric(&self) -> bool {
+        matches!(
+            self,
+            Self::PaymentProcessedAmount
+                | Self::AvgTicketSize
+                | Self::SessionizedPaymentProcessedAmount
+                | Self::SessionizedAvgTicketSize
+        )
+    }
+}
 #[derive(Debug, Default, serde::Serialize)]
 pub struct ErrorResult {
     pub reason: String,

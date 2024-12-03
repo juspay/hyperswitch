@@ -62,6 +62,9 @@ pub enum Granularity {
     #[serde(rename = "G_ONEDAY")]
     OneDay,
 }
+pub trait ForexMetric {
+    fn is_forex_metric(&self) -> bool;
+}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
