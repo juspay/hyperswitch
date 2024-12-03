@@ -995,7 +995,45 @@ pub fn validate_card_data(
         )?;
 
         validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
+        validate_card_holder_name(&card.card_holder_name)?;
     }
+    Ok(())
+}
+
+pub fn validate_billing_name(
+    billing_address: Option<&api_models::payments::AddressDetails>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let optional_first_name = billing_address.and_then(|address| address.first_name.clone());
+    let optional_last_name = billing_address.and_then(|address| address.last_name.clone());
+
+    if let Some(first_name) = optional_first_name {
+        let first_name = first_name.peek().to_string();
+        if first_name.len() > 256 {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid First Name Length".to_string()
+            }))?
+        }
+        ::cards::CardHolderName::try_from(first_name).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid First Name".to_string(),
+            },
+        )?;
+    }
+
+    if let Some(last_name) = optional_last_name {
+        let last_name = last_name.peek().to_string();
+        if last_name.len() > 256 {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Last Name Length".to_string()
+            }))?
+        }
+        ::cards::CardHolderName::try_from(last_name).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Last Name".to_string(),
+            },
+        )?;
+    }
+
     Ok(())
 }
 
@@ -1045,6 +1083,26 @@ pub fn validate_card_expiry(
         }))?
     }
 
+    Ok(())
+}
+
+pub fn validate_card_holder_name(
+    optional_card_holder_name: &Option<masking::Secret<String>>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    if let Some(masked_card_holder_name) = optional_card_holder_name {
+        let card_holder_name = masked_card_holder_name.peek().to_string();
+        if card_holder_name.len() > 256 {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Card Holder Name Length".to_string()
+            }))?
+        }
+        // validate card holder name
+        ::cards::CardHolderName::try_from(card_holder_name).change_context(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid Card Holder Name".to_string(),
+            },
+        )?;
+    }
     Ok(())
 }
 

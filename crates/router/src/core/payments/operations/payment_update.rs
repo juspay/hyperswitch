@@ -100,6 +100,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .as_ref()
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
+        // validate billing name for card holder name
+        helpers::validate_billing_name(
+            request
+                .billing
+                .as_ref()
+                .and_then(|billing| billing.address.as_ref()),
+        )?;
 
         helpers::validate_payment_status_against_allowed_statuses(
             &payment_intent.status,

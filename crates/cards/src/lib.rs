@@ -68,6 +68,48 @@ impl<'de> Deserialize<'de> for CardExpirationMonth {
 }
 
 #[derive(Serialize)]
+pub struct CardHolderName(StrongSecret<String>);
+
+impl TryFrom<String> for CardHolderName {
+    type Error = error_stack::Report<errors::ValidationError>;
+    fn try_from(card_holder_name: String) -> Result<Self, Self::Error> {
+        for char in card_holder_name.chars() {
+            validate_character_in_card_holder_name(char)?;
+        }
+        Ok(Self(StrongSecret::new(card_holder_name)))
+    }
+}
+
+fn validate_character_in_card_holder_name(
+    charcter: char,
+) -> Result<(), error_stack::Report<errors::ValidationError>> {
+    if charcter.is_alphabetic()
+        || charcter == ' '
+        || charcter == '.'
+        || charcter == '-'
+        || charcter == '\''
+        || charcter == '~'
+        || charcter == '`'
+    {
+        Ok(())
+    } else {
+        Err(report!(errors::ValidationError::InvalidValue {
+            message: "invalid charcter in card holder name".to_string()
+        }))
+    }
+}
+
+impl<'de> Deserialize<'de> for CardHolderName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let card_holder_name = String::deserialize(deserializer)?;
+        card_holder_name.try_into().map_err(de::Error::custom)
+    }
+}
+
+#[derive(Serialize)]
 pub struct CardExpirationYear(StrongSecret<u16>);
 
 impl CardExpirationYear {
