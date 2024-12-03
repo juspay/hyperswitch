@@ -509,8 +509,8 @@ pub enum Flow {
     PaymentsPostSessionTokens,
     /// Payments start redirection flow
     PaymentStartRedirection,
-    /// Volume split for dynamic routing
-    DynamicRoutingVolumeSplit,
+    /// Volume split on the routing type
+    VolumeSplitOnRoutingType,
 }
 
 /// Trait for providing generic behaviour to flow metric

@@ -1138,7 +1138,7 @@ pub async fn set_dynamic_routing_volume_split(
     query: web::Query<api_models::routing::DynamicRoutingVolumeSplitQuery>,
     path: web::Path<routing_types::ToggleDynamicRoutingPath>,
 ) -> impl Responder {
-    let flow = Flow::DynamicRoutingVolumeSplit;
+    let flow = Flow::VolumeSplitOnRoutingType;
     let routing_info = api_models::routing::RoutingVolumeSplit {
         routing_type: api_models::routing::RoutingType::Dynamic,
         split: query.into_inner().split,

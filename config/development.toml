@@ -792,4 +792,5 @@ connector_list = "cybersource"
 
 [grpc_client.dynamic_routing_client] 
 host = "localhost" 
-port = 7000       
+port = 7000
+service = "dynamo"

@@ -555,117 +555,6 @@ impl DynamicRoutingAlgoAccessor for EliminationRoutingAlgorithm {
     }
 }
 
-impl EliminationRoutingAlgorithm {
-    pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
-            common_utils::id_type::RoutingId,
-        >,
-    ) -> Self {
-        Self {
-            algorithm_id_with_timestamp,
-            enabled_feature: DynamicRoutingFeatures::None,
-        }
-    }
-}
-
-impl SuccessBasedAlgorithm {
-    pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
-            common_utils::id_type::RoutingId,
-        >,
-    ) -> Self {
-        Self {
-            algorithm_id_with_timestamp,
-            enabled_feature: DynamicRoutingFeatures::None,
-        }
-    }
-}
-
-impl DynamicRoutingAlgorithmRef {
-    pub fn update(&mut self, new: Self) {
-        if let Some(elimination_routing_algorithm) = new.elimination_routing_algorithm {
-            self.elimination_routing_algorithm = Some(elimination_routing_algorithm)
-        }
-        if let Some(success_based_algorithm) = new.success_based_algorithm {
-            self.success_based_algorithm = Some(success_based_algorithm)
-        }
-    }
-
-    pub fn update_specific_ref(
-        &mut self,
-        algo_type: DynamicRoutingType,
-        feature_to_enable: DynamicRoutingFeatures,
-    ) {
-        match algo_type {
-            DynamicRoutingType::SuccessRateBasedRouting => {
-                self.success_based_algorithm
-                    .as_mut()
-                    .map(|algo| algo.enabled_feature = feature_to_enable);
-            }
-            DynamicRoutingType::EliminationRouting => {
-                self.elimination_routing_algorithm
-                    .as_mut()
-                    .map(|algo| algo.enabled_feature = feature_to_enable);
-            }
-        }
-    }
-}
-
-pub trait DynamicRoutingAlgoAccessor {
-    fn get_algorithm_id_with_timestamp(
-        self,
-    ) -> DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>;
-    fn get_enabled_features(&mut self) -> &mut DynamicRoutingFeatures;
-}
-
-impl DynamicRoutingAlgoAccessor for SuccessBasedAlgorithm {
-    fn get_algorithm_id_with_timestamp(
-        self,
-    ) -> DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId> {
-        self.algorithm_id_with_timestamp
-    }
-    fn get_enabled_features(&mut self) -> &mut DynamicRoutingFeatures {
-        &mut self.enabled_feature
-    }
-}
-
-impl DynamicRoutingAlgoAccessor for EliminationRoutingAlgorithm {
-    fn get_algorithm_id_with_timestamp(
-        self,
-    ) -> DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId> {
-        self.algorithm_id_with_timestamp
-    }
-    fn get_enabled_features(&mut self) -> &mut DynamicRoutingFeatures {
-        &mut self.enabled_feature
-    }
-}
-
-impl EliminationRoutingAlgorithm {
-    pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
-            common_utils::id_type::RoutingId,
-        >,
-    ) -> Self {
-        Self {
-            algorithm_id_with_timestamp,
-            enabled_feature: DynamicRoutingFeatures::None,
-        }
-    }
-}
-
-impl SuccessBasedAlgorithm {
-    pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
-            common_utils::id_type::RoutingId,
-        >,
-    ) -> Self {
-        Self {
-            algorithm_id_with_timestamp,
-            enabled_feature: DynamicRoutingFeatures::None,
-        }
-    }
-}
-
 impl DynamicRoutingAlgorithmRef {
     pub fn update(&mut self, new: Self) {
         if let Some(elimination_routing_algorithm) = new.elimination_routing_algorithm {
@@ -697,6 +586,32 @@ impl DynamicRoutingAlgorithmRef {
 
     pub fn update_volume_split(&mut self, volume: Option<u8>) {
         self.dynamic_routing_volume_split = volume
+    }
+}
+
+impl EliminationRoutingAlgorithm {
+    pub fn new(
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
+            common_utils::id_type::RoutingId,
+        >,
+    ) -> Self {
+        Self {
+            algorithm_id_with_timestamp,
+            enabled_feature: DynamicRoutingFeatures::None,
+        }
+    }
+}
+
+impl SuccessBasedAlgorithm {
+    pub fn new(
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
+            common_utils::id_type::RoutingId,
+        >,
+    ) -> Self {
+        Self {
+            algorithm_id_with_timestamp,
+            enabled_feature: DynamicRoutingFeatures::None,
+        }
     }
 }
 
