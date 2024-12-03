@@ -20,7 +20,6 @@ CREATE TABLE IF NOT EXISTS dynamic_routing_stats (
     payment_status VARCHAR(255),
     conclusive_classification "SuccessBasedRoutingConclusiveState",
     created_at TIMESTAMP NOT NULL,
-    modified_at TIMESTAMP NOT NULL,
     PRIMARY KEY(payment_id)
 );
 

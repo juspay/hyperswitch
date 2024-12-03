@@ -417,7 +417,6 @@ diesel::table! {
         payment_status -> Nullable<Varchar>,
         conclusive_classification -> Nullable<SuccessBasedRoutingConclusiveState>,
         created_at -> Timestamp,
-        modified_at -> Timestamp,
     }
 }
 

@@ -754,21 +754,24 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             payment_attempt.payment_id.get_string_repr().to_string(),
             payment_attempt.merchant_id.get_string_repr().to_string(),
             payment_attempt.profile_id.get_string_repr().to_string(),
-            first_success_based_connector.map(|connector| connector.to_string()),
+            Some(first_success_based_connector.to_string()),
             Some(payment_connector.to_string()),
-            payment_attempt.currency,
-            payment_attempt.payment_method,
-            payment_attempt.capture_method,
-            payment_attempt.authentication_type,
+            Some(payment_attempt
+                .currency
+                .map_or_else(|| "None".to_string(), |currency| currency.to_string())),
+            Some(payment_attempt.payment_method.map_or_else(
+                || "None".to_string(),
+                |payment_method| payment_method.to_string())),
+            Some(payment_attempt.capture_method.map_or_else(
+                || "None".to_string(),
+                |capture_method| capture_method.to_string())),
+            Some(payment_attempt.authentication_type.map_or_else(
+                || "None".to_string(),
+                |authentication_type| authentication_type.to_string())),
             Some(payment_attempt.status.to_string()),
             Some(outcome),
             common_utils::date_time::now(),
         );
-
-        state
-            .store
-            .insert_dynamic_routing_stat_entry(dynamic_routing_stats)
-            .await?;
 
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
             &metrics::CONTEXT,
@@ -830,6 +833,15 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             ]),
         );
         logger::debug!("successfully pushed success_based_routing metrics");
+
+        state
+            .store
+            .insert_dynamic_routing_stat_entry(dynamic_routing_stats)
+            .await.map_err(|e| {
+                logger::error!(dynamic_routing_db_metrics_error=?e);
+                errors::ApiErrorResponse::InternalServerError
+            })
+        .attach_printable("Unable to push dynamic routing stats to db")?;
 
         client
             .update_success_rate(

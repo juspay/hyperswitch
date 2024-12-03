@@ -1,4 +1,4 @@
-use diesel::{Identifiable, Insertable, Queryable, Selectable};
+use diesel::{Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::dynamic_routing_stats;
