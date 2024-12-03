@@ -3,7 +3,7 @@ use std::sync::Arc;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
-    id_type, pii,
+    id_type,
     types::{keymanager::KeyManagerState, theme::ThemeLineage},
 };
 use diesel_models::{
@@ -2983,7 +2983,7 @@ impl UserInterface for KafkaStore {
 
     async fn find_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
         self.diesel_store.find_user_by_email(user_email).await
     }
@@ -3007,7 +3007,7 @@ impl UserInterface for KafkaStore {
 
     async fn update_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         self.diesel_store
