@@ -42,6 +42,7 @@ pub struct DynamicRoutingStats {
 }
 
 impl DynamicRoutingStatsNew {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         tenant_id: String,
         payment_id: String,
