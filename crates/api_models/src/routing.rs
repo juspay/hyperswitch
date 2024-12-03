@@ -680,3 +680,43 @@ impl CurrentBlockThreshold {
         }
     }
 }
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct ContractBasedRoutingConfig {
+    pub params: Option<Vec<SuccessBasedRoutingConfigParams>>,
+    pub config: Option<ContractBasedRoutingConfigBody>,
+    pub label_info: Option<Vec<LabelInformation>>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct ContractBasedRoutingConfigBody {
+    pub constants: Option<Vec<f64>>,
+    pub time_scale: Option<ContractBasedTimeScale>,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub struct LabelInformation {
+    pub label: String,
+    pub target_count: u64,
+    pub target_time: u64,
+    pub current_count: u64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+pub enum ContractBasedTimeScale {
+    Day,
+    Month,
+}
+
+impl Default for ContractBasedRoutingConfig {
+    fn default() -> Self {
+        Self {
+            params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod]),
+            config: Some(ContractBasedRoutingConfigBody {
+                constants: Some(vec![0.7, 0.35]),
+                time_scale: Some(ContractBasedTimeScale::Month),
+            }),
+            label_info: None,
+        }
+    }
+}

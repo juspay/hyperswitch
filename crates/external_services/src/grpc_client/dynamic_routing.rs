@@ -1,4 +1,8 @@
+pub mod contract_routing;
+
 use std::fmt::Debug;
+
+pub use contract_routing::ContractScoreCalculatorClient;
 
 use api_models::routing::{
     CurrentBlockThreshold, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
@@ -41,6 +45,10 @@ pub enum DynamicRoutingError {
     /// Error from Dynamic Routing Server
     #[error("Error from Dynamic Routing Server : {0}")]
     SuccessRateBasedRoutingFailure(String),
+
+    /// Error from Dynamic Routing Server while performing contract based routing
+    #[error("Error from Dynamic Routing Server : {0}")]
+    ContractBasedRoutingFailure(String),
 }
 
 /// Type that consists of all the services provided by the client
@@ -48,6 +56,8 @@ pub enum DynamicRoutingError {
 pub struct RoutingStrategy {
     /// success rate service for Dynamic Routing
     pub success_rate_client: Option<SuccessRateCalculatorClient<Client>>,
+    /// success rate service for Dynamic Routing
+    pub contract_based_client: Option<ContractScoreCalculatorClient<Client>>,
 }
 
 /// Contains the Dynamic Routing Client Config
@@ -74,16 +84,23 @@ impl DynamicRoutingClientConfig {
         self,
         client: Client,
     ) -> Result<RoutingStrategy, Box<dyn std::error::Error>> {
-        let success_rate_client = match self {
+        let (success_rate_client, contract_based_client) = match self {
             Self::Enabled { host, port, .. } => {
                 let uri = format!("http://{}:{}", host, port).parse::<tonic::transport::Uri>()?;
                 logger::info!("Connection established with dynamic routing gRPC Server");
-                Some(SuccessRateCalculatorClient::with_origin(client, uri))
+                (
+                    Some(SuccessRateCalculatorClient::with_origin(
+                        client.clone(),
+                        uri.clone(),
+                    )),
+                    Some(ContractScoreCalculatorClient::with_origin(client, uri)),
+                )
             }
-            Self::Disabled => None,
+            Self::Disabled => (None, None),
         };
         Ok(RoutingStrategy {
             success_rate_client,
+            contract_based_client,
         })
     }
 }
