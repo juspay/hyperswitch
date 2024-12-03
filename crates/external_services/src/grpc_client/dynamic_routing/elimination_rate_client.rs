@@ -103,7 +103,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
             .collect::<Vec<_>>();
 
         let request = tonic::Request::new(UpdateEliminationBucketRequest {
-            id,
+            id
             params,
             labels_with_bucket_name,
             config,
