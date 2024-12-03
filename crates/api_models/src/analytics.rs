@@ -277,7 +277,6 @@ pub struct PaymentIntentFilterValue {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct GetRefundFilterRequest {
     pub time_range: TimeRange,
     #[serde(default)]
@@ -292,7 +291,6 @@ pub struct RefundFiltersResponse {
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-
 pub struct RefundFilterValue {
     pub dimension: RefundDimensions,
     pub values: Vec<String>,
@@ -435,7 +433,6 @@ pub struct DisputeFiltersResponse {
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-
 pub struct DisputeFilterValue {
     pub dimension: DisputeDimensions,
     pub values: Vec<String>,
