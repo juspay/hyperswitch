@@ -6,7 +6,7 @@ let globalState;
 
 // TODO: Add test for Bank Transfer - ACH
 describe.skip("[Payout] [Bank Transfer - ACH]", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -14,7 +14,7 @@ describe.skip("[Payout] [Bank Transfer - ACH]", () => {
 
       // Check if the connector supports card payouts (based on the connector configuration in creds)
       if (!globalState.get("payoutsExecution")) {
-        should_continue = false;
+        shouldContinue = false;
       }
     });
   });
@@ -24,7 +24,7 @@ describe.skip("[Payout] [Bank Transfer - ACH]", () => {
   });
 
   beforeEach(function () {
-    if (!should_continue) {
+    if (!shouldContinue) {
       this.skip();
     }
   });
@@ -32,7 +32,7 @@ describe.skip("[Payout] [Bank Transfer - ACH]", () => {
 
 // TODO: Add test for Bank Transfer - BACS
 describe.skip("[Payout] [Bank Transfer - BACS]", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -40,7 +40,7 @@ describe.skip("[Payout] [Bank Transfer - BACS]", () => {
 
       // Check if the connector supports card payouts (based on the connector configuration in creds)
       if (!globalState.get("payoutsExecution")) {
-        should_continue = false;
+        shouldContinue = false;
       }
     });
   });
@@ -50,14 +50,14 @@ describe.skip("[Payout] [Bank Transfer - BACS]", () => {
   });
 
   beforeEach(function () {
-    if (!should_continue) {
+    if (!shouldContinue) {
       this.skip();
     }
   });
 });
 
 describe("[Payout] [Bank Transfer - SEPA]", () => {
-  let should_continue = true; // variable that will be used to skip tests if a previous test fails
+  let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -65,7 +65,7 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
 
       // Check if the connector supports card payouts (based on the connector configuration in creds)
       if (!globalState.get("payoutsExecution")) {
-        should_continue = false;
+        shouldContinue = false;
       }
     });
   });
@@ -75,37 +75,33 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
   });
 
   beforeEach(function () {
-    if (!should_continue) {
+    if (!shouldContinue) {
       this.skip();
     }
   });
 
   context("[Payout] [Bank transfer - SEPA] Auto Fulfill", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
 
     it("confirm-payout-call-with-auto-fulfill-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa"]["Fulfill"];
 
-      let req_data = data["Request"];
-      let res_data = data["Response"];
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
-        req_data,
-        res_data,
+        data,
         true,
         true,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -114,41 +110,36 @@ describe("[Payout] [Bank Transfer - SEPA]", () => {
   });
 
   context("[Payout] [Bank transfer - SEPA] Manual Fulfill", () => {
-    let should_continue = true; // variable that will be used to skip tests if a previous test fails
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
 
     it("confirm-payout-call-with-manual-fulfill-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa"]["Confirm"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
-        req_data,
-        res_data,
+        data,
         true,
         false,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("fulfill-payout-call-test", () => {
-      let data = utils.getConnectorDetails(globalState.get("connectorId"))[
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
       ]["sepa"]["Fulfill"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.fulfillPayoutCallTest({}, req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+
+      cy.fulfillPayoutCallTest({}, data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payout-call-test", () => {

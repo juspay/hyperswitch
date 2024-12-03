@@ -63,6 +63,7 @@ pub struct ConnectorCode {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
 pub struct BankCodeResponse {
+    #[schema(value_type = Vec<BankNames>)]
     pub bank_name: Vec<common_enums::BankNames>,
     pub eligible_connectors: Vec<String>,
 }
@@ -858,6 +859,10 @@ pub struct PaymentsRequest {
 
     /// Whether to calculate tax for this payment intent
     pub skip_external_tax_calculation: Option<bool>,
+
+    /// Choose what kind of sca exemption is required for this payment
+    #[schema(value_type = Option<ScaExemptionType>)]
+    pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
 }
 
 #[cfg(feature = "v1")]
@@ -2452,7 +2457,6 @@ pub enum AdditionalPaymentData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-
 pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
 }
@@ -2499,7 +2503,6 @@ pub enum BankRedirectData {
     Giropay {
         /// The billing details for bank redirection
         billing_details: Option<BankRedirectBilling>,
-        /// Bank account details for Giropay
 
         #[schema(value_type = Option<String>)]
         /// Bank account bic code
@@ -3677,7 +3680,6 @@ pub enum WalletResponseData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-
 pub struct KlarnaSdkPaymentMethodResponse {
     pub payment_type: Option<String>,
 }
@@ -3691,6 +3693,7 @@ pub struct PaymentMethodDataResponseWithBilling {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[cfg(feature = "v1")]
 pub enum PaymentIdType {
     /// The identifier for payment intent
     PaymentIntentId(id_type::PaymentId),
@@ -3702,6 +3705,20 @@ pub enum PaymentIdType {
     PreprocessingId(String),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+#[cfg(feature = "v2")]
+pub enum PaymentIdType {
+    /// The identifier for payment intent
+    PaymentIntentId(id_type::GlobalPaymentId),
+    /// The identifier for connector transaction
+    ConnectorTransactionId(String),
+    /// The identifier for payment attempt
+    PaymentAttemptId(String),
+    /// The identifier for preprocessing step
+    PreprocessingId(String),
+}
+
+#[cfg(feature = "v1")]
 impl fmt::Display for PaymentIdType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -3726,6 +3743,7 @@ impl fmt::Display for PaymentIdType {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Default for PaymentIdType {
     fn default() -> Self {
         Self::PaymentIntentId(Default::default())
@@ -4175,7 +4193,6 @@ pub struct ReceiverDetails {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
-
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -4517,6 +4534,7 @@ pub struct PaymentsResponse {
 /// Request for Payment Intent Confirm
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PaymentsConfirmIntentRequest {
     /// The URL to which you want the user to be redirected after the completion of the payment operation
     /// If this url is not passed, the url configured in the business profile will be used
@@ -4557,11 +4575,15 @@ pub struct PaymentsRetrieveRequest {
     /// If this is set to true, the status will be fetched from the connector
     #[serde(default)]
     pub force_sync: bool,
+
+    /// These are the query params that are sent in case of redirect response.
+    /// These can be ingested by the connector to take necessary actions.
+    pub param: Option<String>,
 }
 
 /// Error details for the payment
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct ErrorDetails {
     /// The error code
     pub code: String,
@@ -4646,7 +4668,7 @@ pub struct PaymentsConfirmIntentResponse {
 // TODO: have a separate response for detailed, summarized
 /// Response for Payment Intent Confirm
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Serialize, ToSchema)]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsRetrieveResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -4901,6 +4923,8 @@ pub struct PaymentListFilterConstraints {
     pub order: Order,
     /// The List of all the card networks to filter payments list
     pub card_network: Option<Vec<enums::CardNetwork>>,
+    /// The identifier for merchant order reference id
+    pub merchant_order_reference_id: Option<String>,
 }
 
 impl PaymentListFilterConstraints {
@@ -5208,6 +5232,7 @@ pub struct PgRedirectResponse {
     pub amount: Option<MinorUnit>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
 pub struct RedirectionResponse {
     pub return_url: String,
@@ -5215,6 +5240,12 @@ pub struct RedirectionResponse {
     pub return_url_with_query_params: String,
     pub http_method: String,
     pub headers: Vec<(String, String)>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
+pub struct RedirectionResponse {
+    pub return_url_with_query_params: String,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -6049,6 +6080,7 @@ pub struct ApplepayErrorResponse {
     pub status_message: String,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionResponse {
     /// The identifier for the payment
@@ -6057,6 +6089,16 @@ pub struct PaymentsSessionResponse {
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     #[schema(value_type = String)]
     pub client_secret: Secret<String, pii::ClientSecret>,
+    /// The list of session token object
+    pub session_token: Vec<SessionToken>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsSessionResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::GlobalPaymentId,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
 }
@@ -6295,6 +6337,7 @@ pub struct FrmMessage {
     pub frm_error: Option<String>,
 }
 
+#[cfg(feature = "v2")]
 mod payment_id_type {
     use std::{borrow::Cow, fmt};
 
@@ -6308,7 +6351,85 @@ mod payment_id_type {
     struct PaymentIdVisitor;
     struct OptionalPaymentIdVisitor;
 
-    impl<'de> Visitor<'de> for PaymentIdVisitor {
+    impl Visitor<'_> for PaymentIdVisitor {
+        type Value = PaymentIdType;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("payment id")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            common_utils::id_type::GlobalPaymentId::try_from(Cow::Owned(value.to_string()))
+                .map_err(de::Error::custom)
+                .map(PaymentIdType::PaymentIntentId)
+        }
+    }
+
+    impl<'de> Visitor<'de> for OptionalPaymentIdVisitor {
+        type Value = Option<PaymentIdType>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("payment id")
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_any(PaymentIdVisitor).map(Some)
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_unit<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(None)
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn deserialize<'a, D>(deserializer: D) -> Result<PaymentIdType, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        deserializer.deserialize_any(PaymentIdVisitor)
+    }
+
+    pub(crate) fn deserialize_option<'a, D>(
+        deserializer: D,
+    ) -> Result<Option<PaymentIdType>, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        deserializer.deserialize_option(OptionalPaymentIdVisitor)
+    }
+}
+
+#[cfg(feature = "v1")]
+mod payment_id_type {
+    use std::{borrow::Cow, fmt};
+
+    use serde::{
+        de::{self, Visitor},
+        Deserializer,
+    };
+
+    use super::PaymentIdType;
+
+    struct PaymentIdVisitor;
+    struct OptionalPaymentIdVisitor;
+
+    impl Visitor<'_> for PaymentIdVisitor {
         type Value = PaymentIdType;
 
         fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -6382,7 +6503,7 @@ pub mod amount {
 
     // This is defined to provide guarded deserialization of amount
     // which itself handles zero and non-zero values internally
-    impl<'de> de::Visitor<'de> for AmountVisitor {
+    impl de::Visitor<'_> for AmountVisitor {
         type Value = Amount;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -6544,6 +6665,8 @@ pub struct PaymentLinkDetails {
     pub merchant_description: Option<String>,
     pub sdk_layout: String,
     pub display_sdk_only: bool,
+    pub hide_card_nickname_field: bool,
+    pub show_card_form_by_default: bool,
     pub locale: Option<String>,
     pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
 }
@@ -6551,6 +6674,8 @@ pub struct PaymentLinkDetails {
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct SecurePaymentLinkDetails {
     pub enabled_saved_payment_method: bool,
+    pub hide_card_nickname_field: bool,
+    pub show_card_form_by_default: bool,
     #[serde(flatten)]
     pub payment_link_details: PaymentLinkDetails,
 }
@@ -6578,7 +6703,6 @@ pub struct PaymentLinkStatusDetails {
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-
 pub struct PaymentLinkListConstraints {
     /// limit on the number of objects to return
     pub limit: Option<i64>,

@@ -1,6 +1,4 @@
-//!
 //! Logger-specific config.
-//!
 
 use std::path::PathBuf;
 

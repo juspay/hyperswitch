@@ -12,6 +12,7 @@ mod payment;
 mod profile;
 mod refunds;
 mod routing;
+mod tenant;
 
 #[cfg(feature = "v2")]
 mod global_id;
@@ -40,6 +41,7 @@ pub use profile::ProfileId;
 pub use refunds::RefundReferenceId;
 pub use routing::RoutingId;
 use serde::{Deserialize, Serialize};
+pub use tenant::TenantId;
 use thiserror::Error;
 
 use crate::{fp_utils::when, generate_id_with_default_len};

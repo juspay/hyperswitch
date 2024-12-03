@@ -2,7 +2,9 @@ import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
 import { payment_methods_enabled } from "../PaymentUtils/Commons";
 import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
+
 let globalState;
+
 describe("Connector Agnostic Tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -16,17 +18,17 @@ describe("Connector Agnostic Tests", () => {
   context(
     "Connector Agnostic Disabled for Profile 1 and Enabled for Profile 2",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
 
       it("Create Business Profile", () => {
         cy.createBusinessProfileTest(
-          fixtures.createBusinessProfile,
+          fixtures.businessProfile.bpCreate,
           globalState
         );
       });
@@ -45,38 +47,31 @@ describe("Connector Agnostic Tests", () => {
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm Payment", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          req_data,
-          res_data,
-          true,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("List Payment Method for Customer using Client Secret", () => {
@@ -85,7 +80,7 @@ describe("Connector Agnostic Tests", () => {
 
       it("Create Business Profile", () => {
         cy.createBusinessProfileTest(
-          fixtures.createBusinessProfile,
+          fixtures.businessProfile.bpCreate,
           globalState
         );
       });
@@ -101,28 +96,31 @@ describe("Connector Agnostic Tests", () => {
 
       it("Enable Connector Agnostic for Business Profile", () => {
         cy.UpdateBusinessProfileTest(
-          fixtures.updateBusinessProfile,
-          true,
+          fixtures.businessProfile.bpUpdate,
+          true, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("List Payment Method for Customer", () => {
@@ -132,16 +130,19 @@ describe("Connector Agnostic Tests", () => {
   );
 
   context("Connector Agnostic Enabled for Profile 1 and Profile 2", () => {
-    let should_continue = true;
+    let shouldContinue = true;
 
     beforeEach(function () {
-      if (!should_continue) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
 
     it("Create Business Profile", () => {
-      cy.createBusinessProfileTest(fixtures.createBusinessProfile, globalState);
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
     });
 
     it("connector-create-call-test", () => {
@@ -159,45 +160,40 @@ describe("Connector Agnostic Tests", () => {
 
     it("Enable Connector Agnostic for Business Profile", () => {
       cy.UpdateBusinessProfileTest(
-        fixtures.updateBusinessProfile,
-        true,
+        fixtures.businessProfile.bpUpdate,
+        true, // is_connector_agnostic_enabled
+        false, // collect_billing_address_from_wallet_connector
+        false, // collect_shipping_address_from_wallet_connector
+        false, // always_collect_billing_address_from_wallet_connector
+        false, // always_collect_shipping_address_from_wallet_connector
         globalState
       );
     });
 
     it("Create Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
+
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Confirm Payment", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "SaveCardUseNo3DSAutoCaptureOffSession"
-      ];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.confirmCallTest(
-        fixtures.confirmBody,
-        req_data,
-        res_data,
-        true,
-        globalState
-      );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SaveCardUseNo3DSAutoCaptureOffSession"];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("List Payment Method for Customer using Client Secret", () => {
@@ -205,7 +201,10 @@ describe("Connector Agnostic Tests", () => {
     });
 
     it("Create Business Profile", () => {
-      cy.createBusinessProfileTest(fixtures.createBusinessProfile, globalState);
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
     });
 
     it("connector-create-call-test", () => {
@@ -219,28 +218,30 @@ describe("Connector Agnostic Tests", () => {
 
     it("Enable Connector Agnostic for Business Profile", () => {
       cy.UpdateBusinessProfileTest(
-        fixtures.updateBusinessProfile,
-        true,
+        fixtures.businessProfile.bpUpdate,
+        true, // is_connector_agnostic_enabled
+        false, // collect_billing_address_from_wallet_connector
+        false, // collect_shipping_address_from_wallet_connector
+        false, // always_collect_billing_address_from_wallet_connector
+        false, // always_collect_shipping_address_from_wallet_connector
         globalState
       );
     });
 
     it("Create Payment Intent", () => {
-      let data = getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-        "PaymentIntentOffSession"
-      ];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentOffSession"];
+
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("List Payment Method for Customer", () => {

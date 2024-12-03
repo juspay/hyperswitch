@@ -4,11 +4,7 @@ use api_models::webhooks::IncomingWebhookEvent;
 use cards::CardNumber;
 use common_enums::{enums, enums as api_enums};
 use common_utils::{
-    consts,
-    ext_traits::OptionExt,
-    pii::{Email, IpAddress},
-    request::Method,
-    types::StringMinorUnit,
+    consts, ext_traits::OptionExt, pii::Email, request::Method, types::StringMinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -32,9 +28,8 @@ use strum::Display;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, ApplePay, BrowserInformationData, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSyncRequestData,
-        RefundsRequestData, RouterData as _,
+        self, ApplePay, PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
+        PaymentsCaptureRequestData, PaymentsSyncRequestData, RefundsRequestData, RouterData as _,
     },
 };
 
@@ -68,11 +63,11 @@ pub struct NovalnetPaymentsRequestMerchant {
 
 #[derive(Default, Debug, Serialize, Clone)]
 pub struct NovalnetPaymentsRequestBilling {
-    house_no: Secret<String>,
-    street: Secret<String>,
-    city: Secret<String>,
-    zip: Secret<String>,
-    country_code: api_enums::CountryAlpha2,
+    house_no: Option<Secret<String>>,
+    street: Option<Secret<String>>,
+    city: Option<Secret<String>>,
+    zip: Option<Secret<String>>,
+    country_code: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Default, Debug, Serialize, Clone)]
@@ -81,11 +76,10 @@ pub struct NovalnetPaymentsRequestCustomer {
     last_name: Secret<String>,
     email: Email,
     mobile: Option<Secret<String>>,
-    billing: NovalnetPaymentsRequestBilling,
-    customer_ip: Secret<String, IpAddress>,
+    billing: Option<NovalnetPaymentsRequestBilling>,
+    no_nc: i64,
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-
 pub struct NovalnetCard {
     card_number: CardNumber,
     card_expiry_month: Secret<String>,
@@ -183,26 +177,27 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
         };
 
         let billing = NovalnetPaymentsRequestBilling {
-            house_no: item.router_data.get_billing_line1()?,
-            street: item.router_data.get_billing_line2()?,
-            city: Secret::new(item.router_data.get_billing_city()?),
-            zip: item.router_data.get_billing_zip()?,
-            country_code: item.router_data.get_billing_country()?,
+            house_no: item.router_data.get_optional_billing_line1(),
+            street: item.router_data.get_optional_billing_line2(),
+            city: item
+                .router_data
+                .get_optional_billing_city()
+                .map(Secret::new),
+            zip: item.router_data.get_optional_billing_zip(),
+            country_code: item.router_data.get_optional_billing_country(),
         };
-
-        let customer_ip = item
-            .router_data
-            .request
-            .get_browser_info()?
-            .get_ip_address()?;
 
         let customer = NovalnetPaymentsRequestCustomer {
             first_name: item.router_data.get_billing_first_name()?,
             last_name: item.router_data.get_billing_last_name()?,
-            email: item.router_data.get_billing_email()?,
+            email: item
+                .router_data
+                .get_billing_email()
+                .or(item.router_data.request.get_email())?,
             mobile: item.router_data.get_optional_billing_phone_number(),
-            billing,
-            customer_ip,
+            billing: Some(billing),
+            // no_nc is used to indicate if minimal customer data is passed or not
+            no_nc: 1,
         };
 
         let lang = item
@@ -637,11 +632,11 @@ pub struct NovalnetResponseCustomer {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseBilling {
-    pub city: Secret<String>,
-    pub country_code: Secret<String>,
+    pub city: Option<Secret<String>>,
+    pub country_code: Option<Secret<String>>,
     pub house_no: Option<Secret<String>>,
-    pub street: Secret<String>,
-    pub zip: Secret<String>,
+    pub street: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
 }
 
@@ -1294,6 +1289,8 @@ pub enum WebhookEventType {
     TransactionCapture,
     TransactionCancel,
     TransactionRefund,
+    Chargeback,
+    Credit,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1356,9 +1353,30 @@ pub fn get_incoming_webhook_event(
             }
             _ => IncomingWebhookEvent::RefundFailure,
         },
+        WebhookEventType::Chargeback => IncomingWebhookEvent::DisputeOpened,
+        WebhookEventType::Credit => IncomingWebhookEvent::DisputeWon,
     }
 }
 
 pub fn reverse_string(s: &str) -> String {
     s.chars().rev().collect()
+}
+
+#[derive(Display, Debug, Serialize, Deserialize)]
+pub enum WebhookDisputeStatus {
+    DisputeOpened,
+    DisputeWon,
+    Unknown,
+}
+
+pub fn get_novalnet_dispute_status(status: WebhookEventType) -> WebhookDisputeStatus {
+    match status {
+        WebhookEventType::Chargeback => WebhookDisputeStatus::DisputeOpened,
+        WebhookEventType::Credit => WebhookDisputeStatus::DisputeWon,
+        _ => WebhookDisputeStatus::Unknown,
+    }
+}
+
+pub fn option_to_result<T>(opt: Option<T>) -> Result<T, errors::ConnectorError> {
+    opt.ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)
 }

@@ -113,7 +113,7 @@ pub fn mk_app(
 > {
     let mut server_app = get_application_builder(request_body_limit, state.conf.cors.clone());
 
-    #[cfg(feature = "dummy_connector")]
+    #[cfg(all(feature = "dummy_connector", feature = "v1"))]
     {
         use routes::DummyConnector;
         server_app = server_app.service(DummyConnector::server(state.clone()));
@@ -132,13 +132,19 @@ pub fn mk_app(
                     .service(routes::Forex::server(state.clone()));
             }
 
-            server_app = server_app.service(routes::Profile::server(state.clone()))
+            server_app = server_app.service(routes::Profile::server(state.clone()));
         }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
-            .service(routes::MerchantConnectorAccount::server(state.clone()));
+            .service(routes::MerchantConnectorAccount::server(state.clone()))
+            .service(routes::Webhooks::server(state.clone()));
+
+        #[cfg(feature = "oltp")]
+        {
+            server_app = server_app.service(routes::PaymentMethods::server(state.clone()));
+        }
 
         #[cfg(feature = "v1")]
         {
@@ -156,8 +162,6 @@ pub fn mk_app(
     {
         server_app = server_app
             .service(routes::EphemeralKey::server(state.clone()))
-            .service(routes::Webhooks::server(state.clone()))
-            .service(routes::PaymentMethods::server(state.clone()))
             .service(routes::Poll::server(state.clone()))
     }
 

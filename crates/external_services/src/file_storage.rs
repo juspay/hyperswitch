@@ -1,6 +1,4 @@
-//!
 //! Module for managing file storage operations with support for multiple storage schemes.
-//!
 
 use std::{
     fmt::{Display, Formatter},

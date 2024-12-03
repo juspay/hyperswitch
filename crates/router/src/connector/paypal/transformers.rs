@@ -425,7 +425,7 @@ pub struct RedirectRequest {
     experience_context: ContextStruct,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ContextStruct {
     return_url: Option<String>,
     cancel_url: Option<String>,
@@ -433,13 +433,13 @@ pub struct ContextStruct {
     shipping_preference: ShippingPreference,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum UserAction {
     #[serde(rename = "PAY_NOW")]
     PayNow,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ShippingPreference {
     #[serde(rename = "SET_PROVIDED_ADDRESS")]
     SetProvidedAddress,
@@ -525,6 +525,132 @@ pub struct PaypalPaymentsRequest {
     intent: PaypalPaymentIntent,
     purchase_units: Vec<PurchaseUnitRequest>,
     payment_source: Option<PaymentSourceItem>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalZeroMandateRequest {
+    payment_source: ZeroMandateSourceItem,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ZeroMandateSourceItem {
+    Card(CardMandateRequest),
+    Paypal(PaypalMandateStruct),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaypalMandateStruct {
+    experience_context: Option<ContextStruct>,
+    usage_type: UsageType,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CardMandateRequest {
+    billing_address: Option<Address>,
+    expiry: Option<Secret<String>>,
+    name: Option<Secret<String>>,
+    number: Option<cards::CardNumber>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalSetupMandatesResponse {
+    id: String,
+    customer: Customer,
+    payment_source: ZeroMandateSourceItem,
+    links: Vec<PaypalLinks>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Customer {
+    id: String,
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, PaypalSetupMandatesResponse, T, types::PaymentsResponseData>,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            PaypalSetupMandatesResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let info_response = item.response;
+
+        let mandate_reference = Some(MandateReference {
+            connector_mandate_id: Some(info_response.id.clone()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        });
+        // https://developer.paypal.com/docs/api/payment-tokens/v3/#payment-tokens_create
+        // If 201 status code, then order is captured, other status codes are handled by the error handler
+        let status = if item.http_code == 201 {
+            enums::AttemptStatus::Charged
+        } else {
+            enums::AttemptStatus::Failure
+        };
+        Ok(Self {
+            status,
+            return_url: None,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(info_response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(info_response.id.clone()),
+                incremental_authorization_allowed: None,
+                charge_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+impl TryFrom<&types::SetupMandateRouterData> for PaypalZeroMandateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
+        let payment_source = match item.request.payment_method_data.clone() {
+            domain::PaymentMethodData::Card(ccard) => {
+                ZeroMandateSourceItem::Card(CardMandateRequest {
+                    billing_address: get_address_info(item.get_optional_billing()),
+                    expiry: Some(ccard.get_expiry_date_as_yyyymm("-")),
+                    name: item.get_optional_billing_full_name(),
+                    number: Some(ccard.card_number),
+                })
+            }
+
+            domain::PaymentMethodData::Wallet(_)
+            | domain::PaymentMethodData::CardRedirect(_)
+            | domain::PaymentMethodData::PayLater(_)
+            | domain::PaymentMethodData::BankRedirect(_)
+            | domain::PaymentMethodData::BankDebit(_)
+            | domain::PaymentMethodData::BankTransfer(_)
+            | domain::PaymentMethodData::Crypto(_)
+            | domain::PaymentMethodData::MandatePayment
+            | domain::PaymentMethodData::Reward
+            | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::Upi(_)
+            | domain::PaymentMethodData::Voucher(_)
+            | domain::PaymentMethodData::GiftCard(_)
+            | domain::PaymentMethodData::CardToken(_)
+            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | domain::PaymentMethodData::NetworkToken(_)
+            | domain::PaymentMethodData::OpenBanking(_)
+            | domain::PaymentMethodData::MobilePayment(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                ))?
+            }
+        };
+
+        Ok(Self { payment_source })
+    }
 }
 
 fn get_address_info(payment_address: Option<&api_models::payments::Address>) -> Option<Address> {
@@ -973,11 +1099,11 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 )?;
 
                 let payment_source = match payment_method_type {
-                    enums::PaymentMethodType::Credit => Ok(Some(PaymentSourceItem::Card(
-                        CardRequest::CardVaultStruct(VaultStruct {
+                    enums::PaymentMethodType::Credit | enums::PaymentMethodType::Debit => Ok(Some(
+                        PaymentSourceItem::Card(CardRequest::CardVaultStruct(VaultStruct {
                             vault_id: connector_mandate_id.into(),
-                        }),
-                    ))),
+                        })),
+                    )),
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
                         PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
                             vault_id: connector_mandate_id.into(),
@@ -1009,7 +1135,6 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     | enums::PaymentMethodType::Cashapp
                     | enums::PaymentMethodType::Dana
                     | enums::PaymentMethodType::DanamonVa
-                    | enums::PaymentMethodType::Debit
                     | enums::PaymentMethodType::DirectCarrierBilling
                     | enums::PaymentMethodType::DuitNow
                     | enums::PaymentMethodType::Efecty
@@ -2845,7 +2970,6 @@ pub struct PaypalSourceVerificationRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-
 pub struct PaypalSourceVerificationResponse {
     pub verification_status: PaypalSourceVerificationStatus,
 }
