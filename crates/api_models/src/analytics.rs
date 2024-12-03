@@ -289,7 +289,6 @@ pub struct PaymentIntentFilterValue {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct GetRefundFilterRequest {
     pub time_range: TimeRange,
     #[serde(default)]
@@ -304,7 +303,6 @@ pub struct RefundFiltersResponse {
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-
 pub struct RefundFilterValue {
     pub dimension: RefundDimensions,
     pub values: Vec<String>,
@@ -447,7 +445,6 @@ pub struct DisputeFiltersResponse {
 
 #[derive(Debug, serde::Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-
 pub struct DisputeFilterValue {
     pub dimension: DisputeDimensions,
     pub values: Vec<String>,
@@ -470,17 +467,9 @@ pub struct GetDisputeMetricRequest {
 #[derive(Clone, Debug, Default, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct SankeyResponse {
-    pub normal_success: i64,
-    pub normal_failure: i64,
-    pub cancelled: i64,
-    pub smart_retried_success: i64,
-    pub smart_retried_failure: i64,
-    pub pending: i64,
-    pub partial_refunded: i64,
-    pub refunded: i64,
-    pub disputed: i64,
-    pub pm_awaited: i64,
-    pub customer_awaited: i64,
-    pub merchant_awaited: i64,
-    pub confirmation_awaited: i64,
+    pub count: i64,
+    pub status: String,
+    pub refunds_status: Option<String>,
+    pub dispute_status: Option<String>,
+    pub first_attempt: i64,
 }

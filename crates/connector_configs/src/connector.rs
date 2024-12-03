@@ -73,7 +73,6 @@ pub enum ApplePayTomlConfig {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, serde::Serialize, Deserialize)]
-
 pub enum KlarnaEndpoint {
     Europe,
     NorthAmerica,

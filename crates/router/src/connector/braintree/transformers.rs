@@ -67,13 +67,11 @@ pub struct GenericVariableInput<T> {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct BraintreeApiErrorResponse {
     pub api_error_response: ApiErrorResponse,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-
 pub struct ErrorsObject {
     pub errors: Vec<ErrorObject>,
 
@@ -82,7 +80,6 @@ pub struct ErrorsObject {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct TransactionError {
     pub errors: Vec<ErrorObject>,
     pub credit_card: Option<CreditCardError>,
@@ -122,7 +119,6 @@ pub struct BraintreeErrorResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-
 pub enum ErrorResponses {
     BraintreeApiErrorResponse(Box<BraintreeApiErrorResponse>),
     BraintreeErrorResponse(Box<BraintreeErrorResponse>),
@@ -907,7 +903,6 @@ pub struct BraintreeRefundResponseData {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-
 pub struct RefundResponse {
     pub data: BraintreeRefundResponseData,
 }

@@ -273,6 +273,7 @@ pub struct UserFromToken {
 
 pub struct UserIdFromAuth {
     pub user_id: String,
+    pub tenant_id: Option<id_type::TenantId>,
 }
 
 #[cfg(feature = "olap")]
@@ -858,6 +859,7 @@ where
             Ok((
                 UserIdFromAuth {
                     user_id: payload.user_id.clone(),
+                    tenant_id: payload.tenant_id,
                 },
                 AuthenticationType::SinglePurposeOrLoginJwt {
                     user_id: payload.user_id,
@@ -899,6 +901,7 @@ where
             Ok((
                 UserIdFromAuth {
                     user_id: payload.user_id.clone(),
+                    tenant_id: payload.tenant_id,
                 },
                 AuthenticationType::SinglePurposeOrLoginJwt {
                     user_id: payload.user_id,
@@ -1320,7 +1323,6 @@ where
 #[derive(Debug)]
 pub struct EphemeralKeyAuth;
 
-// #[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
 where
@@ -2545,7 +2547,8 @@ where
     T: serde::de::DeserializeOwned,
     A: SessionStateInfo + Sync,
 {
-    let cookie_token_result = get_cookie_from_header(headers).and_then(cookies::parse_cookie);
+    let cookie_token_result =
+        get_cookie_from_header(headers).and_then(cookies::get_jwt_from_cookies);
     let auth_header_token_result = get_jwt_from_authorization_header(headers);
     let force_cookie = state.conf().user.force_cookies;
 
@@ -2983,7 +2986,6 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
 }
 
-#[cfg(feature = "v1")]
 pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
@@ -3019,44 +3021,6 @@ where
     Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
 }
 
-#[cfg(feature = "v2")]
-pub fn check_client_secret_and_get_auth<T>(
-    headers: &HeaderMap,
-    payload: &impl ClientSecretFetch,
-) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
-    api::AuthFlow,
-)>
-where
-    T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-{
-    let api_key = get_api_key(headers)?;
-    if api_key.starts_with("pk_") {
-        payload
-            .get_client_secret()
-            .check_value_present("client_secret")
-            .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret",
-            })?;
-        return Ok((
-            Box::new(HeaderAuth(PublishableKeyAuth)),
-            api::AuthFlow::Client,
-        ));
-    }
-
-    if payload.get_client_secret().is_some() {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "client_secret is not a valid parameter".to_owned(),
-        }
-        .into());
-    }
-
-    Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
-}
-
-#[cfg(feature = "v1")]
 pub async fn get_ephemeral_or_other_auth<T>(
     headers: &HeaderMap,
     is_merchant_flow: bool,
@@ -3089,7 +3053,6 @@ where
     }
 }
 
-#[cfg(feature = "v1")]
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
@@ -3102,17 +3065,10 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     }
 }
 
-#[cfg(feature = "v2")]
-pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
-    headers: &HeaderMap,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
-    todo!()
-}
-
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
     headers.get(headers::AUTHORIZATION).is_some()
         || get_cookie_from_header(headers)
-            .and_then(cookies::parse_cookie)
+            .and_then(cookies::get_jwt_from_cookies)
             .is_ok()
 }
 
@@ -3174,10 +3130,13 @@ pub fn get_jwt_from_authorization_header(headers: &HeaderMap) -> RouterResult<&s
 }
 
 pub fn get_cookie_from_header(headers: &HeaderMap) -> RouterResult<&str> {
-    headers
+    let cookie = headers
         .get(cookies::get_cookie_header())
-        .and_then(|header_value| header_value.to_str().ok())
-        .ok_or(errors::ApiErrorResponse::InvalidCookie.into())
+        .ok_or(report!(errors::ApiErrorResponse::CookieNotFound))?;
+
+    cookie
+        .to_str()
+        .change_context(errors::ApiErrorResponse::InvalidCookie)
 }
 
 pub fn strip_jwt_token(token: &str) -> RouterResult<&str> {
