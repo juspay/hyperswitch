@@ -1173,6 +1173,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_metadata_as_object(&self) -> Option<pii::SecretSerdeValue>;
     fn get_authentication_data(&self) -> Result<AuthenticationData, Error>;
     fn get_customer_name(&self) -> Result<Secret<String>, Error>;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
     fn get_card_holder_name_from_additional_payment_method_data(
         &self,
     ) -> Result<Secret<String>, Error>;
@@ -1353,6 +1354,20 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             }
             .into()),
         }
+    }
+
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_request_reference_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+            .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
 }
 

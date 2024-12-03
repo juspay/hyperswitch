@@ -712,7 +712,7 @@ default_imp_for_new_connector_integration_payment!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -767,7 +767,7 @@ default_imp_for_new_connector_integration_refund!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -816,7 +816,7 @@ default_imp_for_new_connector_integration_connector_access_token!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -887,7 +887,7 @@ default_imp_for_new_connector_integration_accept_dispute!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -940,7 +940,7 @@ default_imp_for_new_connector_integration_defend_dispute!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -977,7 +977,7 @@ default_imp_for_new_connector_integration_submit_evidence!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1041,7 +1041,7 @@ default_imp_for_new_connector_integration_file_upload!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1187,7 +1187,7 @@ default_imp_for_new_connector_integration_payouts_create!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1243,7 +1243,7 @@ default_imp_for_new_connector_integration_payouts_eligibility!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1299,7 +1299,7 @@ default_imp_for_new_connector_integration_payouts_fulfill!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1355,7 +1355,7 @@ default_imp_for_new_connector_integration_payouts_cancel!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1411,7 +1411,7 @@ default_imp_for_new_connector_integration_payouts_quote!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1467,7 +1467,7 @@ default_imp_for_new_connector_integration_payouts_recipient!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1523,7 +1523,7 @@ default_imp_for_new_connector_integration_payouts_sync!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1579,7 +1579,7 @@ default_imp_for_new_connector_integration_payouts_recipient_account!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1633,7 +1633,7 @@ default_imp_for_new_connector_integration_webhook_source_verification!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1779,7 +1779,7 @@ default_imp_for_new_connector_integration_frm_sale!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1835,7 +1835,7 @@ default_imp_for_new_connector_integration_frm_checkout!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1891,7 +1891,7 @@ default_imp_for_new_connector_integration_frm_transaction!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -1947,7 +1947,7 @@ default_imp_for_new_connector_integration_frm_fulfillment!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -2003,7 +2003,7 @@ default_imp_for_new_connector_integration_frm_record_return!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,
@@ -2056,7 +2056,7 @@ default_imp_for_new_connector_integration_revoking_mandates!(
     connector::Nuvei,
     connector::Opayo,
     connector::Opennode,
-    connector::Paybox,
+    
     connector::Payme,
     connector::Payone,
     connector::Paypal,

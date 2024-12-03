@@ -22,7 +22,6 @@ pub mod noon;
 pub mod nuvei;
 pub mod opayo;
 pub mod opennode;
-pub mod paybox;
 pub mod payme;
 pub mod payone;
 pub mod paypal;
@@ -49,7 +48,7 @@ pub use hyperswitch_connectors::connectors::{
     gocardless::Gocardless, helcim, helcim::Helcim, inespay, inespay::Inespay, jpmorgan,
     jpmorgan::Jpmorgan, mollie, mollie::Mollie, multisafepay, multisafepay::Multisafepay, nexinets,
     nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay, novalnet,
-    novalnet::Novalnet, payeezy, payeezy::Payeezy, payu, payu::Payu, powertranz,
+    novalnet::Novalnet, paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payu, payu::Payu, powertranz,
     powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay,
     razorpay::Razorpay, redsys, redsys::Redsys, shift4, shift4::Shift4, square, square::Square,
     stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt,
@@ -64,7 +63,7 @@ pub use self::{
     bankofamerica::Bankofamerica, bluesnap::Bluesnap, braintree::Braintree, checkout::Checkout,
     cybersource::Cybersource, ebanx::Ebanx, globalpay::Globalpay, gpayments::Gpayments,
     iatapay::Iatapay, itaubank::Itaubank, klarna::Klarna, mifinity::Mifinity, netcetera::Netcetera,
-    nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
+    nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
     payme::Payme, payone::Payone, paypal::Paypal, placetopay::Placetopay, plaid::Plaid,
     riskified::Riskified, signifyd::Signifyd, stripe::Stripe, threedsecureio::Threedsecureio,
     trustpay::Trustpay, wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise,

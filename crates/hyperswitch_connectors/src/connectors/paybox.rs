@@ -1,34 +1,49 @@
 pub mod transformers;
 
-use common_enums::enums;
-use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
+use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
+use common_enums::{enums, CallConnectorAction, PaymentAction};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::BytesExt,
+    request::{Method, Request, RequestBuilder, RequestContent}, types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+};
 use error_stack::{report, ResultExt};
-use masking::ExposeInterface;
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData, router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData}, router_flow_types::{
+        access_token_auth::AccessTokenAuth,
+        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        refunds::{Execute, RSync},
+        CompleteAuthorize,
+    }, router_request_types::{
+        AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+    }, router_response_types::{PaymentsResponseData, RefundsResponseData}, types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
+        RefundsRouterData,
+    }
+};
+use hyperswitch_interfaces::{
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorValidation,
+    },
+    configs::Connectors,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::{
+        self, Response,
+    },
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+};
+use masking::{ExposeInterface, Mask};
 use transformers as paybox;
 
-use super::utils::{
-    RouterData, {self as connector_utils},
-};
 use crate::{
-    configs::settings,
-    connector::{utils, utils::PaymentMethodDataType},
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
-    events::connector_api_logs::ConnectorEvent,
-    headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
-    },
-    types::{
-        self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, RequestContent, Response,
-    },
-    utils::BytesExt,
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, convert_amount, is_mandate_supported, PaymentMethodDataType, RouterData as _},
 };
 
 #[derive(Clone)]
@@ -57,23 +72,23 @@ impl api::RefundExecute for Paybox {}
 impl api::RefundSync for Paybox {}
 impl api::PaymentToken for Paybox {}
 impl api::PaymentsCompleteAuthorize for Paybox {}
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
     for Paybox
 {
     fn build_request(
         &self,
-        _req: &types::PaymentsCancelRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("Cancel/Void flow".to_string()).into())
     }
 }
 
 impl
     ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
+        PaymentMethodToken,
+        PaymentMethodTokenizationData,
+        PaymentsResponseData,
     > for Paybox
 {
 }
@@ -84,9 +99,9 @@ where
 {
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        _req: &RouterData<Flow, Request, Response>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -104,14 +119,14 @@ impl ConnectorCommon for Paybox {
         "application/x-www-form-urlencoded"
     }
 
-    fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
+    fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
         connectors.paybox.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = paybox::PayboxAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -161,39 +176,39 @@ impl ConnectorValidation for Paybox {
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,
-        pm_data: types::domain::payments::PaymentMethodData,
+        pm_data: PaymentMethodData,
     ) -> CustomResult<(), errors::ConnectorError> {
         let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
+        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 
-impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
     for Paybox
 {
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
     for Paybox
 {
 }
 
 impl
     ConnectorIntegration<
-        api::SetupMandate,
-        types::SetupMandateRequestData,
-        types::PaymentsResponseData,
+        SetupMandate,
+        SetupMandateRequestData,
+        PaymentsResponseData,
     > for Paybox
 {
 }
-impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
     for Paybox
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -203,8 +218,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         if req.is_three_ds() {
             Ok(format!(
@@ -218,10 +233,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -234,12 +249,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
@@ -253,15 +268,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn handle_response(
         &self,
-        data: &types::PaymentsAuthorizeRouterData,
+        data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
         let response: paybox::PayboxResponse =
             paybox::parse_paybox_response(res.response, data.is_three_ds())?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -277,14 +292,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
     for Paybox
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -293,28 +308,28 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
     fn get_request_body(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = paybox::PayboxPSyncRequest::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
     }
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors).to_string())
     }
 
     fn build_request(
         &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .set_body(types::PaymentsSyncType::get_request_body(
@@ -326,15 +341,15 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn handle_response(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
         let response: paybox::PayboxSyncResponse =
             paybox::parse_url_encoded_to_struct(res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -350,14 +365,14 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     }
 }
 
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
     for Paybox
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -367,18 +382,18 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn get_url(
         &self,
-        _req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
+        _req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = connector_utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount_to_capture,
             req.request.currency,
@@ -391,12 +406,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn build_request(
         &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .set_body(types::PaymentsCaptureType::get_request_body(
@@ -408,16 +423,16 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn handle_response(
         &self,
-        data: &types::PaymentsCaptureRouterData,
+        data: &PaymentsCaptureRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
         let response: paybox::PayboxCaptureResponse =
             paybox::parse_url_encoded_to_struct(res.response)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -433,12 +448,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 }
 
-impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData> for Paybox {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Paybox {
     fn get_headers(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -448,18 +463,18 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        _req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        _req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        req: &RefundsRouterData<Execute>,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let refund_amount = connector_utils::convert_amount(
+        let refund_amount = convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
             req.request.currency,
@@ -472,11 +487,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn build_request(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let request = services::RequestBuilder::new()
-            .method(services::Method::Post)
+        req: &RefundsRouterData<Execute>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
             .attach_default_headers()
             .set_body(types::RefundExecuteType::get_request_body(
@@ -488,15 +503,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn handle_response(
         &self,
-        data: &types::RefundsRouterData<api::Execute>,
+        data: &RefundsRouterData<Execute>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
+    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
         let response: paybox::TransactionResponse =
             paybox::parse_url_encoded_to_struct(res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -512,12 +527,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     }
 }
 
-impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Paybox {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Paybox {
     fn get_headers(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -527,16 +542,16 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &RefundSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors).to_string())
     }
 
     fn get_request_body(
         &self,
-        req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &RefundSyncRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = paybox::PayboxRsyncRequest::try_from(req)?;
         Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
@@ -544,12 +559,12 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn build_request(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &RefundSyncRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .set_body(types::RefundSyncType::get_request_body(
@@ -561,15 +576,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn handle_response(
         &self,
-        data: &types::RefundSyncRouterData,
+        data: &RefundSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
         let response: paybox::PayboxSyncResponse =
             paybox::parse_url_encoded_to_struct(res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -586,24 +601,24 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Paybox {
+impl IncomingWebhook for Paybox {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -611,16 +626,16 @@ impl api::IncomingWebhook for Paybox {
 
 impl
     ConnectorIntegration<
-        api::CompleteAuthorize,
-        types::CompleteAuthorizeData,
-        types::PaymentsResponseData,
+        CompleteAuthorize,
+        CompleteAuthorizeData,
+        PaymentsResponseData,
     > for Paybox
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -628,17 +643,17 @@ impl
     }
     fn get_url(
         &self,
-        _req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(self.base_url(connectors).to_string())
     }
     fn get_request_body(
         &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        req: &PaymentsCompleteAuthorizeRouterData,
+        _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let amount = utils::convert_amount(
+        let amount = convert_amount(
             self.amount_converter,
             req.request.minor_amount,
             req.request.currency,
@@ -650,12 +665,12 @@ impl
     }
     fn build_request(
         &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        req: &PaymentsCompleteAuthorizeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
+            RequestBuilder::new()
+                .method(Method::Post)
                 .url(&types::PaymentsCompleteAuthorizeType::get_url(
                     self, req, connectors,
                 )?)
@@ -670,15 +685,15 @@ impl
     }
     fn handle_response(
         &self,
-        data: &types::PaymentsCompleteAuthorizeRouterData,
+        data: &PaymentsCompleteAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: paybox::TransactionResponse =
             paybox::parse_url_encoded_to_struct(res.response)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
+        RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -693,18 +708,18 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
-impl services::ConnectorRedirectResponse for Paybox {
+impl ConnectorRedirectResponse for Paybox {
     fn get_flow_type(
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        action: services::PaymentAction,
-    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        action: PaymentAction,
+    ) -> CustomResult<CallConnectorAction, errors::ConnectorError> {
         match action {
-            services::PaymentAction::PSync
-            | services::PaymentAction::CompleteAuthorize
-            | services::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
-                Ok(payments::CallConnectorAction::Trigger)
+            PaymentAction::PSync
+            | PaymentAction::CompleteAuthorize
+            | PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(CallConnectorAction::Trigger)
             }
         }
     }

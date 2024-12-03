@@ -1,25 +1,32 @@
 use api_models::payments::AdditionalPaymentData;
 use bytes::Bytes;
+use common_enums::enums;
 use common_utils::{
-    date_time::DateFormat, errors::CustomResult, ext_traits::ValueExt, types::MinorUnit,
+    date_time::DateFormat, errors::CustomResult, ext_traits::ValueExt, types::MinorUnit
 };
 use error_stack::ResultExt;
-use hyperswitch_connectors::utils::{AddressDetailsData, CardData};
 use hyperswitch_domain_models::{
-    router_data::ConnectorAuthType, router_response_types::RedirectForm,
+    payment_method_data::PaymentMethodData,
+    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::refunds::{Execute, RSync},
+    router_request_types::{
+        CompleteAuthorizeData, PaymentsAuthorizeData, ResponseId,
+    },
+    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData},
+    types,
 };
-use hyperswitch_interfaces::consts;
+use hyperswitch_interfaces::{consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE}, errors};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{
-        self, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData, RouterData,
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::{
+        self, AddressDetailsData, CardData as _,
+        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+        RouterData as _,
     },
-    core::errors,
-    types::{self, api, domain, storage::enums, MandateReference},
 };
-
 pub struct PayboxRouterData<T> {
     pub amount: MinorUnit,
     pub router_data: T,
@@ -189,7 +196,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCaptureRouterData>> for PayboxCap
         let auth_data: PayboxAuthType =
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
+        let currency = enums::Currency::iso_4217(&item.router_data.request.currency)
             .to_string();
         let paybox_meta_data: PayboxMeta =
             utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
@@ -379,7 +386,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
         item: &PayboxRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            domain::PaymentMethodData::Card(req_card) => {
+            PaymentMethodData::Card(req_card) => {
                 let auth_data: PayboxAuthType =
                     PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                         .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -388,7 +395,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                     item.router_data.request.is_mandate_payment(),
                 )?;
                 let currency =
-                    diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
+                    enums::Currency::iso_4217(&item.router_data.request.currency)
                         .to_string();
                 let expiration_date =
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
@@ -456,7 +463,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                     }))
                 }
             }
-            domain::PaymentMethodData::MandatePayment => {
+            PaymentMethodData::MandatePayment => {
                 let mandate_data = extract_card_mandate_info(
                     item.router_data
                         .request
@@ -666,20 +673,20 @@ pub struct PayboxCaptureResponse {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, PayboxCaptureResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PayboxCaptureResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let response = item.response.clone();
         let status = get_status_of_request(response.response_code.clone());
         match status {
             true => Ok(Self {
                 status: enums::AttemptStatus::Charged,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
                         response.paybox_order_id,
                     ),
                     redirection_data: Box::new(None),
@@ -696,7 +703,7 @@ impl<F, T>
                 ..item.data
             }),
             false => Ok(Self {
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     code: response.response_code.clone(),
                     message: response.response_message.clone(),
                     reason: Some(response.response_message),
@@ -712,21 +719,21 @@ impl<F, T>
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             PayboxResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             PayboxResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
+            PaymentsAuthorizeData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
@@ -738,8 +745,8 @@ impl<F>
                             true => enums::AttemptStatus::Charged,
                             false => enums::AttemptStatus::Authorized,
                         },
-                        response: Ok(types::PaymentsResponseData::TransactionResponse {
-                            resource_id: types::ResponseId::ConnectorTransactionId(
+                        response: Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: ResponseId::ConnectorTransactionId(
                                 response.paybox_order_id,
                             ),
                             redirection_data: Box::new(None),
@@ -763,7 +770,7 @@ impl<F>
                         ..item.data
                     }),
                     false => Ok(Self {
-                        response: Err(types::ErrorResponse {
+                        response: Err(ErrorResponse {
                             code: response.response_code.clone(),
                             message: response.response_message.clone(),
                             reason: Some(response.response_message),
@@ -777,8 +784,8 @@ impl<F>
             }
             PayboxResponse::ThreeDs(data) => Ok(Self {
                 status: enums::AttemptStatus::AuthenticationPending,
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::NoResponseId,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(RedirectForm::Html {
                         html_data: data.peek().to_string(),
                     })),
@@ -792,10 +799,10 @@ impl<F>
                 ..item.data
             }),
             PayboxResponse::Error(_) => Ok(Self {
-                response: Err(types::ErrorResponse {
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
-                    reason: Some(consts::NO_ERROR_MESSAGE.to_string()),
+                response: Err(ErrorResponse {
+                    code: NO_ERROR_CODE.to_string(),
+                    message: NO_ERROR_MESSAGE.to_string(),
+                    reason: Some(NO_ERROR_MESSAGE.to_string()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -806,12 +813,12 @@ impl<F>
     }
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PayboxSyncResponse, T, types::PaymentsResponseData>,
+        item: ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let response = item.response.clone();
         let status = get_status_of_request(response.response_code.clone());
@@ -820,8 +827,8 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxSyncResponse, T, types::Pa
             true => Ok(Self {
                 status: enums::AttemptStatus::from(connector_payment_status),
 
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
                         response.paybox_order_id,
                     ),
                     redirection_data: Box::new(None),
@@ -837,7 +844,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PayboxSyncResponse, T, types::Pa
                 ..item.data
             }),
             false => Ok(Self {
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     code: response.response_code.clone(),
                     message: response.response_message.clone(),
                     reason: Some(response.response_message),
@@ -884,7 +891,7 @@ impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefun
         let auth_data: PayboxAuthType =
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
+        let currency = enums::Currency::iso_4217(&item.router_data.request.currency)
             .to_string();
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
@@ -909,24 +916,24 @@ impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefun
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::RSync, PayboxSyncResponse>>
-    for types::RefundsRouterData<api::RSync>
+impl TryFrom<RefundsResponseRouterData<RSync, PayboxSyncResponse>>
+    for types::RefundsRouterData<RSync>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::RSync, PayboxSyncResponse>,
+        item: RefundsResponseRouterData<RSync, PayboxSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let status = get_status_of_request(item.response.response_code.clone());
         match status {
             true => Ok(Self {
-                response: Ok(types::RefundsResponseData {
+                response: Ok(RefundsResponseData {
                     connector_refund_id: item.response.transaction_number,
                     refund_status: enums::RefundStatus::from(item.response.status),
                 }),
                 ..item.data
             }),
             false => Ok(Self {
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     code: item.response.response_code.clone(),
                     message: item.response.response_message.clone(),
                     reason: Some(item.response.response_message),
@@ -940,24 +947,24 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, PayboxSyncResponse>>
     }
 }
 
-impl TryFrom<types::RefundsResponseRouterData<api::Execute, TransactionResponse>>
-    for types::RefundsRouterData<api::Execute>
+impl TryFrom<RefundsResponseRouterData<Execute, TransactionResponse>>
+    for types::RefundsRouterData<Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::RefundsResponseRouterData<api::Execute, TransactionResponse>,
+        item: RefundsResponseRouterData<Execute, TransactionResponse>,
     ) -> Result<Self, Self::Error> {
         let status = get_status_of_request(item.response.response_code.clone());
         match status {
             true => Ok(Self {
-                response: Ok(types::RefundsResponseData {
+                response: Ok(RefundsResponseData {
                     connector_refund_id: item.response.transaction_number,
                     refund_status: common_enums::RefundStatus::Pending,
                 }),
                 ..item.data
             }),
             false => Ok(Self {
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     code: item.response.response_code.clone(),
                     message: item.response.response_message.clone(),
                     reason: Some(item.response.response_message),
@@ -980,21 +987,21 @@ pub struct PayboxErrorResponse {
 
 impl<F>
     TryFrom<
-        types::ResponseRouterData<
+        ResponseRouterData<
             F,
             TransactionResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
+            CompleteAuthorizeData,
+            PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
+    > for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
+        item: ResponseRouterData<
             F,
             TransactionResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
+            CompleteAuthorizeData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let response = item.response.clone();
@@ -1005,8 +1012,8 @@ impl<F>
                     true => enums::AttemptStatus::Charged,
                     false => enums::AttemptStatus::Authorized,
                 },
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
                         response.paybox_order_id,
                     ),
                     redirection_data: Box::new(None),
@@ -1031,7 +1038,7 @@ impl<F>
                 ..item.data
             }),
             false => Ok(Self {
-                response: Err(types::ErrorResponse {
+                response: Err(ErrorResponse {
                     code: response.response_code.clone(),
                     message: response.response_message.clone(),
                     reason: Some(response.response_message),
@@ -1071,7 +1078,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
             .parse_value("RedirectionAuthResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         match item.router_data.request.payment_method_data.clone() {
-            Some(domain::PaymentMethodData::Card(req_card)) => {
+            Some(PaymentMethodData::Card(req_card)) => {
                 let auth_data: PayboxAuthType =
                     PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                         .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -1080,7 +1087,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
                     item.router_data.request.is_mandate_payment(),
                 )?;
                 let currency =
-                    diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
+                    enums::Currency::iso_4217(&item.router_data.request.currency)
                         .to_string();
                 let expiration_date =
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
@@ -1196,7 +1203,7 @@ impl
             Some(enums::CaptureMethod::Manual) => Ok(MANDATE_AUTH_ONLY.to_string()),
             _ => Err(errors::ConnectorError::CaptureMethodNotSupported),
         }?;
-        let currency = diesel_models::enums::Currency::iso_4217(&item.router_data.request.currency)
+        let currency = enums::Currency::iso_4217(&item.router_data.request.currency)
             .to_string();
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),

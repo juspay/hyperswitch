@@ -28,6 +28,7 @@ pub mod nexinets;
 pub mod nexixpay;
 pub mod nomupay;
 pub mod novalnet;
+pub mod paybox;
 pub mod payeezy;
 pub mod payu;
 pub mod powertranz;
@@ -56,7 +57,7 @@ pub use self::{
     fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay, gocardless::Gocardless,
     helcim::Helcim, inespay::Inespay, jpmorgan::Jpmorgan, mollie::Mollie,
     multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay,
-    novalnet::Novalnet, payeezy::Payeezy, payu::Payu, powertranz::Powertranz,
+    novalnet::Novalnet, paybox::Paybox, payeezy::Payeezy, payu::Payu, powertranz::Powertranz,
     prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, redsys::Redsys, shift4::Shift4,
     square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt,
     worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen, zsl::Zsl,
