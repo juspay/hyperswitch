@@ -131,7 +131,7 @@ impl RefundDistributionAccumulator for RefundErrorMessageDistributionAccumulator
                 refund_error_message: distribution
                     .refund_error_message
                     .clone()
-                    .unwrap_or("".to_string()),
+                    .unwrap_or_default(),
             })
     }
 
@@ -195,7 +195,7 @@ impl RefundMetricAccumulator for RefundProcessedAmountAccumulator {
     }
     #[inline]
     fn collect(self) -> Self::MetricOutput {
-        let total = u64::try_from(self.total.unwrap_or(0)).ok();
+        let total = u64::try_from(self.total.unwrap_or_default()).ok();
         let count = self.count.and_then(|i| u64::try_from(i).ok());
 
         (total, count, Some(0))
