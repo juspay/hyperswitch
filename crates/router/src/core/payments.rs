@@ -6028,7 +6028,7 @@ where
     let connectors = {
         if business_profile.dynamic_routing_algorithm.is_some() {
             let success_based_routing_config_params_interpolator =
-                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                     payment_data.get_payment_attempt().payment_method,
                     payment_data.get_payment_attempt().payment_method_type,
                     payment_data.get_payment_attempt().authentication_type,

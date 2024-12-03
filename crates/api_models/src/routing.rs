@@ -523,6 +523,7 @@ pub struct DynamicAlgorithmWithTimestamp<T> {
 pub struct DynamicRoutingAlgorithmRef {
     pub success_based_algorithm: Option<SuccessBasedAlgorithm>,
     pub elimination_routing_algorithm: Option<EliminationRoutingAlgorithm>,
+    pub contract_based_routing: Option<ContractRoutingAlgorithm>,
 }
 
 pub trait DynamicRoutingAlgoAccessor {
@@ -588,6 +589,9 @@ impl DynamicRoutingAlgorithmRef {
         if let Some(success_based_algorithm) = new.success_based_algorithm {
             self.success_based_algorithm = Some(success_based_algorithm)
         }
+        if let Some(contract_based_routing) = new.contract_based_routing {
+            self.contract_based_routing = Some(contract_based_routing)
+        }
     }
 
     pub fn update_specific_ref(
@@ -606,12 +610,25 @@ impl DynamicRoutingAlgorithmRef {
                     .as_mut()
                     .map(|algo| algo.enabled_feature = feature_to_enable);
             }
+            DynamicRoutingType::ContractBasedRouting => {
+                self.contract_based_routing
+                    .as_mut()
+                    .map(|algo| algo.enabled_feature = feature_to_enable);
+            }
         }
     }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuccessBasedAlgorithm {
+    pub algorithm_id_with_timestamp:
+        DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>,
+    #[serde(default)]
+    pub enabled_feature: DynamicRoutingFeatures,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ContractRoutingAlgorithm {
     pub algorithm_id_with_timestamp:
         DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId>,
     #[serde(default)]
@@ -657,6 +674,15 @@ impl DynamicRoutingAlgorithmRef {
             }
             DynamicRoutingType::EliminationRouting => {
                 self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
+                    algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
+                        algorithm_id: Some(new_id),
+                        timestamp: common_utils::date_time::now_unix_timestamp(),
+                    },
+                    enabled_feature,
+                })
+            }
+            DynamicRoutingType::ContractBasedRouting => {
+                self.contract_based_routing = Some(ContractRoutingAlgorithm {
                     algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
                         algorithm_id: Some(new_id),
                         timestamp: common_utils::date_time::now_unix_timestamp(),
@@ -786,6 +812,7 @@ pub struct SuccessBasedRoutingPayloadWrapper {
 pub enum DynamicRoutingType {
     SuccessRateBasedRouting,
     EliminationRouting,
+    ContractBasedRouting,
 }
 
 impl SuccessBasedRoutingConfig {
@@ -828,7 +855,7 @@ impl CurrentBlockThreshold {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct ContractBasedRoutingConfig {
-    pub params: Option<Vec<SuccessBasedRoutingConfigParams>>,
+    pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub config: Option<ContractBasedRoutingConfigBody>,
     pub label_info: Option<Vec<LabelInformation>>,
 }
@@ -845,6 +872,7 @@ pub struct LabelInformation {
     pub target_count: u64,
     pub target_time: u64,
     pub current_count: u64,
+    pub mca_id: common_utils::id_type::MerchantConnectorAccountId,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
@@ -856,7 +884,7 @@ pub enum ContractBasedTimeScale {
 impl Default for ContractBasedRoutingConfig {
     fn default() -> Self {
         Self {
-            params: Some(vec![SuccessBasedRoutingConfigParams::PaymentMethod]),
+            params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             config: Some(ContractBasedRoutingConfigBody {
                 constants: Some(vec![0.7, 0.35]),
                 time_scale: Some(ContractBasedTimeScale::Month),

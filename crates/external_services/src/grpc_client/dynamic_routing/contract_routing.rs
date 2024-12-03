@@ -80,8 +80,8 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
             .clone()
             .fetch_contract_score(request)
             .await
-            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
-                "Failed to fetch the success rate".to_string(),
+            .change_context(DynamicRoutingError::ContractBasedRoutingFailure(
+                "Failed to fetch the contract score".to_string(),
             ))?
             .into_inner();
 
@@ -116,8 +116,8 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
             .clone()
             .update_contract(request)
             .await
-            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
-                "Failed to update the success rate window".to_string(),
+            .change_context(DynamicRoutingError::ContractBasedRoutingFailure(
+                "Failed to update the contracts".to_string(),
             ))?
             .into_inner();
 
@@ -133,8 +133,8 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
             .clone()
             .invalidate_contract(request)
             .await
-            .change_context(DynamicRoutingError::SuccessRateBasedRoutingFailure(
-                "Failed to invalidate the success rate routing keys".to_string(),
+            .change_context(DynamicRoutingError::ContractBasedRoutingFailure(
+                "Failed to invalidate the contracts".to_string(),
             ))?
             .into_inner();
         Ok(response)
