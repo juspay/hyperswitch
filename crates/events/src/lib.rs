@@ -2,14 +2,12 @@
 #![cfg_attr(docsrs, doc(cfg_hide(doc)))]
 #![warn(missing_docs)]
 
-//!
 //! A generic event handler system.
 //! This library consists of 4 parts:
 //! Event Sink: A trait that defines how events are published. This could be a simple logger, a message queue, or a database.
 //! EventContext: A struct that holds the event sink and metadata about the event. This is used to create events. This can be used to add metadata to all events, such as the user who triggered the event.
 //! EventInfo: A trait that defines the metadata that is sent with the event. It works with the EventContext to add metadata to all events.
 //! Event: A trait that defines the event itself. This trait is used to define the data that is sent with the event and defines the event's type & identifier.
-//!
 
 mod actix;
 

@@ -3163,7 +3163,7 @@ pub fn get_banks(
                 .iter()
                 .skip(1)
                 .fold(first_element.to_owned(), |acc, hs| {
-                    acc.intersection(hs).cloned().collect()
+                    acc.intersection(hs).copied().collect()
                 });
         }
 
@@ -3631,7 +3631,7 @@ pub async fn list_payment_methods(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid PaymentRoutingInfo format found in payment attempt")?
-            .unwrap_or_else(|| storage::PaymentRoutingInfo {
+            .unwrap_or(storage::PaymentRoutingInfo {
                 algorithm: None,
                 pre_routing_results: None,
             });
@@ -5342,14 +5342,6 @@ pub async fn get_card_details_with_locker_fallback(
     })
 }
 
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn get_card_details_with_locker_fallback(
-    pm: &domain::PaymentMethod,
-    state: &routes::SessionState,
-) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
-    todo!()
-}
-
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
     not(feature = "payment_methods_v2")
@@ -5377,14 +5369,6 @@ pub async fn get_card_details_without_locker_fallback(
         );
         get_card_details_from_locker(state, pm).await?
     })
-}
-
-#[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-pub async fn get_card_details_without_locker_fallback(
-    pm: &domain::PaymentMethod,
-    state: &routes::SessionState,
-) -> errors::RouterResult<api::CardDetailFromLocker> {
-    todo!()
 }
 
 #[cfg(all(
@@ -5474,13 +5458,13 @@ pub async fn get_masked_bank_details(
     }
 }
 
+#[cfg(all(
+    any(feature = "v2", feature = "v1"),
+    not(feature = "payment_methods_v2")
+))]
 pub async fn get_bank_account_connector_details(
     pm: &domain::PaymentMethod,
 ) -> errors::RouterResult<Option<BankAccountTokenData>> {
-    #[cfg(all(
-        any(feature = "v2", feature = "v1"),
-        not(feature = "payment_methods_v2")
-    ))]
     let payment_method_data = pm
         .payment_method_data
         .clone()
@@ -5494,12 +5478,6 @@ pub async fn get_bank_account_connector_details(
             },
         )
         .transpose()?;
-
-    #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-    let payment_method_data = pm
-        .payment_method_data
-        .clone()
-        .map(|x| x.into_inner().expose().into_inner());
 
     match payment_method_data {
         Some(pmd) => match pmd {
