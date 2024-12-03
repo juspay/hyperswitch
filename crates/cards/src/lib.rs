@@ -81,20 +81,20 @@ impl TryFrom<String> for CardHolderName {
 }
 
 fn validate_character_in_card_holder_name(
-    charcter: char,
+    character: char,
 ) -> Result<(), error_stack::Report<errors::ValidationError>> {
-    if charcter.is_alphabetic()
-        || charcter == ' '
-        || charcter == '.'
-        || charcter == '-'
-        || charcter == '\''
-        || charcter == '~'
-        || charcter == '`'
+    if character.is_alphabetic()
+        || character == ' '
+        || character == '.'
+        || character == '-'
+        || character == '\''
+        || character == '~'
+        || character == '`'
     {
         Ok(())
     } else {
         Err(report!(errors::ValidationError::InvalidValue {
-            message: "invalid charcter in card holder name".to_string()
+            message: "invalid character in card holder name".to_string()
         }))
     }
 }
