@@ -384,22 +384,22 @@ Cypress.Commands.add(
   (
     connectorType,
     createConnectorBody,
-    payment_methods_enabled,
+    paymentMethodsEnabled,
     globalState,
     connectorName,
     connectorLabel,
-    profile_prefix = "profile",
-    mca_prefix = "merchantConnector"
+    profilePrefix = "profile",
+    mcaPrefix = "merchantConnector"
   ) => {
     const merchantId = globalState.get("merchantId");
-    const profile_id = globalState.get(`${profile_prefix}Id`);
+    const profileId = globalState.get(`${profilePrefix}Id`);
 
-    createConnectorBody.profile_id = profile_id;
+    createConnectorBody.profile_id = profileId;
     createConnectorBody.connector_type = connectorType;
     createConnectorBody.connector_name = connectorName;
     createConnectorBody.connector_label = connectorLabel;
     createConnectorBody.profile_id = globalState.get("profileId");
-    createConnectorBody.payment_methods_enabled = payment_methods_enabled;
+    createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
@@ -426,7 +426,7 @@ Cypress.Commands.add(
           if (response.status === 200) {
             expect(connectorName).to.equal(response.body.connector_name);
             globalState.set(
-              `${mca_prefix}Id`,
+              `${mcaPrefix}Id`,
               response.body.merchant_connector_id
             );
           } else {
@@ -868,13 +868,18 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "paymentMethodListTestWithRequiredFields",
   (data, globalState) => {
+    const apiKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+    const clientSecret = globalState.get("clientSecret");
+    const url = `${baseUrl}/account/payment_methods?client_secret=${clientSecret}`;
+
     cy.request({
       method: "GET",
-      url: `${globalState.get("baseUrl")}/account/payment_methods?client_secret=${globalState.get("clientSecret")}`,
+      url: url,
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        "api-key": globalState.get("publishableKey"),
+        "api-key": apiKey,
       },
       failOnStatusCode: false,
     }).then((response) => {
@@ -910,7 +915,9 @@ Cypress.Commands.add(
           expect(responseField.value).to.equal(expectedField.value);
         });
       } else {
-        defaultErrorHandler(response, data);
+        throw new Error(
+          `List payment methods failed with status code "${response.status}" and error message "${response.body.error.message}"`
+        );
       }
     });
   }

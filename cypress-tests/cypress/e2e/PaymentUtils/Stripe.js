@@ -1,4 +1,4 @@
-import { getCustomExchange } from "./Commons";
+import { cardRequiredField, getCustomExchange } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -958,35 +958,10 @@ export const connectorDetails = {
                 payment_method_type: "credit",
                 card_networks: [
                   {
-                    eligible_connectors: ["cybersource"],
+                    eligible_connectors: ["stripe"],
                   },
                 ],
-                required_fields: {
-                  "payment_method_data.card.card_number": {
-                    required_field: "payment_method_data.card.card_number",
-                    display_name: "card_number",
-                    field_type: "user_card_number",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_exp_year": {
-                    required_field: "payment_method_data.card.card_exp_year",
-                    display_name: "card_exp_year",
-                    field_type: "user_card_expiry_year",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_cvc": {
-                    required_field: "payment_method_data.card.card_cvc",
-                    display_name: "card_cvc",
-                    field_type: "user_card_cvc",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_exp_month": {
-                    required_field: "payment_method_data.card.card_exp_month",
-                    display_name: "card_exp_month",
-                    field_type: "user_card_expiry_month",
-                    value: null,
-                  },
-                },
+                required_fields: cardRequiredField,
               },
             ],
           },
@@ -1001,35 +976,10 @@ export const connectorDetails = {
                 payment_method_type: "credit",
                 card_networks: [
                   {
-                    eligible_connectors: ["cybersource"],
+                    eligible_connectors: ["stripe"],
                   },
                 ],
-                required_fields: {
-                  "payment_method_data.card.card_number": {
-                    required_field: "payment_method_data.card.card_number",
-                    display_name: "card_number",
-                    field_type: "user_card_number",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_exp_year": {
-                    required_field: "payment_method_data.card.card_exp_year",
-                    display_name: "card_exp_year",
-                    field_type: "user_card_expiry_year",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_cvc": {
-                    required_field: "payment_method_data.card.card_cvc",
-                    display_name: "card_cvc",
-                    field_type: "user_card_cvc",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_exp_month": {
-                    required_field: "payment_method_data.card.card_exp_month",
-                    display_name: "card_exp_month",
-                    field_type: "user_card_expiry_month",
-                    value: null,
-                  },
-                },
+                required_fields: cardRequiredField,
               },
             ],
           },
@@ -1044,35 +994,10 @@ export const connectorDetails = {
                 payment_method_type: "credit",
                 card_networks: [
                   {
-                    eligible_connectors: ["cybersource"],
+                    eligible_connectors: ["stripe"],
                   },
                 ],
-                required_fields: {
-                  "payment_method_data.card.card_number": {
-                    required_field: "payment_method_data.card.card_number",
-                    display_name: "card_number",
-                    field_type: "user_card_number",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_exp_year": {
-                    required_field: "payment_method_data.card.card_exp_year",
-                    display_name: "card_exp_year",
-                    field_type: "user_card_expiry_year",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_cvc": {
-                    required_field: "payment_method_data.card.card_cvc",
-                    display_name: "card_cvc",
-                    field_type: "user_card_cvc",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_exp_month": {
-                    required_field: "payment_method_data.card.card_exp_month",
-                    display_name: "card_exp_month",
-                    field_type: "user_card_expiry_month",
-                    value: null,
-                  },
-                },
+                required_fields: cardRequiredField,
               },
             ],
           },
@@ -1087,35 +1012,10 @@ export const connectorDetails = {
                 payment_method_type: "credit",
                 card_networks: [
                   {
-                    eligible_connectors: ["cybersource"],
+                    eligible_connectors: ["stripe"],
                   },
                 ],
-                required_fields: {
-                  "payment_method_data.card.card_number": {
-                    required_field: "payment_method_data.card.card_number",
-                    display_name: "card_number",
-                    field_type: "user_card_number",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_exp_year": {
-                    required_field: "payment_method_data.card.card_exp_year",
-                    display_name: "card_exp_year",
-                    field_type: "user_card_expiry_year",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_cvc": {
-                    required_field: "payment_method_data.card.card_cvc",
-                    display_name: "card_cvc",
-                    field_type: "user_card_cvc",
-                    value: null,
-                  },
-                  "payment_method_data.card.card_exp_month": {
-                    required_field: "payment_method_data.card.card_exp_month",
-                    display_name: "card_exp_month",
-                    field_type: "user_card_expiry_month",
-                    value: null,
-                  },
-                },
+                required_fields: cardRequiredField,
               },
             ],
           },
