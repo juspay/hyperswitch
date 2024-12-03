@@ -840,9 +840,3 @@ impl RoutableConnectorChoiceWithBucketName {
         }
     }
 }
-
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-pub struct EliminationAnalyserConfig {
-    pub bucket_size: u64,
-    pub bucket_ttl_in_mins: u64,
-}
