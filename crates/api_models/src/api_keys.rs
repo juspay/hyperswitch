@@ -212,7 +212,7 @@ mod never {
     {
         struct NeverVisitor;
 
-        impl<'de> serde::de::Visitor<'de> for NeverVisitor {
+        impl serde::de::Visitor<'_> for NeverVisitor {
             type Value = ();
 
             fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

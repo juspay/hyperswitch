@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use api_models::user_role::role::{self as role_api};
+use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup, RoleScope};
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
