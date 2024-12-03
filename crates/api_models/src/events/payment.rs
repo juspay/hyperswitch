@@ -11,9 +11,8 @@ use super::{
 ))]
 use crate::payment_methods::CustomerPaymentMethodsListResponse;
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
-use crate::payment_methods::CustomerPaymentMethodsListResponse;
+use crate::{events, payment_methods::CustomerPaymentMethodsListResponse};
 use crate::{
-    events,
     payment_methods::{
         CustomerDefaultPaymentMethodResponse, DefaultPaymentMethod, ListCountriesCurrenciesRequest,
         ListCountriesCurrenciesResponse, PaymentMethodCollectLinkRenderRequest,
