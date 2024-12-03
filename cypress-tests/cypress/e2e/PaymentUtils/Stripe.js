@@ -90,6 +90,25 @@ const payment_method_data_no3ds = {
   billing: null,
 };
 
+const requiredFields = {
+  payment_methods: [
+    {
+      payment_method: "card",
+      payment_method_types: [
+        {
+          payment_method_type: "credit",
+          card_networks: [
+            {
+              eligible_connectors: ["stripe"],
+            },
+          ],
+          required_fields: cardRequiredField,
+        },
+      ],
+    },
+  ],
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -949,78 +968,10 @@ export const connectorDetails = {
       PmListNull: {
         payment_methods: [],
       },
-      pmListDynamicFieldWithoutBilling: {
-        payment_methods: [
-          {
-            payment_method: "card",
-            payment_method_types: [
-              {
-                payment_method_type: "credit",
-                card_networks: [
-                  {
-                    eligible_connectors: ["stripe"],
-                  },
-                ],
-                required_fields: cardRequiredField,
-              },
-            ],
-          },
-        ],
-      },
-      pmListDynamicFieldWithBilling: {
-        payment_methods: [
-          {
-            payment_method: "card",
-            payment_method_types: [
-              {
-                payment_method_type: "credit",
-                card_networks: [
-                  {
-                    eligible_connectors: ["stripe"],
-                  },
-                ],
-                required_fields: cardRequiredField,
-              },
-            ],
-          },
-        ],
-      },
-      pmListDynamicFieldWithNames: {
-        payment_methods: [
-          {
-            payment_method: "card",
-            payment_method_types: [
-              {
-                payment_method_type: "credit",
-                card_networks: [
-                  {
-                    eligible_connectors: ["stripe"],
-                  },
-                ],
-                required_fields: cardRequiredField,
-              },
-            ],
-          },
-        ],
-      },
-      pmListDynamicFieldWithEmail: {
-        payment_methods: [
-          {
-            payment_method: "card",
-            payment_method_types: [
-              {
-                payment_method_type: "credit",
-                card_networks: [
-                  {
-                    eligible_connectors: ["stripe"],
-                  },
-                ],
-                required_fields: cardRequiredField,
-              },
-            ],
-          },
-        ],
-      },
+      pmListDynamicFieldWithoutBilling: requiredFields,
+      pmListDynamicFieldWithBilling: requiredFields,
+      pmListDynamicFieldWithNames: requiredFields,
+      pmListDynamicFieldWithEmail: requiredFields,
     },
   },
 };

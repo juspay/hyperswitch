@@ -140,6 +140,9 @@ export const fullNameRequiredField = {
   },
 };
 
+export const billingRequiredField={
+  
+}
 /*
 `getDefaultExchange` contains the default Request and Response to be considered if none provided.
 `getCustomExchange` takes in 2 optional fields named as Request and Response.

@@ -1,5 +1,3 @@
-import { cardRequiredField, fullNameRequiredField } from "./Commons";
-
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
@@ -951,12 +949,30 @@ export const connectorDetails = {
                   },
                 ],
                 required_fields: {
-                  cardRequiredField,
                   "billing.address.first_name": {
                     required_field:
                       "payment_method_data.billing.address.first_name",
                     display_name: "card_holder_name",
                     field_type: "user_full_name",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
                     value: null,
                   },
                   "billing.address.last_name": {
@@ -982,6 +998,12 @@ export const connectorDetails = {
                     required_field: "payment_method_data.billing.address.zip",
                     display_name: "zip",
                     field_type: "user_address_pincode",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
                     value: null,
                   },
                   "billing.address.line1": {
@@ -1015,8 +1037,6 @@ export const connectorDetails = {
                   },
                 ],
                 required_fields: {
-                  cardRequiredField,
-                  fullNameRequiredField,
                   "billing.address.city": {
                     required_field: "payment_method_data.billing.address.city",
                     display_name: "city",
@@ -1046,17 +1066,55 @@ export const connectorDetails = {
                     },
                     value: "PL",
                   },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
                   "billing.email": {
                     required_field: "payment_method_data.billing.email",
                     display_name: "email",
                     field_type: "user_email_address",
                     value: "hyperswitch.example@gmail.com",
                   },
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
                   "billing.address.line1": {
                     required_field: "payment_method_data.billing.address.line1",
                     display_name: "line1",
                     field_type: "user_address_line1",
                     value: "1467",
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
                   },
                 },
               },
@@ -1076,7 +1134,22 @@ export const connectorDetails = {
                     eligible_connectors: ["cybersource"],
                   },
                 ],
-                required_fields: fullNameRequiredField,
+                required_fields: {
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                },
               },
             ],
           },

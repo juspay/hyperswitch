@@ -1,8 +1,4 @@
-import {
-  cardRequiredField,
-  fullNameRequiredField,
-  getCustomExchange,
-} from "./Commons";
+import { getCustomExchange } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -1004,7 +1000,30 @@ export const connectorDetails = {
                   },
                 ],
                 required_fields: {
-                  cardRequiredField,
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
                   "billing.address.first_name": {
                     required_field:
                       "payment_method_data.billing.address.first_name",
@@ -1038,8 +1057,44 @@ export const connectorDetails = {
                   },
                 ],
                 required_fields: {
-                  cardRequiredField,
-                  fullNameRequiredField,
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
                 },
               },
             ],
@@ -1059,7 +1114,20 @@ export const connectorDetails = {
                   },
                 ],
                 required_fields: {
-                  fullNameRequiredField,
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
                 },
               },
             ],
@@ -1079,8 +1147,44 @@ export const connectorDetails = {
                   },
                 ],
                 required_fields: {
-                  cardRequiredField,
-                  fullNameRequiredField,
+                  "payment_method_data.card.card_exp_month": {
+                    required_field: "payment_method_data.card.card_exp_month",
+                    display_name: "card_exp_month",
+                    field_type: "user_card_expiry_month",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_number": {
+                    required_field: "payment_method_data.card.card_number",
+                    display_name: "card_number",
+                    field_type: "user_card_number",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_cvc": {
+                    required_field: "payment_method_data.card.card_cvc",
+                    display_name: "card_cvc",
+                    field_type: "user_card_cvc",
+                    value: null,
+                  },
+                  "payment_method_data.card.card_exp_year": {
+                    required_field: "payment_method_data.card.card_exp_year",
+                    display_name: "card_exp_year",
+                    field_type: "user_card_expiry_year",
+                    value: null,
+                  },
+                  "billing.address.first_name": {
+                    required_field:
+                      "payment_method_data.billing.address.first_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "joseph",
+                  },
+                  "billing.address.last_name": {
+                    required_field:
+                      "payment_method_data.billing.address.last_name",
+                    display_name: "card_holder_name",
+                    field_type: "user_full_name",
+                    value: "Doe",
+                  },
                 },
               },
             ],
