@@ -413,12 +413,11 @@ pub async fn get_metrics(
             } else {
                 None
             },
-            total_payment_processed_amount_without_smart_retries_in_usd:
-                if ex_rates.is_some(){
-                    Some(total_payment_processed_amount_without_smart_retries_in_usd)
-                } else {
-                    None
-                },
+            total_payment_processed_amount_without_smart_retries_in_usd: if ex_rates.is_some() {
+                Some(total_payment_processed_amount_without_smart_retries_in_usd)
+            } else {
+                None
+            },
             total_payment_processed_count: Some(total_payment_processed_count),
             total_payment_processed_count_without_smart_retries: Some(
                 total_payment_processed_count_without_smart_retries,

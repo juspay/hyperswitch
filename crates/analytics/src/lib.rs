@@ -858,21 +858,25 @@ impl AnalyticsProvider {
         tenant: &dyn storage_impl::config::TenantConfig,
     ) -> Self {
         match config {
-            AnalyticsConfig::Sqlx { sqlx , ..} => {
+            AnalyticsConfig::Sqlx { sqlx, .. } => {
                 Self::Sqlx(SqlxClient::from_conf(sqlx, tenant.get_schema()).await)
             }
             AnalyticsConfig::Clickhouse { clickhouse, .. } => Self::Clickhouse(ClickhouseClient {
                 config: Arc::new(clickhouse.clone()),
                 database: tenant.get_clickhouse_database().to_string(),
             }),
-            AnalyticsConfig::CombinedCkh { sqlx, clickhouse , ..} => Self::CombinedCkh(
+            AnalyticsConfig::CombinedCkh {
+                sqlx, clickhouse, ..
+            } => Self::CombinedCkh(
                 SqlxClient::from_conf(sqlx, tenant.get_schema()).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
                     database: tenant.get_clickhouse_database().to_string(),
                 },
             ),
-            AnalyticsConfig::CombinedSqlx { sqlx, clickhouse , ..} => Self::CombinedSqlx(
+            AnalyticsConfig::CombinedSqlx {
+                sqlx, clickhouse, ..
+            } => Self::CombinedSqlx(
                 SqlxClient::from_conf(sqlx, tenant.get_schema()).await,
                 ClickhouseClient {
                     config: Arc::new(clickhouse.clone()),
@@ -938,15 +942,28 @@ impl SecretsHandler for AnalyticsConfig {
         };
 
         Ok(value.transition_state(|conf| match conf {
-            Self::Sqlx { sqlx , forex_enabled } => Self::Sqlx {
+            Self::Sqlx {
+                sqlx,
+                forex_enabled,
+            } => Self::Sqlx {
                 sqlx: Database {
                     password: decrypted_password,
                     ..sqlx
                 },
                 forex_enabled,
             },
-            Self::Clickhouse { clickhouse, forex_enabled} => Self::Clickhouse { clickhouse, forex_enabled},
-            Self::CombinedCkh { sqlx, clickhouse , forex_enabled} => Self::CombinedCkh {
+            Self::Clickhouse {
+                clickhouse,
+                forex_enabled,
+            } => Self::Clickhouse {
+                clickhouse,
+                forex_enabled,
+            },
+            Self::CombinedCkh {
+                sqlx,
+                clickhouse,
+                forex_enabled,
+            } => Self::CombinedCkh {
                 sqlx: Database {
                     password: decrypted_password,
                     ..sqlx
@@ -954,7 +971,11 @@ impl SecretsHandler for AnalyticsConfig {
                 clickhouse,
                 forex_enabled,
             },
-            Self::CombinedSqlx { sqlx, clickhouse , forex_enabled} => Self::CombinedSqlx {
+            Self::CombinedSqlx {
+                sqlx,
+                clickhouse,
+                forex_enabled,
+            } => Self::CombinedSqlx {
                 sqlx: Database {
                     password: decrypted_password,
                     ..sqlx

@@ -27,6 +27,8 @@ pub mod routes {
     };
     use common_enums::EntityType;
     use common_utils::types::TimeRange;
+    use error_stack::{report, ResultExt};
+    use futures::{stream::FuturesUnordered, StreamExt};
 
     use crate::{
         analytics_validator::request_validator,
@@ -42,8 +44,6 @@ pub mod routes {
         },
         types::{domain::UserEmail, storage::UserRole},
     };
-    use error_stack::{report, ResultExt};
-    use futures::{stream::FuturesUnordered, StreamExt};
 
     pub struct Analytics;
 
