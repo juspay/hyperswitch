@@ -705,9 +705,7 @@ impl OpenSearchQueryBuilder {
 
         let should_array = self.build_auth_array();
 
-        if !bool_obj.is_empty() {
-            query_obj.insert("bool".to_string(), Value::Object(bool_obj));
-        }
+        query_obj.insert("bool".to_string(), Value::Object(bool_obj));
 
         let mut sort_obj = Map::new();
         sort_obj.insert(

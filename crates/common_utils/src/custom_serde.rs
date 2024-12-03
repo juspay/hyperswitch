@@ -202,7 +202,6 @@ pub mod timestamp {
 }
 
 /// <https://github.com/serde-rs/serde/issues/994#issuecomment-316895860>
-
 pub mod json_string {
     use serde::de::{self, Deserialize, DeserializeOwned, Deserializer};
     use serde_json;

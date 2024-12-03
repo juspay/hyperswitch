@@ -19,7 +19,7 @@ use common_utils::{
         MinorUnit,
     },
 };
-use diesel_models::enums::{self};
+use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
