@@ -427,7 +427,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
 
     let connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
-        &connector_id,
+        connector_id,
         api::GetToken::Connector,
         payment_data.payment_attempt.merchant_connector_id.clone(),
     )?;
