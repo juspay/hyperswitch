@@ -85,6 +85,29 @@ impl Default for AnalyticsRequest {
         }
     }
 }
+impl AnalyticsRequest {
+    pub fn requires_forex_functionality(&self) -> bool {
+        self.payment_attempt
+            .as_ref()
+            .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+            .unwrap_or_default()
+            || self
+                .payment_intent
+                .as_ref()
+                .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+                .unwrap_or_default()
+            || self
+                .refund
+                .as_ref()
+                .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+                .unwrap_or_default()
+            || self
+                .dispute
+                .as_ref()
+                .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+                .unwrap_or_default()
+    }
+}
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentMetricRequest {
