@@ -1531,7 +1531,6 @@ pub struct MerchantConnectorUpdate {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-
 pub struct ConnectorWalletDetails {
     /// This field contains the Apple Pay certificates and credentials for iOS and Web Apple Pay flow
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2673,6 +2672,9 @@ pub struct PaymentLinkConfigRequest {
     /// Hide card nickname field option for payment link
     #[schema(default = false, example = true)]
     pub hide_card_nickname_field: Option<bool>,
+    /// Show card form by default for payment link
+    #[schema(default = true, example = true)]
+    pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
 }
@@ -2718,6 +2720,8 @@ pub struct PaymentLinkConfig {
     pub enabled_saved_payment_method: bool,
     /// Hide card nickname field option for payment link
     pub hide_card_nickname_field: bool,
+    /// Show card form by default for payment link
+    pub show_card_form_by_default: bool,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link

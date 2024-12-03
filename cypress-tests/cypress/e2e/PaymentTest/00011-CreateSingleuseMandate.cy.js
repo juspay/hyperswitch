@@ -49,8 +49,15 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
+          req_data,
+          res_data,
           7000,
           true,
           "automatic",
@@ -112,8 +119,15 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITManualCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
+          req_data,
+          res_data,
           6500,
           true,
           "manual",
@@ -197,8 +211,15 @@ describe("Card - SingleUse Mandates flow test", () => {
       });
 
       it("Confirm No 3DS MIT", () => {
+        let data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        let req_data = data["Request"];
+        let res_data = data["Response"];
         cy.mitForMandatesCallTest(
           fixtures.mitConfirmBody,
+          req_data,
+          res_data,
           7000,
           true,
           "automatic",

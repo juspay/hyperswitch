@@ -1,7 +1,7 @@
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -9,7 +9,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -58,7 +58,7 @@ const payment_method_data_no3ds = {
     card_isin: "424242",
     card_extended_bin: null,
     card_exp_month: "01",
-    card_exp_year: "25",
+    card_exp_year: "50",
     card_holder_name: null,
     payment_checks: {
       avs_response: {
@@ -82,7 +82,7 @@ const payment_method_data_3ds = {
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "01",
-    card_exp_year: "25",
+    card_exp_year: "50",
     card_holder_name: null,
     payment_checks: null,
     authentication_data: null,
@@ -451,6 +451,24 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
       Response: {
         status: 200,
         body: {
