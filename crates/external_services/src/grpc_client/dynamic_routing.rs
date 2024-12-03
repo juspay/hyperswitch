@@ -8,9 +8,10 @@ pub mod elimination_rate_client;
 /// Success Routing Client Interface Implementation
 pub mod success_rate_client;
 
-use super::Client;
 pub use elimination_rate_client::EliminationAnalyserClient;
 pub use success_rate_client::SuccessRateCalculatorClient;
+
+use super::Client;
 /// Result type for Dynamic Routing
 pub type DynamicRoutingResult<T> = CustomResult<T, DynamicRoutingError>;
 
