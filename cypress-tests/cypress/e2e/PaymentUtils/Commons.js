@@ -1565,7 +1565,7 @@ export const connectorDetails = {
             payment_method_types: [
               {
                 payment_method_type: "credit",
-                card_networks: [,],
+                card_networks: [],
                 required_fields: {},
               },
             ],
