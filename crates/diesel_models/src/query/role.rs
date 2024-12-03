@@ -26,7 +26,7 @@ impl Role {
         .await
     }
 
-    // TODO:remove once find_by_role_id_in_lineage is stable
+    // TODO:Remove once find_by_role_id_in_lineage is stable
     pub async fn find_by_role_id_in_merchant_scope(
         conn: &PgPooledConn,
         role_id: &str,

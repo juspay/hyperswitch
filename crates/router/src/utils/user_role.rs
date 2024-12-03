@@ -68,14 +68,14 @@ pub async fn validate_role_name(
     Ok(())
 }
 
-pub async fn set_role_permissions_in_cache_by_user_role(
+pub async fn set_role_info_in_cache_by_user_role(
     state: &SessionState,
     user_role: &UserRole,
 ) -> bool {
     let Some(ref org_id) = user_role.org_id else {
         return false;
     };
-    set_role_permissions_in_cache_if_required(state, user_role.role_id.as_str(), org_id)
+    set_role_info_in_cache_if_required(state, user_role.role_id.as_str(), org_id)
         .await
         .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
         .is_ok()
@@ -86,13 +86,13 @@ pub async fn set_role_info_in_cache_by_role_id_org_id(
     role_id: &str,
     org_id: &id_type::OrganizationId,
 ) -> bool {
-    set_role_permissions_in_cache_if_required(state, role_id, org_id)
+    set_role_info_in_cache_if_required(state, role_id, org_id)
         .await
         .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
         .is_ok()
 }
 
-pub async fn set_role_permissions_in_cache_if_required(
+pub async fn set_role_info_in_cache_if_required(
     state: &SessionState,
     role_id: &str,
     org_id: &id_type::OrganizationId,

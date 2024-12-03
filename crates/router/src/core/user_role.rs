@@ -485,10 +485,9 @@ pub async fn delete_user_role(
             .attach_printable("User deleting himself");
     }
 
-    let deletion_requestor_role_info = roles::RoleInfo::from_role_id_in_lineage(
+    let deletion_requestor_role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -523,9 +522,10 @@ pub async fn delete_user_role(
     };
 
     if let Some(role_to_be_deleted) = user_role_v2 {
-        let target_role_info = roles::RoleInfo::from_role_id_and_org_id(
+        let target_role_info = roles::RoleInfo::from_role_id_in_lineage(
             &state,
             &role_to_be_deleted.role_id,
+            &user_from_token.merchant_id,
             &user_from_token.org_id,
         )
         .await
@@ -592,9 +592,10 @@ pub async fn delete_user_role(
     };
 
     if let Some(role_to_be_deleted) = user_role_v1 {
-        let target_role_info = roles::RoleInfo::from_role_id_and_org_id(
+        let target_role_info = roles::RoleInfo::from_role_id_in_lineage(
             &state,
             &role_to_be_deleted.role_id,
+            &user_from_token.merchant_id,
             &user_from_token.org_id,
         )
         .await

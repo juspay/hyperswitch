@@ -23,7 +23,7 @@ pub trait RoleInterface {
         role_id: &str,
     ) -> CustomResult<storage::Role, errors::StorageError>;
 
-    //TODO:remove once find_by_role_id_in_lineage is stable
+    //TODO:Remove once find_by_role_id_in_lineage is stable
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
@@ -94,7 +94,7 @@ impl RoleInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    //TODO:remove once find_by_role_id_in_lineage is stable
+    //TODO:Remove once find_by_role_id_in_lineage is stable
     #[instrument(skip_all)]
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
@@ -239,7 +239,7 @@ impl RoleInterface for MockDb {
             )
     }
 
-    // TODO:remove once find_by_role_id_in_lineage is stable
+    // TODO:Remove once find_by_role_id_in_lineage is stable
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,

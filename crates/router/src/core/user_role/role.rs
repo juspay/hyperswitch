@@ -208,16 +208,10 @@ pub async fn update_role(
     .await
     .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
-    let user_from_token_role_info = roles::RoleInfo::from_role_id_and_org_id(
-        &state,
-        &user_from_token.role_id,
-        &user_from_token.org_id,
-    )
-    .await
-    .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let user_role_info = user_from_token.get_role_info_from_db(&state).await?;
 
     if matches!(role_info.get_scope(), RoleScope::Organization)
-        && user_from_token_role_info.get_entity_type() != EntityType::Organization
+        && user_role_info.get_entity_type() != EntityType::Organization
     {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Non org admin user changing org level role");
