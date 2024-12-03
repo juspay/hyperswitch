@@ -205,7 +205,6 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
 }
 
 #[actix_web::test]
-
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
@@ -314,7 +313,6 @@ async fn payments_create_failure() {
 }
 
 #[actix_web::test]
-
 async fn refund_for_successful_payments() {
     let conf = Settings::new().unwrap();
     use router::connector::Aci;

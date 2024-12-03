@@ -659,7 +659,6 @@ fn get_fulfillment_status(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-
 pub struct RiskifiedWebhookBody {
     pub id: String,
     pub status: RiskifiedWebhookStatus,
