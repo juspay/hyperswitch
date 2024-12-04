@@ -274,7 +274,7 @@ fn get_error_response(error_code: String, error_reason: String, status_code: u16
     }
 }
 
-fn is_response_success(rc: String) -> bool {
+fn is_response_success(rc: &String) -> bool {
     rc == "0"
 }
 
@@ -302,7 +302,7 @@ impl
             None => time::OffsetDateTime::now_utc().date().to_string(),
         };
         let response_code = item.response.rc.clone();
-        let is_response_success = is_response_success(response_code.clone());
+        let is_response_success = is_response_success(&response_code);
 
         match (
             item.response.reference.clone(),
@@ -355,20 +355,15 @@ impl
                 }),
                 ..item.data
             }),
-            _ => {
-                let error_reason = item.response.message.clone();
-                let response = Err(get_error_response(
+            _ => Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(get_error_response(
                     response_code.clone(),
-                    error_reason,
+                    item.response.message.clone(),
                     item.http_code,
-                ));
-
-                Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
-                    response,
-                    ..item.data
-                })
-            }
+                )),
+                ..item.data
+            }),
         }
     }
 }
@@ -393,9 +388,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let response_code = item.response.rc.clone();
-        let is_response_success = is_response_success(response_code.clone());
-
-        if is_response_success {
+        if is_response_success(&response_code) {
             Ok(Self {
                 status: match item.data.request.is_auto_capture()? {
                     true => common_enums::AttemptStatus::Charged,
@@ -414,16 +407,13 @@ impl
                 ..item.data
             })
         } else {
-            let error_reason = item.response.message.clone();
-            let response = Err(get_error_response(
-                response_code.clone(),
-                error_reason,
-                item.http_code,
-            ));
-
             Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
-                response,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
                 ..item.data
             })
         }
@@ -610,9 +600,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let response_code = item.response.rc.clone();
-        let is_response_success = is_response_success(response_code.clone());
-
-        if is_response_success {
+        if is_response_success(&response_code) {
             Ok(Self {
                 status: match item.data.request.is_auto_capture()? {
                     true => common_enums::AttemptStatus::Charged,
@@ -631,16 +619,13 @@ impl
                 ..item.data
             })
         } else {
-            let error_reason = item.response.message.clone();
-            let response = Err(get_error_response(
-                response_code.clone(),
-                error_reason,
-                item.http_code,
-            ));
-
             Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
-                response,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
                 ..item.data
             })
         }
@@ -691,9 +676,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let response_code = item.response.rc.clone();
-        let is_response_success = is_response_success(response_code.clone());
-
-        if is_response_success {
+        if is_response_success(&response_code) {
             Ok(Self {
                 status: common_enums::AttemptStatus::Charged,
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -709,16 +692,13 @@ impl
                 ..item.data
             })
         } else {
-            let error_reason = item.response.message.clone();
-            let response = Err(get_error_response(
-                response_code.clone(),
-                error_reason,
-                item.http_code,
-            ));
-
             Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
-                response,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
                 ..item.data
             })
         }
@@ -745,9 +725,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let response_code = item.response.rc.clone();
-        let is_response_success = is_response_success(response_code.clone());
-
-        let status = if is_response_success {
+        let status = if is_response_success(&response_code) {
             item.response
                 .tx_action
                 .and_then(|tx_action| match tx_action {
@@ -769,20 +747,15 @@ impl
             Some(common_enums::AttemptStatus::Failure)
         };
         match status {
-            Some(common_enums::AttemptStatus::Failure) => {
-                let error_reason = item.response.message.clone();
-                let response = Err(get_error_response(
+            Some(common_enums::AttemptStatus::Failure) => Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(get_error_response(
                     response_code.clone(),
-                    error_reason,
+                    item.response.message.clone(),
                     item.http_code,
-                ));
-
-                Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
-                    response,
-                    ..item.data
-                })
-            }
+                )),
+                ..item.data
+            }),
             Some(status) => Ok(Self {
                 status,
                 ..item.data
@@ -814,24 +787,19 @@ impl TryFrom<PaymentsCancelResponseRouterData<DeutschebankPaymentsResponse>>
         item: PaymentsCancelResponseRouterData<DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let response_code = item.response.rc.clone();
-        let is_response_success = is_response_success(response_code.clone());
-
-        if is_response_success {
+        if is_response_success(&response_code) {
             Ok(Self {
                 status: common_enums::AttemptStatus::Voided,
                 ..item.data
             })
         } else {
-            let error_reason = item.response.message.clone();
-            let response = Err(get_error_response(
-                response_code.clone(),
-                error_reason,
-                item.http_code,
-            ));
-
             Ok(Self {
                 status: common_enums::AttemptStatus::VoidFailed,
-                response,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
                 ..item.data
             })
         }
@@ -862,9 +830,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>>
         item: RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let response_code = item.response.rc.clone();
-        let is_response_success = is_response_success(response_code.clone());
-
-        if is_response_success {
+        if is_response_success(&response_code) {
             Ok(Self {
                 response: Ok(RefundsResponseData {
                     connector_refund_id: item.response.tx_id,
@@ -873,16 +839,13 @@ impl TryFrom<RefundsResponseRouterData<Execute, DeutschebankPaymentsResponse>>
                 ..item.data
             })
         } else {
-            let error_reason = item.response.message.clone();
-            let response = Err(get_error_response(
-                response_code.clone(),
-                error_reason,
-                item.http_code,
-            ));
-
             Ok(Self {
                 status: common_enums::AttemptStatus::Failure,
-                response,
+                response: Err(get_error_response(
+                    response_code.clone(),
+                    item.response.message.clone(),
+                    item.http_code,
+                )),
                 ..item.data
             })
         }
@@ -897,9 +860,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
         item: RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
         let response_code = item.response.rc.clone();
-        let is_response_success = is_response_success(response_code.clone());
-
-        let status = if is_response_success {
+        let status = if is_response_success(&response_code) {
             item.response
                 .tx_action
                 .and_then(|tx_action| match tx_action {
@@ -920,20 +881,15 @@ impl TryFrom<RefundsResponseRouterData<RSync, DeutschebankPaymentsResponse>>
         };
 
         match status {
-            Some(enums::RefundStatus::Failure) => {
-                let error_reason = item.response.message.clone();
-                let response = Err(get_error_response(
+            Some(enums::RefundStatus::Failure) => Ok(Self {
+                status: common_enums::AttemptStatus::Failure,
+                response: Err(get_error_response(
                     response_code.clone(),
-                    error_reason,
+                    item.response.message.clone(),
                     item.http_code,
-                ));
-
-                Ok(Self {
-                    status: common_enums::AttemptStatus::Failure,
-                    response,
-                    ..item.data
-                })
-            }
+                )),
+                ..item.data
+            }),
             Some(refund_status) => Ok(Self {
                 response: Ok(RefundsResponseData {
                     refund_status,
