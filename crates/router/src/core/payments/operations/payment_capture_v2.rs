@@ -122,7 +122,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsCaptureRequest, PaymentCaptureD
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &PaymentsCaptureRequest,
+        _request: &PaymentsCaptureRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
@@ -181,6 +181,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
             .attach_printable("Could not find payment attempt given the attempt id")?;
 
         if let Some(amount_to_capture) = request.amount_to_capture {
+            payment_attempt
+                .amount_details
+                .validate_amount_to_capture(amount_to_capture)
+                .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                    message: format!(
+                        "`amount_to_capture` is greater than the net amount {}",
+                        payment_attempt.amount_details.get_net_amount()
+                    ),
+                })?;
+
             payment_attempt
                 .amount_details
                 .set_amount_to_capture(amount_to_capture);

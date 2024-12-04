@@ -276,6 +276,18 @@ impl AttemptAmountDetails {
     pub fn set_amount_to_capture(&mut self, amount_to_capture: MinorUnit) {
         self.amount_to_capture = Some(amount_to_capture);
     }
+
+    /// Validate the amount to capture that is sent in the request
+    pub fn validate_amount_to_capture(
+        &self,
+        request_amount_to_capture: MinorUnit,
+    ) -> Result<(), ValidationError> {
+        common_utils::fp_utils::when(request_amount_to_capture > self.get_net_amount(), || {
+            Err(ValidationError::IncorrectValueProvided {
+                field_name: "amount_to_capture",
+            })
+        })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
