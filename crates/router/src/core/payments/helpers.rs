@@ -1243,13 +1243,13 @@ pub fn create_authorize_url(
 pub fn create_webhook_url(
     router_base_url: &String,
     merchant_id: &id_type::MerchantId,
-    merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    merchant_connector_id_or_connector_name: &String,
 ) -> String {
     format!(
         "{}/webhooks/{}/{}",
         router_base_url,
         merchant_id.get_string_repr(),
-        merchant_connector_id.get_string_repr(),
+        merchant_connector_id_or_connector_name,
     )
 }
 

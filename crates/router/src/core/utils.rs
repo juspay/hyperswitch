@@ -294,7 +294,7 @@ pub async fn construct_refund_router_data<'a, F>(
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url.clone(),
         merchant_account.get_id(),
-        &merchant_connector_account_id,
+        &merchant_connector_account_id.get_string_repr().to_string(),
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
