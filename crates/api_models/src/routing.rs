@@ -615,7 +615,7 @@ impl SuccessBasedAlgorithm {
     }
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct RoutingVolumeSplit {
     pub routing_type: RoutingType,
     pub split: u8,
@@ -627,7 +627,8 @@ pub struct RoutingVolumeSplitWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum RoutingType {
     #[default]
     Static,
@@ -635,8 +636,8 @@ pub enum RoutingType {
 }
 
 impl RoutingType {
-    pub fn is_dynamic_routing(&self) -> bool {
-        self == &Self::Dynamic
+    pub fn is_dynamic_routing(self) -> bool {
+        self == Self::Dynamic
     }
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -702,7 +703,7 @@ pub struct ToggleDynamicRoutingQuery {
     pub enable: DynamicRoutingFeatures,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct DynamicRoutingVolumeSplitQuery {
     pub split: u8,
 }

@@ -489,6 +489,7 @@ pub async fn refresh_routing_cache_v1(
     Ok(arc_cached_algorithm)
 }
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub fn perform_dynamic_routing_volume_split(
     splits: Vec<api_models::routing::RoutingVolumeSplit>,
     rng_seed: Option<&str>,
@@ -510,11 +511,10 @@ pub fn perform_dynamic_routing_volume_split(
         weighted_index.sample(&mut rng)
     };
 
-    let routing_choice = splits
+    let routing_choice = *splits
         .get(idx)
         .ok_or(errors::RoutingError::VolumeSplitFailed)
-        .attach_printable("Volume split index lookup failed")?
-        .clone();
+        .attach_printable("Volume split index lookup failed")?;
 
     Ok(routing_choice)
 }
