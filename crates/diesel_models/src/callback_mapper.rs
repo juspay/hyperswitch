@@ -5,7 +5,16 @@ use serde::{self, Deserialize, Serialize};
 use crate::schema::callback_mapper;
 
 #[derive(
-    Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Serialize, Deserialize, Insertable
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Identifiable,
+    Queryable,
+    Selectable,
+    Serialize,
+    Deserialize,
+    Insertable,
 )]
 #[diesel(table_name = callback_mapper,  primary_key(id, type_), check_for_backend(diesel::pg::Pg))]
 pub struct CallbackMapper {
