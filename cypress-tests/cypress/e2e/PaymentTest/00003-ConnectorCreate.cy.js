@@ -33,7 +33,7 @@ describe("Connector Account Create flow test", () => {
         cy.createBusinessProfileTest(
           fixtures.businessProfile.bpCreate,
           globalState,
-          "profile" + i
+          `profile${i}`
         );
         cy.createConnectorCallTest(
           "payment_processor",
