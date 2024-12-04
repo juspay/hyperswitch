@@ -1,7 +1,6 @@
 use api_models::routing::{
     ContractBasedRoutingConfig, ContractBasedRoutingConfigBody, ContractBasedTimeScale,
-    CurrentBlockThreshold, LabelInformation, RoutableConnectorChoice,
-    RoutableConnectorChoiceWithStatus, SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody,
+    LabelInformation, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
 };
 use common_utils::{
     ext_traits::OptionExt,
@@ -170,7 +169,7 @@ impl ForeignFrom<LabelInformation> for ProtoLabelInfo {
             label: config.label,
             target_count: config.target_count,
             target_time: config.target_time,
-            current_count: config.current_count,
+            current_count: config.incremental_count,
         }
     }
 }

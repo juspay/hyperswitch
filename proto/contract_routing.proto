@@ -31,12 +31,13 @@ message TimeScale {
 }
 
 message CalContractScoreResponse {
-    repeated LabelWithScore labels_with_score = 1;
+    repeated ScoreData labels_with_score = 1;
 }
 
-message LabelWithScore {
+message ScoreData {
     double score = 1;
     string label = 2;
+    uint64 current_count = 3;
 }
 
 // API-2 types

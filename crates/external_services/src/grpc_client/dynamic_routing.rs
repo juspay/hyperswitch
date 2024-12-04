@@ -56,7 +56,7 @@ pub enum DynamicRoutingError {
 pub struct RoutingStrategy {
     /// success rate service for Dynamic Routing
     pub success_rate_client: Option<SuccessRateCalculatorClient<Client>>,
-    /// success rate service for Dynamic Routing
+    /// contract based routing service for Dynamic Routing
     pub contract_based_client: Option<ContractScoreCalculatorClient<Client>>,
 }
 

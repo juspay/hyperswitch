@@ -45,6 +45,8 @@ pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";
 pub const ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Elimination based dynamic routing algorithm";
+pub const CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
+    "Contract based dynamic routing algorithm";
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -966,7 +968,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             },
         )?;
 
-        let mut contract_based_routing_config =
+        let contract_based_routing_config =
             fetch_dynamic_routing_configs::<routing_types::ContractBasedRoutingConfig>(
                 state,
                 business_profile,
@@ -997,7 +999,6 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             );
 
         let contract_scores = client
-            .clone()
             .calculate_contract_score(
                 tenant_business_profile_id.clone(),
                 contract_based_routing_config.clone(),
@@ -1110,7 +1111,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 }
             });
 
-        let mut final_label_info = existing_label_info
+        let final_label_info = existing_label_info
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to get LabelInformation from ContractBasedRoutingConfig")?;
 
@@ -1118,7 +1119,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             label: final_label_info.label.clone(),
             target_count: final_label_info.target_count,
             target_time: final_label_info.target_time,
-            current_count: 1,
+            incremental_count: 1,
             mca_id: final_label_info.mca_id.to_owned(),
         };
 
@@ -1152,17 +1153,17 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 "unable to update success based routing window in dynamic routing service",
             )?;
 
-        final_label_info.current_count += 1;
+        // final_label_info.current_count += 1;
 
-        contract_based_routing_config
-            .label_info
-            .map(|label_info_vec| {
-                for mut label_info in label_info_vec {
-                    if Some(&label_info.mca_id) == payment_attempt.merchant_connector_id.as_ref() {
-                        label_info = final_label_info.clone();
-                    }
-                }
-            });
+        // contract_based_routing_config
+        //     .label_info
+        //     .map(|label_info_vec| {
+        //         for mut label_info in label_info_vec {
+        //             if Some(&label_info.mca_id) == payment_attempt.merchant_connector_id.as_ref() {
+        //                 label_info = final_label_info.clone();
+        //             }
+        //         }
+        //     });
 
         Ok(())
     } else {
@@ -1298,6 +1299,7 @@ pub async fn disable_dynamic_routing_algorithm(
                         }),
                         elimination_routing_algorithm: dynamic_routing_algo_ref
                             .elimination_routing_algorithm,
+                        contract_based_routing: dynamic_routing_algo_ref.contract_based_routing,
                     },
                     cache_entries_to_redact,
                 )
@@ -1338,6 +1340,46 @@ pub async fn disable_dynamic_routing_algorithm(
                                 enabled_feature: routing_types::DynamicRoutingFeatures::None,
                             },
                         ),
+                        contract_based_routing: dynamic_routing_algo_ref.contract_based_routing,
+                    },
+                    cache_entries_to_redact,
+                )
+            }
+            routing_types::DynamicRoutingType::ContractBasedRouting => {
+                let Some(algorithm_ref) = dynamic_routing_algo_ref.contract_based_routing else {
+                    Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Elimination routing is already disabled".to_string(),
+                    })?
+                };
+                let Some(algorithm_id) = algorithm_ref.algorithm_id_with_timestamp.algorithm_id
+                else {
+                    Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Algorithm is already inactive".to_string(),
+                    })?
+                };
+                let cache_key = format!(
+                    "{}_{}",
+                    business_profile.get_id().get_string_repr(),
+                    algorithm_id.get_string_repr()
+                );
+                let cache_entries_to_redact =
+                    vec![cache::CacheKind::ContractBasedDynamicRoutingCache(
+                        cache_key.into(),
+                    )];
+                (
+                    algorithm_id,
+                    routing_types::DynamicRoutingAlgorithmRef {
+                        success_based_algorithm: dynamic_routing_algo_ref.success_based_algorithm,
+                        elimination_routing_algorithm: dynamic_routing_algo_ref
+                            .elimination_routing_algorithm,
+                        contract_based_routing: Some(routing_types::ContractRoutingAlgorithm {
+                            algorithm_id_with_timestamp:
+                                routing_types::DynamicAlgorithmWithTimestamp {
+                                    algorithm_id: None,
+                                    timestamp,
+                                },
+                            enabled_feature: routing_types::DynamicRoutingFeatures::None,
+                        }),
                     },
                     cache_entries_to_redact,
                 )
@@ -1410,6 +1452,18 @@ pub async fn enable_dynamic_routing_algorithm(
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
                 dynamic_routing.elimination_routing_algorithm,
+            )
+            .await
+        }
+        routing_types::DynamicRoutingType::ContractBasedRouting => {
+            enable_specific_routing_algorithm(
+                state,
+                key_store,
+                business_profile,
+                feature_to_enable,
+                dynamic_routing_algo_ref,
+                dynamic_routing_type,
+                dynamic_routing.contract_based_routing,
             )
             .await
         }
@@ -1537,6 +1591,22 @@ pub async fn default_specific_dynamic_routing_setup(
                 description: None,
                 kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
                 algorithm_data: serde_json::json!(default_elimination_routing_config),
+                created_at: timestamp,
+                modified_at: timestamp,
+                algorithm_for: common_enums::TransactionType::Payment,
+            }
+        }
+        routing_types::DynamicRoutingType::ContractBasedRouting => {
+            let default_contract_routing_config =
+                routing_types::ContractBasedRoutingConfig::default();
+            routing_algorithm::RoutingAlgorithm {
+                algorithm_id: algorithm_id.clone(),
+                profile_id: profile_id.clone(),
+                merchant_id,
+                name: CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+                description: None,
+                kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
+                algorithm_data: serde_json::json!(default_contract_routing_config),
                 created_at: timestamp,
                 modified_at: timestamp,
                 algorithm_for: common_enums::TransactionType::Payment,

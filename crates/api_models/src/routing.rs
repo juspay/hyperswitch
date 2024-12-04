@@ -871,7 +871,7 @@ pub struct LabelInformation {
     pub label: String,
     pub target_count: u64,
     pub target_time: u64,
-    pub current_count: u64,
+    pub incremental_count: u64,
     pub mca_id: common_utils::id_type::MerchantConnectorAccountId,
 }
 
