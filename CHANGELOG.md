@@ -4,6 +4,37 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.04.0
+
+### Features
+
+- **cypress:** Add multiple creds and flags support ([#6588](https://github.com/juspay/hyperswitch/pull/6588)) ([`6438391`](https://github.com/juspay/hyperswitch/commit/64383915bda5693df1cecf6cc5683e8b9aaef99b))
+
+**Full Changelog:** [`2024.12.03.0...2024.12.04.0`](https://github.com/juspay/hyperswitch/compare/2024.12.03.0...2024.12.04.0)
+
+- - -
+
+## 2024.12.03.0
+
+### Features
+
+- **payment_methods_v2:** Implement a barebones version of list customer payment methods v2 ([#6649](https://github.com/juspay/hyperswitch/pull/6649)) ([`797a0db`](https://github.com/juspay/hyperswitch/commit/797a0db7733c5b387564fb1bbc106d054c8dffa6))
+- **routing:** Elimination routing switch for toggling the feature ([#6568](https://github.com/juspay/hyperswitch/pull/6568)) ([`f6dde13`](https://github.com/juspay/hyperswitch/commit/f6dde13d6c2920761f236969a3862fe61f3e0e3d))
+
+### Bug Fixes
+
+- **connector:** Adyen - propagate connector mandate details in incoming webhooks ([#6720](https://github.com/juspay/hyperswitch/pull/6720)) ([`bea4b9e`](https://github.com/juspay/hyperswitch/commit/bea4b9e7f430c3d7fbb25be0b472d2afb01135ec))
+- **opensearch:** Fix empty filter array query addition in globalsearch query ([#6716](https://github.com/juspay/hyperswitch/pull/6716)) ([`063a1c6`](https://github.com/juspay/hyperswitch/commit/063a1c636ce29ca8f76c3c272c6da4d32d356cda))
+- **payment_link:** Add support for hide card nickname field for open payment links ([#6700](https://github.com/juspay/hyperswitch/pull/6700)) ([`933911e`](https://github.com/juspay/hyperswitch/commit/933911eda11f32d72ffeddb948b86672cb08105b))
+
+### Miscellaneous Tasks
+
+- Address Rust 1.83.0 clippy lints and enable more clippy lints ([#6705](https://github.com/juspay/hyperswitch/pull/6705)) ([`9a59d0a`](https://github.com/juspay/hyperswitch/commit/9a59d0a5ff682cd7a983a63e90113afc846aeac6))
+
+**Full Changelog:** [`2024.12.02.1...2024.12.03.0`](https://github.com/juspay/hyperswitch/compare/2024.12.02.1...2024.12.03.0)
+
+- - -
+
 ## 2024.12.02.1
 
 ### Bug Fixes

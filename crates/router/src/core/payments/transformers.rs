@@ -330,7 +330,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .map(|description| description.get_string_repr())
             .map(ToOwned::to_owned),
         // TODO: Create unified address
-        address: hyperswitch_domain_models::payment_address::PaymentAddress::default(),
+        address: payment_data.payment_address.clone(),
         auth_type: payment_data.payment_attempt.authentication_type,
         connector_meta_data: None,
         connector_wallets_details: None,
@@ -601,7 +601,7 @@ pub async fn construct_router_data_for_psync<'a>(
         sync_type: types::SyncRequestType::SinglePaymentSync,
         payment_method_type: Some(attempt.payment_method_subtype),
         currency: payment_intent.amount_details.currency,
-        // TODO: Get the charges object from
+        // TODO: Get the charges object from feature metadata
         charges: None,
         payment_experience: None,
     };
@@ -821,30 +821,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
     };
 
     Ok(router_data)
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
-pub async fn construct_payment_router_data<'a, F, T>(
-    state: &'a SessionState,
-    payment_data: PaymentData<F>,
-    connector_id: &str,
-    merchant_account: &domain::MerchantAccount,
-    _key_store: &domain::MerchantKeyStore,
-    customer: &'a Option<domain::Customer>,
-    merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    merchant_recipient_data: Option<types::MerchantRecipientData>,
-    header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
-where
-    T: TryFrom<PaymentAdditionalData<'a, F>>,
-    types::RouterData<F, T, types::PaymentsResponseData>: Feature<F, T>,
-    F: Clone,
-    error_stack::Report<errors::ApiErrorResponse>:
-        From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
-{
-    todo!()
 }
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -1328,6 +1304,7 @@ where
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 id: payment_intent.id.clone(),
+                profile_id: payment_intent.profile_id.clone(),
                 status: payment_intent.status,
                 amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
                     payment_intent.amount_details.clone(),
@@ -1425,6 +1402,17 @@ where
             .clone()
             .map(api_models::payments::ErrorDetails::foreign_from);
 
+        let payment_address = self.payment_address;
+
+        let payment_method_data =
+            Some(api_models::payments::PaymentMethodDataResponseWithBilling {
+                payment_method_data: None,
+                billing: payment_address
+                    .get_request_payment_method_billing()
+                    .cloned()
+                    .map(From::from),
+            });
+
         // TODO: Add support for other next actions, currently only supporting redirect to url
         let redirect_to_url = payment_intent.create_start_redirection_url(
             &state.base_url,
@@ -1443,7 +1431,7 @@ where
             connector,
             client_secret: payment_intent.client_secret.clone(),
             created: payment_intent.created_at,
-            payment_method_data: None,
+            payment_method_data,
             payment_method_type: payment_attempt.payment_method_type,
             payment_method_subtype: payment_attempt.payment_method_subtype,
             next_action,
@@ -1493,19 +1481,41 @@ where
             .and_then(|payment_attempt| payment_attempt.error.clone())
             .map(api_models::payments::ErrorDetails::foreign_from);
 
+        let payment_method_data =
+            Some(api_models::payments::PaymentMethodDataResponseWithBilling {
+                payment_method_data: None,
+                billing: self
+                    .payment_address
+                    .get_request_payment_method_billing()
+                    .cloned()
+                    .map(From::from),
+            });
+
         let response = api_models::payments::PaymentsRetrieveResponse {
             id: payment_intent.id.clone(),
             status: payment_intent.status,
             amount,
             connector,
+            billing: self
+                .payment_address
+                .get_payment_billing()
+                .cloned()
+                .map(From::from),
+            shipping: self.payment_address.get_shipping().cloned().map(From::from),
             client_secret: payment_intent.client_secret.clone(),
             created: payment_intent.created_at,
-            payment_method_data: None,
-            payment_method_type: optional_payment_attempt
+            payment_method_data,
+            payment_method_type: self
+                .payment_attempt
+                .as_ref()
                 .map(|attempt| attempt.payment_method_type),
-            payment_method_subtype: optional_payment_attempt
+            payment_method_subtype: self
+                .payment_attempt
+                .as_ref()
                 .map(|attempt| attempt.payment_method_subtype),
-            connector_transaction_id: optional_payment_attempt
+            connector_transaction_id: self
+                .payment_attempt
+                .as_ref()
                 .and_then(|attempt| attempt.connector_payment_id.clone()),
             connector_reference_id: None,
             merchant_connector_id,
@@ -1845,7 +1855,8 @@ where
         billing: payment_data
             .get_address()
             .get_request_payment_method_billing()
-            .cloned(),
+            .cloned()
+            .map(From::from),
     });
 
     let mut headers = connector_http_status_code
@@ -2207,8 +2218,16 @@ where
             payment_method: payment_attempt.payment_method,
             payment_method_data: payment_method_data_response,
             payment_token: payment_attempt.payment_token,
-            shipping: payment_data.get_address().get_shipping().cloned(),
-            billing: payment_data.get_address().get_payment_billing().cloned(),
+            shipping: payment_data
+                .get_address()
+                .get_shipping()
+                .cloned()
+                .map(From::from),
+            billing: payment_data
+                .get_address()
+                .get_payment_billing()
+                .cloned()
+                .map(From::from),
             order_details: payment_intent.order_details,
             email: customer
                 .as_ref()
@@ -3066,7 +3085,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
 
         let amount = payment_data.payment_attempt.get_total_amount();
         Ok(Self {
-            capture_method: payment_data.get_capture_method(),
+            capture_method: Some(payment_data.payment_intent.capture_method),
             amount_to_capture: amount_to_capture.get_amount_as_i64(), // This should be removed once we start moving to connector module
             minor_amount_to_capture: amount_to_capture,
             currency: payment_data.currency,
@@ -3764,10 +3783,10 @@ impl
             currency: intent_amount_details.currency,
             shipping_cost: attempt_amount_details.get_shipping_cost(),
             order_tax_amount: attempt_amount_details.get_order_tax_amount(),
-            skip_external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
+            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
                 intent_amount_details.skip_external_tax_calculation,
             ),
-            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
+            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
                 intent_amount_details.skip_surcharge_calculation,
             ),
             surcharge_amount: attempt_amount_details.get_surcharge_amount(),
@@ -3807,10 +3826,10 @@ impl
                     .tax_details
                     .as_ref()
                     .and_then(|tax_details| tax_details.get_default_tax_amount())),
-            skip_external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
+            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
                 intent_amount_details.skip_external_tax_calculation,
             ),
-            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
+            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
                 intent_amount_details.skip_surcharge_calculation,
             ),
             surcharge_amount: attempt_amount_details
@@ -3868,10 +3887,10 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
             order_tax_amount: amount_details.tax_details.and_then(|tax_details| {
                 tax_details.default.map(|default| default.order_tax_amount)
             }),
-            skip_external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
+            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
                 amount_details.skip_external_tax_calculation,
             ),
-            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
+            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
                 amount_details.skip_surcharge_calculation,
             ),
             surcharge_amount: amount_details.surcharge_amount,

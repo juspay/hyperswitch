@@ -34,8 +34,8 @@ use self::payment_attempt::PaymentAttempt;
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, business_profile, errors, merchant_account, payment_method_data,
-    ApiModelToDieselModelConvertor,
+    address::Address, business_profile, errors, merchant_account, payment_address,
+    payment_method_data, ApiModelToDieselModelConvertor,
 };
 
 #[cfg(feature = "v1")]
@@ -582,6 +582,7 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
+    pub payment_address: payment_address::PaymentAddress,
 }
 
 #[cfg(feature = "v2")]
@@ -593,6 +594,7 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub payment_attempt: Option<PaymentAttempt>,
+    pub payment_address: payment_address::PaymentAddress,
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
