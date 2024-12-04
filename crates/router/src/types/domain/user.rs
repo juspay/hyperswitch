@@ -312,16 +312,11 @@ impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
     }
 }
 
-impl
-    From<(
-        user_api::CreateTenantUserRequest,
-        user_api::MerchantAccountIdentifier,
-    )> for NewUserOrganization
-{
+impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUserOrganization {
     fn from(
         (_value, merchant_account_identifier): (
             user_api::CreateTenantUserRequest,
-            user_api::MerchantAccountIdentifier,
+            MerchantAccountIdentifier,
         ),
     ) -> Self {
         let new_organization = api_org::OrganizationNew {
@@ -574,18 +569,10 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
     }
 }
 
-impl
-    TryFrom<(
-        user_api::CreateTenantUserRequest,
-        user_api::MerchantAccountIdentifier,
-    )> for NewUserMerchant
-{
+impl TryFrom<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUserMerchant {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(
-        value: (
-            user_api::CreateTenantUserRequest,
-            user_api::MerchantAccountIdentifier,
-        ),
+        value: (user_api::CreateTenantUserRequest, MerchantAccountIdentifier),
     ) -> UserResult<Self> {
         let merchant_id = value.1.merchant_id.clone();
         let new_organization = NewUserOrganization::from(value);
@@ -615,6 +602,12 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
             new_organization: NewUserOrganization::from(value),
         })
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct MerchantAccountIdentifier {
+    pub merchant_id: id_type::MerchantId,
+    pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Clone)]
@@ -918,18 +911,13 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
     }
 }
 
-impl
-    TryFrom<(
-        user_api::CreateTenantUserRequest,
-        user_api::MerchantAccountIdentifier,
-    )> for NewUser
-{
+impl TryFrom<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(
         (value, merchant_account_identifier): (
             user_api::CreateTenantUserRequest,
-            user_api::MerchantAccountIdentifier,
+            MerchantAccountIdentifier,
         ),
     ) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();

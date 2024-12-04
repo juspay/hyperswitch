@@ -128,12 +128,6 @@ pub struct UserOrgMerchantCreateRequest {
     pub merchant_name: Secret<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct MerchantAccountIdentifier {
-    pub merchant_id: id_type::MerchantId,
-    pub org_id: id_type::OrganizationId,
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserMerchantCreate {
     pub company_name: String,

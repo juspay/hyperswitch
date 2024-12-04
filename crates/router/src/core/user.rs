@@ -1286,7 +1286,7 @@ pub async fn create_tenant_user(
 
     let new_user = domain::NewUser::try_from((
         request,
-        user_api::MerchantAccountIdentifier {
+        domain::MerchantAccountIdentifier {
             merchant_id,
             org_id,
         },
