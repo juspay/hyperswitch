@@ -3328,7 +3328,9 @@ pub enum PresenceOfCustomerDuringPayment {
     Absent,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum TaxCalculationOverride {
     /// Skip calling the external tax provider
     #[default]
@@ -3337,13 +3339,51 @@ pub enum TaxCalculationOverride {
     Calculate,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+impl From<Option<bool>> for TaxCalculationOverride {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Calculate,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl TaxCalculationOverride {
+    pub fn as_bool(self) -> bool {
+        match self {
+            Self::Skip => false,
+            Self::Calculate => true,
+        }
+    }
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 pub enum SurchargeCalculationOverride {
     /// Skip calculating surcharge
     #[default]
     Skip,
     /// Calculate surcharge
     Calculate,
+}
+
+impl From<Option<bool>> for SurchargeCalculationOverride {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Calculate,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl SurchargeCalculationOverride {
+    pub fn as_bool(self) -> bool {
+        match self {
+            Self::Skip => false,
+            Self::Calculate => true,
+        }
+    }
 }
 
 /// Connector Mandate Status

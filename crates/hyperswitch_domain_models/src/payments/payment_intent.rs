@@ -25,7 +25,7 @@ use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 use super::payment_attempt::PaymentAttempt;
-use super::{PaymentIntent, SurchargeCalculationOverride, TaxCalculationOverride};
+use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::ApiModelToDieselModelConvertor;
 use crate::{
@@ -137,8 +137,8 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_cost: Option<MinorUnit>,
     // TODO: Check how to handle this
     // tax_details: Option<diesel_models::TaxDetails>,
-    pub skip_external_tax_calculation: Option<TaxCalculationOverride>,
-    pub skip_surcharge_calculation: Option<SurchargeCalculationOverride>,
+    pub skip_external_tax_calculation: Option<common_enums::TaxCalculationOverride>,
+    pub skip_surcharge_calculation: Option<common_enums::SurchargeCalculationOverride>,
     pub surcharge_amount: Option<MinorUnit>,
     pub tax_on_surcharge: Option<MinorUnit>,
     pub routing_algorithm_id: Option<id_type::RoutingId>,
@@ -1380,10 +1380,10 @@ impl behaviour::Conversion for PaymentIntent {
                 tax_on_surcharge: storage_model.tax_on_surcharge,
                 shipping_cost: storage_model.shipping_cost,
                 tax_details: storage_model.tax_details,
-                skip_external_tax_calculation: TaxCalculationOverride::from(
+                skip_external_tax_calculation: common_enums::TaxCalculationOverride::from(
                     storage_model.skip_external_tax_calculation,
                 ),
-                skip_surcharge_calculation: SurchargeCalculationOverride::from(
+                skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::from(
                     storage_model.surcharge_applicable,
                 ),
                 amount_captured: storage_model.amount_captured,

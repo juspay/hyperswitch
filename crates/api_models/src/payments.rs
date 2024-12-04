@@ -671,10 +671,10 @@ impl AmountDetails {
         self.order_tax_amount
     }
     pub fn skip_external_tax_calculation(&self) -> common_enums::TaxCalculationOverride {
-        self.skip_external_tax_calculation.clone()
+        self.skip_external_tax_calculation
     }
     pub fn skip_surcharge_calculation(&self) -> common_enums::SurchargeCalculationOverride {
-        self.skip_surcharge_calculation.clone()
+        self.skip_surcharge_calculation
     }
     pub fn surcharge_amount(&self) -> Option<MinorUnit> {
         self.surcharge_amount
@@ -699,10 +699,10 @@ impl AmountDetailsUpdate {
         self.order_tax_amount
     }
     pub fn skip_external_tax_calculation(&self) -> Option<common_enums::TaxCalculationOverride> {
-        self.skip_external_tax_calculation.clone()
+        self.skip_external_tax_calculation
     }
     pub fn skip_surcharge_calculation(&self) -> Option<common_enums::SurchargeCalculationOverride> {
-        self.skip_surcharge_calculation.clone()
+        self.skip_surcharge_calculation
     }
     pub fn surcharge_amount(&self) -> Option<MinorUnit> {
         self.surcharge_amount
