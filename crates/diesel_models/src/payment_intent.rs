@@ -140,7 +140,8 @@ pub struct PaymentIntent {
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct PaymentLinkConfigRequestForPayments {
     /// custom theme for the payment link
     pub theme: Option<String>,
@@ -530,8 +531,7 @@ pub struct PaymentIntentUpdateInternal {
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<FeatureMetadata>,
     pub enable_payment_link: Option<bool>,
-    // TODO: Check this type
-    // pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
+    pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,

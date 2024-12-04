@@ -261,6 +261,9 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             capture_method: capture_method.unwrap_or(payment_intent.capture_method),
             authentication_type: authentication_type.unwrap_or(payment_intent.authentication_type),
             enable_payment_link: enable_payment_link.unwrap_or(payment_intent.enable_payment_link),
+            payment_link_config: payment_link_config
+                .map(ApiModelToDieselModelConvertor::convert_from)
+                .or(payment_intent.payment_link_config),
             apply_mit_exemption: apply_mit_exemption.unwrap_or(payment_intent.apply_mit_exemption),
             customer_present: customer_present.unwrap_or(payment_intent.customer_present),
             routing_algorithm_id: routing_algorithm_id.or(payment_intent.routing_algorithm_id),
@@ -337,6 +340,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 connector_metadata: intent.connector_metadata,
                 feature_metadata: intent.feature_metadata,
                 enable_payment_link: Some(intent.enable_payment_link),
+                payment_link_config: intent.payment_link_config,
                 request_incremental_authorization: Some(intent.request_incremental_authorization),
                 session_expiry: Some(intent.session_expiry),
                 frm_metadata: intent.frm_metadata,
