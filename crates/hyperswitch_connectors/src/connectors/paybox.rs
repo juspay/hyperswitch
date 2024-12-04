@@ -5,24 +5,30 @@ use common_enums::{enums, CallConnectorAction, PaymentAction};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
-    request::{Method, Request, RequestBuilder, RequestContent}, types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData, router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData}, router_flow_types::{
+    payment_method_data::PaymentMethodData,
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
+    router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
         CompleteAuthorize,
-    }, router_request_types::{
+    },
+    router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
-    }, router_response_types::{PaymentsResponseData, RefundsResponseData}, types::{
+    },
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
         RefundsRouterData,
-    }
+    },
 };
 use hyperswitch_interfaces::{
     api::{
@@ -32,9 +38,7 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{
-        self, Response,
-    },
+    types::{self, Response},
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{ExposeInterface, Mask};
@@ -72,9 +76,7 @@ impl api::RefundExecute for Paybox {}
 impl api::RefundSync for Paybox {}
 impl api::PaymentToken for Paybox {}
 impl api::PaymentsCompleteAuthorize for Paybox {}
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
-    for Paybox
-{
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Paybox {
     fn build_request(
         &self,
         _req: &PaymentsCancelRouterData,
@@ -84,12 +86,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
     }
 }
 
-impl
-    ConnectorIntegration<
-        PaymentMethodToken,
-        PaymentMethodTokenizationData,
-        PaymentsResponseData,
-    > for Paybox
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Paybox
 {
 }
 
@@ -183,27 +181,12 @@ impl ConnectorValidation for Paybox {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
-    for Paybox
-{
-}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Paybox {}
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Paybox
-{
-}
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Paybox {}
 
-impl
-    ConnectorIntegration<
-        SetupMandate,
-        SetupMandateRequestData,
-        PaymentsResponseData,
-    > for Paybox
-{
-}
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Paybox
-{
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Paybox {}
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Paybox {
     fn get_headers(
         &self,
         req: &PaymentsAuthorizeRouterData,
@@ -292,9 +275,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for Paybox
-{
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Paybox {
     fn get_headers(
         &self,
         req: &PaymentsSyncRouterData,
@@ -365,9 +346,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
-    for Paybox
-{
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Paybox {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
@@ -624,12 +603,8 @@ impl IncomingWebhook for Paybox {
     }
 }
 
-impl
-    ConnectorIntegration<
-        CompleteAuthorize,
-        CompleteAuthorizeData,
-        PaymentsResponseData,
-    > for Paybox
+impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>
+    for Paybox
 {
     fn get_headers(
         &self,

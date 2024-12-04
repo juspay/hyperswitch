@@ -2,29 +2,31 @@ use api_models::payments::AdditionalPaymentData;
 use bytes::Bytes;
 use common_enums::enums;
 use common_utils::{
-    date_time::DateFormat, errors::CustomResult, ext_traits::ValueExt, types::MinorUnit
+    date_time::DateFormat, errors::CustomResult, ext_traits::ValueExt, types::MinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::{
-        CompleteAuthorizeData, PaymentsAuthorizeData, ResponseId,
+    router_request_types::{CompleteAuthorizeData, PaymentsAuthorizeData, ResponseId},
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
-    router_response_types::{MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData},
     types,
 };
-use hyperswitch_interfaces::{consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE}, errors};
+use hyperswitch_interfaces::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors,
+};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self, AddressDetailsData, CardData as _,
-        PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RouterData as _,
+        self, AddressDetailsData, CardData as _, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, RouterData as _,
     },
 };
 pub struct PayboxRouterData<T> {
@@ -196,8 +198,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCaptureRouterData>> for PayboxCap
         let auth_data: PayboxAuthType =
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let currency = enums::Currency::iso_4217(&item.router_data.request.currency)
-            .to_string();
+        let currency = enums::Currency::iso_4217(&item.router_data.request.currency).to_string();
         let paybox_meta_data: PayboxMeta =
             utils::to_connector_meta(item.router_data.request.connector_meta.clone())?;
         let format_time = common_utils::date_time::format_date(
@@ -395,8 +396,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                     item.router_data.request.is_mandate_payment(),
                 )?;
                 let currency =
-                    enums::Currency::iso_4217(&item.router_data.request.currency)
-                        .to_string();
+                    enums::Currency::iso_4217(&item.router_data.request.currency).to_string();
                 let expiration_date =
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
                 let format_time = common_utils::date_time::format_date(
@@ -672,8 +672,7 @@ pub struct PayboxCaptureResponse {
     pub response_message: String,
 }
 
-impl<F, T>
-    TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, PayboxCaptureResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -686,9 +685,7 @@ impl<F, T>
             true => Ok(Self {
                 status: enums::AttemptStatus::Charged,
                 response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(
-                        response.paybox_order_id,
-                    ),
+                    resource_id: ResponseId::ConnectorTransactionId(response.paybox_order_id),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
@@ -717,24 +714,12 @@ impl<F, T>
     }
 }
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            PayboxResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
+impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, PaymentsResponseData>>
+    for RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            F,
-            PayboxResponse,
-            PaymentsAuthorizeData,
-            PaymentsResponseData,
-        >,
+        item: ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
             PayboxResponse::NonThreeDs(response) => {
@@ -828,9 +813,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayboxSyncResponse, T, PaymentsResponse
                 status: enums::AttemptStatus::from(connector_payment_status),
 
                 response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(
-                        response.paybox_order_id,
-                    ),
+                    resource_id: ResponseId::ConnectorTransactionId(response.paybox_order_id),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: Some(serde_json::json!(PayboxMeta {
@@ -891,8 +874,7 @@ impl<F> TryFrom<&PayboxRouterData<&types::RefundsRouterData<F>>> for PayboxRefun
         let auth_data: PayboxAuthType =
             PayboxAuthType::try_from(&item.router_data.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let currency = enums::Currency::iso_4217(&item.router_data.request.currency)
-            .to_string();
+        let currency = enums::Currency::iso_4217(&item.router_data.request.currency).to_string();
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
             DateFormat::DDMMYYYYHHmmss,
@@ -986,14 +968,8 @@ pub struct PayboxErrorResponse {
 }
 
 impl<F>
-    TryFrom<
-        ResponseRouterData<
-            F,
-            TransactionResponse,
-            CompleteAuthorizeData,
-            PaymentsResponseData,
-        >,
-    > for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
+    TryFrom<ResponseRouterData<F, TransactionResponse, CompleteAuthorizeData, PaymentsResponseData>>
+    for RouterData<F, CompleteAuthorizeData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1013,9 +989,7 @@ impl<F>
                     false => enums::AttemptStatus::Authorized,
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(
-                        response.paybox_order_id,
-                    ),
+                    resource_id: ResponseId::ConnectorTransactionId(response.paybox_order_id),
                     redirection_data: Box::new(None),
                     mandate_reference: Box::new(response.carrier_id.as_ref().map(|pm| {
                         MandateReference {
@@ -1087,8 +1061,7 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsCompleteAuthorizeRouterData>> for
                     item.router_data.request.is_mandate_payment(),
                 )?;
                 let currency =
-                    enums::Currency::iso_4217(&item.router_data.request.currency)
-                        .to_string();
+                    enums::Currency::iso_4217(&item.router_data.request.currency).to_string();
                 let expiration_date =
                     req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_owned())?;
                 let format_time = common_utils::date_time::format_date(
@@ -1203,8 +1176,7 @@ impl
             Some(enums::CaptureMethod::Manual) => Ok(MANDATE_AUTH_ONLY.to_string()),
             _ => Err(errors::ConnectorError::CaptureMethodNotSupported),
         }?;
-        let currency = enums::Currency::iso_4217(&item.router_data.request.currency)
-            .to_string();
+        let currency = enums::Currency::iso_4217(&item.router_data.request.currency).to_string();
         let format_time = common_utils::date_time::format_date(
             common_utils::date_time::now(),
             DateFormat::DDMMYYYYHHmmss,
