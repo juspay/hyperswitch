@@ -1092,9 +1092,6 @@ crate::impl_to_sql_from_sql_json!(SplitRefundRequest);
 #[serde(deny_unknown_fields)]
 /// Charge specific fields for controlling the revert of funds from either platform or connected account for Stripe. Check sub-fields for more details.
 pub struct StripeSplitRefundRequest {
-    /// Identifier for charge created for the payment
-    // pub charge_id: String,
-
     /// Toggle for reverting the application fee that was collected for the payment.
     /// If set to false, the funds are pulled from the destination account.
     pub revert_platform_fee: Option<bool>,
@@ -1111,7 +1108,7 @@ crate::impl_to_sql_from_sql_json!(StripeSplitRefundRequest);
 #[diesel(sql_type = Jsonb)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
-/// Charge specific
+/// Fee information for Split Payments to be charged on the payment being collected
 pub enum SplitPaymentsRequest {
     /// StripeSplitPayment
     StripeSplitPayment(StripeSplitPayment),
@@ -1123,9 +1120,9 @@ crate::impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 )]
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
-/// Stripe Split Payment
+/// Fee information for Split Payments to be charged on the payment being collected for Stripe
 pub struct StripeSplitPayment {
-    /// Payment charge type
+    /// Stripe's charge type
     #[schema(value_type = PaymentChargeType, example = "direct")]
     pub charge_type: enums::PaymentChargeType,
 

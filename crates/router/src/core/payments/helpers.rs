@@ -6110,14 +6110,14 @@ pub fn validate_platform_fees_for_marketplace(
             api::Amount::Zero => {
                 if stripe_split_payment.application_fees.get_amount_as_i64() != 0 {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "split_payments.fees",
+                        field_name: "split_payments.stripe_split_payment.application_fees",
                     });
                 }
             }
             api::Amount::Value(amount) => {
                 if stripe_split_payment.application_fees.get_amount_as_i64() > amount.into() {
                     return Err(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "split_payments.fees",
+                        field_name: "split_payments.stripe_split_payment.application_fees",
                     });
                 }
             }

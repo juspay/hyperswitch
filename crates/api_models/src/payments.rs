@@ -4732,7 +4732,7 @@ pub struct PaymentStartRedirectionParams {
 }
 
 /// Fee information to be charged on the payment being collected
-#[derive(Setter, Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct PaymentChargeResponse {
     /// Identifier for charge created for the payment
     pub charge_id: Option<String>,
