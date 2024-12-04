@@ -1205,14 +1205,18 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
   });
 });
 
-Cypress.Commands.add("deletePaymentMethodTest", (globalState, resData) => {
-  const payment_method_id = globalState.get("paymentMethodId");
+Cypress.Commands.add("deletePaymentMethodTest", (globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const paymentMethodId = globalState.get("paymentMethodId");
+  const url = `${baseUrl}/payment_methods/${paymentMethodId}`;
+
   cy.request({
     method: "DELETE",
-    url: `${globalState.get("baseUrl")}/payment_methods/${payment_method_id}`,
+    url: url,
     headers: {
       Accept: "application/json",
-      "api-key": globalState.get("apiKey"),
+      "api-key": apiKey,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -1220,10 +1224,16 @@ Cypress.Commands.add("deletePaymentMethodTest", (globalState, resData) => {
     expect(response.headers["content-type"]).to.include("application/json");
 
     if (response.status === 200) {
-      expect(response.body.payment_method_id).to.equal(payment_method_id);
+      expect(response.body.payment_method_id).to.equal(paymentMethodId);
       expect(response.body.deleted).to.be.true;
+    } else if (response.status === 500 && baseUrl.includes("localhost")) {
+      // delete payment method api endpoint requires tartarus (hyperswitch card vault) to be set up since it makes a call to the locker service to delete the payment method
+      expect(response.body.error.code).to.include("HE_00");
+      expect(response.body.error.message).to.include("Something went wrong");
     } else {
-      defaultErrorHandler(response, resData);
+      throw new Error(
+        `Payment Method Delete Call Failed with error message: ${response.body.error.message}`
+      );
     }
   });
 });
@@ -1231,6 +1241,7 @@ Cypress.Commands.add("deletePaymentMethodTest", (globalState, resData) => {
 Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
   const payment_method_id = globalState.get("paymentMethodId");
   const customer_id = globalState.get("customerId");
+
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/customers/${customer_id}/payment_methods/${payment_method_id}/default`,
@@ -2320,34 +2331,54 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
+    const configInfo = execConfig(validateConfig(configs));
+    const profileId = globalState.get(configInfo.profile_id);
+
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const customerId = globalState.get("customerId");
+    const paymentMethodId = globalState.get("paymentMethodId");
+    const url = `${baseUrl}/payments`;
+
     for (const key in reqData) {
       requestBody[key] = reqData[key];
     }
 
-    const configInfo = execConfig(validateConfig(configs));
-    const profileId = globalState.get(configInfo.profile_id);
-
     requestBody.amount = amount;
     requestBody.capture_method = capture_method;
     requestBody.confirm = confirm;
-    requestBody.customer_id = globalState.get("customerId");
+    requestBody.customer_id = customerId;
     requestBody.profile_id = profileId;
-    requestBody.recurring_details.data = globalState.get("paymentMethodId");
+    requestBody.recurring_details.data = paymentMethodId;
 
     cy.request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/payments`,
+      url: url,
       headers: {
         "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
+        "api-key": apiKey,
       },
       failOnStatusCode: false,
       body: requestBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
       expect(response.headers["content-type"]).to.include("application/json");
+
       if (response.status === 200) {
         globalState.set("paymentID", response.body.payment_id);
+
+        expect(response.body.payment_method_id, "payment_method_id").to.include(
+          "pm_"
+        ).and.to.not.be.null;
+        expect(
+          response.body.connector_transaction_id,
+          "connector_transaction_id"
+        ).to.not.be.null;
+        expect(
+          response.body.payment_method_status,
+          "payment_method_status"
+        ).to.equal("active");
+
         if (response.body.capture_method === "automatic") {
           if (response.body.authentication_type === "three_ds") {
             expect(response.body)
@@ -2655,6 +2686,7 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState) => {
 
 Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
   const clientSecret = globalState.get("clientSecret");
+
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/customers/payment_methods?client_secret=${clientSecret}`,

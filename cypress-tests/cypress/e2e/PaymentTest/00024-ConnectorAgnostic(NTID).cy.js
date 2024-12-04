@@ -5,6 +5,32 @@ import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 
+/*
+Flow:
+- Create Business Profile with connector agnostic feature disabled
+- Create Merchant Connector Account and Customer
+- Make a Payment
+- List Payment Method for Customer using Client Secret (will get PMID)
+
+- Create Business Profile with connector agnostic feature enabled
+- Create Merchant Connector Account
+- Create Payment Intent
+- List Payment Method for Customer -- Empty list; i.e., no payment method should be listed
+- Confirm Payment with PMID from previous step (should fail as Connector Mandate ID is not present in the newly created Profile)
+
+
+- Create Business Profile with connector agnostic feature enabled
+- Create Merchant Connector Account and Customer
+- Make a Payment
+- List Payment Method for Customer using Client Secret (will get PMID)
+
+- Create Business Profile with connector agnostic feature enabled
+- Create Merchant Connector Account
+- Create Payment Intent
+- List Payment Method for Customer using Client Secret (will get PMID which is same as the one from previous step along with Payment Token)
+- Confirm Payment with PMID from previous step (should pass as NTID is present in the DB)
+*/
+
 describe("Connector Agnostic Tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -126,6 +152,33 @@ describe("Connector Agnostic Tests", () => {
       it("List Payment Method for Customer", () => {
         cy.listCustomerPMByClientSecret(globalState);
       });
+
+      it("Confirm No 3DS MIT", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        const commonData = getConnectorDetails(globalState.get("commons"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        const newData = {
+          ...data,
+          Response: utils.getConnectorFlowDetails(
+            data,
+            commonData,
+            "ResponseCustom"
+          ),
+        };
+
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          newData,
+          7000,
+          true,
+          "automatic",
+          globalState
+        );
+      });
     }
   );
 
@@ -246,6 +299,21 @@ describe("Connector Agnostic Tests", () => {
 
     it("List Payment Method for Customer", () => {
       cy.listCustomerPMByClientSecret(globalState);
+    });
+
+    it("Confirm No 3DS MIT", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITAutoCapture"];
+
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
+        7000,
+        true,
+        "automatic",
+        globalState
+      );
     });
   });
 });
