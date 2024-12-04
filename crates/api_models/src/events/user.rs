@@ -2,7 +2,7 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 #[cfg(feature = "dummy_connector")]
 use crate::user::sample_data::SampleDataRequest;
-#[cfg(feature = "theme")]
+#[cfg(feature = "control_center_theme")]
 use crate::user::theme::{
     CreateThemeRequest, GetThemeResponse, UpdateThemeRequest, UploadFileRequest,
 };
@@ -69,7 +69,7 @@ common_utils::impl_api_event_type!(
     )
 );
 
-#[cfg(feature = "theme")]
+#[cfg(feature = "control_center_theme")]
 common_utils::impl_api_event_type!(
     Miscellaneous,
     (

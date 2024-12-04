@@ -21,7 +21,7 @@ v2 = ["common_utils/v2", "customer_v2"]
 customer_v2 = ["common_utils/customer_v2"]
 payment_methods_v2 = ["common_utils/payment_methods_v2"]
 dynamic_routing = []
-theme = ["dep:actix-web", "dep:actix-multipart"]
+control_center_theme = ["dep:actix-web", "dep:actix-multipart"]
 
 [dependencies]
 actix-multipart = { version = "0.6.1", optional = true }
