@@ -582,8 +582,8 @@ pub struct PaymentsRequest {
     pub amount: Option<Amount>,
 
     /// Total tax amount applicable to the order
-    #[schema(value_type = Option<i64>, example = 6540)]
-    pub order_tax_amount: Option<MinorUnit>,
+    #[schema(value_type = i64, example = 6540)]
+    pub order_tax_amount: MinorUnit,
 
     /// The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars
     #[schema(example = "USD", value_type = Option<Currency>)]
@@ -1151,6 +1151,9 @@ pub struct PaymentAttemptResponse {
     /// The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
+    /// The payment attempt tax_amount.
+    #[schema(value_type = i64, example = 6540)]
+    pub order_tax_amount: Option<MinorUnit>,
     /// The currency of the amount of the payment attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<enums::Currency>,
@@ -2414,7 +2417,6 @@ pub enum AdditionalPaymentData {
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkPaymentMethod>,
-        klarna_checkout: Option<KlarnaCheckoutPaymentMethod>,
     },
     BankTransfer {
         #[serde(flatten)]
@@ -3677,7 +3679,6 @@ pub struct VoucherResponse {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaylaterResponse {
     klarna_sdk: Option<KlarnaSdkPaymentMethodResponse>,
-    klarna_checkout: Option<KlarnaCheckoutPaymentMethodResponse>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -3701,13 +3702,6 @@ pub enum WalletResponseData {
 pub struct KlarnaSdkPaymentMethodResponse {
     pub payment_type: Option<String>,
 }
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-
-pub struct KlarnaCheckoutPaymentMethodResponse {
-    pub payment_type: Option<String>,
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PaymentMethodDataResponseWithBilling {
     // The struct is flattened in order to provide backwards compatibility
@@ -5169,17 +5163,6 @@ impl From<KlarnaSdkPaymentMethod> for PaylaterResponse {
             klarna_sdk: Some(KlarnaSdkPaymentMethodResponse {
                 payment_type: klarna_sdk.payment_type,
             }),
-            klarna_checkout: None,
-        }
-    }
-}
-impl From<KlarnaCheckoutPaymentMethod> for PaylaterResponse {
-    fn from(klarna_checkout: KlarnaCheckoutPaymentMethod) -> Self {
-        Self {
-            klarna_checkout: Some(KlarnaCheckoutPaymentMethodResponse {
-                payment_type: klarna_checkout.payment_type,
-            }),
-            klarna_sdk: None,
         }
     }
 }
@@ -5188,16 +5171,9 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
     fn from(payment_method_data: AdditionalPaymentData) -> Self {
         match payment_method_data {
             AdditionalPaymentData::Card(card) => Self::Card(Box::new(CardResponse::from(*card))),
-            AdditionalPaymentData::PayLater {
-                klarna_sdk,
-                klarna_checkout,
-            } => match (klarna_sdk, klarna_checkout) {
-                (Some(sdk), _) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
-                (_, Some(checkout)) => Self::PayLater(Box::new(PaylaterResponse::from(checkout))),
-                (None, None) => Self::PayLater(Box::new(PaylaterResponse {
-                    klarna_sdk: None,
-                    klarna_checkout: None,
-                })),
+            AdditionalPaymentData::PayLater { klarna_sdk } => match klarna_sdk {
+                Some(sdk) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
+                None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
             },
 
             AdditionalPaymentData::Wallet {
@@ -5358,36 +5334,6 @@ pub struct OrderDetailsWithAmount {
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
-
-#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct OrderDetails {
-    /// Name of the product that is being purchased
-    #[schema(max_length = 255, example = "shirt")]
-    pub product_name: String,
-    /// The quantity of the product to be purchased
-    #[schema(example = 1)]
-    pub quantity: u16,
-    /// tax rate applicable to the product
-    pub tax_rate: Option<f64>,
-    /// total tax amount applicable to the product
-    pub total_tax_amount: Option<MinorUnit>,
-    // Does the order include shipping
-    pub requires_shipping: Option<bool>,
-    /// The image URL of the product
-    pub product_img_link: Option<String>,
-    /// ID of the product that is being purchased
-    pub product_id: Option<String>,
-    /// Category of the product that is being purchased
-    pub category: Option<String>,
-    /// Sub category of the product that is being purchased
-    pub sub_category: Option<String>,
-    /// Brand of the product that is being purchased
-    pub brand: Option<String>,
-    /// Type of the product that is being purchased
-    pub product_type: Option<ProductType>,
-    /// The tax code for the product
-    pub product_tax_code: Option<String>,
-}
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct RedirectResponse {

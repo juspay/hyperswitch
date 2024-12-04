@@ -599,6 +599,7 @@ pub fn make_new_payment_attempt(
         payment_id: old_payment_attempt.payment_id,
         merchant_id: old_payment_attempt.merchant_id,
         status: old_payment_attempt.status,
+        order_tax_amount: old_payment_attempt.order_tax_amount,
         currency: old_payment_attempt.currency,
         save_to_locker: old_payment_attempt.save_to_locker,
         offer_amount: old_payment_attempt.offer_amount,

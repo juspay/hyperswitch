@@ -348,17 +348,11 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     PayLater {
         klarna_sdk: Option<KlarnaSdkResponse>,
-        klarna_checkout: Option<KlarnaCheckoutResponse>,
     },
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KlarnaSdkResponse {
-    pub payment_type: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct KlarnaCheckoutResponse {
     pub payment_type: Option<String>,
 }
 

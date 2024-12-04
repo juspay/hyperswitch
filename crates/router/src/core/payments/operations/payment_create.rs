@@ -326,7 +326,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             &customer_acceptance,
         )
         .await?;
-
         let payment_intent = db
             .insert_payment_intent(
                 key_manager_state,
@@ -1207,6 +1206,7 @@ impl PaymentCreate {
                 attempt_id,
                 status,
                 currency,
+                order_tax_amount: Some(request.order_tax_amount),
                 payment_method,
                 capture_method: request.capture_method,
                 capture_on: request.capture_on,
@@ -1477,7 +1477,12 @@ impl PaymentCreate {
             is_payment_processor_token_flow,
             organization_id: merchant_account.organization_id.clone(),
             shipping_cost: request.shipping_cost,
-            tax_details: None,
+            tax_details: Some(diesel_models::TaxDetails {
+                default: Some(diesel_models::DefaultTax {
+                    order_tax_amount: request.order_tax_amount,
+                }),
+                ..Default::default()
+            }),
             skip_external_tax_calculation,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
         })

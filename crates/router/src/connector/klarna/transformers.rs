@@ -1,10 +1,8 @@
 use api_models::payments;
 use common_utils::{pii, types::MinorUnit};
-use diesel_models::types::OrderDetailsWithAmount;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    router_data::{KlarnaCheckoutResponse, KlarnaSdkResponse},
-    router_response_types::RedirectForm,
+    router_data::KlarnaSdkResponse, router_response_types::RedirectForm,
 };
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -65,35 +63,36 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for KlarnaConnectorMetadataObject {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum KlarnaAuthRequest {
-    KlarnaPaymentsAuthRequest(PaymentsRequest),
-    KlarnaCheckoutAuthRequest(CheckoutRequest),
-}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
-pub struct PaymentsRequest {
-    auto_capture: bool,
-    order_lines: Vec<OrderLines>,
-    order_amount: MinorUnit,
-    purchase_country: enums::CountryAlpha2,
-    purchase_currency: enums::Currency,
-    merchant_reference1: Option<String>,
-    merchant_reference2: Option<String>,
-    shipping_address: Option<KlarnaShippingAddress>,
+pub struct MerchantURLs {
+    terms: String,
+    checkout: String,
+    confirmation: String,
+    push: String,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
-pub struct CheckoutRequest {
-    auto_capture: bool,
-    order_lines: Vec<CheckoutOrderLines>,
+pub struct CheckoutMerchantURLs {
+    merchant_urls: MerchantURLs,
+}
+
+#[derive(Default, Debug, Deserialize, Serialize)]
+pub struct KlarnaPaymentsRequest {
     order_amount: MinorUnit,
     purchase_country: enums::CountryAlpha2,
     purchase_currency: enums::Currency,
+    order_lines: Vec<OrderLines>,
+    merchant_reference1: Option<String>,
+    merchant_reference2: Option<String>,
     shipping_address: Option<KlarnaShippingAddress>,
-    order_tax_amount: MinorUnit,
-    merchant_urls: MerchantURLs,
+    auto_capture: Option<bool>,
+    order_tax_amount: Option<MinorUnit>,
+    #[serde(flatten)]
+    checkout_merchant_urls: Option<CheckoutMerchantURLs>,
+    options: Option<CheckoutOptions>,
 }
+
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
@@ -113,8 +112,7 @@ pub struct PaymentsResponse {
 pub struct CheckoutResponse {
     order_id: String,
     status: KlarnaCheckoutStatus,
-    html_snippet: String,
-    authorized_payment_method: Option<AuthorizedPaymentMethod>,
+    html_snippet: String
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -125,27 +123,13 @@ pub struct AuthorizedPaymentMethod {
 
 impl From<AuthorizedPaymentMethod> for types::AdditionalPaymentMethodConnectorResponse {
     fn from(item: AuthorizedPaymentMethod) -> Self {
-        match item.payment_type.as_str() {
-            "klarna_sdk" => Self::PayLater {
-                klarna_sdk: Some(KlarnaSdkResponse {
-                    payment_type: Some(item.payment_type),
-                }),
-                klarna_checkout: None,
-            },
-            "klarna_checkout" => Self::PayLater {
-                klarna_checkout: Some(KlarnaCheckoutResponse {
-                    payment_type: Some(item.payment_type),
-                }),
-                klarna_sdk: None,
-            },
-            _ => Self::PayLater {
-                klarna_sdk: None,
-                klarna_checkout: None,
-            },
+        Self::PayLater {
+            klarna_sdk: Some(KlarnaSdkResponse {
+                payment_type: Some(item.payment_type),
+            }),
         }
     }
 }
-
 #[derive(Debug, Serialize)]
 pub struct KlarnaSessionRequest {
     intent: KlarnaSessionIntent,
@@ -171,11 +155,8 @@ pub struct KlarnaShippingAddress {
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
-pub struct MerchantURLs {
-    terms: String,
-    checkout: String,
-    confirmation: String,
-    push: String,
+pub struct CheckoutOptions {
+    auto_capture: bool,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -207,6 +188,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsSessionRouterData>> for KlarnaSes
                         quantity: data.quantity,
                         unit_price: data.amount,
                         total_amount: data.amount * data.quantity,
+                        total_tax_amount: None,
+                        tax_rate: None,
                     })
                     .collect(),
                 shipping_address: get_address_info(item.router_data.get_optional_shipping())
@@ -241,7 +224,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
     }
 }
 
-impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaAuthRequest {
+impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
@@ -250,11 +233,10 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
         let request = &item.router_data.request;
         let payment_method_data = request.payment_method_data.clone();
         let return_url = item.router_data.request.get_return_url()?;
-
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { .. }) => {
                 match request.order_details.clone() {
-                    Some(order_details) => Ok(Self::KlarnaPaymentsAuthRequest(PaymentsRequest {
+                    Some(order_details) => Ok(Self {
                         purchase_country: item.router_data.get_billing_country()?,
                         purchase_currency: request.currency,
                         order_amount: item.amount,
@@ -265,6 +247,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                                 quantity: data.quantity,
                                 unit_price: data.amount,
                                 total_amount: data.amount * data.quantity,
+                                total_tax_amount: None,
+                                tax_rate: None,
                             })
                             .collect(),
                         merchant_reference1: Some(
@@ -275,79 +259,70 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaA
                             .request
                             .merchant_order_reference_id
                             .clone(),
-                        auto_capture: request.is_auto_capture()?,
+                        auto_capture: Some(request.is_auto_capture()?),
                         shipping_address: get_address_info(
                             item.router_data.get_optional_shipping(),
                         )
                         .transpose()?,
+                        order_tax_amount: None,
+                        checkout_merchant_urls: None,
+                        options: None,
+                    }),
+                    None => Err(report!(errors::ConnectorError::MissingRequiredField {
+                        field_name: "order_details"
                     })),
-                    None => Err(errors::ConnectorError::NotImplemented(
-                        "Order details missing".to_string(),
-                    )
-                    .into()),
                 }
             }
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaCheckout {}) => {
                 match request.order_details.clone() {
-                    Some(order_details) => {
-                        let calculated_tax_amount = calculate_order_tax_amount(&order_details);
+                    Some(order_details) => Ok(Self {
+                        purchase_country: item.router_data.get_billing_country()?,
+                        purchase_currency: request.currency,
+                        order_amount: item.amount,
+                        order_tax_amount: request.order_tax_amount,
+                        order_lines: order_details
+                            .iter()
+                            .map(|data| OrderLines {
+                                name: data.product_name.clone(),
+                                quantity: data.quantity,
+                                unit_price: data.amount,
+                                total_amount: data.amount * data.quantity,
+                                total_tax_amount: data.total_tax_amount,
+                                tax_rate: data.tax_rate,
+                            })
+                            .collect(),
 
-                        Ok(Self::KlarnaCheckoutAuthRequest(CheckoutRequest {
-                            purchase_country: item.router_data.get_billing_country()?,
-                            purchase_currency: request.currency,
-                            order_amount: item.amount,
-                            order_tax_amount: calculated_tax_amount,
-                            order_lines: order_details
-                                .iter()
-                                .map(|data| CheckoutOrderLines {
-                                    name: data.product_name.clone(),
-                                    quantity: data.quantity,
-                                    unit_price: data.amount,
-                                    total_amount: data.amount * data.quantity,
-                                    total_tax_amount: data.total_tax_amount,
-                                    tax_rate: data.tax_rate,
-                                })
-                                .collect(),
+                        checkout_merchant_urls: Some(CheckoutMerchantURLs {
                             merchant_urls: MerchantURLs {
                                 terms: return_url.clone(),
                                 checkout: return_url.clone(),
-                                confirmation: return_url.clone(),
-                                push: return_url,
+                                confirmation: "https://google.com".to_string(),
+                                push: "https://google.com".to_string(),
                             },
+                        }),
+                        options: Some(CheckoutOptions {
                             auto_capture: request.is_auto_capture()?,
-                            shipping_address: get_address_info(
-                                item.router_data.get_optional_shipping(),
-                            )
-                            .transpose()?,
-                        }))
-                    }
-                    None => Err(errors::ConnectorError::NotImplemented(
-                        "Order details missing".to_string(),
-                    )
-                    .into()),
+                        }),
+                        shipping_address: get_address_info(
+                            item.router_data.get_optional_shipping(),
+                        )
+                        .transpose()?,
+                        merchant_reference1: Some(
+                            item.router_data.connector_request_reference_id.clone(),
+                        ),
+                        merchant_reference2: item
+                            .router_data
+                            .request
+                            .merchant_order_reference_id
+                            .clone(),
+                        auto_capture: None,
+                    }),
+                    None => Err(report!(errors::ConnectorError::MissingRequiredField {
+                        field_name: "order_details"
+                    })),
                 }
             }
-            domain::PaymentMethodData::Card(_)
-            | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | domain::PaymentMethodData::CardRedirect(_)
-            | domain::PaymentMethodData::Wallet(_)
-            | domain::PaymentMethodData::PayLater(_)
-            | domain::PaymentMethodData::BankRedirect(_)
-            | domain::PaymentMethodData::BankDebit(_)
-            | domain::PaymentMethodData::BankTransfer(_)
-            | domain::PaymentMethodData::Crypto(_)
-            | domain::PaymentMethodData::MandatePayment
-            | domain::PaymentMethodData::Reward
-            | domain::PaymentMethodData::RealTimePayment(_)
-            | domain::PaymentMethodData::Upi(_)
-            | domain::PaymentMethodData::Voucher(_)
-            | domain::PaymentMethodData::GiftCard(_)
-            | domain::PaymentMethodData::CardToken(_)
-            | domain::PaymentMethodData::OpenBanking(_)
-            | domain::PaymentMethodData::NetworkToken(_)
-            | domain::PaymentMethodData::MobilePayment(_) => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
 }
@@ -375,13 +350,6 @@ fn get_address_info(
     })
 }
 
-fn calculate_order_tax_amount(order_lines: &[OrderDetailsWithAmount]) -> MinorUnit {
-    order_lines
-        .iter()
-        .map(|line| line.total_tax_amount.map_or(MinorUnit::zero(), |tax| tax))
-        .sum()
-}
-
 impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
     for types::PaymentsAuthorizeRouterData
 {
@@ -390,81 +358,68 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<KlarnaAuthResponse>,
     ) -> Result<Self, Self::Error> {
-        let connector_response = types::ConnectorResponseData::with_additional_payment_method_data(
-            match item.response {
-                KlarnaAuthResponse::KlarnaPaymentsAuthResponse(ref response) => {
-                    match &response.authorized_payment_method {
-                        Some(authorized_payment_method) => {
-                            types::AdditionalPaymentMethodConnectorResponse::from(
-                                authorized_payment_method.clone(),
-                            )
-                        }
-                        None => types::AdditionalPaymentMethodConnectorResponse::PayLater {
-                            klarna_sdk: None,
-                            klarna_checkout: None,
-                        },
-                    }
-                }
-                KlarnaAuthResponse::KlarnaCheckoutAuthResponse(ref response) => {
-                    match &response.authorized_payment_method {
-                        Some(authorized_payment_method) => {
-                            types::AdditionalPaymentMethodConnectorResponse::from(
-                                authorized_payment_method.clone(),
-                            )
-                        }
-                        None => types::AdditionalPaymentMethodConnectorResponse::PayLater {
-                            klarna_sdk: None,
-                            klarna_checkout: None,
-                        },
-                    }
-                }
-            },
-        );
-
         match item.response {
-            KlarnaAuthResponse::KlarnaPaymentsAuthResponse(ref response) => Ok(Self {
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        response.order_id.clone(),
-                    ),
-                    redirection_data: Box::new(None),
-                    mandate_reference: Box::new(None),
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(response.order_id.clone()),
-                    incremental_authorization_allowed: None,
-                    charge_id: None,
-                }),
-                status: enums::AttemptStatus::foreign_from((
-                    response.fraud_status.clone(),
-                    item.data.request.is_auto_capture()?,
-                )),
-                connector_response: Some(connector_response),
-                ..item.data
-            }),
+            KlarnaAuthResponse::KlarnaPaymentsAuthResponse(ref response) => {
+                let connector_response = match &response.authorized_payment_method {
+                    Some(authorized_payment_method) => {
+                        Some(types::ConnectorResponseData::with_additional_payment_method_data(
+                            types::AdditionalPaymentMethodConnectorResponse::from(
+                                authorized_payment_method.clone(),
+                            ),
+                        ))
+                    }
+                    None => None,
+                };
 
-            KlarnaAuthResponse::KlarnaCheckoutAuthResponse(ref response) => Ok(Self {
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        response.order_id.clone(),
-                    ),
-                    redirection_data: Box::new(Some(RedirectForm::Html {
-                        html_data: response.html_snippet.clone(),
-                    })),
-                    mandate_reference: Box::new(None),
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(response.order_id.clone()),
-                    incremental_authorization_allowed: None,
-                    charge_id: None,
-                }),
-                status: enums::AttemptStatus::from(response.status.clone()),
-                connector_response: Some(connector_response),
-                ..item.data
-            }),
+                Ok(Self {
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            response.order_id.clone(),
+                        ),
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(response.order_id.clone()),
+                        incremental_authorization_allowed: None,
+                        charge_id: None,
+                    }),
+                    status: enums::AttemptStatus::foreign_from((
+                        response.fraud_status.clone(),
+                        item.data.request.is_auto_capture()?,
+                    )),
+                    connector_response,
+                    ..item.data
+                })
+            }
+
+            KlarnaAuthResponse::KlarnaCheckoutAuthResponse(ref response) => {
+                Ok(Self {
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            response.order_id.clone(),
+                        ),
+                        redirection_data: Box::new(Some(RedirectForm::Html {
+                            html_data: response.html_snippet.clone(),
+                        })),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(response.order_id.clone()),
+                        incremental_authorization_allowed: None,
+                        charge_id: None,
+                    }),
+                    status: enums::AttemptStatus::foreign_from((
+                        response.status.clone(),
+                        item.data.request.is_auto_capture()?,
+                    )),
+                    ..item.data
+                })
+            }
         }
     }
 }
+
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct OrderLines {
@@ -472,6 +427,8 @@ pub struct OrderLines {
     quantity: u16,
     unit_price: MinorUnit,
     total_amount: MinorUnit,
+    total_tax_amount: Option<MinorUnit>,
+    tax_rate: Option<f64>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -543,6 +500,21 @@ impl ForeignFrom<(KlarnaFraudStatus, bool)> for enums::AttemptStatus {
     }
 }
 
+impl ForeignFrom<(KlarnaCheckoutStatus, bool)> for enums::AttemptStatus {
+    fn foreign_from((klarna_status, is_auto_capture): (KlarnaCheckoutStatus, bool)) -> Self {
+        match klarna_status {
+            KlarnaCheckoutStatus::CheckoutIncomplete => {
+                if is_auto_capture {
+                    Self::AuthenticationPending
+                } else {
+                    Self::Authorized
+                }
+            }
+            KlarnaCheckoutStatus::CheckoutComplete => Self::Charged,
+        }
+    }
+}
+
 impl From<KlarnaCheckoutStatus> for enums::AttemptStatus {
     fn from(klarna_status: KlarnaCheckoutStatus) -> Self {
         match klarna_status {
@@ -570,6 +542,7 @@ pub struct KlarnaSDKSyncResponse {
 pub struct KlarnaCheckoutSyncResponse {
     pub order_id: String,
     pub status: KlarnaCheckoutStatus,
+    pub options: CheckoutOptions,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -624,7 +597,10 @@ impl<F, T>
                 ..item.data
             }),
             KlarnaPsyncResponse::KlarnaCheckoutPSyncResponse(response) => Ok(Self {
-                status: enums::AttemptStatus::from(response.status),
+                status: enums::AttemptStatus::foreign_from((
+                    response.status.clone(),
+                    response.options.auto_capture,
+                )),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         response.order_id.clone(),

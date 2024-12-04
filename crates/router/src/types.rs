@@ -865,6 +865,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             email: data.request.email.clone(),
             customer_name: data.request.customer_name.clone(),
             amount: 0,
+            order_tax_amount: Some(MinorUnit::new(0)),
             minor_amount: MinorUnit::new(0),
             statement_descriptor: None,
             capture_method: None,

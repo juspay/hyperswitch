@@ -824,7 +824,7 @@ impl
             req.request.currency,
         )?;
         let connector_router_data = klarna::KlarnaRouterData::from((amount, req));
-        let connector_req = klarna::KlarnaAuthRequest::try_from(&connector_router_data)?;
+        let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

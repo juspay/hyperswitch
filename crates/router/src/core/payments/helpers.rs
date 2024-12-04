@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
         payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
         PaymentIntent,
     },
-    router_data::{KlarnaCheckoutResponse, KlarnaSdkResponse},
+    router_data::KlarnaSdkResponse,
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
@@ -4083,6 +4083,7 @@ impl AttemptType {
             status: payment_attempt_status_fsm(payment_method_data, Some(true)),
 
             currency: old_payment_attempt.currency,
+            order_tax_amount: old_payment_attempt.order_tax_amount,
             save_to_locker: old_payment_attempt.save_to_locker,
 
             connector: None,
@@ -4547,10 +4548,7 @@ pub async fn get_additional_payment_data(
             })),
         },
         domain::PaymentMethodData::PayLater(_) => Ok(Some(
-            api_models::payments::AdditionalPaymentData::PayLater {
-                klarna_sdk: None,
-                klarna_checkout: None,
-            },
+            api_models::payments::AdditionalPaymentData::PayLater { klarna_sdk: None },
         )),
         domain::PaymentMethodData::BankTransfer(bank_transfer) => Ok(Some(
             api_models::payments::AdditionalPaymentData::BankTransfer {
@@ -5623,23 +5621,9 @@ pub fn add_connector_response_to_additional_payment_data(
             api_models::payments::AdditionalPaymentData::PayLater { .. },
             AdditionalPaymentMethodConnectorResponse::PayLater {
                 klarna_sdk: Some(KlarnaSdkResponse { payment_type }),
-                klarna_checkout: None,
             },
         ) => api_models::payments::AdditionalPaymentData::PayLater {
             klarna_sdk: Some(api_models::payments::KlarnaSdkPaymentMethod { payment_type }),
-            klarna_checkout: None,
-        },
-        (
-            api_models::payments::AdditionalPaymentData::PayLater { .. },
-            AdditionalPaymentMethodConnectorResponse::PayLater {
-                klarna_sdk: None,
-                klarna_checkout: Some(KlarnaCheckoutResponse { payment_type }),
-            },
-        ) => api_models::payments::AdditionalPaymentData::PayLater {
-            klarna_sdk: None,
-            klarna_checkout: Some(api_models::payments::KlarnaCheckoutPaymentMethod {
-                payment_type,
-            }),
         },
 
         _ => additional_payment_data,

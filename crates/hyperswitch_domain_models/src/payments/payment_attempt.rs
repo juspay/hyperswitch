@@ -432,6 +432,7 @@ pub struct PaymentAttempt {
     pub status: storage_enums::AttemptStatus,
     pub net_amount: NetAmount,
     pub currency: Option<storage_enums::Currency>,
+    pub order_tax_amount: Option<MinorUnit>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
     pub error_message: Option<String>,
@@ -679,6 +680,7 @@ pub struct PaymentAttemptNew {
     /// This field will always be derived before updating in the Database
     pub net_amount: NetAmount,
     pub currency: Option<storage_enums::Currency>,
+    pub order_tax_amount: Option<MinorUnit>,
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
@@ -1465,6 +1467,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     storage_model.tax_amount,
                 ),
                 currency: storage_model.currency,
+                order_tax_amount: storage_model.order_tax_amount,
                 save_to_locker: storage_model.save_to_locker,
                 connector: storage_model.connector,
                 error_message: storage_model.error_message,
