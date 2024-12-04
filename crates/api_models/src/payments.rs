@@ -551,7 +551,7 @@ pub struct AmountDetails {
 pub struct AmountDetailsUpdate {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = Option<u64>, example = 6540)]
-    #[serde(default, deserialize_with = "amount::deserialize_option")]
+    #[serde(deserialize_with = "amount::deserialize_option")]
     order_amount: Option<Amount>,
     /// The currency of the order
     #[schema(example = "USD", value_type = Option<Currency>)]
@@ -561,11 +561,9 @@ pub struct AmountDetailsUpdate {
     /// Tax amount related to the order. This will be calculated by the external tax provider
     order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
-    #[serde(default)]
     #[schema(value_type = Option<TaxCalculationOverride>)]
     skip_external_tax_calculation: Option<common_enums::TaxCalculationOverride>,
     /// The action to whether calculate surcharge or not
-    #[serde(default)]
     #[schema(value_type = Option<SurchargeCalculationOverride>)]
     skip_surcharge_calculation: Option<common_enums::SurchargeCalculationOverride>,
     /// The surcharge amount to be added to the order, collected from the merchant
