@@ -11,9 +11,11 @@ use api_models::routing as routing_types;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
+use diesel_models::configs;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use diesel_models::dynamic_routing_stats::DynamicRoutingStatsNew;
 #[cfg(feature = "v1")]
 use diesel_models::routing_algorithm;
-use diesel_models::{configs, dynamic_routing_stats::DynamicRoutingStatsNew};
 use error_stack::ResultExt;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
