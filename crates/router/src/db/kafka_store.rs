@@ -3746,7 +3746,7 @@ impl ThemeInterface for KafkaStore {
 impl CallbackMapperInterface for KafkaStore {
     async fn insert_call_back_mapper(
         &self,
-        call_back_mapper: domain::CallbackMapperNew,
+        call_back_mapper: domain::CallbackMapper,
     ) -> CustomResult<domain::CallbackMapper, errors::StorageError> {
         self.diesel_store
             .insert_call_back_mapper(call_back_mapper)

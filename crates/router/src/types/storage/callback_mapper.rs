@@ -1,1 +1,1 @@
-pub use diesel_models::callback_mapper::{CallbackMapper, CallbackMapperNew};
+pub use diesel_models::callback_mapper::CallbackMapper;
