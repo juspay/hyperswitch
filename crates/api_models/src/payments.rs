@@ -555,7 +555,7 @@ pub struct AmountDetails {
 pub struct AmountDetailsUpdate {
     /// The payment amount. Amount for the payment in the lowest denomination of the currency, (i.e) in cents for USD denomination, in yen for JPY denomination etc. E.g., Pass 100 to charge $1.00 and 1 for 1¥ since ¥ is a zero-decimal currency. Read more about [the Decimal and Non-Decimal Currencies](https://github.com/juspay/hyperswitch/wiki/Decimal-and-Non%E2%80%90Decimal-Currencies)
     #[schema(value_type = Option<u64>, example = 6540)]
-    #[serde(deserialize_with = "amount::deserialize_option")]
+    #[serde(default, deserialize_with = "amount::deserialize_option")]
     order_amount: Option<Amount>,
     /// The currency of the order
     #[schema(example = "USD", value_type = Option<Currency>)]

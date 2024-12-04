@@ -348,6 +348,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                     intent.request_external_three_ds_authentication,
                 ),
                 updated_by: intent.updated_by,
+                tax_details: intent.amount_details.tax_details,
             }));
 
         let new_payment_intent = db

@@ -510,6 +510,7 @@ pub struct PaymentIntentUpdateInternal {
     pub amount: Option<MinorUnit>,
     pub currency: Option<storage_enums::Currency>,
     pub shipping_cost: Option<MinorUnit>,
+    pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
     pub surcharge_applicable: Option<bool>,
     pub surcharge_amount: Option<MinorUnit>,
@@ -535,7 +536,6 @@ pub struct PaymentIntentUpdateInternal {
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
     pub session_expiry: Option<PrimitiveDateTime>,
     pub frm_metadata: Option<pii::SecretSerdeValue>,
-    // Setting it to common_enums::External3dsAuthenticationRequest gives error on `AsChangeset` derivation
     pub request_external_three_ds_authentication: Option<bool>,
     pub updated_by: String,
 }

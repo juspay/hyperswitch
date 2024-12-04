@@ -246,7 +246,13 @@ impl AmountDetails {
                 .into(),
             currency: req.currency().unwrap_or(self.currency),
             shipping_cost: req.shipping_cost().or(self.shipping_cost),
-            tax_details: self.tax_details,
+            tax_details: req
+                .order_tax_amount()
+                .map(|order_tax_amount| TaxDetails {
+                    default: Some(diesel_models::DefaultTax { order_tax_amount }),
+                    payment_method_type: None,
+                })
+                .or(self.tax_details),
             skip_external_tax_calculation: req
                 .skip_external_tax_calculation()
                 .unwrap_or(self.skip_external_tax_calculation),
