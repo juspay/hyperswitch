@@ -3,7 +3,7 @@ import { getCustomExchange } from "./Commons";
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "joseph Doe",
   card_cvc: "999",
 };
@@ -16,15 +16,17 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "396",
 };
 
-const multiUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
+const customerAcceptance = {
+  acceptance_type: "offline",
+  accepted_at: "1963-05-03T04:07:52.723Z",
+  online: {
+    ip_address: "125.0.0.1",
+    user_agent: "amet irure esse",
   },
+};
+
+const multiUseMandateData = {
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 8000,
@@ -34,28 +36,12 @@ const multiUseMandateData = {
 };
 
 const singleUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 8000,
       currency: "EUR",
     },
-  },
-};
-
-const customerAcceptance = {
-  acceptance_type: "offline",
-  accepted_at: "1963-05-03T04:07:52.723Z",
-  online: {
-    ip_address: "125.0.0.1",
-    user_agent: "amet irure esse",
   },
 };
 
@@ -93,6 +79,14 @@ const billingAddress = {
     number: "9123456789",
     country_code: "+91",
   }
+}
+
+const no3DSNotSupportedResponseBody = {
+  error: {
+    type: "invalid_request",
+    message: "No threeds is not supported",
+    code: "IR_00",
+  },
 }
 
 export const connectorDetails = {
@@ -176,14 +170,8 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "No threeds is not supported",
-            code: "IR_00",
-          },
-        },
+        status: 400,
+        body: no3DSNotSupportedResponseBody,
       },
     },
     No3DSAutoCapture: {
@@ -198,14 +186,8 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "No threeds is not supported",
-            code: "IR_00",
-          },
-        },
+        status: 400,
+        body: no3DSNotSupportedResponseBody,
       }
     },
     Capture: {
@@ -344,14 +326,8 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "No threeds is not supported",
-            code: "IR_00",
-          },
-        },
+        status: 400,
+        body: no3DSNotSupportedResponseBody,
       }
     },
     MandateMultiUseNo3DSManualCapture: {
@@ -365,14 +341,8 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "No threeds is not supported",
-            code: "IR_00",
-          },
-        },
+        status: 400,
+        body: no3DSNotSupportedResponseBody,
       }
     },
     MandateSingleUse3DSAutoCapture: {
@@ -420,14 +390,8 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "No threeds is not supported",
-            code: "IR_00",
-          },
-        },
+        status: 400,
+        body: no3DSNotSupportedResponseBody,
       }
     },
     MandateSingleUseNo3DSManualCapture: {
@@ -441,14 +405,8 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 501,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "No threeds is not supported",
-            code: "IR_00",
-          },
-        },
+        status: 400,
+        body: no3DSNotSupportedResponseBody,
       }
     },
     manualPaymentRefund: {
