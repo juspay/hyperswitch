@@ -106,7 +106,6 @@ pub struct ApiModelMetaData {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-
 pub enum KlarnaEndpoint {
     Europe,
     NorthAmerica,

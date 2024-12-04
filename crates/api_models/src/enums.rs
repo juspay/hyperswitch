@@ -141,7 +141,6 @@ pub enum FrmConnectors {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-
 pub enum TaxConnectors {
     Taxjar,
 }

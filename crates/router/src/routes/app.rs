@@ -954,6 +954,10 @@ pub struct Customers;
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
+        #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+        {
+            route = route.service(web::resource("/list").route(web::get().to(customers_list)))
+        }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
             route = route
@@ -964,10 +968,6 @@ impl Customers {
                         .route(web::post().to(customers_retrieve))
                         .route(web::delete().to(customers_delete)),
                 )
-        }
-        #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
-        {
-            route = route.service(web::resource("/list").route(web::get().to(customers_list)))
         }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
         {
@@ -1755,9 +1755,9 @@ impl Profile {
 
         #[cfg(feature = "dynamic_routing")]
         {
-            route =
-                route.service(
-                    web::scope("/{profile_id}/dynamic_routing").service(
+            route = route.service(
+                web::scope("/{profile_id}/dynamic_routing")
+                    .service(
                         web::scope("/success_based")
                             .service(
                                 web::resource("/toggle")
@@ -1770,8 +1770,14 @@ impl Profile {
                                     )
                                 }),
                             )),
+                    )
+                    .service(
+                        web::scope("/elimination").service(
+                            web::resource("/toggle")
+                                .route(web::post().to(routing::toggle_elimination_routing)),
+                        ),
                     ),
-                );
+            );
         }
 
         route = route.service(
@@ -2003,7 +2009,7 @@ impl User {
                 )
                 .service(web::resource("/verify_email").route(web::post().to(user::verify_email)))
                 .service(
-                    web::resource("/v2/verify-email").route(web::post().to(user::verify_email)),
+                    web::resource("/v2/verify_email").route(web::post().to(user::verify_email)),
                 )
                 .service(
                     web::resource("/verify_email_request")
@@ -2057,7 +2063,7 @@ impl User {
                                         .route(web::post().to(user_role::accept_invitations_v2)),
                                 )
                                 .service(
-                                    web::resource("/pre-auth").route(
+                                    web::resource("/pre_auth").route(
                                         web::post().to(user_role::accept_invitations_pre_auth),
                                     ),
                                 ),

@@ -1,12 +1,3 @@
-import State from "../../utils/State";
-
-const globalState = new State({
-  connectorId: Cypress.env("CONNECTOR"),
-  baseUrl: Cypress.env("BASEURL"),
-  adminApiKey: Cypress.env("ADMINAPIKEY"),
-  connectorAuthFilePath: Cypress.env("CONNECTOR_AUTH_FILE_PATH"),
-});
-
 export const card_credit_enabled = [
   {
     payment_method: "card",
