@@ -2819,9 +2819,15 @@ pub enum PermissionGroup {
     MerchantDetailsManage,
     // TODO: To be deprecated, make sure DB is migrated before removing
     OrganizationManage,
-    ReconOps,
     AccountView,
     AccountManage,
+    ReconReportsView,
+    ReconReportsManage,
+    ReconOpsView,
+    // Alias is added for backward compatibility with database
+    // TODO: Remove alias post migration
+    #[serde(alias = "recon_ops")]
+    ReconOpsManage,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]
@@ -2831,7 +2837,8 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    Recon,
+    ReconOps,
+    ReconReports,
     Account,
 }
 
@@ -2854,7 +2861,13 @@ pub enum Resource {
     WebhookEvent,
     Payout,
     Report,
-    Recon,
+    ReconToken,
+    ReconFiles,
+    ReconAndSettlementAnalytics,
+    ReconUpload,
+    ReconReports,
+    RunRecon,
+    ReconConfig,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
@@ -3328,6 +3341,7 @@ pub enum PresenceOfCustomerDuringPayment {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum TaxCalculationOverride {
     /// Skip calling the external tax provider
     #[default]
@@ -3337,6 +3351,7 @@ pub enum TaxCalculationOverride {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum SurchargeCalculationOverride {
     /// Skip calculating surcharge
     #[default]
@@ -3356,6 +3371,31 @@ pub enum ConnectorMandateStatus {
     Active,
     /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
     Inactive,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+    PartialOrd,
+    Ord,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ErrorCategory {
+    FrmDecline,
+    ProcessorDowntime,
+    ProcessorDeclineUnauthorized,
+    IssueWithPaymentMethod,
+    ProcessorDeclineIncorrectData,
 }
 
 #[derive(
