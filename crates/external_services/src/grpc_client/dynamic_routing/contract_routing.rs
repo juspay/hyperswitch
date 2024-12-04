@@ -39,7 +39,7 @@ pub trait ContractBasedDynamicRouting: dyn_clone::DynClone + Send + Sync {
     async fn update_contracts(
         &self,
         id: String,
-        config: ContractBasedRoutingConfig,
+        label_info: Vec<LabelInformation>,
         params: String,
         response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateContractResponse>;
@@ -91,20 +91,14 @@ impl ContractBasedDynamicRouting for ContractScoreCalculatorClient<Client> {
     async fn update_contracts(
         &self,
         id: String,
-        config: ContractBasedRoutingConfig,
+        label_info: Vec<LabelInformation>,
         params: String,
         _response: Vec<RoutableConnectorChoiceWithStatus>,
     ) -> DynamicRoutingResult<UpdateContractResponse> {
-        let labels_information = config
-            .label_info
-            .map(|info| {
-                info.into_iter()
-                    .map(ProtoLabelInfo::foreign_from)
-                    .collect::<Vec<_>>()
-            })
-            .ok_or(DynamicRoutingError::MissingRequiredField {
-                field: "label_info".to_string(),
-            })?;
+        let labels_information = label_info
+            .into_iter()
+            .map(ProtoLabelInfo::foreign_from)
+            .collect::<Vec<_>>();
 
         let request = tonic::Request::new(UpdateContractRequest {
             id,

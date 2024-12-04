@@ -6,8 +6,9 @@ use router_env::{logger, tracing::Instrument};
 
 use crate::redis::cache::{
     CacheKey, CacheKind, CacheRedact, ACCOUNTS_CACHE, CGRAPH_CACHE, CONFIG_CACHE,
-    DECISION_MANAGER_CACHE, ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE, PM_FILTERS_CGRAPH_CACHE,
-    ROUTING_CACHE, SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE, SURCHARGE_CACHE,
+    CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE, DECISION_MANAGER_CACHE,
+    ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE, PM_FILTERS_CGRAPH_CACHE, ROUTING_CACHE,
+    SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE, SURCHARGE_CACHE,
 };
 
 #[async_trait::async_trait]
@@ -147,6 +148,15 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                                 .await;
                             key
                         }
+                        CacheKind::ContractBasedDynamicRoutingCache(key) => {
+                            CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: message.tenant.clone(),
+                                })
+                                .await;
+                            key
+                        }
                         CacheKind::SuccessBasedDynamicRoutingCache(key) => {
                             SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
                                 .remove(CacheKey {
@@ -215,6 +225,12 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                                 })
                                 .await;
                             ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
+                                .remove(CacheKey {
+                                    key: key.to_string(),
+                                    prefix: message.tenant.clone(),
+                                })
+                                .await;
+                            CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
                                 .remove(CacheKey {
                                     key: key.to_string(),
                                     prefix: message.tenant.clone(),

@@ -568,6 +568,86 @@ pub fn get_default_config_key(
     }
 }
 
+#[async_trait::async_trait]
+pub trait DynamicRoutingCache {
+    async fn get_cached_dynamic_routing_config_for_profile(
+        state: &SessionState,
+        key: &str,
+    ) -> Option<Arc<Self>>;
+
+    async fn refresh_dynamic_routing_cache(
+        state: &SessionState,
+        key: &str,
+        dynamic_routing_config: Self,
+    ) -> Arc<Self>;
+}
+
+#[async_trait::async_trait]
+impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
+    async fn get_cached_dynamic_routing_config_for_profile(
+        state: &SessionState,
+        key: &str,
+    ) -> Option<Arc<Self>> {
+        cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
+            .get_val::<Arc<routing_types::SuccessBasedRoutingConfig>>(cache::CacheKey {
+                key: key.to_string(),
+                prefix: state.tenant.redis_key_prefix.clone(),
+            })
+            .await
+    }
+
+    async fn refresh_dynamic_routing_cache(
+        state: &SessionState,
+        key: &str,
+        dynamic_routing_config: Self,
+    ) -> Arc<Self> {
+        let config = Arc::new(dynamic_routing_config);
+        cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
+            .push(
+                cache::CacheKey {
+                    key: key.to_string(),
+                    prefix: state.tenant.redis_key_prefix.clone(),
+                },
+                config.clone(),
+            )
+            .await;
+        config
+    }
+}
+
+#[async_trait::async_trait]
+impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
+    async fn get_cached_dynamic_routing_config_for_profile(
+        state: &SessionState,
+        key: &str,
+    ) -> Option<Arc<Self>> {
+        cache::CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
+            .get_val::<Arc<routing_types::ContractBasedRoutingConfig>>(cache::CacheKey {
+                key: key.to_string(),
+                prefix: state.tenant.redis_key_prefix.clone(),
+            })
+            .await
+    }
+
+    async fn refresh_dynamic_routing_cache(
+        state: &SessionState,
+        key: &str,
+        dynamic_routing_config: Self,
+    ) -> Arc<Self> {
+        let config = Arc::new(dynamic_routing_config);
+        cache::CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
+            .push(
+                cache::CacheKey {
+                    key: key.to_string(),
+                    prefix: state.tenant.redis_key_prefix.clone(),
+                },
+                config.clone(),
+            )
+            .await;
+        config
+    }
+}
+
 /// Retrieves cached success_based routing configs specific to tenant and profile
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn get_cached_success_based_routing_config_for_profile<'a>(
@@ -605,7 +685,9 @@ pub async fn refresh_success_based_routing_cache(
 /// Checked fetch of success based routing configs
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 #[instrument(skip_all)]
-pub async fn fetch_dynamic_routing_configs<T: serde::de::DeserializeOwned + Clone>(
+pub async fn fetch_dynamic_routing_configs<
+    T: serde::de::DeserializeOwned + Clone + DynamicRoutingCache,
+>(
     state: &SessionState,
     business_profile: &domain::Profile,
     success_based_routing_id: id_type::RoutingId,
@@ -617,7 +699,7 @@ pub async fn fetch_dynamic_routing_configs<T: serde::de::DeserializeOwned + Clon
     );
 
     if let Some(config) =
-        get_cached_success_based_routing_config_for_profile(state, key.as_str()).await
+        T::get_cached_dynamic_routing_config_for_profile(state, key.as_str()).await
     {
         Ok(config.as_ref().clone())
     } else {
@@ -637,8 +719,7 @@ pub async fn fetch_dynamic_routing_configs<T: serde::de::DeserializeOwned + Clon
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to parse type_name struct")?;
 
-        refresh_success_based_routing_cache(state, key.as_str(), dynamic_routing_config.clone())
-            .await;
+        T::refresh_dynamic_routing_cache(state, key.as_str(), dynamic_routing_config.clone()).await;
 
         Ok(dynamic_routing_config)
     }
@@ -874,6 +955,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             .grpc_client
             .dynamic_routing
             .contract_based_client
+            .clone()
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "contract_routing gRPC client not found".to_string(),
             })?;
@@ -884,7 +966,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             },
         )?;
 
-        let contract_based_routing_config =
+        let mut contract_based_routing_config =
             fetch_dynamic_routing_configs::<routing_types::ContractBasedRoutingConfig>(
                 state,
                 business_profile,
@@ -1015,23 +1097,41 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
         );
         logger::debug!("successfully pushed contract_based_routing metrics");
 
-        let new_label_info = routing_types::LabelInformation {
-            label: contract_based_routing_config.label_info.label,
-            target_count: contract_based_routing_config.label_info.target_count,
-            target_time: contract_based_routing_config.label_info.target_time,
-            current_count: contract_based_routing_config.label_info.current_count + 1,
+        let mut existing_label_info = None;
+
+        contract_based_routing_config
+            .label_info
+            .as_ref()
+            .map(|label_info_vec| {
+                for label_info in label_info_vec {
+                    if Some(&label_info.mca_id) == payment_attempt.merchant_connector_id.as_ref() {
+                        existing_label_info = Some(label_info.clone());
+                    }
+                }
+            });
+
+        let mut final_label_info = existing_label_info
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to get LabelInformation from ContractBasedRoutingConfig")?;
+
+        let request_label_info = routing_types::LabelInformation {
+            label: final_label_info.label.clone(),
+            target_count: final_label_info.target_count,
+            target_time: final_label_info.target_time,
+            current_count: 1,
+            mca_id: final_label_info.mca_id.to_owned(),
         };
 
-        let new_contract_config = routing_types::ContractBasedRoutingConfig {
-            params: contract_based_routing_config.params,
-            config: contract_based_routing_config.config,
-            label_info: new_label_info,
-        };
+        // let new_contract_config = routing_types::ContractBasedRoutingConfig {
+        //     params: contract_based_routing_config.params,
+        //     config: contract_based_routing_config.config,
+        //     label_info: Some(request_label_info),
+        // };
 
         client
             .update_contracts(
                 tenant_business_profile_id,
-                new_contract_config,
+                vec![request_label_info],
                 contract_based_routing_config_params,
                 vec![routing_types::RoutableConnectorChoiceWithStatus::new(
                     routing_types::RoutableConnectorChoice {
@@ -1051,6 +1151,19 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             .attach_printable(
                 "unable to update success based routing window in dynamic routing service",
             )?;
+
+        final_label_info.current_count += 1;
+
+        contract_based_routing_config
+            .label_info
+            .map(|label_info_vec| {
+                for mut label_info in label_info_vec {
+                    if Some(&label_info.mca_id) == payment_attempt.merchant_connector_id.as_ref() {
+                        label_info = final_label_info.clone();
+                    }
+                }
+            });
+
         Ok(())
     } else {
         Ok(())
