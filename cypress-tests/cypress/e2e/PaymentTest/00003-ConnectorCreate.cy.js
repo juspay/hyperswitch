@@ -25,6 +25,7 @@ describe("Connector Account Create flow test", () => {
 
   it("check and create multiple connectors", () => {
     const multiple_connectors = Cypress.env("MULTIPLE_CONNECTORS");
+
     // multiple_connectors will be undefined if not set in the env
     if (multiple_connectors?.status) {
       // Create multiple connectors based on the count
