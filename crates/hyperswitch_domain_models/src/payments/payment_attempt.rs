@@ -2004,7 +2004,7 @@ impl behaviour::Conversion for PaymentAttempt {
             shipping_cost: amount_details.shipping_cost,
             amount_to_capture: amount_details.amount_to_capture,
             payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
-            payment_method_subtype: payment_method_subtype,
+            payment_method_subtype,
             payment_method_type_v2: payment_method_type,
             id,
             connector_mandate_detail,
