@@ -230,3 +230,10 @@ impl Deref for CardExpirationYear {
         &self.0
     }
 }
+
+impl Deref for CardHolderName {
+    type Target = StrongSecret<String>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
