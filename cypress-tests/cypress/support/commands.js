@@ -25,7 +25,11 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 
 // commands.js or your custom support file
-import { defaultErrorHandler, getValueByKey } from "../e2e/PaymentUtils/Utils";
+import {
+  defaultErrorHandler,
+  extractIntegerAtEnd,
+  getValueByKey,
+} from "../e2e/PaymentUtils/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { handleRedirection } from "./redirectionHandler";
@@ -472,7 +476,8 @@ Cypress.Commands.add(
       (jsonContent) => {
         const authDetails = getValueByKey(
           JSON.stringify(jsonContent),
-          connector_id
+          connector_id,
+          extractIntegerAtEnd(profile_prefix)
         );
 
         createConnectorBody.connector_account_details =
