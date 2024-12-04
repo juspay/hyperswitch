@@ -97,7 +97,7 @@ function mergeConnectorDetails(source, fallback) {
   return merged;
 }
 
-export function getValueByKey(jsonObject, key) {
+export function getValueByKey(jsonObject, key, keyNumber = 0) {
   const data =
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
@@ -106,7 +106,7 @@ export function getValueByKey(jsonObject, key) {
     if (typeof data[key].connector_account_details === "undefined") {
       const keys = Object.keys(data[key]);
 
-      for (let i = 0; i < keys.length; i++) {
+      for (let i = keyNumber; i < keys.length; i++) {
         const currentItem = data[key][keys[i]];
 
         if (
@@ -180,4 +180,10 @@ export function defaultErrorHandler(response, response_data) {
       }
     }
   }
+}
+
+export function extractIntegerAtEnd(str) {
+  // Match one or more digits at the end of the string
+  const match = str.match(/(\d+)$/);
+  return match ? parseInt(match[0], 10) : 0;
 }
