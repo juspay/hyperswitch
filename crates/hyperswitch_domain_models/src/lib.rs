@@ -1,3 +1,4 @@
+pub mod address;
 pub mod api;
 pub mod behaviour;
 pub mod business_profile;
@@ -30,6 +31,12 @@ pub trait PayoutAttemptInterface {}
 #[cfg(not(feature = "payouts"))]
 pub trait PayoutsInterface {}
 
+use api_models::payments::{
+    FeatureMetadata as ApiFeatureMetadata, OrderDetailsWithAmount as ApiOrderDetailsWithAmount,
+    RedirectResponse as ApiRedirectResponse,
+};
+use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount, RedirectResponse};
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
     ForeignID(String),
@@ -60,6 +67,116 @@ use std::fmt::Debug;
 pub trait ApiModelToDieselModelConvertor<F> {
     /// Convert from a foreign type to the current type
     fn convert_from(from: F) -> Self;
+    fn convert_back(self) -> F;
+}
+
+impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
+    fn convert_from(from: ApiFeatureMetadata) -> Self {
+        let ApiFeatureMetadata {
+            redirect_response,
+            search_tags,
+        } = from;
+        Self {
+            redirect_response: redirect_response.map(RedirectResponse::convert_from),
+            search_tags,
+        }
+    }
+
+    fn convert_back(self) -> ApiFeatureMetadata {
+        let Self {
+            redirect_response,
+            search_tags,
+        } = self;
+        ApiFeatureMetadata {
+            redirect_response: redirect_response
+                .map(|redirect_response| redirect_response.convert_back()),
+            search_tags,
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<ApiRedirectResponse> for RedirectResponse {
+    fn convert_from(from: ApiRedirectResponse) -> Self {
+        let ApiRedirectResponse {
+            param,
+            json_payload,
+        } = from;
+        Self {
+            param,
+            json_payload,
+        }
+    }
+
+    fn convert_back(self) -> ApiRedirectResponse {
+        let Self {
+            param,
+            json_payload,
+        } = self;
+        ApiRedirectResponse {
+            param,
+            json_payload,
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsWithAmount {
+    fn convert_from(from: ApiOrderDetailsWithAmount) -> Self {
+        let ApiOrderDetailsWithAmount {
+            product_name,
+            quantity,
+            amount,
+            requires_shipping,
+            product_img_link,
+            product_id,
+            category,
+            sub_category,
+            brand,
+            product_type,
+            product_tax_code,
+        } = from;
+        Self {
+            product_name,
+            quantity,
+            amount,
+            requires_shipping,
+            product_img_link,
+            product_id,
+            category,
+            sub_category,
+            brand,
+            product_type,
+            product_tax_code,
+        }
+    }
+
+    fn convert_back(self) -> ApiOrderDetailsWithAmount {
+        let Self {
+            product_name,
+            quantity,
+            amount,
+            requires_shipping,
+            product_img_link,
+            product_id,
+            category,
+            sub_category,
+            brand,
+            product_type,
+            product_tax_code,
+        } = self;
+        ApiOrderDetailsWithAmount {
+            product_name,
+            quantity,
+            amount,
+            requires_shipping,
+            product_img_link,
+            product_id,
+            category,
+            sub_category,
+            brand,
+            product_type,
+            product_tax_code,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -74,6 +191,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout: item.sdk_layout,
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
+            hide_card_nickname_field: item.hide_card_nickname_field,
+            show_card_form_by_default: item.show_card_form_by_default,
             transaction_details: item.transaction_details.map(|transaction_details| {
                 transaction_details
                     .into_iter()
@@ -82,6 +201,35 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
                             transaction_detail,
                         )
                     })
+                    .collect()
+            }),
+        }
+    }
+    fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
+        let Self {
+            theme,
+            logo,
+            seller_name,
+            sdk_layout,
+            display_sdk_only,
+            enabled_saved_payment_method,
+            hide_card_nickname_field,
+            show_card_form_by_default,
+            transaction_details,
+        } = self;
+        api_models::admin::PaymentLinkConfigRequest {
+            theme,
+            logo,
+            seller_name,
+            sdk_layout,
+            display_sdk_only,
+            enabled_saved_payment_method,
+            hide_card_nickname_field,
+            show_card_form_by_default,
+            transaction_details: transaction_details.map(|transaction_details| {
+                transaction_details
+                    .into_iter()
+                    .map(|transaction_detail| transaction_detail.convert_back())
                     .collect()
             }),
         }
@@ -101,6 +249,19 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkTransactionDet
                 .map(diesel_models::TransactionDetailsUiConfiguration::convert_from),
         }
     }
+    fn convert_back(self) -> api_models::admin::PaymentLinkTransactionDetails {
+        let Self {
+            key,
+            value,
+            ui_configuration,
+        } = self;
+        api_models::admin::PaymentLinkTransactionDetails {
+            key,
+            value,
+            ui_configuration: ui_configuration
+                .map(|ui_configuration| ui_configuration.convert_back()),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -112,6 +273,18 @@ impl ApiModelToDieselModelConvertor<api_models::admin::TransactionDetailsUiConfi
             position: from.position,
             is_key_bold: from.is_key_bold,
             is_value_bold: from.is_value_bold,
+        }
+    }
+    fn convert_back(self) -> api_models::admin::TransactionDetailsUiConfiguration {
+        let Self {
+            position,
+            is_key_bold,
+            is_value_bold,
+        } = self;
+        api_models::admin::TransactionDetailsUiConfiguration {
+            position,
+            is_key_bold,
+            is_value_bold,
         }
     }
 }

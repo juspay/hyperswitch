@@ -353,6 +353,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
 
+        payment_intent.psd2_sca_exemption_type = request
+            .psd2_sca_exemption_type
+            .or(payment_intent.psd2_sca_exemption_type);
+
         let browser_info = request
             .browser_info
             .clone()
@@ -576,6 +580,39 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             payment_method_info,
         } = mandate_details;
 
+        let token = token.or_else(|| payment_attempt.payment_token.clone());
+
+        helpers::validate_pm_or_token_given(
+            &request.payment_method,
+            &request
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| pmd.payment_method_data.clone()),
+            &request.payment_method_type,
+            &mandate_type,
+            &token,
+        )?;
+
+        let (token_data, payment_method_info) = if let Some(token) = token.clone() {
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                token,
+                payment_method.or(payment_attempt.payment_method),
+            )
+            .await?;
+
+            let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                key_store,
+                &token_data,
+                storage_scheme,
+            )
+            .await?;
+
+            (Some(token_data), payment_method_info)
+        } else {
+            (None, payment_method_info)
+        };
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
                 .payment_method_data
@@ -611,45 +648,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
 
+        let payment_method_type = Option::<api_models::enums::PaymentMethodType>::foreign_from((
+            payment_method_type,
+            additional_pm_data.as_ref(),
+        ));
+
         payment_attempt.payment_method_type = payment_method_type
             .or(payment_attempt.payment_method_type)
             .or(payment_method_info
                 .as_ref()
-                .and_then(|pm_info| pm_info.payment_method_type));
+                .and_then(|pm_info| pm_info.get_payment_method_subtype()));
 
-        let token = token.or_else(|| payment_attempt.payment_token.clone());
-
-        helpers::validate_pm_or_token_given(
-            &request.payment_method,
-            &request
-                .payment_method_data
-                .as_ref()
-                .and_then(|pmd| pmd.payment_method_data.clone()),
-            &request.payment_method_type,
-            &mandate_type,
-            &token,
-        )?;
-
-        let (token_data, payment_method_info) = if let Some(token) = token.clone() {
-            let token_data = helpers::retrieve_payment_token_data(
-                state,
-                token,
-                payment_method.or(payment_attempt.payment_method),
-            )
-            .await?;
-
-            let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
-                state,
-                key_store,
-                &token_data,
-                storage_scheme,
-            )
-            .await?;
-
-            (Some(token_data), payment_method_info)
-        } else {
-            (None, payment_method_info)
-        };
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = mandate_data.map(|mut sm| {
             sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
@@ -699,7 +708,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .and_then(|pmd| pmd.payment_method_data.as_ref())
             .and_then(|payment_method_data_billing| {
                 payment_method_data_billing.get_billing_address()
-            });
+            })
+            .map(From::from);
 
         let unified_address =
             address.unify_with_payment_method_data_billing(payment_method_data_billing);

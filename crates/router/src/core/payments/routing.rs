@@ -12,7 +12,6 @@ use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
-    payments::Address,
     routing::ConnectorSelection,
 };
 use diesel_models::enums as storage_enums;
@@ -27,6 +26,7 @@ use euclid::{
 use external_services::grpc_client::dynamic_routing::{
     success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
 };
+use hyperswitch_domain_models::address::Address;
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -1240,6 +1240,7 @@ pub async fn perform_success_based_routing(
     state: &SessionState,
     routable_connectors: Vec<api_routing::RoutableConnectorChoice>,
     business_profile: &domain::Profile,
+    success_based_routing_config_params_interpolator: routing::helpers::SuccessBasedRoutingConfigParamsInterpolator,
 ) -> RoutingResult<Vec<api_routing::RoutableConnectorChoice>> {
     let success_based_dynamic_routing_algo_ref: api_routing::DynamicRoutingAlgorithmRef =
         business_profile
@@ -1262,7 +1263,7 @@ pub async fn perform_success_based_routing(
         )?;
 
     if success_based_algo_ref.enabled_feature
-        == api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection
+        == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
     {
         logger::debug!(
             "performing success_based_routing for profile {}",
@@ -1293,6 +1294,14 @@ pub async fn perform_success_based_routing(
         .change_context(errors::RoutingError::SuccessBasedRoutingConfigError)
         .attach_printable("unable to fetch success_rate based dynamic routing configs")?;
 
+        let success_based_routing_config_params = success_based_routing_config_params_interpolator
+            .get_string_val(
+                success_based_routing_configs
+                    .params
+                    .as_ref()
+                    .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)?,
+            );
+
         let tenant_business_profile_id = routing::helpers::generate_tenant_business_profile_id(
             &state.tenant.redis_key_prefix,
             business_profile.get_id().get_string_repr(),
@@ -1302,6 +1311,7 @@ pub async fn perform_success_based_routing(
             .calculate_success_rate(
                 tenant_business_profile_id,
                 success_based_routing_configs,
+                success_based_routing_config_params,
                 routable_connectors,
             )
             .await

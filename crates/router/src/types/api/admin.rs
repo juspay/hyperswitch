@@ -34,6 +34,10 @@ use crate::{
 impl ForeignFrom<diesel_models::organization::Organization> for OrganizationResponse {
     fn foreign_from(org: diesel_models::organization::Organization) -> Self {
         Self {
+            #[cfg(feature = "v2")]
+            id: org.get_organization_id(),
+
+            #[cfg(feature = "v1")]
             organization_id: org.get_organization_id(),
             organization_name: org.get_organization_name(),
             organization_details: org.organization_details,
@@ -233,6 +237,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             outgoing_webhook_custom_http_headers,
             order_fulfillment_time,
             order_fulfillment_time_origin: item.order_fulfillment_time_origin,
+            should_collect_cvv_during_payment: item.should_collect_cvv_during_payment,
             tax_connector_id: item.tax_connector_id,
             is_tax_connector_enabled: item.is_tax_connector_enabled,
             is_network_tokenization_enabled: item.is_network_tokenization_enabled,

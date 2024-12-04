@@ -141,7 +141,6 @@ pub enum FrmConnectors {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-
 pub enum TaxConnectors {
     Taxjar,
 }
@@ -224,8 +223,9 @@ pub enum FieldType {
     UserCpf,
     UserCnpj,
     UserIban,
-    BrowserLanguage,
-    BrowserIp,
+    UserMsisdn,
+    UserClientIdentifier,
+    OrderDetailsProductName,
 }
 
 impl FieldType {
@@ -316,6 +316,9 @@ impl PartialEq for FieldType {
             (Self::UserCpf, Self::UserCpf) => true,
             (Self::UserCnpj, Self::UserCnpj) => true,
             (Self::LanguagePreference { .. }, Self::LanguagePreference { .. }) => true,
+            (Self::UserMsisdn, Self::UserMsisdn) => true,
+            (Self::UserClientIdentifier, Self::UserClientIdentifier) => true,
+            (Self::OrderDetailsProductName, Self::OrderDetailsProductName) => true,
             _unused => false,
         }
     }
@@ -442,4 +445,21 @@ pub enum StripeChargeType {
 #[cfg(feature = "frm")]
 pub fn convert_frm_connector(connector_name: &str) -> Option<FrmConnectors> {
     FrmConnectors::from_str(connector_name).ok()
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, serde::Serialize, Hash)]
+pub enum ReconPermissionScope {
+    #[serde(rename = "R")]
+    Read = 0,
+    #[serde(rename = "RW")]
+    Write = 1,
+}
+
+impl From<PermissionScope> for ReconPermissionScope {
+    fn from(scope: PermissionScope) -> Self {
+        match scope {
+            PermissionScope::Read => Self::Read,
+            PermissionScope::Write => Self::Write,
+        }
+    }
 }

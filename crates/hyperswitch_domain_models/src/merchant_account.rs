@@ -201,7 +201,7 @@ impl MerchantAccount {
 
 #[cfg(feature = "v1")]
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MerchantAccountUpdate {
     Update {
         merchant_name: OptionalEncryptableName,
@@ -237,7 +237,7 @@ pub enum MerchantAccountUpdate {
 
 #[cfg(feature = "v2")]
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MerchantAccountUpdate {
     Update {
         merchant_name: OptionalEncryptableName,
@@ -255,7 +255,6 @@ pub enum MerchantAccountUpdate {
 }
 
 #[cfg(feature = "v1")]
-
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
         let now = date_time::now();

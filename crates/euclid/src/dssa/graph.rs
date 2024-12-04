@@ -70,6 +70,7 @@ impl cgraph::NodeViz for dir::DirValue {
             Self::CardRedirectType(crt) => crt.to_string(),
             Self::RealTimePaymentType(rtpt) => rtpt.to_string(),
             Self::OpenBankingType(ob) => ob.to_string(),
+            Self::MobilePaymentType(mpt) => mpt.to_string(),
         }
     }
 }
@@ -420,7 +421,7 @@ impl CgraphExt for cgraph::ConstraintGraph<dir::DirValue> {
 
         for (key, negation_set) in keywise_negation {
             let all_metadata = keywise_metadata.remove(&key).unwrap_or_default();
-            let first_metadata = all_metadata.first().cloned().cloned().unwrap_or_default();
+            let first_metadata = all_metadata.first().copied().cloned().unwrap_or_default();
 
             self.key_analysis(key.clone(), analysis_ctx, memo, cycle_map, domains)
                 .map_err(|e| AnalysisError::assertion_from_graph_error(&first_metadata, e))?;

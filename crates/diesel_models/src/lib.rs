@@ -41,6 +41,7 @@ pub mod refund;
 pub mod reverse_lookup;
 pub mod role;
 pub mod routing_algorithm;
+pub mod types;
 pub mod unified_translations;
 
 #[allow(unused_qualifications)]
@@ -74,7 +75,6 @@ pub use self::{
 /// `Option<T>` values.
 ///
 /// [diesel-2.0-array-nullability]: https://diesel.rs/guides/migration_guide.html#2-0-0-nullability-of-array-elements
-
 #[doc(hidden)]
 pub(crate) mod diesel_impl {
     use diesel::{

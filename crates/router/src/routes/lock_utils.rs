@@ -140,7 +140,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsConfirmIntent
             | Flow::PaymentsCreateIntent
             | Flow::PaymentsGetIntent
-            | Flow::PaymentsPostSessionTokens => Self::Payments,
+            | Flow::PaymentsPostSessionTokens
+            | Flow::PaymentStartRedirection => Self::Payments,
 
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -258,7 +259,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListMerchantsForUserInOrg
             | Flow::ListProfileForUserInOrgAndMerchant
             | Flow::ListInvitationsForUser
-            | Flow::AuthSelect => Self::User,
+            | Flow::AuthSelect
+            | Flow::GetThemeUsingLineage
+            | Flow::GetThemeUsingThemeId
+            | Flow::UploadFileToThemeStorage
+            | Flow::CreateTheme
+            | Flow::UpdateTheme
+            | Flow::DeleteTheme => Self::User,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel

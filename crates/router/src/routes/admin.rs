@@ -357,7 +357,7 @@ pub async fn connector_create(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
+        |state, auth_data: auth::AuthenticationData, req, _| {
             create_connector(
                 state,
                 req,
@@ -458,14 +458,14 @@ pub async fn connector_retrieve(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
-            retrieve_connector(
-                state,
-                auth_data.merchant_account,
-                auth_data.key_store,
-                req.id.clone(),
-            )
-        },
+        |state,
+         auth::AuthenticationData {
+             merchant_account,
+             key_store,
+             ..
+         },
+         req,
+         _| { retrieve_connector(state, merchant_account, key_store, req.id.clone()) },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
@@ -493,8 +493,8 @@ pub async fn connector_list(
         state,
         &req,
         profile_id.to_owned(),
-        |state, auth, _, _| {
-            list_connectors_for_a_profile(state, auth.merchant_account.clone(), profile_id.clone())
+        |state, auth::AuthenticationData { key_store, .. }, _, _| {
+            list_connectors_for_a_profile(state, key_store, profile_id.clone())
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
@@ -554,6 +554,8 @@ pub async fn connector_list(
     )
     .await
 }
+
+#[cfg(all(feature = "v1", feature = "olap"))]
 /// Merchant Connector - List
 ///
 /// List Merchant Connector Details for the merchant
@@ -791,14 +793,14 @@ pub async fn connector_delete(
         state,
         &req,
         payload,
-        |state, auth_data, req, _| {
-            delete_connector(
-                state,
-                auth_data.merchant_account,
-                auth_data.key_store,
-                req.id,
-            )
-        },
+        |state,
+         auth::AuthenticationData {
+             merchant_account,
+             key_store,
+             ..
+         },
+         req,
+         _| { delete_connector(state, merchant_account, key_store, req.id) },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {

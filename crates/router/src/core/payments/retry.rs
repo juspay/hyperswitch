@@ -291,6 +291,7 @@ fn get_flow_name<F>() -> RouterResult<String> {
         .to_string())
 }
 
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn do_retry<F, ApiRequest, FData, D>(

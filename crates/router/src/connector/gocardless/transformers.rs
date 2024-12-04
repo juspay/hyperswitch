@@ -1,7 +1,4 @@
-use api_models::{
-    enums::{CountryAlpha2, UsStatesAbbreviation},
-    payments::AddressDetails,
-};
+use api_models::enums::{CountryAlpha2, UsStatesAbbreviation};
 use common_utils::{
     id_type,
     pii::{self, IpAddress},
@@ -105,7 +102,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
 }
 
 fn get_region(
-    address_details: &AddressDetails,
+    address_details: &hyperswitch_domain_models::address::AddressDetails,
 ) -> Result<Option<Secret<String>>, error_stack::Report<errors::ConnectorError>> {
     match address_details.country {
         Some(CountryAlpha2::US) => {
@@ -243,6 +240,7 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)
@@ -416,6 +414,7 @@ impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
             | domain::PaymentMethodData::MandatePayment
             | domain::PaymentMethodData::Reward
             | domain::PaymentMethodData::RealTimePayment(_)
+            | domain::PaymentMethodData::MobilePayment(_)
             | domain::PaymentMethodData::Upi(_)
             | domain::PaymentMethodData::Voucher(_)
             | domain::PaymentMethodData::GiftCard(_)

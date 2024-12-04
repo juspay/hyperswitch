@@ -310,7 +310,8 @@ impl
                         Box::new(Some(MandateReference {
                             connector_mandate_id: item.response.mandate_id,
                             payment_method_id: None,
-                            mandate_metadata: Some(serde_json::json!(DeutschebankMandateMetadata {
+                            mandate_metadata: Some(Secret::new(
+                                serde_json::json!(DeutschebankMandateMetadata {
                                 account_holder: item.data.get_billing_address()?.get_full_name()?,
                                 iban: match item.data.request.payment_method_data.clone() {
                                     PaymentMethodData::BankDebit(BankDebitData::SepaBankDebit {
@@ -324,7 +325,8 @@ impl
                                 }?,
                                 reference: Secret::from(reference.clone()),
                                 signed_on,
-                            })),
+                            }),
+                            )),
                             connector_mandate_request_reference_id: None,
                         }))
                     } else {

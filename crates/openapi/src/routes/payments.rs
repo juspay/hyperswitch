@@ -406,6 +406,9 @@ pub fn payments_connector_session() {}
 #[utoipa::path(
     post,
     path = "/v2/payments/{payment_id}/create-external-sdk-tokens",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
     request_body=PaymentsSessionRequest,
     responses(
         (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
@@ -546,8 +549,6 @@ pub fn payments_incremental_authorization() {}
 pub fn payments_external_authentication() {}
 
 /// Payments - Complete Authorize
-///
-///
 #[utoipa::path(
   post,
   path = "/{payment_id}/complete_authorize",
@@ -566,8 +567,6 @@ pub fn payments_external_authentication() {}
 pub fn payments_complete_authorize() {}
 
 /// Dynamic Tax Calculation
-///
-///
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/calculate_tax",
@@ -584,8 +583,6 @@ pub fn payments_complete_authorize() {}
 pub fn payments_dynamic_tax_calculation() {}
 
 /// Payments - Post Session Tokens
-///
-///
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/post_session_tokens",
@@ -688,3 +685,33 @@ pub fn payments_get_intent() {}
 )]
 #[cfg(feature = "v2")]
 pub fn payments_confirm_intent() {}
+
+/// Payments - Get
+///
+/// Retrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment
+#[utoipa::path(
+    get,
+    path = "/v2/payments/{id}",
+    params(
+        ("id" = String, Path, description = "The global payment id"),
+        ("force_sync" = ForceSync, Query, description = "A boolean to indicate whether to force sync the payment status. Value can be true or false")
+    ),
+    responses(
+        (status = 200, description = "Gets the payment with final status", body = PaymentsRetrieveResponse),
+        (status = 404, description = "No payment found with the given id")
+    ),
+    tag = "Payments",
+    operation_id = "Retrieve a Payment",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub fn payment_status() {}
+
+#[derive(utoipa::ToSchema)]
+#[schema(rename_all = "lowercase")]
+pub(crate) enum ForceSync {
+    /// Force sync with the connector / processor to update the status
+    True,
+    /// Do not force sync with the connector / processor. Get the status which is available in the database
+    False,
+}

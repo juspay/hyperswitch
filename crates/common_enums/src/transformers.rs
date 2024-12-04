@@ -2,7 +2,10 @@ use std::fmt::{Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 
-use crate::enums::{Country, CountryAlpha2, CountryAlpha3, PaymentMethod, PaymentMethodType};
+use crate::enums::{
+    AttemptStatus, Country, CountryAlpha2, CountryAlpha3, IntentStatus, PaymentMethod,
+    PaymentMethodType,
+};
 
 impl Display for NumericCountryCodeParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -1884,6 +1887,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Seicomart => Self::Voucher,
             PaymentMethodType::PayEasy => Self::Voucher,
             PaymentMethodType::OpenBankingPIS => Self::OpenBanking,
+            PaymentMethodType::DirectCarrierBilling => Self::MobilePayment,
         }
     }
 }
@@ -1910,7 +1914,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = CountryAlpha2;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -1942,7 +1946,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = CountryAlpha3;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -1974,7 +1978,7 @@ mod custom_serde {
 
         struct FieldVisitor;
 
-        impl<'de> Visitor<'de> for FieldVisitor {
+        impl Visitor<'_> for FieldVisitor {
             type Value = u32;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
@@ -2061,6 +2065,41 @@ impl super::PresenceOfCustomerDuringPayment {
         match self {
             Self::Present => true,
             Self::Absent => false,
+        }
+    }
+}
+
+impl From<AttemptStatus> for IntentStatus {
+    fn from(s: AttemptStatus) -> Self {
+        match s {
+            AttemptStatus::Charged | AttemptStatus::AutoRefunded => Self::Succeeded,
+
+            AttemptStatus::ConfirmationAwaited => Self::RequiresConfirmation,
+            AttemptStatus::PaymentMethodAwaited => Self::RequiresPaymentMethod,
+
+            AttemptStatus::Authorized => Self::RequiresCapture,
+            AttemptStatus::AuthenticationPending | AttemptStatus::DeviceDataCollectionPending => {
+                Self::RequiresCustomerAction
+            }
+            AttemptStatus::Unresolved => Self::RequiresMerchantAction,
+
+            AttemptStatus::PartialCharged => Self::PartiallyCaptured,
+            AttemptStatus::PartialChargedAndChargeable => Self::PartiallyCapturedAndCapturable,
+            AttemptStatus::Started
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::Pending => Self::Processing,
+
+            AttemptStatus::AuthenticationFailed
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::Failure => Self::Failed,
+            AttemptStatus::Voided => Self::Cancelled,
         }
     }
 }

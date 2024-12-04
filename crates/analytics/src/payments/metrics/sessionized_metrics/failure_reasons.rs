@@ -148,19 +148,17 @@ where
             .attach_printable("Error adding order by clause")
             .switch()?;
 
-        for dim in dimensions.iter() {
-            if dim != &PaymentDimensions::ErrorReason {
-                outer_query_builder
-                    .add_order_by_clause(dim, Order::Ascending)
-                    .attach_printable("Error adding order by clause")
-                    .switch()?;
-            }
-        }
+        let filtered_dimensions: Vec<&PaymentDimensions> = dimensions
+            .iter()
+            .filter(|&&dim| dim != PaymentDimensions::ErrorReason)
+            .collect();
 
-        outer_query_builder
-            .set_limit_by(5, &[PaymentDimensions::Connector])
-            .attach_printable("Error adding limit clause")
-            .switch()?;
+        for dim in &filtered_dimensions {
+            outer_query_builder
+                .add_order_by_clause(*dim, Order::Ascending)
+                .attach_printable("Error adding order by clause")
+                .switch()?;
+        }
 
         outer_query_builder
             .execute_query::<PaymentMetricRow, _>(pool)

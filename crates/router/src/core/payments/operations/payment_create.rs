@@ -21,8 +21,8 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::{MandateData, MandateDetails},
     payments::{
-        payment_attempt::PaymentAttempt,
-        payment_intent::{CustomerData, PaymentAddressFromRequest},
+        payment_attempt::PaymentAttempt, payment_intent::CustomerData,
+        FromRequestEncryptablePaymentIntent,
     },
 };
 use masking::{ExposeInterface, PeekInterface, Secret};
@@ -42,6 +42,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -565,7 +566,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .and_then(|pmd| pmd.payment_method_data.as_ref())
             .and_then(|payment_method_data_billing| {
                 payment_method_data_billing.get_billing_address()
-            });
+            })
+            .map(From::from);
 
         let unified_address =
             address.unify_with_payment_method_data_billing(payment_method_data_billing);
@@ -818,7 +820,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        _req_state: ReqState,
+        req_state: ReqState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -923,6 +925,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        req_state
+            .event_context
+            .event(AuditEvent::new(AuditEventType::PaymentCreate))
+            .with(payment_data.to_event())
+            .emit();
 
         // payment_data.mandate_id = response.and_then(|router_data| router_data.request.mandate_id);
         Ok((
@@ -1126,33 +1133,39 @@ impl PaymentCreate {
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
-            additional_pm_data = payment_method_info
-                .as_ref()
-                .and_then(|pm_info| {
-                    pm_info
-                        .payment_method_data
-                        .clone()
-                        .map(|x| x.into_inner().expose())
-                        .and_then(|v| {
-                            serde_json::from_value::<PaymentMethodsData>(v)
-                                .map_err(|err| {
-                                    logger::error!(
-                                        "Unable to deserialize payment methods data: {:?}",
-                                        err
-                                    )
+            additional_pm_data = payment_method_info.as_ref().and_then(|pm_info| {
+                pm_info
+                    .payment_method_data
+                    .clone()
+                    .map(|x| x.into_inner().expose())
+                    .and_then(|v| {
+                        serde_json::from_value::<PaymentMethodsData>(v)
+                            .map_err(|err| {
+                                logger::error!(
+                                    "Unable to deserialize payment methods data: {:?}",
+                                    err
+                                )
+                            })
+                            .ok()
+                    })
+                    .and_then(|pmd| match pmd {
+                        PaymentMethodsData::Card(card) => {
+                            Some(api_models::payments::AdditionalPaymentData::Card(Box::new(
+                                api::CardDetailFromLocker::from(card).into(),
+                            )))
+                        }
+                        PaymentMethodsData::WalletDetails(wallet) => match payment_method_type {
+                            Some(enums::PaymentMethodType::GooglePay) => {
+                                Some(api_models::payments::AdditionalPaymentData::Wallet {
+                                    apple_pay: None,
+                                    google_pay: Some(wallet.into()),
                                 })
-                                .ok()
-                        })
-                        .and_then(|pmd| match pmd {
-                            PaymentMethodsData::Card(crd) => {
-                                Some(api::CardDetailFromLocker::from(crd))
                             }
                             _ => None,
-                        })
-                })
-                .map(|card| {
-                    api_models::payments::AdditionalPaymentData::Card(Box::new(card.into()))
-                });
+                        },
+                        _ => None,
+                    })
+            });
         };
 
         let additional_pm_data_value = additional_pm_data
@@ -1188,6 +1201,11 @@ impl PaymentCreate {
         } else {
             None
         };
+
+        let payment_method_type = Option::<enums::PaymentMethodType>::foreign_from((
+            payment_method_type,
+            additional_pm_data.as_ref(),
+        ));
 
         Ok((
             storage::PaymentAttemptNew {
@@ -1390,11 +1408,13 @@ impl PaymentCreate {
             &key_manager_state,
             type_name!(storage::PaymentIntent),
             domain::types::CryptoOperation::BatchEncrypt(
-                PaymentAddressFromRequest::to_encryptable(PaymentAddressFromRequest {
-                    shipping: shipping_details_encoded,
-                    billing: billing_details_encoded,
-                    customer_details: customer_details_encoded,
-                }),
+                FromRequestEncryptablePaymentIntent::to_encryptable(
+                    FromRequestEncryptablePaymentIntent {
+                        shipping_details: shipping_details_encoded,
+                        billing_details: billing_details_encoded,
+                        customer_details: customer_details_encoded,
+                    },
+                ),
             ),
             identifier.clone(),
             key,
@@ -1404,7 +1424,7 @@ impl PaymentCreate {
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to encrypt data")?;
 
-        let encrypted_data = PaymentAddressFromRequest::from_encryptable(encrypted_data)
+        let encrypted_data = FromRequestEncryptablePaymentIntent::from_encryptable(encrypted_data)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt the payment intent data")?;
 
@@ -1457,15 +1477,16 @@ impl PaymentCreate {
                 .request_external_three_ds_authentication,
             charges,
             frm_metadata: request.frm_metadata.clone(),
-            billing_details: encrypted_data.billing,
+            billing_details: encrypted_data.billing_details,
             customer_details: encrypted_data.customer_details,
             merchant_order_reference_id: request.merchant_order_reference_id.clone(),
-            shipping_details: encrypted_data.shipping,
+            shipping_details: encrypted_data.shipping_details,
             is_payment_processor_token_flow,
             organization_id: merchant_account.organization_id.clone(),
             shipping_cost: request.shipping_cost,
             tax_details: None,
             skip_external_tax_calculation,
+            psd2_sca_exemption_type: request.psd2_sca_exemption_type,
         })
     }
 

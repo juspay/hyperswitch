@@ -27,6 +27,7 @@ pub mod dashboard_metadata;
 pub mod password;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+pub mod theme;
 pub mod two_factor_auth;
 
 impl UserFromToken {
@@ -92,6 +93,7 @@ pub async fn generate_jwt_auth_token_with_attributes(
     org_id: id_type::OrganizationId,
     role_id: String,
     profile_id: id_type::ProfileId,
+    tenant_id: Option<id_type::TenantId>,
 ) -> UserResult<Secret<String>> {
     let token = AuthToken::new_token(
         user_id,
@@ -99,7 +101,8 @@ pub async fn generate_jwt_auth_token_with_attributes(
         role_id,
         &state.conf,
         org_id,
-        Some(profile_id),
+        profile_id,
+        tenant_id,
     )
     .await?;
     Ok(Secret::new(token))
@@ -122,7 +125,7 @@ pub async fn get_user_from_db_by_email(
 ) -> CustomResult<UserFromStorage, StorageError> {
     state
         .global_store
-        .find_user_by_email(&email.into_inner())
+        .find_user_by_email(&email)
         .await
         .map(UserFromStorage::from)
 }

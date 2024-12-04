@@ -1,4 +1,4 @@
-use diesel_models::user_authentication_method::{self as storage};
+use diesel_models::user_authentication_method as storage;
 use error_stack::report;
 use router_env::{instrument, tracing};
 
