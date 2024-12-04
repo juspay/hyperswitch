@@ -1054,7 +1054,7 @@ impl MerchantAccountInterface for KafkaStore {
         &self,
         state: &KeyManagerState,
         limit: u32,
-        offset: u32,
+        offset: Option<u32>,
     ) -> CustomResult<Vec<(id_type::MerchantId, id_type::OrganizationId)>, errors::StorageError>
     {
         self.diesel_store

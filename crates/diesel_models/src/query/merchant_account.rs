@@ -124,7 +124,7 @@ impl MerchantAccount {
     pub async fn list_all_merchant_accounts(
         conn: &PgPooledConn,
         limit: u32,
-        offset: u32,
+        offset: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<
             <Self as HasTable>::Table,
@@ -135,7 +135,7 @@ impl MerchantAccount {
             conn,
             dsl_identifier.ne_all(vec![""]),
             Some(i64::from(limit)),
-            Some(i64::from(offset)),
+            offset.map(i64::from),
             None,
         )
         .await

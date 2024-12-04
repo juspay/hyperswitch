@@ -872,10 +872,8 @@ pub async fn list_invitations_for_user(
 
             match entity_type {
                 EntityType::Tenant => {
-                    return Err(UserErrors::InvalidRoleOperationWithMessage(
-                        "Tenant roles are not allowed for this operation".to_string(),
-                    )
-                    .into());
+                    return Err(report!(UserErrors::InternalServerError))
+                        .attach_printable("Tenant roles are not allowed for this operation");
                 }
                 EntityType::Organization => org_ids.push(
                     user_role
@@ -982,10 +980,8 @@ pub async fn list_invitations_for_user(
 
             let entity_name = match entity_type {
                 EntityType::Tenant => {
-                    return Err(UserErrors::InvalidRoleOperationWithMessage(
-                        "Tenant roles are not allowed for this operation".to_string(),
-                    )
-                    .into());
+                    return Err(report!(UserErrors::InternalServerError))
+                        .attach_printable("Tenant roles are not allowed for this operation");
                 }
                 EntityType::Organization => user_role
                     .org_id

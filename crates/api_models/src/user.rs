@@ -114,17 +114,24 @@ pub struct CreateInternalUserRequest {
 }
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
-pub struct CreateTenantRequest {
+pub struct CreateTenantUserRequest {
     pub name: Secret<String>,
     pub email: pii::Email,
     pub password: Secret<String>,
 }
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct UserOrgMerchantCreateRequest {
     pub organization_name: String,
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub merchant_name: String,
+    pub merchant_name: Secret<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MerchantAccountIdentifier {
+    pub merchant_id: id_type::MerchantId,
+    pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

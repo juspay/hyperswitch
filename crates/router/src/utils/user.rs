@@ -7,6 +7,8 @@ use common_utils::{
 };
 use diesel_models::{organization, organization::OrganizationBridge};
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use masking::PeekInterface;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
 use router_env::env;
@@ -287,12 +289,12 @@ pub fn create_merchant_account_request_for_org(
     org: organization::Organization,
 ) -> UserResult<api_models::admin::MerchantAccountCreate> {
     let merchant_id = if matches!(env::which(), env::Env::Production) {
-        id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.clone())?)?
+        id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.peek().clone())?)?
     } else {
         id_type::MerchantId::new_from_unix_timestamp()
     };
 
-    let company_name = domain::UserCompanyName::new(req.merchant_name.clone())?;
+    let company_name = domain::UserCompanyName::new(req.merchant_name.peek().clone())?;
     Ok(api_models::admin::MerchantAccountCreate {
         merchant_id,
         metadata: None,

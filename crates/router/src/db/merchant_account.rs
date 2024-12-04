@@ -93,7 +93,7 @@ where
         &self,
         state: &KeyManagerState,
         limit: u32,
-        offset: u32,
+        offset: Option<u32>,
     ) -> CustomResult<
         Vec<(
             common_utils::id_type::MerchantId,
@@ -431,7 +431,7 @@ impl MerchantAccountInterface for Store {
         &self,
         _state: &KeyManagerState,
         limit: u32,
-        offset: u32,
+        offset: Option<u32>,
     ) -> CustomResult<
         Vec<(
             common_utils::id_type::MerchantId,
@@ -745,7 +745,7 @@ impl MerchantAccountInterface for MockDb {
         &self,
         _state: &KeyManagerState,
         limit: u32,
-        offset: u32,
+        offset: Option<u32>,
     ) -> CustomResult<
         Vec<(
             common_utils::id_type::MerchantId,
@@ -754,8 +754,8 @@ impl MerchantAccountInterface for MockDb {
         errors::StorageError,
     > {
         let accounts = self.merchant_accounts.lock().await;
-        let offset = offset.try_into().unwrap_or(0);
         let limit = limit.try_into().unwrap_or(accounts.len());
+        let offset = offset.unwrap_or(0).try_into().unwrap_or(0);
 
         let merchant_and_org_ids = accounts
             .iter()

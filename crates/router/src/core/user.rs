@@ -25,6 +25,8 @@ use router_env::logger;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
 
+#[cfg(feature = "v1")]
+use super::admin;
 use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 #[cfg(feature = "email")]
 use crate::services::email::types as email_types;
@@ -1268,13 +1270,13 @@ pub async fn create_internal_user(
 
 pub async fn create_tenant_user(
     state: SessionState,
-    request: user_api::CreateTenantRequest,
+    request: user_api::CreateTenantUserRequest,
 ) -> UserResponse<()> {
     let key_manager_state = &(&state).into();
 
-    let (merchant_id, _) = state
+    let (merchant_id, org_id) = state
         .store
-        .list_merchant_and_org_ids(key_manager_state, 1, 0)
+        .list_merchant_and_org_ids(key_manager_state, 1, None)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to get merchants list for org")?
@@ -1282,25 +1284,13 @@ pub async fn create_tenant_user(
         .ok_or(UserErrors::InternalServerError)
         .attach_printable("No merchants found in the tenancy")?;
 
-    let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            key_manager_state,
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while fetching the key store by merchant_id")?;
-
-    let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(key_manager_state, &merchant_id, &key_store)
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error while fetching the merchant_account by merchant_id")?;
-
-    let new_user = domain::NewUser::try_from((request, merchant_account))?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        user_api::MerchantAccountIdentifier {
+            merchant_id,
+            org_id,
+        },
+    ))?;
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);
 
@@ -1347,7 +1337,7 @@ pub async fn create_org_merchant_for_user(
     let merchant_account_create_request =
         utils::user::create_merchant_account_request_for_org(req, org)?;
 
-    super::admin::create_merchant_account(state.clone(), merchant_account_create_request)
+    admin::create_merchant_account(state.clone(), merchant_account_create_request)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error while creating a merchant")?;
@@ -2586,12 +2576,12 @@ pub async fn list_orgs_for_user(
                 .list_merchant_and_org_ids(
                     key_manager_state,
                     consts::user::ORG_LIST_LIMIT_FOR_TENANT,
-                    0,
+                    None,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .into_iter()
-                .map(|(_, org_id)| org_id) // Extract the org_id from the tuple
+                .map(|(_, org_id)| org_id)
                 .collect::<HashSet<_>>()
         }
         EntityType::Organization | EntityType::Merchant | EntityType::Profile => state

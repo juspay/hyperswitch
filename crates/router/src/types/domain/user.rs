@@ -19,7 +19,6 @@ use diesel_models::{
     user_role::{UserRole, UserRoleNew},
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::merchant_account::MerchantAccount;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use rand::distributions::{Alphanumeric, DistString};
@@ -313,10 +312,20 @@ impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
     }
 }
 
-impl From<(user_api::CreateTenantRequest, MerchantAccount)> for NewUserOrganization {
-    fn from((_value, merchant_account): (user_api::CreateTenantRequest, MerchantAccount)) -> Self {
+impl
+    From<(
+        user_api::CreateTenantUserRequest,
+        user_api::MerchantAccountIdentifier,
+    )> for NewUserOrganization
+{
+    fn from(
+        (_value, merchant_account_identifier): (
+            user_api::CreateTenantUserRequest,
+            user_api::MerchantAccountIdentifier,
+        ),
+    ) -> Self {
         let new_organization = api_org::OrganizationNew {
-            org_id: merchant_account.get_org_id().clone(),
+            org_id: merchant_account_identifier.org_id,
             org_name: None,
         };
         let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -565,10 +574,20 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
     }
 }
 
-impl TryFrom<(user_api::CreateTenantRequest, MerchantAccount)> for NewUserMerchant {
+impl
+    TryFrom<(
+        user_api::CreateTenantUserRequest,
+        user_api::MerchantAccountIdentifier,
+    )> for NewUserMerchant
+{
     type Error = error_stack::Report<UserErrors>;
-    fn try_from(value: (user_api::CreateTenantRequest, MerchantAccount)) -> UserResult<Self> {
-        let merchant_id = value.1.get_id().clone();
+    fn try_from(
+        value: (
+            user_api::CreateTenantUserRequest,
+            user_api::MerchantAccountIdentifier,
+        ),
+    ) -> UserResult<Self> {
+        let merchant_id = value.1.merchant_id.clone();
         let new_organization = NewUserOrganization::from(value);
         Ok(Self {
             company_name: None,
@@ -899,11 +918,19 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
     }
 }
 
-impl TryFrom<(user_api::CreateTenantRequest, MerchantAccount)> for NewUser {
+impl
+    TryFrom<(
+        user_api::CreateTenantUserRequest,
+        user_api::MerchantAccountIdentifier,
+    )> for NewUser
+{
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(
-        (value, merchant_account): (user_api::CreateTenantRequest, MerchantAccount),
+        (value, merchant_account_identifier): (
+            user_api::CreateTenantUserRequest,
+            user_api::MerchantAccountIdentifier,
+        ),
     ) -> UserResult<Self> {
         let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
@@ -912,7 +939,7 @@ impl TryFrom<(user_api::CreateTenantRequest, MerchantAccount)> for NewUser {
             password: UserPassword::new(value.password.clone())?,
             is_temporary: false,
         };
-        let new_merchant = NewUserMerchant::try_from((value, merchant_account))?;
+        let new_merchant = NewUserMerchant::try_from((value, merchant_account_identifier))?;
 
         Ok(Self {
             user_id,

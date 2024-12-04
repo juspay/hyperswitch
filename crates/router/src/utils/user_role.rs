@@ -186,10 +186,13 @@ pub async fn get_single_org_id(
     state: &SessionState,
     user_role: &UserRole,
 ) -> UserResult<id_type::OrganizationId> {
-    match user_role.entity_type {
-        Some(EntityType::Tenant) => Ok(state
+    let (_, entity_type) = user_role
+        .get_entity_id_and_type()
+        .ok_or(UserErrors::InternalServerError)?;
+    match entity_type {
+        EntityType::Tenant => Ok(state
             .store
-            .list_merchant_and_org_ids(&state.into(), 1, 0)
+            .list_merchant_and_org_ids(&state.into(), 1, None)
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to get merchants list for org")?
@@ -197,10 +200,7 @@ pub async fn get_single_org_id(
             .ok_or(UserErrors::InternalServerError)
             .attach_printable("No merchants to get merchant or org id")?
             .1),
-        Some(EntityType::Organization)
-        | Some(EntityType::Merchant)
-        | Some(EntityType::Profile)
-        | None => user_role
+        EntityType::Organization | EntityType::Merchant | EntityType::Profile => user_role
             .org_id
             .clone()
             .ok_or(UserErrors::InternalServerError)
@@ -251,7 +251,7 @@ pub async fn get_single_profile_id(
                 .store
                 .get_merchant_key_store_by_merchant_id(
                     &state.into(),
-                    &merchant_id,
+                    merchant_id,
                     &state.store.get_master_key().to_vec().into(),
                 )
                 .await
@@ -259,7 +259,7 @@ pub async fn get_single_profile_id(
 
             Ok(state
                 .store
-                .list_profile_by_merchant_id(&state.into(), &key_store, &merchant_id)
+                .list_profile_by_merchant_id(&state.into(), &key_store, merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .pop()

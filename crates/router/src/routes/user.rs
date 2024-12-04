@@ -230,7 +230,7 @@ pub async fn internal_user_signup(
 pub async fn create_tenant_user(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    json_payload: web::Json<user_api::CreateTenantRequest>,
+    json_payload: web::Json<user_api::CreateTenantUserRequest>,
 ) -> HttpResponse {
     let flow = Flow::TenantUserCreate;
     Box::pin(api::server_wrap(
