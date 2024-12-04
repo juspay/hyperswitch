@@ -759,13 +759,12 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             profile_id: payment_attempt.profile_id.to_owned(),
             success_based_routing_connector: first_success_based_connector.to_string(),
             payment_connector: payment_connector.to_string(),
-            currency: payment_attempt.currency.map(|currency| currency.to_string()),
+            currency: payment_attempt.currency,
             payment_method: payment_attempt.payment_method.map(|payment_method| payment_method.to_string()),
-            capture_method: payment_attempt.capture_method.map(|capture_method| capture_method.to_string()),
+            capture_method: payment_attempt.capture_method,
             authentication_type: payment_attempt
-                .authentication_type
-                .map(|authentication_type| authentication_type.to_string()),
-            payment_status: payment_attempt.status.to_string(),
+                .authentication_type,
+            payment_status: payment_attempt.status,
             conclusive_classification: outcome,
             created_at: common_utils::date_time::now(),
         };

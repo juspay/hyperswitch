@@ -403,16 +403,12 @@ diesel::table! {
         success_based_routing_connector -> Varchar,
         #[max_length = 64]
         payment_connector -> Varchar,
-        #[max_length = 32]
-        currency -> Nullable<Varchar>,
+        currency -> Nullable<Currency>,
         #[max_length = 64]
         payment_method -> Nullable<Varchar>,
-        #[max_length = 64]
-        capture_method -> Nullable<Varchar>,
-        #[max_length = 64]
-        authentication_type -> Nullable<Varchar>,
-        #[max_length = 64]
-        payment_status -> Varchar,
+        capture_method -> Nullable<CaptureMethod>,
+        authentication_type -> Nullable<AuthenticationType>,
+        payment_status -> AttemptStatus,
         conclusive_classification -> SuccessBasedRoutingConclusiveState,
         created_at -> Timestamp,
     }
