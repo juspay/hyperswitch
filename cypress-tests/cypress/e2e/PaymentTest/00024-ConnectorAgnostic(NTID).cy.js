@@ -5,6 +5,32 @@ import getConnectorDetails, * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 
+/*
+Flow:
+- Create Business Profile with connector agnostic feature disabled
+- Create Merchant Connector Account and Customer
+- Make a Payment
+- List Payment Method for Customer using Client Secret (will get PMID)
+
+- Create Business Profile with connector agnostic feature enabled
+- Create Merchant Connector Account
+- Create Payment Intent
+- List Payment Method for Customer -- Empty list; i.e., no payment method should be listed
+- Confirm Payment with PMID from previous step (should fail as Connector Mandate ID is not present in the newly created Profile)
+
+
+- Create Business Profile with connector agnostic feature enabled
+- Create Merchant Connector Account and Customer
+- Make a Payment
+- List Payment Method for Customer using Client Secret (will get PMID)
+
+- Create Business Profile with connector agnostic feature enabled
+- Create Merchant Connector Account
+- Create Payment Intent
+- List Payment Method for Customer using Client Secret (will get PMID which is same as the one from previous step along with Payment Token)
+- Confirm Payment with PMID from previous step (should pass as NTID is present in the DB)
+*/
+
 describe("Connector Agnostic Tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
