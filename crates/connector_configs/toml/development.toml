@@ -3543,8 +3543,8 @@ merchant_secret="Source verification key"
 [[worldpay.wallet]]
   payment_method_type = "apple_pay"
 [worldpay.connector_auth.SignatureKey]
-api_key="Username"
-key1="Password"
+key1="Username"
+api_key="Password"
 api_secret="Merchant Identifier"
 [worldpay.connector_webhook_details]
 merchant_secret="Source verification key"
