@@ -11,15 +11,22 @@ impl masking::SerializableSecret for Address {}
 
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both
-    pub fn unify_address(self, other: Option<&Self>) -> Self {
+    pub fn unify_address(&self, other: Option<&Self>) -> Self {
         let other_address_details = other.and_then(|address| address.address.as_ref());
         Self {
             address: self
                 .address
+                .as_ref()
                 .map(|address| address.unify_address_details(other_address_details))
                 .or(other_address_details.cloned()),
-            email: self.email.or(other.and_then(|other| other.email.clone())),
-            phone: self.phone.or(other.and_then(|other| other.phone.clone())),
+            email: self
+                .email
+                .clone()
+                .or(other.and_then(|other| other.email.clone())),
+            phone: self
+                .phone
+                .clone()
+                .or(other.and_then(|other| other.phone.clone())),
         }
     }
 }
@@ -51,14 +58,14 @@ impl AddressDetails {
     }
 
     /// Unify the address details, giving priority to `self` when details are present in both
-    pub fn unify_address_details(self, other: Option<&Self>) -> Self {
+    pub fn unify_address_details(&self, other: Option<&Self>) -> Self {
         if let Some(other) = other {
             let (first_name, last_name) = if self
                 .first_name
                 .as_ref()
                 .is_some_and(|first_name| !first_name.peek().trim().is_empty())
             {
-                (self.first_name, self.last_name)
+                (self.first_name.clone(), self.last_name.clone())
             } else {
                 (other.first_name.clone(), other.last_name.clone())
             };
@@ -66,16 +73,16 @@ impl AddressDetails {
             Self {
                 first_name,
                 last_name,
-                city: self.city.or(other.city.clone()),
+                city: self.city.clone().or(other.city.clone()),
                 country: self.country.or(other.country),
-                line1: self.line1.or(other.line1.clone()),
-                line2: self.line2.or(other.line2.clone()),
-                line3: self.line3.or(other.line3.clone()),
-                zip: self.zip.or(other.zip.clone()),
-                state: self.state.or(other.state.clone()),
+                line1: self.line1.clone().or(other.line1.clone()),
+                line2: self.line2.clone().or(other.line2.clone()),
+                line3: self.line3.clone().or(other.line3.clone()),
+                zip: self.zip.clone().or(other.zip.clone()),
+                state: self.state.clone().or(other.state.clone()),
             }
         } else {
-            self
+            self.clone()
         }
     }
 }

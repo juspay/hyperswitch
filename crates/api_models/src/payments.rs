@@ -413,6 +413,10 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     pub client_secret: common_utils::types::ClientSecret,
 
+    /// The identifier for the profile. This is inferred from the `x-profile-id` header
+    #[schema(value_type = String)]
+    pub profile_id: id_type::ProfileId,
+
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
     #[schema(
@@ -599,10 +603,10 @@ pub struct AmountDetailsResponse {
     pub order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
     #[schema(value_type = TaxCalculationOverride)]
-    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    pub external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
     #[schema(value_type = SurchargeCalculationOverride)]
-    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    pub surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
     pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
@@ -625,10 +629,10 @@ pub struct ConfirmIntentAmountDetailsResponse {
     pub order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
     #[schema(value_type = TaxCalculationOverride)]
-    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    pub external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
     #[schema(value_type = SurchargeCalculationOverride)]
-    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    pub surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
     pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
@@ -4879,6 +4883,12 @@ pub struct PaymentsRetrieveResponse {
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
+
+    /// The shipping address associated with the payment intent
+    pub shipping: Option<Address>,
+
+    /// The billing address associated with the payment intent
+    pub billing: Option<Address>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
