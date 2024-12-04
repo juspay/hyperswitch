@@ -63,6 +63,12 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for KlarnaConnectorMetadataObject {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PaymentMethodSpecifics {
+    KlarnaCheckout(KlarnaCheckoutRequestData),
+    KlarnaSdk,
+}
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct MerchantURLs {
@@ -73,8 +79,9 @@ pub struct MerchantURLs {
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
-pub struct CheckoutMerchantURLs {
+pub struct KlarnaCheckoutRequestData {
     merchant_urls: MerchantURLs,
+    options:CheckoutOptions
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
@@ -89,12 +96,12 @@ pub struct KlarnaPaymentsRequest {
     auto_capture: Option<bool>,
     order_tax_amount: Option<MinorUnit>,
     #[serde(flatten)]
-    checkout_merchant_urls: Option<CheckoutMerchantURLs>,
-    options: Option<CheckoutOptions>,
+    payment_method_specifics: Option<PaymentMethodSpecifics>,
 }
 
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
 pub enum KlarnaAuthResponse {
     KlarnaPaymentsAuthResponse(PaymentsResponse),
     KlarnaCheckoutAuthResponse(CheckoutResponse),
@@ -266,8 +273,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         )
                         .transpose()?,
                         order_tax_amount: None,
-                        checkout_merchant_urls: None,
-                        options: None,
+                        payment_method_specifics: None
                     }),
                     None => Err(report!(errors::ConnectorError::MissingRequiredField {
                         field_name: "order_details"
@@ -292,18 +298,19 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                                 tax_rate: data.tax_rate,
                             })
                             .collect(),
-
-                        checkout_merchant_urls: Some(CheckoutMerchantURLs {
-                            merchant_urls: MerchantURLs {
-                                terms: return_url.clone(),
-                                checkout: return_url.clone(),
-                                confirmation: return_url,
-                                push: webhook_url,
+                        payment_method_specifics: Some(PaymentMethodSpecifics::KlarnaCheckout(
+                            KlarnaCheckoutRequestData {
+                                merchant_urls: MerchantURLs {
+                                    terms: return_url.clone(),
+                                    checkout: return_url.clone(),
+                                    confirmation: return_url,
+                                    push: webhook_url,
+                                },
+                                options: CheckoutOptions {
+                                    auto_capture: request.is_auto_capture()?,
+                                },
                             },
-                        }),
-                        options: Some(CheckoutOptions {
-                            auto_capture: request.is_auto_capture()?,
-                        }),
+                        )),
                         shipping_address: get_address_info(
                             item.router_data.get_optional_shipping(),
                         )
@@ -432,16 +439,6 @@ pub struct OrderLines {
     tax_rate: Option<f64>,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
-pub struct CheckoutOrderLines {
-    name: String,
-    quantity: u16,
-    unit_price: MinorUnit,
-    total_amount: MinorUnit,
-    total_tax_amount: Option<MinorUnit>,
-    tax_rate: Option<f64>,
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[allow(dead_code)]
@@ -526,6 +523,7 @@ impl From<KlarnaCheckoutStatus> for enums::AttemptStatus {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
 pub enum KlarnaPsyncResponse {
     KlarnaSDKPsyncResponse(KlarnaSDKSyncResponse),
     KlarnaCheckoutPSyncResponse(KlarnaCheckoutSyncResponse),
