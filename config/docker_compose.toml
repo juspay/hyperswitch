@@ -691,3 +691,6 @@ prod_intent_recipient_email = "business@example.com" # Recipient email for prod 
 [email.aws_ses]
 email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
+
+[theme_storage]
+file_storage_backend = "file_system" # Theme storage backend to be used

@@ -7776,6 +7776,16 @@
           }
         }
       },
+      "ErrorCategory": {
+        "type": "string",
+        "enum": [
+          "frm_decline",
+          "processor_downtime",
+          "processor_decline_unauthorized",
+          "issue_with_payment_method",
+          "processor_decline_incorrect_data"
+        ]
+      },
       "ErrorDetails": {
         "type": "object",
         "description": "Error details for the payment",
@@ -9162,6 +9172,14 @@
             "type": "string",
             "description": "error message unified across the connectors",
             "nullable": true
+          },
+          "error_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorCategory"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9295,6 +9313,14 @@
             "type": "string",
             "description": "error message unified across the connectors",
             "nullable": true
+          },
+          "error_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorCategory"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9390,6 +9416,14 @@
           "unified_message": {
             "type": "string",
             "description": "error message unified across the connectors",
+            "nullable": true
+          },
+          "error_category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorCategory"
+              }
+            ],
             "nullable": true
           }
         }

@@ -793,3 +793,6 @@ connector_list = "cybersource"
 [grpc_client.dynamic_routing_client] 
 host = "localhost" 
 port = 7000       
+
+[theme_storage]
+file_storage_backend = "file_system"
