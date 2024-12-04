@@ -348,6 +348,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             poll_config: None,
             tax_data: None,
             session_id: None,
+            cache_key: None,
         };
 
         let customer_details = Some(CustomerDetails {

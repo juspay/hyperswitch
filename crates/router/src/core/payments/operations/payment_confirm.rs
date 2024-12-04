@@ -11,7 +11,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
-use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
+use diesel_models::{merchant_account, payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId, payment_intent};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -818,6 +818,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             poll_config: None,
             tax_data: None,
             session_id: None,
+            cache_key: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -829,6 +830,25 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         };
 
         Ok(get_trackers_response)
+    }
+
+    async fn validate_request_with_state(
+        &self,
+        state:  &SessionState,
+        request: &api::PaymentsRequest,
+        merchant_account: &domain::MerchantAccount,
+        payment_data: &mut PaymentData<F>
+    ) -> RouterResult<()> {
+
+        let _merchant_id = merchant_account.get_id();
+
+        //TODO: Check if Card Testing Guard is enabled for this merchant
+        
+        let cache_key = helpers::validate_card_testing_attack(state, request, merchant_account).await?;
+
+        payment_data.cache_key = Some(cache_key);
+
+        Ok(())
     }
 }
 
@@ -855,7 +875,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             key_store,
             storage_scheme,
         )
-        .await
+        .await   
     }
 
     #[instrument(skip_all)]
@@ -1432,7 +1452,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             ),
             None => (None, None, None),
         };
-
+        
         let payment_attempt_fut = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
@@ -1611,13 +1631,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             utils::flatten_join_error(payment_intent_fut),
             utils::flatten_join_error(payment_attempt_fut),
             utils::flatten_join_error(customer_fut)
-        )?;
-        
-        let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, "xyz", 3600).await;
+        )?; 
 
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
-
+        
         let client_src = payment_data.payment_attempt.client_source.clone();
         let client_ver = payment_data.payment_attempt.client_version.clone();
 
@@ -1695,20 +1713,5 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             },
         ))
     }
-    
-    async fn validate_request_with_state(
-        &self,
-        state: &SessionState,
-        request: &api::PaymentsRequest,
-        merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<()> {
 
-        let _merchant_id = merchant_account.get_id();
-
-        //TODO: Check if Card Testing Guard is enabled for this merchant
-        
-        helpers::validate_card_testing_attack(state, request).await?;
-
-        Ok(())
-    }
 }
