@@ -69,7 +69,7 @@ common_utils::impl_api_event_type!(
     )
 );
 
-#[cfg(feature = "themes")]
+#[cfg(feature = "theme")]
 common_utils::impl_api_event_type!(
     Miscellaneous,
     (
