@@ -3255,7 +3255,7 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
         let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(&self.permission, &role_info)?;
+        authorization::check_permission(self.permission, &role_info)?;
 
         let user = UserFromToken {
             user_id: payload.user_id.clone(),
