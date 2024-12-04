@@ -56,7 +56,6 @@ pub mod verification;
 pub mod verify_connector;
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub mod webhook_events;
-#[cfg(feature = "v1")]
 pub mod webhooks;
 
 #[cfg(feature = "dummy_connector")]

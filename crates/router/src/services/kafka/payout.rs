@@ -77,7 +77,7 @@ impl<'a> KafkaPayout<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaPayout<'a> {
+impl super::KafkaMessage for KafkaPayout<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}",

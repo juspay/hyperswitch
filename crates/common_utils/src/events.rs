@@ -60,15 +60,26 @@ pub enum ApiEventsType {
     PaymentMethodList {
         payment_id: Option<String>,
     },
+    #[cfg(feature = "v1")]
     Webhooks {
         connector: String,
         payment_id: Option<id_type::PaymentId>,
     },
+    #[cfg(feature = "v2")]
+    Webhooks {
+        connector: id_type::MerchantConnectorAccountId,
+        payment_id: Option<id_type::GlobalPaymentId>,
+    },
     Routing,
     ResourceListAPI,
+    #[cfg(feature = "v1")]
     PaymentRedirectionResponse {
         connector: Option<String>,
         payment_id: Option<id_type::PaymentId>,
+    },
+    #[cfg(feature = "v2")]
+    PaymentRedirectionResponse {
+        payment_id: id_type::GlobalPaymentId,
     },
     Gsm,
     // TODO: This has to be removed once the corresponding apiEventTypes are created

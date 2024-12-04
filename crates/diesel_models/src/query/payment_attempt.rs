@@ -97,14 +97,14 @@ impl PaymentAttempt {
     #[cfg(feature = "v1")]
     pub async fn find_by_connector_transaction_id_payment_id_merchant_id(
         conn: &PgPooledConn,
-        connector_transaction_id: &str,
+        connector_transaction_id: &common_utils::types::ConnectorTransactionId,
         payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::connector_transaction_id
-                .eq(connector_transaction_id.to_owned())
+                .eq(connector_transaction_id.get_id().to_owned())
                 .and(dsl::payment_id.eq(payment_id.to_owned()))
                 .and(dsl::merchant_id.eq(merchant_id.to_owned())),
         )
@@ -184,6 +184,33 @@ impl PaymentAttempt {
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
                 .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned())),
+        )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    pub async fn find_by_profile_id_connector_transaction_id(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+        connector_txn_id: &str,
+    ) -> StorageResult<Self> {
+        let (txn_id, txn_data) = common_utils::types::ConnectorTransactionId::form_id_and_data(
+            connector_txn_id.to_string(),
+        );
+        let connector_transaction_id = txn_id
+            .get_txn_id(txn_data.as_ref())
+            .change_context(DatabaseError::Others)
+            .attach_printable_lazy(|| {
+                format!(
+                    "Failed to retrieve txn_id for ({:?}, {:?})",
+                    txn_id, txn_data
+                )
+            })?;
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::profile_id
+                .eq(profile_id.to_owned())
+                .and(dsl::connector_payment_id.eq(connector_transaction_id.to_owned())),
         )
         .await
     }

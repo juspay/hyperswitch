@@ -20,7 +20,7 @@ impl GlobalPaymentId {
     }
 
     /// Generate a new GlobalPaymentId from a cell id
-    pub fn generate(cell_id: crate::id_type::CellId) -> Self {
+    pub fn generate(cell_id: &crate::id_type::CellId) -> Self {
         let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Payment);
         Self(global_id)
     }
@@ -57,12 +57,25 @@ crate::impl_to_sql_from_sql_global_id_type!(GlobalAttemptId);
 impl GlobalAttemptId {
     /// Generate a new GlobalAttemptId from a cell id
     pub fn generate(cell_id: &super::CellId) -> Self {
-        let global_id = super::GlobalId::generate(cell_id.clone(), super::GlobalEntity::Attempt);
+        let global_id = super::GlobalId::generate(cell_id, super::GlobalEntity::Attempt);
         Self(global_id)
     }
 
     /// Get string representation of the id
     pub fn get_string_repr(&self) -> &str {
         self.0.get_string_repr()
+    }
+}
+
+impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptId {
+    type Error = error_stack::Report<errors::ValidationError>;
+    fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
+        let global_attempt_id = super::GlobalId::from_string(value).change_context(
+            errors::ValidationError::IncorrectValueProvided {
+                field_name: "payment_id",
+            },
+        )?;
+        Ok(Self(global_attempt_id))
     }
 }

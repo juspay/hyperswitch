@@ -389,7 +389,7 @@ pub async fn mk_add_locker_request_hs(
     locker: &settings::Locker,
     payload: &StoreLockerReq,
     locker_choice: api_enums::LockerChoice,
-    tenant_id: String,
+    tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let payload = payload
@@ -409,7 +409,10 @@ pub async fn mk_add_locker_request_hs(
     url.push_str("/cards/add");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        tenant_id.get_string_repr().to_owned().into(),
+    );
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
@@ -552,11 +555,7 @@ pub fn generate_payment_method_response(
     let pmd = pm
         .payment_method_data
         .clone()
-        .map(|data| data.into_inner().expose())
-        .map(|decrypted_value| decrypted_value.parse_value("PaymentMethodsData"))
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to parse PaymentMethodsData")?
+        .map(|data| data.into_inner().expose().into_inner())
         .and_then(|data| match data {
             api::PaymentMethodsData::Card(card) => {
                 Some(api::PaymentMethodResponseData::Card(card.into()))
@@ -568,8 +567,8 @@ pub fn generate_payment_method_response(
         merchant_id: pm.merchant_id.to_owned(),
         customer_id: pm.customer_id.to_owned(),
         payment_method_id: pm.id.get_string_repr().to_owned(),
-        payment_method: pm.payment_method,
-        payment_method_type: pm.payment_method_type,
+        payment_method_type: pm.get_payment_method_type(),
+        payment_method_subtype: pm.get_payment_method_subtype(),
         created: Some(pm.created_at),
         recurring_enabled: false,
         last_used_at: Some(pm.last_used_at),
@@ -588,7 +587,7 @@ pub async fn mk_get_card_request_hs(
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
     locker_choice: Option<api_enums::LockerChoice>,
-    tenant_id: String,
+    tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
@@ -616,7 +615,10 @@ pub async fn mk_get_card_request_hs(
     url.push_str("/cards/retrieve");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        tenant_id.get_string_repr().to_owned().into(),
+    );
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
@@ -669,7 +671,7 @@ pub async fn mk_delete_card_request_hs(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
-    tenant_id: String,
+    tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = customer_id.to_owned();
@@ -695,7 +697,10 @@ pub async fn mk_delete_card_request_hs(
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        tenant_id.get_string_repr().to_owned().into(),
+    );
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
@@ -715,7 +720,7 @@ pub async fn mk_delete_card_request_hs_by_id(
     id: &String,
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
-    tenant_id: String,
+    tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let merchant_customer_id = id.to_owned();
@@ -741,7 +746,10 @@ pub async fn mk_delete_card_request_hs_by_id(
     url.push_str("/cards/delete");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        tenant_id.get_string_repr().to_owned().into(),
+    );
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
@@ -836,7 +844,7 @@ pub fn mk_crud_locker_request(
     locker: &settings::Locker,
     path: &str,
     req: api::TokenizePayloadEncrypted,
-    tenant_id: String,
+    tenant_id: id_type::TenantId,
     request_id: Option<RequestId>,
 ) -> CustomResult<services::Request, errors::VaultError> {
     let mut url = locker.basilisk_host.to_owned();
@@ -844,7 +852,10 @@ pub fn mk_crud_locker_request(
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_default_headers();
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
-    request.add_header(headers::X_TENANT_ID, tenant_id.into());
+    request.add_header(
+        headers::X_TENANT_ID,
+        tenant_id.get_string_repr().to_owned().into(),
+    );
     if let Some(req_id) = request_id {
         request.add_header(
             headers::X_REQUEST_ID,
