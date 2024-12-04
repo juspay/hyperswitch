@@ -20,7 +20,7 @@ pub struct ServiceSessionIds {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct TransactionDetails {
-    pub amount: common_utils::types::FloatMajorUnit,
+    pub amount: common_utils::types::MinorUnit,
     pub currency: common_enums::Currency,
 }
 

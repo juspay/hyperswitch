@@ -38,7 +38,9 @@ use crate::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
         },
-        unified_authentication_service::{ClickToPay, UnifiedAuthenticationService},
+        unified_authentication_service::types::{
+            ClickToPay, UnifiedAuthenticationService, CTP_MASTERCARD,
+        },
         utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
@@ -1026,7 +1028,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         &'a self,
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
-        should_continue_confirm_transaction: &mut bool,
+        _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
@@ -1035,13 +1037,14 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
 
         if let Some(payment_method) = payment_data.payment_attempt.payment_method {
             if payment_method == storage_enums::PaymentMethod::Card && is_click_to_pay_enabled {
+                let connector_name = CTP_MASTERCARD;
                 let connector_mca = helpers::get_merchant_connector_account(
                     state,
                     &business_profile.merchant_id,
                     None,
                     key_store,
                     business_profile.get_id(),
-                    "ctp_mastercard".to_string().as_str(),
+                    connector_name,
                     None,
                 )
                 .await?;
@@ -1052,8 +1055,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
                     business_profile,
                     payment_data,
                     &connector_mca,
+                    connector_name,
                 )
                 .await?;
+
                 ClickToPay::post_authentication(
                     state,
                     key_store,
@@ -1061,9 +1066,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
                     payment_data,
                     &connector_mca,
                     Some(pre_authentication),
+                    connector_name,
                 )
                 .await?;
-                *should_continue_confirm_transaction = true;
             }
         }
 
