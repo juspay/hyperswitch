@@ -23827,7 +23827,7 @@
             }
           }
         ],
-        "description": "Charge specific"
+        "description": "Fee information for Split Payments to be charged on the payment being collected"
       },
       "SplitRefundRequest": {
         "oneOf": [
@@ -23924,7 +23924,7 @@
       },
       "StripeSplitPayment": {
         "type": "object",
-        "description": "Stripe Split Payment",
+        "description": "Fee information for Split Payments to be charged on the payment being collected for Stripe",
         "required": [
           "charge_type",
           "application_fees",
@@ -23953,7 +23953,7 @@
         "properties": {
           "revert_platform_fee": {
             "type": "boolean",
-            "description": "Identifier for charge created for the payment\nToggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the destination account.",
+            "description": "Toggle for reverting the application fee that was collected for the payment.\nIf set to false, the funds are pulled from the destination account.",
             "nullable": true
           },
           "revert_transfer": {
@@ -23963,14 +23963,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "SuccessBasedRoutingFeatures": {
-        "type": "string",
-        "enum": [
-          "metrics",
-          "dynamic_connector_selection",
-          "none"
-        ]
       },
       "SurchargeDetailsResponse": {
         "type": "object",
