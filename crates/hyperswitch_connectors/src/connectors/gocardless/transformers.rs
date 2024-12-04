@@ -1,5 +1,5 @@
-use api_models::payments::AddressDetails;
-use common_enums::{enums, CountryAlpha2, UsStatesAbbreviation};
+use api_models::enums::{CountryAlpha2, UsStatesAbbreviation};
+use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{
     id_type,
     pii::{self, IpAddress},
@@ -32,10 +32,10 @@ pub struct GocardlessRouterData<T> {
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for GocardlessRouterData<T> {
+impl<T> TryFrom<(&api::CurrencyUnit, Currency, i64, T)> for GocardlessRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
+        (_currency_unit, _currency, amount, item): (&api::CurrencyUnit, Currency, i64, T),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -111,7 +111,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
 }
 
 fn get_region(
-    address_details: &AddressDetails,
+    address_details: &hyperswitch_domain_models::address::AddressDetails,
 ) -> Result<Option<Secret<String>>, error_stack::Report<errors::ConnectorError>> {
     match address_details.country {
         Some(CountryAlpha2::US) => {
@@ -532,7 +532,7 @@ impl<F>
                 network_txn_id: None,
                 charge_id: None,
             }),
-            status: enums::AttemptStatus::Charged,
+            status: AttemptStatus::Charged,
             ..item.data
         })
     }
@@ -546,7 +546,7 @@ pub struct GocardlessPaymentsRequest {
 #[derive(Debug, Serialize)]
 pub struct GocardlessPayment {
     amount: i64,
-    currency: enums::Currency,
+    currency: Currency,
     description: Option<String>,
     metadata: PaymentMetaData,
     links: PaymentLink,
@@ -625,7 +625,7 @@ pub enum GocardlessPaymentStatus {
     Failed,
 }
 
-impl From<GocardlessPaymentStatus> for enums::AttemptStatus {
+impl From<GocardlessPaymentStatus> for AttemptStatus {
     fn from(item: GocardlessPaymentStatus) -> Self {
         match item {
             GocardlessPaymentStatus::PendingCustomerApproval
@@ -676,7 +676,7 @@ impl<F>
             connector_mandate_request_reference_id: None,
         };
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.payments.status),
+            status: AttemptStatus::from(item.response.payments.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: Box::new(None),
@@ -707,7 +707,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.payments.status),
+            status: AttemptStatus::from(item.response.payments.status),
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: Box::new(None),
@@ -780,7 +780,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>>
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::Pending,
+                refund_status: RefundStatus::Pending,
             }),
             ..item.data
         })

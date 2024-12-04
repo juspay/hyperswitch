@@ -90,6 +90,12 @@ pub struct AuthenticationDataWithUser {
     pub profile_id: id_type::ProfileId,
 }
 
+#[derive(Clone)]
+pub struct UserFromTokenWithRoleInfo {
+    pub user: UserFromToken,
+    pub role_info: authorization::roles::RoleInfo,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(
     tag = "api_auth_type",
@@ -1323,7 +1329,6 @@ where
 #[derive(Debug)]
 pub struct EphemeralKeyAuth;
 
-// #[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
 where
@@ -2987,7 +2992,6 @@ pub fn get_auth_type_and_flow<A: SessionStateInfo + Sync + Send>(
     Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
 }
 
-#[cfg(feature = "v1")]
 pub fn check_client_secret_and_get_auth<T>(
     headers: &HeaderMap,
     payload: &impl ClientSecretFetch,
@@ -3023,44 +3027,6 @@ where
     Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
 }
 
-#[cfg(feature = "v2")]
-pub fn check_client_secret_and_get_auth<T>(
-    headers: &HeaderMap,
-    payload: &impl ClientSecretFetch,
-) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
-    api::AuthFlow,
-)>
-where
-    T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-{
-    let api_key = get_api_key(headers)?;
-    if api_key.starts_with("pk_") {
-        payload
-            .get_client_secret()
-            .check_value_present("client_secret")
-            .map_err(|_| errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret",
-            })?;
-        return Ok((
-            Box::new(HeaderAuth(PublishableKeyAuth)),
-            api::AuthFlow::Client,
-        ));
-    }
-
-    if payload.get_client_secret().is_some() {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "client_secret is not a valid parameter".to_owned(),
-        }
-        .into());
-    }
-
-    Ok((Box::new(HeaderAuth(ApiKeyAuth)), api::AuthFlow::Merchant))
-}
-
-#[cfg(feature = "v1")]
 pub async fn get_ephemeral_or_other_auth<T>(
     headers: &HeaderMap,
     is_merchant_flow: bool,
@@ -3093,7 +3059,6 @@ where
     }
 }
 
-#[cfg(feature = "v1")]
 pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     headers: &HeaderMap,
 ) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
@@ -3104,13 +3069,6 @@ pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
     } else {
         Ok(Box::new(EphemeralKeyAuth))
     }
-}
-
-#[cfg(feature = "v2")]
-pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
-    headers: &HeaderMap,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
-    todo!()
 }
 
 pub fn is_jwt_auth(headers: &HeaderMap) -> bool {
@@ -3274,5 +3232,93 @@ where
         };
 
         Ok((auth, auth_type))
+    }
+}
+
+#[cfg(feature = "recon")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<UserFromTokenWithRoleInfo, A> for JWTAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(UserFromTokenWithRoleInfo, AuthenticationType)> {
+        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
+        if payload.check_in_blacklist(state).await? {
+            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
+        }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
+        let role_info = authorization::get_role_info(state, &payload).await?;
+        authorization::check_permission(&self.permission, &role_info)?;
+
+        let user = UserFromToken {
+            user_id: payload.user_id.clone(),
+            merchant_id: payload.merchant_id.clone(),
+            org_id: payload.org_id,
+            role_id: payload.role_id,
+            profile_id: payload.profile_id,
+            tenant_id: payload.tenant_id,
+        };
+
+        Ok((
+            UserFromTokenWithRoleInfo { user, role_info },
+            AuthenticationType::MerchantJwt {
+                merchant_id: payload.merchant_id,
+                user_id: Some(payload.user_id),
+            },
+        ))
+    }
+}
+
+#[cfg(feature = "recon")]
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct ReconToken {
+    pub user_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub role_id: String,
+    pub exp: u64,
+    pub org_id: id_type::OrganizationId,
+    pub profile_id: id_type::ProfileId,
+    pub tenant_id: Option<id_type::TenantId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acl: Option<String>,
+}
+
+#[cfg(all(feature = "olap", feature = "recon"))]
+impl ReconToken {
+    pub async fn new_token(
+        user_id: String,
+        merchant_id: id_type::MerchantId,
+        settings: &Settings,
+        org_id: id_type::OrganizationId,
+        profile_id: id_type::ProfileId,
+        tenant_id: Option<id_type::TenantId>,
+        role_info: authorization::roles::RoleInfo,
+    ) -> UserResult<String> {
+        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
+        let exp = jwt::generate_exp(exp_duration)?.as_secs();
+        let acl = role_info.get_recon_acl();
+        let optional_acl_str = serde_json::to_string(&acl)
+            .inspect_err(|err| logger::error!("Failed to serialize acl to string: {}", err))
+            .change_context(errors::UserErrors::InternalServerError)
+            .attach_printable("Failed to serialize acl to string. Using empty ACL")
+            .ok();
+        let token_payload = Self {
+            user_id,
+            merchant_id,
+            role_id: role_info.get_role_id().to_string(),
+            exp,
+            org_id,
+            profile_id,
+            tenant_id,
+            acl: optional_acl_str,
+        };
+        jwt::generate_jwt(&token_payload, settings).await
     }
 }

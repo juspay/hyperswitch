@@ -1278,7 +1278,7 @@
         ],
         "summary": "Routing - Create",
         "description": "Create a routing algorithm",
-        "operationId": "Create a routing algprithm",
+        "operationId": "Create a routing algorithm",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2972,8 +2972,8 @@
         "required": [
           "order_amount",
           "currency",
-          "skip_external_tax_calculation",
-          "skip_surcharge_calculation"
+          "external_tax_calculation",
+          "surcharge_calculation"
         ],
         "properties": {
           "order_amount": {
@@ -3002,10 +3002,10 @@
             ],
             "nullable": true
           },
-          "skip_external_tax_calculation": {
+          "external_tax_calculation": {
             "$ref": "#/components/schemas/TaxCalculationOverride"
           },
-          "skip_surcharge_calculation": {
+          "surcharge_calculation": {
             "$ref": "#/components/schemas/SurchargeCalculationOverride"
           },
           "surcharge_amount": {
@@ -4176,7 +4176,7 @@
                   },
                   "bank_account_bic": {
                     "type": "string",
-                    "description": "Bank account details for Giropay\nBank account bic code",
+                    "description": "Bank account bic code",
                     "nullable": true
                   },
                   "bank_account_iban": {
@@ -6125,8 +6125,8 @@
         "type": "object",
         "required": [
           "currency",
-          "skip_external_tax_calculation",
-          "skip_surcharge_calculation",
+          "external_tax_calculation",
+          "surcharge_calculation",
           "net_amount",
           "amount_capturable"
         ],
@@ -6157,10 +6157,10 @@
             ],
             "nullable": true
           },
-          "skip_external_tax_calculation": {
+          "external_tax_calculation": {
             "$ref": "#/components/schemas/TaxCalculationOverride"
           },
-          "skip_surcharge_calculation": {
+          "surcharge_calculation": {
             "$ref": "#/components/schemas/SurchargeCalculationOverride"
           },
           "surcharge_amount": {
@@ -7153,6 +7153,7 @@
           "customer_id",
           "payment_method_type",
           "recurring_enabled",
+          "created",
           "requires_cvv",
           "is_default"
         ],
@@ -7210,9 +7211,8 @@
           "created": {
             "type": "string",
             "format": "date-time",
-            "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
-            "example": "2023-01-18T11:04:09.922Z",
-            "nullable": true
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was created",
+            "example": "2023-01-18T11:04:09.922Z"
           },
           "surcharge_details": {
             "allOf": [
@@ -13542,7 +13542,7 @@
           "created": {
             "type": "string",
             "format": "date-time",
-            "description": "A timestamp (ISO 8601 code) that determines when the customer was created",
+            "description": "A timestamp (ISO 8601 code) that determines when the payment method was created",
             "example": "2023-01-18T11:04:09.922Z",
             "nullable": true
           },
@@ -14971,6 +14971,7 @@
           "status",
           "amount_details",
           "client_secret",
+          "profile_id",
           "capture_method",
           "authentication_type",
           "customer_present",
@@ -14996,6 +14997,10 @@
             "type": "string",
             "description": "It's a token used for client side verification.",
             "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The identifier for the profile. This is inferred from the `x-profile-id` header"
           },
           "merchant_reference_id": {
             "type": "string",
@@ -15813,6 +15818,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ErrorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "shipping": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              }
+            ],
+            "nullable": true
+          },
+          "billing": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Address"
               }
             ],
             "nullable": true
@@ -19661,8 +19682,8 @@
       "SurchargeCalculationOverride": {
         "type": "string",
         "enum": [
-          "Skip",
-          "Calculate"
+          "skip",
+          "calculate"
         ]
       },
       "SurchargeDetailsResponse": {
@@ -19763,8 +19784,8 @@
       "TaxCalculationOverride": {
         "type": "string",
         "enum": [
-          "Skip",
-          "Calculate"
+          "skip",
+          "calculate"
         ]
       },
       "ThirdPartySdkSessionResponse": {

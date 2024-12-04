@@ -1,13 +1,3 @@
-import { getCustomExchange } from "./Commons";
-
-const successfulNo3DSCardDetails = {
-  card_number: "4012000033330026",
-  card_exp_month: "01",
-  card_exp_year: "25",
-  card_holder_name: "joseph Doe",
-  card_cvc: "123",
-};
-
 const successfulThreeDSTestCardDetails = {
   card_number: "4349940199004549",
   card_exp_month: "12",
