@@ -393,27 +393,25 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     dynamic_routing_stats (payment_id) {
-        #[max_length = 255]
+        #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
-        tenant_id -> Varchar,
-        #[max_length = 255]
         merchant_id -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         profile_id -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         success_based_routing_connector -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         payment_connector -> Varchar,
-        #[max_length = 255]
+        #[max_length = 32]
         currency -> Nullable<Varchar>,
-        #[max_length = 255]
+        #[max_length = 64]
         payment_method -> Nullable<Varchar>,
-        #[max_length = 255]
+        #[max_length = 64]
         capture_method -> Nullable<Varchar>,
-        #[max_length = 255]
+        #[max_length = 64]
         authentication_type -> Nullable<Varchar>,
-        #[max_length = 255]
+        #[max_length = 64]
         payment_status -> Varchar,
         conclusive_classification -> SuccessBasedRoutingConclusiveState,
         created_at -> Timestamp,

@@ -751,29 +751,22 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             first_success_based_connector.to_string(),
         );
 
-        let dynamic_routing_stats = DynamicRoutingStatsNew::new(
-            state.tenant.tenant_id.get_string_repr().to_owned(),
-            payment_attempt.payment_id.get_string_repr().to_string(),
-            payment_attempt.merchant_id.get_string_repr().to_string(),
-            payment_attempt.profile_id.get_string_repr().to_string(),
-            first_success_based_connector.to_string(),
-            payment_connector.to_string(),
-            payment_attempt
-                .currency
-                .map(|currency| currency.to_string()),
-            payment_attempt
-                .payment_method
-                .map(|payment_method| payment_method.to_string()),
-            payment_attempt
-                .capture_method
-                .map(|capture_method| capture_method.to_string()),
-            payment_attempt
+        let dynamic_routing_stats = DynamicRoutingStatsNew {
+            payment_id: payment_attempt.payment_id.to_owned(),
+            merchant_id: payment_attempt.merchant_id.to_owned(),
+            profile_id: payment_attempt.profile_id.to_owned(),
+            success_based_routing_connector: first_success_based_connector.to_string(),
+            payment_connector: payment_connector.to_string(),
+            currency: payment_attempt.currency.map(|currency| currency.to_string()),
+            payment_method: payment_attempt.payment_method.map(|payment_method| payment_method.to_string()),
+            capture_method: payment_attempt.capture_method.map(|capture_method| capture_method.to_string()),
+            authentication_type: payment_attempt
                 .authentication_type
                 .map(|authentication_type| authentication_type.to_string()),
-            payment_attempt.status.to_string(),
-            outcome,
-            common_utils::date_time::now(),
-        );
+            payment_status: payment_attempt.status.to_string(),
+            conclusive_classification: outcome,
+            created_at: common_utils::date_time::now(),
+        };
 
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
             &metrics::CONTEXT,

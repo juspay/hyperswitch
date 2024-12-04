@@ -6,10 +6,9 @@ use crate::schema::dynamic_routing_stats;
 #[derive(Clone, Debug, Eq, Insertable, PartialEq, Serialize, Deserialize)]
 #[diesel(table_name = dynamic_routing_stats)]
 pub struct DynamicRoutingStatsNew {
-    pub payment_id: String,
-    pub tenant_id: String,
-    pub merchant_id: String,
-    pub profile_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub success_based_routing_connector: String,
     pub payment_connector: String,
     pub currency: Option<String>,
@@ -26,10 +25,9 @@ pub struct DynamicRoutingStatsNew {
 )]
 #[diesel(table_name = dynamic_routing_stats, primary_key(payment_id), check_for_backend(diesel::pg::Pg))]
 pub struct DynamicRoutingStats {
-    pub payment_id: String,
-    pub tenant_id: String,
-    pub merchant_id: String,
-    pub profile_id: String,
+    pub payment_id: common_utils::id_type::PaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub profile_id: common_utils::id_type::ProfileId,
     pub success_based_routing_connector: String,
     pub payment_connector: String,
     pub currency: Option<String>,
@@ -39,39 +37,4 @@ pub struct DynamicRoutingStats {
     pub payment_status: String,
     pub conclusive_classification: common_enums::SuccessBasedRoutingConclusiveState,
     pub created_at: time::PrimitiveDateTime,
-}
-
-impl DynamicRoutingStatsNew {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        tenant_id: String,
-        payment_id: String,
-        merchant_id: String,
-        profile_id: String,
-        success_based_routing_connector: String,
-        payment_connector: String,
-        currency: Option<String>,
-        payment_method: Option<String>,
-        capture_method: Option<String>,
-        authentication_type: Option<String>,
-        payment_status: String,
-        conclusive_classification: common_enums::SuccessBasedRoutingConclusiveState,
-        created_at: time::PrimitiveDateTime,
-    ) -> Self {
-        Self {
-            payment_id,
-            tenant_id,
-            merchant_id,
-            profile_id,
-            success_based_routing_connector,
-            payment_connector,
-            currency,
-            payment_method,
-            capture_method,
-            authentication_type,
-            payment_status,
-            conclusive_classification,
-            created_at,
-        }
-    }
 }
