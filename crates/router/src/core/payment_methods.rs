@@ -588,6 +588,7 @@ pub async fn retrieve_payment_method_with_token(
                 mandate_id,
                 payment_method_info,
                 business_profile,
+                payment_attempt.connector.clone(),
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?
@@ -622,6 +623,7 @@ pub async fn retrieve_payment_method_with_token(
                 mandate_id,
                 payment_method_info,
                 business_profile,
+                payment_attempt.connector.clone(),
             )
             .await
             .map(|card| Some((card, enums::PaymentMethod::Card)))?

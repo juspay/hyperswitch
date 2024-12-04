@@ -1915,6 +1915,7 @@ pub async fn retrieve_card_with_permanent_token(
     mandate_id: Option<api_models::payments::MandateIds>,
     payment_method_info: Option<domain::PaymentMethod>,
     business_profile: &domain::Profile,
+    connector: Option<String>,
 ) -> RouterResult<domain::PaymentMethodData> {
     let customer_id = payment_intent
         .customer_id
@@ -1985,7 +1986,26 @@ pub async fn retrieve_card_with_permanent_token(
                 .attach_printable("Payment method data is not present"),
             (Some(ref pm_data), None) => {
                 // Regular (non-mandate) Payment flow
-                if let Some(token_ref) = pm_data.network_token_requestor_reference_id.clone() {
+                let network_tokenization_supported_connectors = &state
+                    .conf
+                    .network_tokenization_supported_connectors
+                    .connector_list;
+                let connector_variant = connector.as_ref().map(|conn| api_enums::Connector::from_str(conn.as_str())
+                    .change_context(errors::ConnectorError::InvalidConnectorName)
+                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "connector",
+                    })
+                    .attach_printable_lazy(|| {
+                        format!("unable to parse connector name {connector:?}")
+                    })).transpose()?;
+                if let (Some(_conn), Some(token_ref)) = (
+                    connector_variant.filter(|conn| {
+                        network_tokenization_supported_connectors
+                            .contains(conn)
+                    }),
+                    pm_data.network_token_requestor_reference_id.clone(),
+                ) {
+                    logger::info!("Fetching network token data from tokenization service");
                     match network_tokenization::get_token_from_tokenization_service(
                         state, token_ref, pm_data,
                     )
@@ -2015,6 +2035,8 @@ pub async fn retrieve_card_with_permanent_token(
                         }
                     }
                 } else {
+                    logger::info!("Either the connector is not in the NT supported list or token requestor reference ID is absent");
+                    logger::info!("Falling back to fetch card details from locker");
                     fetch_card_details_from_locker(
                         state,
                         customer_id,
@@ -5776,6 +5798,7 @@ pub async fn get_payment_method_details_from_payment_token(
             None,
             None,
             business_profile,
+            payment_attempt.connector.clone(),
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),
@@ -5794,6 +5817,7 @@ pub async fn get_payment_method_details_from_payment_token(
             None,
             None,
             business_profile,
+            payment_attempt.connector.clone(),
         )
         .await
         .map(|card| Some((card, enums::PaymentMethod::Card))),
