@@ -17453,10 +17453,10 @@
       },
       "PresenceOfCustomerDuringPayment": {
         "type": "string",
-        "description": "Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.",
+        "description": "Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.",
         "enum": [
-          "Present",
-          "Absent"
+          "present",
+          "absent"
         ]
       },
       "PrimaryBusinessDetails": {
