@@ -3,9 +3,9 @@ pub mod transformers;
 use common_utils::types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
-use transformers as wellsfargopayout;
 
-use super::utils::{self as connector_utils};
+use self::transformers as wellsfargopayout;
+use super::utils as connector_utils;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},

@@ -28,7 +28,7 @@ pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
             .attach_printable("Role groups cannot be empty");
     }
 
-    let unique_groups: HashSet<_> = groups.iter().cloned().collect();
+    let unique_groups: HashSet<_> = groups.iter().copied().collect();
 
     if unique_groups.contains(&PermissionGroup::OrganizationManage) {
         return Err(report!(UserErrors::InvalidRoleOperation))

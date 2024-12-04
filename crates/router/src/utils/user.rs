@@ -29,6 +29,7 @@ pub mod dashboard_metadata;
 pub mod password;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+pub mod theme;
 pub mod two_factor_auth;
 
 impl UserFromToken {

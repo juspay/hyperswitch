@@ -1,7 +1,7 @@
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -9,7 +9,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -68,6 +68,9 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -79,13 +82,15 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
         body: {
           status: "requires_capture",
         },
       },
     },
     "3DSAutoCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -97,7 +102,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
 
         body: {
           status: "requires_customer_action",
@@ -227,6 +231,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -237,7 +244,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
 
         body: {
           status: "succeeded",
@@ -245,6 +251,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUse3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -255,7 +264,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
 
         body: {
           status: "requires_customer_action",
@@ -327,6 +335,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUse3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -337,7 +348,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
 
         body: {
           status: "requires_capture",
@@ -345,6 +355,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUse3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -355,7 +368,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
 
         body: {
           status: "requires_capture",
@@ -493,6 +505,9 @@ export const connectorDetails = {
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -512,7 +527,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
         body: {
           status: "requires_customer_action",
         },
