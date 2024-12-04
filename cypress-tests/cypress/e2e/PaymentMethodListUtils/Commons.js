@@ -1,4 +1,4 @@
-export const card_credit_enabled = [
+export const cardCreditEnabled = [
   {
     payment_method: "card",
     payment_method_types: [
@@ -18,7 +18,7 @@ export const card_credit_enabled = [
   },
 ];
 
-export const card_credit_enabled_in_USD = [
+export const cardCreditEnabledInUsd = [
   {
     payment_method: "card",
     payment_method_types: [
@@ -38,7 +38,7 @@ export const card_credit_enabled_in_USD = [
   },
 ];
 
-export const card_credit_enabled_in_US = [
+export const cardCreditEnabledInUs = [
   {
     payment_method: "card",
     payment_method_types: [
@@ -58,7 +58,7 @@ export const card_credit_enabled_in_US = [
   },
 ];
 
-export const bank_redirect_ideal_enabled = [
+export const bankRedirectIdealEnabled = [
   {
     payment_method: "bank_redirect",
     payment_method_types: [
@@ -76,7 +76,7 @@ export const bank_redirect_ideal_enabled = [
   },
 ];
 
-export const bank_redirect_ideal_and_credit_enabled = [
+export const bankRedirectIdealAndCreditEnabled = [
   {
     payment_method: "card",
     payment_method_types: [
@@ -107,7 +107,7 @@ export const bank_redirect_ideal_and_credit_enabled = [
   },
 ];
 
-export const create_payment_body_with_currency_country = (
+export const createPaymentBodyWithCurrencyCountry = (
   currency,
   billingCountry,
   shippingCountry
@@ -162,7 +162,7 @@ export const create_payment_body_with_currency_country = (
   },
 });
 
-export const create_payment_body_with_currency = (currency) => ({
+export const createPaymentBodyWithCurrency = (currency) => ({
   currency: currency,
   amount: 6500,
   authentication_type: "three_ds",
