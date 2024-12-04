@@ -126,6 +126,33 @@ describe("Connector Agnostic Tests", () => {
       it("List Payment Method for Customer", () => {
         cy.listCustomerPMByClientSecret(globalState);
       });
+
+      it("Confirm No 3DS MIT", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+        const commonData = getConnectorDetails(globalState.get("commons"))[
+          "card_pm"
+        ]["MITAutoCapture"];
+
+        const newData = {
+          ...data,
+          Response: utils.getConnectorFlowDetails(
+            data,
+            commonData,
+            "ResponseCustom"
+          ),
+        };
+
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          newData,
+          7000,
+          true,
+          "automatic",
+          globalState
+        );
+      });
     }
   );
 
@@ -246,6 +273,21 @@ describe("Connector Agnostic Tests", () => {
 
     it("List Payment Method for Customer", () => {
       cy.listCustomerPMByClientSecret(globalState);
+    });
+
+    it("Confirm No 3DS MIT", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITAutoCapture"];
+
+      cy.mitUsingPMId(
+        fixtures.pmIdConfirmBody,
+        data,
+        7000,
+        true,
+        "automatic",
+        globalState
+      );
     });
   });
 });
