@@ -639,12 +639,15 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         } else {
             None
         };
-        payment_attempt.payment_method_data = additional_pm_data_from_locker
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode additional pm data")?;
+        // Only set `payment_attempt.payment_method_data` if `additional_pm_data_from_locker` is not None
+        if additional_pm_data_from_locker.is_some() {
+            payment_attempt.payment_method_data = additional_pm_data_from_locker
+                .as_ref()
+                .map(Encode::encode_to_value)
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to encode additional pm data")?;
+        }
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
 
