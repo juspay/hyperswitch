@@ -1531,7 +1531,6 @@ pub struct MerchantConnectorUpdate {
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
-
 pub struct ConnectorWalletDetails {
     /// This field contains the Apple Pay certificates and credentials for iOS and Web Apple Pay flow
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -1278,7 +1278,7 @@
         ],
         "summary": "Routing - Create",
         "description": "Create a routing algorithm",
-        "operationId": "Create a routing algprithm",
+        "operationId": "Create a routing algorithm",
         "requestBody": {
           "content": {
             "application/json": {
@@ -4176,7 +4176,7 @@
                   },
                   "bank_account_bic": {
                     "type": "string",
-                    "description": "Bank account details for Giropay\nBank account bic code",
+                    "description": "Bank account bic code",
                     "nullable": true
                   },
                   "bank_account_iban": {

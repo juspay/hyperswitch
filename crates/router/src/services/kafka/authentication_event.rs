@@ -87,7 +87,7 @@ impl<'a> KafkaAuthenticationEvent<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaAuthenticationEvent<'a> {
+impl super::KafkaMessage for KafkaAuthenticationEvent<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}",
