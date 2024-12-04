@@ -95,7 +95,6 @@ pub struct KlarnaPaymentsRequest {
 
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
 pub enum KlarnaAuthResponse {
     KlarnaPaymentsAuthResponse(PaymentsResponse),
     KlarnaCheckoutAuthResponse(CheckoutResponse),
@@ -233,6 +232,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
         let request = &item.router_data.request;
         let payment_method_data = request.payment_method_data.clone();
         let return_url = item.router_data.request.get_return_url()?;
+        let webhook_url = item.router_data.request.get_webhook_url()?;
+
         match payment_method_data {
             domain::PaymentMethodData::PayLater(domain::PayLaterData::KlarnaSdk { .. }) => {
                 match request.order_details.clone() {
@@ -296,8 +297,8 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                             merchant_urls: MerchantURLs {
                                 terms: return_url.clone(),
                                 checkout: return_url.clone(),
-                                confirmation: "https://google.com".to_string(),
-                                push: "https://google.com".to_string(),
+                                confirmation: return_url,
+                                push: webhook_url,
                             },
                         }),
                         options: Some(CheckoutOptions {
@@ -525,7 +526,6 @@ impl From<KlarnaCheckoutStatus> for enums::AttemptStatus {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
 pub enum KlarnaPsyncResponse {
     KlarnaSDKPsyncResponse(KlarnaSDKSyncResponse),
     KlarnaCheckoutPSyncResponse(KlarnaCheckoutSyncResponse),
