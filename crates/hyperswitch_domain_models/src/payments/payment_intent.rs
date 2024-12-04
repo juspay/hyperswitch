@@ -1289,6 +1289,7 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_config,
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
+            request_extended_authorization: None,
         })
     }
     async fn convert_back(

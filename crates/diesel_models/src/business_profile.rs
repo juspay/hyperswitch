@@ -297,6 +297,7 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
 }
 
 impl Profile {
@@ -502,6 +503,7 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_network_tokenization_enabled),
             is_auto_retries_enabled: is_auto_retries_enabled.or(source.is_auto_retries_enabled),
             max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
+            always_request_extended_authorization: None,
         }
     }
 }

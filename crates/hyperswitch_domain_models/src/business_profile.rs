@@ -1239,6 +1239,7 @@ impl super::behaviour::Conversion for Profile {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: None,
             max_auto_retries_enabled: None,
+            always_request_extended_authorization: None,
         })
     }
 
