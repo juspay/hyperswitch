@@ -388,14 +388,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .and_then(|pmd| pmd.payment_method_data.clone()),
         )?;
 
-        // validate billing name for card holder name
-        helpers::validate_billing_name(
-            request
-                .billing
-                .as_ref()
-                .and_then(|billing| billing.address.as_ref()),
-        )?;
-
         payment_attempt.browser_info = browser_info;
 
         payment_attempt.payment_experience = request
@@ -717,6 +709,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .and_then(|payment_method_data_billing| {
                 payment_method_data_billing.get_billing_address()
             });
+
+        // validate billing name for card holder name
+        helpers::validate_billing_name(
+            payment_method_data_billing
+                .as_ref()
+                .and_then(|billing| billing.address.as_ref())
+                .or(request
+                    .billing
+                    .as_ref()
+                    .and_then(|billing| billing.address.as_ref())),
+        )?;
 
         let unified_address =
             address.unify_with_payment_method_data_billing(payment_method_data_billing);
