@@ -17186,7 +17186,8 @@
       "ProfileCreate": {
         "type": "object",
         "required": [
-          "profile_name"
+          "profile_name",
+          "is_click_to_pay_enabled"
         ],
         "properties": {
           "profile_name": {
@@ -17349,8 +17350,7 @@
             "type": "boolean",
             "description": "Indicates if click to pay is enabled or not.",
             "default": false,
-            "example": false,
-            "nullable": true
+            "example": false
           }
         },
         "additionalProperties": false
