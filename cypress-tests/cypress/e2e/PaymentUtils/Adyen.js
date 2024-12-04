@@ -242,7 +242,7 @@ export const connectorDetails = {
         },
       },
     },
-    VoidAfterConfirm: {
+    VoidAfterConfirm: getCustomExchange({
       Request: {},
       Response: {
         status: 200,
@@ -256,7 +256,7 @@ export const connectorDetails = {
           status: "cancelled",
         },
       },
-    },
+    }),
     Refund: {
       Request: {
         currency: "USD",
