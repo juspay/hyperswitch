@@ -11,7 +11,7 @@ pub struct DynamicRoutingStatsNew {
     pub success_based_routing_connector: String,
     pub payment_connector: String,
     pub currency: Option<common_enums::Currency>,
-    pub payment_method: Option<String>,
+    pub payment_method: Option<common_enums::PaymentMethod>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub authentication_type: Option<common_enums::AuthenticationType>,
     pub payment_status: common_enums::AttemptStatus,

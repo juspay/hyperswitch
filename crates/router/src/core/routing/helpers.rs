@@ -760,9 +760,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             success_based_routing_connector: first_success_based_connector.to_string(),
             payment_connector: payment_connector.to_string(),
             currency: payment_attempt.currency,
-            payment_method: payment_attempt
-                .payment_method
-                .map(|payment_method| payment_method.to_string()),
+            payment_method: payment_attempt.payment_method,
             capture_method: payment_attempt.capture_method,
             authentication_type: payment_attempt.authentication_type,
             payment_status: payment_attempt.status,
