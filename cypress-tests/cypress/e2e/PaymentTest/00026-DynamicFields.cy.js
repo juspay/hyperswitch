@@ -164,7 +164,7 @@ describe("Dynamic Fields Verification", () => {
       });
 
       it("Payment Method List", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "pm_list"
         ]["PmListResponse"]["pmListDynamicFieldWithEmail"];
         cy.paymentMethodListTestWithRequiredFields(data, globalState);
