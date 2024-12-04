@@ -2,7 +2,7 @@ syntax = "proto3";
 package elimination;
 
 service EliminationAnalyser {
-    rpc PerformElimination (EliminationRequest) returns (EliminationResponse);
+    rpc GetEliminationStatus (EliminationRequest) returns (EliminationResponse);
 
     rpc UpdateEliminationBucket (UpdateEliminationBucketRequest) returns (UpdateEliminationBucketResponse);
 
@@ -14,12 +14,12 @@ message EliminationRequest {
     string id = 1;
     string params = 2;
     repeated string labels = 3;
-    EliminationAnalyserConfig config = 4;
+    EliminationBucketConfig config = 4;
 }
 
-message EliminationAnalyserConfig {
+message EliminationBucketConfig {
     uint64 bucket_size = 1;
-    uint64 bucket_ttl_in_mins = 2;
+    uint64 bucket_leak_interval_in_secs = 2;
 }
 
 message EliminationResponse {
@@ -27,8 +27,9 @@ message EliminationResponse {
 }
 
 message LabelWithStatus {
-    bool is_eliminated = 1; 
-    string label = 2;
+    string label = 1;
+    bool is_eliminated = 2; 
+    string bucket_name = 3;
 }
 
 // API-2 types
@@ -36,7 +37,7 @@ message UpdateEliminationBucketRequest {
     string id = 1;
     string params = 2;
     repeated LabelWithBucketName labels_with_bucket_name = 3;
-    UpdateEliminationBucketConfig config = 4;
+    EliminationBucketConfig config = 4;
 }
 
 message LabelWithBucketName {
@@ -44,13 +45,12 @@ message LabelWithBucketName {
     string bucket_name = 2;
 }
 
-message UpdateEliminationBucketConfig {
-    uint64 bucket_size = 1;
-    uint64 bucket_ttl_in_mins = 2;
-}
-
 message UpdateEliminationBucketResponse {
-    string message = 1;
+   enum UpdationStatus {
+      BUCKET_UPDATION_SUCCEEDED = 0;
+      BUCKET_UPDATION_FAILED = 1;
+   }
+   UpdationStatus status = 1;
 }
 
 // API-3 types
@@ -59,5 +59,9 @@ message InvalidateBucketRequest {
 }
 
 message InvalidateBucketResponse {
-    string message = 1;
+    enum InvalidationStatus {
+        BUCKET_INVALIDATION_SUCCEEDED = 0;
+        BUCKET_INVALIDATION_FAILED = 1;
+    }
+    InvalidationStatus status = 1;
 }

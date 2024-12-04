@@ -4,17 +4,17 @@ use api_models::routing::{
 };
 use common_utils::{ext_traits::OptionExt, transformers::ForeignTryFrom};
 pub use elimination_rate::{
-    elimination_analyser_client::EliminationAnalyserClient, EliminationAnalyserConfig,
+    elimination_analyser_client::EliminationAnalyserClient, EliminationBucketConfig,
     EliminationRequest, EliminationResponse, InvalidateBucketRequest, InvalidateBucketResponse,
-    LabelWithBucketName, UpdateEliminationBucketConfig, UpdateEliminationBucketRequest,
-    UpdateEliminationBucketResponse,
+    LabelWithBucketName, UpdateEliminationBucketRequest, UpdateEliminationBucketResponse,
 };
 use error_stack::ResultExt;
 #[allow(
     missing_docs,
     unused_qualifications,
     clippy::unwrap_used,
-    clippy::as_conversions
+    clippy::as_conversions,
+    clippy::use_self
 )]
 pub mod elimination_rate {
     tonic::include_proto!("elimination");
@@ -73,7 +73,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
 
         let response = self
             .clone()
-            .perform_elimination(request)
+            .get_elimination_status(request)
             .await
             .change_context(DynamicRoutingError::EliminationRateRoutingFailure(
                 "Failed to perform the elimination analysis".to_string(),
@@ -137,7 +137,7 @@ impl EliminationBasedRouting for EliminationAnalyserClient<Client> {
     }
 }
 
-impl ForeignTryFrom<EliminationConfig> for EliminationAnalyserConfig {
+impl ForeignTryFrom<EliminationConfig> for EliminationBucketConfig {
     type Error = error_stack::Report<DynamicRoutingError>;
     fn foreign_try_from(config: EliminationConfig) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -147,26 +147,7 @@ impl ForeignTryFrom<EliminationConfig> for EliminationAnalyserConfig {
                 .change_context(DynamicRoutingError::MissingRequiredField {
                     field: "bucket_size".to_string(),
                 })?,
-            bucket_ttl_in_mins: config
-                .bucket_ttl_in_mins
-                .get_required_value("bucket_ttl_in_mins")
-                .change_context(DynamicRoutingError::MissingRequiredField {
-                    field: "bucket_ttl_in_mins".to_string(),
-                })?,
-        })
-    }
-}
-impl ForeignTryFrom<EliminationConfig> for UpdateEliminationBucketConfig {
-    type Error = error_stack::Report<DynamicRoutingError>;
-    fn foreign_try_from(config: EliminationConfig) -> Result<Self, Self::Error> {
-        Ok(Self {
-            bucket_size: config
-                .bucket_size
-                .get_required_value("bucket_size")
-                .change_context(DynamicRoutingError::MissingRequiredField {
-                    field: "bucket_size".to_string(),
-                })?,
-            bucket_ttl_in_mins: config
+            bucket_leak_interval_in_secs: config
                 .bucket_ttl_in_mins
                 .get_required_value("bucket_ttl_in_mins")
                 .change_context(DynamicRoutingError::MissingRequiredField {
