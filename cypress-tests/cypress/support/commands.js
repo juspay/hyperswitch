@@ -1213,14 +1213,18 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
   });
 });
 
-Cypress.Commands.add("deletePaymentMethodTest", (globalState, resData) => {
-  const payment_method_id = globalState.get("paymentMethodId");
+Cypress.Commands.add("deletePaymentMethodTest", (globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const paymentMethodId = globalState.get("paymentMethodId");
+  const url = `${baseUrl}/payment_methods/${paymentMethodId}`;
+
   cy.request({
     method: "DELETE",
-    url: `${globalState.get("baseUrl")}/payment_methods/${payment_method_id}`,
+    url: url,
     headers: {
       Accept: "application/json",
-      "api-key": globalState.get("apiKey"),
+      "api-key": apiKey,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -1228,10 +1232,16 @@ Cypress.Commands.add("deletePaymentMethodTest", (globalState, resData) => {
     expect(response.headers["content-type"]).to.include("application/json");
 
     if (response.status === 200) {
-      expect(response.body.payment_method_id).to.equal(payment_method_id);
+      expect(response.body.payment_method_id).to.equal(paymentMethodId);
       expect(response.body.deleted).to.be.true;
+    } else if (response.status === 500 && baseUrl.includes("localhost")) {
+      // delete payment method api endpoint requires tartarus (hyperswitch card vault) to be set up since it makes a call to the locker service to delete the payment method
+      expect(response.body.error.code).to.include("HE_00");
+      expect(response.body.error.message).to.include("Something went wrong");
     } else {
-      defaultErrorHandler(response, resData);
+      throw new Error(
+        `Payment Method Delete Call Failed with error message: ${response.body.error.message}`
+      );
     }
   });
 });
@@ -1239,6 +1249,7 @@ Cypress.Commands.add("deletePaymentMethodTest", (globalState, resData) => {
 Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
   const payment_method_id = globalState.get("paymentMethodId");
   const customer_id = globalState.get("customerId");
+
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/customers/${customer_id}/payment_methods/${payment_method_id}/default`,
