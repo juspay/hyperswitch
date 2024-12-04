@@ -1,4 +1,8 @@
-import { cardRequiredField, getCustomExchange } from "./Commons";
+import {
+  cardRequiredField,
+  connectorDetails as commonConnectorDetails,
+  getCustomExchange,
+} from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -530,15 +534,15 @@ export const connectorDetails = {
         },
       },
     },
-    MITAutoCapture: {
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
+    MITAutoCapture: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
         },
       },
-    },
+      ...commonConnectorDetails.card_pm.MITAutoCapture,
+    }),
     MITManualCapture: {
       Request: {},
       Response: {

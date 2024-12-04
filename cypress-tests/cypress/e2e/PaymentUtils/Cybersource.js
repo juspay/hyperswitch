@@ -1,4 +1,7 @@
-import { getCustomExchange } from "./Commons";
+import {
+  connectorDetails as commonConnectorDetails,
+  getCustomExchange,
+} from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -639,23 +642,7 @@ export const connectorDetails = {
           value: "connector_1",
         },
       },
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-      ResponseCustom: {
-        status: 400,
-        body: {
-          error: {
-            message:
-              "No eligible connector was found for the current payment method configuration",
-            type: "invalid_request",
-          },
-        },
-      },
+      ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
     MITManualCapture: {
       Configs: {
