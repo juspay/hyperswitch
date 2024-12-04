@@ -76,7 +76,11 @@ pub use self::{
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
-    core::errors::{self, CustomResult, RouterResult},
+    core::
+    {
+        errors::{self, CustomResult, RouterResult},
+        payments::PaymentData
+    },
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -142,7 +146,6 @@ pub struct ValidateResult {
     pub requeue: bool,
 }
 
-#[async_trait]
 #[cfg(feature = "v1")]
 #[allow(clippy::type_complexity)]
 pub trait ValidateRequest<F, R, D> {
@@ -152,15 +155,6 @@ pub trait ValidateRequest<F, R, D> {
         request: &R,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<(BoxedOperation<'b, F, R, D>, ValidateResult)>;
-
-    async fn validate_request_with_state(
-        &self,
-        state:  &SessionState,
-        request: &R,
-        merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<()> {
-        Ok(())
-    }
 }
 
 #[cfg(feature = "v2")]
@@ -217,6 +211,16 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<GetTrackerResponse<D>>;
+
+    async fn validate_request_with_state(
+        &self,
+        state:  &SessionState,
+        request: &R,
+        merchant_account: &domain::MerchantAccount,
+        payment_data: &mut D
+    ) -> RouterResult<()> {
+        Ok(())
+    }
 }
 
 #[async_trait]

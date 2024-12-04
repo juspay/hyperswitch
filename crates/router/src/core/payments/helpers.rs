@@ -6,6 +6,8 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{additional_info as payment_additional_types, RequestSurchargeDetails},
 };
+use std::net::IpAddr;
+use std::net::Ipv4Addr;
 use base64::Engine;
 use common_enums::ConnectorType;
 #[cfg(feature = "v2")]
@@ -39,7 +41,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
+use masking::{ExposeInterface, PeekInterface, StrongSecret, SwitchStrategy};
 use openssl::{
     derive::Deriver,
     pkey::PKey,
@@ -71,6 +73,7 @@ use crate::{
         },
         payments,
         pm_auth::retrieve_payment_method_from_auth_service,
+        blocklist::utils as blocklist_utils
     },
     db::StorageInterface,
     routes::{metrics, payment_methods as payment_methods_handler, SessionState},
@@ -1479,39 +1482,36 @@ pub fn validate_customer_information(
 pub async fn validate_card_testing_attack(
     state: &SessionState,
     request: &api_models::payments::PaymentsRequest,
-) -> RouterResult<()> {
-
-    let payment_method_data =
-        request.payment_method_data
-            .as_ref()
-            .and_then(|request_payment_method_data| {
-                request_payment_method_data.payment_method_data.as_ref()
-            });
-
-    let card_number = payment_method_data.as_ref().and_then(|pmd| {
-        if let api_models::payments::PaymentMethodData::Card(card) = pmd {
-            Some(card.card_number.get_card_no())
-        } else {
-            None
-        }
-        });
+    merchant_account: &domain::MerchantAccount
+) -> RouterResult<(String)> {
     
-    //TODO: Generate Fingerprint for card number
-    let fingerprint = "xyz";
+    let mut ip: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+
+    if let Some(browser_info) = &request.browser_info {
+        if let Ok(browser_info_parsed) = serde_json::from_value::<payments::BrowserInformation>(browser_info.clone()) {
+            if let Some(browserip) = browser_info_parsed.ip_address {
+                ip = browserip;
+            }
+        }
+    }
+
+    let fingerprint_result = generate_fingerprint(state, request, merchant_account).await;
+
+    let fingerprint = fingerprint_result?;
+
+    let cache_key = format!("{}{}", &fingerprint, ip);
 
     let unsuccessful_payment_threshold = 3;
-
     let mut should_payment_be_blocked = false;
 
-    match services::card_testing_guard::get_blocked_count_from_cache(state, fingerprint).await {
+    match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
         Ok(Some(unsuccessful_payment_count)) => {
-            logger::info!("COUNT: {}", unsuccessful_payment_count);
             if unsuccessful_payment_count >= unsuccessful_payment_threshold {
                 should_payment_be_blocked = true;
             }
         }
         Ok(None) => {
-            logger::info!("ENTRY NOT FOUND IN CACHE");
+            logger::info!("Entry not found in cache");
         }
         Err(err) => {
             eprintln!("Failed to get blocked count: {:?}", err);
@@ -1525,8 +1525,49 @@ pub async fn validate_card_testing_attack(
             ),
         })?
     } else {
-        Ok(())
+        Ok(cache_key)
     }
+}
+
+pub async fn generate_fingerprint(
+    state: &SessionState,
+    request: &api_models::payments::PaymentsRequest,
+    merchant_account: &domain::MerchantAccount,
+) -> RouterResult<(String)> {
+
+    let payment_method_data =
+        request.payment_method_data
+            .as_ref()
+            .and_then(|request_payment_method_data| {
+                request_payment_method_data.payment_method_data.as_ref()
+            });
+
+    let merchant_id = merchant_account.get_id();
+    let merchant_fingerprint_secret = blocklist_utils::get_merchant_fingerprint_secret(state, merchant_id).await?;
+    
+    let card_number_fingerprint = payment_method_data
+    .as_ref()
+    .and_then(|pm_data| match pm_data {
+        api_models::payments::PaymentMethodData::Card(card) => {
+            crypto::HmacSha512::sign_message(
+                &crypto::HmacSha512,
+                merchant_fingerprint_secret.as_bytes(),
+                card.card_number.clone().get_card_no().as_bytes(),
+            )
+            .attach_printable("error in pm fingerprint creation")
+            .map_or_else(
+                |err| {
+                    logger::error!(error=?err);
+                    None
+                },
+                Some,
+            )
+        }
+        _ => None,
+    })
+    .map(hex::encode);
+
+    Ok(card_number_fingerprint.unwrap())
 }
 
 #[cfg(feature = "v1")]

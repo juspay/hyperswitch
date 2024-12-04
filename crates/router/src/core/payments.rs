@@ -273,7 +273,6 @@ where
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
 
-    operation.to_validate_request()?.validate_request_with_state(state, &req, &merchant_account).await?;
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
     // get profile from headers
@@ -296,6 +295,9 @@ where
             platform_merchant_account.as_ref(),
         )
         .await?;
+
+    operation.to_get_tracker()?.validate_request_with_state(state, &req, &merchant_account, &mut payment_data).await?;
+
     core_utils::validate_profile_id_from_auth_layer(
         profile_id_from_auth_layer,
         &payment_data.get_payment_intent().clone(),
@@ -4829,6 +4831,7 @@ where
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
+    pub cache_key: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]
