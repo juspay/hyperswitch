@@ -1942,6 +1942,7 @@ pub mod routes {
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
+                        tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: Some(&auth.org_id),
                         merchant_id: None,
                         profile_id: None,
@@ -2065,6 +2066,7 @@ pub mod routes {
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
+                        tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: Some(&auth.org_id),
                         merchant_id: None,
                         profile_id: None,

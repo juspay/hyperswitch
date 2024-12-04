@@ -161,11 +161,6 @@ where
         }
 
         outer_query_builder
-            .set_limit_by(5, &filtered_dimensions)
-            .attach_printable("Error adding limit clause")
-            .switch()?;
-
-        outer_query_builder
             .execute_query::<PaymentMetricRow, _>(pool)
             .await
             .change_context(MetricsError::QueryBuildingError)?

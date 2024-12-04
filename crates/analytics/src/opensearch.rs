@@ -510,14 +510,15 @@ impl OpenSearchQueryBuilder {
         case_sensitive_filters: Vec<&(String, Vec<String>)>,
     ) -> Vec<Value> {
         let mut filter_array = Vec::new();
-
-        filter_array.push(json!({
-            "multi_match": {
-                "type": "phrase",
-                "query": self.query,
-                "lenient": true
-            }
-        }));
+        if !self.query.is_empty() {
+            filter_array.push(json!({
+                "multi_match": {
+                    "type": "phrase",
+                    "query": self.query,
+                    "lenient": true
+                }
+            }));
+        }
 
         let case_sensitive_json_filters = case_sensitive_filters
             .into_iter()
@@ -704,9 +705,7 @@ impl OpenSearchQueryBuilder {
 
         let should_array = self.build_auth_array();
 
-        if !bool_obj.is_empty() {
-            query_obj.insert("bool".to_string(), Value::Object(bool_obj));
-        }
+        query_obj.insert("bool".to_string(), Value::Object(bool_obj));
 
         let mut sort_obj = Map::new();
         sort_obj.insert(

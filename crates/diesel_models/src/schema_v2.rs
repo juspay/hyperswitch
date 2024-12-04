@@ -520,6 +520,8 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
+        #[max_length = 64]
+        error_category -> Nullable<Varchar>,
     }
 }
 
@@ -895,6 +897,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
     }
 }
 

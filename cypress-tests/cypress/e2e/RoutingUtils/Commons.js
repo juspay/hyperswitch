@@ -51,11 +51,4 @@ export const connectorDetails = {
       body: {},
     },
   },
-  jwt: {
-    Request: {},
-    Response: {
-      status: 200,
-      body: {},
-    },
-  },
 };

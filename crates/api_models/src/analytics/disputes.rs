@@ -24,6 +24,9 @@ pub enum DisputeMetrics {
     DisputeStatusMetric,
     TotalAmountDisputed,
     TotalDisputeLostAmount,
+    SessionizedDisputeStatusMetric,
+    SessionizedTotalAmountDisputed,
+    SessionizedTotalDisputeLostAmount,
 }
 impl ForexMetric for DisputeMetrics {
     fn is_forex_metric(&self) -> bool {
@@ -130,8 +133,8 @@ pub struct DisputeMetricsBucketValue {
     pub disputes_challenged: Option<u64>,
     pub disputes_won: Option<u64>,
     pub disputes_lost: Option<u64>,
-    pub total_amount_disputed: Option<u64>,
-    pub total_dispute_lost_amount: Option<u64>,
+    pub disputed_amount: Option<u64>,
+    pub dispute_lost_amount: Option<u64>,
     pub total_dispute: Option<u64>,
 }
 #[derive(Debug, serde::Serialize)]

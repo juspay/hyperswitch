@@ -8,7 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-errors = ["dep:actix-web", "dep:reqwest"]
+errors = ["dep:reqwest"]
 dummy_connector = ["euclid/dummy_connector", "common_enums/dummy_connector"]
 detailed_errors = []
 payouts = ["common_enums/payouts"]
@@ -20,9 +20,11 @@ v1 = ["common_utils/v1"]
 v2 = ["common_utils/v2", "customer_v2"]
 customer_v2 = ["common_utils/customer_v2"]
 payment_methods_v2 = ["common_utils/payment_methods_v2"]
+dynamic_routing = []
 
 [dependencies]
-actix-web = { version = "4.5.1", optional = true }
+actix-multipart = "0.6.1"
+actix-web = "4.5.1"
 error-stack = "0.4.1"
 indexmap = "2.3.0"
 mime = "0.3.17"

@@ -5,7 +5,9 @@ use std::collections::HashMap;
     not(feature = "payment_methods_v2")
 ))]
 use api_models::payment_methods::PaymentMethodsData;
-use api_models::payments::ConnectorMandateReferenceId;
+use api_models::{
+    payment_methods::PaymentMethodDataWalletInfo, payments::ConnectorMandateReferenceId,
+};
 use common_enums::{ConnectorMandateStatus, PaymentMethod};
 use common_utils::{
     crypto::Encryptable,
@@ -78,7 +80,7 @@ pub async fn save_payment_method<FData>(
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     key_store: &domain::MerchantKeyStore,
     billing_name: Option<Secret<String>>,
-    payment_method_billing_address: Option<&api::Address>,
+    payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
     business_profile: &domain::Profile,
     mut original_connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
 ) -> RouterResult<SavePaymentMethodDataResponse>
@@ -248,15 +250,26 @@ where
                     None => None,
                 };
 
-                let pm_card_details = resp.card.as_ref().map(|card| {
-                    PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone()))
-                });
+                let optional_pm_details = match (
+                    resp.card.as_ref(),
+                    save_payment_method_data.request.get_payment_method_data(),
+                ) {
+                    (Some(card), _) => Some(PaymentMethodsData::Card(
+                        CardDetailsPaymentMethod::from(card.clone()),
+                    )),
+                    (
+                        _,
+                        domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
+                    ) => Some(PaymentMethodsData::WalletDetails(
+                        PaymentMethodDataWalletInfo::from(googlepay),
+                    )),
+                    _ => None,
+                };
+
                 let key_manager_state = state.into();
                 let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
-                    pm_card_details
-                        .async_map(|pm_card| {
-                            create_encrypted_data(&key_manager_state, key_store, pm_card)
-                        })
+                    optional_pm_details
+                        .async_map(|pm| create_encrypted_data(&key_manager_state, key_store, pm))
                         .await
                         .transpose()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
