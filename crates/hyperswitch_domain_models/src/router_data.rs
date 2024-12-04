@@ -88,6 +88,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub connector_mandate_request_reference_id: Option<String>,
 
     pub authentication_id: Option<String>,
+    /// Contains the type of sca exemption required for the transaction
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
 }
 
 // Different patterns of authentication.
@@ -473,6 +475,7 @@ impl
                         connector_payment_id,
                         updated_by: storage_scheme.to_string(),
                         redirection_data: *redirection_data.clone(),
+                        connector_metadata: connector_metadata.clone().map(Secret::new),
                     }
                 }
                 router_response_types::PaymentsResponseData::MultipleCaptureResponse { .. } => {

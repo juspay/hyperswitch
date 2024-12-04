@@ -51,7 +51,6 @@ pub mod utils;
 pub mod verification;
 #[cfg(feature = "olap")]
 pub mod verify_connector;
-#[cfg(feature = "v1")]
 pub mod webhooks;
 
 pub mod unified_authentication_service;

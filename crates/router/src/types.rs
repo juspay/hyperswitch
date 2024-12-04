@@ -262,6 +262,7 @@ pub trait Capturable {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Capturable for PaymentsAuthorizeData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -310,6 +311,7 @@ impl Capturable for PaymentsAuthorizeData {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Capturable for PaymentsCaptureData {
     fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -342,6 +344,7 @@ impl Capturable for PaymentsCaptureData {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Capturable for CompleteAuthorizeData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -390,6 +393,7 @@ impl Capturable for CompleteAuthorizeData {
         }
     }
 }
+
 impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsTaxCalculationData {}
 impl Capturable for SdkPaymentsSessionUpdateData {}
@@ -952,7 +956,8 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             connector_mandate_request_reference_id: data
                 .connector_mandate_request_reference_id
                 .clone(),
-            authentication_id: None,
+            authentication_id: data.authentication_id.clone(),
+            psd2_sca_exemption_type: data.psd2_sca_exemption_type,
         }
     }
 }
@@ -1015,10 +1020,11 @@ impl<F1, F2>
             dispute_id: None,
             connector_response: data.connector_response.clone(),
             integrity_check: Ok(()),
-            additional_merchant_data: data.additional_merchant_data.clone(),
             header_payload: data.header_payload.clone(),
-            connector_mandate_request_reference_id: None,
             authentication_id: None,
+            psd2_sca_exemption_type: None,
+            additional_merchant_data: data.additional_merchant_data.clone(),
+            connector_mandate_request_reference_id: None,
         }
     }
 }

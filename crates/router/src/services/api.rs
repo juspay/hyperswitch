@@ -68,7 +68,7 @@ use crate::{
         api_logs::{ApiEvent, ApiEventMetric, ApiEventsType},
         connector_api_logs::ConnectorEvent,
     },
-    logger,
+    headers, logger,
     routes::{
         app::{AppStateInfo, ReqState, SessionStateInfo},
         metrics, AppState, SessionState,
@@ -725,33 +725,44 @@ where
 
     let mut event_type = payload.get_api_event_type();
     let tenant_id = if !state.conf.multitenancy.enabled {
-        DEFAULT_TENANT.to_string()
+        common_utils::id_type::TenantId::try_from_string(DEFAULT_TENANT.to_owned())
+            .attach_printable("Unable to get default tenant id")
+            .change_context(errors::ApiErrorResponse::InternalServerError.switch())?
     } else {
         let request_tenant_id = incoming_request_header
             .get(TENANT_HEADER)
             .and_then(|value| value.to_str().ok())
-            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())?;
+            .ok_or_else(|| errors::ApiErrorResponse::MissingTenantId.switch())
+            .and_then(|header_value| {
+                common_utils::id_type::TenantId::try_from_string(header_value.to_string()).map_err(
+                    |_| {
+                        errors::ApiErrorResponse::InvalidRequestData {
+                            message: format!("`{}` header is invalid", headers::X_TENANT_ID),
+                        }
+                        .switch()
+                    },
+                )
+            })?;
 
         state
             .conf
             .multitenancy
-            .get_tenant(request_tenant_id)
+            .get_tenant(&request_tenant_id)
             .map(|tenant| tenant.tenant_id.clone())
             .ok_or(
                 errors::ApiErrorResponse::InvalidTenant {
-                    tenant_id: request_tenant_id.to_string(),
+                    tenant_id: request_tenant_id.get_string_repr().to_string(),
                 }
                 .switch(),
             )?
     };
 
-    let mut session_state =
-        Arc::new(app_state.clone()).get_session_state(tenant_id.as_str(), || {
-            errors::ApiErrorResponse::InvalidTenant {
-                tenant_id: tenant_id.clone(),
-            }
-            .switch()
-        })?;
+    let mut session_state = Arc::new(app_state.clone()).get_session_state(&tenant_id, || {
+        errors::ApiErrorResponse::InvalidTenant {
+            tenant_id: tenant_id.get_string_repr().to_string(),
+        }
+        .switch()
+    })?;
     session_state.add_request_id(request_id);
     let mut request_state = session_state.get_req_state();
 
@@ -760,9 +771,10 @@ where
         .event_context
         .record_info(("flow".to_string(), flow.to_string()));
 
-    request_state
-        .event_context
-        .record_info(("tenant_id".to_string(), tenant_id.to_string()));
+    request_state.event_context.record_info((
+        "tenant_id".to_string(),
+        tenant_id.get_string_repr().to_string(),
+    ));
 
     // Currently auth failures are not recorded as API events
     let (auth_out, auth_type) = api_auth

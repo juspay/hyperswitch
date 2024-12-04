@@ -384,6 +384,7 @@ diesel::table! {
         dispute_amount -> Int8,
         #[max_length = 32]
         organization_id -> Varchar,
+        dispute_currency -> Nullable<Currency>,
     }
 }
 
@@ -507,6 +508,8 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
+        #[max_length = 64]
+        error_category -> Nullable<Varchar>,
     }
 }
 
@@ -931,6 +934,7 @@ diesel::table! {
         organization_id -> Varchar,
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
+        psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
     }
 }
 
@@ -1279,6 +1283,10 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        entity_type -> Varchar,
+        #[max_length = 64]
+        theme_name -> Varchar,
     }
 }
 

@@ -147,6 +147,7 @@ impl
             header_payload,
             connector_mandate_request_reference_id: None,
             authentication_id: None,
+            psd2_sca_exemption_type: None,
         };
 
         Ok(router_data)

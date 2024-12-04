@@ -103,7 +103,7 @@ impl UserEmail {
     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
         use validator::ValidateEmail;
 
-        let email_string = email.expose();
+        let email_string = email.expose().to_lowercase();
         let email =
             pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
 
@@ -123,25 +123,16 @@ impl UserEmail {
     }
 
     pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
-        use validator::ValidateEmail;
-
-        let email_string = email.peek();
-        if email_string.validate_email() {
-            let (_username, domain) = match email_string.split_once('@') {
-                Some((u, d)) => (u, d),
-                None => return Err(UserErrors::EmailParsingError.into()),
-            };
-            if BLOCKED_EMAIL.contains(domain) {
-                return Err(UserErrors::InvalidEmailError.into());
-            }
-            Ok(Self(email))
-        } else {
-            Err(UserErrors::EmailParsingError.into())
-        }
+        let email_string = email.expose().map(|inner| inner.to_lowercase());
+        Self::new(email_string)
     }
 
     pub fn into_inner(self) -> pii::Email {
         self.0
+    }
+
+    pub fn get_inner(&self) -> &pii::Email {
+        &self.0
     }
 
     pub fn get_secret(self) -> Secret<String, pii::EmailStrategy> {
@@ -630,7 +621,7 @@ impl NewUser {
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
         if state
             .global_store
-            .find_user_by_email(&self.get_email().into_inner())
+            .find_user_by_email(&self.get_email())
             .await
             .is_ok()
         {
@@ -1119,20 +1110,20 @@ pub struct NoLevel;
 
 #[derive(Clone)]
 pub struct OrganizationLevel {
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Clone)]
 pub struct MerchantLevel {
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
 pub struct ProfileLevel {
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
@@ -1169,7 +1160,7 @@ impl NewUserRole<NoLevel> {
 }
 
 pub struct EntityInfo {
-    tenant_id: String,
+    tenant_id: id_type::TenantId,
     org_id: id_type::OrganizationId,
     merchant_id: Option<id_type::MerchantId>,
     profile_id: Option<id_type::ProfileId>,

@@ -1,7 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 pub mod unified_authentication_service;
-use api_models::payments::{AdditionalPaymentData, Address, RequestSurchargeDetails};
+use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
 use common_utils::{
     consts, errors,
     ext_traits::OptionExt,
@@ -16,6 +16,7 @@ use serde_with::serde_as;
 
 use super::payment_method_data::PaymentMethodData;
 use crate::{
+    address,
     errors::api_error_response::ApiErrorResponse,
     mandates, payments,
     router_data::{self, RouterData},
@@ -618,6 +619,7 @@ pub struct RefundsData {
     pub minor_payment_amount: MinorUnit,
     pub minor_refund_amount: MinorUnit,
     pub integrity_object: Option<RefundIntegrityObject>,
+    pub refund_status: storage_enums::RefundStatus,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -836,7 +838,7 @@ pub struct PaymentsTaxCalculationData {
     pub currency: storage_enums::Currency,
     pub shipping_cost: Option<MinorUnit>,
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
-    pub shipping_address: Address,
+    pub shipping_address: address::Address,
 }
 
 #[derive(Debug, Clone, Default)]

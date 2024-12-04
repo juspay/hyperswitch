@@ -7,8 +7,11 @@ use api_models::routing::RoutingRetrieveQuery;
 use common_enums::TransactionType;
 #[cfg(feature = "partial-auth")]
 use common_utils::crypto::Blake3;
+use common_utils::id_type;
 #[cfg(feature = "email")]
-use external_services::email::{ses::AwsSes, EmailService};
+use external_services::email::{
+    no_email::NoEmailClient, ses::AwsSes, smtp::SmtpServer, EmailClientConfigs, EmailService,
+};
 use external_services::{file_storage::FileStorageInterface, grpc_client::GrpcClients};
 use hyperswitch_interfaces::{
     encryption_interface::EncryptionManagementInterface,
@@ -48,7 +51,7 @@ use super::poll;
 use super::routing;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
-#[cfg(all(feature = "oltp", feature = "v1"))]
+#[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, connector_onboarding, disputes, files, gsm, health::*, profiles,
@@ -97,7 +100,7 @@ pub struct SessionState {
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
-    pub email_client: Arc<dyn EmailService>,
+    pub email_client: Arc<Box<dyn EmailService>>,
     #[cfg(feature = "olap")]
     pub pool: AnalyticsProvider,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
@@ -107,6 +110,7 @@ pub struct SessionState {
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub grpc_client: Arc<GrpcClients>,
+    pub theme_storage_client: Arc<dyn FileStorageInterface>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -191,23 +195,24 @@ impl SessionStateInfo for SessionState {
 pub struct AppState {
     pub flow_name: String,
     pub global_store: Box<dyn GlobalStorageInterface>,
-    pub stores: HashMap<String, Box<dyn StorageInterface>>,
+    pub stores: HashMap<id_type::TenantId, Box<dyn StorageInterface>>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub event_handler: EventsHandler,
     #[cfg(feature = "email")]
-    pub email_client: Arc<dyn EmailService>,
+    pub email_client: Arc<Box<dyn EmailService>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     #[cfg(feature = "olap")]
-    pub pools: HashMap<String, AnalyticsProvider>,
+    pub pools: HashMap<id_type::TenantId, AnalyticsProvider>,
     #[cfg(feature = "olap")]
     pub opensearch_client: Arc<OpenSearchClient>,
     pub request_id: Option<RequestId>,
     pub file_storage_client: Arc<dyn FileStorageInterface>,
     pub encryption_client: Arc<dyn EncryptionManagementInterface>,
     pub grpc_client: Arc<GrpcClients>,
+    pub theme_storage_client: Arc<dyn FileStorageInterface>,
 }
 impl scheduler::SchedulerAppState for AppState {
-    fn get_tenants(&self) -> Vec<String> {
+    fn get_tenants(&self) -> Vec<id_type::TenantId> {
         self.conf.multitenancy.get_tenant_ids()
     }
 }
@@ -215,7 +220,7 @@ pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings<RawSecret>;
     fn event_handler(&self) -> EventsHandler;
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailService>;
+    fn email_client(&self) -> Arc<Box<dyn EmailService>>;
     fn add_request_id(&mut self, request_id: RequestId);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
@@ -232,7 +237,7 @@ impl AppStateInfo for AppState {
         self.conf.as_ref().to_owned()
     }
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Arc<dyn EmailService> {
+    fn email_client(&self) -> Arc<Box<dyn EmailService>> {
         self.email_client.to_owned()
     }
     fn event_handler(&self) -> EventsHandler {
@@ -258,11 +263,22 @@ impl AsRef<Self> for AppState {
 }
 
 #[cfg(feature = "email")]
-pub async fn create_email_client(settings: &settings::Settings<RawSecret>) -> impl EmailService {
-    match settings.email.active_email_client {
-        external_services::email::AvailableEmailClients::SES => {
-            AwsSes::create(&settings.email, settings.proxy.https_url.to_owned()).await
+pub async fn create_email_client(
+    settings: &settings::Settings<RawSecret>,
+) -> Box<dyn EmailService> {
+    match &settings.email.client_config {
+        EmailClientConfigs::Ses { aws_ses } => Box::new(
+            AwsSes::create(
+                &settings.email,
+                aws_ses,
+                settings.proxy.https_url.to_owned(),
+            )
+            .await,
+        ),
+        EmailClientConfigs::Smtp { smtp } => {
+            Box::new(SmtpServer::create(&settings.email, smtp.clone()).await)
         }
+        EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
     }
 }
 
@@ -315,7 +331,7 @@ impl AppState {
             );
 
             #[cfg(feature = "olap")]
-            let mut pools: HashMap<String, AnalyticsProvider> = HashMap::new();
+            let mut pools: HashMap<id_type::TenantId, AnalyticsProvider> = HashMap::new();
             let mut stores = HashMap::new();
             #[allow(clippy::expect_used)]
             let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
@@ -353,6 +369,7 @@ impl AppState {
             let email_client = Arc::new(create_email_client(&conf).await);
 
             let file_storage_client = conf.file_storage.get_file_storage_client().await;
+            let theme_storage_client = conf.theme_storage.get_file_storage_client().await;
 
             let grpc_client = conf.grpc_client.get_grpc_client_interface().await;
 
@@ -373,6 +390,7 @@ impl AppState {
                 file_storage_client,
                 encryption_client,
                 grpc_client,
+                theme_storage_client,
             }
         })
         .await
@@ -430,7 +448,11 @@ impl AppState {
         .await
     }
 
-    pub fn get_session_state<E, F>(self: Arc<Self>, tenant: &str, err: F) -> Result<SessionState, E>
+    pub fn get_session_state<E, F>(
+        self: Arc<Self>,
+        tenant: &id_type::TenantId,
+        err: F,
+    ) -> Result<SessionState, E>
     where
         F: FnOnce() -> E + Copy,
     {
@@ -454,6 +476,7 @@ impl AppState {
             #[cfg(feature = "olap")]
             opensearch_client: Arc::clone(&self.opensearch_client),
             grpc_client: Arc::clone(&self.grpc_client),
+            theme_storage_client: self.theme_storage_client.clone(),
         })
     }
 }
@@ -538,11 +561,15 @@ impl Payments {
                 )
                 .service(web::resource("").route(web::get().to(payments::payment_status)))
                 .service(
-                    web::resource("/start_redirection")
+                    web::resource("/start-redirection")
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
-                    web::resource("/finish_redirection/{publishable_key}/{profile_id}")
+                    web::resource("/saved-payment-methods")
+                        .route(web::get().to(list_customer_payment_method_for_payment)),
+                )
+                .service(
+                    web::resource("/finish-redirection/{publishable_key}/{profile_id}")
                         .route(web::get().to(payments::payments_finish_redirection)),
                 ),
         );
@@ -697,7 +724,7 @@ pub struct Routing;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl Routing {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/routing_algorithm")
+        web::scope("/v2/routing-algorithm")
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("").route(web::post().to(|state, req, payload| {
@@ -932,6 +959,10 @@ pub struct Customers;
 impl Customers {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/customers").app_data(web::Data::new(state));
+        #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
+        {
+            route = route.service(web::resource("/list").route(web::get().to(customers_list)))
+        }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "customer_v2"))]
         {
             route = route
@@ -943,14 +974,10 @@ impl Customers {
                         .route(web::delete().to(customers_delete)),
                 )
         }
-        #[cfg(all(feature = "olap", feature = "v2", feature = "customer_v2"))]
-        {
-            route = route.service(web::resource("/list").route(web::get().to(customers_list)))
-        }
         #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2"))]
         {
             route = route.service(
-                web::resource("/{customer_id}/saved_payment_methods")
+                web::resource("/{customer_id}/saved-payment-methods")
                     .route(web::get().to(list_customer_payment_method_api)),
             );
         }
@@ -1095,7 +1122,7 @@ impl Payouts {
 #[cfg(all(feature = "oltp", feature = "v2", feature = "payment_methods_v2",))]
 impl PaymentMethods {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/payment_methods").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/payment-methods").app_data(web::Data::new(state));
         route = route
             .service(web::resource("").route(web::post().to(create_payment_method_api)))
             .service(
@@ -1107,7 +1134,7 @@ impl PaymentMethods {
                     .route(web::post().to(confirm_payment_method_intent_api)),
             )
             .service(
-                web::resource("/{id}/update_saved_payment_method")
+                web::resource("/{id}/update-saved-payment-method")
                     .route(web::patch().to(payment_method_update_api)),
             )
             .service(web::resource("/{id}").route(web::get().to(payment_method_retrieve_api)))
@@ -1194,7 +1221,10 @@ impl Recon {
             .service(
                 web::resource("/request").route(web::post().to(recon_routes::request_for_recon)),
             )
-            .service(web::resource("/verify_token").route(web::get().to(user::verify_recon_token)))
+            .service(
+                web::resource("/verify_token")
+                    .route(web::get().to(recon_routes::verify_recon_token)),
+            )
     }
 }
 
@@ -1249,7 +1279,7 @@ impl Organization {
                             .route(web::put().to(admin::organization_update)),
                     )
                     .service(
-                        web::resource("/merchant_accounts")
+                        web::resource("/merchant-accounts")
                             .route(web::get().to(admin::merchant_account_list)),
                     ),
             )
@@ -1261,7 +1291,7 @@ pub struct MerchantAccount;
 #[cfg(all(feature = "v2", feature = "olap"))]
 impl MerchantAccount {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/merchant_accounts")
+        web::scope("/v2/merchant-accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(admin::merchant_account_create)))
             .service(
@@ -1311,7 +1341,7 @@ pub struct MerchantConnectorAccount;
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v2"))]
 impl MerchantConnectorAccount {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/v2/connector_accounts").app_data(web::Data::new(state));
+        let mut route = web::scope("/v2/connector-accounts").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
@@ -1437,6 +1467,29 @@ impl Webhooks {
     }
 }
 
+#[cfg(all(feature = "oltp", feature = "v2"))]
+impl Webhooks {
+    pub fn server(config: AppState) -> Scope {
+        use api_models::webhooks as webhook_type;
+
+        #[allow(unused_mut)]
+        let mut route = web::scope("/v2/webhooks")
+            .app_data(web::Data::new(config))
+            .service(
+                web::resource("/{merchant_id}/{profile_id}/{connector_id}")
+                    .route(
+                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    )
+                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
+                    .route(
+                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
+                    ),
+            );
+
+        route
+    }
+}
+
 pub struct Configs;
 
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -1485,7 +1538,7 @@ pub struct ApiKeys;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl ApiKeys {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/api_keys")
+        web::scope("/v2/api-keys")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(api_keys::api_key_create)))
             .service(web::resource("/list").route(web::get().to(api_keys::api_key_list)))
@@ -1635,7 +1688,6 @@ impl PayoutLink {
         route
     }
 }
-
 pub struct Profile;
 #[cfg(all(feature = "olap", feature = "v2"))]
 impl Profile {
@@ -1651,16 +1703,16 @@ impl Profile {
                             .route(web::put().to(profiles::profile_update)),
                     )
                     .service(
-                        web::resource("/connector_accounts")
+                        web::resource("/connector-accounts")
                             .route(web::get().to(admin::connector_list)),
                     )
                     .service(
-                        web::resource("/fallback_routing")
+                        web::resource("/fallback-routing")
                             .route(web::get().to(routing::routing_retrieve_default_config))
                             .route(web::patch().to(routing::routing_update_default_config)),
                     )
                     .service(
-                        web::resource("/activate_routing_algorithm").route(web::patch().to(
+                        web::resource("/activate-routing-algorithm").route(web::patch().to(
                             |state, req, path, payload| {
                                 routing::routing_link_config(
                                     state,
@@ -1673,7 +1725,7 @@ impl Profile {
                         )),
                     )
                     .service(
-                        web::resource("/deactivate_routing_algorithm").route(web::patch().to(
+                        web::resource("/deactivate-routing-algorithm").route(web::patch().to(
                             |state, req, path| {
                                 routing::routing_unlink_config(
                                     state,
@@ -1684,7 +1736,7 @@ impl Profile {
                             },
                         )),
                     )
-                    .service(web::resource("/routing_algorithm").route(web::get().to(
+                    .service(web::resource("/routing-algorithm").route(web::get().to(
                         |state, req, query_params, path| {
                             routing::routing_retrieve_linked_config(
                                 state,
@@ -1701,47 +1753,60 @@ impl Profile {
 #[cfg(all(feature = "olap", feature = "v1"))]
 impl Profile {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/account/{account_id}/business_profile")
+        let mut route = web::scope("/account/{account_id}/business_profile")
             .app_data(web::Data::new(state))
             .service(
                 web::resource("")
                     .route(web::post().to(profiles::profile_create))
                     .route(web::get().to(profiles::profiles_list)),
-            )
-            .service(
-                web::scope("/{profile_id}")
+            );
+
+        #[cfg(feature = "dynamic_routing")]
+        {
+            route = route.service(
+                web::scope("/{profile_id}/dynamic_routing")
                     .service(
-                        web::scope("/dynamic_routing").service(
-                            web::scope("/success_based")
-                                .service(
-                                    web::resource("/toggle").route(
-                                        web::post().to(routing::toggle_success_based_routing),
-                                    ),
-                                )
-                                .service(web::resource("/config/{algorithm_id}").route(
-                                    web::patch().to(|state, req, path, payload| {
-                                        routing::success_based_routing_update_configs(
-                                            state, req, path, payload,
-                                        )
-                                    }),
-                                )),
+                        web::scope("/success_based")
+                            .service(
+                                web::resource("/toggle")
+                                    .route(web::post().to(routing::toggle_success_based_routing)),
+                            )
+                            .service(web::resource("/config/{algorithm_id}").route(
+                                web::patch().to(|state, req, path, payload| {
+                                    routing::success_based_routing_update_configs(
+                                        state, req, path, payload,
+                                    )
+                                }),
+                            )),
+                    )
+                    .service(
+                        web::scope("/elimination").service(
+                            web::resource("/toggle")
+                                .route(web::post().to(routing::toggle_elimination_routing)),
                         ),
-                    )
-                    .service(
-                        web::resource("")
-                            .route(web::get().to(profiles::profile_retrieve))
-                            .route(web::post().to(profiles::profile_update))
-                            .route(web::delete().to(profiles::profile_delete)),
-                    )
-                    .service(
-                        web::resource("/toggle_extended_card_info")
-                            .route(web::post().to(profiles::toggle_extended_card_info)),
-                    )
-                    .service(
-                        web::resource("/toggle_connector_agnostic_mit")
-                            .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
                     ),
-            )
+            );
+        }
+
+        route = route.service(
+            web::scope("/{profile_id}")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(profiles::profile_retrieve))
+                        .route(web::post().to(profiles::profile_update))
+                        .route(web::delete().to(profiles::profile_delete)),
+                )
+                .service(
+                    web::resource("/toggle_extended_card_info")
+                        .route(web::post().to(profiles::toggle_extended_card_info)),
+                )
+                .service(
+                    web::resource("/toggle_connector_agnostic_mit")
+                        .route(web::post().to(profiles::toggle_connector_agnostic_mit)),
+                ),
+        );
+
+        route
     }
 }
 
@@ -2070,6 +2135,23 @@ impl User {
                     .route(web::delete().to(user::delete_sample_data)),
             )
         }
+
+        route = route.service(
+            web::scope("/theme")
+                .service(
+                    web::resource("")
+                        .route(web::get().to(user::theme::get_theme_using_lineage))
+                        .route(web::post().to(user::theme::create_theme)),
+                )
+                .service(
+                    web::resource("/{theme_id}")
+                        .route(web::get().to(user::theme::get_theme_using_theme_id))
+                        .route(web::put().to(user::theme::update_theme))
+                        .route(web::post().to(user::theme::upload_file_to_theme_storage))
+                        .route(web::delete().to(user::theme::delete_theme)),
+                ),
+        );
+
         route
     }
 }

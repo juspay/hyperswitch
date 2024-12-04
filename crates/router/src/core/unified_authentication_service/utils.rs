@@ -227,5 +227,6 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         header_payload: None,
         connector_mandate_request_reference_id: None,
         authentication_id,
+        psd2_sca_exemption_type: None,
     })
 }
