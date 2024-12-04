@@ -15,7 +15,7 @@ impl utils::Connector for Cybersource {
     fn get_data(&self) -> api::ConnectorData {
         use router::connector::Cybersource;
         utils::construct_connector_data_old(
-            Box::new(&Cybersource),
+            Box::new(Cybersource::new()),
             types::Connector::Cybersource,
             api::GetToken::Connector,
             None,

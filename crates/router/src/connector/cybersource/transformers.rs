@@ -6,7 +6,7 @@ use common_enums::FutureUsage;
 use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     pii,
-    types::SemanticVersion,
+    types::{SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
@@ -40,21 +40,16 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub struct CybersourceRouterData<T> {
-    pub amount: String,
+    pub amount: StringMajorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(&api::CurrencyUnit, enums::Currency, i64, T)> for CybersourceRouterData<T> {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        (currency_unit, currency, amount, item): (&api::CurrencyUnit, enums::Currency, i64, T),
-    ) -> Result<Self, Self::Error> {
-        // This conversion function is used at different places in the file, if updating this, keep a check for those
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
-        Ok(Self {
+impl<T> From<(StringMajorUnit, T)> for CybersourceRouterData<T> {
+    fn from((amount, router_data): (StringMajorUnit, T)) -> Self {
+        Self {
             amount,
-            router_data: item,
-        })
+            router_data,
+        }
     }
 }
 
@@ -92,7 +87,7 @@ impl TryFrom<&types::SetupMandateRouterData> for CybersourceZeroMandateRequest {
 
         let order_information = OrderInformationWithBill {
             amount_details: Amount {
-                total_amount: "0".to_string(),
+                total_amount: StringMajorUnit::zero(),
                 currency: item.request.currency,
             },
             bill_to: Some(bill_to),
@@ -525,14 +520,14 @@ pub struct OrderInformation {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Amount {
-    total_amount: String,
+    total_amount: StringMajorUnit,
     currency: api_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalAmount {
-    additional_amount: String,
+    additional_amount: StringMajorUnit,
     currency: String,
 }
 
