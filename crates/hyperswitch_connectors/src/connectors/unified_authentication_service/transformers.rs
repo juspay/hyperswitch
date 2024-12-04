@@ -18,12 +18,12 @@ use crate::{
 };
 
 //TODO: Fill the struct with respective fields
-pub struct UnifiedauthenticationserviceRouterData<T> {
+pub struct UnifiedAuthenticationServiceRouterData<T> {
     pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for UnifiedauthenticationserviceRouterData<T> {
+impl<T> From<(StringMinorUnit, T)> for UnifiedAuthenticationServiceRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
@@ -35,13 +35,13 @@ impl<T> From<(StringMinorUnit, T)> for UnifiedauthenticationserviceRouterData<T>
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, PartialEq)]
-pub struct UnifiedauthenticationservicePaymentsRequest {
+pub struct UnifiedAuthenticationServicePaymentsRequest {
     amount: StringMinorUnit,
-    card: UnifiedauthenticationserviceCard,
+    card: UnifiedAuthenticationServiceCard,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct UnifiedauthenticationserviceCard {
+pub struct UnifiedAuthenticationServiceCard {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -49,16 +49,16 @@ pub struct UnifiedauthenticationserviceCard {
     complete: bool,
 }
 
-impl TryFrom<&UnifiedauthenticationserviceRouterData<&PaymentsAuthorizeRouterData>>
-    for UnifiedauthenticationservicePaymentsRequest
+impl TryFrom<&UnifiedAuthenticationServiceRouterData<&PaymentsAuthorizeRouterData>>
+    for UnifiedAuthenticationServicePaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &UnifiedauthenticationserviceRouterData<&PaymentsAuthorizeRouterData>,
+        item: &UnifiedAuthenticationServiceRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                let card = UnifiedauthenticationserviceCard {
+                let card = UnifiedAuthenticationServiceCard {
                     number: req_card.card_number,
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
@@ -77,11 +77,11 @@ impl TryFrom<&UnifiedauthenticationserviceRouterData<&PaymentsAuthorizeRouterDat
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
-pub struct UnifiedauthenticationserviceAuthType {
+pub struct UnifiedAuthenticationServiceAuthType {
     pub(super) api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for UnifiedauthenticationserviceAuthType {
+impl TryFrom<&ConnectorAuthType> for UnifiedAuthenticationServiceAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -96,27 +96,27 @@ impl TryFrom<&ConnectorAuthType> for UnifiedauthenticationserviceAuthType {
 //TODO: Append the remaining status flags
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum UnifiedauthenticationservicePaymentStatus {
+pub enum UnifiedAuthenticationServicePaymentStatus {
     Succeeded,
     Failed,
     #[default]
     Processing,
 }
 
-impl From<UnifiedauthenticationservicePaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: UnifiedauthenticationservicePaymentStatus) -> Self {
+impl From<UnifiedAuthenticationServicePaymentStatus> for common_enums::AttemptStatus {
+    fn from(item: UnifiedAuthenticationServicePaymentStatus) -> Self {
         match item {
-            UnifiedauthenticationservicePaymentStatus::Succeeded => Self::Charged,
-            UnifiedauthenticationservicePaymentStatus::Failed => Self::Failure,
-            UnifiedauthenticationservicePaymentStatus::Processing => Self::Authorizing,
+            UnifiedAuthenticationServicePaymentStatus::Succeeded => Self::Charged,
+            UnifiedAuthenticationServicePaymentStatus::Failed => Self::Failure,
+            UnifiedAuthenticationServicePaymentStatus::Processing => Self::Authorizing,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct UnifiedauthenticationservicePaymentsResponse {
-    status: UnifiedauthenticationservicePaymentStatus,
+pub struct UnifiedAuthenticationServicePaymentsResponse {
+    status: UnifiedAuthenticationServicePaymentStatus,
     id: String,
 }
 
@@ -124,7 +124,7 @@ impl<F, T>
     TryFrom<
         ResponseRouterData<
             F,
-            UnifiedauthenticationservicePaymentsResponse,
+            UnifiedAuthenticationServicePaymentsResponse,
             T,
             PaymentsResponseData,
         >,
@@ -134,7 +134,7 @@ impl<F, T>
     fn try_from(
         item: ResponseRouterData<
             F,
-            UnifiedauthenticationservicePaymentsResponse,
+            UnifiedAuthenticationServicePaymentsResponse,
             T,
             PaymentsResponseData,
         >,
@@ -160,16 +160,16 @@ impl<F, T>
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
-pub struct UnifiedauthenticationserviceRefundRequest {
+pub struct UnifiedAuthenticationServiceRefundRequest {
     pub amount: StringMinorUnit,
 }
 
-impl<F> TryFrom<&UnifiedauthenticationserviceRouterData<&RefundsRouterData<F>>>
-    for UnifiedauthenticationserviceRefundRequest
+impl<F> TryFrom<&UnifiedAuthenticationServiceRouterData<&RefundsRouterData<F>>>
+    for UnifiedAuthenticationServiceRefundRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &UnifiedauthenticationserviceRouterData<&RefundsRouterData<F>>,
+        item: &UnifiedAuthenticationServiceRouterData<&RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.amount.to_owned(),
@@ -238,7 +238,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct UnifiedauthenticationserviceErrorResponse {
+pub struct UnifiedAuthenticationServiceErrorResponse {
     pub status_code: u16,
     pub code: String,
     pub message: String,

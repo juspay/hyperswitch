@@ -34,16 +34,16 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
-use transformers as unifiedauthenticationservice;
+use transformers as unified_authentication_service;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct Unifiedauthenticationservice {
+pub struct UnifiedAuthenticationService {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
-impl Unifiedauthenticationservice {
+impl UnifiedAuthenticationService {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMinorUnitForConnector,
@@ -51,27 +51,27 @@ impl Unifiedauthenticationservice {
     }
 }
 
-impl api::Payment for Unifiedauthenticationservice {}
-impl api::PaymentSession for Unifiedauthenticationservice {}
-impl api::ConnectorAccessToken for Unifiedauthenticationservice {}
-impl api::MandateSetup for Unifiedauthenticationservice {}
-impl api::PaymentAuthorize for Unifiedauthenticationservice {}
-impl api::PaymentSync for Unifiedauthenticationservice {}
-impl api::PaymentCapture for Unifiedauthenticationservice {}
-impl api::PaymentVoid for Unifiedauthenticationservice {}
-impl api::Refund for Unifiedauthenticationservice {}
-impl api::RefundExecute for Unifiedauthenticationservice {}
-impl api::RefundSync for Unifiedauthenticationservice {}
-impl api::PaymentToken for Unifiedauthenticationservice {}
+impl api::Payment for UnifiedAuthenticationService {}
+impl api::PaymentSession for UnifiedAuthenticationService {}
+impl api::ConnectorAccessToken for UnifiedAuthenticationService {}
+impl api::MandateSetup for UnifiedAuthenticationService {}
+impl api::PaymentAuthorize for UnifiedAuthenticationService {}
+impl api::PaymentSync for UnifiedAuthenticationService {}
+impl api::PaymentCapture for UnifiedAuthenticationService {}
+impl api::PaymentVoid for UnifiedAuthenticationService {}
+impl api::Refund for UnifiedAuthenticationService {}
+impl api::RefundExecute for UnifiedAuthenticationService {}
+impl api::RefundSync for UnifiedAuthenticationService {}
+impl api::PaymentToken for UnifiedAuthenticationService {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 {
     // Not Implemented (R)
 }
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -90,9 +90,9 @@ where
     }
 }
 
-impl ConnectorCommon for Unifiedauthenticationservice {
+impl ConnectorCommon for UnifiedAuthenticationService {
     fn id(&self) -> &'static str {
-        "unifiedauthenticationservice"
+        "unified_authentication_service"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -107,16 +107,17 @@ impl ConnectorCommon for Unifiedauthenticationservice {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.unifiedauthenticationservice.base_url.as_ref()
+        connectors.unified_authentication_service.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth =
-            unifiedauthenticationservice::UnifiedauthenticationserviceAuthType::try_from(auth_type)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth = unified_authentication_service::UnifiedAuthenticationServiceAuthType::try_from(
+            auth_type,
+        )
+        .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             auth.api_key.expose().into_masked(),
@@ -128,10 +129,10 @@ impl ConnectorCommon for Unifiedauthenticationservice {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: unifiedauthenticationservice::UnifiedauthenticationserviceErrorResponse = res
-            .response
-            .parse_struct("UnifiedauthenticationserviceErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: unified_authentication_service::UnifiedAuthenticationServiceErrorResponse =
+            res.response
+                .parse_struct("UnifiedAuthenticationServiceErrorResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -147,28 +148,28 @@ impl ConnectorCommon for Unifiedauthenticationservice {
     }
 }
 
-impl ConnectorValidation for Unifiedauthenticationservice {
+impl ConnectorValidation for UnifiedAuthenticationService {
     //TODO: implement functions when support enabled
 }
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 {
     //TODO: implement sessions flow
 }
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 {
 }
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 {
 }
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 {
     fn get_headers(
         &self,
@@ -202,11 +203,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         )?;
 
         let connector_router_data =
-            unifiedauthenticationservice::UnifiedauthenticationserviceRouterData::from((
+            unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
                 amount, req,
             ));
         let connector_req =
-            unifiedauthenticationservice::UnifiedauthenticationservicePaymentsRequest::try_from(
+            unified_authentication_service::UnifiedAuthenticationServicePaymentsRequest::try_from(
                 &connector_router_data,
             )?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -240,9 +241,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: unifiedauthenticationservice::UnifiedauthenticationservicePaymentsResponse =
+        let response: unified_authentication_service::UnifiedAuthenticationServicePaymentsResponse =
             res.response
-                .parse_struct("Unifiedauthenticationservice PaymentsAuthorizeResponse")
+                .parse_struct("UnifiedAuthenticationService PaymentsAuthorizeResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -263,7 +264,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 }
 
 impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 {
     fn get_headers(
         &self,
@@ -306,9 +307,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: unifiedauthenticationservice::UnifiedauthenticationservicePaymentsResponse =
+        let response: unified_authentication_service::UnifiedAuthenticationServicePaymentsResponse =
             res.response
-                .parse_struct("unifiedauthenticationservice PaymentsSyncResponse")
+                .parse_struct("unified_authentication_service PaymentsSyncResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -329,7 +330,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 {
     fn get_headers(
         &self,
@@ -385,9 +386,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: unifiedauthenticationservice::UnifiedauthenticationservicePaymentsResponse =
+        let response: unified_authentication_service::UnifiedAuthenticationServicePaymentsResponse =
             res.response
-                .parse_struct("Unifiedauthenticationservice PaymentsCaptureResponse")
+                .parse_struct("UnifiedAuthenticationService PaymentsCaptureResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -408,12 +409,12 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
 }
 
 impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 {
 }
 
 impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 {
     fn get_headers(
         &self,
@@ -447,12 +448,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
         )?;
 
         let connector_router_data =
-            unifiedauthenticationservice::UnifiedauthenticationserviceRouterData::from((
+            unified_authentication_service::UnifiedAuthenticationServiceRouterData::from((
                 refund_amount,
                 req,
             ));
         let connector_req =
-            unifiedauthenticationservice::UnifiedauthenticationserviceRefundRequest::try_from(
+            unified_authentication_service::UnifiedAuthenticationServiceRefundRequest::try_from(
                 &connector_router_data,
             )?;
         Ok(RequestContent::Json(Box::new(connector_req)))
@@ -483,9 +484,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: unifiedauthenticationservice::RefundResponse = res
+        let response: unified_authentication_service::RefundResponse = res
             .response
-            .parse_struct("unifiedauthenticationservice RefundResponse")
+            .parse_struct("UnifiedAuthenticationService RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -506,7 +507,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData>
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData>
-    for Unifiedauthenticationservice
+    for UnifiedAuthenticationService
 {
     fn get_headers(
         &self,
@@ -552,9 +553,9 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData>
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
-        let response: unifiedauthenticationservice::RefundResponse = res
+        let response: unified_authentication_service::RefundResponse = res
             .response
-            .parse_struct("unifiedauthenticationservice RefundSyncResponse")
+            .parse_struct("UnifiedAuthenticationService RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -575,7 +576,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData>
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Unifiedauthenticationservice {
+impl webhooks::IncomingWebhook for UnifiedAuthenticationService {
     fn get_webhook_object_reference_id(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,

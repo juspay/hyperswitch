@@ -6,13 +6,13 @@ use test_utils::connector_auth;
 use crate::utils::{self, ConnectorActions};
 
 #[derive(Clone, Copy)]
-struct UnifiedauthenticationserviceTest;
-impl ConnectorActions for UnifiedauthenticationserviceTest {}
-impl utils::Connector for UnifiedauthenticationserviceTest {
+struct UnifiedAuthenticationServiceTest;
+impl ConnectorActions for UnifiedAuthenticationServiceTest {}
+impl utils::Connector for UnifiedAuthenticationServiceTest {
     fn get_data(&self) -> api::ConnectorData {
-        use router::connector::Unifiedauthenticationservice;
+        use router::connector::UnifiedAuthenticationService;
         utils::construct_connector_data_old(
-            Box::new(Unifiedauthenticationservice::new()),
+            Box::new(UnifiedAuthenticationService::new()),
             types::Connector::Plaid,
             api::GetToken::Connector,
             None,
@@ -22,18 +22,18 @@ impl utils::Connector for UnifiedauthenticationserviceTest {
     fn get_auth_token(&self) -> types::ConnectorAuthType {
         utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
-                .unifiedauthenticationservice
+                .unified_authentication_service
                 .expect("Missing connector authentication configuration")
                 .into(),
         )
     }
 
     fn get_name(&self) -> String {
-        "unifiedauthenticationservice".to_string()
+        "unified_authentication_service".to_string()
     }
 }
 
-static CONNECTOR: UnifiedauthenticationserviceTest = UnifiedauthenticationserviceTest {};
+static CONNECTOR: UnifiedAuthenticationServiceTest = UnifiedAuthenticationServiceTest {};
 
 fn get_default_payment_info() -> Option<utils::PaymentInfo> {
     None

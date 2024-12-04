@@ -88,7 +88,7 @@ pub struct Connectors {
     pub thunes: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
-    pub unifiedauthenticationservice: ConnectorParams,
+    pub unified_authentication_service: ConnectorParams,
     pub volt: ConnectorParams,
     pub wellsfargo: ConnectorParams,
     pub wellsfargopayout: ConnectorParams,
