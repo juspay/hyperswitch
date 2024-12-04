@@ -1,8 +1,12 @@
+#[cfg(feature = "v1")]
 use common_enums::enums;
+#[cfg(feature = "v1")]
 use common_utils::errors;
 
+#[cfg(feature = "v1")]
 use crate::payments;
 
+#[cfg(feature = "v1")]
 impl crate::ValidateFieldAndGet<payments::PaymentsRequest>
     for common_utils::types::RequestExtendedAuthorizationBool
 {
