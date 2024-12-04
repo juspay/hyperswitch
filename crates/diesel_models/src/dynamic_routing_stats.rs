@@ -19,9 +19,7 @@ pub struct DynamicRoutingStatsNew {
     pub created_at: time::PrimitiveDateTime,
 }
 
-#[derive(
-    Clone, Debug, Eq, PartialEq, Queryable, Selectable, Insertable,
-)]
+#[derive(Clone, Debug, Eq, PartialEq, Queryable, Selectable, Insertable)]
 #[diesel(table_name = dynamic_routing_stats, primary_key(payment_id), check_for_backend(diesel::pg::Pg))]
 pub struct DynamicRoutingStats {
     pub payment_id: common_utils::id_type::PaymentId,
