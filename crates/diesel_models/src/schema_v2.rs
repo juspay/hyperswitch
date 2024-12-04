@@ -204,11 +204,6 @@ diesel::table! {
         #[max_length = 64]
         tax_connector_id -> Nullable<Varchar>,
         is_tax_connector_enabled -> Nullable<Bool>,
-        version -> ApiVersion,
-        dynamic_routing_algorithm -> Nullable<Json>,
-        is_network_tokenization_enabled -> Bool,
-        is_auto_retries_enabled -> Nullable<Bool>,
-        max_auto_retries_enabled -> Nullable<Int2>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
@@ -221,6 +216,11 @@ diesel::table! {
         should_collect_cvv_during_payment -> Bool,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
+        dynamic_routing_algorithm -> Nullable<Json>,
+        is_network_tokenization_enabled -> Bool,
+        is_auto_retries_enabled -> Nullable<Bool>,
+        max_auto_retries_enabled -> Nullable<Int2>,
     }
 }
 
@@ -829,9 +829,6 @@ diesel::table! {
         organization_id -> Varchar,
         #[max_length = 32]
         card_network -> Nullable<Varchar>,
-        shipping_cost -> Nullable<Int8>,
-        order_tax_amount -> Nullable<Int8>,
-        connector_mandate_detail -> Nullable<Jsonb>,
         payment_method_type_v2 -> Varchar,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -848,6 +845,9 @@ diesel::table! {
         connector_payment_data -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
+        shipping_cost -> Nullable<Int8>,
+        order_tax_amount -> Nullable<Int8>,
+        connector_mandate_detail -> Nullable<Jsonb>,
     }
 }
 
@@ -900,7 +900,6 @@ diesel::table! {
         organization_id -> Varchar,
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
-        psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
@@ -922,6 +921,7 @@ diesel::table! {
         payment_link_config -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
+        psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
     }
 }
 
@@ -981,12 +981,6 @@ diesel::table! {
         payment_method_billing_address -> Nullable<Bytea>,
         #[max_length = 64]
         updated_by -> Nullable<Varchar>,
-        version -> ApiVersion,
-        #[max_length = 128]
-        network_token_requestor_reference_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        network_token_locker_id -> Nullable<Varchar>,
-        network_token_payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
         #[max_length = 64]
@@ -995,6 +989,12 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         #[max_length = 64]
         id -> Varchar,
+        version -> ApiVersion,
+        #[max_length = 128]
+        network_token_requestor_reference_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        network_token_locker_id -> Nullable<Varchar>,
+        network_token_payment_method_data -> Nullable<Bytea>,
     }
 }
 
