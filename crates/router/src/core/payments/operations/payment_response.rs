@@ -42,6 +42,7 @@ use crate::{
         },
         utils as core_utils,
     },
+    services,
     routes::{metrics, SessionState},
     types::{
         self, domain,
@@ -2033,6 +2034,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .as_mut()
             .map(|info| info.status = status)
     });
+
+    let cache_key = payment_data.cache_key.clone();
+    if payment_data.payment_attempt.status == enums::AttemptStatus::Failure {
+        let _ = services::card_testing_guard::increment_blocked_count_in_cache(state, &cache_key.unwrap(), 3600).await;
+    }
 
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),

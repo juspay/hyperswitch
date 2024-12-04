@@ -523,6 +523,7 @@ async fn get_tracker_for_sync<
         tax_data: None,
         session_id: None,
         service_details: None,
+        cache_key: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {
