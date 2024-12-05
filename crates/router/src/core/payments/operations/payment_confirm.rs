@@ -773,6 +773,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 )), // connector_mandate_request_reference_id
             )),
         );
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -813,6 +814,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             poll_config: None,
             tax_data: None,
             session_id: None,
+            service_details: request.service_details.clone()
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

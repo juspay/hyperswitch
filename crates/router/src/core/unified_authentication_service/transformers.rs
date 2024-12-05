@@ -14,7 +14,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestData {
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         let service_details = ServiceDetails {
             service_session_ids: Some(ServiceSessionIds {
-                merchant_transaction_id: None,
+                merchant_transaction_id: payment_data.service_details.map(|details| details.merchant_transaction_id.clone()),
                 correlation_id: None,
                 x_src_flow_id: None,
             }),
