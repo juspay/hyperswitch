@@ -11529,18 +11529,18 @@ impl Default for settings::RequiredFields {
                                             }
                                         ),
                                         (
-                                            "payment_method_data.bank_debit.ach.account_number".to_string(),
+                                            "payment_method_data.bank_debit.ach_bank_debit.account_number".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.bank_debit.ach.account_number".to_string(),
+                                                required_field: "payment_method_data.bank_debit.ach_bank_debit.account_number".to_string(),
                                                 display_name: "bank_account_number".to_string(),
                                                 field_type: enums::FieldType::UserBankAccountNumber,
                                                 value: None,
                                             }
                                         ),
                                         (
-                                            "payment_method_data.bank_debit.ach.routing_number".to_string(),
+                                            "payment_method_data.bank_debit.ach_bank_debit.routing_number".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.bank_debit.ach.routing_number".to_string(),
+                                                required_field: "payment_method_data.bank_debit.ach_bank_debit.routing_number".to_string(),
                                                 display_name: "bank_routing_number".to_string(),
                                                 field_type: enums::FieldType::Text,
                                                 value: None,
@@ -11571,18 +11571,18 @@ impl Default for settings::RequiredFields {
                                                     }
                                                 ),
                                                 (
-                                                    "payment_method_data.bank_debit.ach.account_number".to_string(),
+                                                    "payment_method_data.bank_debit.ach_bank_debit.account_number".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.bank_debit.ach.account_number".to_string(),
+                                                        required_field: "payment_method_data.bank_debit.ach_bank_debit.account_number".to_string(),
                                                         display_name: "bank_account_number".to_string(),
                                                         field_type: enums::FieldType::UserBankAccountNumber,
                                                         value: None,
                                                     }
                                                 ),
                                                 (
-                                                    "payment_method_data.bank_debit.ach.routing_number".to_string(),
+                                                    "payment_method_data.bank_debit.ach_bank_debit.routing_number".to_string(),
                                                     RequiredFieldInfo {
-                                                        required_field: "payment_method_data.bank_debit.ach.routing_number".to_string(),
+                                                        required_field: "payment_method_data.bank_debit.ach_bank_debit.routing_number".to_string(),
                                                         display_name: "bank_routing_number".to_string(),
                                                         field_type: enums::FieldType::Text,
                                                         value: None,
@@ -11740,18 +11740,18 @@ impl Default for settings::RequiredFields {
                                             }
                                         ),
                                         (
-                                            "payment_method_data.bank_debit.bacs.account_number".to_string(),
+                                            "payment_method_data.bank_debit.bacs_bank_debit.account_number".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.bank_debit.bacs.account_number".to_string(),
+                                                required_field: "payment_method_data.bank_debit.bacs_bank_debit.account_number".to_string(),
                                                 display_name: "bank_account_number".to_string(),
                                                 field_type: enums::FieldType::UserBankAccountNumber,
                                                 value: None,
                                             }
                                         ),
                                         (
-                                            "payment_method_data.bank_debit.bacs.sort_code".to_string(),
+                                            "payment_method_data.bank_debit.bacs_bank_debit.sort_code".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.bank_debit.bacs.sort_code".to_string(),
+                                                required_field: "payment_method_data.bank_debit.bacs_bank_debit.sort_code".to_string(),
                                                 display_name: "bank_sort_code".to_string(),
                                                 field_type: enums::FieldType::Text,
                                                 value: None,
@@ -11812,18 +11812,18 @@ impl Default for settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.bank_debit.bacs.account_number".to_string(),
+                                                "payment_method_data.bank_debit.bacs_bank_debit.account_number".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_debit.bacs.account_number".to_string(),
+                                                    required_field: "payment_method_data.bank_debit.bacs_bank_debit.account_number".to_string(),
                                                     display_name: "bank_account_number".to_string(),
                                                     field_type: enums::FieldType::UserBankAccountNumber,
                                                     value: None,
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.bank_debit.bacs.sort_code".to_string(),
+                                                "payment_method_data.bank_debit.bacs_bank_debit.sort_code".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_debit.bacs.sort_code".to_string(),
+                                                    required_field: "payment_method_data.bank_debit.bacs_bank_debit.sort_code".to_string(),
                                                     display_name: "bank_sort_code".to_string(),
                                                     field_type: enums::FieldType::Text,
                                                     value: None,
@@ -11862,18 +11862,18 @@ impl Default for settings::RequiredFields {
                                             }
                                         ),
                                         (
-                                            "payment_method_data.bank_debit.becs.account_number".to_string(),
+                                            "payment_method_data.bank_debit.becs_bank_debit.account_number".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.bank_debit.becs.account_number".to_string(),
+                                                required_field: "payment_method_data.bank_debit.becs_bank_debit.account_number".to_string(),
                                                 display_name: "bank_account_number".to_string(),
                                                 field_type: enums::FieldType::UserBankAccountNumber,
                                                 value: None,
                                             }
                                         ),
                                         (
-                                            "payment_method_data.bank_debit.becs.bsb_number".to_string(),
+                                            "payment_method_data.bank_debit.becs_bank_debit.bsb_number".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.bank_debit.becs.bsb_number".to_string(),
+                                                required_field: "payment_method_data.bank_debit.becs_bank_debit.bsb_number".to_string(),
                                                 display_name: "bsb_number".to_string(),
                                                 field_type: enums::FieldType::Text,
                                                 value: None,
@@ -11914,18 +11914,18 @@ impl Default for settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.bank_debit.bacs.account_number".to_string(),
+                                                "payment_method_data.bank_debit.becs_bank_debit.account_number".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_debit.bacs.account_number".to_string(),
+                                                    required_field: "payment_method_data.bank_debit.becs_bank_debit.account_number".to_string(),
                                                     display_name: "bank_account_number".to_string(),
                                                     field_type: enums::FieldType::UserBankAccountNumber,
                                                     value: None,
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.bank_debit.bacs.sort_code".to_string(),
+                                                "payment_method_data.bank_debit.becs_bank_debit.sort_code".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.bank_debit.bacs.sort_code".to_string(),
+                                                    required_field: "payment_method_data.bank_debit.becs_bank_debit.sort_code".to_string(),
                                                     display_name: "bank_sort_code".to_string(),
                                                     field_type: enums::FieldType::Text,
                                                     value: None,
