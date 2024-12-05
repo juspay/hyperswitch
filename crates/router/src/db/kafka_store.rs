@@ -3565,6 +3565,17 @@ impl RoleInterface for KafkaStore {
             .list_roles_for_org_by_parameters(org_id, merchant_id, entity_type, limit)
             .await
     }
+
+    async fn generic_list_roles_by_entity_type(
+        &self,
+        entity_type: diesel_models::role::ListRolesByEntityPayload,
+        is_lineage_data_required: bool,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
+        self.diesel_store
+            .generic_list_roles_by_entity_type(entity_type, is_lineage_data_required, limit)
+            .await
+    }
 }
 
 #[async_trait::async_trait]

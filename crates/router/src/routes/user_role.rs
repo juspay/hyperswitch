@@ -88,7 +88,7 @@ pub async fn create_role(
         json_payload.into_inner(),
         role_core::create_role,
         &auth::JWTAuth {
-            permission: Permission::MerchantUserWrite,
+            permission: Permission::ProfileUserWrite,
         },
         api_locking::LockAction::NotApplicable,
     ))
