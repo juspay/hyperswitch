@@ -3723,6 +3723,13 @@ impl ThemeInterface for KafkaStore {
         self.diesel_store.insert_theme(theme).await
     }
 
+    async fn find_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.find_theme_by_theme_id(theme_id).await
+    }
+
     async fn find_theme_by_lineage(
         &self,
         lineage: ThemeLineage,

@@ -1,4 +1,4 @@
-import { getCustomExchange } from "./Commons";
+import { cardRequiredField, getCustomExchange } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
@@ -88,6 +88,25 @@ const payment_method_data_no3ds = {
     authentication_data: null,
   },
   billing: null,
+};
+
+const requiredFields = {
+  payment_methods: [
+    {
+      payment_method: "card",
+      payment_method_types: [
+        {
+          payment_method_type: "credit",
+          card_networks: [
+            {
+              eligible_connectors: ["stripe"],
+            },
+          ],
+          required_fields: cardRequiredField,
+        },
+      ],
+    },
+  ],
 };
 
 export const connectorDetails = {
@@ -942,6 +961,17 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+    },
+  },
+  pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: requiredFields,
+      pmListDynamicFieldWithBilling: requiredFields,
+      pmListDynamicFieldWithNames: requiredFields,
+      pmListDynamicFieldWithEmail: requiredFields,
     },
   },
 };
