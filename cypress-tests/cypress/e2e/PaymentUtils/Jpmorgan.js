@@ -146,7 +146,7 @@ export const connectorDetails = {
         },
       },
     },
-    Refund: {
+    /*Refund: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -205,8 +205,77 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
+    },*/
+    Refund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 501,
+        body: {
+          // status: "succeeded",
+          type: "invalid_request",
+        message: "Refunds is not implemented",
+        code: "IR_00"
+        },
+      },
     },
-    SyncRefund: {
+    manualPaymentRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 501,
+        body: {
+          type: "invalid_request",
+        message: "Refunds is not implemented",
+        code: "IR_00"
+        },
+      },
+    },
+    manualPaymentPartialRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 501,
+        body: {
+          type: "invalid_request",
+        message: "Refunds is not implemented",
+        code: "IR_00"
+        },
+      },
+    },
+    PartialRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 501,
+        body: {
+          type: "invalid_request",
+        message: "Refunds is not implemented",
+        code: "IR_00"
+        },
+      },
+    },
+    /*SyncRefund: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -216,10 +285,28 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
+        trigger_skip: true,
         body: {
           status: "succeeded",
         },
       },
-    },
+    }*/
+    SyncRefund: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 404,
+        body: {
+          type: "undefined",
+          message: "Refund does not exist in our records.",
+          code: "HE_02"
+        },
+      },
+    }
   },
 };
