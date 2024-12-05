@@ -120,6 +120,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
+                    | enums::CaptureMethod::SequentialAutomatic
                     | enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple => Ok(()),
                     enums::CaptureMethod::Scheduled => {
@@ -139,7 +140,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Klarna
                 | PaymentMethodType::Twint
                 | PaymentMethodType::Walley => match capture_method {
-                    enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+                    enums::CaptureMethod::Automatic
+                    | enums::CaptureMethod::Manual
+                    | enums::CaptureMethod::SequentialAutomatic => Ok(()),
                     enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
                         capture_method_not_supported!(
                             connector,
@@ -198,7 +201,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::OpenBankingUk
                 | PaymentMethodType::OnlineBankingCzechRepublic
                 | PaymentMethodType::PermataBankTransfer => match capture_method {
-                    enums::CaptureMethod::Automatic => Ok(()),
+                    enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
+                        Ok(())
+                    }
                     enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple
                     | enums::CaptureMethod::Scheduled => {
@@ -239,6 +244,7 @@ impl ConnectorValidation for Adyen {
             },
             None => match capture_method {
                 enums::CaptureMethod::Automatic
+                | enums::CaptureMethod::SequentialAutomatic
                 | enums::CaptureMethod::Manual
                 | enums::CaptureMethod::ManualMultiple => Ok(()),
                 enums::CaptureMethod::Scheduled => {

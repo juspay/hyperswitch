@@ -1504,7 +1504,10 @@ pub fn get_request_incremental_authorization_value(
     Some(request_incremental_authorization
         .map(|request_incremental_authorization| {
             if request_incremental_authorization {
-                if capture_method == Some(common_enums::CaptureMethod::Automatic) {
+                if matches!(
+                    capture_method,
+                    Some(common_enums::CaptureMethod::Automatic) | Some(common_enums::CaptureMethod::SequentialAutomatic)
+                ) {
                     Err(errors::ApiErrorResponse::NotSupported { message: "incremental authorization is not supported when capture_method is automatic".to_owned() })?
                 }
                 Ok(RequestIncrementalAuthorization::True)
