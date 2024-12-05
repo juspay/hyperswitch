@@ -228,11 +228,28 @@ impl<F: Send + Clone> GetTracker<F, PaymentConfirmData<F>, PaymentsConfirmIntent
             .clone()
             .map(hyperswitch_domain_models::payment_method_data::PaymentMethodData::from);
 
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            payment_intent
+                .shipping_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_intent
+                .billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_attempt
+                .payment_method_billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            Some(true),
+        );
+
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
             payment_method_data,
+            payment_address,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

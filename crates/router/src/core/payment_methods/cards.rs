@@ -3149,7 +3149,7 @@ pub fn get_banks(
                 .iter()
                 .skip(1)
                 .fold(first_element.to_owned(), |acc, hs| {
-                    acc.intersection(hs).cloned().collect()
+                    acc.intersection(hs).copied().collect()
                 });
         }
 
@@ -3617,7 +3617,7 @@ pub async fn list_payment_methods(
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid PaymentRoutingInfo format found in payment attempt")?
-            .unwrap_or_else(|| storage::PaymentRoutingInfo {
+            .unwrap_or(storage::PaymentRoutingInfo {
                 algorithm: None,
                 pre_routing_results: None,
             });

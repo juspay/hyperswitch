@@ -1,4 +1,3 @@
-use api_models::payments::AddressDetails;
 use common_enums::enums;
 use common_utils::{pii::Email, request::Method};
 use error_stack::ResultExt;
@@ -182,7 +181,9 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
     }
 }
 
-fn get_payer_name(address: &AddressDetails) -> Option<Secret<String>> {
+fn get_payer_name(
+    address: &hyperswitch_domain_models::address::AddressDetails,
+) -> Option<Secret<String>> {
     let first_name = address
         .first_name
         .clone()

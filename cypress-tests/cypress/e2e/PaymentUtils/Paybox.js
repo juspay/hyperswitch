@@ -14,15 +14,17 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
-const singleUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
+const customerAcceptance = {
+  acceptance_type: "offline",
+  accepted_at: "1963-05-03T04:07:52.723Z",
+  online: {
+    ip_address: "125.0.0.1",
+    user_agent: "amet irure esse",
   },
+};
+
+const singleUseMandateData = {
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
       amount: 7000,
@@ -32,14 +34,7 @@ const singleUseMandateData = {
 };
 
 const multiUseMandateData = {
-  customer_acceptance: {
-    acceptance_type: "offline",
-    accepted_at: "1963-05-03T04:07:52.723Z",
-    online: {
-      ip_address: "125.0.0.1",
-      user_agent: "amet irure esse",
-    },
-  },
+  customer_acceptance: customerAcceptance,
   mandate_type: {
     multi_use: {
       amount: 6500,
@@ -48,13 +43,12 @@ const multiUseMandateData = {
   },
 };
 
-const customerAcceptance = {
-  acceptance_type: "offline",
-  accepted_at: "1963-05-03T04:07:52.723Z",
-  online: {
-    ip_address: "125.0.0.1",
-    user_agent: "amet irure esse",
-  },
+const captureNotSupported = {
+  type: "invalid_request",
+  message: "Payment method type not supported",
+  code: "IR_19",
+  reason:
+    "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
 };
 
 export const connectorDetails = {
@@ -260,13 +254,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -298,13 +286,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -336,13 +318,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -374,13 +350,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -436,13 +406,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -477,13 +441,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -581,13 +539,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Payment method type not supported",
-            code: "IR_19",
-            reason:
-              "Capture Not allowed in case of Creating the Subscriber is not supported by Paybox",
-          },
+          error: captureNotSupported,
         },
       },
     },
@@ -669,7 +621,7 @@ export const connectorDetails = {
           error: {
             error_type: "invalid_request",
             message: "Json deserialize error: invalid card number length",
-            code: "IR_06"
+            code: "IR_06",
           },
         },
       },
@@ -776,8 +728,9 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
-            code: "IR_06"
+            message:
+              "Json deserialize error: unknown variant `United`, expected one of `AED`, `AFN`, `ALL`, `AMD`, `ANG`, `AOA`, `ARS`, `AUD`, `AWG`, `AZN`, `BAM`, `BBD`, `BDT`, `BGN`, `BHD`, `BIF`, `BMD`, `BND`, `BOB`, `BRL`, `BSD`, `BTN`, `BWP`, `BYN`, `BZD`, `CAD`, `CDF`, `CHF`, `CLP`, `CNY`, `COP`, `CRC`, `CUP`, `CVE`, `CZK`, `DJF`, `DKK`, `DOP`, `DZD`, `EGP`, `ERN`, `ETB`, `EUR`, `FJD`, `FKP`, `GBP`, `GEL`, `GHS`, `GIP`, `GMD`, `GNF`, `GTQ`, `GYD`, `HKD`, `HNL`, `HRK`, `HTG`, `HUF`, `IDR`, `ILS`, `INR`, `IQD`, `IRR`, `ISK`, `JMD`, `JOD`, `JPY`, `KES`, `KGS`, `KHR`, `KMF`, `KPW`, `KRW`, `KWD`, `KYD`, `KZT`, `LAK`, `LBP`, `LKR`, `LRD`, `LSL`, `LYD`, `MAD`, `MDL`, `MGA`, `MKD`, `MMK`, `MNT`, `MOP`, `MRU`, `MUR`, `MVR`, `MWK`, `MXN`, `MYR`, `MZN`, `NAD`, `NGN`, `NIO`, `NOK`, `NPR`, `NZD`, `OMR`, `PAB`, `PEN`, `PGK`, `PHP`, `PKR`, `PLN`, `PYG`, `QAR`, `RON`, `RSD`, `RUB`, `RWF`, `SAR`, `SBD`, `SCR`, `SDG`, `SEK`, `SGD`, `SHP`, `SLE`, `SLL`, `SOS`, `SRD`, `SSP`, `STN`, `SVC`, `SYP`, `SZL`, `THB`, `TJS`, `TMT`, `TND`, `TOP`, `TRY`, `TTD`, `TWD`, `TZS`, `UAH`, `UGX`, `USD`, `UYU`, `UZS`, `VES`, `VND`, `VUV`, `WST`, `XAF`, `XCD`, `XOF`, `XPF`, `YER`, `ZAR`, `ZMW`, `ZWL`",
+            code: "IR_06",
           },
         },
       },
@@ -804,8 +757,9 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
-            code: "IR_06"
+            message:
+              "Json deserialize error: unknown variant `auto`, expected one of `automatic`, `manual`, `manual_multiple`, `scheduled`",
+            code: "IR_06",
           },
         },
       },
@@ -831,8 +785,9 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`, `mobile_payment`",
-            code: "IR_06"
+            message:
+              "Json deserialize error: unknown variant `this_supposed_to_be_a_card`, expected one of `card`, `card_redirect`, `pay_later`, `wallet`, `bank_redirect`, `bank_transfer`, `crypto`, `bank_debit`, `reward`, `real_time_payment`, `upi`, `voucher`, `gift_card`, `open_banking`, `mobile_payment`",
+            code: "IR_06",
           },
         },
       },

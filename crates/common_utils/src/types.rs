@@ -334,7 +334,6 @@ impl AmountConvertor for FloatMajorUnitForConnector {
 }
 
 /// Connector required amount type
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct MinorUnitForConnector;
 
@@ -503,7 +502,6 @@ impl Sum for MinorUnit {
 }
 
 /// Connector specific types to send
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
 pub struct StringMinorUnit(String);
 
@@ -603,7 +601,6 @@ impl StringMajorUnit {
     pub fn zero() -> Self {
         Self("0".to_string())
     }
-
     /// Get string amount from struct to be removed in future
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
@@ -749,7 +746,7 @@ mod client_secret_type {
         {
             struct ClientSecretVisitor;
 
-            impl<'de> Visitor<'de> for ClientSecretVisitor {
+            impl Visitor<'_> for ClientSecretVisitor {
                 type Value = ClientSecret;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

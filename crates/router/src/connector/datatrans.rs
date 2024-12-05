@@ -4,8 +4,8 @@ use base64::Engine;
 use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use transformers::{self as datatrans};
 
+use self::transformers as datatrans;
 use super::{utils as connector_utils, utils::RefundsRequestData};
 use crate::{
     configs::settings,

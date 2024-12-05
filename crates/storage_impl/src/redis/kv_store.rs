@@ -57,7 +57,7 @@ pub enum PartitionKey<'a> {
     },
 }
 // PartitionKey::MerchantIdPaymentId {merchant_id, payment_id}
-impl<'a> std::fmt::Display for PartitionKey<'a> {
+impl std::fmt::Display for PartitionKey<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             PartitionKey::MerchantIdPaymentId {
@@ -279,7 +279,7 @@ pub enum Op<'a> {
     Find,
 }
 
-impl<'a> std::fmt::Display for Op<'a> {
+impl std::fmt::Display for Op<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Op::Insert => f.write_str("insert"),
