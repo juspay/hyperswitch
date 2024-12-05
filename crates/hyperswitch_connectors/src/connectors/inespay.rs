@@ -422,9 +422,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Inespay
     fn get_url(
         &self,
         _req: &RefundsRouterData<Execute>,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/refunds/init", self.base_url(connectors)))
     }
 
     fn get_request_body(

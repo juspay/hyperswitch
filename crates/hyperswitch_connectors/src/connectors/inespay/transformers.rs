@@ -220,15 +220,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, InespayPSyncResponse, T, PaymentsRespon
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct InespayRefundRequest {
-    pub amount: StringMinorUnit,
+    single_payin_id: String,
+    amount: StringMinorUnit,
 }
 
 impl<F> TryFrom<&InespayRouterData<&RefundsRouterData<F>>> for InespayRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &InespayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
+            single_payin_id: item.router_data.request.connector_transaction_id.clone(),
             amount: item.amount.to_owned(),
         })
     }
