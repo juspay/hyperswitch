@@ -3,7 +3,7 @@ import { getCustomExchange } from "./Commons";
 const successfulNo3DSCardDetails = {
   card_number: "4012000033330026",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -11,7 +11,7 @@ const successfulNo3DSCardDetails = {
 const successfulThreeDSTestCardDetails = {
   card_number: "4868719460707704",
   card_exp_month: "01",
-  card_exp_year: "25",
+  card_exp_year: "50",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
 };
@@ -49,6 +49,9 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -60,13 +63,15 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
         body: {
           status: "requires_customer_action",
         },
       },
     },
     "3DSAutoCapture": {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -78,7 +83,6 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        trigger_skip: true,
         body: {
           status: "requires_customer_action",
         },

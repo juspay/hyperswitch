@@ -49,7 +49,7 @@ pub fn remove_cookie_response() -> UserResponse<()> {
     Ok(ApplicationResponse::JsonWithHeaders(((), header)))
 }
 
-pub fn parse_cookie(cookies: &str) -> RouterResult<String> {
+pub fn get_jwt_from_cookies(cookies: &str) -> RouterResult<String> {
     Cookie::split_parse(cookies)
         .find_map(|cookie| {
             cookie
@@ -57,8 +57,8 @@ pub fn parse_cookie(cookies: &str) -> RouterResult<String> {
                 .filter(|parsed_cookie| parsed_cookie.name() == JWT_TOKEN_COOKIE_NAME)
                 .map(|parsed_cookie| parsed_cookie.value().to_owned())
         })
-        .ok_or(report!(ApiErrorResponse::InvalidCookie))
-        .attach_printable("Cookie Parsing Failed")
+        .ok_or(report!(ApiErrorResponse::InvalidJwtToken))
+        .attach_printable("Unable to find JWT token in cookies")
 }
 
 #[cfg(feature = "olap")]

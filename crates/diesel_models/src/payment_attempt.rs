@@ -6,7 +6,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::enums::{self as storage_enums};
+use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
 use crate::schema::payment_attempt;
 #[cfg(feature = "v2")]

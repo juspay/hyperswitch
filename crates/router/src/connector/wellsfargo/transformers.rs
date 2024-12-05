@@ -802,7 +802,9 @@ impl
     }
 }
 
-fn get_phone_number(item: Option<&payments::Address>) -> Option<Secret<String>> {
+fn get_phone_number(
+    item: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<Secret<String>> {
     item.as_ref()
         .and_then(|billing| billing.phone.as_ref())
         .and_then(|phone| {
@@ -816,7 +818,7 @@ fn get_phone_number(item: Option<&payments::Address>) -> Option<Secret<String>> 
 }
 
 fn build_bill_to(
-    address_details: Option<&payments::Address>,
+    address_details: Option<&hyperswitch_domain_models::address::Address>,
     email: pii::Email,
 ) -> Result<BillTo, error_stack::Report<errors::ConnectorError>> {
     let phone_number = get_phone_number(address_details);

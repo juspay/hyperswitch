@@ -393,7 +393,7 @@ impl<'de> Deserialize<'de> for DecryptedData {
     {
         struct DecryptedDataVisitor;
 
-        impl<'de> Visitor<'de> for DecryptedDataVisitor {
+        impl Visitor<'_> for DecryptedDataVisitor {
             type Value = DecryptedData;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -449,7 +449,7 @@ impl<'de> Deserialize<'de> for EncryptedData {
     {
         struct EncryptedDataVisitor;
 
-        impl<'de> Visitor<'de> for EncryptedDataVisitor {
+        impl Visitor<'_> for EncryptedDataVisitor {
             type Value = EncryptedData;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

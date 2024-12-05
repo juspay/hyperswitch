@@ -13,6 +13,8 @@ use error_stack::report;
 use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
 use http::HeaderName;
+use hyperswitch_interfaces::webhooks::IncomingWebhookFlowError;
+use masking::Maskable;
 #[cfg(feature = "payouts")]
 use masking::Secret;
 #[cfg(feature = "payouts")]
@@ -27,11 +29,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{
-        self,
-        request::{self, Mask},
-        ConnectorValidation,
-    },
+    services::{self, request::Mask, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon},
@@ -67,7 +65,7 @@ impl ConnectorCommon for Adyenplatform {
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let auth = adyenplatform::AdyenplatformAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -209,7 +207,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             types::PayoutFulfillType::get_content_type(self)
@@ -398,6 +396,25 @@ impl api::IncomingWebhook for Adyenplatform {
         #[cfg(not(feature = "payouts"))]
         {
             Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        }
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+        error_kind: Option<IncomingWebhookFlowError>,
+    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
+    {
+        if error_kind.is_some() {
+            Ok(services::api::ApplicationResponse::JsonWithHeaders((
+                serde_json::Value::Null,
+                vec![(
+                    "x-http-code".to_string(),
+                    Maskable::Masked(Secret::new("404".to_string())),
+                )],
+            )))
+        } else {
+            Ok(services::api::ApplicationResponse::StatusOk)
         }
     }
 

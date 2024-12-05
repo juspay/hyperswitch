@@ -10,14 +10,10 @@ use router_env::{logger, which as router_env_which, Env};
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
-///
 /// Minimum limit of a card number will not be less than 8 by ISO standards
-///
 pub const MIN_CARD_NUMBER_LENGTH: usize = 8;
 
-///
 /// Maximum limit of a card number will not exceed 19 by ISO standards
-///
 pub const MAX_CARD_NUMBER_LENGTH: usize = 19;
 
 #[derive(Debug, Deserialize, Serialize, Error)]
@@ -138,11 +134,9 @@ pub fn sanitize_card_number(card_number: &str) -> Result<bool, CardNumberValidat
     Ok(is_card_number_valid)
 }
 
-///
 /// # Panics
 ///
 /// Never, as a single character will never be greater than 10, or `u8`
-///
 pub fn validate_card_number_chars(number: &str) -> Result<Vec<u8>, CardNumberValidationErr> {
     let data = number.chars().try_fold(
         Vec::with_capacity(MAX_CARD_NUMBER_LENGTH),

@@ -566,7 +566,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .and_then(|pmd| pmd.payment_method_data.as_ref())
             .and_then(|payment_method_data_billing| {
                 payment_method_data_billing.get_billing_address()
-            });
+            })
+            .map(From::from);
 
         let unified_address =
             address.unify_with_payment_method_data_billing(payment_method_data_billing);

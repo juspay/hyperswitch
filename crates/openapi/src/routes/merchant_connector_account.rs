@@ -67,7 +67,7 @@ pub async fn connector_create() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     post,
-    path = "/v2/connector_accounts",
+    path = "/v2/connector-accounts",
     request_body(
         content = MerchantConnectorCreate,
         examples(
@@ -152,7 +152,7 @@ pub async fn connector_retrieve() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
-    path = "/v2/connector_accounts/{id}",
+    path = "/v2/connector-accounts/{id}",
     params(
         ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),
@@ -241,7 +241,7 @@ pub async fn connector_update() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     put,
-    path = "/v2/connector_accounts/{id}",
+    path = "/v2/connector-accounts/{id}",
     request_body(
         content = MerchantConnectorUpdate,
         examples(
@@ -310,7 +310,7 @@ pub async fn connector_delete() {}
 #[cfg(feature = "v2")]
 #[utoipa::path(
     delete,
-    path = "/v2/connector_accounts/{id}",
+    path = "/v2/connector-accounts/{id}",
     params(
         ("id" = i32, Path, description = "The unique identifier for the Merchant Connector")
     ),

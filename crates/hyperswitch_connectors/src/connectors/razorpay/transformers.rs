@@ -58,7 +58,6 @@ pub struct RazorpayPaymentsRequest {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
-
 pub struct SecondFactor {
     txn_id: String,
     id: String,
@@ -981,7 +980,6 @@ pub struct RazorpaySyncResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-
 pub enum PsyncStatus {
     Charged,
     Pending,
@@ -1054,7 +1052,6 @@ pub struct Refund {
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-
 pub enum RefundStatus {
     Success,
     Failure,
@@ -1221,7 +1218,6 @@ impl From<RefundStatus> for enums::RefundStatus {
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct RefundResponse {
     txn_id: Option<String>,
     refund: RefundRes,

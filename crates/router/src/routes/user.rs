@@ -1,3 +1,5 @@
+pub mod theme;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(feature = "dummy_connector")]
 use api_models::user::sample_data::SampleDataRequest;
@@ -482,23 +484,6 @@ pub async fn verify_email_request(
             user_core::send_verification_mail(state, req_body, auth_id.clone())
         },
         &auth::NoAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
-#[cfg(feature = "recon")]
-pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
-    let flow = Flow::ReconVerifyToken;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &http_req,
-        (),
-        |state, user, _req, _| user_core::verify_token(state, user),
-        &auth::JWTAuth {
-            permission: Permission::MerchantReconWrite,
-        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

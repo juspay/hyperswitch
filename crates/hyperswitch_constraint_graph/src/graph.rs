@@ -120,7 +120,7 @@ where
             already_memo
                 .clone()
                 .map_err(|err| GraphError::AnalysisError(Arc::downgrade(&err)))
-        } else if let Some((initial_strength, initial_relation)) = cycle_map.get(&node_id).cloned()
+        } else if let Some((initial_strength, initial_relation)) = cycle_map.get(&node_id).copied()
         {
             let strength_relation = Strength::get_resolved_strength(initial_strength, strength);
             let relation_resolve =
@@ -197,7 +197,7 @@ where
         if !unsatisfied.is_empty() {
             let err = Arc::new(AnalysisTrace::AllAggregation {
                 unsatisfied,
-                info: self.node_info.get(vald.node_id).cloned().flatten(),
+                info: self.node_info.get(vald.node_id).copied().flatten(),
                 metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
             });
 
@@ -264,7 +264,7 @@ where
         } else {
             let err = Arc::new(AnalysisTrace::AnyAggregation {
                 unsatisfied: unsatisfied.clone(),
-                info: self.node_info.get(vald.node_id).cloned().flatten(),
+                info: self.node_info.get(vald.node_id).copied().flatten(),
                 metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
             });
 
@@ -305,7 +305,7 @@ where
                     expected: expected.iter().cloned().collect(),
                     found: None,
                     relation: vald.relation,
-                    info: self.node_info.get(vald.node_id).cloned().flatten(),
+                    info: self.node_info.get(vald.node_id).copied().flatten(),
                     metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
                 });
 
@@ -324,7 +324,7 @@ where
                     expected: expected.iter().cloned().collect(),
                     found: Some(ctx_value.clone()),
                     relation: vald.relation,
-                    info: self.node_info.get(vald.node_id).cloned().flatten(),
+                    info: self.node_info.get(vald.node_id).copied().flatten(),
                     metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
                 });
 
@@ -402,7 +402,7 @@ where
                     let err = Arc::new(AnalysisTrace::Value {
                         value: val.clone(),
                         relation: vald.relation,
-                        info: self.node_info.get(vald.node_id).cloned().flatten(),
+                        info: self.node_info.get(vald.node_id).copied().flatten(),
                         metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
                         predecessors: Some(error::ValueTracePredecessor::Mandatory(Box::new(
                             trace.get_analysis_trace()?,
@@ -437,7 +437,7 @@ where
             let err = Arc::new(AnalysisTrace::Value {
                 value: val.clone(),
                 relation: vald.relation,
-                info: self.node_info.get(vald.node_id).cloned().flatten(),
+                info: self.node_info.get(vald.node_id).copied().flatten(),
                 metadata: self.node_metadata.get(vald.node_id).cloned().flatten(),
                 predecessors: Some(error::ValueTracePredecessor::OneOf(errors.clone())),
             });
@@ -469,7 +469,7 @@ where
                 value: val.clone(),
                 relation,
                 predecessors: None,
-                info: self.node_info.get(node_id).cloned().flatten(),
+                info: self.node_info.get(node_id).copied().flatten(),
                 metadata: self.node_metadata.get(node_id).cloned().flatten(),
             });
             memo.insert((node_id, relation, strength), Err(Arc::clone(&err)));

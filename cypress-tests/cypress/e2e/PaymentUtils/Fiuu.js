@@ -299,7 +299,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -360,6 +360,28 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "The currency not allow for the RecordType",
+          error_message: "The currency not allow for the RecordType",
+        },
+      },
+    },
+    MITManualCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "The currency not allow for the RecordType",
+          error_message: "The currency not allow for the RecordType",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -377,9 +399,9 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
-        },      
+        },
         currency: "USD",
         mandate_data: null,
         customer_acceptance: {
@@ -415,7 +437,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -453,7 +475,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -491,7 +513,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         setup_future_usage: "off_session",
@@ -528,7 +550,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         setup_future_usage: "off_session",
@@ -587,7 +609,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -625,7 +647,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         currency: "USD",
@@ -664,7 +686,7 @@ export const connectorDetails = {
               first_name: "joseph",
               last_name: "Doe",
             },
-            email: "johndoe@gmail.com"
+            email: "johndoe@gmail.com",
           },
         },
         mandate_data: null,

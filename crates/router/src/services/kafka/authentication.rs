@@ -86,7 +86,7 @@ impl<'a> KafkaAuthentication<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaAuthentication<'a> {
+impl super::KafkaMessage for KafkaAuthentication<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}",

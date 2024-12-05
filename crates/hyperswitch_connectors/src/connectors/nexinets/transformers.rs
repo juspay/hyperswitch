@@ -122,7 +122,6 @@ pub struct NexinetsBankRedirects {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct NexinetsAsyncDetails {
     pub success_url: Option<String>,
     pub cancel_url: Option<String>,

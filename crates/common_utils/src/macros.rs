@@ -369,6 +369,41 @@ mod id_type {
     }
 }
 
+/// Create new generic list wrapper
+#[macro_export]
+macro_rules! create_list_wrapper {
+    (
+        $wrapper_name:ident,
+        $type_name: ty,
+        impl_functions: {
+            $($function_def: tt)*
+        }
+    ) => {
+        pub struct $wrapper_name(Vec<$type_name>);
+        impl $wrapper_name {
+            pub fn new(list: Vec<$type_name>) -> Self {
+                Self(list)
+            }
+            pub fn iter(&self) -> std::slice::Iter<'_, $type_name> {
+                self.0.iter()
+            }
+            $($function_def)*
+        }
+        impl Iterator for $wrapper_name {
+            type Item = $type_name;
+            fn next(&mut self) -> Option<Self::Item> {
+                self.0.pop()
+            }
+        }
+
+        impl FromIterator<$type_name> for $wrapper_name {
+            fn from_iter<T: IntoIterator<Item = $type_name>>(iter: T) -> Self {
+                Self(iter.into_iter().collect())
+            }
+        }
+    };
+}
+
 /// Get the type name for a type
 #[macro_export]
 macro_rules! type_name {

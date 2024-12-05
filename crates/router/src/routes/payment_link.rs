@@ -26,7 +26,6 @@ use crate::{
     security(("api_key" = []), ("publishable_key" = []))
 )]
 #[instrument(skip(state, req), fields(flow = ?Flow::PaymentLinkRetrieve))]
-
 pub async fn payment_link_retrieve(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,

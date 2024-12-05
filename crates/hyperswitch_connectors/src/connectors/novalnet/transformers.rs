@@ -94,7 +94,6 @@ pub struct NovalnetPaymentsRequestCustomer {
     no_nc: i64,
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-
 pub struct NovalnetCard {
     card_number: CardNumber,
     card_expiry_month: Secret<String>,

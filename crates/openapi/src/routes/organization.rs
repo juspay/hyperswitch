@@ -150,7 +150,7 @@ pub async fn organization_update() {}
 /// List merchant accounts for an Organization
 #[utoipa::path(
     get,
-    path = "/v2/organization/{id}/merchant_accounts",
+    path = "/v2/organization/{id}/merchant-accounts",
     params (("id" = String, Path, description = "The unique identifier for the Organization")),
     responses(
         (status = 200, description = "Merchant Account list retrieved successfully", body = Vec<MerchantAccountResponse>),

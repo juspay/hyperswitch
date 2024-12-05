@@ -19,11 +19,11 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS automatic capture payment- Create+Confirm [on_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -33,26 +33,29 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue) {
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue) {
+          shouldContinue = utils.should_continue_further(data);
         }
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardUseNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -60,37 +63,31 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.saveCardConfirmCallTest(
-          saveCardBody,
-          req_data,
-          res_data,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -98,11 +95,11 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS manual full capture payment- Create+Confirm [on_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -112,25 +109,28 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardUseNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -138,58 +138,50 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "manual",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSManualCapture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.saveCardConfirmCallTest(
-          saveCardBody,
-          req_data,
-          res_data,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardUseNo3DSManualCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          6500,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -197,11 +189,11 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS manual partial capture payment- Create + Confirm [on_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -211,25 +203,28 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCapture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardUseNo3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -237,57 +232,49 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "manual",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSManualCapture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.saveCardConfirmCallTest(
-          saveCardBody,
-          req_data,
-          res_data,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardUseNo3DSManualCapture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PartialCapture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          100,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.captureCallTest(fixtures.captureBody, data, 100, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -295,11 +282,11 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS automatic capture payment [off_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -309,25 +296,28 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardUseNo3DSAutoCaptureOffSession"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -335,38 +325,31 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardConfirmAutoCaptureOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
 
-        cy.saveCardConfirmCallTest(
-          saveCardBody,
-          req_data,
-          res_data,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
@@ -374,10 +357,10 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS manual capture payment- Create+Confirm [off_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
@@ -388,41 +371,38 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create+confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSManualCaptureOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "manual",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardUseNo3DSManualCaptureOffSession"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          6500,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -430,62 +410,58 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "manual",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardConfirmManualCaptureOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.saveCardConfirmCallTest(
-          saveCardBody,
-          req_data,
-          res_data,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardConfirmManualCaptureOffSession"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("capture-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["Capture"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.captureCallTest(
-          fixtures.captureBody,
-          req_data,
-          res_data,
-          6500,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.captureCallTest(fixtures.captureBody, data, 6500, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
     }
   );
@@ -493,11 +469,11 @@ describe("Card - SaveCard payment flow test", () => {
   context(
     "Save card for NoThreeDS automatic capture payment - create and confirm [off_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -507,42 +483,39 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          req_data,
-          res_data,
-          true,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
-        cy.retrievePaymentCallTest(globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SaveCardUseNo3DSAutoCaptureOffSession"];
+
+        cy.retrievePaymentCallTest(globalState, data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -550,49 +523,42 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardConfirmAutoCaptureOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
 
-        cy.saveCardConfirmCallTest(
-          saveCardBody,
-          req_data,
-          res_data,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );
   context(
     "Use billing address from payment method during subsequent payment[off_session]",
     () => {
-      let should_continue = true; // variable that will be used to skip tests if a previous test fails
+      let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
       beforeEach(function () {
         saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -602,38 +568,31 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          req_data,
-          res_data,
-          true,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-customerPM-call-test", () => {
@@ -641,38 +600,31 @@ describe("Card - SaveCard payment flow test", () => {
       });
 
       it("create-payment-call-test", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
+
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("confirm-save-card-payment-call-test-without-billing", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["SaveCardConfirmAutoCaptureOffSessionWithoutBilling"];
-        let req_data = data["Request"];
-        let res_data = data["Response"];
 
-        cy.saveCardConfirmCallTest(
-          saveCardBody,
-          req_data,
-          res_data,
-          globalState
-        );
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        cy.saveCardConfirmCallTest(saveCardBody, data, globalState);
+
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
     }
   );

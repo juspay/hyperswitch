@@ -73,7 +73,6 @@ pub enum ApplePayTomlConfig {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, serde::Serialize, Deserialize)]
-
 pub enum KlarnaEndpoint {
     Europe,
     NorthAmerica,
@@ -121,6 +120,7 @@ pub struct ConfigMetadata {
 #[derive(Debug, Deserialize, serde::Serialize, Clone)]
 pub struct ConnectorWalletDetailsConfig {
     pub samsung_pay: Option<Vec<InputData>>,
+    pub paze: Option<Vec<InputData>>,
 }
 
 #[serde_with::skip_serializing_none]

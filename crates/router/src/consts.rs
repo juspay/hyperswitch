@@ -52,9 +52,6 @@ pub(crate) const DEFAULT_NOTIFICATION_SCRIPT_LANGUAGE: &str = "en-US";
 
 pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose = consts::BASE64_ENGINE;
 
-pub(crate) const BASE64_ENGINE_URL_SAFE: base64::engine::GeneralPurpose =
-    base64::engine::general_purpose::URL_SAFE;
-
 pub(crate) const API_KEY_LENGTH: usize = 64;
 
 // Apple Pay validation url
@@ -153,6 +150,9 @@ pub const DEFAULT_ALLOWED_DOMAINS: Option<HashSet<String>> = None;
 /// Default hide card nickname field
 pub const DEFAULT_HIDE_CARD_NICKNAME_FIELD: bool = false;
 
+/// Show card form by default for payment links
+pub const DEFAULT_SHOW_CARD_FORM: bool = true;
+
 /// Default bool for Display sdk only
 pub const DEFAULT_DISPLAY_SDK_ONLY: bool = false;
 
@@ -208,3 +208,6 @@ pub const VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
 /// Vault Fingerprint fetch flow type
 #[cfg(all(feature = "v2", feature = "payment_methods_v2"))]
 pub const VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
+
+/// Max volume split for Dynamic routing
+pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;

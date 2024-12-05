@@ -20,7 +20,6 @@ pub struct PlaidLinkTokenRequest {
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
-
 pub struct User {
     pub client_user_id: id_type::CustomerId,
 }
@@ -94,7 +93,6 @@ pub struct PlaidExchangeTokenRequest {
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
-
 pub struct PlaidExchangeTokenResponse {
     pub access_token: String,
 }
@@ -236,7 +234,6 @@ pub struct PlaidBankAccountCredentialsRequest {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-
 pub struct PlaidBankAccountCredentialsResponse {
     pub accounts: Vec<PlaidBankAccountCredentialsAccounts>,
     pub numbers: PlaidBankAccountCredentialsNumbers,
@@ -251,7 +248,6 @@ pub struct BankAccountCredentialsOptions {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-
 pub struct PlaidBankAccountCredentialsAccounts {
     pub account_id: String,
     pub name: String,

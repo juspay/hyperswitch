@@ -1,7 +1,5 @@
-//!
 //! This module holds traits for extending functionalities for existing datatypes
 //! & inbuilt datatypes.
-//!
 
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy};
@@ -14,10 +12,8 @@ use crate::{
     fp_utils::when,
 };
 
-///
 /// Encode interface
 /// An interface for performing type conversions and serialization
-///
 pub trait Encode<'e>
 where
     Self: 'e + std::fmt::Debug,
@@ -27,62 +23,49 @@ where
     /// Converting `Self` into an intermediate representation `<P>`
     /// and then performing encoding operation using the `Serialize` trait from `serde`
     /// Specifically to convert into json, by using `serde_json`
-    ///
     fn convert_and_encode<P>(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
         Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
         <Result<P, <P as TryFrom<&'e Self>>::Error> as ResultExt>::Ok: Serialize;
 
-    ///
     /// Converting `Self` into an intermediate representation `<P>`
     /// and then performing encoding operation using the `Serialize` trait from `serde`
     /// Specifically, to convert into urlencoded, by using `serde_urlencoded`
-    ///
     fn convert_and_url_encode<P>(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         P: TryFrom<&'e Self> + Serialize,
         Result<P, <P as TryFrom<&'e Self>>::Error>: ResultExt,
         <Result<P, <P as TryFrom<&'e Self>>::Error> as ResultExt>::Ok: Serialize;
 
-    ///
     /// Functionality, for specifically encoding `Self` into `String`
     /// after serialization by using `serde::Serialize`
-    ///
     fn url_encode(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize;
 
-    ///
     /// Functionality, for specifically encoding `Self` into `String`
     /// after serialization by using `serde::Serialize`
     /// specifically, to convert into JSON `String`.
-    ///
     fn encode_to_string_of_json(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize;
 
-    ///
     /// Functionality, for specifically encoding `Self` into `String`
     /// after serialization by using `serde::Serialize`
     /// specifically, to convert into XML `String`.
-    ///
     fn encode_to_string_of_xml(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize;
 
-    ///
     /// Functionality, for specifically encoding `Self` into `serde_json::Value`
     /// after serialization by using `serde::Serialize`
-    ///
     fn encode_to_value(&'e self) -> CustomResult<serde_json::Value, errors::ParsingError>
     where
         Self: Serialize;
 
-    ///
     /// Functionality, for specifically encoding `Self` into `Vec<u8>`
     /// after serialization by using `serde::Serialize`
-    ///
     fn encode_to_vec(&'e self) -> CustomResult<Vec<u8>, errors::ParsingError>
     where
         Self: Serialize;
@@ -165,13 +148,9 @@ where
     }
 }
 
-///
 /// Extending functionalities of `bytes::Bytes`
-///
 pub trait BytesExt {
-    ///
     /// Convert `bytes::Bytes` into type `<T>` using `serde::Deserialize`
-    ///
     fn parse_struct<'de, T>(
         &'de self,
         type_name: &'static str,
@@ -199,13 +178,9 @@ impl BytesExt for bytes::Bytes {
     }
 }
 
-///
 /// Extending functionalities of `[u8]` for performing parsing
-///
 pub trait ByteSliceExt {
-    ///
     /// Convert `[u8]` into type `<T>` by using `serde::Deserialize`
-    ///
     fn parse_struct<'de, T>(
         &'de self,
         type_name: &'static str,
@@ -229,13 +204,9 @@ impl ByteSliceExt for [u8] {
     }
 }
 
-///
 /// Extending functionalities of `serde_json::Value` for performing parsing
-///
 pub trait ValueExt {
-    ///
     /// Convert `serde_json::Value` into type `<T>` by using `serde::Deserialize`
-    ///
     fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned;
@@ -277,22 +248,16 @@ impl<E: ValueExt + Clone> ValueExt for crypto::Encryptable<E> {
     }
 }
 
-///
 /// Extending functionalities of `String` for performing parsing
-///
 pub trait StringExt<T> {
-    ///
     /// Convert `String` into type `<T>` (which being an `enum`)
-    ///
     fn parse_enum(self, enum_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: std::str::FromStr,
         // Requirement for converting the `Err` variant of `FromStr` to `Report<Err>`
         <T as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static;
 
-    ///
     /// Convert `serde_json::Value` into type `<T>` by using `serde::Deserialize`
-    ///
     fn parse_struct<'de>(
         &'de self,
         type_name: &'static str,
@@ -327,25 +292,20 @@ impl<T> StringExt<T> for String {
     }
 }
 
-///
 /// Extending functionalities of Wrapper types for idiomatic
-///
 #[cfg(feature = "async_ext")]
 #[cfg_attr(feature = "async_ext", async_trait::async_trait)]
 pub trait AsyncExt<A, B> {
     /// Output type of the map function
     type WrappedSelf<T>;
-    ///
+
     /// Extending map by allowing functions which are async
-    ///
     async fn async_map<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
         F: FnOnce(A) -> Fut + Send,
         Fut: futures::Future<Output = B> + Send;
 
-    ///
     /// Extending the `and_then` by allowing functions which are async
-    ///
     async fn async_and_then<F, Fut>(self, func: F) -> Self::WrappedSelf<B>
     where
         F: FnOnce(A) -> Fut + Send,
@@ -469,9 +429,7 @@ where
 
 /// Extension trait for deserializing XML strings using `quick-xml` crate
 pub trait XmlExt {
-    ///
     /// Deserialize an XML string into the specified type `<T>`.
-    ///
     fn parse_xml<T>(self) -> Result<T, de::DeError>
     where
         T: serde::de::DeserializeOwned;

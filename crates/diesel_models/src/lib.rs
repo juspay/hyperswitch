@@ -75,7 +75,6 @@ pub use self::{
 /// `Option<T>` values.
 ///
 /// [diesel-2.0-array-nullability]: https://diesel.rs/guides/migration_guide.html#2-0-0-nullability-of-array-elements
-
 #[doc(hidden)]
 pub(crate) mod diesel_impl {
     use diesel::{

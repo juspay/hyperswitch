@@ -9,7 +9,7 @@ use api_models::{
         frm::{FrmDimensions, FrmTransactionType},
         payment_intents::PaymentIntentDimensions,
         payments::{PaymentDimensions, PaymentDistributions},
-        refunds::{RefundDimensions, RefundType},
+        refunds::{RefundDimensions, RefundDistributions, RefundType},
         sdk_events::{SdkEventDimensions, SdkEventNames},
         Granularity,
     },
@@ -459,7 +459,8 @@ impl<T: AnalyticsDataSource> ToSql<T> for common_utils::id_type::CustomerId {
 
 impl<T: AnalyticsDataSource> ToSql<T> for bool {
     fn to_sql(&self, _table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
-        Ok(self.to_string().to_owned())
+        let flag = *self;
+        Ok(i8::from(flag).to_string())
     }
 }
 
@@ -487,6 +488,7 @@ impl_to_sql_for_to_string!(
     PaymentIntentDimensions,
     &PaymentDistributions,
     RefundDimensions,
+    &RefundDistributions,
     FrmDimensions,
     PaymentMethod,
     PaymentMethodType,

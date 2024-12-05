@@ -1,6 +1,4 @@
-//!
 //! Errors specific to this custom redis interface
-//!
 
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum RedisError {

@@ -1,6 +1,4 @@
-//!
 //! No encryption functionalities
-//!
 
 pub mod core;
 

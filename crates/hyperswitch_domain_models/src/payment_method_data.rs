@@ -161,7 +161,6 @@ pub enum PayLaterData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-
 pub enum WalletData {
     AliPayQr(Box<AliPayQr>),
     AliPayRedirect(AliPayRedirection),
@@ -234,7 +233,6 @@ pub struct SamsungPayTokenData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-
 pub struct GooglePayWalletData {
     /// The type of payment method
     pub pm_type: String,
@@ -304,7 +302,6 @@ pub struct MobilePayRedirection {}
 pub struct MbWayRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-
 pub struct GooglePayPaymentMethodInfo {
     /// The name of the card network
     pub card_network: String,
@@ -361,7 +358,6 @@ pub struct ApplepayPaymentMethod {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-
 pub enum RealTimePaymentData {
     DuitNow {},
     Fps {},
@@ -370,7 +366,6 @@ pub enum RealTimePaymentData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-
 pub enum BankRedirectData {
     BancontactCard {
         card_number: Option<cards::CardNumber>,

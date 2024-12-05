@@ -1,6 +1,4 @@
-//!
 //! Secrets management util module
-//!
 
 use common_utils::errors::CustomResult;
 #[cfg(feature = "hashicorp-vault")]

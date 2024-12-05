@@ -118,7 +118,6 @@ export const connectorDetails = {
           card: card_data,
         },
         currency: "EUR",
-        payout_type: "card",
       },
       Response: {
         status: 200,
@@ -135,7 +134,6 @@ export const connectorDetails = {
           card: card_data,
         },
         currency: "EUR",
-        payout_type: "card",
       },
       Response: {
         status: 200,
@@ -152,7 +150,6 @@ export const connectorDetails = {
           card: card_data,
         },
         currency: "EUR",
-        payout_type: "card",
       },
     }),
     SavePayoutMethod: getCustomExchange({

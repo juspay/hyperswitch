@@ -155,6 +155,7 @@ cards = [
     "plaid",
     "powertranz",
     "prophetpay",
+    "redsys",
     "shift4",
     "square",
     "stax",
@@ -268,6 +269,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
+redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -788,6 +790,10 @@ card_networks = "Visa, AmericanExpress, Mastercard"
 [network_tokenization_supported_connectors]
 connector_list = "cybersource"
 
-[grpc_client.dynamic_routing_client] 
-host = "localhost" 
-port = 7000       
+[grpc_client.dynamic_routing_client]
+host = "localhost"
+port = 7000
+service = "dynamo"
+
+[theme_storage]
+file_storage_backend = "file_system"

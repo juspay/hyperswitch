@@ -72,10 +72,20 @@ pub static PM_FILTERS_CGRAPH_CACHE: Lazy<Cache> = Lazy::new(|| {
     )
 });
 
-/// Dynamic Algorithm Cache
+/// Success based Dynamic Algorithm Cache
 pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
     Cache::new(
         "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
+        CACHE_TTL,
+        CACHE_TTI,
+        Some(MAX_CAPACITY),
+    )
+});
+
+/// Elimination based Dynamic Algorithm Cache
+pub static ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+    Cache::new(
+        "ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE",
         CACHE_TTL,
         CACHE_TTI,
         Some(MAX_CAPACITY),
@@ -102,6 +112,7 @@ pub enum CacheKind<'a> {
     Surcharge(Cow<'a, str>),
     CGraph(Cow<'a, str>),
     SuccessBasedDynamicRoutingCache(Cow<'a, str>),
+    EliminationBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
 }
@@ -117,7 +128,7 @@ impl<'a> TryFrom<CacheRedact<'a>> for RedisValue {
     }
 }
 
-impl<'a> TryFrom<RedisValue> for CacheRedact<'a> {
+impl TryFrom<RedisValue> for CacheRedact<'_> {
     type Error = Report<errors::ValidationError>;
 
     fn try_from(v: RedisValue) -> Result<Self, Self::Error> {

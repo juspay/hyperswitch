@@ -1,3 +1,5 @@
+import { validateConfig } from "../../utils/featureFlags.js";
+
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatform.js";
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
@@ -11,7 +13,7 @@ const connectorDetails = {
 };
 
 export function getConnectorDetails(connectorId) {
-  let x = mergeDetails(connectorId);
+  const x = mergeDetails(connectorId);
   return x;
 }
 
@@ -50,22 +52,52 @@ function mergeConnectorDetails(source, fallback) {
   return merged;
 }
 
-function getValueByKey(jsonObject, key) {
+export function getValueByKey(jsonObject, key) {
   const data =
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
   if (data && typeof data === "object" && key in data) {
+    // Connector object has multiple keys
+    if (typeof data[key].connector_account_details === "undefined") {
+      const keys = Object.keys(data[key]);
+
+      for (let i = 0; i < keys.length; i++) {
+        const currentItem = data[key][keys[i]];
+
+        if (
+          Object.prototype.hasOwnProperty.call(
+            currentItem,
+            "connector_account_details"
+          )
+        ) {
+          Cypress.env("MULTIPLE_CONNECTORS", {
+            status: true,
+            count: keys.length,
+          });
+
+          return currentItem;
+        }
+      }
+    }
+
     return data[key];
   } else {
     return null;
   }
 }
 
-export const should_continue_further = (res_data) => {
+export const should_continue_further = (data) => {
+  const resData = data.Response || {};
+  const configData = validateConfig(data.Configs) || {};
+
+  if (typeof configData?.TRIGGER_SKIP !== "undefined") {
+    return !configData.TRIGGER_SKIP;
+  }
+
   if (
-    res_data.body.error !== undefined ||
-    res_data.body.error_code !== undefined ||
-    res_data.body.error_message !== undefined
+    typeof resData.body.error !== "undefined" ||
+    typeof resData.body.error_code !== "undefined" ||
+    typeof resData.body.error_message !== "undefined"
   ) {
     return false;
   } else {

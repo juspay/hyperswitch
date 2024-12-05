@@ -255,7 +255,6 @@ pub enum MerchantAccountUpdate {
 }
 
 #[cfg(feature = "v1")]
-
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
     fn from(merchant_account_update: MerchantAccountUpdate) -> Self {
         let now = date_time::now();

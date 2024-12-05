@@ -26,17 +26,13 @@ pub struct SecretStateContainer<T, S: SecretState> {
 }
 
 impl<T: Clone, S: SecretState> SecretStateContainer<T, S> {
-    ///
     /// Get the inner data while consuming self
-    ///
     #[inline]
     pub fn into_inner(self) -> T {
         self.inner
     }
 
-    ///
     /// Get the reference to inner value
-    ///
     #[inline]
     pub fn get_inner(&self) -> &T {
         &self.inner

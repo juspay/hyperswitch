@@ -549,8 +549,6 @@ pub fn payments_incremental_authorization() {}
 pub fn payments_external_authentication() {}
 
 /// Payments - Complete Authorize
-///
-///
 #[utoipa::path(
   post,
   path = "/{payment_id}/complete_authorize",
@@ -569,8 +567,6 @@ pub fn payments_external_authentication() {}
 pub fn payments_complete_authorize() {}
 
 /// Dynamic Tax Calculation
-///
-///
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/calculate_tax",
@@ -587,8 +583,6 @@ pub fn payments_complete_authorize() {}
 pub fn payments_dynamic_tax_calculation() {}
 
 /// Payments - Post Session Tokens
-///
-///
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/post_session_tokens",

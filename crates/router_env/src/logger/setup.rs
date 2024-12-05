@@ -181,9 +181,7 @@ struct TraceAssertion {
 }
 
 impl TraceAssertion {
-    ///
     /// Should the provided url be traced
-    ///
     fn should_trace_url(&self, url: &str) -> bool {
         match &self.clauses {
             Some(clauses) => clauses.iter().all(|cur| cur.compare_url(url)),
@@ -192,9 +190,7 @@ impl TraceAssertion {
     }
 }
 
-///
 /// Conditional Sampler for providing control on url based tracing
-///
 #[derive(Clone, Debug)]
 struct ConditionalSampler<T: trace::ShouldSample + Clone + 'static>(TraceAssertion, T);
 

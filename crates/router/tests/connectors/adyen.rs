@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails, PhoneDetails};
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::types::{self, storage::enums, PaymentAddress};
 

@@ -1,7 +1,8 @@
 use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{router_data::RouterData, router_data_v2::RouterDataV2};
 use hyperswitch_interfaces::{
-    authentication::ExternalAuthenticationPayload, connector_integration_v2::ConnectorIntegrationV2,
+    authentication::ExternalAuthenticationPayload,
+    connector_integration_v2::ConnectorIntegrationV2, webhooks::IncomingWebhookFlowError,
 };
 
 use super::{BoxedConnectorIntegrationV2, ConnectorValidation};
@@ -279,11 +280,12 @@ impl api::IncomingWebhook for ConnectorEnum {
     fn get_webhook_api_response(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<services_api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         match self {
-            Self::Old(connector) => connector.get_webhook_api_response(request),
-            Self::New(connector) => connector.get_webhook_api_response(request),
+            Self::Old(connector) => connector.get_webhook_api_response(request, error_kind),
+            Self::New(connector) => connector.get_webhook_api_response(request, error_kind),
         }
     }
 

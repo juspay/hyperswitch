@@ -1,6 +1,7 @@
 pub mod accumulator;
 mod core;
 
+pub mod distribution;
 pub mod filters;
 pub mod metrics;
 pub mod types;

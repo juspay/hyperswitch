@@ -1,4 +1,3 @@
-//!
 //! `Box` types containing secrets
 //!
 //! There is not alias type by design.

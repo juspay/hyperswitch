@@ -702,7 +702,6 @@ impl TryFrom<&frm_types::FrmRecordReturnRouterData> for SignifydPaymentsRecordRe
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct SignifydWebhookBody {
     pub order_id: String,
     pub review_disposition: ReviewDisposition,

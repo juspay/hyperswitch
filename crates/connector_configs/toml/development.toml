@@ -1325,6 +1325,25 @@ required=true
 type="MultiSelect"
 options=["visa","masterCard","amex","discover"]
 
+[[cybersource.connector_wallets_details.paze]]
+name="client_id"
+label="Client Id"
+placeholder="Enter paze Client Id"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.paze]]
+name="client_profile_id"
+label="Client Profile Id"
+placeholder="Enter Client Profile Id"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.paze]]
+name="client_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+
 [cybersource.metadata.acquirer_bin]
 name="acquirer_bin"
 label="Acquirer Bin"

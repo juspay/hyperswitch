@@ -354,7 +354,7 @@ fn get_billing_details(
 }
 
 fn get_address_details(
-    address: Option<&api_models::payments::AddressDetails>,
+    address: Option<&hyperswitch_domain_models::address::AddressDetails>,
 ) -> Result<Option<Address>, Error> {
     let address_details = match address {
         Some(address) => {

@@ -16,6 +16,11 @@ pub trait ThemeInterface {
         theme: storage::ThemeNew,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
 
+    async fn find_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::Theme, errors::StorageError>;
+
     async fn find_theme_by_lineage(
         &self,
         lineage: ThemeLineage,
@@ -37,6 +42,16 @@ impl ThemeInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         theme
             .insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn find_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::Theme, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Theme::find_by_theme_id(&conn, theme_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -163,6 +178,24 @@ impl ThemeInterface for MockDb {
         themes.push(theme.clone());
 
         Ok(theme)
+    }
+
+    async fn find_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::Theme, errors::StorageError> {
+        let themes = self.themes.lock().await;
+        themes
+            .iter()
+            .find(|theme| theme.theme_id == theme_id)
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "Theme with id {} not found",
+                    theme_id
+                ))
+                .into(),
+            )
     }
 
     async fn find_theme_by_lineage(

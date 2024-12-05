@@ -87,7 +87,7 @@ pub fn analyze_exhaustive_negations(
                     .cloned()
                     .unwrap_or_default()
                     .iter()
-                    .cloned()
+                    .copied()
                     .cloned()
                     .collect(),
             };
@@ -121,12 +121,12 @@ fn analyze_negated_assertions(
                 value: (*val).clone(),
                 assertion_metadata: assertion_metadata
                     .get(*val)
-                    .cloned()
+                    .copied()
                     .cloned()
                     .unwrap_or_default(),
                 negation_metadata: negation_metadata
                     .get(*val)
-                    .cloned()
+                    .copied()
                     .cloned()
                     .unwrap_or_default(),
             };

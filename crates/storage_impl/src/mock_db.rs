@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use diesel_models::{self as store};
+use diesel_models as store;
 use error_stack::ResultExt;
 use futures::lock::Mutex;
 use hyperswitch_domain_models::{

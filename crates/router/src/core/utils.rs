@@ -108,7 +108,7 @@ pub async fn construct_payout_router_data<'a, F>(
         }
     });
 
-    let address = PaymentAddress::new(None, billing_address, None, None);
+    let address = PaymentAddress::new(None, billing_address.map(From::from), None, None);
 
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let payouts = &payout_data.payouts;

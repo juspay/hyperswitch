@@ -737,7 +737,7 @@ fn compile_accepted_currency_for_mca(
                 let config_currency: Vec<common_enums::Currency> =
                     Vec::from_iter(config_currencies)
                         .into_iter()
-                        .cloned()
+                        .copied()
                         .collect();
 
                 let dir_currencies: Vec<dir::DirValue> = config_currency
@@ -767,7 +767,7 @@ fn compile_accepted_currency_for_mca(
                     let config_currency: Vec<common_enums::Currency> =
                         Vec::from_iter(config_currencies)
                             .into_iter()
-                            .cloned()
+                            .copied()
                             .collect();
 
                     let dir_currencies: Vec<dir::DirValue> = config_currency

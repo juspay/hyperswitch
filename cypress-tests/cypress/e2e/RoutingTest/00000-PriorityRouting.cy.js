@@ -5,7 +5,7 @@ import * as utils from "../RoutingUtils/Utils";
 let globalState;
 
 describe("Priority Based Routing Test", () => {
-  let should_continue = true;
+  let shouldContinue = true;
 
   context("Login", () => {
     before("seed global state", () => {
@@ -52,11 +52,8 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("add-routing-config", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      let routing_data = [
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
+      const routing_data = [
         {
           connector: "stripe",
           merchant_connector_id: globalState.get("stripeMcaId"),
@@ -68,53 +65,45 @@ describe("Priority Based Routing Test", () => {
       ];
       cy.addRoutingConfig(
         fixtures.routingConfigBody,
-        req_data,
-        res_data,
+        data,
         "priority",
         routing_data,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.retrieveRoutingConfig(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
+
+      cy.retrieveRoutingConfig(data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("activate-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.activateRoutingConfig(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
+
+      cy.activateRoutingConfig(data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment-routing-test", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      cy.retrievePaymentCallTest(globalState, null);
     });
   });
 
@@ -141,11 +130,8 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("add-routing-config", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-
-      let routing_data = [
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
+      const routing_data = [
         {
           connector: "adyen",
           merchant_connector_id: globalState.get("adyenMcaId"),
@@ -157,53 +143,44 @@ describe("Priority Based Routing Test", () => {
       ];
       cy.addRoutingConfig(
         fixtures.routingConfigBody,
-        req_data,
-        res_data,
+        data,
         "priority",
         routing_data,
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.retrieveRoutingConfig(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
+
+      cy.retrieveRoutingConfig(data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("activate-routing-call-test", () => {
-      let data = utils.getConnectorDetails("common")["priorityRouting"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
-      cy.activateRoutingConfig(req_data, res_data, globalState);
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      const data = utils.getConnectorDetails("common")["priorityRouting"];
+
+      cy.activateRoutingConfig(data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment-routing-test", () => {
-      let data =
+      const data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
-      let req_data = data["Request"];
-      let res_data = data["Response"];
+
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
-        req_data,
-        res_data,
+        data,
         "no_three_ds",
         "automatic",
         globalState
       );
-      if (should_continue)
-        should_continue = utils.should_continue_further(res_data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState);
+      cy.retrievePaymentCallTest(globalState, null);
     });
   });
 });

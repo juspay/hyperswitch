@@ -52,7 +52,7 @@ impl<'a> KafkaFraudCheckEvent<'a> {
     }
 }
 
-impl<'a> super::KafkaMessage for KafkaFraudCheckEvent<'a> {
+impl super::KafkaMessage for KafkaFraudCheckEvent<'_> {
     fn key(&self) -> String {
         format!(
             "{}_{}_{}_{}",

@@ -18,7 +18,7 @@ pub enum CtxValueKind<'a> {
     Negation(&'a [dir::DirValue]),
 }
 
-impl<'a> CtxValueKind<'a> {
+impl CtxValueKind<'_> {
     pub fn get_assertion(&self) -> Option<&dir::DirValue> {
         if let Self::Assertion(val) = self {
             Some(val)

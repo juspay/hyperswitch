@@ -243,7 +243,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 /// `start_after`: The first psync should happen after 60 seconds
 ///
 /// `frequency` and `count`: The next 5 retries should have an interval of 300 seconds between them
-///
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,

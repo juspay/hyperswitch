@@ -81,6 +81,7 @@ if (!isFramed) {
         },
       },
       hideCardNicknameField: hideCardNicknameField,
+      showCardFormByDefault: paymentDetails.show_card_form_by_default,
     };
     // @ts-ignore
     unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);

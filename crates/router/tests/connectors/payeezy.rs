@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use api_models::payments::{Address, AddressDetails};
 use cards::CardNumber;
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::{
     core::errors,

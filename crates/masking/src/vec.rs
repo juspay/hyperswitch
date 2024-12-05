@@ -1,4 +1,3 @@
-//!
 //! Secret `Vec` types
 //!
 //! There is not alias type by design.

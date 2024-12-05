@@ -214,7 +214,10 @@ pub async fn initiate_payout_link(
             });
 
             let required_field_override = api::RequiredFieldsOverrideRequest {
-                billing: address.as_ref().map(From::from),
+                billing: address
+                    .as_ref()
+                    .map(hyperswitch_domain_models::address::Address::from)
+                    .map(From::from),
             };
 
             let enabled_payment_methods_with_required_fields = ForeignFrom::foreign_from((

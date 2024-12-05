@@ -1125,7 +1125,7 @@ pub enum BluesnapErrors {
 }
 
 fn get_card_holder_info(
-    address: &api::AddressDetails,
+    address: &hyperswitch_domain_models::address::AddressDetails,
     email: Email,
 ) -> CustomResult<Option<BluesnapCardHolderInfo>, errors::ConnectorError> {
     let first_name = address.get_first_name()?;

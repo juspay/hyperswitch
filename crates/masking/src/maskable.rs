@@ -1,13 +1,9 @@
-//!
 //! This module contains Masking objects and traits
-//!
 
 use crate::{ExposeInterface, Secret};
 
-///
 /// An Enum that allows us to optionally mask data, based on which enum variant that data is stored
 /// in.
-///
 #[derive(Clone, Eq, PartialEq)]
 pub enum Maskable<T: Eq + PartialEq + Clone> {
     /// Variant which masks the data by wrapping in a Secret
@@ -35,9 +31,7 @@ impl<T: Eq + PartialEq + Clone + std::hash::Hash> std::hash::Hash for Maskable<T
 }
 
 impl<T: Eq + PartialEq + Clone> Maskable<T> {
-    ///
     /// Get the inner data while consuming self
-    ///
     pub fn into_inner(self) -> T {
         match self {
             Self::Masked(inner_secret) => inner_secret.expose(),
@@ -45,49 +39,37 @@ impl<T: Eq + PartialEq + Clone> Maskable<T> {
         }
     }
 
-    ///
     /// Create a new Masked data
-    ///
     pub fn new_masked(item: Secret<T>) -> Self {
         Self::Masked(item)
     }
 
-    ///
     /// Create a new non-masked data
-    ///
     pub fn new_normal(item: T) -> Self {
         Self::Normal(item)
     }
 
-    ///
     /// Checks whether the data is masked.
     /// Returns `true` if the data is wrapped in the `Masked` variant,
     /// returns `false` otherwise.
-    ///
     pub fn is_masked(&self) -> bool {
         matches!(self, Self::Masked(_))
     }
 
-    ///
     /// Checks whether the data is normal (not masked).
     /// Returns `true` if the data is wrapped in the `Normal` variant,
     /// returns `false` otherwise.
-    ///
     pub fn is_normal(&self) -> bool {
         matches!(self, Self::Normal(_))
     }
 }
 
 /// Trait for providing a method on custom types for constructing `Maskable`
-
 pub trait Mask {
     /// The type returned by the `into_masked()` method. Must implement `PartialEq`, `Eq` and `Clone`
-
     type Output: Eq + Clone + PartialEq;
 
-    ///
     /// Construct a `Maskable` instance that wraps `Self::Output` by consuming `self`
-    ///
     fn into_masked(self) -> Maskable<Self::Output>;
 }
 
