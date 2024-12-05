@@ -1,5 +1,5 @@
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use std::fmt;
-use serde::{Serialize, Deserialize, Deserializer, de::Visitor};
 use utoipa::ToSchema;
 
 #[derive(
@@ -17,32 +17,25 @@ use utoipa::ToSchema;
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
-#[serde(rename_all = "kebab-case")]
-#[strum(serialize_all = "kebab-case")]
+#[serde(rename_all = "lowercase")]
 pub enum ElementPosition {
     Left,
     #[default]
+    #[serde(rename = "top left")]
     TopLeft,
     Top,
+    #[serde(rename = "top right")]
     TopRight,
     Right,
+    #[serde(rename = "bottom right")]
     BottomRight,
     Bottom,
+    #[serde(rename = "bottom left")]
     BottomLeft,
     Center,
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, strum::Display, strum::EnumString, ToSchema)]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 pub enum ElementSize {
     Variants(SizeVariants),
@@ -115,7 +108,8 @@ impl<'de> Deserialize<'de> for ElementSize {
                 E: serde::de::Error,
             {
                 if let Some(percent) = value.strip_suffix('%') {
-                    percent.parse::<u32>()
+                    percent
+                        .parse::<u32>()
                         .map(ElementSize::Percentage)
                         .map_err(E::custom)
                 } else if let Some(px) = value.strip_suffix("px") {
@@ -142,9 +136,13 @@ impl Serialize for ElementSize {
         S: serde::ser::Serializer,
     {
         match self {
-            ElementSize::Variants(variant) => serializer.serialize_str(variant.to_string().as_str()),
-            ElementSize::Pixels(pixel_count) => serializer.serialize_str(format!("{}px", pixel_count).as_str()),
-            ElementSize::Percentage(pixel_count) => serializer.serialize_str(format!("{}%", pixel_count).as_str()),
+            Self::Variants(variant) => serializer.serialize_str(variant.to_string().as_str()),
+            Self::Pixels(pixel_count) => {
+                serializer.serialize_str(format!("{}px", pixel_count).as_str())
+            }
+            Self::Percentage(pixel_count) => {
+                serializer.serialize_str(format!("{}%", pixel_count).as_str())
+            }
         }
     }
 }

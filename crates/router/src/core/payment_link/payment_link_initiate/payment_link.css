@@ -71,6 +71,7 @@ body {
 
 #hyper-checkout-details {
   font-family: "Montserrat";
+  background-repeat: no-repeat;
 }
 
 .hyper-checkout-payment {
@@ -278,7 +279,7 @@ body {
 
 #hyper-checkout-merchant-description {
   font-size: 13px;
-  color: #808080;
+  margin: 10px 0 20px 0;
 }
 
 .powered-by-hyper {
@@ -291,7 +292,6 @@ body {
   min-width: 584px;
   z-index: 2;
   background-color: var(--primary-color);
-  box-shadow: 0px 1px 10px #f2f2f2;
   display: flex;
   flex-flow: column;
   align-items: center;
@@ -662,6 +662,12 @@ body {
   display: inline-block;
   box-sizing: border-box;
   animation: loading 1s linear infinite;
+}
+
+@media only screen and (min-width: 1199px) {
+  #hyper-checkout-merchant-description {
+    color: #808080;
+  }
 }
 
 @media only screen and (max-width: 1199px) {

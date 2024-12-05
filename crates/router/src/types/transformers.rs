@@ -1912,6 +1912,7 @@ impl ForeignFrom<api_models::admin::BusinessPaymentLinkConfig>
                     .collect()
             }),
             allowed_domains: item.allowed_domains,
+            branding_visibility: item.branding_visibility,
         }
     }
 }
@@ -1929,6 +1930,7 @@ impl ForeignFrom<diesel_models::business_profile::BusinessPaymentLinkConfig>
                     .collect()
             }),
             allowed_domains: item.allowed_domains,
+            branding_visibility: item.branding_visibility,
         }
     }
 }
@@ -1993,9 +1995,7 @@ impl ForeignFrom<diesel_models::business_profile::PaymentLinkBackgroundImageConf
 impl ForeignFrom<api_models::admin::PaymentLinkBackgroundImageConfig>
     for diesel_models::business_profile::PaymentLinkBackgroundImageConfig
 {
-    fn foreign_from(
-        item: api_models::admin::PaymentLinkBackgroundImageConfig,
-    ) -> Self {
+    fn foreign_from(item: api_models::admin::PaymentLinkBackgroundImageConfig) -> Self {
         Self {
             url: item.url,
             position: item.position,

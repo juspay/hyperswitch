@@ -2619,6 +2619,8 @@ pub struct BusinessPaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     #[schema(value_type = Option<HashSet<String>>)]
     pub allowed_domains: Option<HashSet<String>>,
+    /// Toggle for HyperSwitch branding visibility
+    pub branding_visibility: Option<bool>,
 }
 
 impl BusinessPaymentLinkConfig {
@@ -2677,10 +2679,10 @@ pub struct PaymentLinkConfigRequest {
     pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
-    /// Configurations for image
+    /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
     /// Custom layout for details section
-    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
@@ -2743,10 +2745,12 @@ pub struct PaymentLinkConfig {
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
-    /// Configurations for image
+    /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
     /// Custom layout for details section
-    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>
+    pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
+    /// Toggle for HyperSwitch branding visibility
+    pub branding_visibility: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
