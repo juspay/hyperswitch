@@ -5395,6 +5395,11 @@
                 "description": "A list of allowed domains (glob patterns) where this link can be embedded / opened from",
                 "uniqueItems": true,
                 "nullable": true
+              },
+              "branding_visibility": {
+                "type": "boolean",
+                "description": "Toggle for HyperSwitch branding visibility",
+                "nullable": true
               }
             }
           }
@@ -12381,6 +12386,27 @@
             },
             "description": "Dynamic details related to merchant to be rendered in payment link",
             "nullable": true
+          },
+          "background_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkBackgroundImageConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "details_layout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.PaymentLinkDetailsLayout"
+              }
+            ],
+            "nullable": true
+          },
+          "branding_visibility": {
+            "type": "boolean",
+            "description": "Toggle for HyperSwitch branding visibility",
+            "nullable": true
           }
         }
       },
@@ -12449,6 +12475,22 @@
               "$ref": "#/components/schemas/PaymentLinkTransactionDetails"
             },
             "description": "Dynamic details related to merchant to be rendered in payment link",
+            "nullable": true
+          },
+          "background_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkBackgroundImageConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "details_layout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.PaymentLinkDetailsLayout"
+              }
+            ],
             "nullable": true
           }
         }
