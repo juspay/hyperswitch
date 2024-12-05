@@ -185,7 +185,7 @@ pub async fn form_payment_link_data(
     let payment_link_status = check_payment_link_status(session_expiry);
 
     let is_terminal_state = check_payment_link_invalid_conditions(
-        &payment_intent.status,
+        payment_intent.status,
         &[
             storage_enums::IntentStatus::Cancelled,
             storage_enums::IntentStatus::Failed,
@@ -700,10 +700,10 @@ fn capitalize_first_char(s: &str) -> String {
 }
 
 fn check_payment_link_invalid_conditions(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
 ) -> bool {
-    not_allowed_statuses.contains(intent_status)
+    not_allowed_statuses.contains(&intent_status)
 }
 
 #[cfg(feature = "v2")]

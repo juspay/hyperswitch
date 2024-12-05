@@ -264,4 +264,15 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     > {
         Ok(None)
     }
+
+    /// fn get_network_txn_id
+    fn get_network_txn_id(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
+        errors::ConnectorError,
+    > {
+        Ok(None)
+    }
 }
