@@ -867,6 +867,16 @@ pub struct PaymentsRequest {
     /// Choose what kind of sca exemption is required for this payment
     #[schema(value_type = Option<ScaExemptionType>)]
     pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
+
+    /// Service details for external authentication
+    pub service_details: Option<ServiceDetails>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ServiceDetails {
+    pub merchant_transaction_id: Option<String>,
+    pub correlation_id: Option<String>,
+    pub x_src_flow_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
