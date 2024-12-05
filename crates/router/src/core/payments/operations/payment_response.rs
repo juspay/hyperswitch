@@ -720,7 +720,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SdkPaymentsSessionUpd
                         let shipping_address =
                             payments_helpers::create_or_update_address_for_payment_by_request(
                                 db,
-                                shipping_address.as_ref(),
+                                shipping_address.map(From::from).as_ref(),
                                 payment_data.payment_intent.shipping_address_id.as_deref(),
                                 &payment_data.payment_intent.merchant_id,
                                 payment_data.payment_intent.customer_id.as_ref(),

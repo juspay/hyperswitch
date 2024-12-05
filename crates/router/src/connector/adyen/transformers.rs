@@ -1738,7 +1738,7 @@ fn get_additional_data(item: &types::PaymentsAuthorizeRouterData) -> Option<Addi
     })
 }
 
-fn get_channel_type(pm_type: &Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
+fn get_channel_type(pm_type: Option<storage_enums::PaymentMethodType>) -> Option<Channel> {
     pm_type.as_ref().and_then(|pmt| match pmt {
         storage_enums::PaymentMethodType::GoPay | storage_enums::PaymentMethodType::Vipps => {
             Some(Channel::Web)
@@ -1755,7 +1755,7 @@ fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) 
 }
 
 pub fn get_address_info(
-    address: Option<&payments::Address>,
+    address: Option<&hyperswitch_domain_models::address::Address>,
 ) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>> {
     address.and_then(|add| {
         add.address.as_ref().map(
@@ -1817,7 +1817,9 @@ fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Sec
     })
 }
 
-fn get_shopper_name(address: Option<&payments::Address>) -> Option<ShopperName> {
+fn get_shopper_name(
+    address: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<ShopperName> {
     let billing = address.and_then(|billing| billing.address.as_ref());
     Some(ShopperName {
         first_name: billing.and_then(|a| a.first_name.clone()),
@@ -1825,7 +1827,9 @@ fn get_shopper_name(address: Option<&payments::Address>) -> Option<ShopperName> 
     })
 }
 
-fn get_country_code(address: Option<&payments::Address>) -> Option<api_enums::CountryAlpha2> {
+fn get_country_code(
+    address: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<api_enums::CountryAlpha2> {
     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
@@ -3135,7 +3139,7 @@ impl
         let additional_data = get_additional_data(item.router_data);
         let payment_method = AdyenPaymentMethod::try_from((wallet_data, item.router_data))?;
         let shopper_interaction = AdyenShopperInteraction::from(item.router_data);
-        let channel = get_channel_type(&item.router_data.request.payment_method_type);
+        let channel = get_channel_type(item.router_data.request.payment_method_type);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
@@ -4264,6 +4268,7 @@ pub struct AdyenAdditionalDataWH {
     /// Enable recurring details in dashboard to receive this ID, https://docs.adyen.com/online-payments/tokenization/create-and-use-tokens#test-and-go-live
     #[serde(rename = "recurring.recurringDetailReference")]
     pub recurring_detail_reference: Option<Secret<String>>,
+    pub network_tx_reference: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -4863,7 +4868,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     })?,
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
-                let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
+                let address = item.router_data.get_billing_address()?;
                 Ok(Self {
                     amount: Amount {
                         value: item.amount.to_owned(),
@@ -4905,7 +4910,7 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         })?
                     }
                 };
-                let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
+                let address = item.router_data.get_billing_address()?;
                 let payout_wallet = PayoutWalletData {
                     selected_brand: PayoutBrand::Paypal,
                     additional_data,

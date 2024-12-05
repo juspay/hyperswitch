@@ -497,7 +497,7 @@ impl OpenSearchQueryBuilder {
         Ok(())
     }
 
-    pub fn get_status_field(&self, index: &SearchIndex) -> &str {
+    pub fn get_status_field(&self, index: SearchIndex) -> &str {
         match index {
             SearchIndex::Refunds | SearchIndex::SessionizerRefunds => "refund_status.keyword",
             SearchIndex::Disputes | SearchIndex::SessionizerDisputes => "dispute_status.keyword",
@@ -544,7 +544,7 @@ impl OpenSearchQueryBuilder {
         mut payload: Value,
         case_insensitive_filters: &[&(String, Vec<String>)],
         auth_array: Vec<Value>,
-        index: &SearchIndex,
+        index: SearchIndex,
     ) -> Value {
         let mut must_array = case_insensitive_filters
             .iter()
@@ -728,7 +728,7 @@ impl OpenSearchQueryBuilder {
                     payload,
                     &case_insensitive_filters,
                     should_array.clone(),
-                    index,
+                    *index,
                 );
                 payload
             })

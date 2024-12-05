@@ -321,10 +321,10 @@ pub fn get_schedule_time(
 
 pub fn get_pm_schedule_time(
     mapping: process_data::PaymentMethodsPTMapping,
-    pm: &enums::PaymentMethod,
+    pm: enums::PaymentMethod,
     retry_count: i32,
 ) -> Option<i32> {
-    let mapping = match mapping.custom_pm_mapping.get(pm) {
+    let mapping = match mapping.custom_pm_mapping.get(&pm) {
         Some(map) => map.clone(),
         None => mapping.default_mapping,
     };

@@ -812,7 +812,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             )?;
 
         let payment_status_attribute =
-            get_desired_payment_status_for_success_routing_metrics(&payment_attempt.status);
+            get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
 
         let first_success_based_connector_label = &success_based_connectors
             .labels_with_score
@@ -833,7 +833,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             ))?;
 
         let outcome = get_success_based_metrics_outcome_for_payment(
-            &payment_status_attribute,
+            payment_status_attribute,
             payment_connector.to_string(),
             first_success_based_connector.to_string(),
         );
@@ -1175,7 +1175,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 fn get_desired_payment_status_for_success_routing_metrics(
-    attempt_status: &common_enums::AttemptStatus,
+    attempt_status: common_enums::AttemptStatus,
 ) -> common_enums::AttemptStatus {
     match attempt_status {
         common_enums::AttemptStatus::Charged
@@ -1211,7 +1211,7 @@ fn get_desired_payment_status_for_success_routing_metrics(
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 fn get_success_based_metrics_outcome_for_payment(
-    payment_status_attribute: &common_enums::AttemptStatus,
+    payment_status_attribute: common_enums::AttemptStatus,
     payment_connector: String,
     first_success_based_connector: String,
 ) -> common_enums::SuccessBasedRoutingConclusiveState {
@@ -1302,6 +1302,8 @@ pub async fn disable_dynamic_routing_algorithm(
                         elimination_routing_algorithm: dynamic_routing_algo_ref
                             .elimination_routing_algorithm,
                         contract_based_routing: dynamic_routing_algo_ref.contract_based_routing,
+                        dynamic_routing_volume_split: dynamic_routing_algo_ref
+                            .dynamic_routing_volume_split,
                     },
                     cache_entries_to_redact,
                 )
@@ -1332,6 +1334,8 @@ pub async fn disable_dynamic_routing_algorithm(
                     algorithm_id,
                     routing_types::DynamicRoutingAlgorithmRef {
                         success_based_algorithm: dynamic_routing_algo_ref.success_based_algorithm,
+                        dynamic_routing_volume_split: dynamic_routing_algo_ref
+                            .dynamic_routing_volume_split,
                         elimination_routing_algorithm: Some(
                             routing_types::EliminationRoutingAlgorithm {
                                 algorithm_id_with_timestamp:

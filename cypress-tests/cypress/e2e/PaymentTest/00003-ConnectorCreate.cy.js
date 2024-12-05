@@ -22,4 +22,32 @@ describe("Connector Account Create flow test", () => {
       globalState
     );
   });
+
+  it("check and create multiple connectors", () => {
+    const multiple_connectors = Cypress.env("MULTIPLE_CONNECTORS");
+    // multiple_connectors will be undefined if not set in the env
+    if (multiple_connectors?.status) {
+      // Create multiple connectors based on the count
+      // The first connector is already created when creating merchant account, so start from 1
+      for (let i = 1; i < multiple_connectors.count; i++) {
+        cy.createBusinessProfileTest(
+          fixtures.businessProfile.bpCreate,
+          globalState,
+          "profile" + i
+        );
+        cy.createConnectorCallTest(
+          "payment_processor",
+          fixtures.createConnectorBody,
+          payment_methods_enabled,
+          globalState,
+          `profile${i}`,
+          `merchantConnector${i}`
+        );
+      }
+    } else {
+      cy.log(
+        "Multiple connectors not enabled. Skipping creation of multiple profiles and respective MCAs"
+      );
+    }
+  });
 });

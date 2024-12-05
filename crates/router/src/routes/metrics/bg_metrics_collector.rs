@@ -2,7 +2,7 @@ use storage_impl::redis::cache;
 
 const DEFAULT_BG_METRICS_COLLECTION_INTERVAL_IN_SECS: u16 = 15;
 
-pub fn spawn_metrics_collector(metrics_collection_interval_in_secs: &Option<u16>) {
+pub fn spawn_metrics_collector(metrics_collection_interval_in_secs: Option<u16>) {
     let metrics_collection_interval = metrics_collection_interval_in_secs
         .unwrap_or(DEFAULT_BG_METRICS_COLLECTION_INTERVAL_IN_SECS);
 

@@ -77,7 +77,7 @@ impl<F: Send + Clone>
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[enums::IntentStatus::RequiresCapture],
             "increment authorization",
         )?;

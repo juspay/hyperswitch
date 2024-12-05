@@ -118,7 +118,7 @@ pub async fn get_api_event_metrics(
                         &req.group_by_names.clone(),
                         &merchant_id_scoped,
                         &req.filters,
-                        &req.time_series.map(|t| t.granularity),
+                        req.time_series.map(|t| t.granularity),
                         &req.time_range,
                     )
                     .await

@@ -522,6 +522,7 @@ pub struct DynamicAlgorithmWithTimestamp<T> {
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DynamicRoutingAlgorithmRef {
     pub success_based_algorithm: Option<SuccessBasedAlgorithm>,
+    pub dynamic_routing_volume_split: Option<u8>,
     pub elimination_routing_algorithm: Option<EliminationRoutingAlgorithm>,
     pub contract_based_routing: Option<ContractRoutingAlgorithm>,
 }
@@ -628,8 +629,63 @@ impl DynamicRoutingAlgorithmRef {
             }
         }
     }
+
+    pub fn update_volume_split(&mut self, volume: Option<u8>) {
+        self.dynamic_routing_volume_split = volume
+    }
 }
 
+impl EliminationRoutingAlgorithm {
+    pub fn new(
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
+            common_utils::id_type::RoutingId,
+        >,
+    ) -> Self {
+        Self {
+            algorithm_id_with_timestamp,
+            enabled_feature: DynamicRoutingFeatures::None,
+        }
+    }
+}
+
+impl SuccessBasedAlgorithm {
+    pub fn new(
+        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
+            common_utils::id_type::RoutingId,
+        >,
+    ) -> Self {
+        Self {
+            algorithm_id_with_timestamp,
+            enabled_feature: DynamicRoutingFeatures::None,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub struct RoutingVolumeSplit {
+    pub routing_type: RoutingType,
+    pub split: u8,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RoutingVolumeSplitWrapper {
+    pub routing_info: RoutingVolumeSplit,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingType {
+    #[default]
+    Static,
+    Dynamic,
+}
+
+impl RoutingType {
+    pub fn is_dynamic_routing(self) -> bool {
+        self == Self::Dynamic
+    }
+}
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SuccessBasedAlgorithm {
     pub algorithm_id_with_timestamp:
@@ -708,6 +764,11 @@ impl DynamicRoutingAlgorithmRef {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ToggleDynamicRoutingQuery {
     pub enable: DynamicRoutingFeatures,
+}
+
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct DynamicRoutingVolumeSplitQuery {
+    pub split: u8,
 }
 
 #[derive(

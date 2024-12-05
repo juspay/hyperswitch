@@ -2723,7 +2723,6 @@ pub async fn create_connector(
     let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
     req.connector_name
-        .clone()
         .validate_dummy_connector_enabled(state.conf.dummy_connector.enabled)
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid connector name".to_string(),
@@ -3555,6 +3554,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
+            is_click_to_pay_enabled: self.is_click_to_pay_enabled,
         }))
     }
 
@@ -3662,6 +3662,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+            is_click_to_pay_enabled: self.is_click_to_pay_enabled,
         }))
     }
 }
@@ -3911,6 +3912,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
+                is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             },
         )))
     }
@@ -4007,6 +4009,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+                is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             },
         )))
     }
