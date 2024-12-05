@@ -367,10 +367,6 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<FeatureMetadata>)]
     pub feature_metadata: Option<FeatureMetadata>,
 
-    /// Whether to generate the payment link for this payment or not (if applicable)
-    #[schema(value_type = Option<EnablePaymentLinkRequest>)]
-    pub enable_payment_link: Option<common_enums::EnablePaymentLinkRequest>,
-
     /// Configure a custom payment link for the particular payment
     #[schema(value_type = Option<PaymentLinkConfigRequest>)]
     pub payment_link_config: Option<admin::PaymentLinkConfigRequest>,

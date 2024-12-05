@@ -531,7 +531,6 @@ pub struct PaymentIntentUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<FeatureMetadata>,
-    pub enable_payment_link: Option<bool>,
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub request_incremental_authorization: Option<RequestIncrementalAuthorization>,
     pub session_expiry: Option<PrimitiveDateTime>,

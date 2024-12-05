@@ -164,7 +164,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             metadata,
             connector_metadata,
             feature_metadata,
-            enable_payment_link,
             payment_link_config,
             request_incremental_authorization,
             session_expiry,
@@ -260,7 +259,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .attach_printable("Unable to decode shipping address")?,
             capture_method: capture_method.unwrap_or(payment_intent.capture_method),
             authentication_type: authentication_type.unwrap_or(payment_intent.authentication_type),
-            enable_payment_link: enable_payment_link.unwrap_or(payment_intent.enable_payment_link),
             payment_link_config: payment_link_config
                 .map(ApiModelToDieselModelConvertor::convert_from)
                 .or(payment_intent.payment_link_config),
@@ -339,7 +337,6 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 metadata: intent.metadata,
                 connector_metadata: intent.connector_metadata,
                 feature_metadata: intent.feature_metadata,
-                enable_payment_link: Some(intent.enable_payment_link),
                 payment_link_config: intent.payment_link_config,
                 request_incremental_authorization: Some(intent.request_incremental_authorization),
                 session_expiry: Some(intent.session_expiry),

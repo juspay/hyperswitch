@@ -28,8 +28,6 @@ use super::payment_attempt::PaymentAttempt;
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::address::Address;
-#[cfg(feature = "v2")]
-use crate::ApiModelToDieselModelConvertor;
 use crate::{
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
@@ -157,7 +155,6 @@ pub struct PaymentIntentUpdateFields {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<pii::SecretSerdeValue>,
     pub feature_metadata: Option<diesel_models::types::FeatureMetadata>,
-    pub enable_payment_link: Option<common_enums::EnablePaymentLinkRequest>,
     pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
     pub request_incremental_authorization: Option<common_enums::RequestIncrementalAuthorization>,
     pub session_expiry: Option<PrimitiveDateTime>,
@@ -387,7 +384,6 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 metadata: None,
                 connector_metadata: None,
                 feature_metadata: None,
-                enable_payment_link: None,
                 payment_link_config: None,
                 request_incremental_authorization: None,
                 session_expiry: None,
@@ -424,7 +420,6 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 metadata: None,
                 connector_metadata: None,
                 feature_metadata: None,
-                enable_payment_link: None,
                 payment_link_config: None,
                 request_incremental_authorization: None,
                 session_expiry: None,
@@ -460,7 +455,6 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 metadata: None,
                 connector_metadata: None,
                 feature_metadata: None,
-                enable_payment_link: None,
                 payment_link_config: None,
                 request_incremental_authorization: None,
                 session_expiry: None,
@@ -494,7 +488,6 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     metadata,
                     connector_metadata,
                     feature_metadata,
-                    enable_payment_link,
                     payment_link_config,
                     request_incremental_authorization,
                     session_expiry,
@@ -536,7 +529,6 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     metadata,
                     connector_metadata,
                     feature_metadata,
-                    enable_payment_link: enable_payment_link.map(|val| val.as_bool()),
                     payment_link_config,
                     request_incremental_authorization,
                     session_expiry,

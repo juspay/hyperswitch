@@ -16169,14 +16169,6 @@
             ],
             "nullable": true
           },
-          "enable_payment_link": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/EnablePaymentLinkRequest"
-              }
-            ],
-            "nullable": true
-          },
           "payment_link_config": {
             "allOf": [
               {
