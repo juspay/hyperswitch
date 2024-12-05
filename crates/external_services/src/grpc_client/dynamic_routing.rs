@@ -2,13 +2,12 @@ pub mod contract_routing;
 
 use std::fmt::Debug;
 
-pub use contract_routing::ContractScoreCalculatorClient;
-
 use api_models::routing::{
     CurrentBlockThreshold, RoutableConnectorChoice, RoutableConnectorChoiceWithStatus,
     SuccessBasedRoutingConfig, SuccessBasedRoutingConfigBody,
 };
 use common_utils::{errors::CustomResult, ext_traits::OptionExt, transformers::ForeignTryFrom};
+pub use contract_routing::ContractScoreCalculatorClient;
 use error_stack::ResultExt;
 use router_env::logger;
 use serde;
