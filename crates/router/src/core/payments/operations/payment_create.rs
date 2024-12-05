@@ -1206,7 +1206,7 @@ impl PaymentCreate {
                 attempt_id,
                 status,
                 currency,
-                order_tax_amount: Some(request.order_tax_amount),
+                order_tax_amount: request.order_tax_amount,
                 payment_method,
                 capture_method: request.capture_method,
                 capture_on: request.capture_on,
@@ -1422,6 +1422,13 @@ impl PaymentCreate {
             .attach_printable("Unable to encrypt the payment intent data")?;
 
         let skip_external_tax_calculation = request.skip_external_tax_calculation;
+        let tax_amount = request.order_tax_amount.unwrap_or(MinorUnit::new(0));
+        let tax_details = Some(diesel_models::TaxDetails {
+            default: Some(diesel_models::DefaultTax {
+                order_tax_amount: tax_amount,
+            }),
+            ..Default::default()
+        });
 
         Ok(storage::PaymentIntent {
             payment_id: payment_id.to_owned(),
@@ -1477,12 +1484,7 @@ impl PaymentCreate {
             is_payment_processor_token_flow,
             organization_id: merchant_account.organization_id.clone(),
             shipping_cost: request.shipping_cost,
-            tax_details: Some(diesel_models::TaxDetails {
-                default: Some(diesel_models::DefaultTax {
-                    order_tax_amount: request.order_tax_amount,
-                }),
-                ..Default::default()
-            }),
+            tax_details,
             skip_external_tax_calculation,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
         })

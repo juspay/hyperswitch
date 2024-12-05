@@ -2969,7 +2969,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             .unwrap_or_default();
 
         let amount = payment_data.payment_intent.amount;
-
         let shipping_cost = payment_data
             .payment_intent
             .shipping_cost

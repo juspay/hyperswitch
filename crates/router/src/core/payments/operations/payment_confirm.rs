@@ -1336,13 +1336,20 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             ),
             None => (None, None, None),
         };
-
+        let order_tax_amount = payment_data
+            .payment_intent
+            .tax_details
+            .as_ref()
+            .and_then(|td| td.default.as_ref())
+            .map(|default_tax| default_tax.order_tax_amount)
+            .unwrap_or_default();
         let payment_attempt_fut = tokio::spawn(
             async move {
                 m_db.update_payment_attempt_with_attempt_id(
                     m_payment_data_payment_attempt,
                     storage::PaymentAttemptUpdate::ConfirmUpdate {
                         currency: payment_data.currency,
+                        order_tax_amount: Some(order_tax_amount),
                         status: attempt_status,
                         payment_method,
                         authentication_type,

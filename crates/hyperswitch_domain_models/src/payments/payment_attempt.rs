@@ -774,6 +774,7 @@ pub enum PaymentAttemptUpdate {
     },
     ConfirmUpdate {
         net_amount: NetAmount,
+        order_tax_amount: Option<MinorUnit>,
         currency: storage_enums::Currency,
         status: storage_enums::AttemptStatus,
         authentication_type: Option<storage_enums::AuthenticationType>,
@@ -1026,6 +1027,7 @@ impl PaymentAttemptUpdate {
             },
             Self::ConfirmUpdate {
                 net_amount,
+                order_tax_amount,
                 currency,
                 status,
                 authentication_type,
@@ -1056,6 +1058,7 @@ impl PaymentAttemptUpdate {
                 connector_mandate_detail,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
+                order_tax_amount,
                 currency,
                 status,
                 authentication_type,
@@ -1086,7 +1089,7 @@ impl PaymentAttemptUpdate {
                 client_version,
                 customer_acceptance,
                 shipping_cost: net_amount.get_shipping_cost(),
-                order_tax_amount: net_amount.get_order_tax_amount(),
+                // order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
             },
             Self::VoidUpdate {

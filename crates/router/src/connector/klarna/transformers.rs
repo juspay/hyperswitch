@@ -81,7 +81,7 @@ pub struct MerchantURLs {
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct KlarnaCheckoutRequestData {
     merchant_urls: MerchantURLs,
-    options:CheckoutOptions
+    options: CheckoutOptions,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
@@ -98,7 +98,6 @@ pub struct KlarnaPaymentsRequest {
     #[serde(flatten)]
     payment_method_specifics: Option<PaymentMethodSpecifics>,
 }
-
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
@@ -118,7 +117,7 @@ pub struct PaymentsResponse {
 pub struct CheckoutResponse {
     order_id: String,
     status: KlarnaCheckoutStatus,
-    html_snippet: String
+    html_snippet: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -273,7 +272,7 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
                         )
                         .transpose()?,
                         order_tax_amount: None,
-                        payment_method_specifics: None
+                        payment_method_specifics: None,
                     }),
                     None => Err(report!(errors::ConnectorError::MissingRequiredField {
                         field_name: "order_details"
@@ -368,16 +367,17 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
     ) -> Result<Self, Self::Error> {
         match item.response {
             KlarnaAuthResponse::KlarnaPaymentsAuthResponse(ref response) => {
-                let connector_response = match &response.authorized_payment_method {
-                    Some(authorized_payment_method) => {
-                        Some(types::ConnectorResponseData::with_additional_payment_method_data(
-                            types::AdditionalPaymentMethodConnectorResponse::from(
-                                authorized_payment_method.clone(),
-                            ),
-                        ))
-                    }
-                    None => None,
-                };
+                let connector_response =
+                    response
+                        .authorized_payment_method
+                        .as_ref()
+                        .map(|authorized_payment_method| {
+                            types::ConnectorResponseData::with_additional_payment_method_data(
+                                types::AdditionalPaymentMethodConnectorResponse::from(
+                                    authorized_payment_method.clone(),
+                                ),
+                            )
+                        });
 
                 Ok(Self {
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
@@ -401,33 +401,30 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaAuthResponse>>
                 })
             }
 
-            KlarnaAuthResponse::KlarnaCheckoutAuthResponse(ref response) => {
-                Ok(Self {
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            response.order_id.clone(),
-                        ),
-                        redirection_data: Box::new(Some(RedirectForm::Html {
-                            html_data: response.html_snippet.clone(),
-                        })),
-                        mandate_reference: Box::new(None),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: Some(response.order_id.clone()),
-                        incremental_authorization_allowed: None,
-                        charge_id: None,
-                    }),
-                    status: enums::AttemptStatus::foreign_from((
-                        response.status.clone(),
-                        item.data.request.is_auto_capture()?,
-                    )),
-                    ..item.data
-                })
-            }
+            KlarnaAuthResponse::KlarnaCheckoutAuthResponse(ref response) => Ok(Self {
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        response.order_id.clone(),
+                    ),
+                    redirection_data: Box::new(Some(RedirectForm::Html {
+                        html_data: response.html_snippet.clone(),
+                    })),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(response.order_id.clone()),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                status: enums::AttemptStatus::foreign_from((
+                    response.status.clone(),
+                    item.data.request.is_auto_capture()?,
+                )),
+                ..item.data
+            }),
         }
     }
 }
-
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct OrderLines {

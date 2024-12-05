@@ -583,7 +583,7 @@ pub struct PaymentsRequest {
 
     /// Total tax amount applicable to the order
     #[schema(value_type = i64, example = 6540)]
-    pub order_tax_amount: MinorUnit,
+    pub order_tax_amount: Option<MinorUnit>,
 
     /// The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars
     #[schema(example = "USD", value_type = Option<Currency>)]
