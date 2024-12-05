@@ -199,6 +199,5 @@ describe("Core flows", () => {
     it("List connector feature matrix call", () => {
       cy.ListConnectorsFeatureMatrixCall(globalState);
     });
-
   });
 });
