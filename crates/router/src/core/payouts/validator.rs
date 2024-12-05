@@ -172,12 +172,10 @@ pub async fn validate_create_request(
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
-            (Some(_), Some(_)) => {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Only one of payout_method_id or payout_token should be provided."
-                        .to_string(),
-                }))
-            }
+            (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Only one of payout_method_id or payout_token should be provided."
+                    .to_string(),
+            })),
             (None, Some(payment_method_id)) => match customer.as_ref() {
                 Some(customer) => {
                     let payment_method = db
