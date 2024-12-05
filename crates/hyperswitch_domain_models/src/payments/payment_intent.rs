@@ -27,9 +27,10 @@ use time::PrimitiveDateTime;
 use super::payment_attempt::PaymentAttempt;
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
+use crate::address::Address;
+#[cfg(feature = "v2")]
 use crate::ApiModelToDieselModelConvertor;
 use crate::{
-    address::Address,
     behaviour, errors,
     merchant_key_store::MerchantKeyStore,
     type_encryption::{crypto_operation, CryptoOperation},
