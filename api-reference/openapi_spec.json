@@ -10927,6 +10927,24 @@
           {
             "type": "string",
             "enum": [
+              "user_bsb_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_sort_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_routing_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_msisdn"
             ]
           },
