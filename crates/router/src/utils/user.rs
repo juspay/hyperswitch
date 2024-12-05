@@ -75,14 +75,9 @@ impl UserFromToken {
     }
 
     pub async fn get_role_info_from_db(&self, state: &SessionState) -> UserResult<RoleInfo> {
-        RoleInfo::from_role_id_in_merchant_scope(
-            state,
-            &self.role_id,
-            &self.merchant_id,
-            &self.org_id,
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
+        RoleInfo::from_role_id_and_org_id(state, &self.role_id, &self.org_id)
+            .await
+            .change_context(UserErrors::InternalServerError)
     }
 }
 
