@@ -77,10 +77,7 @@ pub use self::{
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 use crate::{
     core::
-    {
-        errors::{self, CustomResult, RouterResult},
-        payments::PaymentData
-    },
+    errors::{self, CustomResult, RouterResult},
     routes::{app::ReqState, SessionState},
     services,
     types::{
@@ -214,10 +211,10 @@ pub trait GetTracker<F: Clone, D, R>: Send {
 
     async fn validate_request_with_state(
         &self,
-        state:  &SessionState,
-        request: &R,
-        merchant_account: &domain::MerchantAccount,
-        payment_data: &mut D
+        _state:  &SessionState,
+        _request: &R,
+        _merchant_account: &domain::MerchantAccount,
+        _payment_data: &mut D
     ) -> RouterResult<()> {
         Ok(())
     }

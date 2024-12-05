@@ -132,6 +132,13 @@ pub struct Settings<S: SecretState> {
     pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
+    pub card_test_guard: CardTestGuard,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct CardTestGuard {
+    pub unsuccessful_payment_threshold: u64,
+    pub redis_expiry: i64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
