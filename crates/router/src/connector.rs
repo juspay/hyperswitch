@@ -3,7 +3,6 @@ pub mod adyen;
 pub mod adyenplatform;
 pub mod authorizedotnet;
 pub mod bankofamerica;
-pub mod bluesnap;
 pub mod braintree;
 pub mod checkout;
 pub mod cybersource;
@@ -39,16 +38,16 @@ pub mod wise;
 pub use hyperswitch_connectors::connectors::{
     airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, bambora, bambora::Bambora,
     bamboraapac, bamboraapac::Bamboraapac, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay,
-    boku, boku::Boku, cashtocode, cashtocode::Cashtocode, coinbase, coinbase::Coinbase, cryptopay,
-    cryptopay::Cryptopay, datatrans, datatrans::Datatrans, deutschebank,
-    deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal,
-    elavon, elavon::Elavon, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu,
-    fiuu::Fiuu, forte, forte::Forte, globepay, globepay::Globepay, gocardless,
-    gocardless::Gocardless, helcim, helcim::Helcim, inespay, inespay::Inespay, jpmorgan,
-    jpmorgan::Jpmorgan, mollie, mollie::Mollie, multisafepay, multisafepay::Multisafepay, nexinets,
-    nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay, novalnet,
-    novalnet::Novalnet, paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payu, payu::Payu,
-    placetopay, placetopay::Placetopay, powertranz, powertranz::Powertranz, prophetpay,
+    bluesnap, bluesnap::Bluesnap, boku, boku::Boku, cashtocode, cashtocode::Cashtocode, coinbase,
+    coinbase::Coinbase, cryptopay, cryptopay::Cryptopay, datatrans, datatrans::Datatrans,
+    deutschebank, deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, dlocal,
+    dlocal::Dlocal, elavon, elavon::Elavon, fiserv, fiserv::Fiserv, fiservemea,
+    fiservemea::Fiservemea, fiuu, fiuu::Fiuu, forte, forte::Forte, globepay, globepay::Globepay,
+    gocardless, gocardless::Gocardless, helcim, helcim::Helcim, inespay, inespay::Inespay,
+    jpmorgan, jpmorgan::Jpmorgan, mollie, mollie::Mollie, multisafepay, multisafepay::Multisafepay,
+    nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay,
+    novalnet, novalnet::Novalnet, paybox, paybox::Paybox, payeezy, payeezy::Payeezy, payu,
+    payu::Payu, placetopay, placetopay::Placetopay, powertranz, powertranz::Powertranz, prophetpay,
     prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, redsys,
     redsys::Redsys, shift4, shift4::Shift4, square, square::Square, stax, stax::Stax, taxjar,
     taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline,
@@ -60,7 +59,7 @@ pub use hyperswitch_connectors::connectors::{
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, authorizedotnet::Authorizedotnet,
-    bankofamerica::Bankofamerica, bluesnap::Bluesnap, braintree::Braintree, checkout::Checkout,
+    bankofamerica::Bankofamerica, braintree::Braintree, checkout::Checkout,
     cybersource::Cybersource, ebanx::Ebanx, globalpay::Globalpay, gpayments::Gpayments,
     iatapay::Iatapay, itaubank::Itaubank, klarna::Klarna, mifinity::Mifinity, netcetera::Netcetera,
     nmi::Nmi, noon::Noon, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, payme::Payme,

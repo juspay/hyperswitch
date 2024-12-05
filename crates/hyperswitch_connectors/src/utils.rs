@@ -16,7 +16,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::{Card, PaymentMethodData},
+    payment_method_data::{self, Card, PaymentMethodData},
     router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
     },
@@ -82,6 +82,102 @@ pub(crate) fn to_currency_base_unit(
         .change_context(errors::ConnectorError::ParsingFailed)
 }
 
+pub(crate) fn to_currency_lower_unit(
+    amount: String,
+    currency: enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    currency
+        .to_currency_lower_unit(amount)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+}
+
+pub trait ConnectorErrorTypeMapping {
+    fn get_connector_error_type(
+        &self,
+        _error_code: String,
+        _error_message: String,
+    ) -> ConnectorErrorType {
+        ConnectorErrorType::UnknownError
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ErrorCodeAndMessage {
+    pub error_code: String,
+    pub error_message: String,
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+//Priority of connector_error_type
+pub enum ConnectorErrorType {
+    UserError = 2,
+    BusinessError = 3,
+    TechnicalError = 4,
+    UnknownError = 1,
+}
+
+pub(crate) fn get_error_code_error_message_based_on_priority(
+    connector: impl ConnectorErrorTypeMapping,
+    error_list: Vec<ErrorCodeAndMessage>,
+) -> Option<ErrorCodeAndMessage> {
+    let error_type_list = error_list
+        .iter()
+        .map(|error| {
+            connector
+                .get_connector_error_type(error.error_code.clone(), error.error_message.clone())
+        })
+        .collect::<Vec<ConnectorErrorType>>();
+    let mut error_zip_list = error_list
+        .iter()
+        .zip(error_type_list.iter())
+        .collect::<Vec<(&ErrorCodeAndMessage, &ConnectorErrorType)>>();
+    error_zip_list.sort_by_key(|&(_, error_type)| error_type);
+    error_zip_list
+        .first()
+        .map(|&(error_code_message, _)| error_code_message)
+        .cloned()
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayWalletData {
+    #[serde(rename = "type")]
+    pub pm_type: String,
+    pub description: String,
+    pub info: GooglePayPaymentMethodInfo,
+    pub tokenization_data: GpayTokenizationData,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentMethodInfo {
+    pub card_network: String,
+    pub card_details: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct GpayTokenizationData {
+    #[serde(rename = "type")]
+    pub token_type: String,
+    pub token: Secret<String>,
+}
+
+impl From<payment_method_data::GooglePayWalletData> for GooglePayWalletData {
+    fn from(data: payment_method_data::GooglePayWalletData) -> Self {
+        Self {
+            pm_type: data.pm_type,
+            description: data.description,
+            info: GooglePayPaymentMethodInfo {
+                card_network: data.info.card_network,
+                card_details: data.info.card_details,
+            },
+            tokenization_data: GpayTokenizationData {
+                token_type: data.tokenization_data.token_type,
+                token: Secret::new(data.tokenization_data.token),
+            },
+        }
+    }
+}
 pub(crate) fn get_amount_as_f64(
     currency_unit: &api::CurrencyUnit,
     amount: i64,
@@ -1703,7 +1799,7 @@ pub trait CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error>;
 }
 
-impl CryptoData for hyperswitch_domain_models::payment_method_data::CryptoData {
+impl CryptoData for payment_method_data::CryptoData {
     fn get_pay_currency(&self) -> Result<String, Error> {
         self.pay_currency
             .clone()
@@ -2032,187 +2128,183 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
-            PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::NetworkTransactionIdAndCardDetails,
-            PaymentMethodData::CardRedirect(card_redirect_data) => {
-                match card_redirect_data {
-                   hyperswitch_domain_models::payment_method_data::CardRedirectData::Knet {} => Self::Knet,
-                   hyperswitch_domain_models::payment_method_data::CardRedirectData::Benefit {} => Self::Benefit,
-                   hyperswitch_domain_models::payment_method_data::CardRedirectData::MomoAtm {} => Self::MomoAtm,
-                   hyperswitch_domain_models::payment_method_data::CardRedirectData::CardRedirect {} => Self::CardRedirect,
-                }
+            PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Self::NetworkTransactionIdAndCardDetails
             }
+            PaymentMethodData::CardRedirect(card_redirect_data) => match card_redirect_data {
+                payment_method_data::CardRedirectData::Knet {} => Self::Knet,
+                payment_method_data::CardRedirectData::Benefit {} => Self::Benefit,
+                payment_method_data::CardRedirectData::MomoAtm {} => Self::MomoAtm,
+                payment_method_data::CardRedirectData::CardRedirect {} => Self::CardRedirect,
+            },
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                 hyperswitch_domain_models::payment_method_data::WalletData::AliPayQr(_) => Self::AliPayQr,
-                 hyperswitch_domain_models::payment_method_data::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::GcashRedirect(_) => Self::GcashRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_) => Self::ApplePay,
-                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
+                payment_method_data::WalletData::AliPayQr(_) => Self::AliPayQr,
+                payment_method_data::WalletData::AliPayRedirect(_) => Self::AliPayRedirect,
+                payment_method_data::WalletData::AliPayHkRedirect(_) => Self::AliPayHkRedirect,
+                payment_method_data::WalletData::MomoRedirect(_) => Self::MomoRedirect,
+                payment_method_data::WalletData::KakaoPayRedirect(_) => Self::KakaoPayRedirect,
+                payment_method_data::WalletData::GoPayRedirect(_) => Self::GoPayRedirect,
+                payment_method_data::WalletData::GcashRedirect(_) => Self::GcashRedirect,
+                payment_method_data::WalletData::ApplePay(_) => Self::ApplePay,
+                payment_method_data::WalletData::ApplePayRedirect(_) => Self::ApplePayRedirect,
+                payment_method_data::WalletData::ApplePayThirdPartySdk(_) => {
                     Self::ApplePayThirdPartySdk
                 }
-                 hyperswitch_domain_models::payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
-                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePayThirdPartySdk(_) => {
+                payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
+                payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
+                payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
+                payment_method_data::WalletData::GooglePayThirdPartySdk(_) => {
                     Self::GooglePayThirdPartySdk
                 }
-                 hyperswitch_domain_models::payment_method_data::WalletData::MbWayRedirect(_) => Self::MbWayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::PaypalSdk(_) => Self::PaypalSdk,
-                 hyperswitch_domain_models::payment_method_data::WalletData::Paze(_) => Self::Paze,
-                 hyperswitch_domain_models::payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
-                 hyperswitch_domain_models::payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::WeChatPayRedirect(_) => Self::WeChatPayRedirect,
-                 hyperswitch_domain_models::payment_method_data::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
-                 hyperswitch_domain_models::payment_method_data::WalletData::CashappQr(_) => Self::CashappQr,
-                 hyperswitch_domain_models::payment_method_data::WalletData::SwishQr(_) => Self::SwishQr,
-                 hyperswitch_domain_models::payment_method_data::WalletData::Mifinity(_) => Self::Mifinity,
+                payment_method_data::WalletData::MbWayRedirect(_) => Self::MbWayRedirect,
+                payment_method_data::WalletData::MobilePayRedirect(_) => Self::MobilePayRedirect,
+                payment_method_data::WalletData::PaypalRedirect(_) => Self::PaypalRedirect,
+                payment_method_data::WalletData::PaypalSdk(_) => Self::PaypalSdk,
+                payment_method_data::WalletData::Paze(_) => Self::Paze,
+                payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
+                payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
+                payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
+                payment_method_data::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
+                payment_method_data::WalletData::WeChatPayRedirect(_) => Self::WeChatPayRedirect,
+                payment_method_data::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
+                payment_method_data::WalletData::CashappQr(_) => Self::CashappQr,
+                payment_method_data::WalletData::SwishQr(_) => Self::SwishQr,
+                payment_method_data::WalletData::Mifinity(_) => Self::Mifinity,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
-                 hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
-                 hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
-                 hyperswitch_domain_models::payment_method_data::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
-                 hyperswitch_domain_models::payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
+                payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
+                payment_method_data::PayLaterData::KlarnaSdk { .. } => Self::KlarnaSdk,
+                payment_method_data::PayLaterData::AffirmRedirect {} => Self::AffirmRedirect,
+                payment_method_data::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     Self::AfterpayClearpayRedirect
                 }
-                 hyperswitch_domain_models::payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
-                 hyperswitch_domain_models::payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
-                 hyperswitch_domain_models::payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
-                 hyperswitch_domain_models::payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+                payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
+                payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
+                payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
             },
-            PaymentMethodData::BankRedirect(bank_redirect_data) => {
-                match bank_redirect_data {
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard { .. } => {
-                        Self::BancontactCard
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::Bizum {} => Self::Bizum,
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::Blik { .. } => Self::Blik,
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::Eps { .. } => Self::Eps,
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::Giropay { .. } => Self::Giropay,
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::Ideal { .. } => Self::Ideal,
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::Interac { .. } => Self::Interac,
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingCzechRepublic { .. } => {
-                        Self::OnlineBankingCzechRepublic
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingFinland { .. } => {
-                        Self::OnlineBankingFinland
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingPoland { .. } => {
-                        Self::OnlineBankingPoland
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingSlovakia { .. } => {
-                        Self::OnlineBankingSlovakia
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBankingUk { .. } => Self::OpenBankingUk,
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::Przelewy24 { .. } => Self::Przelewy24,
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::Sofort { .. } => Self::Sofort,
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::Trustly { .. } => Self::Trustly,
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingFpx { .. } => {
-                        Self::OnlineBankingFpx
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::OnlineBankingThailand { .. } => {
-                        Self::OnlineBankingThailand
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankRedirectData::LocalBankRedirect { } => {
-                        Self::LocalBankRedirect
-                    }
+            PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
+                payment_method_data::BankRedirectData::BancontactCard { .. } => {
+                    Self::BancontactCard
                 }
-            }
-            PaymentMethodData::BankDebit(bank_debit_data) => {
-                match bank_debit_data {
-                     hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
-                     hyperswitch_domain_models::payment_method_data::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
-                     hyperswitch_domain_models::payment_method_data::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
-                     hyperswitch_domain_models::payment_method_data::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
+                payment_method_data::BankRedirectData::Bizum {} => Self::Bizum,
+                payment_method_data::BankRedirectData::Blik { .. } => Self::Blik,
+                payment_method_data::BankRedirectData::Eps { .. } => Self::Eps,
+                payment_method_data::BankRedirectData::Giropay { .. } => Self::Giropay,
+                payment_method_data::BankRedirectData::Ideal { .. } => Self::Ideal,
+                payment_method_data::BankRedirectData::Interac { .. } => Self::Interac,
+                payment_method_data::BankRedirectData::OnlineBankingCzechRepublic { .. } => {
+                    Self::OnlineBankingCzechRepublic
                 }
-            }
-            PaymentMethodData::BankTransfer(bank_transfer_data) => {
-                match *bank_transfer_data {
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::AchBankTransfer { .. } => {
-                        Self::AchBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::SepaBankTransfer { .. } => {
-                        Self::SepaBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::BacsBankTransfer { .. } => {
-                        Self::BacsBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::MultibancoBankTransfer { .. } => {
-                        Self::MultibancoBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::PermataBankTransfer { .. } => {
-                        Self::PermataBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::BcaBankTransfer { .. } => {
-                        Self::BcaBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::BniVaBankTransfer { .. } => {
-                        Self::BniVaBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::BriVaBankTransfer { .. } => {
-                        Self::BriVaBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::CimbVaBankTransfer { .. } => {
-                        Self::CimbVaBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::DanamonVaBankTransfer { .. } => {
-                        Self::DanamonVaBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::MandiriVaBankTransfer { .. } => {
-                        Self::MandiriVaBankTransfer
-                    }
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::Pse {} => Self::Pse,
-                     hyperswitch_domain_models::payment_method_data::BankTransferData::LocalBankTransfer { .. } => {
-                        Self::LocalBankTransfer
-                    }
+                payment_method_data::BankRedirectData::OnlineBankingFinland { .. } => {
+                    Self::OnlineBankingFinland
                 }
-            }
+                payment_method_data::BankRedirectData::OnlineBankingPoland { .. } => {
+                    Self::OnlineBankingPoland
+                }
+                payment_method_data::BankRedirectData::OnlineBankingSlovakia { .. } => {
+                    Self::OnlineBankingSlovakia
+                }
+                payment_method_data::BankRedirectData::OpenBankingUk { .. } => Self::OpenBankingUk,
+                payment_method_data::BankRedirectData::Przelewy24 { .. } => Self::Przelewy24,
+                payment_method_data::BankRedirectData::Sofort { .. } => Self::Sofort,
+                payment_method_data::BankRedirectData::Trustly { .. } => Self::Trustly,
+                payment_method_data::BankRedirectData::OnlineBankingFpx { .. } => {
+                    Self::OnlineBankingFpx
+                }
+                payment_method_data::BankRedirectData::OnlineBankingThailand { .. } => {
+                    Self::OnlineBankingThailand
+                }
+                payment_method_data::BankRedirectData::LocalBankRedirect {} => {
+                    Self::LocalBankRedirect
+                }
+            },
+            PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
+                payment_method_data::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
+                payment_method_data::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
+                payment_method_data::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
+                payment_method_data::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
+            },
+            PaymentMethodData::BankTransfer(bank_transfer_data) => match *bank_transfer_data {
+                payment_method_data::BankTransferData::AchBankTransfer { .. } => {
+                    Self::AchBankTransfer
+                }
+                payment_method_data::BankTransferData::SepaBankTransfer { .. } => {
+                    Self::SepaBankTransfer
+                }
+                payment_method_data::BankTransferData::BacsBankTransfer { .. } => {
+                    Self::BacsBankTransfer
+                }
+                payment_method_data::BankTransferData::MultibancoBankTransfer { .. } => {
+                    Self::MultibancoBankTransfer
+                }
+                payment_method_data::BankTransferData::PermataBankTransfer { .. } => {
+                    Self::PermataBankTransfer
+                }
+                payment_method_data::BankTransferData::BcaBankTransfer { .. } => {
+                    Self::BcaBankTransfer
+                }
+                payment_method_data::BankTransferData::BniVaBankTransfer { .. } => {
+                    Self::BniVaBankTransfer
+                }
+                payment_method_data::BankTransferData::BriVaBankTransfer { .. } => {
+                    Self::BriVaBankTransfer
+                }
+                payment_method_data::BankTransferData::CimbVaBankTransfer { .. } => {
+                    Self::CimbVaBankTransfer
+                }
+                payment_method_data::BankTransferData::DanamonVaBankTransfer { .. } => {
+                    Self::DanamonVaBankTransfer
+                }
+                payment_method_data::BankTransferData::MandiriVaBankTransfer { .. } => {
+                    Self::MandiriVaBankTransfer
+                }
+                payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
+                payment_method_data::BankTransferData::Pse {} => Self::Pse,
+                payment_method_data::BankTransferData::LocalBankTransfer { .. } => {
+                    Self::LocalBankTransfer
+                }
+            },
             PaymentMethodData::Crypto(_) => Self::Crypto,
             PaymentMethodData::MandatePayment => Self::MandatePayment,
             PaymentMethodData::Reward => Self::Reward,
             PaymentMethodData::Upi(_) => Self::Upi,
             PaymentMethodData::Voucher(voucher_data) => match voucher_data {
-                 hyperswitch_domain_models::payment_method_data::VoucherData::Boleto(_) => Self::Boleto,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::Efecty => Self::Efecty,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::PagoEfectivo => Self::PagoEfectivo,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::RedCompra => Self::RedCompra,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::RedPagos => Self::RedPagos,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::Alfamart(_) => Self::Alfamart,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::Indomaret(_) => Self::Indomaret,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::Oxxo => Self::Oxxo,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::SevenEleven(_) => Self::SevenEleven,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::Lawson(_) => Self::Lawson,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::MiniStop(_) => Self::MiniStop,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::FamilyMart(_) => Self::FamilyMart,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::Seicomart(_) => Self::Seicomart,
-                 hyperswitch_domain_models::payment_method_data::VoucherData::PayEasy(_) => Self::PayEasy,
+                payment_method_data::VoucherData::Boleto(_) => Self::Boleto,
+                payment_method_data::VoucherData::Efecty => Self::Efecty,
+                payment_method_data::VoucherData::PagoEfectivo => Self::PagoEfectivo,
+                payment_method_data::VoucherData::RedCompra => Self::RedCompra,
+                payment_method_data::VoucherData::RedPagos => Self::RedPagos,
+                payment_method_data::VoucherData::Alfamart(_) => Self::Alfamart,
+                payment_method_data::VoucherData::Indomaret(_) => Self::Indomaret,
+                payment_method_data::VoucherData::Oxxo => Self::Oxxo,
+                payment_method_data::VoucherData::SevenEleven(_) => Self::SevenEleven,
+                payment_method_data::VoucherData::Lawson(_) => Self::Lawson,
+                payment_method_data::VoucherData::MiniStop(_) => Self::MiniStop,
+                payment_method_data::VoucherData::FamilyMart(_) => Self::FamilyMart,
+                payment_method_data::VoucherData::Seicomart(_) => Self::Seicomart,
+                payment_method_data::VoucherData::PayEasy(_) => Self::PayEasy,
             },
-            PaymentMethodData::RealTimePayment(real_time_payment_data) => match *real_time_payment_data{
-                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::DuitNow {  } =>  Self::DuitNow,
-                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::Fps {  } => Self::Fps,
-                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::PromptPay {  } => Self::PromptPay,
-                hyperswitch_domain_models::payment_method_data::RealTimePaymentData::VietQr {  } => Self::VietQr,
-            },
-            PaymentMethodData::GiftCard(gift_card_data) => {
-                match *gift_card_data {
-                     hyperswitch_domain_models::payment_method_data::GiftCardData::Givex(_) => Self::Givex,
-                     hyperswitch_domain_models::payment_method_data::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
+            PaymentMethodData::RealTimePayment(real_time_payment_data) => {
+                match *real_time_payment_data {
+                    payment_method_data::RealTimePaymentData::DuitNow {} => Self::DuitNow,
+                    payment_method_data::RealTimePaymentData::Fps {} => Self::Fps,
+                    payment_method_data::RealTimePaymentData::PromptPay {} => Self::PromptPay,
+                    payment_method_data::RealTimePaymentData::VietQr {} => Self::VietQr,
                 }
             }
+            PaymentMethodData::GiftCard(gift_card_data) => match *gift_card_data {
+                payment_method_data::GiftCardData::Givex(_) => Self::Givex,
+                payment_method_data::GiftCardData::PaySafeCard {} => Self::PaySafeCar,
+            },
             PaymentMethodData::CardToken(_) => Self::CardToken,
             PaymentMethodData::OpenBanking(data) => match data {
-                hyperswitch_domain_models::payment_method_data::OpenBankingData::OpenBankingPIS {  } => Self::OpenBanking
+                payment_method_data::OpenBankingData::OpenBankingPIS {} => Self::OpenBanking,
             },
             PaymentMethodData::MobilePayment(mobile_payment_data) => match mobile_payment_data {
-                hyperswitch_domain_models::payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => Self::DirectCarrierBilling,
+                payment_method_data::MobilePaymentData::DirectCarrierBilling { .. } => {
+                    Self::DirectCarrierBilling
+                }
             },
         }
     }
@@ -2221,7 +2313,7 @@ pub trait ApplePay {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error>;
 }
 
-impl ApplePay for hyperswitch_domain_models::payment_method_data::ApplePayWalletData {
+impl ApplePay for payment_method_data::ApplePayWalletData {
     fn get_applepay_decoded_payment_data(&self) -> Result<Secret<String>, Error> {
         let token = Secret::new(
             String::from_utf8(BASE64_ENGINE.decode(&self.payment_data).change_context(
@@ -2245,7 +2337,7 @@ pub trait WalletData {
     fn get_encoded_wallet_token(&self) -> Result<String, Error>;
 }
 
-impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
+impl WalletData for payment_method_data::WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
             Self::GooglePay(data) => Ok(Secret::new(data.tokenization_data.token.clone())),
