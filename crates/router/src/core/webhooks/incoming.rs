@@ -1928,7 +1928,7 @@ async fn update_connector_mandate_details(
                 };
 
             let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
-                connector_mandate_details: updated_connector_mandate_details.map(|mandate_details| masking::Secret::new(mandate_details)),
+                connector_mandate_details: updated_connector_mandate_details.map(masking::Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
             };
