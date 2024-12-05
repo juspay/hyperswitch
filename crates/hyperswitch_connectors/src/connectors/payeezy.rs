@@ -2,7 +2,7 @@ pub mod transformers;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
-use common_enums::{CaptureMethod, PaymentMethodType};
+use common_enums::{CaptureMethod, PaymentMethodType, PaymentMethod};
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,
@@ -154,6 +154,7 @@ impl ConnectorValidation for Payeezy {
     fn validate_capture_method(
         &self,
         capture_method: Option<CaptureMethod>,
+        _payment_method: &PaymentMethod,
         _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();

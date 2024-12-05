@@ -3,13 +3,13 @@ use api_models::{connector_enums::Connector, feature_matrix};
 use hyperswitch_domain_models::api::ApplicationResponse;
 use hyperswitch_interfaces::api::ConnectorCommon;
 use router_env::{instrument, tracing, Flow};
-use crate::settings;
 use strum::IntoEnumIterator;
 
 use crate::{
     self as app,
     core::{api_locking::LockAction, errors::RouterResponse},
     services::{api, authentication as auth},
+    settings,
     types::api::{self as api_types, payments as payment_types},
 };
 
@@ -39,8 +39,6 @@ pub async fn connector_feature_matrix(
     state: app::SessionState,
     req: payment_types::FeatureMatrixRequest,
 ) -> RouterResponse<feature_matrix::FeatureMatrixListResponse> {
-
-
     let connector_list = req
         .connectors
         .unwrap_or_else(|| Connector::iter().collect());
@@ -60,26 +58,15 @@ pub async fn connector_feature_matrix(
                                         .into_iter()
                                         .map(|(payment_method_type, feature_metadata)| {
 
-                                            let payment_method_type_config = 
-                                            state.conf.pm_filters.0.get(&connector_name.to_string())
-                                            .and_then(|selected_connector|
-                                                selected_connector.0
-                                                .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                                                    payment_method_type,
-                                                )));
-                                            
-                                            let supported_countries = payment_method_type_config.and_then(|config| { 
-                                                config.country.clone()
-                                            });
-
-                                            let supported_currencies = payment_method_type_config.and_then(|config| { 
-                                                config.currency.clone()
-                                            });
-                                            
+                                            let payment_method_type_config = state.conf.pm_filters.0.get(&connector_name.to_string())
+                                            .and_then(|selected_connector|selected_connector.0.get(&settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type)));
+                                            let supported_countries  = payment_method_type_config.and_then(|config| {config.country.clone()});
+                                            let supported_currencies = payment_method_type_config.and_then(|config| { config.currency.clone()});
                                             feature_matrix::SupportedPaymentMethod {
                                                 payment_method: payment_method_type,
-                                                supports_mandates: feature_metadata
-                                                    .supports_mandates,
+                                                supports_mandate: feature_metadata.supports_mandate,
+                                                supports_refund: feature_metadata.supports_refund,
+                                                supported_capture_methods: feature_metadata.supported_capture_methods,
                                                 supported_countries,
                                                 supported_currencies,
                                             }

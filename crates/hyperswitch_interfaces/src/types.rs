@@ -1,7 +1,7 @@
 //! Types interface
 use std::collections::HashMap;
 
-use common_enums::{PaymentMethod, PaymentMethodType};
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use hyperswitch_domain_models::{
     router_data::AccessToken,
     router_flow_types::{
@@ -193,7 +193,11 @@ pub type DefendDisputeType =
 #[derive(Debug, Clone)]
 pub struct PaymentMethodDetails {
     /// Indicates whether mandates are supported by this payment method.
-    pub supports_mandates: bool,
+    pub supports_mandate: bool,
+    /// Indicates whether refund is supported by this payment method.
+    pub supports_refund: bool,
+    /// Indicates whether manual capture supported is supported by this payment method.
+    pub supported_capture_methods: Vec<CaptureMethod>,
 }
 
 /// list of payment method types and metadata related to them

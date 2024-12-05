@@ -100,6 +100,7 @@ impl ConnectorValidation for Adyen {
     fn validate_capture_method(
         &self,
         capture_method: Option<storage_enums::CaptureMethod>,
+        _payment_method: &enums::PaymentMethod,
         pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();

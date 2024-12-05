@@ -15,9 +15,11 @@ pub struct FeatureMatrixRequest {
 #[derive(Clone, Debug, Serialize)]
 pub struct SupportedPaymentMethod {
     pub payment_method: enums::PaymentMethodType,
-    pub supports_mandates: bool,
+    pub supports_mandate: bool,
+    pub supports_refund: bool,
+    pub supported_capture_methods: Vec<enums::CaptureMethod>,
     pub supported_countries: Option<HashSet<enums::CountryAlpha2>>,
-    pub supported_currencies: Option<HashSet<enums::Currency>>
+    pub supported_currencies: Option<HashSet<enums::Currency>>,
 }
 
 #[cfg(feature = "v1")]

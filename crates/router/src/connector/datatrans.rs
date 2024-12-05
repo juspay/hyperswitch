@@ -1,5 +1,5 @@
 pub mod transformers;
-use api_models::enums::{CaptureMethod, PaymentMethodType};
+use api_models::enums::{CaptureMethod, PaymentMethodType, PaymentMethod};
 use base64::Engine;
 use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};
@@ -140,6 +140,7 @@ impl ConnectorValidation for Datatrans {
     fn validate_capture_method(
         &self,
         capture_method: Option<CaptureMethod>,
+        _payment_method: &PaymentMethod,
         _pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();

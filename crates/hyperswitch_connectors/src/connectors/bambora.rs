@@ -123,16 +123,25 @@ impl ConnectorCommon for Bambora {
     fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
         let mut supported_payment_methods = SupportedPaymentMethods::new();
         let mut card_payment_method = PaymentMethodTypeMetadata::new();
+        let bambora_default_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+        ];
+
         card_payment_method.insert(
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                supports_mandates: false,
+                supports_mandate: false,
+                supports_refund: true,
+                supported_capture_methods: bambora_default_capture_methods.clone(),
             },
         );
         card_payment_method.insert(
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                supports_mandates: false,
+                supports_mandate: false,
+                supports_refund: true,
+                supported_capture_methods: bambora_default_capture_methods.clone(),
             },
         );
         supported_payment_methods.insert(enums::PaymentMethod::Card, card_payment_method);
@@ -164,21 +173,7 @@ impl ConnectorCommon for Bambora {
     }
 }
 
-impl ConnectorValidation for Bambora {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Bambora {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Bambora

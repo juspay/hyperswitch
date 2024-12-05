@@ -154,6 +154,7 @@ impl ConnectorValidation for Billwerk {
     fn validate_capture_method(
         &self,
         capture_method: Option<common_enums::CaptureMethod>,
+        _payment_method: &common_enums::PaymentMethod,
         _pmt: Option<common_enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();

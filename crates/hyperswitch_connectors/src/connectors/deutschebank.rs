@@ -140,10 +140,16 @@ impl ConnectorCommon for Deutschebank {
     fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
         let mut supported_payment_methods = SupportedPaymentMethods::new();
         let mut bank_debit_payment_method = PaymentMethodTypeMetadata::new();
+        let deutschebank_default_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+        ];
         bank_debit_payment_method.insert(
             enums::PaymentMethodType::Sepa,
             PaymentMethodDetails {
-                supports_mandates: true,
+                supports_mandate: true,
+                supports_refund: true,
+                supported_capture_methods: deutschebank_default_capture_methods.clone(),
             },
         );
         supported_payment_methods
@@ -188,20 +194,6 @@ impl ConnectorCommon for Deutschebank {
 }
 
 impl ConnectorValidation for Deutschebank {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,

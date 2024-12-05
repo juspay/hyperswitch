@@ -358,65 +358,61 @@ pub trait ConnectorValidation: ConnectorCommon {
         &self,
         payment_method_type: &Option<PaymentMethodType>,
         payment_method: &PaymentMethod,
-        is_mandate_payment: bool
     ) -> CustomResult<(), errors::ConnectorError> {
-        match self.get_supported_payment_methods() {
-            Some(supported_payment_methods) => {
-                // Check if the payment method exists
-                let payment_method_information = supported_payment_methods
-                    .get(payment_method)
-                    .ok_or_else(|| errors::ConnectorError::NotSupported {
-                        message: payment_method.to_string(),
-                        connector: self.id(),
-                    })?;
-
-                match payment_method_type {
-                    Some(pmt) => {
-                        // Check if the payment method type exists
-                        let payment_method_type_information =
-                            payment_method_information.get(pmt).ok_or_else(|| {
-                                errors::ConnectorError::NotSupported {
-                                    message: format!("{:?}, {:?}", pmt, payment_method),
-                                    connector: self.id(),
-                                }
-                            })?;
-                        // Validate the payment method type based on its availability and mandate support
-                        match (
-                            is_mandate_payment,
-                            payment_method_type_information.supports_mandates,
-                        ) {
-                            (true, true) |
-                            // Test mode payment
-                            (false, _)  => Ok(()),
-                            // If none of the cases match, return an unsupported error
-                            _ => Err(errors::ConnectorError::NotSupported {
-                                message: format!("{:?}, {:?}", payment_method_type, payment_method),
-                                connector: self.id(),
-                            }.into()),
-                        }
-                    }
-                    None => Ok(()),
-                }
-            }
-            None => Ok(()),
+        if let Some(supported_payment_methods) = self.get_supported_payment_methods() {
+            get_connector_payment_method_type_info(
+                supported_payment_methods,
+                payment_method,
+                payment_method_type,
+                self.id(),
+            )?;
         }
+        Ok(())
     }
 
     /// fn validate_capture_method
     fn validate_capture_method(
         &self,
         capture_method: Option<CaptureMethod>,
-        _pmt: Option<PaymentMethodType>,
+        payment_method: &PaymentMethod,
+        pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            CaptureMethod::Automatic => Ok(()),
-            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
+        if let Some(supported_payment_methods) = self.get_supported_payment_methods() {
+            let connector_payment_method_type_info = get_connector_payment_method_type_info(
+                supported_payment_methods,
+                payment_method,
+                &pmt,
+                self.id(),
+            )?;
+
+            if connector_payment_method_type_info
+                .map(|payment_method_type_info| {
+                    payment_method_type_info
+                        .supported_capture_methods
+                        .contains(&capture_method)
+                })
+                .unwrap_or(true)
+            // when payment method type is None
+            {
+                Ok(())
+            } else {
                 Err(errors::ConnectorError::NotSupported {
                     message: capture_method.to_string(),
                     connector: self.id(),
                 }
                 .into())
+            }
+        } else {
+            match capture_method {
+                CaptureMethod::Automatic => Ok(()),
+                CaptureMethod::Manual
+                | CaptureMethod::ManualMultiple
+                | CaptureMethod::Scheduled => Err(errors::ConnectorError::NotSupported {
+                    message: capture_method.to_string(),
+                    connector: self.id(),
+                }
+                .into()),
             }
         }
     }
@@ -478,3 +474,29 @@ pub trait ConnectorRedirectResponse {
 /// Empty trait for when payouts feature is disabled
 #[cfg(not(feature = "payouts"))]
 pub trait Payouts {}
+
+fn get_connector_payment_method_type_info(
+    supported_payment_method: SupportedPaymentMethods,
+    payment_method: &PaymentMethod,
+    payment_method_type: &Option<PaymentMethodType>,
+    connector: &'static str,
+) -> CustomResult<Option<types::PaymentMethodDetails>, errors::ConnectorError> {
+    let payment_method_details = supported_payment_method
+        .get(payment_method)
+        .ok_or_else(|| errors::ConnectorError::NotSupported {
+            message: payment_method.to_string(),
+            connector: connector,
+        })?;
+
+    payment_method_type
+        .map(|pmt| {
+            payment_method_details.get(&pmt).cloned().ok_or_else(|| {
+                errors::ConnectorError::NotSupported {
+                    message: format!("{} {}", payment_method.to_string(), pmt),
+                    connector: connector,
+                }
+                .into()
+            })
+        })
+        .transpose()
+}

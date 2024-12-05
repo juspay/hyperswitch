@@ -35,7 +35,9 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, PaymentMethodDetails, PaymentMethodTypeMetadata, Response, SupportedPaymentMethods},
+    types::{
+        self, PaymentMethodDetails, PaymentMethodTypeMetadata, Response, SupportedPaymentMethods,
+    },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
 };
 use masking::{ExposeInterface, Secret};
@@ -100,14 +102,19 @@ impl ConnectorCommon for Zsl {
     fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
         let mut supported_payment_methods = SupportedPaymentMethods::new();
         let mut bank_transfer_payment_method = PaymentMethodTypeMetadata::new();
+        let zsl_default_capture_methods = vec![enums::CaptureMethod::Automatic];
         bank_transfer_payment_method.insert(
             enums::PaymentMethodType::LocalBankTransfer,
             PaymentMethodDetails {
-                supports_mandates: false,
+                supports_mandate: false,
+                supports_refund: false,
+                supported_capture_methods: zsl_default_capture_methods.clone(),
             },
         );
-        supported_payment_methods.insert(enums::PaymentMethod::BankTransfer,
-             bank_transfer_payment_method);
+        supported_payment_methods.insert(
+            enums::PaymentMethod::BankTransfer,
+            bank_transfer_payment_method,
+        );
         Some(supported_payment_methods)
     }
 
@@ -139,6 +146,7 @@ impl ConnectorValidation for Zsl {
     fn validate_capture_method(
         &self,
         capture_method: Option<enums::CaptureMethod>,
+        _payment_method: &enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
