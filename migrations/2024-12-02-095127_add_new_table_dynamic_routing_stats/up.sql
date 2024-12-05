@@ -20,5 +20,6 @@ CREATE TABLE IF NOT EXISTS dynamic_routing_stats (
     payment_status "AttemptStatus" NOT NULL,
     conclusive_classification "SuccessBasedRoutingConclusiveState" NOT NULL,
     created_at TIMESTAMP NOT NULL,
-    PRIMARY KEY(attempt_id)
+    PRIMARY KEY(attempt_id, merchant_id)
 );
+CREATE INDEX profile_id_index ON dynamic_routing_stats (profile_id);
