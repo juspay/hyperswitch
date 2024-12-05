@@ -48,7 +48,7 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for &PaymentSessionIntent {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsSessionRequest> for &PaymentSessionIntent {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -66,7 +66,7 @@ impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for &PaymentSessionIn
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for PaymentSessionIntent {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsSessionRequest> for PaymentSessionIntent {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -149,7 +149,7 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsSessionRequest, payments::Payme
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentData<F>>
+impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::PaymentIntentData<F>>
     for PaymentSessionIntent
 {
     #[instrument(skip_all)]
@@ -229,26 +229,38 @@ impl<F: Clone + Send> Domain<F, PaymentsSessionRequest, payments::PaymentIntentD
             );
         let connector_and_supporting_payment_method_type = filtered_connector_accounts
             .get_connector_and_supporting_payment_method_type_for_session_call();
-        let mut session_connector_data =
-            Vec::with_capacity(connector_and_supporting_payment_method_type.len());
-        for (merchant_connector_account, payment_method_type) in
-            connector_and_supporting_payment_method_type
-        {
-            let connector_type = api::GetToken::from(payment_method_type);
-            if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
-                &state.conf.connectors,
-                &merchant_connector_account.connector_name.to_string(),
-                connector_type,
-                Some(merchant_connector_account.get_id()),
-            )
-            .inspect_err(|err| {
-                logger::error!(session_token_error=?err);
-            }) {
-                let new_session_connector_data =
-                    api::SessionConnectorData::new(payment_method_type, connector_data, None);
-                session_connector_data.push(new_session_connector_data)
-            };
-        }
+
+        let session_connector_data: Vec<_> = connector_and_supporting_payment_method_type
+            .into_iter()
+            .filter_map(|(merchant_connector_account, payment_method_type)| {
+                let connector_type = api::GetToken::from(payment_method_type);
+
+                match api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &merchant_connector_account.connector_name.to_string(),
+                    connector_type,
+                    Some(merchant_connector_account.get_id()),
+                ) {
+                    Ok(connector_data) => Some(api::SessionConnectorData::new(
+                        payment_method_type,
+                        connector_data,
+                        None,
+                    )),
+                    Err(err) => {
+                        logger::error!(session_token_error=?err);
+                        None
+                    }
+                }
+            })
+            .collect();
+        let session_connector_data = payments::perform_session_token_routing(
+            state.clone(),
+            merchant_account,
+            merchant_key_store,
+            payment_data,
+            session_connector_data,
+        )
+        .await?;
 
         Ok(api::ConnectorCallType::SessionMultiple(
             session_connector_data,

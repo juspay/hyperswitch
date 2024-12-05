@@ -5852,6 +5852,7 @@ pub fn should_add_task_to_process_tracker<F: Clone, D: OperationSessionGetters<F
     )
 }
 
+#[cfg(feature = "v1")]
 pub async fn perform_session_token_routing<F, D>(
     state: SessionState,
     merchant_account: &domain::MerchantAccount,
@@ -5942,6 +5943,71 @@ where
         key_store,
         merchant_account,
         payment_attempt: payment_data.get_payment_attempt(),
+        payment_intent: payment_data.get_payment_intent(),
+
+        chosen,
+    };
+    let result = self_routing::perform_session_flow_routing(sfr, &enums::TransactionType::Payment)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("error performing session flow routing")?;
+
+    let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
+
+    for connector_data in connectors {
+        if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
+            final_list.push(connector_data);
+        } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
+            let routing_choice = choice
+                .first()
+                .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+            if connector_data.connector.connector_name == routing_choice.connector.connector_name
+                && connector_data.connector.merchant_connector_id
+                    == routing_choice.connector.merchant_connector_id
+            {
+                final_list.push(connector_data);
+            }
+        }
+    }
+
+    Ok(final_list)
+}
+
+#[cfg(feature = "v2")]
+pub async fn perform_session_token_routing<F, D>(
+    state: SessionState,
+    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &D,
+    connectors: Vec<api::SessionConnectorData>,
+) -> RouterResult<Vec<api::SessionConnectorData>>
+where
+    F: Clone,
+    D: OperationSessionGetters<F>,
+{
+    let routing_enabled_pms = HashSet::from([
+        enums::PaymentMethodType::GooglePay,
+        enums::PaymentMethodType::ApplePay,
+        enums::PaymentMethodType::Klarna,
+        enums::PaymentMethodType::Paypal,
+    ]);
+
+    let mut chosen = Vec::<api::SessionConnectorData>::new();
+    for connector_data in &connectors {
+        if routing_enabled_pms.contains(&connector_data.payment_method_type) {
+            chosen.push(connector_data.clone());
+        }
+    }
+    let sfr = SessionFlowRoutingInput {
+        state: &state,
+        country: payment_data
+            .get_payment_intent()
+            .billing_address
+            .as_ref()
+            .and_then(|address| address.get_inner().address.as_ref())
+            .and_then(|details| details.country),
+        key_store,
+        merchant_account,
         payment_intent: payment_data.get_payment_intent(),
 
         chosen,
