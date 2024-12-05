@@ -1,5 +1,6 @@
-use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use std::fmt;
+
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 
 #[derive(
