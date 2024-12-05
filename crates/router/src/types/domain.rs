@@ -16,6 +16,12 @@ mod customers {
     pub use hyperswitch_domain_models::customer::*;
 }
 
+pub mod callback_mapper {
+    pub use hyperswitch_domain_models::callback_mapper::{
+        CallBackMapper, CallBackMapperData, CallBackMapperNew,
+    };
+}
+
 pub use customers::*;
 pub use merchant_account::*;
 
@@ -39,6 +45,7 @@ pub mod user_key_store;
 
 pub use address::*;
 pub use business_profile::*;
+pub use callback_mapper::*;
 pub use consts::*;
 pub use event::*;
 pub use merchant_connector_account::*;
