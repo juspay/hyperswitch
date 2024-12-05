@@ -1,48 +1,54 @@
-use std::collections::HashSet;
-
 use api_models::analytics::{
     refunds::{RefundDimensions, RefundFilters, RefundMetricsBucketIdentifier},
-    Granularity, TimeRange,
+    Granularity, RefundDistributionBody, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
+use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
-use super::RefundMetricRow;
+use super::{RefundDistribution, RefundDistributionRow};
 use crate::{
     enums::AuthInfo,
-    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window},
+    query::{
+        Aggregate, GroupByClause, Order, QueryBuilder, QueryFilter, SeriesBucket, ToSql, Window,
+    },
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
 #[derive(Default)]
-pub(crate) struct RefundCount {}
+pub(crate) struct RefundErrorMessage;
 
 #[async_trait::async_trait]
-impl<T> super::RefundMetric<T> for RefundCount
+impl<T> RefundDistribution<T> for RefundErrorMessage
 where
-    T: AnalyticsDataSource + super::RefundMetricAnalytics,
+    T: AnalyticsDataSource + super::RefundDistributionAnalytics,
     PrimitiveDateTime: ToSql<T>,
     AnalyticsCollection: ToSql<T>,
     Granularity: GroupByClause<T>,
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    async fn load_metrics(
+    async fn load_distribution(
         &self,
+        distribution: &RefundDistributionBody,
         dimensions: &[RefundDimensions],
         auth: &AuthInfo,
         filters: &RefundFilters,
         granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
+    ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundDistributionRow)>> {
         let mut query_builder: QueryBuilder<T> =
             QueryBuilder::new(AnalyticsCollection::RefundSessionized);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
         }
+
+        query_builder
+            .add_select_column(&distribution.distribution_for)
+            .switch()?;
 
         query_builder
             .add_select_column(Aggregate::Count {
@@ -72,12 +78,24 @@ where
             .attach_printable("Error filtering time range")
             .switch()?;
 
+        query_builder
+            .add_filter_clause(
+                RefundDimensions::RefundStatus,
+                storage_enums::RefundStatus::Failure,
+            )
+            .switch()?;
+
         for dim in dimensions.iter() {
             query_builder
                 .add_group_by_clause(dim)
                 .attach_printable("Error grouping by dimensions")
                 .switch()?;
         }
+
+        query_builder
+            .add_group_by_clause(&distribution.distribution_for)
+            .attach_printable("Error grouping by distribution_for")
+            .switch()?;
 
         if let Some(granularity) = granularity.as_ref() {
             granularity
@@ -86,8 +104,42 @@ where
                 .switch()?;
         }
 
+        for dim in dimensions.iter() {
+            query_builder.add_outer_select_column(dim).switch()?;
+        }
+
         query_builder
-            .execute_query::<RefundMetricRow, _>(pool)
+            .add_outer_select_column(&distribution.distribution_for)
+            .switch()?;
+        query_builder.add_outer_select_column("count").switch()?;
+        query_builder
+            .add_outer_select_column("start_bucket")
+            .switch()?;
+        query_builder
+            .add_outer_select_column("end_bucket")
+            .switch()?;
+        let sql_dimensions = query_builder.transform_to_sql_values(dimensions).switch()?;
+
+        query_builder
+            .add_outer_select_column(Window::Sum {
+                field: "count",
+                partition_by: Some(sql_dimensions),
+                order_by: None,
+                alias: Some("total"),
+            })
+            .switch()?;
+
+        query_builder
+            .add_top_n_clause(
+                dimensions,
+                distribution.distribution_cardinality.into(),
+                "count",
+                Order::Descending,
+            )
+            .switch()?;
+
+        query_builder
+            .execute_query::<RefundDistributionRow, _>(pool)
             .await
             .change_context(MetricsError::QueryBuildingError)?
             .change_context(MetricsError::QueryExecutionFailure)?
@@ -116,7 +168,10 @@ where
                     i,
                 ))
             })
-            .collect::<error_stack::Result<HashSet<_>, crate::query::PostProcessingError>>()
+            .collect::<error_stack::Result<
+                Vec<(RefundMetricsBucketIdentifier, RefundDistributionRow)>,
+                crate::query::PostProcessingError,
+            >>()
             .change_context(MetricsError::PostProcessingFailure)
     }
 }

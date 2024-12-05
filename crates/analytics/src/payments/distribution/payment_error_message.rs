@@ -1,6 +1,6 @@
 use api_models::analytics::{
     payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
-    Distribution, Granularity, TimeRange,
+    Granularity, PaymentDistributionBody, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
 use diesel_models::enums as storage_enums;
@@ -31,7 +31,7 @@ where
 {
     async fn load_distribution(
         &self,
-        distribution: &Distribution,
+        distribution: &PaymentDistributionBody,
         dimensions: &[PaymentDimensions],
         auth: &AuthInfo,
         filters: &PaymentFilters,
