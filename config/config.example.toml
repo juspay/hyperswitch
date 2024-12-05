@@ -509,6 +509,10 @@ seicomart = { country = "JP", currency = "JPY" }
 pay_easy = { country = "JP", currency = "JPY" }
 boleto = { country = "BR", currency = "BRL" }
 
+[pm_filters.bambora]
+credit = { country = "US,CA", currency = "USD,CAD" }
+debit = { country = "US,CA", currency = "USD,CAD" }
+
 [pm_filters.volt]
 open_banking_uk = { country = "DE,GB,AT,BE,CY,EE,ES,FI,FR,GR,HR,IE,IT,LT,LU,LV,MT,NL,PT,SI,SK,BG,CZ,DK,HU,NO,PL,RO,SE,AU,BR", currency = "EUR,GBP,DKK,NOK,PLN,SEK,AUD,BRL" }
 

@@ -261,6 +261,10 @@ we_chat_pay = { country = "AU,NZ,CN,JP,HK,SG,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK
 google_pay.currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD"
 paypal.currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD"
 
+[pm_filters.bambora]
+credit = { country = "US,CA", currency = "USD,CAD" }
+debit = { country = "US,CA", currency = "USD,CAD" }
+
 [pm_filters.bankofamerica]
 credit = { currency = "USD" }
 debit = { currency = "USD" }
