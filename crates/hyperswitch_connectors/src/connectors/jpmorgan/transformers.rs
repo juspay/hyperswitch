@@ -137,11 +137,11 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
-                if item.router_data.is_three_ds(){
-                    return Err(errors::ConnectorError::NotSupported{
-                        message : "Three_ds payments".to_string(),
-                        connector : "Jpmorgan"
-                }
+                if item.router_data.is_three_ds() {
+                    return Err(errors::ConnectorError::NotSupported {
+                        message: "Three_ds payments".to_string(),
+                        connector: "Jpmorgan",
+                    }
                     .into());
                 }
                 let capture_method = if let Some(method) = item.router_data.request.capture_method {
@@ -1049,7 +1049,7 @@ pub struct MerchantRefundReq {
 
 impl<F> TryFrom<&JpmorganRouterData<&RefundsRouterData<F>>> for JpmorganRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &JpmorganRouterData<&RefundsRouterData<F>>) -> Result <Self, Self::Error> {
+    fn try_from(_item: &JpmorganRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Err(errors::ConnectorError::NotImplemented("Refunds".to_string()).into())
     }
 }
