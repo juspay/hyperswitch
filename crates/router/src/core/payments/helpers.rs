@@ -41,7 +41,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface, StrongSecret, SwitchStrategy};
+use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use openssl::{
     derive::Deriver,
     pkey::PKey,
@@ -1483,7 +1483,7 @@ pub async fn validate_card_testing_attack(
     state: &SessionState,
     request: &api_models::payments::PaymentsRequest,
     merchant_account: &domain::MerchantAccount
-) -> RouterResult<(String)> {
+) -> RouterResult<String> {
     
     let mut ip: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 
@@ -1495,13 +1495,20 @@ pub async fn validate_card_testing_attack(
         }
     }
 
-    let fingerprint_result = generate_fingerprint(state, request, merchant_account).await;
+    let payment_method_data: Option<&api_models::payments::PaymentMethodData> =
+        request.payment_method_data
+            .as_ref()
+            .and_then(|request_payment_method_data| {
+                request_payment_method_data.payment_method_data.as_ref()
+            });
 
-    let fingerprint = fingerprint_result?;
+    let fingerprint_result = generate_fingerprint(state, payment_method_data, merchant_account).await;
+
+    let fingerprint = fingerprint_result?.expose();
 
     let cache_key = format!("{}{}", &fingerprint, ip);
 
-    let unsuccessful_payment_threshold = 3;
+    let unsuccessful_payment_threshold = state.conf.card_test_guard.unsuccessful_payment_threshold;
     let mut should_payment_be_blocked = false;
 
     match services::card_testing_guard::get_blocked_count_from_cache(state, &cache_key).await {
@@ -1531,16 +1538,9 @@ pub async fn validate_card_testing_attack(
 
 pub async fn generate_fingerprint(
     state: &SessionState,
-    request: &api_models::payments::PaymentsRequest,
+    payment_method_data: Option<&api_models::payments::PaymentMethodData>,
     merchant_account: &domain::MerchantAccount,
-) -> RouterResult<(String)> {
-
-    let payment_method_data =
-        request.payment_method_data
-            .as_ref()
-            .and_then(|request_payment_method_data| {
-                request_payment_method_data.payment_method_data.as_ref()
-            });
+) -> RouterResult<masking::Secret<String>> {
 
     let merchant_id = merchant_account.get_id();
     let merchant_fingerprint_secret = blocklist_utils::get_merchant_fingerprint_secret(state, merchant_id).await?;
@@ -1567,7 +1567,11 @@ pub async fn generate_fingerprint(
     })
     .map(hex::encode);
 
-    Ok(card_number_fingerprint.unwrap())
+    card_number_fingerprint
+    .map(|fingerprint| masking::Secret::new(fingerprint))
+    .ok_or_else(|| {
+        todo!()
+    })
 }
 
 #[cfg(feature = "v1")]

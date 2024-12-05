@@ -11,7 +11,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
-use diesel_models::{merchant_account, payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId, payment_intent};
+use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
@@ -823,7 +823,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             tax_data: None,
             session_id: None,
             service_details: request.ctp_service_details.clone(),
-            cache_key: None,
+            blocked_cache_identifier: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -849,9 +849,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         //TODO: Check if Card Testing Guard is enabled for this merchant
         
-        let cache_key = helpers::validate_card_testing_attack(state, request, merchant_account).await?;
+        let blocked_cache_identifier = helpers::validate_card_testing_attack(state, request, merchant_account).await?;
 
-        payment_data.cache_key = Some(cache_key);
+        payment_data.blocked_cache_identifier = Some(blocked_cache_identifier);
 
         Ok(())
     }

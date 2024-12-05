@@ -4831,7 +4831,7 @@ where
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
     pub service_details: Option<api_models::payments::CtpServiceDetails>,
-    pub cache_key: Option<String>,
+    pub blocked_cache_identifier: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

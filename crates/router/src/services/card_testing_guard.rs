@@ -1,11 +1,8 @@
 use std::sync::Arc;
 
-use common_utils::id_type;
 use error_stack::ResultExt;
 use redis_interface::RedisConnectionPool;
-use router_env::logger;
 
-use super::authentication::AuthToken;
 use crate::{
     consts,
     core::errors::{ApiErrorResponse, RouterResult},
