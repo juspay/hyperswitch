@@ -110,6 +110,21 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
   });
 });
 
+
+Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/feature_matrix`,
+    headers: {
+      Accept: "application/json",
+    }
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    expect(response.body).to.have.property("data").and.not.empty;
+  });
+});
+
 Cypress.Commands.add("merchantListCall", (globalState) => {
   const organization_id = globalState.get("organizationId");
 

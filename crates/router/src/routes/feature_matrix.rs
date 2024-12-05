@@ -18,10 +18,13 @@ use crate::{
 pub async fn fetch_connector_feature_matrix(
     state: web::Data<app::AppState>,
     req: HttpRequest,
-    json_payload: web::Json<payment_types::FeatureMatrixRequest>,
+    json_payload: Option<web::Json<payment_types::FeatureMatrixRequest>>,
 ) -> impl Responder {
     let flow: Flow = Flow::FeatureMatrix;
-    let payload = json_payload.into_inner();
+    let payload = json_payload.map(|json_request| 
+        json_request.into_inner()
+    ).unwrap_or(payment_types::FeatureMatrixRequest{connectors: None});
+
     Box::pin(api::server_wrap(
         flow,
         state,

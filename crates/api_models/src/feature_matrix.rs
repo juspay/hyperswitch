@@ -1,8 +1,6 @@
 use std::collections::HashSet;
-
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-
 use crate::enums;
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
@@ -36,7 +34,7 @@ pub struct FeatureMatrixResponse {
     pub payment_method_types: Vec<SupportedPaymentMethodTypes>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct FeatureMatrixListResponse {
     /// The number of connectors included in the list
     pub size: usize,
