@@ -25,6 +25,7 @@ use crate::{
     types::api,
 };
 
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl<F: Clone + Send> UnifiedAuthenticationService<F> for ClickToPay {
     async fn pre_authentication(
@@ -37,20 +38,27 @@ impl<F: Clone + Send> UnifiedAuthenticationService<F> for ClickToPay {
     ) -> RouterResult<Authentication> {
         let pre_authentication_data =
             UasPreAuthenticationRequestData::try_from(payment_data.clone())?;
-        let payment_method = payment_data.payment_attempt.payment_method.clone().ok_or(
+        let payment_method = payment_data.payment_attempt.payment_method.ok_or(
             ApiErrorResponse::MissingRequiredField {
                 field_name: "payment_method",
             },
         )?;
+
+        let connector_transaction_id = merchant_connector_account
+            .get_mca_id()
+            .ok_or(ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while finding mca_id from merchant_connector_account")?;
+
         let store_authentication_in_db = utils::create_new_authentication(
             state,
             payment_data.payment_attempt.merchant_id.clone(),
             connector_name.to_string(),
             business_profile.get_id().clone(),
             Some(payment_data.payment_intent.get_id().clone()),
-            merchant_connector_account.get_mca_id(),
+            connector_transaction_id,
         )
         .await?;
+
         let pre_auth_router_data: api::unified_authentication_service::UasPreAuthenticationRouterData = utils::construct_uas_router_data(
             connector_name.to_string(),
             payment_method,
@@ -85,7 +93,12 @@ impl<F: Clone + Send> UnifiedAuthenticationService<F> for ClickToPay {
         authentication: Option<Authentication>,
         connector_name: &str,
     ) -> RouterResult<Authentication> {
-        let payment_method = payment_data.payment_attempt.payment_method.clone().unwrap();
+        let payment_method = payment_data.payment_attempt.payment_method.ok_or(
+            ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method",
+            },
+        )?;
+
         let post_authentication_data = UasPostAuthenticationRequestData;
         let authentication_id = payment_data
             .payment_attempt
@@ -102,7 +115,7 @@ impl<F: Clone + Send> UnifiedAuthenticationService<F> for ClickToPay {
             post_authentication_data,
             merchant_connector_account,
             Some(authentication_id.clone()),
-        ).unwrap();
+        )?;
 
         let response = utils::do_auth_connector_call(
             state,
@@ -132,7 +145,7 @@ impl<F: Clone + Send> UnifiedAuthenticationService<F> for ClickToPay {
         };
 
         payment_data.payment_method_data =
-            network_token.map(|token| domain::PaymentMethodData::NetworkToken(token));
+            network_token.map(domain::PaymentMethodData::NetworkToken);
 
         let previous_authentication_state = authentication
             .ok_or(ApiErrorResponse::InternalServerError)

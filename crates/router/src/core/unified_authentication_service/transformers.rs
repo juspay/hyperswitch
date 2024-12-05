@@ -8,6 +8,7 @@ use hyperswitch_domain_models::{
 
 use crate::core::payments::PaymentData;
 
+#[cfg(feature = "v1")]
 impl<F: Clone> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestData {
     type Error = Report<ApiErrorResponse>;
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
@@ -27,7 +28,7 @@ impl<F: Clone> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestData {
         let amount = payment_data.payment_attempt.net_amount.get_order_amount();
         let transaction_details = TransactionDetails { amount, currency };
 
-        Ok(UasPreAuthenticationRequestData {
+        Ok(Self {
             service_details: Some(service_details),
             transaction_details: Some(transaction_details),
         })

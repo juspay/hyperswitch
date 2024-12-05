@@ -2869,7 +2869,9 @@ default_imp_for_uas_pre_authentication!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Inespay,
+    connector::Redsys
 );
 
 macro_rules! default_imp_for_uas_post_authentication {
@@ -2978,5 +2980,7 @@ default_imp_for_uas_post_authentication!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::Inespay,
+    connector::Redsys
 );

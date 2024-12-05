@@ -653,6 +653,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         header_payload,
         connector_mandate_request_reference_id: None,
         psd2_sca_exemption_type: None,
+        authentication_id: None,
     };
 
     Ok(router_data)
