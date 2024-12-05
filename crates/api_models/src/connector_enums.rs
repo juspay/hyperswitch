@@ -84,7 +84,7 @@ pub enum Connector {
     Gocardless,
     Gpayments,
     Helcim,
-    // Inespay,
+    Inespay,
     Iatapay,
     Itaubank,
     //Jpmorgan,
@@ -230,7 +230,7 @@ impl Connector {
             | Self::Gpayments
             | Self::Helcim
             | Self::Iatapay
-			// | Self::Inespay
+			| Self::Inespay
             | Self::Itaubank
             //| Self::Jpmorgan
             | Self::Klarna
