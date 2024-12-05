@@ -2,7 +2,8 @@ use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{router_data::RouterData, router_data_v2::RouterDataV2};
 use hyperswitch_interfaces::{
     authentication::ExternalAuthenticationPayload,
-    connector_integration_v2::ConnectorIntegrationV2, webhooks::IncomingWebhookFlowError,types::SupportedPaymentMethods
+    connector_integration_v2::ConnectorIntegrationV2, types::SupportedPaymentMethods,
+    webhooks::IncomingWebhookFlowError,
 };
 
 use super::{BoxedConnectorIntegrationV2, ConnectorValidation};

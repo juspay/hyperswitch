@@ -1,5 +1,5 @@
 pub mod transformers;
-use api_models::enums::{CaptureMethod, PaymentMethodType, PaymentMethod};
+use api_models::enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use base64::Engine;
 use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};

@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::collections::{HashMap, HashSet};
 
-use common_enums::{CaptureMethod, PaymentMethodType, PaymentMethod};
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     crypto::{self, GenerateDigest},
     errors::{self as common_errors, CustomResult},

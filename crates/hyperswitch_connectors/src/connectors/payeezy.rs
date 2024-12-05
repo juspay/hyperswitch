@@ -2,7 +2,7 @@ pub mod transformers;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
-use common_enums::{CaptureMethod, PaymentMethodType, PaymentMethod};
+use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
     errors::CustomResult,
     ext_traits::ByteSliceExt,

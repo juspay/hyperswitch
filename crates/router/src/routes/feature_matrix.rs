@@ -21,9 +21,9 @@ pub async fn fetch_connector_feature_matrix(
     json_payload: Option<web::Json<payment_types::FeatureMatrixRequest>>,
 ) -> impl Responder {
     let flow: Flow = Flow::FeatureMatrix;
-    let payload = json_payload.map(|json_request| 
-        json_request.into_inner()
-    ).unwrap_or(payment_types::FeatureMatrixRequest{connectors: None});
+    let payload = json_payload
+        .map(|json_request| json_request.into_inner())
+        .unwrap_or(payment_types::FeatureMatrixRequest { connectors: None });
 
     Box::pin(api::server_wrap(
         flow,
