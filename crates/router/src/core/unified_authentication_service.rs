@@ -78,10 +78,10 @@ impl<F: Clone + Send> UnifiedAuthenticationService<F> for ClickToPay {
         )
         .await?;
 
-        let upadated_authentication =
+        let updated_authentication =
             utils::update_trackers(state, response.clone(), store_authentication_in_db).await?;
 
-        Ok(upadated_authentication)
+        Ok(updated_authentication)
     }
 
     async fn post_authentication(
