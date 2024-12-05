@@ -707,6 +707,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
+                transaction_flow: None,
                 scheme: None,
             },
         }
