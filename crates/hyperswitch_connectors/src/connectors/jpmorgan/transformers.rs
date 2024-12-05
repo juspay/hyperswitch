@@ -377,7 +377,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
 
         let connector_response_reference_id = Some(item.response.transaction_id.clone());
 
-        let resource_id = ResponseId::ConnectorTransactionId(item.response.request_id.unwrap_or_default().clone());     //change made from tranId to reqId
+        let resource_id = ResponseId::ConnectorTransactionId(item.response.transaction_id);
+        // let resource_id = ResponseId::ConnectorTransactionId(item.response.request_id.unwrap_or_default().clone());     //change made from tranId to reqId
 
         Ok(Self {
             status,
@@ -1028,7 +1029,7 @@ pub struct MerchantRefundReq {
     pub merchant_software: MerchantSoftware,
 }
 
-impl<F> TryFrom<&JpmorganRouterData<&RefundsRouterData<F>>> for JpmorganRefundRequest {
+/*impl<F> TryFrom<&JpmorganRouterData<&RefundsRouterData<F>>> for JpmorganRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &JpmorganRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let merchant_software = MerchantSoftware {
@@ -1043,6 +1044,13 @@ impl<F> TryFrom<&JpmorganRouterData<&RefundsRouterData<F>>> for JpmorganRefundRe
         let amount = item.amount;
 
         Ok(Self { merchant, amount })
+    }
+}*/
+
+impl<F> TryFrom<&JpmorganRouterData<&RefundsRouterData<F>>> for JpmorganRefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(_item: &JpmorganRouterData<&RefundsRouterData<F>>) -> Result <Self, Self::Error> {
+        Err(errors::ConnectorError::NotImplemented("Refunds".to_string()).into())
     }
 }
 
