@@ -1281,7 +1281,7 @@ impl api::IncomingWebhook for Payme {
 
         Ok(api::disputes::DisputePayload {
             amount: webhook_object.price.to_string(),
-            currency: webhook_object.currency.to_string(),
+            currency: webhook_object.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: webhook_object.payme_transaction_id,
             connector_reason: None,

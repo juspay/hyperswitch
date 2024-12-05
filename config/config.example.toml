@@ -207,7 +207,7 @@ digitalvirgo.base_url = "https://dcb-integration-service-sandbox-external.stagin
 dlocal.base_url = "https://sandbox.dlocal.com/"
 dummyconnector.base_url = "http://localhost:8080/dummy-connector"
 ebanx.base_url = "https://sandbox.ebanxpay.com/"
-elavon.base_url = "https://api.demo.convergepay.com"
+elavon.base_url = "https://api.demo.convergepay.com/VirtualMerchantDemo/"
 fiserv.base_url = "https://cert.api.fiservapps.com/"
 fiservemea.base_url = "https://prod.emea.api.fiservapps.com/sandbox"
 fiuu.base_url = "https://sandbox.merchant.razer.com/"
@@ -220,6 +220,7 @@ gocardless.base_url = "https://api-sandbox.gocardless.com"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
+inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
@@ -251,6 +252,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
+redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -271,6 +273,7 @@ wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
+xendit.base_url = "https://api.xendit.co"
 zsl.base_url = "https://api.sitoffalb.net/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
@@ -329,6 +332,7 @@ cards = [
   "threedsecureio",
     "thunes",
   "worldpay",
+    "xendit",
   "zen",
   "zsl",
 ]
@@ -400,6 +404,7 @@ two_factor_auth_expiry_in_secs = 300 # Number of seconds after which 2FA should 
 totp_issuer_name = "Hyperswitch"     # Name of the issuer for TOTP
 base_url = ""                        # Base url used for user specific redirects and emails
 force_two_factor_auth = false        # Whether to force two factor authentication for all users
+force_cookies = true                 # Whether to use only cookies for JWT extraction and authentication
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
@@ -544,10 +549,10 @@ apple_pay = { currency = "USD" }
 google_pay = { currency = "USD" }
 
 [pm_filters.cybersource]
-credit = { currency = "USD,GBP,EUR" }
-debit = { currency = "USD,GBP,EUR" }
-apple_pay = { currency = "USD,GBP,EUR" }
-google_pay = { currency = "USD,GBP,EUR" }
+credit = { currency = "USD,GBP,EUR,PLN" }
+debit = { currency = "USD,GBP,EUR,PLN" }
+apple_pay = { currency = "USD,GBP,EUR,PLN" }
+google_pay = { currency = "USD,GBP,EUR,PLN" }
 samsung_pay = { currency = "USD,GBP,EUR" }
 paze = { currency = "USD" }
 
@@ -787,6 +792,13 @@ check_token_status_url= ""    # base url to check token status from token servic
 [network_tokenization_supported_connectors]
 connector_list = "cybersource" # Supported connectors for network tokenization
 
+[network_transaction_id_supported_connectors]
+connector_list = "stripe,adyen,cybersource" # Supported connectors for network transaction id
+
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
 port = 7000        # Client Port
+service = "dynamo" # Service name
+
+[theme_storage]
+file_storage_backend = "file_system" # Theme storage backend to be used

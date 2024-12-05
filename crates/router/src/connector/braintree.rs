@@ -1,5 +1,4 @@
 pub mod transformers;
-use std::str::FromStr;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
@@ -11,6 +10,7 @@ use common_utils::{
 };
 use diesel_models::enums;
 use error_stack::{report, Report, ResultExt};
+use hyperswitch_interfaces::webhooks::IncomingWebhookFlowError;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use ring::hmac;
 use sha1::{Digest, Sha1};
@@ -982,6 +982,7 @@ impl api::IncomingWebhook for Braintree {
     fn get_webhook_api_response(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         Ok(services::api::ApplicationResponse::TextPlain(
@@ -999,25 +1000,21 @@ impl api::IncomingWebhook for Braintree {
         let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
 
         match response.dispute {
-            Some(dispute_data) => {
-                let currency = enums::Currency::from_str(dispute_data.currency_iso_code.as_str())
-                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-                Ok(api::disputes::DisputePayload {
-                    amount: connector_utils::to_currency_lower_unit(
-                        dispute_data.amount_disputed.to_string(),
-                        currency,
-                    )?,
-                    currency: dispute_data.currency_iso_code,
-                    dispute_stage: transformers::get_dispute_stage(dispute_data.kind.as_str())?,
-                    connector_dispute_id: dispute_data.id,
-                    connector_reason: dispute_data.reason,
-                    connector_reason_code: dispute_data.reason_code,
-                    challenge_required_by: dispute_data.reply_by_date,
-                    connector_status: dispute_data.status,
-                    created_at: dispute_data.created_at,
-                    updated_at: dispute_data.updated_at,
-                })
-            }
+            Some(dispute_data) => Ok(api::disputes::DisputePayload {
+                amount: connector_utils::to_currency_lower_unit(
+                    dispute_data.amount_disputed.to_string(),
+                    dispute_data.currency_iso_code,
+                )?,
+                currency: dispute_data.currency_iso_code,
+                dispute_stage: transformers::get_dispute_stage(dispute_data.kind.as_str())?,
+                connector_dispute_id: dispute_data.id,
+                connector_reason: dispute_data.reason,
+                connector_reason_code: dispute_data.reason_code,
+                challenge_required_by: dispute_data.reply_by_date,
+                connector_status: dispute_data.status,
+                created_at: dispute_data.created_at,
+                updated_at: dispute_data.updated_at,
+            }),
             None => Err(errors::ConnectorError::WebhookResourceObjectNotFound)?,
         }
     }

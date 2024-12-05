@@ -1150,7 +1150,7 @@ impl api::IncomingWebhook for Bluesnap {
                 dispute_details.invoice_charge_amount.abs().to_string(),
                 dispute_details.currency,
             )?,
-            currency: dispute_details.currency.to_string(),
+            currency: dispute_details.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: dispute_details.reversal_ref_num,
             connector_reason: dispute_details.reversal_reason,

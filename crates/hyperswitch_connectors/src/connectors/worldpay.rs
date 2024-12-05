@@ -54,8 +54,8 @@ use response::{
     WP_CORRELATION_ID,
 };
 use ring::hmac;
-use transformers::{self as worldpay};
 
+use self::transformers as worldpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
@@ -618,7 +618,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                         .map(|id| id.to_string())
                 });
                 Ok(PaymentsCaptureRouterData {
-                    status: enums::AttemptStatus::Pending,
+                    status: enums::AttemptStatus::from(response.outcome.clone()),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::foreign_try_from((
                             response,
@@ -968,12 +968,12 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
                 });
                 Ok(RefundExecuteRouterData {
                     response: Ok(RefundsResponseData {
+                        refund_status: enums::RefundStatus::from(response.outcome.clone()),
                         connector_refund_id: ResponseIdStr::foreign_try_from((
                             response,
                             optional_correlation_id,
                         ))?
                         .id,
-                        refund_status: enums::RefundStatus::Pending,
                     }),
                     ..data.clone()
                 })

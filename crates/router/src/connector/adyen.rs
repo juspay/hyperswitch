@@ -7,6 +7,7 @@ use common_utils::{
 };
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{report, ResultExt};
+use hyperswitch_interfaces::webhooks::IncomingWebhookFlowError;
 use masking::{ExposeInterface, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
@@ -1881,6 +1882,7 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_api_response(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
     {
         Ok(services::api::ApplicationResponse::TextPlain(
@@ -1896,7 +1898,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
             amount: notif.amount.value.to_string(),
-            currency: notif.amount.currency.to_string(),
+            currency: notif.amount.currency,
             dispute_stage: api_models::enums::DisputeStage::from(notif.event_code.clone()),
             connector_dispute_id: notif.psp_reference,
             connector_reason: notif.reason,
@@ -1906,6 +1908,27 @@ impl api::IncomingWebhook for Adyen {
             created_at: notif.event_date,
             updated_at: notif.event_date,
         })
+    }
+
+    fn get_mandate_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let mandate_reference =
+            notif
+                .additional_data
+                .recurring_detail_reference
+                .map(|mandate_id| {
+                    hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails {
+                        connector_mandate_id: mandate_id.clone(),
+                    }
+                });
+        Ok(mandate_reference)
     }
 }
 

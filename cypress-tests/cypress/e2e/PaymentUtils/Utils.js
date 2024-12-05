@@ -1,26 +1,30 @@
+import { validateConfig } from "../../utils/featureFlags.js";
+
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
+import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import {
   connectorDetails as CommonConnectorDetails,
   updateDefaultStatusCode,
 } from "./Commons.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
+import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
+import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
+import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
-import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
-import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -38,20 +42,23 @@ const connectorDetails = {
   paybox: payboxConnectorDetails,
   paypal: paypalConnectorDetails,
   stripe: stripeConnectorDetails,
+  elavon: elavonConnectorDetails,
   trustpay: trustpayConnectorDetails,
   datatrans: datatransConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   fiuu: fiuuConnectorDetails,
   worldpay: worldpayConnectorDetails,
+  noon: noonConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
-  let x = mergeDetails(connectorId);
+  const x = mergeDetails(connectorId);
   return x;
 }
 
 export function getConnectorFlowDetails(connectorData, commonData, key) {
-  let data = connectorData[key] === undefined ? commonData[key] : connectorData[key];
+  const data =
+    connectorData[key] === undefined ? commonData[key] : connectorData[key];
   return data;
 }
 
@@ -95,21 +102,47 @@ export function getValueByKey(jsonObject, key) {
     typeof jsonObject === "string" ? JSON.parse(jsonObject) : jsonObject;
 
   if (data && typeof data === "object" && key in data) {
+    // Connector object has multiple keys
+    if (typeof data[key].connector_account_details === "undefined") {
+      const keys = Object.keys(data[key]);
+
+      for (let i = 0; i < keys.length; i++) {
+        const currentItem = data[key][keys[i]];
+
+        if (
+          Object.prototype.hasOwnProperty.call(
+            currentItem,
+            "connector_account_details"
+          )
+        ) {
+          Cypress.env("MULTIPLE_CONNECTORS", {
+            status: true,
+            count: keys.length,
+          });
+
+          return currentItem;
+        }
+      }
+    }
+
     return data[key];
   } else {
     return null;
   }
 }
 
-export const should_continue_further = (res_data) => {
-  if (res_data.trigger_skip !== undefined) {
-    return !res_data.trigger_skip;
+export const should_continue_further = (data) => {
+  const resData = data.Response || {};
+  const configData = validateConfig(data.Configs) || {};
+
+  if (typeof configData?.TRIGGER_SKIP !== "undefined") {
+    return !configData.TRIGGER_SKIP;
   }
 
   if (
-    res_data.body.error !== undefined ||
-    res_data.body.error_code !== undefined ||
-    res_data.body.error_message !== undefined
+    typeof resData.body.error !== "undefined" ||
+    typeof resData.body.error_code !== "undefined" ||
+    typeof resData.body.error_message !== "undefined"
   ) {
     return false;
   } else {
@@ -134,9 +167,17 @@ export function defaultErrorHandler(response, response_data) {
 
   if (typeof response.body.error === "object") {
     for (const key in response_data.body.error) {
-      expect(response_data.body.error[key]).to.equal(response.body.error[key]);
+      // Check if the error message is a Json deserialize error
+      const apiResponseContent = response.body.error[key];
+      const expectedContent = response_data.body.error[key];
+      if (
+        typeof apiResponseContent === "string" &&
+        apiResponseContent.includes("Json deserialize error")
+      ) {
+        expect(apiResponseContent).to.include(expectedContent);
+      } else {
+        expect(apiResponseContent).to.equal(expectedContent);
+      }
     }
-  } else if (typeof response.body.error === "string") {
-    expect(response.body.error).to.include(response_data.body.error);
   }
 }
