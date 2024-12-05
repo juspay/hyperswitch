@@ -806,3 +806,10 @@ entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be 
 foreground_color = "#000000"                     # Foreground color of email text
 primary_color = "#006DF9"                        # Primary color of email body
 background_color = "#FFFFFF"                     # Background color of email body
+
+[theme_storage]
+file_storage_backend = "file_system"
+
+[card_test_guard]
+unsuccessful_payment_threshold = 3
+redis_expiry = 3600
