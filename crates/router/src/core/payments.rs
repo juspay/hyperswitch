@@ -4266,7 +4266,7 @@ where
     pub poll_config: Option<router_types::PollConfig>,
     pub tax_data: Option<TaxData>,
     pub session_id: Option<String>,
-    pub cache_key: Option<String>,
+    pub blocked_cache_identifier: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize, Debug)]

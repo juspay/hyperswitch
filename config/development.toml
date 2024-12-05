@@ -799,3 +799,10 @@ service = "dynamo"
 
 [theme_storage]
 file_storage_backend = "file_system"
+[grpc_client.dynamic_routing_client] 
+host = "localhost" 
+port = 7000 
+
+[card_test_guard]
+unsuccessful_payment_threshold = 3
+redis_expiry = 3600
