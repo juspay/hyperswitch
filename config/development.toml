@@ -56,7 +56,6 @@ max_feed_count = 200
 [server]
 # HTTP Request body limit. Defaults to 32kB
 request_body_limit = 32768
-port=8082
 
 [secrets]
 admin_api_key = "test_admin"

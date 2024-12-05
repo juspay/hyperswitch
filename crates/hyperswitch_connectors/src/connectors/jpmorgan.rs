@@ -102,11 +102,14 @@ where
         );
         let request_id = (
             headers::REQUEST_ID.to_string(),
-            req.connector_request_reference_id.clone().to_string().into_masked()
+            req.connector_request_reference_id
+                .clone()
+                .to_string()
+                .into_masked(),
         );
         let merchant_id = (
             headers::MERCHANTID.to_string(),
-            req.merchant_id.get_string_repr().to_string().into_masked()
+            req.merchant_id.get_string_repr().to_string().into_masked(),
         );
         headers.push(auth_header);
         headers.push(request_id);

@@ -68,24 +68,6 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         payment_method: "card",
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "CA",
-            line3: "CA",
-            city: "Musterhausen",
-            state: "California",
-            zip: "12345",
-            country: "US",
-            first_name: "John",
-            last_name: "Doe",
-          },
-          email: "test@jpmorgan.us",
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -207,6 +189,9 @@ export const connectorDetails = {
       },
     },*/
     Refund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -217,14 +202,16 @@ export const connectorDetails = {
       Response: {
         status: 501,
         body: {
-          // status: "succeeded",
           type: "invalid_request",
-        message: "Refunds is not implemented",
-        code: "IR_00"
+          message: "Refunds is not implemented",
+          code: "IR_00",
         },
       },
     },
     manualPaymentRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -236,12 +223,15 @@ export const connectorDetails = {
         status: 501,
         body: {
           type: "invalid_request",
-        message: "Refunds is not implemented",
-        code: "IR_00"
+          message: "Refunds is not implemented",
+          code: "IR_00",
         },
       },
     },
     manualPaymentPartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -253,12 +243,15 @@ export const connectorDetails = {
         status: 501,
         body: {
           type: "invalid_request",
-        message: "Refunds is not implemented",
-        code: "IR_00"
+          message: "Refunds is not implemented",
+          code: "IR_00",
         },
       },
     },
     PartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -270,8 +263,8 @@ export const connectorDetails = {
         status: 501,
         body: {
           type: "invalid_request",
-        message: "Refunds is not implemented",
-        code: "IR_00"
+          message: "Refunds is not implemented",
+          code: "IR_00",
         },
       },
     },
@@ -292,21 +285,17 @@ export const connectorDetails = {
       },
     }*/
     SyncRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
+      Configs: {
+        TRIGGER_SKIP: true,
       },
       Response: {
         status: 404,
         body: {
-          type: "undefined",
+          type: "invalid_request",
           message: "Refund does not exist in our records.",
-          code: "HE_02"
+          code: "HE_02",
         },
       },
-    }
+    },
   },
 };
