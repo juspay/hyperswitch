@@ -8,6 +8,7 @@ use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+#[cfg(feature = "control_center_theme")]
 pub mod theme;
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
