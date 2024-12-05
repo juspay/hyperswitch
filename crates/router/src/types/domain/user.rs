@@ -332,14 +332,14 @@ impl ForeignFrom<api_models::user::UserOrgMerchantCreateRequest>
     for diesel_models::organization::OrganizationNew
 {
     fn foreign_from(item: api_models::user::UserOrgMerchantCreateRequest) -> Self {
-        let org_new = api_models::organization::OrganizationNew::new(None);
+        let org_id = id_type::OrganizationId::default();
         let api_models::user::UserOrgMerchantCreateRequest {
             organization_name,
             organization_details,
             metadata,
             ..
         } = item;
-        let mut org_new_db = Self::new(org_new.org_id, Some(organization_name));
+        let mut org_new_db = Self::new(org_id, Some(organization_name.expose()));
         org_new_db.organization_details = organization_details;
         org_new_db.metadata = metadata;
         org_new_db
@@ -569,18 +569,15 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
     }
 }
 
-impl TryFrom<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUserMerchant {
-    type Error = error_stack::Report<UserErrors>;
-    fn try_from(
-        value: (user_api::CreateTenantUserRequest, MerchantAccountIdentifier),
-    ) -> UserResult<Self> {
+impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUserMerchant {
+    fn from(value: (user_api::CreateTenantUserRequest, MerchantAccountIdentifier)) -> Self {
         let merchant_id = value.1.merchant_id.clone();
         let new_organization = NewUserOrganization::from(value);
-        Ok(Self {
+        Self {
             company_name: None,
             merchant_id,
             new_organization,
-        })
+        }
     }
 }
 
@@ -927,7 +924,7 @@ impl TryFrom<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for
             password: UserPassword::new(value.password.clone())?,
             is_temporary: false,
         };
-        let new_merchant = NewUserMerchant::try_from((value, merchant_account_identifier))?;
+        let new_merchant = NewUserMerchant::from((value, merchant_account_identifier));
 
         Ok(Self {
             user_id,

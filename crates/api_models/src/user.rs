@@ -123,7 +123,7 @@ pub struct CreateTenantUserRequest {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct UserOrgMerchantCreateRequest {
-    pub organization_name: String,
+    pub organization_name: Secret<String>,
     pub organization_details: Option<pii::SecretSerdeValue>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub merchant_name: Secret<String>,
