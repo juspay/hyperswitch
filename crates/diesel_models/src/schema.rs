@@ -392,9 +392,11 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    dynamic_routing_stats (payment_id) {
+    dynamic_routing_stats (attempt_id) {
         #[max_length = 64]
         payment_id -> Varchar,
+        #[max_length = 64]
+        attempt_id -> Varchar,
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]

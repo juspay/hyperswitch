@@ -8,6 +8,7 @@ CREATE TYPE "SuccessBasedRoutingConclusiveState" AS ENUM(
 
 CREATE TABLE IF NOT EXISTS dynamic_routing_stats (
     payment_id VARCHAR(64) NOT NULL,
+    attempt_id VARCHAR(64) NOT NULL,
     merchant_id VARCHAR(64) NOT NULL,
     profile_id VARCHAR(64) NOT NULL,
     success_based_routing_connector VARCHAR(64) NOT NULL,
@@ -19,5 +20,5 @@ CREATE TABLE IF NOT EXISTS dynamic_routing_stats (
     payment_status "AttemptStatus" NOT NULL,
     conclusive_classification "SuccessBasedRoutingConclusiveState" NOT NULL,
     created_at TIMESTAMP NOT NULL,
-    PRIMARY KEY(payment_id)
+    PRIMARY KEY(attempt_id)
 );
