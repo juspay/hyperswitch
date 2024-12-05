@@ -1,6 +1,8 @@
-use common_utils::types::theme::ThemeLineage;
+use common_enums::EntityType;
+use common_utils::{id_type, types::theme::ThemeLineage};
 use diesel_models::user::theme as storage;
 use error_stack::report;
+use strum::IntoEnumIterator;
 
 use super::MockDb;
 use crate::{
@@ -19,6 +21,15 @@ pub trait ThemeInterface {
     async fn find_theme_by_theme_id(
         &self,
         theme_id: String,
+    ) -> CustomResult<storage::Theme, errors::StorageError>;
+
+    async fn find_most_specific_theme_in_lineage(
+        &self,
+        tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+        min_entity: EntityType,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
 
     async fn find_theme_by_lineage(
@@ -54,6 +65,27 @@ impl ThemeInterface for Store {
         storage::Theme::find_by_theme_id(&conn, theme_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn find_most_specific_theme_in_lineage(
+        &self,
+        tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+        min_entity: EntityType,
+    ) -> CustomResult<storage::Theme, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Theme::find_most_specific_theme_in_lineage(
+            &conn,
+            tenant_id,
+            org_id,
+            merchant_id,
+            profile_id,
+            min_entity,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn find_theme_by_lineage(
@@ -196,6 +228,42 @@ impl ThemeInterface for MockDb {
                 ))
                 .into(),
             )
+    }
+
+    async fn find_most_specific_theme_in_lineage(
+        &self,
+        tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+        min_entity: EntityType,
+    ) -> CustomResult<storage::Theme, errors::StorageError> {
+        let themes = self.themes.lock().await;
+        let lineages = EntityType::iter()
+            .map(|entity| {
+                ThemeLineage::new(
+                    entity,
+                    tenant_id.clone(),
+                    org_id.clone(),
+                    merchant_id.clone(),
+                    profile_id.clone(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        themes
+            .iter()
+            .filter(|theme| {
+                lineages
+                    .iter()
+                    .any(|lineage| check_theme_with_lineage(theme, lineage))
+            })
+            .filter(|theme| theme.entity_type >= min_entity)
+            .min_by_key(|theme| theme.entity_type)
+            .ok_or(
+                errors::StorageError::ValueNotFound("No theme found in lineage".to_string()).into(),
+            )
+            .cloned()
     }
 
     async fn find_theme_by_lineage(

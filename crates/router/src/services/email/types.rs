@@ -212,13 +212,17 @@ pub fn get_link_with_token(
     token: impl std::fmt::Display,
     action: impl std::fmt::Display,
     auth_id: &Option<impl std::fmt::Display>,
+    theme_id: &Option<impl std::fmt::Display>,
 ) -> String {
-    let email_url = format!("{base_url}/user/{action}?token={token}");
+    let mut email_url = format!("{base_url}/user/{action}?token={token}");
     if let Some(auth_id) = auth_id {
-        format!("{email_url}&auth_id={auth_id}")
-    } else {
-        email_url
+        email_url = format!("{email_url}&auth_id={auth_id}");
     }
+    if let Some(theme_id) = theme_id {
+        email_url = format!("{email_url}&theme_id={theme_id}");
+    }
+
+    email_url
 }
 
 pub struct VerifyEmail {
@@ -226,6 +230,7 @@ pub struct VerifyEmail {
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
 }
 
 /// Currently only HTML is supported
@@ -246,6 +251,7 @@ impl EmailData for VerifyEmail {
             token,
             "verify_email",
             &self.auth_id,
+            &self.theme_id,
         );
 
         let body = html::get_html_body(EmailBody::Verify {
@@ -266,6 +272,7 @@ pub struct ResetPassword {
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -285,6 +292,7 @@ impl EmailData for ResetPassword {
             token,
             "set_password",
             &self.auth_id,
+            &self.theme_id,
         );
 
         let body = html::get_html_body(EmailBody::Reset {
@@ -306,6 +314,7 @@ pub struct MagicLink {
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -325,6 +334,7 @@ impl EmailData for MagicLink {
             token,
             "verify_email",
             &self.auth_id,
+            &self.theme_id,
         );
 
         let body = html::get_html_body(EmailBody::MagicLink {
@@ -347,6 +357,7 @@ pub struct InviteUser {
     pub subject: &'static str,
     pub entity: Entity,
     pub auth_id: Option<String>,
+    pub theme_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -366,6 +377,7 @@ impl EmailData for InviteUser {
             token,
             "accept_invite_from_email",
             &self.auth_id,
+            &self.theme_id,
         );
         let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,

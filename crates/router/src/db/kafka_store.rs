@@ -3730,6 +3730,25 @@ impl ThemeInterface for KafkaStore {
         self.diesel_store.find_theme_by_theme_id(theme_id).await
     }
 
+    async fn find_most_specific_theme_in_lineage(
+        &self,
+        tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+        min_entity: enums::EntityType,
+    ) -> CustomResult<diesel_models::user::theme::Theme, errors::StorageError> {
+        self.diesel_store
+            .find_most_specific_theme_in_lineage(
+                tenant_id,
+                org_id,
+                merchant_id,
+                profile_id,
+                min_entity,
+            )
+            .await
+    }
+
     async fn find_theme_by_lineage(
         &self,
         lineage: ThemeLineage,

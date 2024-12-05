@@ -93,3 +93,29 @@ impl ThemeLineage {
         }
     }
 }
+
+impl ThemeLineage {
+    /// Constructor for ThemeLineage
+    pub fn new(
+        entity_type: EntityType,
+        tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+    ) -> Self {
+        match entity_type {
+            EntityType::Organization => Self::Organization { tenant_id, org_id },
+            EntityType::Merchant => Self::Merchant {
+                tenant_id,
+                org_id,
+                merchant_id,
+            },
+            EntityType::Profile => Self::Profile {
+                tenant_id,
+                org_id,
+                merchant_id,
+                profile_id,
+            },
+        }
+    }
+}

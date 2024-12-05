@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use common_enums::EntityType;
 use common_utils::{id_type, types::theme::ThemeLineage};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
@@ -7,6 +8,7 @@ use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResult},
     routes::SessionState,
+    services::authentication::UserFromToken,
 };
 
 fn get_theme_dir_key(theme_id: &str) -> PathBuf {
@@ -155,4 +157,34 @@ async fn validate_profile(
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("profile_id".to_string()))?;
     Ok(())
+}
+
+pub async fn get_most_specific_theme_id_using_token_and_min_entity(
+    state: &SessionState,
+    user_from_token: &UserFromToken,
+    min_entity: EntityType,
+) -> UserResult<Option<String>> {
+    match state
+        .global_store
+        .find_most_specific_theme_in_lineage(
+            user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+            user_from_token.org_id.clone(),
+            user_from_token.merchant_id.clone(),
+            user_from_token.profile_id.clone(),
+            min_entity,
+        )
+        .await
+    {
+        Ok(theme) => Ok(Some(theme.theme_id)),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                Ok(None)
+            } else {
+                Err(UserErrors::InternalServerError.into())
+            }
+        }
+    }
 }
