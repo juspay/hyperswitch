@@ -654,7 +654,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details,
                 network_transaction_id,
             } => Self {
-                network_transaction_id: network_transaction_id.map(|network_transaction_id| network_transaction_id.expose()),
+                network_transaction_id: network_transaction_id
+                    .map(|network_transaction_id| network_transaction_id.expose()),
                 connector_mandate_details,
                 last_modified: common_utils::date_time::now(),
                 status: None,
