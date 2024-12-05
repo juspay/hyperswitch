@@ -1,2 +1,7 @@
 -- Your SQL goes here
-ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS transaction_flow VARCHAR(255);
+CREATE TYPE "PaymentDirection" AS ENUM (
+  'payin',
+  'payout'
+);
+
+ALTER TABLE payment_methods ADD COLUMN IF NOT EXISTS transaction_flow "PaymentDirection";

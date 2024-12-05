@@ -220,13 +220,13 @@ pub fn should_create_connector_transfer_method(
             connector_mandate_details
                 .clone()
                 .and_then(|payments_mandate_reference| {
-                    payments_mandate_reference
-                        .get(merchant_connector_id)
-                        .map(|payments_mandate_reference_record| {
+                    payments_mandate_reference.get(merchant_connector_id).map(
+                        |payments_mandate_reference_record| {
                             payments_mandate_reference_record
                                 .connector_mandate_id
                                 .clone()
-                        })
+                        },
+                    )
                 })
         } else {
             None
@@ -234,7 +234,7 @@ pub fn should_create_connector_transfer_method(
     } else {
         None
     };
-    
+
     Ok(connector_mandate_id)
 }
 
