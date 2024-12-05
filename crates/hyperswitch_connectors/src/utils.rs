@@ -22,7 +22,7 @@ use hyperswitch_domain_models::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
     },
     router_request_types::{
-        AuthenticationData, BrowserInformation, CompleteAuthorizeData,
+        AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
@@ -1139,6 +1139,15 @@ impl PhoneDetailsData for PhoneDetails {
     }
 }
 
+pub trait CustomerData {
+    fn get_email(&self) -> Result<Email, Error>;
+}
+
+impl CustomerData for ConnectorCustomerData {
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+}
 pub trait PaymentsAuthorizeRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
