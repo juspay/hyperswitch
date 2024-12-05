@@ -31,7 +31,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    errors,
+    consts, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
@@ -86,8 +86,8 @@ where
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        let mut auth_headers = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut auth_headers);
         Ok(header)
     }
 }
@@ -98,7 +98,7 @@ impl ConnectorCommon for Inespay {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Base
+        api::CurrencyUnit::Minor
         //    TODO! Check connector documentation, on which unit they are processing the currency.
         //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
         //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
@@ -118,10 +118,16 @@ impl ConnectorCommon for Inespay {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = inespay::InespayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        Ok(vec![
+            (
+                headers::AUTHORIZATION.to_string(),
+                auth.authorization.expose().into_masked(),
+            ),
+            (
+                headers::X_API_KEY.to_string(),
+                auth.api_key.expose().into_masked(),
+            ),
+        ])
     }
 
     fn build_error_response(
@@ -139,9 +145,9 @@ impl ConnectorCommon for Inespay {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: response.message.clone(),
+            reason: Some(response.message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
         })
@@ -176,9 +182,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}/payins/single/init", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -262,10 +268,20 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ine
 
     fn get_url(
         &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
+        req: &PaymentsSyncRouterData,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}{}{}",
+            self.base_url(connectors),
+            "/payins/single/",
+            connector_payment_id,
+        ))
     }
 
     fn build_request(
@@ -289,7 +305,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ine
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: inespay::InespayPaymentsResponse = res
+        let response: inespay::InespayPSyncResponse = res
             .response
             .parse_struct("inespay PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
