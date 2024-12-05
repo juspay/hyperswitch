@@ -635,32 +635,6 @@ impl DynamicRoutingAlgorithmRef {
     }
 }
 
-impl EliminationRoutingAlgorithm {
-    pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
-            common_utils::id_type::RoutingId,
-        >,
-    ) -> Self {
-        Self {
-            algorithm_id_with_timestamp,
-            enabled_feature: DynamicRoutingFeatures::None,
-        }
-    }
-}
-
-impl SuccessBasedAlgorithm {
-    pub fn new(
-        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
-            common_utils::id_type::RoutingId,
-        >,
-    ) -> Self {
-        Self {
-            algorithm_id_with_timestamp,
-            enabled_feature: DynamicRoutingFeatures::None,
-        }
-    }
-}
-
 #[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct RoutingVolumeSplit {
     pub routing_type: RoutingType,

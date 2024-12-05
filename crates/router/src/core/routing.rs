@@ -1434,7 +1434,7 @@ pub async fn success_based_routing_update_configs(
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn contract_based_dynamic_routing_setup(
     state: SessionState,
     key_store: domain::MerchantKeyStore,
@@ -1474,6 +1474,7 @@ pub async fn contract_based_dynamic_routing_setup(
     let mut dynamic_routing_algo_ref = routing_types::DynamicRoutingAlgorithmRef {
         success_based_algorithm: None,
         elimination_routing_algorithm: None,
+        dynamic_routing_volume_split: None,
         contract_based_routing: Some(contract_algo),
     };
 
