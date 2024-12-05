@@ -1784,6 +1784,10 @@ impl Profile {
                             web::resource("/toggle")
                                 .route(web::post().to(routing::toggle_elimination_routing)),
                         ),
+                    )
+                    .service(
+                        web::resource("/set_volume_split")
+                            .route(web::post().to(routing::set_dynamic_routing_volume_split)),
                     ),
             );
         }

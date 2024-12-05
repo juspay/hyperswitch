@@ -1129,3 +1129,51 @@ pub async fn toggle_elimination_routing(
     ))
     .await
 }
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn set_dynamic_routing_volume_split(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<api_models::routing::DynamicRoutingVolumeSplitQuery>,
+    path: web::Path<routing_types::ToggleDynamicRoutingPath>,
+) -> impl Responder {
+    let flow = Flow::VolumeSplitOnRoutingType;
+    let routing_info = api_models::routing::RoutingVolumeSplit {
+        routing_type: api_models::routing::RoutingType::Dynamic,
+        split: query.into_inner().split,
+    };
+    let payload = api_models::routing::RoutingVolumeSplitWrapper {
+        routing_info,
+        profile_id: path.into_inner().profile_id,
+    };
+
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload.clone(),
+        |state,
+         auth: auth::AuthenticationData,
+         payload: api_models::routing::RoutingVolumeSplitWrapper,
+         _| {
+            routing::configure_dynamic_routing_volume_split(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                payload.profile_id,
+                payload.routing_info,
+            )
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth),
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: payload.profile_id,
+                required_permission: Permission::ProfileRoutingWrite,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

@@ -1,13 +1,12 @@
 use api_models::analytics::{
-    payments::{PaymentDimensions, PaymentFilters, PaymentMetricsBucketIdentifier},
-    Granularity, PaymentDistributionBody, TimeRange,
+    refunds::{RefundDimensions, RefundFilters, RefundMetricsBucketIdentifier},
+    Granularity, RefundDistributionBody, TimeRange,
 };
 use common_utils::errors::ReportSwitchExt;
-use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
-use super::{PaymentDistribution, PaymentDistributionRow};
+use super::{RefundDistribution, RefundDistributionRow};
 use crate::{
     enums::AuthInfo,
     query::{
@@ -17,12 +16,12 @@ use crate::{
 };
 
 #[derive(Default)]
-pub(super) struct PaymentErrorMessage;
+pub(crate) struct RefundReason;
 
 #[async_trait::async_trait]
-impl<T> PaymentDistribution<T> for PaymentErrorMessage
+impl<T> RefundDistribution<T> for RefundReason
 where
-    T: AnalyticsDataSource + super::PaymentDistributionAnalytics,
+    T: AnalyticsDataSource + super::RefundDistributionAnalytics,
     PrimitiveDateTime: ToSql<T>,
     AnalyticsCollection: ToSql<T>,
     Granularity: GroupByClause<T>,
@@ -31,15 +30,16 @@ where
 {
     async fn load_distribution(
         &self,
-        distribution: &PaymentDistributionBody,
-        dimensions: &[PaymentDimensions],
+        distribution: &RefundDistributionBody,
+        dimensions: &[RefundDimensions],
         auth: &AuthInfo,
-        filters: &PaymentFilters,
-        granularity: Option<Granularity>,
+        filters: &RefundFilters,
+        granularity: &Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
-    ) -> MetricsResult<Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>> {
-        let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::Payment);
+    ) -> MetricsResult<Vec<(RefundMetricsBucketIdentifier, RefundDistributionRow)>> {
+        let mut query_builder: QueryBuilder<T> =
+            QueryBuilder::new(AnalyticsCollection::RefundSessionized);
 
         for dim in dimensions.iter() {
             query_builder.add_select_column(dim).switch()?;
@@ -89,19 +89,12 @@ where
             .attach_printable("Error grouping by distribution_for")
             .switch()?;
 
-        if let Some(granularity) = granularity {
+        if let Some(granularity) = granularity.as_ref() {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")
                 .switch()?;
         }
-
-        query_builder
-            .add_filter_clause(
-                PaymentDimensions::PaymentStatus,
-                storage_enums::AttemptStatus::Failure,
-            )
-            .switch()?;
 
         for dim in dimensions.iter() {
             query_builder.add_outer_select_column(dim).switch()?;
@@ -138,28 +131,21 @@ where
             .switch()?;
 
         query_builder
-            .execute_query::<PaymentDistributionRow, _>(pool)
+            .execute_query::<RefundDistributionRow, _>(pool)
             .await
             .change_context(MetricsError::QueryBuildingError)?
             .change_context(MetricsError::QueryExecutionFailure)?
             .into_iter()
             .map(|i| {
                 Ok((
-                    PaymentMetricsBucketIdentifier::new(
+                    RefundMetricsBucketIdentifier::new(
                         i.currency.as_ref().map(|i| i.0),
-                        i.status.as_ref().map(|i| i.0),
+                        i.refund_status.as_ref().map(|i| i.0.to_string()),
                         i.connector.clone(),
-                        i.authentication_type.as_ref().map(|i| i.0),
-                        i.payment_method.clone(),
-                        i.payment_method_type.clone(),
-                        i.client_source.clone(),
-                        i.client_version.clone(),
+                        i.refund_type.as_ref().map(|i| i.0.to_string()),
                         i.profile_id.clone(),
-                        i.card_network.clone(),
-                        i.merchant_id.clone(),
-                        i.card_last_4.clone(),
-                        i.card_issuer.clone(),
-                        i.error_reason.clone(),
+                        i.refund_reason.clone(),
+                        i.refund_error_message.clone(),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,
@@ -175,7 +161,7 @@ where
                 ))
             })
             .collect::<error_stack::Result<
-                Vec<(PaymentMetricsBucketIdentifier, PaymentDistributionRow)>,
+                Vec<(RefundMetricsBucketIdentifier, RefundDistributionRow)>,
                 crate::query::PostProcessingError,
             >>()
             .change_context(MetricsError::PostProcessingFailure)
