@@ -4490,7 +4490,7 @@ pub struct PaymentsResponse {
     pub updated: Option<PrimitiveDateTime>,
 
     /// Fee information to be charged on the payment being collected
-    pub charges: Option<PaymentChargeResponse>,
+    pub split_payments: Option<SplitPaymentsResponse>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. FRM Metadata is useful for storing additional, structured information on an object related to FRM.
     #[schema(value_type = Option<Object>, example = r#"{ "fulfillment_method" : "deliver", "coverage_request" : "fraud" }"#)]
@@ -4733,7 +4733,7 @@ pub struct PaymentStartRedirectionParams {
 
 /// Fee information to be charged on the payment being collected
 #[derive(Setter, Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
-pub struct PaymentChargeResponse {
+pub struct StripeSplitPaymentsResponse {
     /// Identifier for charge created for the payment
     pub charge_id: Option<String>,
 
@@ -4747,6 +4747,13 @@ pub struct PaymentChargeResponse {
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SplitPaymentsResponse {
+    /// StripeSplitPaymentsResponse
+    StripeSplitPayment(StripeSplitPaymentsResponse),
 }
 
 /// Details of external authentication

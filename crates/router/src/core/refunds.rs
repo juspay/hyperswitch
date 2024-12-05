@@ -1204,7 +1204,7 @@ impl ForeignFrom<storage::Refund> for api::RefundResponse {
             updated_at: Some(refund.modified_at),
             connector: refund.connector,
             merchant_connector_id: refund.merchant_connector_id,
-            charges: refund.charges,
+            split_refunds: refund.split_refunds,
         }
     }
 }

@@ -1,4 +1,4 @@
-use common_utils::types::SplitRefundRequest;
+use common_utils::types::SplitRefund;
 use error_stack::report;
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
@@ -148,12 +148,12 @@ pub fn validate_for_valid_refunds(
 }
 
 pub fn validate_charge_refund(
-    charges: &SplitRefundRequest,
+    charges: &SplitRefund,
     charge_type: &api_enums::PaymentChargeType,
 ) -> RouterResult<types::ChargeRefundsOptions> {
     match charge_type {
         api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Direct) => {
-            let SplitRefundRequest::StripeSplitRefundRequest(stripe_charge) = charges;
+            let SplitRefund::StripeSplitRefund(stripe_charge) = charges;
 
             Ok(types::ChargeRefundsOptions::Direct(
                 types::DirectChargeRefund {
@@ -164,7 +164,7 @@ pub fn validate_charge_refund(
             ))
         }
         api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Destination) => {
-            let SplitRefundRequest::StripeSplitRefundRequest(stripe_charge) = charges;
+            let SplitRefund::StripeSplitRefund(stripe_charge) = charges;
 
             Ok(types::ChargeRefundsOptions::Destination(
                 types::DestinationChargeRefund {

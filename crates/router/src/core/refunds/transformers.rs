@@ -1,22 +1,22 @@
-use common_utils::types::{SplitPaymentsRequest, SplitRefundRequest};
+use common_utils::types::{SplitPaymentsRequest, SplitRefund};
 use error_stack::{report, Report};
 use hyperswitch_domain_models::router_request_types;
 
 use super::validator;
 use crate::{core::errors, types::transformers::ForeignTryFrom};
 
-impl ForeignTryFrom<(SplitRefundRequest, SplitPaymentsRequest, Option<String>)>
+impl ForeignTryFrom<(SplitRefund, SplitPaymentsRequest, Option<String>)>
     for router_request_types::SplitRefundsRequest
 {
     type Error = Report<errors::ApiErrorResponse>;
 
     fn foreign_try_from(
-        item: (SplitRefundRequest, SplitPaymentsRequest, Option<String>),
+        item: (SplitRefund, SplitPaymentsRequest, Option<String>),
     ) -> Result<Self, Self::Error> {
         let (refund_request, payment_charges, charge_id) = item;
 
         match refund_request {
-            SplitRefundRequest::StripeSplitRefundRequest(stripe_refund) => match payment_charges {
+            SplitRefund::StripeSplitRefund(stripe_refund) => match payment_charges {
                 SplitPaymentsRequest::StripeSplitPayment(stripe_payment) => {
                     let charge_id = charge_id.ok_or_else(|| {
                         report!(errors::ApiErrorResponse::InternalServerError)
@@ -24,7 +24,7 @@ impl ForeignTryFrom<(SplitRefundRequest, SplitPaymentsRequest, Option<String>)>
                     })?;
 
                     let options = validator::validate_charge_refund(
-                        &SplitRefundRequest::StripeSplitRefundRequest(stripe_refund.clone()),
+                        &SplitRefund::StripeSplitRefund(stripe_refund.clone()),
                         &stripe_payment.charge_type,
                     )?;
 

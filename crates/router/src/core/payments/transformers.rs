@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    PaymentChargeResponse, RequestSurchargeDetails,
+    RequestSurchargeDetails, SplitPaymentsResponse, StripeSplitPaymentsResponse,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -1872,17 +1872,17 @@ where
             )
         });
 
-        let charges_response = match payment_intent.split_payments {
+        let split_payments_response = match payment_intent.split_payments {
             None => None,
             Some(split_payments) => match split_payments {
-                SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) => {
-                    Some(PaymentChargeResponse {
+                SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) => Some(
+                    SplitPaymentsResponse::StripeSplitPayment(StripeSplitPaymentsResponse {
                         charge_id: payment_attempt.charge_id.clone(),
                         charge_type: stripe_split_payment.charge_type,
                         application_fees: stripe_split_payment.application_fees,
                         transfer_account_id: stripe_split_payment.transfer_account_id,
-                    })
-                }
+                    }),
+                ),
             },
         };
 
@@ -2056,7 +2056,7 @@ where
                 .get_payment_method_info()
                 .map(|info| info.status),
             updated: Some(payment_intent.modified_at),
-            charges: charges_response,
+            split_payments: split_payments_response,
             frm_metadata: payment_intent.frm_metadata,
             merchant_order_reference_id: payment_intent.merchant_order_reference_id,
             order_tax_amount,
@@ -2314,7 +2314,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_method_id: None,
             payment_method_status: None,
             updated: None,
-            charges: None,
+            split_payments: None,
             frm_metadata: None,
             order_tax_amount: None,
             connector_mandate_id:None,

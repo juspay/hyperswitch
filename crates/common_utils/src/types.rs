@@ -1079,11 +1079,11 @@ crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 /// Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details.
-pub enum SplitRefundRequest {
+pub enum SplitRefund {
     /// StripeSplitRefundRequest
-    StripeSplitRefundRequest(StripeSplitRefundRequest),
+    StripeSplitRefund(StripeSplitRefundRequest),
 }
-crate::impl_to_sql_from_sql_json!(SplitRefundRequest);
+crate::impl_to_sql_from_sql_json!(SplitRefund);
 
 #[derive(
     Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
@@ -1111,7 +1111,7 @@ crate::impl_to_sql_from_sql_json!(StripeSplitRefundRequest);
 /// Fee information for Split Payments to be charged on the payment being collected
 pub enum SplitPaymentsRequest {
     /// StripeSplitPayment
-    StripeSplitPayment(StripeSplitPayment),
+    StripeSplitPayment(StripeSplitPaymentRequest),
 }
 crate::impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 
@@ -1121,7 +1121,7 @@ crate::impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 #[diesel(sql_type = Jsonb)]
 #[serde(deny_unknown_fields)]
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
-pub struct StripeSplitPayment {
+pub struct StripeSplitPaymentRequest {
     /// Stripe's charge type
     #[schema(value_type = PaymentChargeType, example = "direct")]
     pub charge_type: enums::PaymentChargeType,
@@ -1133,7 +1133,7 @@ pub struct StripeSplitPayment {
     /// Identifier for the reseller's account to send the funds to
     pub transfer_account_id: String,
 }
-crate::impl_to_sql_from_sql_json!(StripeSplitPayment);
+crate::impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
 
 /// A common type of domain type that can be used for fields that contain a string with restriction of length
 #[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
