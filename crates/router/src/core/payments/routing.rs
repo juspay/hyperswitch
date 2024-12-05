@@ -12,7 +12,6 @@ use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
-    payments::Address,
     routing::ConnectorSelection,
 };
 use diesel_models::enums as storage_enums;
@@ -27,6 +26,7 @@ use euclid::{
 use external_services::grpc_client::dynamic_routing::{
     success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
 };
+use hyperswitch_domain_models::address::Address;
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -1263,7 +1263,7 @@ pub async fn perform_success_based_routing(
         )?;
 
     if success_based_algo_ref.enabled_feature
-        == api_routing::SuccessBasedRoutingFeatures::DynamicConnectorSelection
+        == api_routing::DynamicRoutingFeatures::DynamicConnectorSelection
     {
         logger::debug!(
             "performing success_based_routing for profile {}",

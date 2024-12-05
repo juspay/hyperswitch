@@ -1,8 +1,14 @@
+#[cfg(feature = "recon")]
+use std::collections::HashMap;
 use std::collections::HashSet;
 
+#[cfg(feature = "recon")]
+use api_models::enums::ReconPermissionScope;
 use common_enums::{EntityType, PermissionGroup, Resource, RoleScope};
 use common_utils::{errors::CustomResult, id_type};
 
+#[cfg(feature = "recon")]
+use super::permission_groups::{RECON_OPS, RECON_REPORTS};
 use super::{permission_groups::PermissionGroupExt, permissions::Permission};
 use crate::{core::errors, routes::SessionState};
 
@@ -76,6 +82,38 @@ impl RoleInfo {
                 required_permission.scope() <= group.scope()
                     && group.resources().contains(&required_permission.resource())
             })
+    }
+
+    #[cfg(feature = "recon")]
+    pub fn get_recon_acl(&self) -> HashMap<Resource, ReconPermissionScope> {
+        let mut acl: HashMap<Resource, ReconPermissionScope> = HashMap::new();
+        let mut recon_resources = RECON_OPS.to_vec();
+        recon_resources.extend(RECON_REPORTS);
+        let recon_internal_resources = [Resource::ReconToken];
+        self.get_permission_groups()
+            .iter()
+            .for_each(|permission_group| {
+                permission_group.resources().iter().for_each(|resource| {
+                    if recon_resources.contains(resource)
+                        && !recon_internal_resources.contains(resource)
+                    {
+                        let scope = match resource {
+                            Resource::ReconAndSettlementAnalytics => ReconPermissionScope::Read,
+                            _ => ReconPermissionScope::from(permission_group.scope()),
+                        };
+                        acl.entry(*resource)
+                            .and_modify(|curr_scope| {
+                                *curr_scope = if (*curr_scope) < scope {
+                                    scope
+                                } else {
+                                    *curr_scope
+                                }
+                            })
+                            .or_insert(scope);
+                    }
+                })
+            });
+        acl
     }
 
     pub async fn from_role_id_in_lineage(
