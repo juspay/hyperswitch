@@ -1022,14 +1022,14 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 "unable to fetch the first connector from list of connectors obtained from dynamic routing service",
             )?;
 
-        let (first_contract_based_connector, connector_score) = (first_contract_based_connector.label
+        let (first_contract_based_connector, connector_score, current_payment_cnt) = (first_contract_based_connector.label
             .split_once(':')
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
                 "unable to split connector_name and mca_id from the first connector {:?} obtained from dynamic routing service",
                 first_contract_based_connector
             ))?
-            .0, first_contract_based_connector.score);
+            .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
         // let outcome = get_success_based_metrics_outcome_for_payment(
         //     &payment_status_attribute,
@@ -1056,6 +1056,14 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 (
                     "contract_based_routing_connector",
                     first_contract_based_connector.to_string(),
+                ),
+                (
+                    "contract_based_routing_connector_score",
+                    connector_score.to_string(),
+                ),
+                (
+                    "current_payment_count_contract_based_routing_connector",
+                    current_payment_cnt.to_string(),
                 ),
                 ("payment_connector", payment_connector.to_string()),
                 (
@@ -1596,6 +1604,7 @@ pub async fn default_specific_dynamic_routing_setup(
                 algorithm_for: common_enums::TransactionType::Payment,
             }
         }
+        // Should we provide a default for this?
         routing_types::DynamicRoutingType::ContractBasedRouting => {
             let default_contract_routing_config =
                 routing_types::ContractBasedRoutingConfig::default();

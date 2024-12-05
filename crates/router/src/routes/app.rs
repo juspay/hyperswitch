@@ -1776,7 +1776,16 @@ impl Profile {
                             web::resource("/toggle")
                                 .route(web::post().to(routing::toggle_elimination_routing)),
                         ),
-                    ),
+                    )
+                    .service(web::scope("/contracts").service(
+                        web::resource("/config/{algorithm_id}").route(web::patch().to(
+                            |state, req, path, payload| {
+                                routing::contract_based_routing_update_configs(
+                                    state, req, path, payload,
+                                )
+                            },
+                        )),
+                    )),
             );
         }
 

@@ -555,6 +555,17 @@ impl DynamicRoutingAlgoAccessor for EliminationRoutingAlgorithm {
     }
 }
 
+impl DynamicRoutingAlgoAccessor for ContractRoutingAlgorithm {
+    fn get_algorithm_id_with_timestamp(
+        self,
+    ) -> DynamicAlgorithmWithTimestamp<common_utils::id_type::RoutingId> {
+        self.algorithm_id_with_timestamp
+    }
+    fn get_enabled_features(&mut self) -> &mut DynamicRoutingFeatures {
+        &mut self.enabled_feature
+    }
+}
+
 impl EliminationRoutingAlgorithm {
     pub fn new(
         algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp<
@@ -709,7 +720,7 @@ pub enum DynamicRoutingFeatures {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct SuccessBasedRoutingUpdateConfigQuery {
+pub struct DynamicRoutingUpdateConfigQuery {
     #[schema(value_type = String)]
     pub algorithm_id: common_utils::id_type::RoutingId,
     #[schema(value_type = String)]
@@ -808,6 +819,13 @@ pub struct SuccessBasedRoutingPayloadWrapper {
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ContractBasedRoutingPayloadWrapper {
+    pub updated_config: ContractBasedRoutingConfig,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub profile_id: common_utils::id_type::ProfileId,
+}
+
 #[derive(Debug, Clone, strum::Display, serde::Serialize, serde::Deserialize)]
 pub enum DynamicRoutingType {
     SuccessRateBasedRouting,
@@ -884,12 +902,37 @@ pub enum ContractBasedTimeScale {
 impl Default for ContractBasedRoutingConfig {
     fn default() -> Self {
         Self {
-            params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
+            params: None,
             config: Some(ContractBasedRoutingConfigBody {
                 constants: Some(vec![0.7, 0.35]),
-                time_scale: Some(ContractBasedTimeScale::Month),
+                time_scale: Some(ContractBasedTimeScale::Day),
             }),
             label_info: None,
+        }
+    }
+}
+
+impl ContractBasedRoutingConfig {
+    pub fn update(&mut self, new: Self) {
+        if let Some(params) = new.params {
+            self.params = Some(params)
+        }
+        if let Some(new_config) = new.config {
+            self.config.as_mut().map(|config| config.update(new_config));
+        }
+        if let Some(new_label_info) = new.label_info {
+            self.label_info = Some(new_label_info)
+        }
+    }
+}
+
+impl ContractBasedRoutingConfigBody {
+    pub fn update(&mut self, new: Self) {
+        if let Some(new_cons) = new.constants {
+            self.constants = Some(new_cons)
+        }
+        if let Some(new_time_scale) = new.time_scale {
+            self.time_scale = Some(new_time_scale)
         }
     }
 }

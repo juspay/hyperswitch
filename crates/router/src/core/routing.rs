@@ -12,7 +12,9 @@ use common_utils::ext_traits::AsyncExt;
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
+use external_services::grpc_client::dynamic_routing::{
+    contract_routing::ContractBasedDynamicRouting, SuccessBasedDynamicRouting,
+};
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::{logger, metrics::add_attributes};
@@ -36,7 +38,9 @@ use crate::{core::admin, utils::ValueExt};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, StorageErrorExt},
-        metrics, utils as core_utils,
+        metrics,
+        routing::DynamicRoutingCache,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::SessionState,
@@ -1361,6 +1365,96 @@ pub async fn success_based_routing_update_configs(
         })
         .await
         .transpose()?;
+
+    Ok(service_api::ApplicationResponse::Json(new_record))
+}
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn contract_based_routing_update_configs(
+    state: SessionState,
+    request: routing_types::ContractBasedRoutingConfig,
+    algorithm_id: common_utils::id_type::RoutingId,
+    profile_id: common_utils::id_type::ProfileId,
+) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+    );
+    let db = state.store.as_ref();
+
+    let dynamic_routing_algo_to_update = db
+        .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    let mut config_to_update: routing::ContractBasedRoutingConfig = dynamic_routing_algo_to_update
+        .algorithm_data
+        .parse_value::<routing::ContractBasedRoutingConfig>("ContractBasedRoutingConfig")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to deserialize algorithm data from routing table into ContractBasedRoutingConfig")?;
+
+    config_to_update.update(request);
+
+    let updated_algorithm_id = common_utils::generate_routing_id_of_default_length();
+    let timestamp = common_utils::date_time::now();
+    let algo = RoutingAlgorithm {
+        algorithm_id: updated_algorithm_id,
+        profile_id: dynamic_routing_algo_to_update.profile_id,
+        merchant_id: dynamic_routing_algo_to_update.merchant_id,
+        name: dynamic_routing_algo_to_update.name,
+        description: dynamic_routing_algo_to_update.description,
+        kind: dynamic_routing_algo_to_update.kind,
+        algorithm_data: serde_json::json!(config_to_update),
+        created_at: timestamp,
+        modified_at: timestamp,
+        algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
+    };
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to insert record in routing algorithm table")?;
+
+    // redact cache for success based routing configs
+    let cache_key = format!(
+        "{}_{}",
+        profile_id.get_string_repr(),
+        algorithm_id.get_string_repr()
+    );
+    let cache_entries_to_redact = vec![cache::CacheKind::ContractBasedDynamicRoutingCache(
+        cache_key.into(),
+    )];
+    let _ = cache::publish_into_redact_channel(
+        state.store.get_cache_store().as_ref(),
+        cache_entries_to_redact,
+    )
+    .await
+    .map_err(|e| logger::error!("unable to publish into the redact channel for evicting the contract based routing config cache {e:?}"));
+
+    let new_record = record.foreign_into();
+
+    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+    );
+
+    let prefix_of_dynamic_routing_keys = helpers::generate_tenant_business_profile_id(
+        &state.tenant.redis_key_prefix,
+        profile_id.get_string_repr(),
+    );
+    state
+        .grpc_client
+        .clone()
+        .dynamic_routing
+        .contract_based_client
+        .async_map(|ct_client| ct_client.invalidate_contracts(prefix_of_dynamic_routing_keys))
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Failed to invalidate the routing keys".to_string(),
+        })?;
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }

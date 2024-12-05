@@ -55,7 +55,11 @@ message LabelInformation {
 }
 
 message UpdateContractResponse {
-    string message = 1;
+   enum UpdationStatus {
+      CONTRACT_UPDATION_SUCCEEDED = 0;
+      CONTRACT_UPDATION_FAILED = 1;
+   }
+   UpdationStatus status = 1;
 }
 
 // API-3 types
@@ -64,5 +68,9 @@ message InvalidateContractRequest {
 }
 
 message InvalidateContractResponse {
-    string message = 1;
+   enum InvalidationStatus {
+      CONTRACT_INVALIDATION_SUCCEEDED = 0;
+      CONTRACT_INVALIDATION_FAILED = 1;
+   }
+   InvalidationStatus status = 1;
 }
