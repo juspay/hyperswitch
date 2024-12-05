@@ -7,7 +7,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
     any(feature = "v1", feature = "v2"),
     not(feature = "payment_methods_v2")
 ))]
-use masking::Secret;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -254,7 +254,7 @@ pub enum PaymentMethodUpdate {
         network_token_payment_method_data: Option<Encryption>,
     },
     ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
-        network_transaction_id: Option<String>,
+        network_transaction_id: Option<Secret<String>>,
         connector_mandate_details: Option<serde_json::Value>,
     },
 }
@@ -654,7 +654,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details,
                 network_transaction_id,
             } => Self {
-                network_transaction_id,
+                network_transaction_id: network_transaction_id.map(|network_transaction_id| network_transaction_id.expose()),
                 connector_mandate_details,
                 last_modified: common_utils::date_time::now(),
                 status: None,
