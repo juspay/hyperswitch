@@ -1031,12 +1031,6 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             ))?
             .0, first_contract_based_connector.score, first_contract_based_connector.current_count );
 
-        // let outcome = get_success_based_metrics_outcome_for_payment(
-        //     &payment_status_attribute,
-        //     payment_connector.to_string(),
-        //     first_success_based_connector.to_string(),
-        // );
-
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
             &metrics::CONTEXT,
             1,
@@ -1464,17 +1458,22 @@ pub async fn enable_dynamic_routing_algorithm(
             .await
         }
         routing_types::DynamicRoutingType::ContractBasedRouting => {
-            enable_specific_routing_algorithm(
-                state,
-                key_store,
-                business_profile,
-                feature_to_enable,
-                dynamic_routing_algo_ref,
-                dynamic_routing_type,
-                dynamic_routing.contract_based_routing,
-            )
-            .await
-        }
+            return Err((errors::ApiErrorResponse::InvalidRequestData {
+                message: "Contract routing cannot be set as default".to_string(),
+            })
+            .into())
+        } // routing_types::DynamicRoutingType::ContractBasedRouting => {
+          //     enable_specific_routing_algorithm(
+          //         state,
+          //         key_store,
+          //         business_profile,
+          //         feature_to_enable,
+          //         dynamic_routing_algo_ref,
+          //         dynamic_routing_type,
+          //         dynamic_routing.contract_based_routing,
+          //     )
+          //     .await
+          // }
     }
 }
 
@@ -1606,20 +1605,10 @@ pub async fn default_specific_dynamic_routing_setup(
         }
         // Should we provide a default for this?
         routing_types::DynamicRoutingType::ContractBasedRouting => {
-            let default_contract_routing_config =
-                routing_types::ContractBasedRoutingConfig::default();
-            routing_algorithm::RoutingAlgorithm {
-                algorithm_id: algorithm_id.clone(),
-                profile_id: profile_id.clone(),
-                merchant_id,
-                name: CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
-                description: None,
-                kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
-                algorithm_data: serde_json::json!(default_contract_routing_config),
-                created_at: timestamp,
-                modified_at: timestamp,
-                algorithm_for: common_enums::TransactionType::Payment,
-            }
+            return Err((errors::ApiErrorResponse::InvalidRequestData {
+                message: "Contract routing cannot be set as default".to_string(),
+            })
+            .into())
         }
     };
 

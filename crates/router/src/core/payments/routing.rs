@@ -1277,7 +1277,9 @@ pub async fn perform_success_based_routing(
             .ok_or(errors::RoutingError::SuccessRateClientInitializationError)
             .attach_printable("success_rate gRPC client not found")?;
 
-        let success_based_routing_configs = routing::helpers::fetch_dynamic_routing_configs(
+        let success_based_routing_configs = routing::helpers::fetch_dynamic_routing_configs::<
+            api_routing::SuccessBasedRoutingConfig,
+        >(
             state,
             business_profile,
             success_based_algo_ref

@@ -1777,15 +1777,19 @@ impl Profile {
                                 .route(web::post().to(routing::toggle_elimination_routing)),
                         ),
                     )
-                    .service(web::scope("/contracts").service(
-                        web::resource("/config/{algorithm_id}").route(web::patch().to(
-                            |state, req, path, payload| {
-                                routing::contract_based_routing_update_configs(
-                                    state, req, path, payload,
-                                )
-                            },
-                        )),
-                    )),
+                    .service(
+                        web::scope("/contracts")
+                            .service(web::resource("/config/setup").route(
+                                web::post().to(routing::contract_based_routing_setup_config),
+                            ))
+                            .service(web::resource("/config/{algorithm_id}").route(
+                                web::patch().to(|state, req, path, payload| {
+                                    routing::contract_based_routing_update_configs(
+                                        state, req, path, payload,
+                                    )
+                                }),
+                            )),
+                    ),
             );
         }
 

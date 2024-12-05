@@ -6058,6 +6058,7 @@ where
                         .and_then(|card_isin| card_isin.as_str())
                         .map(|card_isin| card_isin.to_string()),
                 );
+            // add logic for contract based routing as well
             routing::perform_success_based_routing(
                 state,
                 connectors.clone(),

@@ -2015,6 +2015,17 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     .await
                     .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
                     .ok();
+
+                    routing_helpers::push_metrics_with_update_window_for_contract_based_routing(
+                        &state,
+                        &payment_attempt,
+                        routable_connectors,
+                        &business_profile,
+                        success_based_routing_config_params_interpolator,
+                    )
+                    .await
+                    .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
+                    .ok();
                 }
                 .in_current_span(),
             );

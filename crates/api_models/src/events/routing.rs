@@ -1,13 +1,12 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 use crate::routing::{
-    ContractBasedRoutingPayloadWrapper, DynamicRoutingUpdateConfigQuery,
-    LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
-    RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
-    RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
+    ContractBasedRoutingPayloadWrapper, ContractBasedRoutingSetupPayloadWrapper,
+    DynamicRoutingUpdateConfigQuery, LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm,
+    ProfileDefaultRoutingConfig, RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord,
+    RoutingKind, RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
     RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, SuccessBasedRoutingConfig,
-    SuccessBasedRoutingPayloadWrapper, ToggleDynamicRoutingQuery, ToggleDynamicRoutingQuery,
-    ToggleDynamicRoutingWrapper, ToggleDynamicRoutingWrapper,
+    SuccessBasedRoutingPayloadWrapper, ToggleDynamicRoutingQuery, ToggleDynamicRoutingWrapper,
 };
 
 impl ApiEventMetric for RoutingKind {
@@ -99,6 +98,12 @@ impl ApiEventMetric for SuccessBasedRoutingPayloadWrapper {
 }
 
 impl ApiEventMetric for ContractBasedRoutingPayloadWrapper {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for ContractBasedRoutingSetupPayloadWrapper {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }

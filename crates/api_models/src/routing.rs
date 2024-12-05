@@ -710,7 +710,9 @@ pub struct ToggleDynamicRoutingQuery {
     pub enable: DynamicRoutingFeatures,
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema)]
+#[derive(
+    Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum DynamicRoutingFeatures {
     Metrics,
@@ -824,6 +826,13 @@ pub struct ContractBasedRoutingPayloadWrapper {
     pub updated_config: ContractBasedRoutingConfig,
     pub algorithm_id: common_utils::id_type::RoutingId,
     pub profile_id: common_utils::id_type::ProfileId,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ContractBasedRoutingSetupPayloadWrapper {
+    pub config: ContractBasedRoutingConfig,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub features_to_enable: DynamicRoutingFeatures,
 }
 
 #[derive(Debug, Clone, strum::Display, serde::Serialize, serde::Deserialize)]

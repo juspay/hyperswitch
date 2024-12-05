@@ -39,7 +39,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
-        routing::DynamicRoutingCache,
+        routing::helpers::DynamicRoutingCache,
         utils as core_utils,
     },
     db::StorageInterface,
@@ -1369,6 +1369,93 @@ pub async fn success_based_routing_update_configs(
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
+#[cfg(feature = "v1")]
+pub async fn contract_based_dynamic_routing_setup(
+    state: SessionState,
+    key_store: domain::MerchantKeyStore,
+    merchant_account: domain::MerchantAccount,
+    profile_id: common_utils::id_type::ProfileId,
+    feature_to_enable: routing_types::DynamicRoutingFeatures,
+    config: routing_types::ContractBasedRoutingConfig, // validate the contained mca_ids
+) -> RouterResult<service_api::ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
+    let db = state.store.as_ref();
+    let key_manager_state = &(&state).into();
+
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        db,
+        key_manager_state,
+        &key_store,
+        Some(&profile_id),
+        merchant_account.get_id(),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
+
+    let merchant_id = business_profile.merchant_id.clone();
+    let algorithm_id = common_utils::generate_routing_id_of_default_length();
+    let timestamp = common_utils::date_time::now();
+
+    let contract_algo = routing_types::ContractRoutingAlgorithm {
+        algorithm_id_with_timestamp: routing_types::DynamicAlgorithmWithTimestamp {
+            algorithm_id: Some(algorithm_id.clone()),
+            timestamp: common_utils::date_time::now_unix_timestamp(),
+        },
+        enabled_feature: feature_to_enable,
+    };
+
+    let mut dynamic_routing_algo_ref = routing_types::DynamicRoutingAlgorithmRef {
+        success_based_algorithm: None,
+        elimination_routing_algorithm: None,
+        contract_based_routing: Some(contract_algo),
+    };
+
+    let algo = RoutingAlgorithm {
+        algorithm_id: algorithm_id.clone(),
+        profile_id: profile_id.clone(),
+        merchant_id,
+        name: helpers::CONTRACT_BASED_DYNAMIC_ROUTING_ALGORITHM.to_string(),
+        description: None,
+        kind: diesel_models::enums::RoutingAlgorithmKind::Dynamic,
+        algorithm_data: serde_json::json!(config),
+        created_at: timestamp,
+        modified_at: timestamp,
+        algorithm_for: common_enums::TransactionType::Payment,
+    };
+
+    let record = db
+        .insert_routing_algorithm(algo)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to insert record in routing algorithm table")?;
+
+    dynamic_routing_algo_ref.update_algorithm_id(
+        algorithm_id,
+        feature_to_enable,
+        routing_types::DynamicRoutingType::ContractBasedRouting,
+    );
+
+    helpers::update_business_profile_active_dynamic_algorithm_ref(
+        db,
+        key_manager_state,
+        &key_store,
+        business_profile,
+        dynamic_routing_algo_ref,
+    )
+    .await?;
+
+    let new_record = record.foreign_into();
+
+    metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
+        &metrics::CONTEXT,
+        1,
+        &add_attributes([("profile_id", profile_id.get_string_repr().to_string())]),
+    );
+    Ok(service_api::ApplicationResponse::Json(new_record))
+}
+
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn contract_based_routing_update_configs(
     state: SessionState,
@@ -1449,12 +1536,17 @@ pub async fn contract_based_routing_update_configs(
         .clone()
         .dynamic_routing
         .contract_based_client
-        .async_map(|ct_client| ct_client.invalidate_contracts(prefix_of_dynamic_routing_keys))
+        .clone()
+        .async_map(|ct_client| async move {
+            ct_client
+                .invalidate_contracts(prefix_of_dynamic_routing_keys)
+                .await
+                .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                    message: "Failed to invalidate the routing keys".to_string(),
+                })
+        })
         .await
-        .transpose()
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Failed to invalidate the routing keys".to_string(),
-        })?;
+        .transpose()?;
 
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
