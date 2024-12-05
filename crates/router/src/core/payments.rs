@@ -405,7 +405,11 @@ where
                 should_continue_capture,
                 payment_data.get_payment_attempt().capture_method,
             ) {
-                (false, Some(storage_enums::CaptureMethod::Automatic))
+                (
+                    false,
+                    Some(storage_enums::CaptureMethod::Automatic)
+                    | Some(storage_enums::CaptureMethod::SequentialAutomatic),
+                )
                 | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
                     if let Some(info) = &mut frm_info {
                         if let Some(frm_data) = &mut info.frm_data {

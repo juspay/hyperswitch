@@ -353,6 +353,8 @@ pub enum CaptureMethod {
     ManualMultiple,
     /// The capture can be scheduled to automatically get triggered at a specific date & time
     Scheduled,
+    /// Handles separate auth and capture sequentially; same as `Automatic` for most connectors.
+    SequentialAutomatic,
 }
 
 /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
