@@ -81,10 +81,12 @@ use crate::{
     },
 };
 
-pub type BoxedOperation<'a, F, T, D> = Box<dyn Operation<F, T, Data = D> + Send + Sync + 'a>;
+pub type BoxedOperation<'a, F, T, D> = Box<dyn Operation<F, T, Data = D, GenericsType = D> + Send + Sync + 'a>;
+
 
 pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
     type Data;
+    type GenericsType: OperationGenerics;
     fn to_validate_request(
         &self,
     ) -> RouterResult<&(dyn ValidateRequest<F, T, Self::Data> + Send + Sync)> {
@@ -97,7 +99,7 @@ pub trait Operation<F: Clone, T>: Send + std::fmt::Debug {
             .attach_printable_lazy(|| format!("get tracker interface not found for {self:?}"))
     }
 
-    fn to_domain(&self) -> RouterResult<&dyn Domain<F, T, Self::Data>> {
+    fn to_domain(&self) -> RouterResult<&dyn Domain<F, T, Self::Data, GenericsType = Self>> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("domain interface not found for {self:?}"))
     }
@@ -199,8 +201,26 @@ pub trait GetTracker<F: Clone, D, R>: Send {
     ) -> RouterResult<GetTrackerResponse<D>>;
 }
 
+pub trait CallConnectorTypeTrait: OperationGenerics {
+    fn call_connector_service() -> CustomResult<<Self as OperationGenerics>::McaList, errors::StorageError>;
+}
+
+pub trait OperationGenerics {
+    type Request;
+    type Flow: Clone;
+    type McaList;
+    type ConnectorCallType: CallConnectorTypeTrait;
+}
+
+trait DomainWrapperTrait<F: Clone,T,D>: Domain<F, T, D> + OperationGenerics {}
+
+impl<S,F: Clone,T, D > DomainWrapperTrait<F,T,D> for S
+where S: Domain<F, T, D> + OperationGenerics
+{}
+
 #[async_trait]
 pub trait Domain<F: Clone, R, D>: Send + Sync {
+    type GenericsType: OperationGenerics;
     #[cfg(feature = "v1")]
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
@@ -245,6 +265,14 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
+    }
+
+    #[cfg(feature = "v2")]
+    async fn get_connector_account<'a>(
+        &'a self,
+        merchant_account: &domain::MerchantAccount
+    ) -> CustomResult<GenericsType::McaList, errors::ApiErrorResponse> {
+        Err(errors::ApiErrorResponse::NotImplemented{message: errors::NotImplementedMessage::Default}.into())
     }
 
     #[cfg(feature = "v1")]
