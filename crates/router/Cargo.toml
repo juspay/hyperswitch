@@ -91,7 +91,6 @@ rdkafka = "0.36.2"
 regex = "1.10.4"
 reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "multipart"] }
 ring = "0.17.8"
-roxmltree = "0.19.0"
 rust_decimal = { version = "1.35.0", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
 rustc-hash = "1.1.0"

@@ -367,7 +367,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cryptopay::new())))
                 }
                 enums::Connector::Cybersource => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Cybersource)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Cybersource::new())))
                 }
                 enums::Connector::Datatrans => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Datatrans::new())))

@@ -44,6 +44,7 @@ use crate::{
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+pub mod theme;
 
 #[cfg(feature = "email")]
 pub async fn signup_with_merchant_id(

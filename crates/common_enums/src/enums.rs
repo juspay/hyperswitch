@@ -3341,6 +3341,7 @@ pub enum PresenceOfCustomerDuringPayment {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum TaxCalculationOverride {
     /// Skip calling the external tax provider
     #[default]
@@ -3350,6 +3351,7 @@ pub enum TaxCalculationOverride {
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum SurchargeCalculationOverride {
     /// Skip calculating surcharge
     #[default]
@@ -3369,4 +3371,29 @@ pub enum ConnectorMandateStatus {
     Active,
     /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
     Inactive,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    strum::Display,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    ToSchema,
+    PartialOrd,
+    Ord,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ErrorCategory {
+    FrmDecline,
+    ProcessorDowntime,
+    ProcessorDeclineUnauthorized,
+    IssueWithPaymentMethod,
+    ProcessorDeclineIncorrectData,
 }

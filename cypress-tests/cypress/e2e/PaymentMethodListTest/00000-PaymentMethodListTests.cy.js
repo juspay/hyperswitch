@@ -1,15 +1,13 @@
-import apiKeyCreateBody from "../../fixtures/create-api-key-body.json";
-import createConnectorBody from "../../fixtures/create-connector-body.json";
-import merchantCreateBody from "../../fixtures/merchant-create-body.json";
+import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
 import {
-  bank_redirect_ideal_and_credit_enabled,
-  bank_redirect_ideal_enabled,
-  card_credit_enabled,
-  card_credit_enabled_in_US,
-  card_credit_enabled_in_USD,
-  create_payment_body_with_currency,
-  create_payment_body_with_currency_country,
+  bankRedirectIdealAndCreditEnabled,
+  bankRedirectIdealEnabled,
+  cardCreditEnabled,
+  cardCreditEnabledInUs,
+  cardCreditEnabledInUsd,
+  createPaymentBodyWithCurrency,
+  createPaymentBodyWithCurrencyCountry,
 } from "../PaymentMethodListUtils/Commons";
 import getConnectorDetails from "../PaymentMethodListUtils/Utils";
 
@@ -34,19 +32,22 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       });
 
       it("merchant-create-call-test", () => {
-        cy.merchantCreateCallTest(merchantCreateBody, globalState);
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
       });
 
       it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
+      });
+      it("customer-create-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
       // stripe connector create with ideal enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          bank_redirect_ideal_enabled,
+          fixtures.createConnectorBody,
+          bankRedirectIdealEnabled,
           globalState,
           "stripe",
           "stripe_US_default"
@@ -57,8 +58,8 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          card_credit_enabled,
+          fixtures.createConnectorBody,
+          cardCreditEnabled,
           globalState,
           "cybersource",
           "cybersource_US_default"
@@ -76,7 +77,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
         };
 
         cy.createPaymentIntentTest(
-          create_payment_body_with_currency("EUR"),
+          createPaymentBodyWithCurrency("EUR"),
           newData,
           "no_three_ds",
           "automatic",
@@ -117,19 +118,19 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       });
 
       it("merchant-create-call-test", () => {
-        cy.merchantCreateCallTest(merchantCreateBody, globalState);
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
       });
 
       it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
       });
 
       // stripe connector create with ideal enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          bank_redirect_ideal_enabled,
+          fixtures.createConnectorBody,
+          bankRedirectIdealEnabled,
           globalState,
           "stripe",
           "stripe_US_default"
@@ -140,8 +141,8 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          card_credit_enabled_in_USD,
+          fixtures.createConnectorBody,
+          cardCreditEnabledInUsd,
           globalState,
           "cybersource",
           "cybersource_US_default"
@@ -159,7 +160,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
         };
 
         cy.createPaymentIntentTest(
-          create_payment_body_with_currency("INR"),
+          createPaymentBodyWithCurrency("INR"),
           newData,
           "no_three_ds",
           "automatic",
@@ -200,19 +201,19 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       });
 
       it("merchant-create-call-test", () => {
-        cy.merchantCreateCallTest(merchantCreateBody, globalState);
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
       });
 
       it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
       });
 
       // stripe connector create with credit enabled for US
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          card_credit_enabled_in_US,
+          fixtures.createConnectorBody,
+          cardCreditEnabledInUs,
           globalState,
           "stripe",
           "stripe_US_default"
@@ -223,8 +224,8 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          card_credit_enabled_in_US,
+          fixtures.createConnectorBody,
+          cardCreditEnabledInUs,
           globalState,
           "cybersource",
           "cybersource_US_default"
@@ -242,7 +243,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
         };
 
         cy.createPaymentIntentTest(
-          create_payment_body_with_currency("USD"),
+          createPaymentBodyWithCurrency("USD"),
           newData,
           "no_three_ds",
           "automatic",
@@ -283,19 +284,19 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       });
 
       it("merchant-create-call-test", () => {
-        cy.merchantCreateCallTest(merchantCreateBody, globalState);
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
       });
 
       it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
       });
 
       // stripe connector create with ideal enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          bank_redirect_ideal_enabled,
+          fixtures.createConnectorBody,
+          bankRedirectIdealEnabled,
           globalState,
           "stripe",
           "stripe_US_default"
@@ -306,8 +307,8 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          bank_redirect_ideal_enabled,
+          fixtures.createConnectorBody,
+          bankRedirectIdealEnabled,
           globalState,
           "cybersource",
           "cybersource_US_default"
@@ -325,7 +326,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
         };
 
         cy.createPaymentIntentTest(
-          create_payment_body_with_currency_country("EUR", "US", "US"),
+          createPaymentBodyWithCurrencyCountry("EUR", "US", "US"),
           newData,
           "no_three_ds",
           "automatic",
@@ -368,19 +369,19 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       });
 
       it("merchant-create-call-test", () => {
-        cy.merchantCreateCallTest(merchantCreateBody, globalState);
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
       });
 
       it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
       });
 
       // stripe connector create with card credit enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          card_credit_enabled,
+          fixtures.createConnectorBody,
+          cardCreditEnabled,
           globalState,
           "stripe",
           "stripe_US_default"
@@ -391,8 +392,8 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          bank_redirect_ideal_and_credit_enabled,
+          fixtures.createConnectorBody,
+          bankRedirectIdealAndCreditEnabled,
           globalState,
           "cybersource",
           "cybersource_US_default"
@@ -410,7 +411,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
         };
 
         cy.createPaymentIntentTest(
-          create_payment_body_with_currency_country("USD", "IN", "IN"),
+          createPaymentBodyWithCurrencyCountry("USD", "IN", "IN"),
           newData,
           "no_three_ds",
           "automatic",
@@ -452,19 +453,19 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       });
 
       it("merchant-create-call-test", () => {
-        cy.merchantCreateCallTest(merchantCreateBody, globalState);
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
       });
 
       it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
       });
 
       // stripe connector create with card credit enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          card_credit_enabled,
+          fixtures.createConnectorBody,
+          cardCreditEnabled,
           globalState,
           "stripe",
           "stripe_US_default"
@@ -475,8 +476,8 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          card_credit_enabled,
+          fixtures.createConnectorBody,
+          cardCreditEnabled,
           globalState,
           "cybersource",
           "cybersource_US_default"
@@ -494,7 +495,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
         };
 
         cy.createPaymentIntentTest(
-          create_payment_body_with_currency("USD"),
+          createPaymentBodyWithCurrency("USD"),
           newData,
           "no_three_ds",
           "automatic",
@@ -535,19 +536,19 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       });
 
       it("merchant-create-call-test", () => {
-        cy.merchantCreateCallTest(merchantCreateBody, globalState);
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
       });
 
       it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(apiKeyCreateBody, globalState);
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
       });
 
       // stripe connector create with ideal enabled
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          bank_redirect_ideal_enabled,
+          fixtures.createConnectorBody,
+          bankRedirectIdealEnabled,
           globalState,
           "stripe",
           "stripe_US_default"
@@ -558,8 +559,8 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
       it("connector-create-call-test", () => {
         cy.createNamedConnectorCallTest(
           "payment_processor",
-          createConnectorBody,
-          card_credit_enabled,
+          fixtures.createConnectorBody,
+          cardCreditEnabled,
           globalState,
           "cybersource",
           "cybersource_US_default"
@@ -577,7 +578,7 @@ describe("Payment Method list using Constraint Graph flow tests", () => {
         };
 
         cy.createPaymentIntentTest(
-          create_payment_body_with_currency_country("EUR", "NL", "US"),
+          createPaymentBodyWithCurrencyCountry("EUR", "NL", "US"),
           newData,
           "no_three_ds",
           "automatic",
