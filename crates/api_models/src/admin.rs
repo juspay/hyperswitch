@@ -2081,7 +2081,7 @@ pub struct ProfileCreate {
 
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
-    pub is_click_to_pay_enabled: Option<bool>,
+    pub is_click_to_pay_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
