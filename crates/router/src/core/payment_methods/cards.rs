@@ -3328,7 +3328,7 @@ pub async fn list_payment_methods(
             None
         };
 
-        helpers::infer_payment_type(&amount, mandate_type.as_ref())
+        helpers::infer_payment_type(amount, mandate_type.as_ref())
     });
 
     let all_mcas = db
@@ -3838,7 +3838,7 @@ pub async fn list_payment_methods(
                                             .extend(required_fields_final.non_mandate.clone());
                                     }
                                  required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
-                                    &payment_method,
+                                    payment_method,
                                     element.payment_experience.as_ref(),
                                     business_profile.as_ref(),
                                     required_fields_hs.clone(),
@@ -4269,7 +4269,7 @@ pub async fn list_payment_methods(
 }
 
 fn should_collect_shipping_or_billing_details_from_wallet_connector(
-    payment_method: &api_enums::PaymentMethod,
+    payment_method: api_enums::PaymentMethod,
     payment_experience_optional: Option<&api_enums::PaymentExperience>,
     business_profile: Option<&Profile>,
     mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
@@ -4553,7 +4553,7 @@ pub async fn filter_payment_methods(
 
                     let filter_pm_based_on_allowed_types = filter_pm_based_on_allowed_types(
                         allowed_payment_method_types.as_ref(),
-                        &payment_method_object.payment_method_type,
+                        payment_method_object.payment_method_type,
                     );
 
                     if payment_attempt
@@ -4596,7 +4596,7 @@ pub async fn filter_payment_methods(
                     let filter_pm_card_network_based = filter_pm_card_network_based(
                         payment_method_object.card_networks.as_ref(),
                         req.card_networks.as_ref(),
-                        &payment_method_object.payment_method_type,
+                        payment_method_object.payment_method_type,
                     );
 
                     let saved_payment_methods_filter = req
@@ -4696,7 +4696,7 @@ fn filter_installment_based(
 fn filter_pm_card_network_based(
     pm_card_networks: Option<&Vec<api_enums::CardNetwork>>,
     request_card_networks: Option<&Vec<api_enums::CardNetwork>>,
-    pm_type: &api_enums::PaymentMethodType,
+    pm_type: api_enums::PaymentMethodType,
 ) -> bool {
     match pm_type {
         api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
@@ -4714,9 +4714,9 @@ fn filter_pm_card_network_based(
 
 fn filter_pm_based_on_allowed_types(
     allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
-    payment_method_type: &api_enums::PaymentMethodType,
+    payment_method_type: api_enums::PaymentMethodType,
 ) -> bool {
-    allowed_types.map_or(true, |pm| pm.contains(payment_method_type))
+    allowed_types.map_or(true, |pm| pm.contains(&payment_method_type))
 }
 
 fn filter_recurring_based(

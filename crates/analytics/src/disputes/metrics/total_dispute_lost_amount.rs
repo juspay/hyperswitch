@@ -32,7 +32,7 @@ where
         dimensions: &[DisputeDimensions],
         auth: &AuthInfo,
         filters: &DisputeFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>
@@ -77,7 +77,7 @@ where
             query_builder.add_group_by_clause(dim).switch()?;
         }
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .switch()?;

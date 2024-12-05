@@ -98,7 +98,7 @@ generate_permissions! {
     ]
 }
 
-pub fn get_resource_name(resource: &Resource, entity_type: &EntityType) -> &'static str {
+pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> &'static str {
     match (resource, entity_type) {
         (Resource::Payment, _) => "Payments",
         (Resource::Refund, _) => "Refunds",
@@ -128,7 +128,7 @@ pub fn get_resource_name(resource: &Resource, entity_type: &EntityType) -> &'sta
     }
 }
 
-pub fn get_scope_name(scope: &PermissionScope) -> &'static str {
+pub fn get_scope_name(scope: PermissionScope) -> &'static str {
     match scope {
         PermissionScope::Read => "View",
         PermissionScope::Write => "View and Manage",

@@ -2723,7 +2723,6 @@ pub async fn create_connector(
     let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
     req.connector_name
-        .clone()
         .validate_dummy_connector_enabled(state.conf.dummy_connector.enabled)
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid connector name".to_string(),
