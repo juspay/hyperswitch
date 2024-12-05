@@ -38,7 +38,10 @@ impl UserRole {
                 let merchant_id = self.merchant_id.clone()?.get_string_repr().to_string();
                 Some((merchant_id, EntityType::Merchant))
             }
-            _ => self.entity_id.clone().zip(self.entity_type),
+            (enums::UserRoleVersion::V1, Some(_), _) => {
+                self.entity_id.clone().zip(self.entity_type)
+            }
+            (enums::UserRoleVersion::V2, _, _) => self.entity_id.clone().zip(self.entity_type),
         }
     }
 }

@@ -239,7 +239,7 @@ impl RoleInterface for MockDb {
             )
     }
 
-    // TODO:Remove once find_by_role_id_in_lineage is stable
+    // TODO: Remove once find_by_role_id_in_lineage is stable
     async fn find_role_by_role_id_in_merchant_scope(
         &self,
         role_id: &str,
