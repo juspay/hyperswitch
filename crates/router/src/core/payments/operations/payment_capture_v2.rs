@@ -8,22 +8,15 @@ use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{
-            self, helpers,
-            operations::{self, ValidateStatusForOperation},
-            populate_surcharge_details, CustomerDetails, PaymentAddress, PaymentData,
-        },
-        utils as core_utils,
+        payments::operations::{self, ValidateStatusForOperation},
     },
     routes::{app::ReqState, SessionState},
-    services,
     types::{
-        self,
-        api::{self, ConnectorCallType, PaymentIdTypeExt},
+        api::{self, ConnectorCallType},
         domain::{self},
         storage::{self, enums as storage_enums},
     },
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -148,7 +141,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
         merchant_account: &domain::MerchantAccount,
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
-        header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<PaymentCaptureData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
@@ -240,12 +233,12 @@ impl<F: Clone + Send> Domain<F, PaymentsCaptureRequest, PaymentCaptureData<F>> f
     #[instrument(skip_all)]
     async fn make_pm_data<'a>(
         &'a self,
-        state: &'a SessionState,
-        payment_data: &mut PaymentCaptureData<F>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        key_store: &domain::MerchantKeyStore,
-        customer: &Option<domain::Customer>,
-        business_profile: &domain::Profile,
+        _state: &'a SessionState,
+        _payment_data: &mut PaymentCaptureData<F>,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _key_store: &domain::MerchantKeyStore,
+        _customer: &Option<domain::Customer>,
+        _business_profile: &domain::Profile,
     ) -> RouterResult<(
         BoxedConfirmOperation<'a, F>,
         Option<domain::PaymentMethodData>,
@@ -257,12 +250,12 @@ impl<F: Clone + Send> Domain<F, PaymentsCaptureRequest, PaymentCaptureData<F>> f
     #[instrument(skip_all)]
     async fn perform_routing<'a>(
         &'a self,
-        merchant_account: &domain::MerchantAccount,
-        business_profile: &domain::Profile,
+        _merchant_account: &domain::MerchantAccount,
+        _business_profile: &domain::Profile,
         state: &SessionState,
         // TODO: do not take the whole payment data here
         payment_data: &mut PaymentCaptureData<F>,
-        mechant_key_store: &domain::MerchantKeyStore,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
         let payment_attempt = &payment_data.payment_attempt;
         let connector = payment_attempt
@@ -298,14 +291,14 @@ impl<F: Clone> UpdateTracker<F, PaymentCaptureData<F>, PaymentsCaptureRequest> f
     async fn update_trackers<'b>(
         &'b self,
         state: &'b SessionState,
-        req_state: ReqState,
+        _req_state: ReqState,
         mut payment_data: PaymentCaptureData<F>,
-        customer: Option<domain::Customer>,
+        _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
-        updated_customer: Option<storage::CustomerUpdate>,
+        _updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
-        frm_suggestion: Option<FrmSuggestion>,
-        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentCaptureData<F>)>
     where
         F: 'b + Send,
