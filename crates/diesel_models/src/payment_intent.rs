@@ -4,14 +4,13 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::business_profile::PaymentLinkBackgroundImageConfig;
-use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
 use crate::schema::payment_intent;
 #[cfg(feature = "v2")]
 use crate::schema_v2::payment_intent;
 #[cfg(feature = "v2")]
 use crate::types::{FeatureMetadata, OrderDetailsWithAmount};
+use crate::{business_profile::PaymentLinkBackgroundImageConfig, enums as storage_enums};
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
