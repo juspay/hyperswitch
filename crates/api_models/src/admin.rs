@@ -2706,6 +2706,7 @@ pub struct PaymentLinkConfigRequest {
     /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
     /// Custom layout for details section
+    #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
 }
 
@@ -2772,6 +2773,7 @@ pub struct PaymentLinkConfig {
     /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
     /// Custom layout for details section
+    #[schema(value_type = Option<PaymentLinkDetailsLayout>, example = "layout1")]
     pub details_layout: Option<api_enums::PaymentLinkDetailsLayout>,
     /// Toggle for HyperSwitch branding visibility
     pub branding_visibility: Option<bool>,

@@ -12433,7 +12433,7 @@
           "details_layout": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.PaymentLinkDetailsLayout"
+                "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
               }
             ],
             "nullable": true
@@ -12523,7 +12523,7 @@
           "details_layout": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.PaymentLinkDetailsLayout"
+                "$ref": "#/components/schemas/PaymentLinkDetailsLayout"
               }
             ],
             "nullable": true
