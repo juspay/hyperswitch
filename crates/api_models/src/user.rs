@@ -8,6 +8,7 @@ use crate::user_role::UserStatus;
 pub mod dashboard_metadata;
 #[cfg(feature = "dummy_connector")]
 pub mod sample_data;
+pub mod theme;
 
 #[derive(serde::Deserialize, Debug, Clone, serde::Serialize)]
 pub struct SignUpWithMerchantIdRequest {
@@ -165,13 +166,6 @@ pub struct VerifyEmailRequest {
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct SendVerifyEmailRequest {
     pub email: pii::Email,
-}
-
-#[cfg(feature = "recon")]
-#[derive(serde::Serialize, Debug)]
-pub struct VerifyTokenResponse {
-    pub merchant_id: id_type::MerchantId,
-    pub user_email: pii::Email,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

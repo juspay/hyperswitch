@@ -1223,7 +1223,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     _business_profile: &domain::Profile,
     _payment_attempt: &storage::PaymentAttempt,
     _payment_intent: &storage::PaymentIntent,
-    _billing_address: Option<api_models::payments::Address>,
+    _billing_address: Option<hyperswitch_domain_models::address::Address>,
     _session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>> {
     todo!()
@@ -1237,7 +1237,7 @@ pub async fn call_surcharge_decision_management_for_session_flow(
     _business_profile: &domain::Profile,
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
-    billing_address: Option<api_models::payments::Address>,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
     session_connector_data: &[api::SessionConnectorData],
 ) -> RouterResult<Option<api::SessionSurchargeDetails>> {
     if let Some(surcharge_amount) = payment_attempt.net_amount.get_surcharge_amount() {
@@ -1484,7 +1484,7 @@ where
     F: Send + Clone + Sync,
     Req: Send + Sync,
     FData: Send + Sync + Clone,
-    Op: Operation<F, Req, Data = D> + Send + Sync + Clone,
+    Op: Operation<F, Req, Data = D> + ValidateStatusForOperation + Send + Sync + Clone,
     Req: Debug,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     Res: transformers::ToResponse<F, D, Op>,
@@ -4253,7 +4253,7 @@ where
 
 #[derive(Clone, serde::Serialize, Debug)]
 pub struct TaxData {
-    pub shipping_details: api_models::payments::Address,
+    pub shipping_details: hyperswitch_domain_models::address::Address,
     pub payment_method_type: enums::PaymentMethodType,
 }
 
@@ -6026,47 +6026,75 @@ where
     // dynamic success based connector selection
     #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
     let connectors = {
-        if business_profile.dynamic_routing_algorithm.is_some() {
-            let success_based_routing_config_params_interpolator =
-                routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
-                    payment_data.get_payment_attempt().payment_method,
-                    payment_data.get_payment_attempt().payment_method_type,
-                    payment_data.get_payment_attempt().authentication_type,
-                    payment_data.get_payment_attempt().currency,
-                    payment_data
-                        .get_billing_address()
-                        .and_then(|address| address.address)
-                        .and_then(|address| address.country),
-                    payment_data
-                        .get_payment_attempt()
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card"))
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card_network"))
-                        .and_then(|network| network.as_str())
-                        .map(|network| network.to_string()),
-                    payment_data
-                        .get_payment_attempt()
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card"))
-                        .and_then(|data| data.as_object())
-                        .and_then(|card| card.get("card_isin"))
-                        .and_then(|card_isin| card_isin.as_str())
-                        .map(|card_isin| card_isin.to_string()),
-                );
-            routing::perform_success_based_routing(
-                state,
-                connectors.clone(),
-                business_profile,
-                success_based_routing_config_params_interpolator,
-            )
-            .await
-            .map_err(|e| logger::error!(success_rate_routing_error=?e))
-            .unwrap_or(connectors)
+        if let Some(algo) = business_profile.dynamic_routing_algorithm.clone() {
+            let dynamic_routing_config: api_models::routing::DynamicRoutingAlgorithmRef = algo
+                .parse_value("DynamicRoutingAlgorithmRef")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to deserialize DynamicRoutingAlgorithmRef from JSON")?;
+            let dynamic_split = api_models::routing::RoutingVolumeSplit {
+                routing_type: api_models::routing::RoutingType::Dynamic,
+                split: dynamic_routing_config
+                    .dynamic_routing_volume_split
+                    .unwrap_or_default(),
+            };
+            let static_split: api_models::routing::RoutingVolumeSplit =
+                api_models::routing::RoutingVolumeSplit {
+                    routing_type: api_models::routing::RoutingType::Static,
+                    split: crate::consts::DYNAMIC_ROUTING_MAX_VOLUME
+                        - dynamic_routing_config
+                            .dynamic_routing_volume_split
+                            .unwrap_or_default(),
+                };
+            let volume_split_vec = vec![dynamic_split, static_split];
+            let routing_choice =
+                routing::perform_dynamic_routing_volume_split(volume_split_vec, None)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to perform volume split on routing type")?;
+
+            if routing_choice.routing_type.is_dynamic_routing() {
+                let success_based_routing_config_params_interpolator =
+                    routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                        payment_data.get_payment_attempt().payment_method,
+                        payment_data.get_payment_attempt().payment_method_type,
+                        payment_data.get_payment_attempt().authentication_type,
+                        payment_data.get_payment_attempt().currency,
+                        payment_data
+                            .get_billing_address()
+                            .and_then(|address| address.address)
+                            .and_then(|address| address.country),
+                        payment_data
+                            .get_payment_attempt()
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card"))
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card_network"))
+                            .and_then(|network| network.as_str())
+                            .map(|network| network.to_string()),
+                        payment_data
+                            .get_payment_attempt()
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card"))
+                            .and_then(|data| data.as_object())
+                            .and_then(|card| card.get("card_isin"))
+                            .and_then(|card_isin| card_isin.as_str())
+                            .map(|card_isin| card_isin.to_string()),
+                    );
+                routing::perform_success_based_routing(
+                    state,
+                    connectors.clone(),
+                    business_profile,
+                    success_based_routing_config_params_interpolator,
+                )
+                .await
+                .map_err(|e| logger::error!(success_rate_routing_error=?e))
+                .unwrap_or(connectors)
+            } else {
+                connectors
+            }
         } else {
             connectors
         }
@@ -6686,7 +6714,7 @@ pub trait OperationSessionGetters<F> {
     fn get_currency(&self) -> storage_enums::Currency;
     fn get_amount(&self) -> api::Amount;
     fn get_payment_attempt_connector(&self) -> Option<&str>;
-    fn get_billing_address(&self) -> Option<api_models::payments::Address>;
+    fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address>;
     fn get_payment_method_data(&self) -> Option<&domain::PaymentMethodData>;
     fn get_sessions_token(&self) -> Vec<api::SessionToken>;
     fn get_token_data(&self) -> Option<&storage::PaymentTokenData>;
@@ -6740,6 +6768,7 @@ pub trait OperationSessionSetters<F> {
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
 }
 
+#[cfg(feature = "v1")]
 impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt {
         &self.payment_attempt
@@ -6840,7 +6869,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.payment_attempt.connector.as_deref()
     }
 
-    fn get_billing_address(&self) -> Option<api_models::payments::Address> {
+    fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         self.address.get_payment_method_billing().cloned()
     }
 
@@ -6869,15 +6898,15 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.payment_attempt.capture_method
     }
 
-    #[cfg(feature = "v2")]
-    fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
-        Some(self.payment_intent.capture_method)
-    }
+    // #[cfg(feature = "v2")]
+    // fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
+    //     Some(self.payment_intent.capture_method)
+    // }
 
-    #[cfg(feature = "v2")]
-    fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
-        todo!();
-    }
+    // #[cfg(feature = "v2")]
+    // fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
+    //     todo!();
+    // }
 }
 
 #[cfg(feature = "v1")]
@@ -7082,7 +7111,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    fn get_billing_address(&self) -> Option<api_models::payments::Address> {
+    fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
 
@@ -7110,7 +7139,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
         todo!()
     }
 
-    #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         todo!();
     }
@@ -7219,9 +7247,8 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    // what is this address find out and not required remove this
     fn get_address(&self) -> &PaymentAddress {
-        todo!()
+        &self.payment_address
     }
 
     fn get_creds_identifier(&self) -> Option<&str> {
@@ -7296,7 +7323,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    fn get_billing_address(&self) -> Option<api_models::payments::Address> {
+    fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
 
@@ -7324,9 +7351,8 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
-    #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
-        todo!();
+        Some(&self.payment_attempt)
     }
 }
 
@@ -7435,9 +7461,8 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    // what is this address find out and not required remove this
     fn get_address(&self) -> &PaymentAddress {
-        todo!()
+        &self.payment_address
     }
 
     fn get_creds_identifier(&self) -> Option<&str> {
@@ -7512,7 +7537,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    fn get_billing_address(&self) -> Option<api_models::payments::Address> {
+    fn get_billing_address(&self) -> Option<hyperswitch_domain_models::address::Address> {
         todo!()
     }
 
@@ -7540,7 +7565,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentStatusData<F> {
         todo!()
     }
 
-    #[cfg(feature = "v2")]
     fn get_optional_payment_attempt(&self) -> Option<&storage::PaymentAttempt> {
         self.payment_attempt.as_ref()
     }
