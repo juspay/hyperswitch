@@ -5,7 +5,7 @@ use actix_web::FromRequest;
 use api_models::payouts as payout_models;
 use api_models::webhooks::{self, WebhookResponseTracker};
 use common_utils::{errors::ReportSwitchExt, events::ApiEventsType, ext_traits::ValueExt};
-use diesel_models::{enums as storage_enums, ConnectorMandateReferenceId};
+use diesel_models::ConnectorMandateReferenceId;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payments::{payment_attempt::PaymentAttempt, HeaderPayload},
