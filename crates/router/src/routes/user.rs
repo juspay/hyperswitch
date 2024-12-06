@@ -1,3 +1,5 @@
+pub mod theme;
+
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(feature = "dummy_connector")]
 use api_models::user::sample_data::SampleDataRequest;
@@ -130,7 +132,7 @@ pub async fn signout(state: web::Data<AppState>, http_req: HttpRequest) -> HttpR
         &http_req,
         (),
         |state, user, _, _| user_core::signout(state, user),
-        &auth::DashboardNoPermissionAuth,
+        &auth::AnyPurposeOrLoginTokenAuth,
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -487,23 +489,6 @@ pub async fn verify_email_request(
     .await
 }
 
-#[cfg(feature = "recon")]
-pub async fn verify_recon_token(state: web::Data<AppState>, http_req: HttpRequest) -> HttpResponse {
-    let flow = Flow::ReconVerifyToken;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &http_req,
-        (),
-        |state, user, _req, _| user_core::verify_token(state, user),
-        &auth::JWTAuth {
-            permission: Permission::MerchantReconWrite,
-        },
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
 pub async fn update_user_account_details(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -691,6 +676,7 @@ pub async fn check_two_factor_auth_status_with_attempts(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn get_sso_auth_url(
     state: web::Data<AppState>,
     req: HttpRequest,

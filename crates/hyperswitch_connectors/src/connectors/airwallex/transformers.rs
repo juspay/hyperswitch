@@ -189,7 +189,9 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(
                             request.capture_method,
-                            Some(enums::CaptureMethod::Automatic) | None
+                            Some(enums::CaptureMethod::Automatic)
+                                | Some(enums::CaptureMethod::SequentialAutomatic)
+                                | None
                         ),
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
@@ -829,7 +831,7 @@ pub struct AirwallexObjectData {
 pub struct AirwallexDisputeObject {
     pub payment_intent_id: String,
     pub dispute_amount: i64,
-    pub dispute_currency: String,
+    pub dispute_currency: enums::Currency,
     pub stage: AirwallexDisputeStage,
     pub dispute_id: String,
     pub dispute_reason_type: Option<String>,

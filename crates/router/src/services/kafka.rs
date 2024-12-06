@@ -94,7 +94,7 @@ impl<'a, T: KafkaMessage> KafkaEvent<'a, T> {
     }
 }
 
-impl<'a, T: KafkaMessage> KafkaMessage for KafkaEvent<'a, T> {
+impl<T: KafkaMessage> KafkaMessage for KafkaEvent<'_, T> {
     fn key(&self) -> String {
         self.event.key()
     }
@@ -130,7 +130,7 @@ impl<'a, T: KafkaMessage> KafkaConsolidatedEvent<'a, T> {
     }
 }
 
-impl<'a, T: KafkaMessage> KafkaMessage for KafkaConsolidatedEvent<'a, T> {
+impl<T: KafkaMessage> KafkaMessage for KafkaConsolidatedEvent<'_, T> {
     fn key(&self) -> String {
         self.log.event.key()
     }

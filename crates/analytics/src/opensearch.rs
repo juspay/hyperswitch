@@ -497,7 +497,7 @@ impl OpenSearchQueryBuilder {
         Ok(())
     }
 
-    pub fn get_status_field(&self, index: &SearchIndex) -> &str {
+    pub fn get_status_field(&self, index: SearchIndex) -> &str {
         match index {
             SearchIndex::Refunds | SearchIndex::SessionizerRefunds => "refund_status.keyword",
             SearchIndex::Disputes | SearchIndex::SessionizerDisputes => "dispute_status.keyword",
@@ -510,14 +510,15 @@ impl OpenSearchQueryBuilder {
         case_sensitive_filters: Vec<&(String, Vec<String>)>,
     ) -> Vec<Value> {
         let mut filter_array = Vec::new();
-
-        filter_array.push(json!({
-            "multi_match": {
-                "type": "phrase",
-                "query": self.query,
-                "lenient": true
-            }
-        }));
+        if !self.query.is_empty() {
+            filter_array.push(json!({
+                "multi_match": {
+                    "type": "phrase",
+                    "query": self.query,
+                    "lenient": true
+                }
+            }));
+        }
 
         let case_sensitive_json_filters = case_sensitive_filters
             .into_iter()
@@ -543,7 +544,7 @@ impl OpenSearchQueryBuilder {
         mut payload: Value,
         case_insensitive_filters: &[&(String, Vec<String>)],
         auth_array: Vec<Value>,
-        index: &SearchIndex,
+        index: SearchIndex,
     ) -> Value {
         let mut must_array = case_insensitive_filters
             .iter()
@@ -704,9 +705,7 @@ impl OpenSearchQueryBuilder {
 
         let should_array = self.build_auth_array();
 
-        if !bool_obj.is_empty() {
-            query_obj.insert("bool".to_string(), Value::Object(bool_obj));
-        }
+        query_obj.insert("bool".to_string(), Value::Object(bool_obj));
 
         let mut sort_obj = Map::new();
         sort_obj.insert(
@@ -729,7 +728,7 @@ impl OpenSearchQueryBuilder {
                     payload,
                     &case_insensitive_filters,
                     should_array.clone(),
-                    index,
+                    *index,
                 );
                 payload
             })

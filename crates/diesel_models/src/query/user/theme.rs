@@ -3,7 +3,7 @@ use diesel::{
     associations::HasTable,
     pg::Pg,
     sql_types::{Bool, Nullable},
-    BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods,
+    BoolExpressionMethods, ExpressionMethods,
 };
 
 use crate::{
@@ -27,14 +27,15 @@ impl Theme {
             + 'static,
     > {
         match lineage {
-            ThemeLineage::Tenant { tenant_id } => Box::new(
-                dsl::tenant_id
-                    .eq(tenant_id)
-                    .and(dsl::org_id.is_null())
-                    .and(dsl::merchant_id.is_null())
-                    .and(dsl::profile_id.is_null())
-                    .nullable(),
-            ),
+            // TODO: Add back Tenant variant when we introduce Tenant Variant in EntityType
+            // ThemeLineage::Tenant { tenant_id } => Box::new(
+            //     dsl::tenant_id
+            //         .eq(tenant_id)
+            //         .and(dsl::org_id.is_null())
+            //         .and(dsl::merchant_id.is_null())
+            //         .and(dsl::profile_id.is_null())
+            //         .nullable(),
+            // ),
             ThemeLineage::Organization { tenant_id, org_id } => Box::new(
                 dsl::tenant_id
                     .eq(tenant_id)
@@ -66,6 +67,14 @@ impl Theme {
                     .and(dsl::profile_id.eq(profile_id)),
             ),
         }
+    }
+
+    pub async fn find_by_theme_id(conn: &PgPooledConn, theme_id: String) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::theme_id.eq(theme_id),
+        )
+        .await
     }
 
     pub async fn find_by_lineage(

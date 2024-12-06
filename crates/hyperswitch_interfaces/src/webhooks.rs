@@ -2,7 +2,9 @@
 
 use common_utils::{crypto, errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::api::ApplicationResponse;
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, errors::api_error_response::ApiErrorResponse,
+};
 use masking::{ExposeInterface, Secret};
 
 use crate::{api::ConnectorCommon, errors};
@@ -20,6 +22,30 @@ pub struct IncomingWebhookRequestDetails<'a> {
     pub body: &'a [u8],
     /// query_params
     pub query_params: String,
+}
+
+/// IncomingWebhookFlowError enum defining the error type for incoming webhook
+#[derive(Debug)]
+pub enum IncomingWebhookFlowError {
+    /// Resource not found for the webhook
+    ResourceNotFound,
+    /// Internal error for the webhook
+    InternalError,
+}
+
+impl From<&ApiErrorResponse> for IncomingWebhookFlowError {
+    fn from(api_error_response: &ApiErrorResponse) -> Self {
+        match api_error_response {
+            ApiErrorResponse::WebhookResourceNotFound
+            | ApiErrorResponse::DisputeNotFound { .. }
+            | ApiErrorResponse::PayoutNotFound
+            | ApiErrorResponse::MandateNotFound
+            | ApiErrorResponse::PaymentNotFound
+            | ApiErrorResponse::RefundNotFound
+            | ApiErrorResponse::AuthenticationNotFound { .. } => Self::ResourceNotFound,
+            _ => Self::InternalError,
+        }
+    }
 }
 
 /// Trait defining incoming webhook
@@ -203,6 +229,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_api_response(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<IncomingWebhookFlowError>,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         Ok(ApplicationResponse::StatusOk)
     }
@@ -233,6 +260,17 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<
         Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
+        errors::ConnectorError,
+    > {
+        Ok(None)
+    }
+
+    /// fn get_network_txn_id
+    fn get_network_txn_id(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
         errors::ConnectorError,
     > {
         Ok(None)

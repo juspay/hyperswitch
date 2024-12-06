@@ -233,7 +233,7 @@ pub fn is_update_required(metadata: &UserResult<DashboardMetadata>) -> bool {
     }
 }
 
-pub fn is_backfill_required(metadata_key: &DBEnum) -> bool {
+pub fn is_backfill_required(metadata_key: DBEnum) -> bool {
     matches!(
         metadata_key,
         DBEnum::StripeConnected | DBEnum::PaypalConnected

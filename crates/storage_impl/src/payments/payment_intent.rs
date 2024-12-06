@@ -297,7 +297,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             DieselPaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                 .await
                 .map_err(|er| {
-                    let new_err = diesel_error_to_data_error(er.current_context());
+                    let new_err = diesel_error_to_data_error(*er.current_context());
                     er.change_context(new_err)
                 })
         };
@@ -358,7 +358,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         let diesel_payment_intent = DieselPaymentIntent::find_by_global_id(&conn, id)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })?;
 
@@ -481,7 +481,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })?;
 
@@ -515,7 +515,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .update(&conn, diesel_payment_intent_update)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })?;
 
@@ -550,7 +550,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .update(&conn, diesel_payment_intent_update)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })?;
 
@@ -579,7 +579,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         DieselPaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
             .async_and_then(|diesel_payment_intent| async {
@@ -608,7 +608,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let diesel_payment_intent = DieselPaymentIntent::find_by_global_id(&conn, id)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })?;
 
@@ -871,6 +871,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
                 }
 
+                if let Some(merchant_order_reference_id) = &params.merchant_order_reference_id {
+                    query = query.filter(
+                        pi_dsl::merchant_order_reference_id.eq(merchant_order_reference_id.clone()),
+                    )
+                }
+
                 if let Some(profile_id) = &params.profile_id {
                     query = query.filter(pi_dsl::profile_id.eq_any(profile_id.clone()));
                 }
@@ -1040,6 +1046,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::List(params) => {
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+                if let Some(merchant_order_reference_id) = &params.merchant_order_reference_id {
+                    query = query.filter(
+                        pi_dsl::merchant_order_reference_id.eq(merchant_order_reference_id.clone()),
+                    )
                 }
                 if let Some(profile_id) = &params.profile_id {
                     query = query.filter(pi_dsl::profile_id.eq_any(profile_id.clone()));

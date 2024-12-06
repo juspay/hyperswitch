@@ -109,14 +109,14 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsRetrieveRequest, PaymentStatusD
         &'b self,
         request: &PaymentsRetrieveRequest,
         merchant_account: &'a domain::MerchantAccount,
-    ) -> RouterResult<(BoxedConfirmOperation<'b, F>, operations::ValidateResult)> {
+    ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
             merchant_id: merchant_account.get_id().to_owned(),
             storage_scheme: merchant_account.storage_scheme,
             requeue: false,
         };
 
-        Ok((Box::new(self), validate_result))
+        Ok(validate_result)
     }
 }
 
@@ -132,9 +132,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveReques
         _profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-    ) -> RouterResult<
-        operations::GetTrackerResponse<'a, F, PaymentsRetrieveRequest, PaymentStatusData<F>>,
-    > {
+    ) -> RouterResult<operations::GetTrackerResponse<PaymentStatusData<F>>> {
         let db = &*state.store;
         let key_manager_state = &state.into();
 
@@ -165,17 +163,33 @@ impl<F: Send + Clone> GetTracker<F, PaymentStatusData<F>, PaymentsRetrieveReques
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();
 
+        // We need the address here to send it in the response
+        let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
+            payment_intent
+                .shipping_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_intent
+                .billing_address
+                .clone()
+                .map(|address| address.into_inner()),
+            payment_attempt
+                .as_ref()
+                .and_then(|payment_attempt| payment_attempt.payment_method_billing_address.as_ref())
+                .cloned()
+                .map(|address| address.into_inner()),
+            Some(true),
+        );
+
         let payment_data = PaymentStatusData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
+            payment_address,
             should_sync_with_connector,
         };
 
-        let get_trackers_response = operations::GetTrackerResponse {
-            operation: Box::new(self),
-            payment_data,
-        };
+        let get_trackers_response = operations::GetTrackerResponse { payment_data };
 
         Ok(get_trackers_response)
     }

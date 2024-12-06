@@ -20,8 +20,11 @@ v1 = ["common_utils/v1"]
 v2 = ["common_utils/v2", "customer_v2"]
 customer_v2 = ["common_utils/customer_v2"]
 payment_methods_v2 = ["common_utils/payment_methods_v2"]
+dynamic_routing = []
+control_center_theme = ["dep:actix-web", "dep:actix-multipart"]
 
 [dependencies]
+actix-multipart = { version = "0.6.1", optional = true }
 actix-web = { version = "4.5.1", optional = true }
 error-stack = "0.4.1"
 indexmap = "2.3.0"

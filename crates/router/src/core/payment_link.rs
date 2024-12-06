@@ -5,11 +5,7 @@ use api_models::{
     payments::{PaymentLinkData, PaymentLinkStatusWrap},
 };
 use common_utils::{
-    consts::{
-        DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
-        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_LOCALE, DEFAULT_MERCHANT_LOGO,
-        DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SESSION_EXPIRY,
-    },
+    consts::{DEFAULT_LOCALE, DEFAULT_SESSION_EXPIRY},
     ext_traits::{AsyncExt, OptionExt, ValueExt},
     types::{AmountConvertor, StringMajorUnitForCore},
 };
@@ -25,7 +21,11 @@ use super::{
     payments::helpers,
 };
 use crate::{
-    consts,
+    consts::{
+        self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
+        DEFAULT_ENABLE_SAVED_PAYMENT_METHOD, DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+        DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM,
+    },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,
     headers::ACCEPT_LANGUAGE,
@@ -125,6 +125,8 @@ pub async fn form_payment_link_data(
                 sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
                 display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
                 enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+                hide_card_nickname_field: DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+                show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
                 allowed_domains: DEFAULT_ALLOWED_DOMAINS,
                 transaction_details: None,
             }
@@ -180,7 +182,7 @@ pub async fn form_payment_link_data(
     let payment_link_status = check_payment_link_status(session_expiry);
 
     let is_terminal_state = check_payment_link_invalid_conditions(
-        &payment_intent.status,
+        payment_intent.status,
         &[
             storage_enums::IntentStatus::Cancelled,
             storage_enums::IntentStatus::Failed,
@@ -265,6 +267,8 @@ pub async fn form_payment_link_data(
         merchant_description: payment_intent.description,
         sdk_layout: payment_link_config.sdk_layout.clone(),
         display_sdk_only: payment_link_config.display_sdk_only,
+        hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
+        show_card_form_by_default: payment_link_config.show_card_form_by_default,
         locale,
         transaction_details: payment_link_config.transaction_details.clone(),
     };
@@ -322,6 +326,8 @@ pub async fn initiate_secure_payment_link_flow(
         PaymentLinkData::PaymentLinkDetails(link_details) => {
             let secure_payment_link_details = api_models::payments::SecurePaymentLinkDetails {
                 enabled_saved_payment_method: payment_link_config.enabled_saved_payment_method,
+                hide_card_nickname_field: payment_link_config.hide_card_nickname_field,
+                show_card_form_by_default: payment_link_config.show_card_form_by_default,
                 payment_link_details: *link_details.to_owned(),
             };
             let js_script = format!(
@@ -607,7 +613,16 @@ pub fn get_payment_link_config_based_on_priority(
             (default_domain_name, None, None)
         };
 
-    let (theme, logo, seller_name, sdk_layout, display_sdk_only, enabled_saved_payment_method) = get_payment_link_config_value!(
+    let (
+        theme,
+        logo,
+        seller_name,
+        sdk_layout,
+        display_sdk_only,
+        enabled_saved_payment_method,
+        hide_card_nickname_field,
+        show_card_form_by_default,
+    ) = get_payment_link_config_value!(
         payment_create_link_config,
         business_theme_configs,
         (theme, DEFAULT_BACKGROUND_COLOR.to_string()),
@@ -618,7 +633,9 @@ pub fn get_payment_link_config_based_on_priority(
         (
             enabled_saved_payment_method,
             DEFAULT_ENABLE_SAVED_PAYMENT_METHOD
-        )
+        ),
+        (hide_card_nickname_field, DEFAULT_HIDE_CARD_NICKNAME_FIELD),
+        (show_card_form_by_default, DEFAULT_SHOW_CARD_FORM)
     );
     let payment_link_config = PaymentLinkConfig {
         theme,
@@ -627,6 +644,8 @@ pub fn get_payment_link_config_based_on_priority(
         sdk_layout,
         display_sdk_only,
         enabled_saved_payment_method,
+        hide_card_nickname_field,
+        show_card_form_by_default,
         allowed_domains,
         transaction_details: payment_create_link_config
             .and_then(|payment_link_config| payment_link_config.theme_config.transaction_details),
@@ -649,10 +668,10 @@ fn capitalize_first_char(s: &str) -> String {
 }
 
 fn check_payment_link_invalid_conditions(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
 ) -> bool {
-    not_allowed_statuses.contains(intent_status)
+    not_allowed_statuses.contains(&intent_status)
 }
 
 #[cfg(feature = "v2")]
@@ -729,6 +748,8 @@ pub async fn get_payment_link_status(
             sdk_layout: DEFAULT_SDK_LAYOUT.to_owned(),
             display_sdk_only: DEFAULT_DISPLAY_SDK_ONLY,
             enabled_saved_payment_method: DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
+            hide_card_nickname_field: DEFAULT_HIDE_CARD_NICKNAME_FIELD,
+            show_card_form_by_default: DEFAULT_SHOW_CARD_FORM,
             allowed_domains: DEFAULT_ALLOWED_DOMAINS,
             transaction_details: None,
         }

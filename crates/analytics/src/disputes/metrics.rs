@@ -1,4 +1,5 @@
 mod dispute_status_metric;
+mod sessionized_metrics;
 mod total_amount_disputed;
 mod total_dispute_lost_amount;
 
@@ -51,7 +52,7 @@ where
         dimensions: &[DisputeDimensions],
         auth: &AuthInfo,
         filters: &DisputeFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>>;
@@ -72,7 +73,7 @@ where
         dimensions: &[DisputeDimensions],
         auth: &AuthInfo,
         filters: &DisputeFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(DisputeMetricsBucketIdentifier, DisputeMetricRow)>> {
@@ -89,6 +90,21 @@ where
             }
             Self::TotalDisputeLostAmount => {
                 TotalDisputeLostAmount::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedTotalAmountDisputed => {
+                sessionized_metrics::TotalAmountDisputed::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedDisputeStatusMetric => {
+                sessionized_metrics::DisputeStatusMetric::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedTotalDisputeLostAmount => {
+                sessionized_metrics::TotalDisputeLostAmount::default()
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

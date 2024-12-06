@@ -155,7 +155,7 @@ impl TryFrom<&MollieRouterData<&types::PaymentsAuthorizeRouterData>> for MollieP
         let redirect_url = item.router_data.request.get_return_url()?;
         let payment_method_data = match item.router_data.request.capture_method.unwrap_or_default()
         {
-            enums::CaptureMethod::Automatic => {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
                 match &item.router_data.request.payment_method_data {
                     PaymentMethodData::Card(_) => {
                         let pm_token = item.router_data.get_payment_method_token()?;
@@ -354,7 +354,7 @@ fn get_billing_details(
 }
 
 fn get_address_details(
-    address: Option<&api_models::payments::AddressDetails>,
+    address: Option<&hyperswitch_domain_models::address::AddressDetails>,
 ) -> Result<Option<Address>, Error> {
     let address_details = match address {
         Some(address) => {

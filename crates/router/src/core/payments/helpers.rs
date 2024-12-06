@@ -19,7 +19,7 @@ use common_utils::{
         MinorUnit,
     },
 };
-use diesel_models::enums::{self};
+use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
 use futures::future::Either;
@@ -554,8 +554,8 @@ pub async fn get_token_pm_type_mandate_details(
 
                             (
                                 None,
-                                payment_method_info.payment_method,
-                                payment_method_info.payment_method_type,
+                                payment_method_info.get_payment_method_type(),
+                                payment_method_info.get_payment_method_subtype(),
                                 None,
                                 None,
                                 None,
@@ -608,7 +608,7 @@ pub async fn get_token_pm_type_mandate_details(
                                 Ok(customer_payment_methods) => Ok(customer_payment_methods
                                     .iter()
                                     .find(|payment_method| {
-                                        payment_method.payment_method_type
+                                        payment_method.get_payment_method_subtype()
                                             == request.payment_method_type
                                     })
                                     .cloned()),
@@ -808,13 +808,13 @@ pub async fn get_token_for_recurring_mandate(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let token = Uuid::new_v4().to_string();
-    let payment_method_type = payment_method.payment_method_type;
+    let payment_method_type = payment_method.get_payment_method_subtype();
     let mandate_connector_details = payments::MandateConnectorDetails {
         connector: mandate.connector,
         merchant_connector_id: mandate.merchant_connector_id,
     };
 
-    if let Some(enums::PaymentMethod::Card) = payment_method.payment_method {
+    if let Some(enums::PaymentMethod::Card) = payment_method.get_payment_method_type() {
         if state.conf.locker.locker_enabled {
             let _ = cards::get_lookup_key_from_locker(
                 state,
@@ -828,7 +828,7 @@ pub async fn get_token_for_recurring_mandate(
         if let Some(payment_method_from_request) = req.payment_method {
             let pm: storage_enums::PaymentMethod = payment_method_from_request;
             if payment_method
-                .payment_method
+                .get_payment_method_type()
                 .is_some_and(|payment_method| payment_method != pm)
             {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -842,14 +842,14 @@ pub async fn get_token_for_recurring_mandate(
 
         Ok(MandateGenericData {
             token: Some(token),
-            payment_method: payment_method.payment_method,
+            payment_method: payment_method.get_payment_method_type(),
             recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
                 mandate_metadata: None,
             }),
-            payment_method_type: payment_method.payment_method_type,
+            payment_method_type: payment_method.get_payment_method_subtype(),
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
             payment_method_info: Some(payment_method),
@@ -857,14 +857,14 @@ pub async fn get_token_for_recurring_mandate(
     } else {
         Ok(MandateGenericData {
             token: None,
-            payment_method: payment_method.payment_method,
+            payment_method: payment_method.get_payment_method_type(),
             recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
                 payment_method_type,
                 original_payment_authorized_amount,
                 original_payment_authorized_currency,
                 mandate_metadata: None,
             }),
-            payment_method_type: payment_method.payment_method_type,
+            payment_method_type: payment_method.get_payment_method_subtype(),
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
             payment_method_info: Some(payment_method),
@@ -948,7 +948,10 @@ pub fn validate_amount_to_capture_and_capture_method(
         .or(payment_attempt
             .map(|payment_attempt| payment_attempt.capture_method.unwrap_or_default()))
         .unwrap_or_default();
-    if capture_method == api_enums::CaptureMethod::Automatic {
+    if matches!(
+        capture_method,
+        api_enums::CaptureMethod::Automatic | api_enums::CaptureMethod::SequentialAutomatic
+    ) {
         let total_capturable_amount =
             option_net_amount.map(|net_amount| net_amount.get_total_amount());
 
@@ -1049,7 +1052,7 @@ pub fn validate_card_expiry(
 }
 
 pub fn infer_payment_type(
-    amount: &api::Amount,
+    amount: api::Amount,
     mandate_type: Option<&api::MandateTransactionType>,
 ) -> api_enums::PaymentType {
     match mandate_type {
@@ -2340,7 +2343,9 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
 
     if payment_data.token_data.is_none() {
         if let Some(payment_method_info) = &payment_data.payment_method_info {
-            if payment_method_info.payment_method == Some(storage_enums::PaymentMethod::Card) {
+            if payment_method_info.get_payment_method_type()
+                == Some(storage_enums::PaymentMethod::Card)
+            {
                 payment_data.token_data =
                     Some(storage::PaymentTokenData::PermanentCard(CardTokenData {
                         payment_method_id: Some(payment_method_info.get_id().clone()),
@@ -2828,7 +2833,7 @@ pub fn validate_payment_method_type_against_payment_method(
     }
 }
 
-pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> bool {
+pub fn check_force_psync_precondition(status: storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
@@ -2904,6 +2909,7 @@ pub(super) fn validate_payment_list_request_for_joins(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
 pub fn get_handle_response_url(
     payment_id: id_type::PaymentId,
     business_profile: &domain::Profile,
@@ -2926,6 +2932,7 @@ pub fn get_handle_response_url(
     make_url_with_signature(&return_url, business_profile)
 }
 
+#[cfg(feature = "v1")]
 pub fn make_merchant_url_with_response(
     business_profile: &domain::Profile,
     redirection_response: api::PgRedirectResponse,
@@ -2944,11 +2951,13 @@ pub fn make_merchant_url_with_response(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Expected client secret to be `Some`")?;
 
+    let payment_id = redirection_response.payment_id.get_string_repr().to_owned();
     let merchant_url_with_response = if business_profile.redirect_to_merchant_with_http_post {
         url::Url::parse_with_params(
             url,
             &[
                 ("status", status_check.to_string()),
+                ("payment_id", payment_id),
                 (
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
@@ -2967,6 +2976,7 @@ pub fn make_merchant_url_with_response(
             url,
             &[
                 ("status", status_check.to_string()),
+                ("payment_id", payment_id),
                 (
                     "payment_intent_client_secret",
                     payment_client_secret.peek().to_string(),
@@ -3034,6 +3044,7 @@ pub fn make_pg_redirect_response(
     }
 }
 
+#[cfg(feature = "v1")]
 pub fn make_url_with_signature(
     redirect_url: &str,
     business_profile: &domain::Profile,
@@ -3246,11 +3257,11 @@ pub fn authenticate_client_secret(
 }
 
 pub(crate) fn validate_payment_status_against_allowed_statuses(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     allowed_statuses: &[storage_enums::IntentStatus],
     action: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(!allowed_statuses.contains(intent_status), || {
+    fp_utils::when(!allowed_statuses.contains(&intent_status), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
                 "You cannot {action} this payment because it has status {intent_status}",
@@ -3260,11 +3271,11 @@ pub(crate) fn validate_payment_status_against_allowed_statuses(
 }
 
 pub(crate) fn validate_payment_status_against_not_allowed_statuses(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
     action: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(not_allowed_statuses.contains(intent_status), || {
+    fp_utils::when(not_allowed_statuses.contains(&intent_status), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
                 "You cannot {action} this payment because it has status {intent_status}",
@@ -3468,6 +3479,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -3537,6 +3549,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -3604,6 +3617,7 @@ mod tests {
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -3926,6 +3940,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
+        psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
     }
 }
 
@@ -4662,7 +4677,7 @@ pub async fn get_additional_payment_data(
                         api_models::payments::AdditionalPaymentData::Card(Box::new(
                             api_models::payments::AdditionalCardInfo {
                                 card_issuer: card_info.card_issuer,
-                                card_network,
+                                card_network: card_info.card_network,
                                 bank_code: card_info.bank_code,
                                 card_type: card_info.card_type,
                                 card_issuing_country: card_info.card_issuing_country,
