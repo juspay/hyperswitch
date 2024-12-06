@@ -1,5 +1,8 @@
 use common_enums::EntityType;
-use common_utils::{date_time, id_type, types::theme::ThemeLineage};
+use common_utils::{
+    date_time, id_type,
+    types::theme::{EmailThemeConfig, ThemeLineage},
+};
 use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use time::PrimitiveDateTime;
 
@@ -17,6 +20,10 @@ pub struct Theme {
     pub last_modified_at: PrimitiveDateTime,
     pub entity_type: EntityType,
     pub theme_name: String,
+    pub email_primary_color: String,
+    pub email_secondary_color: String,
+    pub email_entity_name: String,
+    pub email_entity_logo: String,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -31,10 +38,19 @@ pub struct ThemeNew {
     pub last_modified_at: PrimitiveDateTime,
     pub entity_type: EntityType,
     pub theme_name: String,
+    pub email_primary_color: String,
+    pub email_secondary_color: String,
+    pub email_entity_name: String,
+    pub email_entity_logo: String,
 }
 
 impl ThemeNew {
-    pub fn new(theme_id: String, theme_name: String, lineage: ThemeLineage) -> Self {
+    pub fn new(
+        theme_id: String,
+        theme_name: String,
+        lineage: ThemeLineage,
+        email_data: EmailThemeConfig,
+    ) -> Self {
         let now = date_time::now();
 
         Self {
@@ -47,6 +63,21 @@ impl ThemeNew {
             entity_type: lineage.entity_type(),
             created_at: now,
             last_modified_at: now,
+            email_primary_color: email_data.primary_color,
+            email_secondary_color: email_data.secondary_color,
+            email_entity_name: email_data.entity_name,
+            email_entity_logo: email_data.entity_logo,
+        }
+    }
+}
+
+impl Theme {
+    pub fn email_data(&self) -> EmailThemeConfig {
+        EmailThemeConfig {
+            primary_color: self.email_primary_color.clone(),
+            secondary_color: self.email_secondary_color.clone(),
+            entity_name: self.email_entity_name.clone(),
+            entity_logo: self.email_entity_logo.clone(),
         }
     }
 }

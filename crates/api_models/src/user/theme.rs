@@ -1,6 +1,9 @@
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use common_enums::EntityType;
-use common_utils::{id_type, types::theme::ThemeLineage};
+use common_utils::{
+    id_type,
+    types::theme::{EmailThemeConfig, ThemeLineage},
+};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -13,6 +16,7 @@ pub struct GetThemeResponse {
     pub org_id: Option<id_type::OrganizationId>,
     pub merchant_id: Option<id_type::MerchantId>,
     pub profile_id: Option<id_type::ProfileId>,
+    pub email_config: EmailThemeConfig,
     pub theme_data: ThemeData,
 }
 
@@ -34,13 +38,17 @@ pub struct UploadFileRequest {
 pub struct CreateThemeRequest {
     pub lineage: ThemeLineage,
     pub theme_name: String,
+    pub email_theme_data: EmailThemeConfig,
     pub theme_data: ThemeData,
+    pub email_config: EmailThemeConfig,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateThemeRequest {
     pub lineage: ThemeLineage,
+    pub email_theme_data: EmailThemeConfig,
     pub theme_data: ThemeData,
+    // TODO: Add support to update email config
 }
 
 // All the below structs are for the theme.json file,

@@ -1,6 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use common_enums::EntityType;
-use common_utils::{id_type, types::theme::ThemeLineage};
+use common_utils::types::theme::ThemeLineage;
 use diesel::{
     associations::HasTable,
     debug_query,
@@ -11,7 +10,6 @@ use diesel::{
 };
 use error_stack::{report, ResultExt};
 use router_env::logger;
-use strum::IntoEnumIterator;
 
 use crate::{
     errors::DatabaseError,
@@ -90,24 +88,18 @@ impl Theme {
 
     pub async fn find_most_specific_theme_in_lineage(
         conn: &PgPooledConn,
-        tenant_id: id_type::TenantId,
-        org_id: id_type::OrganizationId,
-        merchant_id: id_type::MerchantId,
-        profile_id: id_type::ProfileId,
-        min_entity: EntityType,
+        lineage: ThemeLineage,
     ) -> StorageResult<Self> {
         let query = <Self as HasTable>::table().into_boxed();
 
-        let query = EntityType::iter().fold(query, |mut query, entity_type| {
-            query = query.or_filter(Self::lineage_filter(ThemeLineage::new(
-                entity_type,
-                tenant_id.clone(),
-                org_id.clone(),
-                merchant_id.clone(),
-                profile_id.clone(),
-            )));
-            query
-        });
+        let query =
+            lineage
+                .get_same_and_higher_lineages()
+                .into_iter()
+                .fold(query, |mut query, lineage| {
+                    query = query.or_filter(Self::lineage_filter(lineage));
+                    query
+                });
 
         logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
@@ -125,7 +117,6 @@ impl Theme {
         }?;
 
         data.into_iter()
-            .filter(|theme| theme.entity_type >= min_entity)
             .min_by_key(|theme| theme.entity_type)
             .ok_or(report!(DatabaseError::NotFound))
     }

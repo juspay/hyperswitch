@@ -1,4 +1,5 @@
 use common_enums::EntityType;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     events::{ApiEventMetric, ApiEventsType},
@@ -7,7 +8,7 @@ use crate::{
 
 /// Enum for having all the required lineage for every level.
 /// Currently being used for theme related APIs and queries.
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "entity_type", rename_all = "snake_case")]
 pub enum ThemeLineage {
     // TODO: Add back Tenant variant when we introduce Tenant Variant in EntityType
@@ -48,6 +49,30 @@ pub enum ThemeLineage {
 impl_api_event_type!(Miscellaneous, (ThemeLineage));
 
 impl ThemeLineage {
+    /// Constructor for ThemeLineage
+    pub fn new(
+        entity_type: EntityType,
+        tenant_id: id_type::TenantId,
+        org_id: id_type::OrganizationId,
+        merchant_id: id_type::MerchantId,
+        profile_id: id_type::ProfileId,
+    ) -> Self {
+        match entity_type {
+            EntityType::Organization => Self::Organization { tenant_id, org_id },
+            EntityType::Merchant => Self::Merchant {
+                tenant_id,
+                org_id,
+                merchant_id,
+            },
+            EntityType::Profile => Self::Profile {
+                tenant_id,
+                org_id,
+                merchant_id,
+                profile_id,
+            },
+        }
+    }
+
     /// Get the entity_type from the lineage
     pub fn entity_type(&self) -> EntityType {
         match self {
@@ -92,30 +117,53 @@ impl ThemeLineage {
             Self::Profile { profile_id, .. } => Some(profile_id),
         }
     }
-}
 
-impl ThemeLineage {
-    /// Constructor for ThemeLineage
-    pub fn new(
-        entity_type: EntityType,
-        tenant_id: id_type::TenantId,
-        org_id: id_type::OrganizationId,
-        merchant_id: id_type::MerchantId,
-        profile_id: id_type::ProfileId,
-    ) -> Self {
-        match entity_type {
-            EntityType::Organization => Self::Organization { tenant_id, org_id },
-            EntityType::Merchant => Self::Merchant {
+    /// Get higher lineages from the current lineage
+    pub fn get_same_and_higher_lineages(self) -> Vec<ThemeLineage> {
+        match &self {
+            Self::Organization { .. } => vec![self],
+            Self::Merchant {
+                tenant_id, org_id, ..
+            } => vec![
+                ThemeLineage::Organization {
+                    tenant_id: tenant_id.clone(),
+                    org_id: org_id.clone(),
+                },
+                self,
+            ],
+            Self::Profile {
                 tenant_id,
                 org_id,
                 merchant_id,
-            },
-            EntityType::Profile => Self::Profile {
-                tenant_id,
-                org_id,
-                merchant_id,
-                profile_id,
-            },
+                ..
+            } => vec![
+                ThemeLineage::Organization {
+                    tenant_id: tenant_id.clone(),
+                    org_id: org_id.clone(),
+                },
+                ThemeLineage::Merchant {
+                    tenant_id: tenant_id.clone(),
+                    org_id: org_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                },
+                self,
+            ],
         }
     }
+}
+
+/// Struct for holding the theme settings for email
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct EmailThemeConfig {
+    /// The entity name to be used in the email
+    pub entity_name: String,
+
+    /// The URL of the entity logo to be used in the email
+    pub entity_logo: String,
+
+    /// The primary color to be used in the email
+    pub primary_color: String,
+
+    /// The secondary color to be used in the email
+    pub secondary_color: String,
 }

@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use common_enums::EntityType;
-use common_utils::{id_type, types::theme::ThemeLineage};
+use common_utils::{ext_traits::AsyncExt, id_type, types::theme::ThemeLineage};
+use diesel_models::user::theme::Theme;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 
@@ -159,14 +160,15 @@ async fn validate_profile(
     Ok(())
 }
 
-pub async fn get_most_specific_theme_id_using_token_and_min_entity(
+pub async fn get_most_specific_theme_using_token_and_min_entity(
     state: &SessionState,
     user_from_token: &UserFromToken,
     min_entity: EntityType,
-) -> UserResult<Option<String>> {
-    match state
-        .global_store
-        .find_most_specific_theme_in_lineage(
+) -> UserResult<Option<Theme>> {
+    get_most_specific_theme_using_lineage(
+        state,
+        ThemeLineage::new(
+            min_entity,
             user_from_token
                 .tenant_id
                 .clone()
@@ -174,11 +176,41 @@ pub async fn get_most_specific_theme_id_using_token_and_min_entity(
             user_from_token.org_id.clone(),
             user_from_token.merchant_id.clone(),
             user_from_token.profile_id.clone(),
-            min_entity,
-        )
+        ),
+    )
+    .await
+}
+
+pub async fn get_most_specific_theme_using_lineage(
+    state: &SessionState,
+    lineage: ThemeLineage,
+) -> UserResult<Option<Theme>> {
+    match state
+        .global_store
+        .find_most_specific_theme_in_lineage(lineage)
         .await
     {
-        Ok(theme) => Ok(Some(theme.theme_id)),
+        Ok(theme) => Ok(Some(theme)),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                Ok(None)
+            } else {
+                Err(UserErrors::InternalServerError.into())
+            }
+        }
+    }
+}
+
+pub async fn get_theme_using_optional_theme_id(
+    state: &SessionState,
+    theme_id: Option<String>,
+) -> UserResult<Option<Theme>> {
+    match theme_id
+        .async_map(|theme_id| state.global_store.find_theme_by_theme_id(theme_id))
+        .await
+        .transpose()
+    {
+        Ok(theme) => Ok(theme),
         Err(e) => {
             if e.current_context().is_db_not_found() {
                 Ok(None)

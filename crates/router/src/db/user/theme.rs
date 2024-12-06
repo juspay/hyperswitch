@@ -1,8 +1,6 @@
-use common_enums::EntityType;
-use common_utils::{id_type, types::theme::ThemeLineage};
+use common_utils::types::theme::ThemeLineage;
 use diesel_models::user::theme as storage;
 use error_stack::report;
-use strum::IntoEnumIterator;
 
 use super::MockDb;
 use crate::{
@@ -25,11 +23,7 @@ pub trait ThemeInterface {
 
     async fn find_most_specific_theme_in_lineage(
         &self,
-        tenant_id: id_type::TenantId,
-        org_id: id_type::OrganizationId,
-        merchant_id: id_type::MerchantId,
-        profile_id: id_type::ProfileId,
-        min_entity: EntityType,
+        lineage: ThemeLineage,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
 
     async fn find_theme_by_lineage(
@@ -69,23 +63,12 @@ impl ThemeInterface for Store {
 
     async fn find_most_specific_theme_in_lineage(
         &self,
-        tenant_id: id_type::TenantId,
-        org_id: id_type::OrganizationId,
-        merchant_id: id_type::MerchantId,
-        profile_id: id_type::ProfileId,
-        min_entity: EntityType,
+        lineage: ThemeLineage,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Theme::find_most_specific_theme_in_lineage(
-            &conn,
-            tenant_id,
-            org_id,
-            merchant_id,
-            profile_id,
-            min_entity,
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        storage::Theme::find_most_specific_theme_in_lineage(&conn, lineage)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn find_theme_by_lineage(
@@ -206,6 +189,10 @@ impl ThemeInterface for MockDb {
             last_modified_at: new_theme.last_modified_at,
             entity_type: new_theme.entity_type,
             theme_name: new_theme.theme_name,
+            email_primary_color: new_theme.email_primary_color,
+            email_secondary_color: new_theme.email_secondary_color,
+            email_entity_name: new_theme.email_entity_name,
+            email_entity_logo: new_theme.email_entity_logo,
         };
         themes.push(theme.clone());
 
@@ -232,24 +219,10 @@ impl ThemeInterface for MockDb {
 
     async fn find_most_specific_theme_in_lineage(
         &self,
-        tenant_id: id_type::TenantId,
-        org_id: id_type::OrganizationId,
-        merchant_id: id_type::MerchantId,
-        profile_id: id_type::ProfileId,
-        min_entity: EntityType,
+        lineage: ThemeLineage,
     ) -> CustomResult<storage::Theme, errors::StorageError> {
         let themes = self.themes.lock().await;
-        let lineages = EntityType::iter()
-            .map(|entity| {
-                ThemeLineage::new(
-                    entity,
-                    tenant_id.clone(),
-                    org_id.clone(),
-                    merchant_id.clone(),
-                    profile_id.clone(),
-                )
-            })
-            .collect::<Vec<_>>();
+        let lineages = lineage.get_same_and_higher_lineages();
 
         themes
             .iter()
@@ -258,7 +231,6 @@ impl ThemeInterface for MockDb {
                     .iter()
                     .any(|lineage| check_theme_with_lineage(theme, lineage))
             })
-            .filter(|theme| theme.entity_type >= min_entity)
             .min_by_key(|theme| theme.entity_type)
             .ok_or(
                 errors::StorageError::ValueNotFound("No theme found in lineage".to_string()).into(),

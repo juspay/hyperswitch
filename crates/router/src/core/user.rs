@@ -72,13 +72,15 @@ pub async fn signup_with_merchant_id(
         )
         .await?;
 
+    let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
     let email_contents = email_types::ResetPassword {
         recipient_email: user_from_db.get_email().try_into()?,
         user_name: domain::UserName::new(user_from_db.get_name())?,
         settings: state.conf.clone(),
         subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
-        theme_id,
+        theme: theme.map(Into::into),
     };
 
     let send_email_result = state
@@ -111,7 +113,7 @@ pub async fn get_user_details(
     .await
     .change_context(UserErrors::InternalServerError)?;
 
-    let theme_id = theme_utils::get_most_specific_theme_id_using_token_and_min_entity(
+    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
         &state,
         &user_from_token,
         EntityType::Profile,
@@ -131,7 +133,7 @@ pub async fn get_user_details(
             recovery_codes_left: user.get_recovery_codes().map(|codes| codes.len()),
             profile_id: user_from_token.profile_id,
             entity_type: role_info.get_entity_type(),
-            theme_id,
+            theme_id: theme.map(|theme| theme.theme_id),
         },
     ))
 }
@@ -211,13 +213,15 @@ pub async fn connect_account(
     if let Ok(found_user) = find_user {
         let user_from_db: domain::UserFromStorage = found_user.into();
 
+        let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
         let email_contents = email_types::MagicLink {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             user_name: domain::UserName::new(user_from_db.get_name())?,
             subject: consts::user::EMAIL_SUBJECT_MAGIC_LINK,
             auth_id,
-            theme_id,
+            theme: theme.map(Into::into),
         };
 
         let send_email_result = state
@@ -262,12 +266,14 @@ pub async fn connect_account(
             )
             .await?;
 
+        let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
         let magic_link_email = email_types::VerifyEmail {
             recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
             settings: state.conf.clone(),
             subject: consts::user::EMAIL_SUBJECT_SIGNUP,
             auth_id,
-            theme_id,
+            theme: theme.map(Into::into),
         };
 
         let magic_link_result = state
@@ -280,20 +286,22 @@ pub async fn connect_account(
 
         logger::info!(?magic_link_result);
 
-        let welcome_to_community_email = email_types::WelcomeToCommunity {
-            recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
-            subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
-        };
+        if state.tenant.tenant_id.get_string_repr() == common_utils::consts::DEFAULT_TENANT {
+            let welcome_to_community_email = email_types::WelcomeToCommunity {
+                recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+                subject: consts::user::EMAIL_SUBJECT_WELCOME_TO_COMMUNITY,
+            };
 
-        let welcome_email_result = state
-            .email_client
-            .compose_and_send_email(
-                Box::new(welcome_to_community_email),
-                state.conf.proxy.https_url.as_ref(),
-            )
-            .await;
+            let welcome_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    Box::new(welcome_to_community_email),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
 
-        logger::info!(?welcome_email_result);
+            logger::info!(?welcome_email_result);
+        }
 
         return Ok(ApplicationResponse::Json(
             user_api::ConnectAccountResponse {
@@ -398,13 +406,15 @@ pub async fn forgot_password(
         })
         .map(domain::UserFromStorage::from)?;
 
+    let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
     let email_contents = email_types::ResetPassword {
         recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
         settings: state.conf.clone(),
         user_name: domain::UserName::new(user_from_db.get_name())?,
         subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
-        theme_id,
+        theme: theme.map(Into::into),
     };
 
     state
@@ -776,7 +786,7 @@ async fn handle_existing_user_invitation(
             },
         };
 
-        let theme_id = theme_utils::get_most_specific_theme_id_using_token_and_min_entity(
+        let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
             state,
             user_from_token,
             role_info.get_entity_type(),
@@ -790,7 +800,7 @@ async fn handle_existing_user_invitation(
             subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
-            theme_id,
+            theme: theme.map(Into::into),
         };
 
         is_email_sent = state
@@ -917,29 +927,12 @@ async fn handle_new_user_invitation(
             },
         };
 
-        let theme_id = match state
-            .global_store
-            .find_most_specific_theme_in_lineage(
-                user_from_token
-                    .tenant_id
-                    .clone()
-                    .unwrap_or(state.tenant.tenant_id.clone()),
-                user_from_token.org_id.clone(),
-                user_from_token.merchant_id.clone(),
-                user_from_token.profile_id.clone(),
-                role_info.get_entity_type(),
-            )
-            .await
-        {
-            Ok(theme) => Some(theme.theme_id),
-            Err(e) => {
-                if e.current_context().is_db_not_found() {
-                    None
-                } else {
-                    return Err(UserErrors::InternalServerError.into());
-                }
-            }
-        };
+        let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+            state,
+            user_from_token,
+            role_info.get_entity_type(),
+        )
+        .await?;
 
         let email_contents = email_types::InviteUser {
             recipient_email: invitee_email,
@@ -948,7 +941,7 @@ async fn handle_new_user_invitation(
             subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
-            theme_id,
+            theme: theme.map(Into::into),
         };
         let send_email_result = state
             .email_client
@@ -1072,29 +1065,12 @@ pub async fn resend_invite(
 
     let role_info = user_from_token.get_role_info_from_db(&state).await?;
 
-    let theme_id = match state
-        .global_store
-        .find_most_specific_theme_in_lineage(
-            user_from_token
-                .tenant_id
-                .clone()
-                .unwrap_or(state.tenant.tenant_id.clone()),
-            user_from_token.org_id.clone(),
-            user_from_token.merchant_id.clone(),
-            user_from_token.profile_id.clone(),
-            role_info.get_entity_type(),
-        )
-        .await
-    {
-        Ok(theme) => Some(theme.theme_id),
-        Err(e) => {
-            if e.current_context().is_db_not_found() {
-                None
-            } else {
-                return Err(UserErrors::InternalServerError.into());
-            }
-        }
-    };
+    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+        &state,
+        &user_from_token,
+        role_info.get_entity_type(),
+    )
+    .await?;
 
     let email_contents = email_types::InviteUser {
         recipient_email: invitee_email,
@@ -1106,7 +1082,7 @@ pub async fn resend_invite(
             entity_type,
         },
         auth_id: auth_id.clone(),
-        theme_id,
+        theme: theme.map(Into::into),
     };
 
     state
@@ -1651,12 +1627,14 @@ pub async fn send_verification_mail(
         return Err(UserErrors::UserAlreadyVerified.into());
     }
 
+    let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
     let email_contents = email_types::VerifyEmail {
         recipient_email: domain::UserEmail::from_pii_email(user.email)?,
         settings: state.conf.clone(),
         subject: consts::user::EMAIL_SUBJECT_SIGNUP,
         auth_id,
-        theme_id,
+        theme: theme.map(Into::into),
     };
 
     state
