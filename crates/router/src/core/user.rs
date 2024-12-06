@@ -1593,27 +1593,6 @@ pub async fn send_verification_mail(
     Ok(ApplicationResponse::StatusOk)
 }
 
-#[cfg(feature = "recon")]
-pub async fn verify_token(
-    state: SessionState,
-    user: auth::UserFromToken,
-) -> UserResponse<user_api::VerifyTokenResponse> {
-    let user_in_db = user
-        .get_user_from_db(&state)
-        .await
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed to fetch the user from DB for user_id - {}",
-                user.user_id
-            )
-        })?;
-
-    Ok(ApplicationResponse::Json(user_api::VerifyTokenResponse {
-        merchant_id: user.merchant_id.to_owned(),
-        user_email: user_in_db.0.email,
-    }))
-}
-
 pub async fn update_user_details(
     state: SessionState,
     user_token: auth::UserFromToken,
