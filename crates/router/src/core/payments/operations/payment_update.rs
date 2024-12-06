@@ -102,7 +102,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         )?;
 
         helpers::validate_payment_status_against_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[
                 storage_enums::IntentStatus::RequiresPaymentMethod,
                 storage_enums::IntentStatus::RequiresConfirmation,

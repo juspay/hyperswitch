@@ -2403,7 +2403,7 @@ pub async fn terminate_auth_select(
 
     // Skip SSO if continue with password(TOTP)
     if next_flow.get_flow() == domain::UserFlow::SPTFlow(domain::SPTFlow::SSO)
-        && !utils::user::is_sso_auth_type(&user_authentication_method.auth_type)
+        && !utils::user::is_sso_auth_type(user_authentication_method.auth_type)
     {
         next_flow = next_flow.skip(user_from_db, &state).await?;
     }

@@ -121,6 +121,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
+                    | enums::CaptureMethod::SequentialAutomatic
                     | enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple => Ok(()),
                     enums::CaptureMethod::Scheduled => {
@@ -140,7 +141,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Klarna
                 | PaymentMethodType::Twint
                 | PaymentMethodType::Walley => match capture_method {
-                    enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+                    enums::CaptureMethod::Automatic
+                    | enums::CaptureMethod::Manual
+                    | enums::CaptureMethod::SequentialAutomatic => Ok(()),
                     enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => {
                         capture_method_not_supported!(
                             connector,
@@ -199,7 +202,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::OpenBankingUk
                 | PaymentMethodType::OnlineBankingCzechRepublic
                 | PaymentMethodType::PermataBankTransfer => match capture_method {
-                    enums::CaptureMethod::Automatic => Ok(()),
+                    enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
+                        Ok(())
+                    }
                     enums::CaptureMethod::Manual
                     | enums::CaptureMethod::ManualMultiple
                     | enums::CaptureMethod::Scheduled => {
@@ -240,6 +245,7 @@ impl ConnectorValidation for Adyen {
             },
             None => match capture_method {
                 enums::CaptureMethod::Automatic
+                | enums::CaptureMethod::SequentialAutomatic
                 | enums::CaptureMethod::Manual
                 | enums::CaptureMethod::ManualMultiple => Ok(()),
                 enums::CaptureMethod::Scheduled => {
@@ -1929,6 +1935,27 @@ impl api::IncomingWebhook for Adyen {
                     }
                 });
         Ok(mandate_reference)
+    }
+
+    fn get_network_txn_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let optional_network_txn_id =
+            notif
+                .additional_data
+                .network_tx_reference
+                .map(|network_txn_id| {
+                    hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId::new(
+                        network_txn_id,
+                    )
+                });
+        Ok(optional_network_txn_id)
     }
 }
 

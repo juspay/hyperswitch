@@ -1379,7 +1379,7 @@ pub async fn add_delete_tokenized_data_task(
         lookup_key: lookup_key.to_owned(),
         pm,
     };
-    let schedule_time = get_delete_tokenize_schedule_time(db, &pm, 0)
+    let schedule_time = get_delete_tokenize_schedule_time(db, pm, 0)
         .await
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to obtain initial process tracker schedule time")?;
@@ -1434,8 +1434,7 @@ pub async fn start_tokenize_data_workflow(
         }
         Err(err) => {
             logger::error!("Err: Deleting Card From Locker : {:?}", err);
-            retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
-                .await?;
+            retry_delete_tokenize(db, delete_tokenize_data.pm, tokenize_tracker.to_owned()).await?;
             metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         }
     }
@@ -1444,7 +1443,7 @@ pub async fn start_tokenize_data_workflow(
 
 pub async fn get_delete_tokenize_schedule_time(
     db: &dyn db::StorageInterface,
-    pm: &enums::PaymentMethod,
+    pm: enums::PaymentMethod,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let redis_mapping = db::get_and_deserialize_key(
@@ -1467,7 +1466,7 @@ pub async fn get_delete_tokenize_schedule_time(
 
 pub async fn retry_delete_tokenize(
     db: &dyn db::StorageInterface,
-    pm: &enums::PaymentMethod,
+    pm: enums::PaymentMethod,
     pt: storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
