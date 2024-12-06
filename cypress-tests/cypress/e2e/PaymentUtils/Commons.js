@@ -149,9 +149,7 @@ with `getCustomExchange`, if 501 response is expected, there is no need to pass 
 
 // Const to get default PaymentExchange object
 const getDefaultExchange = () => ({
-  Request: {
-    currency: "EUR",
-  },
+  Request: {},
   Response: {
     status: 501,
     body: {

@@ -115,9 +115,14 @@ export function getValueByKey(jsonObject, key, keyNumber = 0) {
             "connector_account_details"
           )
         ) {
-          Cypress.env("MULTIPLE_CONNECTORS", {
-            status: true,
-            count: keys.length,
+          cy.task("getSharedState").then((state) => {
+            if (typeof state.MULTIPLE_CONNECTORS === "undefined") {
+              const MULTIPLE_CONNECTORS = {
+                status: true,
+                count: keys.length,
+              };
+              cy.task("setSharedState", { MULTIPLE_CONNECTORS });
+            }
           });
 
           return currentItem;
