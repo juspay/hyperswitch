@@ -252,7 +252,6 @@ pub enum PaymentMethodUpdate {
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<serde_json::Value>,
-        transaction_flow: Option<storage_enums::PaymentDirection>,
     },
     NetworkTokenDataUpdate {
         network_token_requestor_reference_id: Option<String>,
@@ -298,7 +297,6 @@ pub enum PaymentMethodUpdate {
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<PaymentsMandateReference>,
-        transaction_flow: Option<storage_enums::PaymentDirection>,
     },
 }
 
@@ -643,7 +641,6 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
-                transaction_flow,
             } => Self {
                 metadata: None,
                 payment_method_data: None,
@@ -660,7 +657,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified: common_utils::date_time::now(),
                 network_token_locker_id: None,
                 network_token_payment_method_data: None,
-                transaction_flow,
+                transaction_flow: None,
                 scheme: None,
             },
             PaymentMethodUpdate::NetworkTokenDataUpdate {
@@ -833,7 +830,6 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
-                transaction_flow,
             } => Self {
                 payment_method_data: None,
                 last_used_at: None,
@@ -848,7 +844,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_locker_id: None,
                 network_token_requestor_reference_id: None,
                 network_token_payment_method_data: None,
-                transaction_flow,
+                transaction_flow: None,
             },
         }
     }
