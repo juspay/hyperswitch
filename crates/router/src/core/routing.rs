@@ -190,7 +190,7 @@ pub async fn create_routing_algorithm_under_profile(
     let all_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            &key_manager_state,
+            key_manager_state,
             merchant_id,
             true,
             &key_store,
