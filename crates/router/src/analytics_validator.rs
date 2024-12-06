@@ -12,7 +12,6 @@ pub async fn request_validator(
 ) -> CustomResult<Option<ExchangeRates>, AnalyticsError> {
     let forex_enabled = state.conf.analytics.get_inner().get_forex_enabled();
     let require_forex_functionality = req_type.requires_forex_functionality();
-    // other validation logic based on `req_type` goes here
 
     let ex_rates = if forex_enabled && require_forex_functionality {
         logger::info!("Fetching forex exchange rates");
