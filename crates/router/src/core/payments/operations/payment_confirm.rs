@@ -115,7 +115,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         .contains(&header_payload.payment_confirm_source)
         {
             helpers::validate_payment_status_against_not_allowed_statuses(
-                &payment_intent.status,
+                payment_intent.status,
                 &[
                     storage_enums::IntentStatus::Cancelled,
                     storage_enums::IntentStatus::Succeeded,
@@ -127,7 +127,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )?;
         } else {
             helpers::validate_payment_status_against_not_allowed_statuses(
-                &payment_intent.status,
+                payment_intent.status,
                 &[
                     storage_enums::IntentStatus::Cancelled,
                     storage_enums::IntentStatus::Succeeded,
@@ -639,12 +639,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         } else {
             None
         };
-        payment_attempt.payment_method_data = additional_pm_data_from_locker
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode additional pm data")?;
+        // Only set `payment_attempt.payment_method_data` if `additional_pm_data_from_locker` is not None
+        if let Some(additional_pm_data) = additional_pm_data_from_locker.as_ref() {
+            payment_attempt.payment_method_data = Some(
+                Encode::encode_to_value(additional_pm_data)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode additional pm data")?,
+            );
+        }
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
 

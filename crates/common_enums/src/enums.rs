@@ -353,6 +353,8 @@ pub enum CaptureMethod {
     ManualMultiple,
     /// The capture can be scheduled to automatically get triggered at a specific date & time
     Scheduled,
+    /// Handles separate auth and capture sequentially; same as `Automatic` for most connectors.
+    SequentialAutomatic,
 }
 
 /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
@@ -597,13 +599,13 @@ pub enum Currency {
 
 impl Currency {
     /// Convert the amount to its base denomination based on Currency and return String
-    pub fn to_currency_base_unit(&self, amount: i64) -> Result<String, TryFromIntError> {
+    pub fn to_currency_base_unit(self, amount: i64) -> Result<String, TryFromIntError> {
         let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
         Ok(format!("{amount_f64:.2}"))
     }
 
     /// Convert the amount to its base denomination based on Currency and return f64
-    pub fn to_currency_base_unit_asf64(&self, amount: i64) -> Result<f64, TryFromIntError> {
+    pub fn to_currency_base_unit_asf64(self, amount: i64) -> Result<f64, TryFromIntError> {
         let amount_f64: f64 = u32::try_from(amount)?.into();
         let amount = if self.is_zero_decimal_currency() {
             amount_f64
@@ -616,7 +618,7 @@ impl Currency {
     }
 
     ///Convert the higher decimal amount to its base absolute units
-    pub fn to_currency_lower_unit(&self, amount: String) -> Result<String, ParseFloatError> {
+    pub fn to_currency_lower_unit(self, amount: String) -> Result<String, ParseFloatError> {
         let amount_f64 = amount.parse::<f64>()?;
         let amount_string = if self.is_zero_decimal_currency() {
             amount_f64
@@ -632,7 +634,7 @@ impl Currency {
     /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
     /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
     pub fn to_currency_base_unit_with_zero_decimal_check(
-        &self,
+        self,
         amount: i64,
     ) -> Result<String, TryFromIntError> {
         let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
@@ -643,8 +645,8 @@ impl Currency {
         }
     }
 
-    pub fn iso_4217(&self) -> &'static str {
-        match *self {
+    pub fn iso_4217(self) -> &'static str {
+        match self {
             Self::AED => "784",
             Self::AFN => "971",
             Self::ALL => "008",
@@ -1299,7 +1301,7 @@ pub enum IntentStatus {
 
 impl IntentStatus {
     /// Indicates whether the syncing with the connector should be allowed or not
-    pub fn should_force_sync_with_connector(&self) -> bool {
+    pub fn should_force_sync_with_connector(self) -> bool {
         match self {
             // Confirm has not happened yet
             Self::RequiresConfirmation
@@ -2493,7 +2495,7 @@ pub enum ClientPlatform {
 }
 
 impl PaymentSource {
-    pub fn is_for_internal_use_only(&self) -> bool {
+    pub fn is_for_internal_use_only(self) -> bool {
         match self {
             Self::Dashboard | Self::Sdk | Self::MerchantServer | Self::Postman => false,
             Self::Webhook | Self::ExternalAuthenticator => true,
@@ -2588,7 +2590,7 @@ pub enum AuthenticationConnectors {
 }
 
 impl AuthenticationConnectors {
-    pub fn is_separate_version_call_required(&self) -> bool {
+    pub fn is_separate_version_call_required(self) -> bool {
         match self {
             Self::Threedsecureio | Self::Netcetera => false,
             Self::Gpayments => true,
@@ -2622,15 +2624,15 @@ pub enum AuthenticationStatus {
 }
 
 impl AuthenticationStatus {
-    pub fn is_terminal_status(&self) -> bool {
+    pub fn is_terminal_status(self) -> bool {
         match self {
             Self::Started | Self::Pending => false,
             Self::Success | Self::Failed => true,
         }
     }
 
-    pub fn is_failed(&self) -> bool {
-        self == &Self::Failed
+    pub fn is_failed(self) -> bool {
+        self == Self::Failed
     }
 }
 
@@ -3338,6 +3340,16 @@ pub enum PresenceOfCustomerDuringPayment {
     Present,
     /// Customer is absent during the payment
     Absent,
+}
+
+impl From<ConnectorType> for TransactionType {
+    fn from(connector_type: ConnectorType) -> Self {
+        match connector_type {
+            #[cfg(feature = "payouts")]
+            ConnectorType::PayoutProcessor => Self::Payout,
+            _ => Self::Payment,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]

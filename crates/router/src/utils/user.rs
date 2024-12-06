@@ -268,7 +268,7 @@ pub fn get_oidc_sso_redirect_url(state: &SessionState, provider: &str) -> String
     format!("{}/redirect/oidc/{}", state.conf.user.base_url, provider)
 }
 
-pub fn is_sso_auth_type(auth_type: &UserAuthType) -> bool {
+pub fn is_sso_auth_type(auth_type: UserAuthType) -> bool {
     match auth_type {
         UserAuthType::OpenIdConnect => true,
         UserAuthType::Password | UserAuthType::MagicLink => false,

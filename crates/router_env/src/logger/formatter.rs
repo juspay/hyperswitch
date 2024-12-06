@@ -330,7 +330,7 @@ where
     /// Serialize event into a buffer of bytes using parent span.
     pub fn event_serialize<S>(
         &self,
-        span: &Option<&SpanRef<'_, S>>,
+        span: Option<&SpanRef<'_, S>>,
         event: &Event<'_>,
     ) -> std::io::Result<Vec<u8>>
     where
@@ -347,7 +347,7 @@ where
         let name = span.map_or("?", SpanRef::name);
         Self::event_message(span, event, &mut storage);
 
-        self.common_serialize(&mut map_serializer, event.metadata(), *span, &storage, name)?;
+        self.common_serialize(&mut map_serializer, event.metadata(), span, &storage, name)?;
 
         map_serializer.end()?;
         Ok(buffer)
@@ -366,11 +366,8 @@ where
     /// Format message of an event.
     ///
     /// Examples: "[FN_WITHOUT_COLON - EVENT] Message"
-    fn event_message<S>(
-        span: &Option<&SpanRef<'_, S>>,
-        event: &Event<'_>,
-        storage: &mut Storage<'_>,
-    ) where
+    fn event_message<S>(span: Option<&SpanRef<'_, S>>, event: &Event<'_>, storage: &mut Storage<'_>)
+    where
         S: Subscriber + for<'a> LookupSpan<'a>,
     {
         // Get value of kept "message" or "target" if does not exist.
@@ -397,7 +394,7 @@ where
         // Event could have no span.
         let span = ctx.lookup_current();
 
-        let result: std::io::Result<Vec<u8>> = self.event_serialize(&span.as_ref(), event);
+        let result: std::io::Result<Vec<u8>> = self.event_serialize(span.as_ref(), event);
         if let Ok(formatted) = result {
             let _ = self.flush(formatted);
         }
