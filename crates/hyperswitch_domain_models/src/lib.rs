@@ -133,6 +133,8 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             brand,
             product_type,
             product_tax_code,
+            tax_rate,
+            total_tax_amount,
         } = from;
         Self {
             product_name,
@@ -146,6 +148,8 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             brand,
             product_type,
             product_tax_code,
+            tax_rate,
+            total_tax_amount,
         }
     }
 
@@ -162,6 +166,8 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             brand,
             product_type,
             product_tax_code,
+            tax_rate,
+            total_tax_amount,
         } = self;
         ApiOrderDetailsWithAmount {
             product_name,
@@ -175,6 +181,8 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             brand,
             product_type,
             product_tax_code,
+            tax_rate,
+            total_tax_amount,
         }
     }
 }

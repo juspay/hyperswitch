@@ -582,8 +582,12 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<u64>, example = 6540)]
     #[serde(default, deserialize_with = "amount::deserialize_option")]
     #[mandatory_in(PaymentsCreateRequest = u64)]
-    // Makes the field mandatory in PaymentsCreateRequest
+    /// Makes the field mandatory in PaymentsCreateRequest
     pub amount: Option<Amount>,
+
+    /// Total tax amount applicable to the order
+    #[schema(value_type = i64, example = 6540)]
+    pub order_tax_amount: Option<MinorUnit>,
 
     /// The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars
     #[schema(example = "USD", value_type = Option<Currency>)]
@@ -1151,6 +1155,9 @@ pub struct PaymentAttemptResponse {
     /// The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
+    /// The payment attempt tax_amount.
+    #[schema(value_type = i64, example = 6540)]
+    pub order_tax_amount: Option<MinorUnit>,
     /// The currency of the amount of the payment attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<enums::Currency>,
@@ -1701,6 +1708,7 @@ pub enum PayLaterData {
         /// The token for the sdk workflow
         token: String,
     },
+    KlarnaCheckout {},
     /// For Affirm redirect as PayLater Option
     AffirmRedirect {},
     /// For AfterpayClearpay redirect as PayLater Option
@@ -1758,6 +1766,7 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
             | Self::WalleyRedirect {}
             | Self::AlmaRedirect {}
             | Self::KlarnaSdk { .. }
+            | Self::KlarnaCheckout {}
             | Self::AffirmRedirect {}
             | Self::AtomeRedirect {} => None,
         }
@@ -2204,6 +2213,7 @@ impl GetPaymentMethodType for PayLaterData {
         match self {
             Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
             Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
+            Self::KlarnaCheckout {} => api_enums::PaymentMethodType::Klarna,
             Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
             Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
             Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
@@ -2462,6 +2472,12 @@ pub enum AdditionalPaymentData {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct KlarnaSdkPaymentMethod {
+    pub payment_type: Option<String>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+
+pub struct KlarnaCheckoutPaymentMethod {
     pub payment_type: Option<String>,
 }
 
@@ -3687,7 +3703,6 @@ pub enum WalletResponseData {
 pub struct KlarnaSdkPaymentMethodResponse {
     pub payment_type: Option<String>,
 }
-
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct PaymentMethodDataResponseWithBilling {
     // The struct is flattened in order to provide backwards compatibility
@@ -5166,6 +5181,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 Some(sdk) => Self::PayLater(Box::new(PaylaterResponse::from(sdk))),
                 None => Self::PayLater(Box::new(PaylaterResponse { klarna_sdk: None })),
             },
+
             AdditionalPaymentData::Wallet {
                 apple_pay,
                 google_pay,
@@ -5291,8 +5307,7 @@ pub struct PaymentsRetrieveRequest {
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
 }
-
-#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct OrderDetailsWithAmount {
     /// Name of the product that is being purchased
     #[schema(max_length = 255, example = "shirt")]
@@ -5302,6 +5317,10 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: MinorUnit,
+    /// tax rate applicable to the product
+    pub tax_rate: Option<f64>,
+    /// total tax amount applicable to the product
+    pub total_tax_amount: Option<MinorUnit>,
     // Does the order includes shipping
     pub requires_shipping: Option<bool>,
     /// The image URL of the product
@@ -5321,32 +5340,6 @@ pub struct OrderDetailsWithAmount {
 }
 
 impl masking::SerializableSecret for OrderDetailsWithAmount {}
-
-#[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct OrderDetails {
-    /// Name of the product that is being purchased
-    #[schema(max_length = 255, example = "shirt")]
-    pub product_name: String,
-    /// The quantity of the product to be purchased
-    #[schema(example = 1)]
-    pub quantity: u16,
-    // Does the order include shipping
-    pub requires_shipping: Option<bool>,
-    /// The image URL of the product
-    pub product_img_link: Option<String>,
-    /// ID of the product that is being purchased
-    pub product_id: Option<String>,
-    /// Category of the product that is being purchased
-    pub category: Option<String>,
-    /// Sub category of the product that is being purchased
-    pub sub_category: Option<String>,
-    /// Brand of the product that is being purchased
-    pub brand: Option<String>,
-    /// Type of the product that is being purchased
-    pub product_type: Option<ProductType>,
-    /// The tax code for the product
-    pub product_tax_code: Option<String>,
-}
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct RedirectResponse {

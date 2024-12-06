@@ -992,6 +992,7 @@ impl TryFrom<&domain::payments::PayLaterData> for StripePaymentMethodType {
             }
 
             domain::PayLaterData::KlarnaSdk { .. }
+            | domain::PayLaterData::KlarnaCheckout {}
             | domain::PayLaterData::PayBrightRedirect {}
             | domain::PayLaterData::WalleyRedirect {}
             | domain::PayLaterData::AlmaRedirect {}
