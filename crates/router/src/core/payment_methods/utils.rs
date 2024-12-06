@@ -96,7 +96,7 @@ fn compile_pm_graph(
                 domain_id,
                 supported_payment_methods_for_update_mandate,
                 pmt.clone(),
-                &pm_enabled.payment_method,
+                pm_enabled.payment_method,
             );
             if let Ok(Some(connector_eligible_for_update_mandates_node)) = res {
                 agg_or_nodes_for_mandate_filters.push((
@@ -200,7 +200,7 @@ fn compile_pm_graph(
                 .or_else(|| config.0.get("default"))
                 .map(|inner| {
                     if let Ok(Some(capture_method_filter)) =
-                        construct_capture_method_node(builder, inner, &pmt.payment_method_type)
+                        construct_capture_method_node(builder, inner, pmt.payment_method_type)
                     {
                         agg_nodes.push((
                             capture_method_filter,
@@ -214,7 +214,7 @@ fn compile_pm_graph(
             if let Ok(Some(country_node)) = compile_accepted_countries_for_mca(
                 builder,
                 domain_id,
-                &pmt.payment_method_type,
+                pmt.payment_method_type,
                 pmt.accepted_countries,
                 config,
                 connector.clone(),
@@ -230,7 +230,7 @@ fn compile_pm_graph(
             if let Ok(Some(currency_node)) = compile_accepted_currency_for_mca(
                 builder,
                 domain_id,
-                &pmt.payment_method_type,
+                pmt.payment_method_type,
                 pmt.accepted_currencies,
                 config,
                 connector.clone(),
@@ -274,7 +274,7 @@ fn construct_supported_connectors_for_update_mandate_node(
     domain_id: cgraph::DomainId,
     supported_payment_methods_for_update_mandate: &settings::SupportedPaymentMethodsForMandate,
     pmt: RequestPaymentMethodTypes,
-    payment_method: &enums::PaymentMethod,
+    payment_method: enums::PaymentMethod,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     let card_value_node = builder.make_value_node(
         cgraph::NodeValue::Value(dir::DirValue::PaymentMethod(enums::PaymentMethod::Card)),
@@ -296,9 +296,9 @@ fn construct_supported_connectors_for_update_mandate_node(
 
     if let Some(supported_pm_for_mandates) = supported_payment_methods_for_update_mandate
         .0
-        .get(payment_method)
+        .get(&payment_method)
     {
-        if payment_method == &enums::PaymentMethod::Card {
+        if payment_method == enums::PaymentMethod::Card {
             if let Some(credit_connector_list) = supported_pm_for_mandates
                 .0
                 .get(&api_enums::PaymentMethodType::Credit)
@@ -498,12 +498,12 @@ fn construct_supported_connectors_for_mandate_node(
 fn construct_capture_method_node(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     payment_method_filters: &settings::PaymentMethodFilters,
-    payment_method_type: &api_enums::PaymentMethodType,
+    payment_method_type: api_enums::PaymentMethodType,
 ) -> Result<Option<cgraph::NodeId>, KgraphError> {
     if !payment_method_filters
         .0
         .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-            *payment_method_type,
+            payment_method_type,
         ))
         .and_then(|v| v.not_available_flows)
         .and_then(|v| v.capture_method)
@@ -542,7 +542,7 @@ fn construct_capture_method_node(
 fn compile_accepted_countries_for_mca(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     domain_id: cgraph::DomainId,
-    payment_method_type: &enums::PaymentMethodType,
+    payment_method_type: enums::PaymentMethodType,
     pm_countries: Option<admin::AcceptedCountries>,
     config: &settings::ConnectorFilters,
     connector: String,
@@ -608,7 +608,7 @@ fn compile_accepted_countries_for_mca(
             derived_config
                 .0
                 .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                    *payment_method_type,
+                    payment_method_type,
                 ))
         {
             if let Some(config_countries) = value.country.as_ref() {
@@ -636,7 +636,7 @@ fn compile_accepted_countries_for_mca(
                 default_derived_config
                     .0
                     .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                        *payment_method_type,
+                        payment_method_type,
                     ))
             {
                 if let Some(config_countries) = value.country.as_ref() {
@@ -673,7 +673,7 @@ fn compile_accepted_countries_for_mca(
 fn compile_accepted_currency_for_mca(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     domain_id: cgraph::DomainId,
-    payment_method_type: &enums::PaymentMethodType,
+    payment_method_type: enums::PaymentMethodType,
     pm_currency: Option<admin::AcceptedCurrencies>,
     config: &settings::ConnectorFilters,
     connector: String,
@@ -730,14 +730,14 @@ fn compile_accepted_currency_for_mca(
             derived_config
                 .0
                 .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                    *payment_method_type,
+                    payment_method_type,
                 ))
         {
             if let Some(config_currencies) = value.currency.as_ref() {
                 let config_currency: Vec<common_enums::Currency> =
                     Vec::from_iter(config_currencies)
                         .into_iter()
-                        .cloned()
+                        .copied()
                         .collect();
 
                 let dir_currencies: Vec<dir::DirValue> = config_currency
@@ -760,14 +760,14 @@ fn compile_accepted_currency_for_mca(
                 default_derived_config
                     .0
                     .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
-                        *payment_method_type,
+                        payment_method_type,
                     ))
             {
                 if let Some(config_currencies) = value.currency.as_ref() {
                     let config_currency: Vec<common_enums::Currency> =
                         Vec::from_iter(config_currencies)
                             .into_iter()
-                            .cloned()
+                            .copied()
                             .collect();
 
                     let dir_currencies: Vec<dir::DirValue> = config_currency

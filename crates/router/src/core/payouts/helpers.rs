@@ -1010,11 +1010,11 @@ pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
 }
 
 pub(crate) fn validate_payout_status_against_not_allowed_statuses(
-    payout_status: &api_enums::PayoutStatus,
+    payout_status: api_enums::PayoutStatus,
     not_allowed_statuses: &[api_enums::PayoutStatus],
     action: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(not_allowed_statuses.contains(payout_status), || {
+    fp_utils::when(not_allowed_statuses.contains(&payout_status), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
                 "You cannot {action} this payout because it has status {payout_status}",

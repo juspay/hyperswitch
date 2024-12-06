@@ -92,7 +92,6 @@ pub struct ConditionalConfigReq {
     pub algorithm: Option<Program<ConditionalConfigs>>,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-
 pub struct DecisionManagerRequest {
     pub name: Option<String>,
     pub program: Option<Program<ConditionalConfigs>>,

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::payments::{self, Address, AddressDetails, PhoneDetails};
+use api_models::payments;
 use base64::Engine;
 use common_enums::{
     enums,
@@ -221,7 +221,7 @@ pub(crate) fn generate_random_bytes(length: usize) -> Vec<u8> {
 
 pub(crate) fn missing_field_err(
     message: &'static str,
-) -> Box<dyn Fn() -> error_stack::Report<errors::ConnectorError> + '_> {
+) -> Box<dyn Fn() -> error_stack::Report<errors::ConnectorError> + 'static> {
     Box::new(move || {
         errors::ConnectorError::MissingRequiredField {
             field_name: message,
@@ -401,6 +401,7 @@ pub trait RouterData {
     fn get_optional_shipping_state(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_email(&self) -> Option<Email>;
 
@@ -468,6 +469,12 @@ impl<Flow, Request, Response> RouterData
                 .address
                 .and_then(|shipping_details| shipping_details.last_name)
         })
+    }
+
+    fn get_optional_shipping_full_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping()
+            .and_then(|shipping_details| shipping_details.address.as_ref())
+            .and_then(|shipping_address| shipping_address.get_optional_full_name())
     }
 
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>> {
@@ -1279,12 +1286,15 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_card_holder_name_from_additional_payment_method_data(
         &self,
     ) -> Result<Secret<String>, Error>;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1457,7 +1467,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .into()),
         }
     }
-
+    /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
         self.mandate_id
             .as_ref()
@@ -1503,7 +1513,9 @@ pub trait PaymentsSyncRequestData {
 impl PaymentsSyncRequestData for PaymentsSyncData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1630,12 +1642,15 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_mandate_payment(&self) -> bool;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1670,6 +1685,20 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
     }
+    /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_request_reference_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+            .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
+    }
 }
 pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
@@ -1691,7 +1720,9 @@ pub trait PaymentsPreProcessingRequestData {
 impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
                 Err(errors::ConnectorError::CaptureMethodNotSupported.into())

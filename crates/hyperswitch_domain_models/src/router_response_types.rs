@@ -5,7 +5,10 @@ use std::collections::HashMap;
 use common_utils::{request::Method, types as common_types, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
-use crate::router_request_types::{authentication::AuthNFlowType, ResponseId};
+use crate::{
+    errors::api_error_response::ApiErrorResponse,
+    router_request_types::{authentication::AuthNFlowType, ResponseId},
+};
 #[derive(Debug, Clone)]
 pub struct RefundsResponseData {
     pub connector_refund_id: String,
@@ -116,6 +119,91 @@ impl CaptureSyncResponse {
                 ..
             } => connector_response_reference_id.clone(),
             Self::Error { .. } => None,
+        }
+    }
+}
+impl PaymentsResponseData {
+    pub fn get_connector_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
+        match self {
+            Self::TransactionResponse {
+                connector_metadata, ..
+            }
+            | Self::PreProcessingResponse {
+                connector_metadata, ..
+            } => connector_metadata.clone().map(masking::Secret::new),
+            _ => None,
+        }
+    }
+
+    pub fn get_connector_transaction_id(
+        &self,
+    ) -> Result<String, error_stack::Report<ApiErrorResponse>> {
+        match self {
+            Self::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(txn_id),
+                ..
+            } => Ok(txn_id.to_string()),
+            _ => Err(ApiErrorResponse::MissingRequiredField {
+                field_name: "ConnectorTransactionId",
+            }
+            .into()),
+        }
+    }
+    pub fn merge_transaction_responses(
+        auth_response: &Self,
+        capture_response: &Self,
+    ) -> Result<Self, error_stack::Report<ApiErrorResponse>> {
+        match (auth_response, capture_response) {
+            (
+                Self::TransactionResponse {
+                    resource_id: _,
+                    redirection_data: auth_redirection_data,
+                    mandate_reference: auth_mandate_reference,
+                    connector_metadata: auth_connector_metadata,
+                    network_txn_id: auth_network_txn_id,
+                    connector_response_reference_id: auth_connector_response_reference_id,
+                    incremental_authorization_allowed: auth_incremental_auth_allowed,
+                    charge_id: auth_charge_id,
+                },
+                Self::TransactionResponse {
+                    resource_id: capture_resource_id,
+                    redirection_data: capture_redirection_data,
+                    mandate_reference: capture_mandate_reference,
+                    connector_metadata: capture_connector_metadata,
+                    network_txn_id: capture_network_txn_id,
+                    connector_response_reference_id: capture_connector_response_reference_id,
+                    incremental_authorization_allowed: capture_incremental_auth_allowed,
+                    charge_id: capture_charge_id,
+                },
+            ) => Ok(Self::TransactionResponse {
+                resource_id: capture_resource_id.clone(),
+                redirection_data: Box::new(
+                    capture_redirection_data
+                        .clone()
+                        .or_else(|| *auth_redirection_data.clone()),
+                ),
+                mandate_reference: Box::new(
+                    auth_mandate_reference
+                        .clone()
+                        .or_else(|| *capture_mandate_reference.clone()),
+                ),
+                connector_metadata: capture_connector_metadata
+                    .clone()
+                    .or(auth_connector_metadata.clone()),
+                network_txn_id: capture_network_txn_id
+                    .clone()
+                    .or(auth_network_txn_id.clone()),
+                connector_response_reference_id: capture_connector_response_reference_id
+                    .clone()
+                    .or(auth_connector_response_reference_id.clone()),
+                incremental_authorization_allowed: (*capture_incremental_auth_allowed)
+                    .or(*auth_incremental_auth_allowed),
+                charge_id: capture_charge_id.clone().or(auth_charge_id.clone()),
+            }),
+            _ => Err(ApiErrorResponse::NotSupported {
+                message: "Invalid Flow ".to_owned(),
+            }
+            .into()),
         }
     }
 }

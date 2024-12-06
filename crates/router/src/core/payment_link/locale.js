@@ -17,6 +17,7 @@ The languages supported by locale.js are:
  15) Swedish (sv)
  16) Russian (ru)
  17) Chinese (zh)
+ 19) Traditional Chinese (zh_Hant)
 */
 const locales = {
     en: {
@@ -548,7 +549,38 @@ const locales = {
       notAllowed: "您没有权限查看此内容。",
       errorCode: "错误代码",
       errorMessage: "错误信息"
-    }
+    },
+    zh_Hant: {
+      expiresOn: "連結到期日期：",
+      refId: "參考編號：",
+      requestedBy: "請求者 ",
+      payNow: "立即付款",
+      yourCart: "你的購物車",
+      quantity: "數量",
+      showLess: "顯示較少",
+      showMore: "顯示更多",
+      miscellaneousCharges: "雜項費用",
+      miscellaneousChargesDetail: "(包括稅金、運費、折扣、優惠等)",
+      paymentTakingLonger: "抱歉！您的付款處理時間比預期長。請稍後再查看。",
+      paymentLinkExpired: "付款連結已過期",
+      paymentReceived: "我們已成功收到您的付款",
+      paymentLinkExpiredMessage: "抱歉，此付款連結已過期。請使用以下參考進行進一步調查。",
+      paidSuccessfully: "付款成功",
+      paymentPending: "付款待處理",
+      paymentFailed: "付款失敗！",
+      paymentCancelled: "付款已取消",
+      paymentUnderReview: "付款正在審核中",
+      paymentSuccess: "支付成功",
+      partialPaymentCaptured: "部分付款已被捕獲。",
+      somethingWentWrong: "出了點問題",
+      redirecting: "重定向...",
+      redirectingIn: "重定向到",
+      seconds: " 秒...",
+      unexpectedError: "發生了意外錯誤。",
+      notAllowed: "您無權查看此內容。",
+      errorCode: "錯誤代碼",
+      errorMessage: "錯誤訊息"
+    },
   };
 
   function getTranslations(locale_str) {

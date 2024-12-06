@@ -5,7 +5,7 @@ use quote::{quote, ToTokens};
 use strum::IntoEnumIterator;
 use syn::{self, parse::Parse, DeriveInput};
 
-use crate::macros::helpers::{self};
+use crate::macros::helpers;
 
 #[derive(Debug, Clone, Copy, strum::EnumString, strum::EnumIter, strum::Display)]
 #[strum(serialize_all = "snake_case")]

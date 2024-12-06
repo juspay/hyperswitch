@@ -123,7 +123,7 @@ x509-parser = "0.16.0"
 # First party crates
 
 analytics = { version = "0.1.0", path = "../analytics", optional = true, default-features = false }
-api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
+api_models = { version = "0.1.0", path = "../api_models", features = ["errors", "control_center_theme"] }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager", "encryption_service"] }

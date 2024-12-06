@@ -258,6 +258,7 @@ pub trait Capturable {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Capturable for PaymentsAuthorizeData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -281,7 +282,7 @@ impl Capturable for PaymentsAuthorizeData {
     {
         match payment_data.get_capture_method().unwrap_or_default()
         {
-            common_enums::CaptureMethod::Automatic => {
+            common_enums::CaptureMethod::Automatic|common_enums::CaptureMethod::SequentialAutomatic  => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
                 match intent_status {
                     common_enums::IntentStatus::Succeeded
@@ -306,6 +307,7 @@ impl Capturable for PaymentsAuthorizeData {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Capturable for PaymentsCaptureData {
     fn get_captured_amount<F>(&self, _payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -338,6 +340,7 @@ impl Capturable for PaymentsCaptureData {
     }
 }
 
+#[cfg(feature = "v1")]
 impl Capturable for CompleteAuthorizeData {
     fn get_captured_amount<F>(&self, payment_data: &PaymentData<F>) -> Option<i64>
     where
@@ -362,7 +365,7 @@ impl Capturable for CompleteAuthorizeData {
             .get_capture_method()
             .unwrap_or_default()
         {
-            common_enums::CaptureMethod::Automatic => {
+            common_enums::CaptureMethod::Automatic | common_enums::CaptureMethod::SequentialAutomatic => {
                 let intent_status = common_enums::IntentStatus::foreign_from(attempt_status);
                 match intent_status {
                     common_enums::IntentStatus::Succeeded|
@@ -386,6 +389,7 @@ impl Capturable for CompleteAuthorizeData {
         }
     }
 }
+
 impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsTaxCalculationData {}
 impl Capturable for SdkPaymentsSessionUpdateData {}

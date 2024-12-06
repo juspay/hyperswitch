@@ -248,15 +248,15 @@ pub enum SessionSurchargeDetails {
 impl SessionSurchargeDetails {
     pub fn fetch_surcharge_details(
         &self,
-        payment_method: &enums::PaymentMethod,
-        payment_method_type: &enums::PaymentMethodType,
+        payment_method: enums::PaymentMethod,
+        payment_method_type: enums::PaymentMethodType,
         card_network: Option<&enums::CardNetwork>,
     ) -> Option<payments_types::SurchargeDetails> {
         match self {
             Self::Calculated(surcharge_metadata) => surcharge_metadata
                 .get_surcharge_details(payments_types::SurchargeKey::PaymentMethodData(
-                    *payment_method,
-                    *payment_method_type,
+                    payment_method,
+                    payment_method_type,
                     card_network.cloned(),
                 ))
                 .cloned(),
@@ -367,7 +367,7 @@ impl ConnectorData {
                     Ok(ConnectorEnum::Old(Box::new(connector::Cryptopay::new())))
                 }
                 enums::Connector::Cybersource => {
-                    Ok(ConnectorEnum::Old(Box::new(&connector::Cybersource)))
+                    Ok(ConnectorEnum::Old(Box::new(connector::Cybersource::new())))
                 }
                 enums::Connector::Datatrans => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Datatrans::new())))
