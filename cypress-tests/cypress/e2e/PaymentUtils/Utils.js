@@ -262,3 +262,105 @@ export function createProfileAndConnector(
     }
   });
 }
+
+// Helper function to get connector configuration
+function getConnectorConfig(globalState) {
+  const connectorConfigs = getConnectorDetails(globalState.get("connectorId"))[
+    "multi_credential_config"
+  ] || { value: "connector_1" };
+
+  const connectorMap = {
+    connector_1: { index: 0, iterations: 1 },
+    connector_2: { index: 1, iterations: 1 },
+  };
+
+  return connectorMap[connectorConfigs.value];
+}
+
+export function createBusinessProfile(createBusinessProfileBody, globalState) {
+  cy.task("getSharedState").then((state) => {
+    const multipleConnectors = state.MULTIPLE_CONNECTORS;
+    cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+
+    if (multipleConnectors?.status) {
+      const currentConnector = getConnectorConfig(globalState);
+      const profilePrefix =
+        currentConnector.index === 0
+          ? "profile"
+          : `profile${currentConnector.index}`;
+
+      cy.createBusinessProfileTest(
+        createBusinessProfileBody,
+        globalState,
+        profilePrefix
+      );
+    }
+  });
+}
+
+export function createMerchantConnectorAccount(
+  paymentType,
+  createMerchantConnectorAccountBody,
+  globalState,
+  paymentMethodsEnabled
+) {
+  cy.task("getSharedState").then((state) => {
+    const multipleConnectors = state.MULTIPLE_CONNECTORS;
+    cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+
+    if (multipleConnectors?.status) {
+      const currentConnector = getConnectorConfig(globalState);
+      const profilePrefix =
+        currentConnector.index === 0
+          ? "profile"
+          : `profile${currentConnector.index}`;
+      const connectorPrefix =
+        currentConnector.index === 0
+          ? "merchantConnector"
+          : `merchantConnector${currentConnector.index}`;
+
+      cy.createConnectorCallTest(
+        paymentType,
+        createMerchantConnectorAccountBody,
+        paymentMethodsEnabled,
+        globalState,
+        profilePrefix,
+        connectorPrefix
+      );
+    }
+  });
+}
+
+export function updateBusinessProfile(
+  updateBusinessProfileBody,
+  is_connector_agnostic_enabled,
+  collect_billing_address_from_wallet_connector,
+  collect_shipping_address_from_wallet_connector,
+  always_collect_billing_address_from_wallet_connector,
+  always_collect_shipping_address_from_wallet_connector,
+  globalState
+) {
+  cy.task("getSharedState").then((state) => {
+    const multipleConnectors = state.MULTIPLE_CONNECTORS;
+    cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+
+    if (multipleConnectors?.status) {
+      const currentConnector = getConnectorConfig(globalState);
+      const profilePrefix =
+        currentConnector.index === 0
+          ? "profile"
+          : `profile${currentConnector.index}`;
+
+      cy.UpdateBusinessProfileTest(
+        updateBusinessProfileBody,
+        is_connector_agnostic_enabled,
+        collect_billing_address_from_wallet_connector,
+        collect_shipping_address_from_wallet_connector,
+        always_collect_billing_address_from_wallet_connector,
+        always_collect_shipping_address_from_wallet_connector,
+        globalState,
+        profilePrefix
+      );
+    }
+  });
+}
