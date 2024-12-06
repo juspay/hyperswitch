@@ -406,7 +406,7 @@ pub trait ConnectorValidation: ConnectorCommon {
         } else {
             match capture_method {
                 CaptureMethod::Automatic
-                | enums::CaptureMethod::SequentialAutomatic => Ok(()),
+                | CaptureMethod::SequentialAutomatic => Ok(()),
                 CaptureMethod::Manual
                 | CaptureMethod::ManualMultiple
                 | CaptureMethod::Scheduled => Err(errors::ConnectorError::NotSupported {
