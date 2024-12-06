@@ -405,8 +405,7 @@ pub trait ConnectorValidation: ConnectorCommon {
             }
         } else {
             match capture_method {
-                CaptureMethod::Automatic
-                | CaptureMethod::SequentialAutomatic => Ok(()),
+                CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => Ok(()),
                 CaptureMethod::Manual
                 | CaptureMethod::ManualMultiple
                 | CaptureMethod::Scheduled => Err(errors::ConnectorError::NotSupported {
