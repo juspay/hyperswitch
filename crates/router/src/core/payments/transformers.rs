@@ -3130,6 +3130,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             order_details,
             surcharge_details: payment_data.surcharge_details,
             email: payment_data.email,
+            apple_pay_recurring_details: payment_data.apple_pay_recurring_details,
         })
     }
 }
@@ -3176,6 +3177,22 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
         // net_amount here would include amount, surcharge_amount and shipping_cost
         let net_amount = amount + surcharge_amount + shipping_cost;
 
+        let apple_pay_recurring_details = payment_data
+            .payment_intent
+            .feature_metadata
+            .and_then(|feature_metadata| {
+                Some(
+                    feature_metadata
+                        .parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed parsing FeatureMetadata"),
+                )
+            })
+            .transpose()?
+            .map(|feature_metadata| feature_metadata.apple_pay_recurring_details)
+            .flatten()
+            .map(ForeignInto::foreign_into);
+
         Ok(Self {
             amount: net_amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
@@ -3191,7 +3208,42 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             order_details,
             email: payment_data.email,
             surcharge_details: payment_data.surcharge_details,
+            apple_pay_recurring_details,
         })
+    }
+}
+
+impl ForeignFrom<api_models::payments::ApplePayRecurringDetails>
+    for api_models::payments::ApplePayRecurringPaymentRequest
+{
+    fn foreign_from(
+        apple_pay_recurring_details: api_models::payments::ApplePayRecurringDetails,
+    ) -> Self {
+        Self {
+            payment_description: apple_pay_recurring_details.payment_description,
+            regular_billing: api_models::payments::ApplePayRegularBillingRequest {
+                amount: apple_pay_recurring_details
+                    .regular_billing
+                    .amount
+                    .to_string(),
+                label: apple_pay_recurring_details.regular_billing.label,
+                payment_timing: api_models::payments::ApplePayPaymentTiming::Recurring,
+                recurring_payment_start_date: apple_pay_recurring_details
+                    .regular_billing
+                    .recurring_payment_start_date,
+                recurring_payment_end_date: apple_pay_recurring_details
+                    .regular_billing
+                    .recurring_payment_end_date,
+                recurring_payment_interval_unit: apple_pay_recurring_details
+                    .regular_billing
+                    .recurring_payment_interval_unit,
+                recurring_payment_interval_count: apple_pay_recurring_details
+                    .regular_billing
+                    .recurring_payment_interval_count,
+            },
+            billing_agreement: apple_pay_recurring_details.billing_agreement,
+            management_url: apple_pay_recurring_details.management_url,
+        }
     }
 }
 
