@@ -869,6 +869,7 @@ pub struct PaymentsRequest {
     pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
 
     /// Service details for external authentication
+    #[schema(value_type = Option<ServiceDetails>)]
     pub service_details: Option<ServiceDetails>,
 }
 
