@@ -11634,7 +11634,7 @@ impl Default for settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.bank_debit.ach_bank_debit.routing_number".to_string(),
                                                 display_name: "bank_routing_number".to_string(),
-                                                field_type: enums::FieldType::Text,
+                                                field_type: enums::FieldType::UserBankRoutingNumber,
                                                 value: None,
                                             }
                                         )
@@ -11676,7 +11676,7 @@ impl Default for settings::RequiredFields {
                                                     RequiredFieldInfo {
                                                         required_field: "payment_method_data.bank_debit.ach_bank_debit.routing_number".to_string(),
                                                         display_name: "bank_routing_number".to_string(),
-                                                        field_type: enums::FieldType::Text,
+                                                        field_type: enums::FieldType::UserBankRoutingNumber,
                                                         value: None,
                                                     }
                                                 )
@@ -11845,7 +11845,7 @@ impl Default for settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.bank_debit.bacs_bank_debit.sort_code".to_string(),
                                                 display_name: "bank_sort_code".to_string(),
-                                                field_type: enums::FieldType::Text,
+                                                field_type: enums::FieldType::UserBankSortCode,
                                                 value: None,
                                             }
                                         ),
@@ -11917,7 +11917,7 @@ impl Default for settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_debit.bacs_bank_debit.sort_code".to_string(),
                                                     display_name: "bank_sort_code".to_string(),
-                                                    field_type: enums::FieldType::Text,
+                                                    field_type: enums::FieldType::UserBankSortCode,
                                                     value: None,
                                                 }
                                             )
@@ -11967,7 +11967,7 @@ impl Default for settings::RequiredFields {
                                             RequiredFieldInfo {
                                                 required_field: "payment_method_data.bank_debit.becs_bank_debit.bsb_number".to_string(),
                                                 display_name: "bsb_number".to_string(),
-                                                field_type: enums::FieldType::Text,
+                                                field_type: enums::FieldType::UserBsbNumber,
                                                 value: None,
                                             }
                                         ),
@@ -12019,7 +12019,7 @@ impl Default for settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "payment_method_data.bank_debit.becs_bank_debit.sort_code".to_string(),
                                                     display_name: "bank_sort_code".to_string(),
-                                                    field_type: enums::FieldType::Text,
+                                                    field_type: enums::FieldType::UserBankSortCode,
                                                     value: None,
                                                 }
                                             )
