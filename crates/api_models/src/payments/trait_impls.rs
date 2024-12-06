@@ -23,7 +23,7 @@ impl crate::ValidateFieldAndGet<payments::PaymentsRequest>
             | Some(enums::CaptureMethod::SequentialAutomatic)
             | None => Err(error_stack::report!(errors::ValidationError::InvalidValue { message: "request_extended_authorization must be sent only if capture method is manual or manual_multiple".to_string() })),
             Some(enums::CaptureMethod::Manual)
-            | Some(enums::CaptureMethod::ManualMultiple) => Ok(self.clone())
+            | Some(enums::CaptureMethod::ManualMultiple) => Ok(*self)
         }
     }
 }
