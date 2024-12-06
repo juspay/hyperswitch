@@ -660,11 +660,11 @@ pub fn get_payment_link_config_based_on_priority(
             }),
         details_layout: payment_create_link_config
             .as_ref()
-            .and_then(|payment_link_config| payment_link_config.theme_config.details_layout.clone())
+            .and_then(|payment_link_config| payment_link_config.theme_config.details_layout)
             .or_else(|| {
                 business_theme_configs
                     .as_ref()
-                    .and_then(|business_theme_config| business_theme_config.details_layout.clone())
+                    .and_then(|business_theme_config| business_theme_config.details_layout)
             }),
         background_image: payment_create_link_config
             .as_ref()

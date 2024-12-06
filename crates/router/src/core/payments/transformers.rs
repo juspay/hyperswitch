@@ -3723,11 +3723,9 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
                     .collect()
             }),
             background_image: config.background_image.map(|background_image| {
-                background_image.map(|background_image| {
-                    diesel_models::PaymentLinkBackgroundImageConfig::foreign_from(
-                        background_image.clone(),
-                    )
-                })
+                diesel_models::business_profile::PaymentLinkBackgroundImageConfig::foreign_from(
+                    background_image.clone(),
+                )
             }),
         }
     }
@@ -3787,11 +3785,9 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
                     .collect()
             }),
             background_image: config.background_image.map(|background_image| {
-                background_image.map(|background_image| {
-                    api_models::admin::PaymentLinkBackgroundImageConfig::foreign_from(
-                        details.clone(),
-                    )
-                })
+                api_models::admin::PaymentLinkBackgroundImageConfig::foreign_from(
+                    background_image.clone(),
+                )
             }),
         }
     }

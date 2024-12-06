@@ -12360,6 +12360,35 @@
           }
         }
       },
+      "PaymentLinkBackgroundImageConfig": {
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "URL of the image",
+            "example": "https://hyperswitch.io/favicon.ico"
+          },
+          "position": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ElementPosition"
+              }
+            ],
+            "nullable": true
+          },
+          "size": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ElementSize"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentLinkConfig": {
         "type": "object",
         "required": [
@@ -12529,6 +12558,13 @@
             "nullable": true
           }
         }
+      },
+      "PaymentLinkDetailsLayout": {
+        "type": "string",
+        "enum": [
+          "layout1",
+          "layout2"
+        ]
       },
       "PaymentLinkInitiateRequest": {
         "type": "object",
