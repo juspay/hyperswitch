@@ -4,6 +4,15 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.04.0-hotfix1
+
+### Features
+
+- **payments:** [Payment links] Add support for traditional chinese locale for payment links ([#6765](https://github.com/juspay/hyperswitch/pull/6765)) ([`763c0bc`](https://github.com/juspay/hyperswitch/commit/763c0bc19c2794aa5f4082696b9a33445e1fe8aa))
+- **webhooks:** Adyen - consume and update connector's network_transaction_id in payment_methods ([#6759](https://github.com/juspay/hyperswitch/pull/6759)) ([`6762768`](https://github.com/juspay/hyperswitch/commit/676276837aa6acca20757a333d4ada9a371c2465))
+
+- - -
+
 ## 2024.12.04.0
 
 ### Features
