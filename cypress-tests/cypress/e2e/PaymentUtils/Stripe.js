@@ -122,6 +122,10 @@ const requiredFields = {
 };
 
 export const connectorDetails = {
+  multi_credential_config: {
+    specName: ["connectorAgnostic"],
+    value: "connector_2",
+  },
   card_pm: {
     PaymentIntent: {
       Request: {
