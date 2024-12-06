@@ -17091,6 +17091,14 @@
               }
             ],
             "nullable": true
+          },
+          "service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -17466,6 +17474,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceDetails"
               }
             ],
             "nullable": true
@@ -18671,6 +18687,14 @@
               }
             ],
             "nullable": true
+          },
+          "service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -19709,6 +19733,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ScaExemptionType"
+              }
+            ],
+            "nullable": true
+          },
+          "service_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ServiceDetails"
               }
             ],
             "nullable": true

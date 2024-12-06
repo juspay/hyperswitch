@@ -868,16 +868,16 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<ScaExemptionType>)]
     pub psd2_sca_exemption_type: Option<api_enums::ScaExemptionType>,
 
-    /// Service Details for network authentication
+    /// Service details for external authentication
     #[schema(value_type = Option<ServiceDetails>)]
-    pub service_details: Option<ServiceDetails>
+    pub service_details: Option<ServiceDetails>,
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct ServiceDetails {
-    merchant_transaction_id: Option<String>,
-    correlation_id: Option<String>,
-    x_src_flow_id: Option<String>
+    pub merchant_transaction_id: Option<String>,
+    pub correlation_id: Option<String>,
+    pub x_src_flow_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
