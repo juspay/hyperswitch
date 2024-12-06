@@ -1,11 +1,8 @@
 mod transformers;
 
-use std::{
-    collections::{hash_map, HashMap},
-    hash::{Hash, Hasher},
-    str::FromStr,
-    sync::Arc,
-};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use std::collections::hash_map;
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing as api_routing;
@@ -33,10 +30,7 @@ use kgraph_utils::{
     types::CountryCurrencyFilter,
 };
 use masking::PeekInterface;
-use rand::{
-    distributions::{self, Distribution},
-    SeedableRng,
-};
+use rand::distributions::{self, Distribution};
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
