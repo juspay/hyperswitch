@@ -12229,35 +12229,6 @@
           }
         }
       },
-      "PaymentChargeResponse": {
-        "type": "object",
-        "description": "Fee information to be charged on the payment being collected",
-        "required": [
-          "charge_type",
-          "application_fees",
-          "transfer_account_id"
-        ],
-        "properties": {
-          "charge_id": {
-            "type": "string",
-            "description": "Identifier for charge created for the payment",
-            "nullable": true
-          },
-          "charge_type": {
-            "$ref": "#/components/schemas/PaymentChargeType"
-          },
-          "application_fees": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Platform fees collected on the payment",
-            "example": 6540
-          },
-          "transfer_account_id": {
-            "type": "string",
-            "description": "Identifier for the reseller's account where the funds were transferred"
-          }
-        }
-      },
       "PaymentChargeType": {
         "oneOf": [
           {
@@ -14785,10 +14756,10 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeResponse"
+                "$ref": "#/components/schemas/SplitPaymentsResponse"
               }
             ],
             "nullable": true
@@ -15685,10 +15656,10 @@
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
-          "charges": {
+          "split_payments": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentChargeResponse"
+                "$ref": "#/components/schemas/SplitPaymentsResponse"
               }
             ],
             "nullable": true
@@ -17995,7 +17966,7 @@
           "split_refunds": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/SplitRefundRequest"
+                "$ref": "#/components/schemas/SplitRefund"
               }
             ],
             "nullable": true
@@ -19621,22 +19592,37 @@
             ],
             "properties": {
               "stripe_split_payment": {
-                "$ref": "#/components/schemas/StripeSplitPayment"
+                "$ref": "#/components/schemas/StripeSplitPaymentRequest"
               }
             }
           }
         ],
         "description": "Fee information for Split Payments to be charged on the payment being collected"
       },
-      "SplitRefundRequest": {
+      "SplitPaymentsResponse": {
         "oneOf": [
           {
             "type": "object",
             "required": [
-              "stripe_split_refund_request"
+              "stripe_split_payment"
             ],
             "properties": {
-              "stripe_split_refund_request": {
+              "stripe_split_payment": {
+                "$ref": "#/components/schemas/StripeSplitPaymentsResponse"
+              }
+            }
+          }
+        ]
+      },
+      "SplitRefund": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "stripe_split_refund"
+            ],
+            "properties": {
+              "stripe_split_refund": {
                 "$ref": "#/components/schemas/StripeSplitRefundRequest"
               }
             }
@@ -19721,7 +19707,7 @@
           "destination"
         ]
       },
-      "StripeSplitPayment": {
+      "StripeSplitPaymentRequest": {
         "type": "object",
         "description": "Fee information for Split Payments to be charged on the payment being collected for Stripe",
         "required": [
@@ -19745,6 +19731,35 @@
           }
         },
         "additionalProperties": false
+      },
+      "StripeSplitPaymentsResponse": {
+        "type": "object",
+        "description": "Fee information to be charged on the payment being collected",
+        "required": [
+          "charge_type",
+          "application_fees",
+          "transfer_account_id"
+        ],
+        "properties": {
+          "charge_id": {
+            "type": "string",
+            "description": "Identifier for charge created for the payment",
+            "nullable": true
+          },
+          "charge_type": {
+            "$ref": "#/components/schemas/PaymentChargeType"
+          },
+          "application_fees": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Platform fees collected on the payment",
+            "example": 6540
+          },
+          "transfer_account_id": {
+            "type": "string",
+            "description": "Identifier for the reseller's account where the funds were transferred"
+          }
+        }
       },
       "StripeSplitRefundRequest": {
         "type": "object",

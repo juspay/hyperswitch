@@ -57,7 +57,7 @@ pub struct RefundRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
-    #[schema(value_type = Option<SplitRefundRequest>)]
+    #[schema(value_type = Option<SplitRefund>)]
     pub split_refunds: Option<SplitRefund>,
 }
 
@@ -204,7 +204,7 @@ pub struct RefundResponse {
     #[schema(value_type = Option<String>)]
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
-    #[schema(value_type = Option<SplitRefundRequest>,)]
+    #[schema(value_type = Option<SplitRefund>,)]
     pub split_refunds: Option<SplitRefund>,
 }
 
