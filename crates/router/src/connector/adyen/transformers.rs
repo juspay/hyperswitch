@@ -4264,6 +4264,7 @@ pub struct AdyenAdditionalDataWH {
     /// Enable recurring details in dashboard to receive this ID, https://docs.adyen.com/online-payments/tokenization/create-and-use-tokens#test-and-go-live
     #[serde(rename = "recurring.recurringDetailReference")]
     pub recurring_detail_reference: Option<Secret<String>>,
+    pub network_tx_reference: Option<Secret<String>>,
 }
 
 #[derive(Debug, Deserialize)]
