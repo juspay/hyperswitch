@@ -63,6 +63,7 @@ pub struct PaymentsAuthorizeData {
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
     pub charges: Option<PaymentCharges>,
+    pub request_extended_authorization: Option<common_types::RequestExtendedAuthorizationBool>,
 
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
