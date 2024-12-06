@@ -29,8 +29,5 @@
     "globals": "^15.13.0",
     "jsqr": "^1.4.0",
     "prettier": "^3.4.1"
-  },
-  "dependencies": {
-    "ci": "^2.3.0"
   }
 }

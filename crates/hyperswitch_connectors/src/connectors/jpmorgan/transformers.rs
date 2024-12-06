@@ -126,7 +126,9 @@ fn map_capture_method(capture_method: enums::CaptureMethod) -> String {
         enums::CaptureMethod::Manual | enums::CaptureMethod::ManualMultiple => {
             String::from("MANUAL")
         }
-        enums::CaptureMethod::Scheduled => String::from("DELAYED"),
+        enums::CaptureMethod::Scheduled | enums::CaptureMethod::SequentialAutomatic => {
+            String::from("DELAYED")
+        }
     }
 }
 
