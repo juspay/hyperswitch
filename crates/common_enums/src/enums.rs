@@ -3343,7 +3343,6 @@ pub enum PresenceOfCustomerDuringPayment {
     Absent,
 }
 
-
 impl From<ConnectorType> for TransactionType {
     fn from(connector_type: ConnectorType) -> Self {
         match connector_type {
