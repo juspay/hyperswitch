@@ -108,7 +108,7 @@ where
                 .into_masked(),
         );
         let merchant_id = (
-            headers::MERCHANTID.to_string(),
+            headers::MERCHANT_ID.to_string(),
             req.merchant_id.get_string_repr().to_string().into_masked(),
         );
         headers.push(auth_header);
@@ -191,10 +191,9 @@ impl ConnectorValidation for Jpmorgan {
         match capture_method {
             enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
             //enums::CaptureMethod::ManualMultiple |
-            enums::CaptureMethod::Scheduled => Err(utils::construct_not_implemented_error_report(
-                capture_method,
-                self.id(),
-            )),
+            enums::CaptureMethod::Scheduled | enums::CaptureMethod::SequentialAutomatic => Err(
+                utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
             enums::CaptureMethod::ManualMultiple => Err(errors::ConnectorError::NotImplemented(
                 //ManualMultiple unimplemented
                 utils::get_unimplemented_payment_method_error_message("Jpmorgan"),
