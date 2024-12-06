@@ -348,7 +348,7 @@ pub trait ConnectorValidation: ConnectorCommon {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            CaptureMethod::Automatic => Ok(()),
+            CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => Ok(()),
             CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
                 Err(errors::ConnectorError::NotSupported {
                     message: capture_method.to_string(),

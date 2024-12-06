@@ -19,10 +19,10 @@ describe("Config Tests", () => {
   context(
     "Update collect_billing_details_from_wallet_connector to true and verifying in payment method list, this config should be true",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -60,24 +60,20 @@ describe("Config Tests", () => {
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("payment_methods-call-test", () => {
@@ -89,10 +85,10 @@ describe("Config Tests", () => {
   context(
     "Update collect_shipping_details_from_wallet_connector to true and verifying in payment method list, this config should be true",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -110,24 +106,20 @@ describe("Config Tests", () => {
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("payment_methods-call-test", () => {
@@ -139,10 +131,10 @@ describe("Config Tests", () => {
   context(
     "Update always_collect_billing_details_from_wallet_connector to true and verifying in payment method list, this config should be true",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -160,24 +152,20 @@ describe("Config Tests", () => {
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("payment_methods-call-test", () => {
@@ -189,10 +177,10 @@ describe("Config Tests", () => {
   context(
     "Update always_collect_shipping_details_from_wallet_connector to true and verifying in payment method list, this config should be true",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -210,24 +198,20 @@ describe("Config Tests", () => {
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("payment_methods-call-test", () => {
@@ -239,10 +223,10 @@ describe("Config Tests", () => {
   context(
     "Update always_collect_shipping_details_from_wallet_connector & collect_shipping_details_from_wallet_connector to true and verifying in payment method list, this config should be true",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -260,24 +244,20 @@ describe("Config Tests", () => {
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("payment_methods-call-test", () => {
@@ -288,10 +268,10 @@ describe("Config Tests", () => {
   context(
     "Update always_collect_billing_details_from_wallet_connector & to collect_billing_details_from_wallet_connector to true and verifying in payment method list, this config should be true",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -309,24 +289,20 @@ describe("Config Tests", () => {
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("payment_methods-call-test", () => {
@@ -338,10 +314,10 @@ describe("Config Tests", () => {
   context(
     "Update all config(Collect address config) to false and verifying in payment method list, both config should be false",
     () => {
-      let should_continue = true;
+      let shouldContinue = true;
 
       beforeEach(function () {
-        if (!should_continue) {
+        if (!shouldContinue) {
           this.skip();
         }
       });
@@ -379,24 +355,20 @@ describe("Config Tests", () => {
       });
 
       it("Create Payment Intent", () => {
-        let data = getConnectorDetails(globalState.get("connectorId"))[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntentOffSession"];
 
-        let req_data = data["Request"];
-        let res_data = data["Response"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-          req_data,
-          res_data,
+          data,
           "no_three_ds",
           "automatic",
           globalState
         );
 
-        if (should_continue)
-          should_continue = utils.should_continue_further(res_data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("payment_methods-call-test", () => {

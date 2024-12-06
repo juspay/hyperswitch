@@ -67,7 +67,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionManagerRetrieveConfig
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
-            | Flow::DecisionManagerUpsertConfig => Self::Routing,
+            | Flow::DecisionManagerUpsertConfig
+            | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
 
@@ -259,7 +260,13 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListMerchantsForUserInOrg
             | Flow::ListProfileForUserInOrgAndMerchant
             | Flow::ListInvitationsForUser
-            | Flow::AuthSelect => Self::User,
+            | Flow::AuthSelect
+            | Flow::GetThemeUsingLineage
+            | Flow::GetThemeUsingThemeId
+            | Flow::UploadFileToThemeStorage
+            | Flow::CreateTheme
+            | Flow::UpdateTheme
+            | Flow::DeleteTheme => Self::User,
 
             Flow::ListRolesV2
             | Flow::ListInvitableRolesAtEntityLevel
