@@ -3932,12 +3932,12 @@ pub struct PaymentsCaptureResponse {
     /// The unique identifier for the payment
     pub id: id_type::GlobalPaymentId,
 
-    /// Amount details related to the payment
-    pub amount: PaymentAmountDetailsResponse,
-
     /// Status of the payment
     #[schema(value_type = IntentStatus, example = "succeeded")]
     pub status: common_enums::IntentStatus,
+
+    /// Amount details related to the payment
+    pub amount: PaymentAmountDetailsResponse,
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq, serde::Serialize)]
