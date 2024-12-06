@@ -1048,6 +1048,19 @@ impl MerchantAccountInterface for KafkaStore {
             .list_multiple_merchant_accounts(state, merchant_ids)
             .await
     }
+
+    #[cfg(feature = "olap")]
+    async fn list_merchant_and_org_ids(
+        &self,
+        state: &KeyManagerState,
+        limit: u32,
+        offset: Option<u32>,
+    ) -> CustomResult<Vec<(id_type::MerchantId, id_type::OrganizationId)>, errors::StorageError>
+    {
+        self.diesel_store
+            .list_merchant_and_org_ids(state, limit, offset)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
