@@ -171,15 +171,15 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "createBusinessProfileTest",
-  (createBusinessProfile, globalState, profile_prefix = "profile") => {
-    const api_key = globalState.get("adminApiKey");
-    const base_url = globalState.get("baseUrl");
-    const connector_id = globalState.get("connectorId");
-    const merchant_id = globalState.get("merchantId");
-    const profile_name = `${connector_id}_${profile_prefix}_${Math.random().toString(36).substring(7)}`;
-    const url = `${base_url}/account/${merchant_id}/business_profile`;
+  (createBusinessProfile, globalState, profilePrefix = "profile") => {
+    const apiKey = globalState.get("adminApiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const connectorId = globalState.get("connectorId");
+    const merchantId = globalState.get("merchantId");
+    const profileName = `${connectorId}_${profilePrefix}_${Math.random().toString(36).substring(7)}`;
+    const url = `${baseUrl}/account/${merchantId}/business_profile`;
 
-    createBusinessProfile.profile_name = profile_name;
+    createBusinessProfile.profile_name = profileName;
 
     cy.request({
       method: "POST",
@@ -187,13 +187,13 @@ Cypress.Commands.add(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": api_key,
+        "api-key": apiKey,
       },
       body: createBusinessProfile,
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-      globalState.set(`${profile_prefix}Id`, response.body.profile_id);
+      globalState.set(`${profilePrefix}Id`, response.body.profile_id);
 
       if (response.status === 200) {
         expect(response.body.profile_id).to.not.to.be.null;
@@ -209,35 +209,39 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "UpdateBusinessProfileTest",
   (
-    updateBusinessProfile,
+    updateBusinessProfileBody,
     is_connector_agnostic_mit_enabled,
     collect_billing_details_from_wallet_connector,
     collect_shipping_details_from_wallet_connector,
     always_collect_billing_details_from_wallet_connector,
     always_collect_shipping_details_from_wallet_connector,
-    globalState
+    globalState,
+    profilePrefix = "profile"
   ) => {
-    updateBusinessProfile.is_connector_agnostic_mit_enabled =
+    updateBusinessProfileBody.is_connector_agnostic_mit_enabled =
       is_connector_agnostic_mit_enabled;
-    updateBusinessProfile.collect_shipping_details_from_wallet_connector =
+    updateBusinessProfileBody.collect_shipping_details_from_wallet_connector =
       collect_shipping_details_from_wallet_connector;
-    updateBusinessProfile.collect_billing_details_from_wallet_connector =
+    updateBusinessProfileBody.collect_billing_details_from_wallet_connector =
       collect_billing_details_from_wallet_connector;
-    updateBusinessProfile.always_collect_billing_details_from_wallet_connector =
+    updateBusinessProfileBody.always_collect_billing_details_from_wallet_connector =
       always_collect_billing_details_from_wallet_connector;
-    updateBusinessProfile.always_collect_shipping_details_from_wallet_connector =
+    updateBusinessProfileBody.always_collect_shipping_details_from_wallet_connector =
       always_collect_shipping_details_from_wallet_connector;
-    const merchant_id = globalState.get("merchantId");
-    const profile_id = globalState.get("profileId");
+
+    const apiKey = globalState.get("adminApiKey");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+
     cy.request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/account/${merchant_id}/business_profile/${profile_id}`,
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
+        "api-key": apiKey,
       },
-      body: updateBusinessProfile,
+      body: updateBusinessProfileBody,
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
@@ -455,14 +459,14 @@ Cypress.Commands.add(
     createConnectorBody,
     payment_methods_enabled,
     globalState,
-    profile_prefix = "profile",
+    profilePrefix = "profile",
     mca_prefix = "merchantConnector"
   ) => {
     const api_key = globalState.get("adminApiKey");
     const base_url = globalState.get("baseUrl");
     const connector_id = globalState.get("connectorId");
     const merchant_id = globalState.get("merchantId");
-    const profile_id = globalState.get(`${profile_prefix}Id`);
+    const profile_id = globalState.get(`${profilePrefix}Id`);
     const url = `${base_url}/account/${merchant_id}/connectors`;
 
     createConnectorBody.connector_type = connectorType;
@@ -477,7 +481,7 @@ Cypress.Commands.add(
         const authDetails = getValueByKey(
           JSON.stringify(jsonContent),
           connector_id,
-          extractIntegerAtEnd(profile_prefix)
+          extractIntegerAtEnd(profilePrefix)
         );
 
         createConnectorBody.connector_account_details =
