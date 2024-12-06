@@ -375,7 +375,7 @@ pub struct MinorUnit(i64);
 
 impl MinorUnit {
     /// gets amount as i64 value will be removed in future
-    pub fn get_amount_as_i64(&self) -> i64 {
+    pub fn get_amount_as_i64(self) -> i64 {
         self.0
     }
 

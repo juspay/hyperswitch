@@ -47,11 +47,11 @@ pub async fn get_multiple_metadata(
     for key in metadata_keys {
         let data = metadata.iter().find(|ele| ele.data_key == key);
         let resp;
-        if data.is_none() && utils::is_backfill_required(&key) {
+        if data.is_none() && utils::is_backfill_required(key) {
             let backfill_data = backfill_metadata(&state, &user, &key).await?;
-            resp = into_response(backfill_data.as_ref(), &key)?;
+            resp = into_response(backfill_data.as_ref(), key)?;
         } else {
-            resp = into_response(data, &key)?;
+            resp = into_response(data, key)?;
         }
         response.push(resp);
     }
@@ -149,7 +149,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
 
 fn into_response(
     data: Option<&DashboardMetadata>,
-    data_type: &DBEnum,
+    data_type: DBEnum,
 ) -> UserResult<api::GetMetaDataResponse> {
     match data_type {
         DBEnum::ProductionAgreement => Ok(api::GetMetaDataResponse::ProductionAgreement(

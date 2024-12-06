@@ -280,7 +280,7 @@ pub trait DataModelExt {
 }
 
 pub(crate) fn diesel_error_to_data_error(
-    diesel_error: &diesel_models::errors::DatabaseError,
+    diesel_error: diesel_models::errors::DatabaseError,
 ) -> StorageError {
     match diesel_error {
         diesel_models::errors::DatabaseError::DatabaseConnectionError => {
@@ -293,7 +293,7 @@ pub(crate) fn diesel_error_to_data_error(
             entity: "entity ",
             key: None,
         },
-        _ => StorageError::DatabaseError(error_stack::report!(*diesel_error)),
+        _ => StorageError::DatabaseError(error_stack::report!(diesel_error)),
     }
 }
 
