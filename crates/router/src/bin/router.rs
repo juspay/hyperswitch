@@ -35,7 +35,7 @@ async fn main() -> ApplicationResult<()> {
 
     // Spawn a thread for collecting metrics at fixed intervals
     metrics::bg_metrics_collector::spawn_metrics_collector(
-        &conf.log.telemetry.bg_metrics_collection_interval_in_secs,
+        conf.log.telemetry.bg_metrics_collection_interval_in_secs,
     );
 
     #[allow(clippy::expect_used)]

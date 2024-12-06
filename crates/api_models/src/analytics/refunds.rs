@@ -43,6 +43,10 @@ pub struct RefundFilters {
     pub refund_type: Vec<RefundType>,
     #[serde(default)]
     pub profile_id: Vec<id_type::ProfileId>,
+    #[serde(default)]
+    pub refund_reason: Vec<String>,
+    #[serde(default)]
+    pub refund_error_message: Vec<String>,
 }
 
 #[derive(
@@ -67,6 +71,8 @@ pub enum RefundDimensions {
     Connector,
     RefundType,
     ProfileId,
+    RefundReason,
+    RefundErrorMessage,
 }
 
 #[derive(
@@ -92,6 +98,44 @@ pub enum RefundMetrics {
     SessionizedRefundCount,
     SessionizedRefundSuccessCount,
     SessionizedRefundProcessedAmount,
+    SessionizedRefundReason,
+    SessionizedRefundErrorMessage,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+pub struct ReasonsResult {
+    pub reason: String,
+    pub count: i64,
+    pub percentage: f64,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+pub struct ErrorMessagesResult {
+    pub error_message: String,
+    pub count: i64,
+    pub percentage: f64,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::AsRefStr,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum RefundDistributions {
+    #[strum(serialize = "refund_reason")]
+    SessionizedRefundReason,
+    #[strum(serialize = "refund_error_message")]
+    SessionizedRefundErrorMessage,
 }
 impl ForexMetric for RefundMetrics {
     fn is_forex_metric(&self) -> bool {
@@ -132,9 +176,10 @@ pub struct RefundMetricsBucketIdentifier {
     pub currency: Option<Currency>,
     pub refund_status: Option<String>,
     pub connector: Option<String>,
-
     pub refund_type: Option<String>,
     pub profile_id: Option<String>,
+    pub refund_reason: Option<String>,
+    pub refund_error_message: Option<String>,
     #[serde(rename = "time_range")]
     pub time_bucket: TimeRange,
     #[serde(rename = "time_bucket")]
@@ -149,6 +194,8 @@ impl Hash for RefundMetricsBucketIdentifier {
         self.connector.hash(state);
         self.refund_type.hash(state);
         self.profile_id.hash(state);
+        self.refund_reason.hash(state);
+        self.refund_error_message.hash(state);
         self.time_bucket.hash(state);
     }
 }
@@ -163,12 +210,15 @@ impl PartialEq for RefundMetricsBucketIdentifier {
 }
 
 impl RefundMetricsBucketIdentifier {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         currency: Option<Currency>,
         refund_status: Option<String>,
         connector: Option<String>,
         refund_type: Option<String>,
         profile_id: Option<String>,
+        refund_reason: Option<String>,
+        refund_error_message: Option<String>,
         normalized_time_range: TimeRange,
     ) -> Self {
         Self {
@@ -177,6 +227,8 @@ impl RefundMetricsBucketIdentifier {
             connector,
             refund_type,
             profile_id,
+            refund_reason,
+            refund_error_message,
             time_bucket: normalized_time_range,
             start_time: normalized_time_range.start_time,
         }
@@ -184,11 +236,18 @@ impl RefundMetricsBucketIdentifier {
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketValue {
+    pub successful_refunds: Option<u32>,
+    pub total_refunds: Option<u32>,
     pub refund_success_rate: Option<f64>,
     pub refund_count: Option<u64>,
     pub refund_success_count: Option<u64>,
     pub refund_processed_amount: Option<u64>,
     pub refund_processed_amount_in_usd: Option<u64>,
+    pub refund_processed_count: Option<u64>,
+    pub refund_reason_distribution: Option<Vec<ReasonsResult>>,
+    pub refund_error_message_distribution: Option<Vec<ErrorMessagesResult>>,
+    pub refund_reason_count: Option<u64>,
+    pub refund_error_message_count: Option<u64>,
 }
 #[derive(Debug, serde::Serialize)]
 pub struct RefundMetricsBucketResponse {

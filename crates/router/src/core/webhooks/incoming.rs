@@ -1817,11 +1817,20 @@ async fn update_connector_mandate_details(
         .switch()
         .attach_printable("Could not find connector mandate details in incoming webhook body")?;
 
-    if let Some(webhook_mandate_details) = webhook_connector_mandate_details {
+    let webhook_connector_network_transaction_id = connector
+        .get_network_txn_id(request_details)
+        .switch()
+        .attach_printable(
+            "Could not find connector network transaction id in incoming webhook body",
+        )?;
+
+    // Either one OR both of the fields are present
+    if webhook_connector_mandate_details.is_some()
+        || webhook_connector_network_transaction_id.is_some()
+    {
         let payment_attempt =
             get_payment_attempt_from_object_reference_id(state, object_ref_id, merchant_account)
                 .await?;
-
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id {
             let key_manager_state = &state.into();
             let payment_method_info = state
@@ -1835,95 +1844,107 @@ async fn update_connector_mandate_details(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-            let mandate_details = payment_method_info
-                .connector_mandate_details
-                .clone()
-                .map(|val| {
-                    val.parse_value::<diesel_models::PaymentsMandateReference>(
-                        "PaymentsMandateReference",
-                    )
-                })
-                .transpose()
+            // Update connector's mandate details
+            let updated_connector_mandate_details =
+                if let Some(webhook_mandate_details) = webhook_connector_mandate_details {
+                    let mandate_details = payment_method_info
+                        .connector_mandate_details
+                        .clone()
+                        .map(|val| {
+                            val.parse_value::<diesel_models::PaymentsMandateReference>(
+                                "PaymentsMandateReference",
+                            )
+                        })
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
+
+                    let merchant_connector_account_id = payment_attempt
+                        .merchant_connector_id
+                        .clone()
+                        .get_required_value("merchant_connector_id")?;
+
+                    if mandate_details
+                        .as_ref()
+                        .map(|details: &diesel_models::PaymentsMandateReference| {
+                            !details.0.contains_key(&merchant_connector_account_id)
+                        })
+                        .unwrap_or(true)
+                    {
+                        // Update the payment attempt to maintain consistency across tables.
+                        let (mandate_metadata, connector_mandate_request_reference_id) =
+                            payment_attempt
+                                .connector_mandate_detail
+                                .as_ref()
+                                .map(|details| {
+                                    (
+                                        details.mandate_metadata.clone(),
+                                        details.connector_mandate_request_reference_id.clone(),
+                                    )
+                                })
+                                .unwrap_or((None, None));
+
+                        let connector_mandate_reference_id = ConnectorMandateReferenceId {
+                            connector_mandate_id: Some(
+                                webhook_mandate_details
+                                    .connector_mandate_id
+                                    .peek()
+                                    .to_string(),
+                            ),
+                            payment_method_id: Some(payment_method_id.to_string()),
+                            mandate_metadata,
+                            connector_mandate_request_reference_id,
+                        };
+
+                        let attempt_update =
+                            storage::PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
+                                connector_mandate_detail: Some(connector_mandate_reference_id),
+                                updated_by: merchant_account.storage_scheme.to_string(),
+                            };
+
+                        state
+                            .store
+                            .update_payment_attempt_with_attempt_id(
+                                payment_attempt.clone(),
+                                attempt_update,
+                                merchant_account.storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                        insert_mandate_details(
+                            &payment_attempt,
+                            &webhook_mandate_details,
+                            mandate_details,
+                        )?
+                    } else {
+                        logger::info!(
+                        "Skipping connector mandate details update since they are already present."
+                    );
+                        None
+                    }
+                } else {
+                    None
+                };
+
+            let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
+                connector_mandate_details: updated_connector_mandate_details.map(masking::Secret::new),
+                network_transaction_id: webhook_connector_network_transaction_id
+                    .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
+            };
+
+            state
+                .store
+                .update_payment_method(
+                    key_manager_state,
+                    key_store,
+                    payment_method_info,
+                    pm_update,
+                    merchant_account.storage_scheme,
+                )
+                .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to deserialize to Payment Mandate Reference")?;
-
-            let merchant_connector_account_id = payment_attempt
-                .merchant_connector_id
-                .clone()
-                .get_required_value("merchant_connector_id")?;
-
-            if mandate_details
-                .as_ref()
-                .map(|details: &diesel_models::PaymentsMandateReference| {
-                    !details.0.contains_key(&merchant_connector_account_id)
-                })
-                .unwrap_or(true)
-            {
-                let updated_connector_mandate_details = insert_mandate_details(
-                    &payment_attempt,
-                    &webhook_mandate_details,
-                    mandate_details,
-                )?;
-                let pm_update = diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
-                    connector_mandate_details: updated_connector_mandate_details,
-                };
-
-                state
-                    .store
-                    .update_payment_method(
-                        key_manager_state,
-                        key_store,
-                        payment_method_info,
-                        pm_update,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to update payment method in db")?;
-                // Update the payment attempt to maintain consistency across tables.
-
-                let (mandate_metadata, connector_mandate_request_reference_id) = payment_attempt
-                    .connector_mandate_detail
-                    .as_ref()
-                    .map(|details| {
-                        (
-                            details.mandate_metadata.clone(),
-                            details.connector_mandate_request_reference_id.clone(),
-                        )
-                    })
-                    .unwrap_or((None, None));
-
-                let connector_mandate_reference_id = ConnectorMandateReferenceId {
-                    connector_mandate_id: Some(
-                        webhook_mandate_details
-                            .connector_mandate_id
-                            .peek()
-                            .to_string(),
-                    ),
-                    payment_method_id: Some(payment_method_id.to_string()),
-                    mandate_metadata,
-                    connector_mandate_request_reference_id,
-                };
-
-                let attempt_update = storage::PaymentAttemptUpdate::ConnectorMandateDetailUpdate {
-                    connector_mandate_detail: Some(connector_mandate_reference_id),
-                    updated_by: merchant_account.storage_scheme.to_string(),
-                };
-
-                state
-                    .store
-                    .update_payment_attempt_with_attempt_id(
-                        payment_attempt.clone(),
-                        attempt_update,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            } else {
-                logger::info!(
-                    "Skipping connector mandate details update since they are already present."
-                );
-            }
+                .attach_printable("Failed to update payment method in db")?;
         }
     }
     Ok(())

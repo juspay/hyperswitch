@@ -2,11 +2,14 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 
 #[cfg(feature = "dummy_connector")]
 use crate::user::sample_data::SampleDataRequest;
+#[cfg(feature = "control_center_theme")]
+use crate::user::theme::{
+    CreateThemeRequest, GetThemeResponse, UpdateThemeRequest, UploadFileRequest,
+};
 use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
     },
-    theme::{CreateThemeRequest, GetThemeResponse, UpdateThemeRequest, UploadFileRequest},
     AcceptInviteFromEmailRequest, AuthSelectRequest, AuthorizeResponse, BeginTotpResponse,
     ChangePasswordRequest, ConnectAccountRequest, CreateInternalUserRequest,
     CreateUserAuthenticationMethodRequest, ForgotPasswordRequest, GetSsoAuthUrlRequest,
@@ -62,7 +65,14 @@ common_utils::impl_api_event_type!(
         UpdateUserAuthenticationMethodRequest,
         GetSsoAuthUrlRequest,
         SsoSignInRequest,
-        AuthSelectRequest,
+        AuthSelectRequest
+    )
+);
+
+#[cfg(feature = "control_center_theme")]
+common_utils::impl_api_event_type!(
+    Miscellaneous,
+    (
         GetThemeResponse,
         UploadFileRequest,
         CreateThemeRequest,

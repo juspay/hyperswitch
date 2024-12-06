@@ -1,15 +1,17 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use api_models::analytics::{
     refunds::{
-        RefundDimensions, RefundMetrics, RefundMetricsBucketIdentifier, RefundMetricsBucketResponse,
+        RefundDimensions, RefundDistributions, RefundMetrics, RefundMetricsBucketIdentifier,
+        RefundMetricsBucketResponse,
     },
     GetRefundFilterRequest, GetRefundMetricRequest, RefundFilterValue, RefundFiltersResponse,
     RefundsAnalyticsMetadata, RefundsMetricsResponse,
 };
 use bigdecimal::ToPrimitive;
 use common_enums::Currency;
+use common_utils::errors::CustomResult;
 use currency_conversion::{conversion::convert, types::ExchangeRates};
 use error_stack::ResultExt;
 use router_env::{
@@ -19,16 +21,30 @@ use router_env::{
 };
 
 use super::{
+    distribution::RefundDistributionRow,
     filters::{get_refund_filter_for_dimension, RefundFilterRow},
+    metrics::RefundMetricRow,
     RefundMetricsAccumulator,
 };
 use crate::{
     enums::AuthInfo,
     errors::{AnalyticsError, AnalyticsResult},
     metrics,
-    refunds::RefundMetricAccumulator,
+    refunds::{accumulator::RefundDistributionAccumulator, RefundMetricAccumulator},
     AnalyticsProvider,
 };
+
+#[derive(Debug)]
+pub enum TaskType {
+    MetricTask(
+        RefundMetrics,
+        CustomResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>, AnalyticsError>,
+    ),
+    DistributionTask(
+        RefundDistributions,
+        CustomResult<Vec<(RefundMetricsBucketIdentifier, RefundDistributionRow)>, AnalyticsError>,
+    ),
+}
 
 pub async fn get_metrics(
     pool: &AnalyticsProvider,
@@ -57,70 +73,150 @@ pub async fn get_metrics(
                         &req.group_by_names.clone(),
                         &auth_scoped,
                         &req.filters,
-                        &req.time_series.map(|t| t.granularity),
+                        req.time_series.map(|t| t.granularity),
                         &req.time_range,
                     )
                     .await
                     .change_context(AnalyticsError::UnknownError);
-                (metric_type, data)
+                TaskType::MetricTask(metric_type, data)
             }
             .instrument(task_span),
         );
     }
 
-    while let Some((metric, data)) = set
+    if let Some(distribution) = req.clone().distribution {
+        let req = req.clone();
+        let pool = pool.clone();
+        let task_span = tracing::debug_span!(
+            "analytics_refunds_distribution_query",
+            refund_distribution = distribution.distribution_for.as_ref()
+        );
+
+        let auth_scoped = auth.to_owned();
+        set.spawn(
+            async move {
+                let data = pool
+                    .get_refund_distribution(
+                        &distribution,
+                        &req.group_by_names.clone(),
+                        &auth_scoped,
+                        &req.filters,
+                        &req.time_series.map(|t| t.granularity),
+                        &req.time_range,
+                    )
+                    .await
+                    .change_context(AnalyticsError::UnknownError);
+                TaskType::DistributionTask(distribution.distribution_for, data)
+            }
+            .instrument(task_span),
+        );
+    }
+
+    while let Some(task_type) = set
         .join_next()
         .await
         .transpose()
         .change_context(AnalyticsError::UnknownError)?
     {
-        let data = data?;
-        let attributes = &add_attributes([
-            ("metric_type", metric.to_string()),
-            ("source", pool.to_string()),
-        ]);
+        match task_type {
+            TaskType::MetricTask(metric, data) => {
+                let data = data?;
+                let attributes = &add_attributes([
+                    ("metric_type", metric.to_string()),
+                    ("source", pool.to_string()),
+                ]);
 
-        let value = u64::try_from(data.len());
-        if let Ok(val) = value {
-            metrics::BUCKETS_FETCHED.record(&metrics::CONTEXT, val, attributes);
-            logger::debug!("Attributes: {:?}, Buckets fetched: {}", attributes, val);
-        }
+                let value = u64::try_from(data.len());
+                if let Ok(val) = value {
+                    metrics::BUCKETS_FETCHED.record(&metrics::CONTEXT, val, attributes);
+                    logger::debug!("Attributes: {:?}, Buckets fetched: {}", attributes, val);
+                }
 
-        for (id, value) in data {
-            logger::debug!(bucket_id=?id, bucket_value=?value, "Bucket row for metric {metric}");
-            let metrics_builder = metrics_accumulator.entry(id).or_default();
-            match metric {
-                RefundMetrics::RefundSuccessRate | RefundMetrics::SessionizedRefundSuccessRate => {
-                    metrics_builder
-                        .refund_success_rate
-                        .add_metrics_bucket(&value)
+                for (id, value) in data {
+                    logger::debug!(bucket_id=?id, bucket_value=?value, "Bucket row for metric {metric}");
+                    let metrics_builder = metrics_accumulator.entry(id).or_default();
+                    match metric {
+                        RefundMetrics::RefundSuccessRate
+                        | RefundMetrics::SessionizedRefundSuccessRate => metrics_builder
+                            .refund_success_rate
+                            .add_metrics_bucket(&value),
+                        RefundMetrics::RefundCount | RefundMetrics::SessionizedRefundCount => {
+                            metrics_builder.refund_count.add_metrics_bucket(&value)
+                        }
+                        RefundMetrics::RefundSuccessCount
+                        | RefundMetrics::SessionizedRefundSuccessCount => {
+                            metrics_builder.refund_success.add_metrics_bucket(&value)
+                        }
+                        RefundMetrics::RefundProcessedAmount
+                        | RefundMetrics::SessionizedRefundProcessedAmount => {
+                            metrics_builder.processed_amount.add_metrics_bucket(&value)
+                        }
+                        RefundMetrics::SessionizedRefundReason => {
+                            metrics_builder.refund_reason.add_metrics_bucket(&value)
+                        }
+                        RefundMetrics::SessionizedRefundErrorMessage => metrics_builder
+                            .refund_error_message
+                            .add_metrics_bucket(&value),
+                    }
                 }
-                RefundMetrics::RefundCount | RefundMetrics::SessionizedRefundCount => {
-                    metrics_builder.refund_count.add_metrics_bucket(&value)
+
+                logger::debug!(
+                    "Analytics Accumulated Results: metric: {}, results: {:#?}",
+                    metric,
+                    metrics_accumulator
+                );
+            }
+            TaskType::DistributionTask(distribution, data) => {
+                let data = data?;
+                let attributes = &add_attributes([
+                    ("distribution_type", distribution.to_string()),
+                    ("source", pool.to_string()),
+                ]);
+                let value = u64::try_from(data.len());
+                if let Ok(val) = value {
+                    metrics::BUCKETS_FETCHED.record(&metrics::CONTEXT, val, attributes);
+                    logger::debug!("Attributes: {:?}, Buckets fetched: {}", attributes, val);
                 }
-                RefundMetrics::RefundSuccessCount
-                | RefundMetrics::SessionizedRefundSuccessCount => {
-                    metrics_builder.refund_success.add_metrics_bucket(&value)
+
+                for (id, value) in data {
+                    logger::debug!(bucket_id=?id, bucket_value=?value, "Bucket row for distribution {distribution}");
+
+                    let metrics_builder = metrics_accumulator.entry(id).or_default();
+                    match distribution {
+                        RefundDistributions::SessionizedRefundReason => metrics_builder
+                            .refund_reason_distribution
+                            .add_distribution_bucket(&value),
+                        RefundDistributions::SessionizedRefundErrorMessage => metrics_builder
+                            .refund_error_message_distribution
+                            .add_distribution_bucket(&value),
+                    }
                 }
-                RefundMetrics::RefundProcessedAmount
-                | RefundMetrics::SessionizedRefundProcessedAmount => {
-                    metrics_builder.processed_amount.add_metrics_bucket(&value)
-                }
+                logger::debug!(
+                    "Analytics Accumulated Results: distribution: {}, results: {:#?}",
+                    distribution,
+                    metrics_accumulator
+                );
             }
         }
-
-        logger::debug!(
-            "Analytics Accumulated Results: metric: {}, results: {:#?}",
-            metric,
-            metrics_accumulator
-        );
     }
+
+    let mut success = 0;
+    let mut total = 0;
     let mut total_refund_processed_amount = 0;
     let mut total_refund_processed_amount_in_usd = 0;
+    let mut total_refund_processed_count = 0;
+    let mut total_refund_reason_count = 0;
+    let mut total_refund_error_message_count = 0;
     let query_data: Vec<RefundMetricsBucketResponse> = metrics_accumulator
         .into_iter()
         .map(|(id, val)| {
             let mut collected_values = val.collect();
+            if let Some(success_count) = collected_values.successful_refunds {
+                success += success_count;
+            }
+            if let Some(total_count) = collected_values.total_refunds {
+                total += total_count;
+            }
             if let Some(amount) = collected_values.refund_processed_amount {
                 let amount_in_usd = if let Some(ex_rates) = ex_rates {
                     id.currency
@@ -145,22 +241,38 @@ pub async fn get_metrics(
                 total_refund_processed_amount += amount;
                 total_refund_processed_amount_in_usd += amount_in_usd.unwrap_or(0);
             }
+            if let Some(count) = collected_values.refund_processed_count {
+                total_refund_processed_count += count;
+            }
+            if let Some(total_count) = collected_values.refund_reason_count {
+                total_refund_reason_count += total_count;
+            }
+            if let Some(total_count) = collected_values.refund_error_message_count {
+                total_refund_error_message_count += total_count;
+            }
             RefundMetricsBucketResponse {
                 values: collected_values,
                 dimensions: id,
             }
         })
         .collect();
-
+    let total_refund_success_rate = match (success, total) {
+        (s, t) if t > 0 => Some(f64::from(s) * 100.0 / f64::from(t)),
+        _ => None,
+    };
     Ok(RefundsMetricsResponse {
         query_data,
         meta_data: [RefundsAnalyticsMetadata {
+            total_refund_success_rate,
             total_refund_processed_amount: Some(total_refund_processed_amount),
             total_refund_processed_amount_in_usd: if ex_rates.is_some() {
                 Some(total_refund_processed_amount_in_usd)
             } else {
                 None
             },
+            total_refund_processed_count: Some(total_refund_processed_count),
+            total_refund_reason_count: Some(total_refund_reason_count),
+            total_refund_error_message_count: Some(total_refund_error_message_count),
         }],
     })
 }
@@ -236,6 +348,8 @@ pub async fn get_filters(
             RefundDimensions::Connector => fil.connector,
             RefundDimensions::RefundType => fil.refund_type.map(|i| i.as_ref().to_string()),
             RefundDimensions::ProfileId => fil.profile_id,
+            RefundDimensions::RefundReason => fil.refund_reason,
+            RefundDimensions::RefundErrorMessage => fil.refund_error_message,
         })
         .collect::<Vec<String>>();
         res.query_data.push(RefundFilterValue {

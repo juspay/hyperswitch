@@ -717,7 +717,9 @@ impl
         Ok(Self {
             capture: Some(matches!(
                 item.router_data.request.capture_method,
-                Some(enums::CaptureMethod::Automatic) | None
+                Some(enums::CaptureMethod::Automatic)
+                    | Some(enums::CaptureMethod::SequentialAutomatic)
+                    | None
             )),
             payment_solution: solution.map(String::from),
             action_list,
