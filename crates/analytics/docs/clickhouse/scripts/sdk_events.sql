@@ -6,7 +6,7 @@ CREATE TABLE sdk_events_queue (
     `event_name` LowCardinality(Nullable(String)),
     `first_event` LowCardinality(Nullable(String)),
     `latency` Nullable(UInt32),
-    `timestamp` String,
+    `timestamp` DateTime64(3),
     `browser_name` LowCardinality(Nullable(String)),
     `browser_version` Nullable(String),
     `platform` LowCardinality(Nullable(String)),
