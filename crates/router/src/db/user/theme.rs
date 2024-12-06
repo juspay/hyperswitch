@@ -95,13 +95,12 @@ impl ThemeInterface for Store {
 
 fn check_theme_with_lineage(theme: &storage::Theme, lineage: &ThemeLineage) -> bool {
     match lineage {
-        // TODO: Add back Tenant variant when we introduce Tenant Variant in EntityType
-        // ThemeLineage::Tenant { tenant_id } => {
-        //     &theme.tenant_id == tenant_id
-        //         && theme.org_id.is_none()
-        //         && theme.merchant_id.is_none()
-        //         && theme.profile_id.is_none()
-        // }
+        ThemeLineage::Tenant { tenant_id } => {
+            &theme.tenant_id == tenant_id
+                && theme.org_id.is_none()
+                && theme.merchant_id.is_none()
+                && theme.profile_id.is_none()
+        }
         ThemeLineage::Organization { tenant_id, org_id } => {
             &theme.tenant_id == tenant_id
                 && theme

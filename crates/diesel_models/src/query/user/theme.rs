@@ -6,7 +6,7 @@ use diesel::{
     pg::Pg,
     result::Error as DieselError,
     sql_types::{Bool, Nullable},
-    BoolExpressionMethods, ExpressionMethods, QueryDsl,
+    BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
 use router_env::logger;
@@ -36,15 +36,14 @@ impl Theme {
             + 'static,
     > {
         match lineage {
-            // TODO: Add back Tenant variant when we introduce Tenant Variant in EntityType
-            // ThemeLineage::Tenant { tenant_id } => Box::new(
-            //     dsl::tenant_id
-            //         .eq(tenant_id)
-            //         .and(dsl::org_id.is_null())
-            //         .and(dsl::merchant_id.is_null())
-            //         .and(dsl::profile_id.is_null())
-            //         .nullable(),
-            // ),
+            ThemeLineage::Tenant { tenant_id } => Box::new(
+                dsl::tenant_id
+                    .eq(tenant_id)
+                    .and(dsl::org_id.is_null())
+                    .and(dsl::merchant_id.is_null())
+                    .and(dsl::profile_id.is_null())
+                    .nullable(),
+            ),
             ThemeLineage::Organization { tenant_id, org_id } => Box::new(
                 dsl::tenant_id
                     .eq(tenant_id)
