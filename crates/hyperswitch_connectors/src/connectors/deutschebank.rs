@@ -143,6 +143,7 @@ impl ConnectorCommon for Deutschebank {
         let deutschebank_default_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
         ];
         bank_debit_payment_method.insert(
             enums::PaymentMethodType::Sepa,

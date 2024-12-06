@@ -126,6 +126,7 @@ impl ConnectorCommon for Bambora {
         let bambora_default_capture_methods = vec![
             enums::CaptureMethod::Automatic,
             enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
         ];
 
         card_payment_method.insert(
