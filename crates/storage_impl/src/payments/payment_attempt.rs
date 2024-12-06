@@ -564,12 +564,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     organization_id: payment_attempt.organization_id.clone(),
                     profile_id: payment_attempt.profile_id.clone(),
                     connector_mandate_detail: payment_attempt.connector_mandate_detail.clone(),
-                    request_extended_authorization: payment_attempt
-                        .request_extended_authorization
-                        .clone(),
-                    extended_authorization_applied: payment_attempt
-                        .extended_authorization_applied
-                        .clone(),
+                    request_extended_authorization: payment_attempt.request_extended_authorization,
+                    extended_authorization_applied: payment_attempt.extended_authorization_applied,
                     capture_before: payment_attempt.capture_before,
                 };
 
