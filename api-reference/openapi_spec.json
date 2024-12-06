@@ -8012,7 +8012,8 @@
           "automatic",
           "manual",
           "manual_multiple",
-          "scheduled"
+          "scheduled",
+          "sequential_automatic"
         ]
       },
       "CaptureResponse": {
@@ -21668,6 +21669,10 @@
             "description": "Maximum number of auto retries allowed for a payment",
             "nullable": true,
             "minimum": 0
+          },
+          "is_click_to_pay_enabled": {
+            "type": "boolean",
+            "description": "Indicates if click to pay is enabled or not."
           }
         },
         "additionalProperties": false
@@ -21700,7 +21705,8 @@
           "redirect_to_merchant_with_http_post",
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
-          "is_auto_retries_enabled"
+          "is_auto_retries_enabled",
+          "is_click_to_pay_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -21897,6 +21903,12 @@
             "format": "int32",
             "description": "Maximum number of auto retries allowed for a payment",
             "nullable": true
+          },
+          "is_click_to_pay_enabled": {
+            "type": "boolean",
+            "description": "Indicates if click to pay is enabled or not.",
+            "default": false,
+            "example": false
           }
         }
       },
