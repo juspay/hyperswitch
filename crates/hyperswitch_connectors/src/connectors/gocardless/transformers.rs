@@ -1,10 +1,10 @@
-use api_models::payments::AddressDetails;
 use common_enums::{enums, CountryAlpha2, UsStatesAbbreviation};
 use common_utils::{
     id_type,
     pii::{self, IpAddress},
 };
 use hyperswitch_domain_models::{
+    address::AddressDetails,
     payment_method_data::{BankDebitData, PaymentMethodData},
     router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
     router_flow_types::refunds::Execute,

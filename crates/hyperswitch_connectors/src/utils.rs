@@ -16,6 +16,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    address::{Address, AddressDetails, PhoneDetails},
     payment_method_data::{self, Card, PaymentMethodData},
     router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
@@ -1286,7 +1287,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_card_holder_name_from_additional_payment_method_data(
         &self,
     ) -> Result<Secret<String>, Error>;
-    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
+    fn is_cit_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -1481,6 +1482,12 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
     }
+    fn is_cit_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == FutureUsage::OffSession
+            })
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
@@ -1643,6 +1650,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_mandate_payment(&self) -> bool;
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
+    fn is_cit_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -1698,6 +1706,12 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                 | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
             .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
+    }
+    fn is_cit_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == FutureUsage::OffSession
+            })
     }
 }
 pub trait AddressData {

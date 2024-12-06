@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::{
     payments::{
-        AddressDetails, AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
+        AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
         ApplepayCombinedSessionTokenData, ApplepaySessionTokenData, ApplepaySessionTokenMetadata,
         ApplepaySessionTokenResponse, NextActionCall, NoThirdPartySdkSessionResponse,
         SdkNextAction, SessionToken,
@@ -20,6 +20,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    address::AddressDetails,
     payment_method_data::{self, PaymentMethodData, WalletData},
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
