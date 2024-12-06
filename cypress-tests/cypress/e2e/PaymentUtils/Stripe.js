@@ -138,6 +138,12 @@ export const connectorDetails = {
       },
     },
     PaymentIntentOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
+        },
+      },
       Request: {
         currency: "USD",
         customer_acceptance: null,
@@ -672,6 +678,12 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnostic"],
+          value: "connector_2",
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
