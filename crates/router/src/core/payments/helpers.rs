@@ -948,7 +948,10 @@ pub fn validate_amount_to_capture_and_capture_method(
         .or(payment_attempt
             .map(|payment_attempt| payment_attempt.capture_method.unwrap_or_default()))
         .unwrap_or_default();
-    if capture_method == api_enums::CaptureMethod::Automatic {
+    if matches!(
+        capture_method,
+        api_enums::CaptureMethod::Automatic | api_enums::CaptureMethod::SequentialAutomatic
+    ) {
         let total_capturable_amount =
             option_net_amount.map(|net_amount| net_amount.get_total_amount());
 
@@ -1049,7 +1052,7 @@ pub fn validate_card_expiry(
 }
 
 pub fn infer_payment_type(
-    amount: &api::Amount,
+    amount: api::Amount,
     mandate_type: Option<&api::MandateTransactionType>,
 ) -> api_enums::PaymentType {
     match mandate_type {
@@ -2830,7 +2833,7 @@ pub fn validate_payment_method_type_against_payment_method(
     }
 }
 
-pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> bool {
+pub fn check_force_psync_precondition(status: storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
@@ -3254,11 +3257,11 @@ pub fn authenticate_client_secret(
 }
 
 pub(crate) fn validate_payment_status_against_allowed_statuses(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     allowed_statuses: &[storage_enums::IntentStatus],
     action: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(!allowed_statuses.contains(intent_status), || {
+    fp_utils::when(!allowed_statuses.contains(&intent_status), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
                 "You cannot {action} this payment because it has status {intent_status}",
@@ -3268,11 +3271,11 @@ pub(crate) fn validate_payment_status_against_allowed_statuses(
 }
 
 pub(crate) fn validate_payment_status_against_not_allowed_statuses(
-    intent_status: &storage_enums::IntentStatus,
+    intent_status: storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
     action: &'static str,
 ) -> Result<(), errors::ApiErrorResponse> {
-    fp_utils::when(not_allowed_statuses.contains(intent_status), || {
+    fp_utils::when(not_allowed_statuses.contains(&intent_status), || {
         Err(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
                 "You cannot {action} this payment because it has status {intent_status}",

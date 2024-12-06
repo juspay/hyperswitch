@@ -30,7 +30,7 @@ where
         dimensions: &[FrmDimensions],
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &FrmFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<Vec<(FrmMetricsBucketIdentifier, FrmMetricRow)>> {
@@ -77,7 +77,7 @@ where
                 .switch()?;
         }
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             granularity
                 .set_group_by_clause(&mut query_builder)
                 .attach_printable("Error adding granularity")

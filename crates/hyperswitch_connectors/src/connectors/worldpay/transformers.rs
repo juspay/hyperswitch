@@ -366,7 +366,8 @@ impl WorldpayPaymentsRequestData
     fn get_settlement_info(&self, amount: i64) -> Option<AutoSettlement> {
         match (self.request.capture_method.unwrap_or_default(), amount) {
             (_, 0) => None,
-            (enums::CaptureMethod::Automatic, _) => Some(AutoSettlement { auto: true }),
+            (enums::CaptureMethod::Automatic, _)
+            | (enums::CaptureMethod::SequentialAutomatic, _) => Some(AutoSettlement { auto: true }),
             (enums::CaptureMethod::Manual, _) | (enums::CaptureMethod::ManualMultiple, _) => {
                 Some(AutoSettlement { auto: false })
             }

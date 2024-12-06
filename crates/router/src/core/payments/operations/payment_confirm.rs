@@ -118,7 +118,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         .contains(&header_payload.payment_confirm_source)
         {
             helpers::validate_payment_status_against_not_allowed_statuses(
-                &payment_intent.status,
+                payment_intent.status,
                 &[
                     storage_enums::IntentStatus::Cancelled,
                     storage_enums::IntentStatus::Succeeded,
@@ -130,7 +130,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )?;
         } else {
             helpers::validate_payment_status_against_not_allowed_statuses(
-                &payment_intent.status,
+                payment_intent.status,
                 &[
                     storage_enums::IntentStatus::Cancelled,
                     storage_enums::IntentStatus::Succeeded,
