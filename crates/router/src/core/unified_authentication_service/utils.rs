@@ -149,7 +149,7 @@ pub async fn create_new_authentication(
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,
-        service_details: None
+        service_details: None,
     };
     state
         .store

@@ -15,7 +15,7 @@ use crate::{connector::utils::PayoutsData, types::api::payouts, utils::OptionExt
 use crate::{
     connector::utils::{
         self, missing_field_err, AddressDetailsData, BrowserInformationData, CardData,
-        PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData, NetworkTokenData
+        NetworkTokenData, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData,
     },
     consts,
     core::errors,
@@ -1212,7 +1212,6 @@ pub struct AdyenApplePay {
     apple_pay_token: Secret<String>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenNetworkTokenData {
@@ -1619,7 +1618,6 @@ impl<'a> TryFrom<&AdyenRouterData<&types::PaymentsAuthorizeRouterData>>
                 | domain::PaymentMethodData::Upi(_)
                 | domain::PaymentMethodData::OpenBanking(_)
                 | domain::PaymentMethodData::CardToken(_)
-                | domain::PaymentMethodData::NetworkToken(_)
                 | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Adyen"),
@@ -1775,7 +1773,7 @@ fn get_amount_data(item: &AdyenRouterData<&types::PaymentsAuthorizeRouterData>) 
 }
 
 pub fn get_address_info(
-    address: Option<&payments::Address>,
+    address: Option<&hyperswitch_domain_models::address::Address>,
 ) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>> {
     address.and_then(|add| {
         add.address.as_ref().map(
@@ -1837,7 +1835,9 @@ fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Sec
     })
 }
 
-fn get_shopper_name(address: Option<&payments::Address>) -> Option<ShopperName> {
+fn get_shopper_name(
+    address: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<ShopperName> {
     let billing = address.and_then(|billing| billing.address.as_ref());
     Some(ShopperName {
         first_name: billing.and_then(|a| a.first_name.clone()),
@@ -1845,7 +1845,9 @@ fn get_shopper_name(address: Option<&payments::Address>) -> Option<ShopperName> 
     })
 }
 
-fn get_country_code(address: Option<&payments::Address>) -> Option<api_enums::CountryAlpha2> {
+fn get_country_code(
+    address: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<api_enums::CountryAlpha2> {
     address.and_then(|billing| billing.address.as_ref().and_then(|address| address.country))
 }
 
@@ -2705,7 +2707,9 @@ impl<'a>
                             expiry_year: token_data.get_expiry_year_4_digit(),
                             holder_name: card_holder_name,
                             brand: Some(brand), // FIXME: Remove hardcoding
-                            network_payment_reference: Some(Secret::new(network_mandate_id.network_transaction_id)),
+                            network_payment_reference: Some(Secret::new(
+                                network_mandate_id.network_transaction_id,
+                            )),
                         };
                         Ok(AdyenPaymentMethod::NetworkToken(Box::new(
                             adyen_network_token,
@@ -2727,9 +2731,9 @@ impl<'a>
                     | domain::PaymentMethodData::Voucher(_)
                     | domain::PaymentMethodData::GiftCard(_)
                     | domain::PaymentMethodData::OpenBanking(_)
-                    | domain::PaymentMethodData::CardToken(_) 
+                    | domain::PaymentMethodData::CardToken(_)
                     | domain::PaymentMethodData::MobilePayment(_)
-                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)=> {
+                    | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
@@ -4908,7 +4912,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                     })?,
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
-                let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
+                let address: &hyperswitch_domain_models::address::AddressDetails =
+                    item.router_data.get_billing_address()?;
                 Ok(Self {
                     amount: Amount {
                         value: item.amount.to_owned(),
@@ -4950,7 +4955,8 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         })?
                     }
                 };
-                let address: &payments::AddressDetails = item.router_data.get_billing_address()?;
+                let address: &hyperswitch_domain_models::address::AddressDetails =
+                    item.router_data.get_billing_address()?;
                 let payout_wallet = PayoutWalletData {
                     selected_brand: PayoutBrand::Paypal,
                     additional_data,
@@ -5380,7 +5386,6 @@ impl ForeignTryFrom<(&Self, AdyenDisputeResponse)> for types::DefendDisputeRoute
     }
 }
 
-
 impl<'a> TryFrom<(&domain::NetworkTokenData, Option<Secret<String>>)> for AdyenPaymentMethod<'a> {
     type Error = Error;
     fn try_from(
@@ -5437,7 +5442,10 @@ impl<'a>
         let mpi_data = AdyenMpiData {
             directory_response: "Y".to_string(),
             authentication_response: "Y".to_string(),
-            token_authentication_verification_value: token_data.token_cryptogram.clone().unwrap_or_default(),
+            token_authentication_verification_value: token_data
+                .token_cryptogram
+                .clone()
+                .unwrap_or_default(),
             eci: Some("07".to_string()),
         };
 
