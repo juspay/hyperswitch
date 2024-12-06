@@ -91,17 +91,6 @@ use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
 };
 
-pub fn filter_mca_based_on_profile_and_connector_type(
-    merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    profile_id: &id_type::ProfileId,
-    connector_type: ConnectorType,
-) -> Vec<domain::MerchantConnectorAccount> {
-    merchant_connector_accounts
-        .into_iter()
-        .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
-        .collect()
-}
-
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_or_update_address_for_payment_by_request(
@@ -5020,9 +5009,8 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-        let profile_specific_merchant_connector_account_list =
-            filter_mca_based_on_profile_and_connector_type(
-                merchant_connector_account_list,
+        let profile_specific_merchant_connector_account_list = merchant_connector_account_list
+            .filter_based_on_profile_and_connector_type(
                 profile_id,
                 ConnectorType::PaymentProcessor,
             );

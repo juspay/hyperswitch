@@ -1559,10 +1559,8 @@ pub async fn list_customer_payment_method(
         .await
         .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?
     } else {
-        Vec::new()
+        domain::MerchantConnectorAccounts::new(Vec::new())
     };
-    let merchant_connector_accounts =
-        domain::MerchantConnectorAccounts::new(merchant_connector_accounts);
 
     let pm_list_futures = filtered_saved_payment_methods_ctx
         .into_iter()

@@ -12,7 +12,6 @@ use api_models::routing as api_routing;
 use api_models::{
     admin as admin_api,
     enums::{self as api_enums, CountryAlpha2},
-    payments::Address,
     routing::ConnectorSelection,
 };
 use diesel_models::enums as storage_enums;
@@ -27,6 +26,7 @@ use euclid::{
 use external_services::grpc_client::dynamic_routing::{
     success_rate::CalSuccessRateResponse, SuccessBasedDynamicRouting,
 };
+use hyperswitch_domain_models::address::Address;
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -46,7 +46,7 @@ use crate::core::admin;
 use crate::core::payouts;
 use crate::{
     core::{
-        errors, errors as oss_errors, payments as payments_oss,
+        errors, errors as oss_errors,
         routing::{self},
     },
     logger,
@@ -87,6 +87,7 @@ pub struct SessionFlowRoutingInput<'a> {
     pub chosen: Vec<api::SessionConnectorData>,
 }
 
+#[allow(dead_code)]
 #[cfg(feature = "v1")]
 pub struct SessionRoutingPmTypeInput<'a> {
     state: &'a SessionState,
@@ -651,12 +652,8 @@ pub async fn refresh_cgraph_cache<'a>(
         api_enums::TransactionType::Payout => common_enums::ConnectorType::PayoutProcessor,
     };
 
-    let merchant_connector_accounts =
-        payments_oss::helpers::filter_mca_based_on_profile_and_connector_type(
-            merchant_connector_accounts,
-            profile_id,
-            connector_type,
-        );
+    let merchant_connector_accounts = merchant_connector_accounts
+        .filter_based_on_profile_and_connector_type(profile_id, connector_type);
 
     let api_mcas = merchant_connector_accounts
         .into_iter()

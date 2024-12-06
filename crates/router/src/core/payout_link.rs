@@ -17,10 +17,7 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     configs::settings::{PaymentMethodFilterKey, PaymentMethodFilters},
-    core::{
-        payments::helpers as payment_helpers,
-        payouts::{helpers as payout_helpers, validator},
-    },
+    core::payouts::{helpers as payout_helpers, validator},
     errors,
     routes::{app::StorageInterface, SessionState},
     services,
@@ -352,8 +349,7 @@ pub async fn filter_payout_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     // Filter MCAs based on profile_id and connector_type
-    let filtered_mcas = payment_helpers::filter_mca_based_on_profile_and_connector_type(
-        all_mcas,
+    let filtered_mcas = all_mcas.filter_based_on_profile_and_connector_type(
         &payout.profile_id,
         common_enums::ConnectorType::PayoutProcessor,
     );

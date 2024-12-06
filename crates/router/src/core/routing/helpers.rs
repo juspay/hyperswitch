@@ -304,62 +304,6 @@ pub struct ConnectNameAndMCAIdForProfile<'a>(
 pub struct ConnectNameForProfile<'a>(pub FxHashSet<&'a String>);
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug)]
-pub struct MerchantConnectorAccounts(pub Vec<MerchantConnectorAccount>);
-
-#[cfg(feature = "v2")]
-impl MerchantConnectorAccounts {
-    pub async fn get_all_mcas(
-        merchant_id: &id_type::MerchantId,
-        key_store: &domain::MerchantKeyStore,
-        state: &SessionState,
-    ) -> RouterResult<Self> {
-        let db = &*state.store;
-        let key_manager_state = &state.into();
-        Ok(Self(
-            db.find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                key_manager_state,
-                merchant_id,
-                true,
-                key_store,
-            )
-            .await
-            .change_context(
-                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: merchant_id.get_string_repr().to_owned(),
-                },
-            )?,
-        ))
-    }
-
-    fn filter_and_map<'a, T>(
-        &'a self,
-        filter: impl Fn(&'a MerchantConnectorAccount) -> bool,
-        func: impl Fn(&'a MerchantConnectorAccount) -> T,
-    ) -> FxHashSet<T>
-    where
-        T: std::hash::Hash + Eq,
-    {
-        self.0
-            .iter()
-            .filter(|mca| filter(mca))
-            .map(func)
-            .collect::<FxHashSet<_>>()
-    }
-
-    pub fn filter_by_profile<'a, T>(
-        &'a self,
-        profile_id: &'a id_type::ProfileId,
-        func: impl Fn(&'a MerchantConnectorAccount) -> T,
-    ) -> FxHashSet<T>
-    where
-        T: std::hash::Hash + Eq,
-    {
-        self.filter_and_map(|mca| mca.profile_id == *profile_id, func)
-    }
-}
-
-#[cfg(feature = "v2")]
 impl RoutingAlgorithmHelpers<'_> {
     fn connector_choice(
         &self,
@@ -448,7 +392,7 @@ pub async fn validate_connectors_in_routing_config(
     profile_id: &id_type::ProfileId,
     routing_algorithm: &routing_types::RoutingAlgorithm,
 ) -> RouterResult<()> {
-    let all_mcas = &*state
+    let all_mcas = state
         .store
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             &state.into(),

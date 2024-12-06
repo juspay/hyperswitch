@@ -1613,10 +1613,13 @@ impl<T, F, R> GetProfileId for (storage::Payouts, T, F, R) {
 }
 
 /// Filter Objects based on profile ids
-pub(super) fn filter_objects_based_on_profile_id_list<T: GetProfileId>(
+pub(super) fn filter_objects_based_on_profile_id_list<
+    T: GetProfileId,
+    U: IntoIterator<Item = T> + FromIterator<T>,
+>(
     profile_id_list_auth_layer: Option<Vec<common_utils::id_type::ProfileId>>,
-    object_list: Vec<T>,
-) -> Vec<T> {
+    object_list: U,
+) -> U {
     if let Some(profile_id_list) = profile_id_list_auth_layer {
         let profile_ids_to_filter: HashSet<_> = profile_id_list.iter().collect();
         object_list
