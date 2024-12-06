@@ -2133,8 +2133,6 @@ pub async fn create_recipient_disburse_account(
                                     },
                                 )]),
                             )),
-
-                            transaction_flow: Some(storage_enums::PaymentDirection::Payout),
                         };
 
                     payout_data.payment_method = Some(
