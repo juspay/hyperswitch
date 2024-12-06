@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use api_models::payments::Address;
+use hyperswitch_domain_models::address::{Address, AddressDetails};
 use masking::Secret;
 use router::types::{self, api, domain, storage::enums, PaymentAddress};
 
@@ -426,7 +426,7 @@ pub fn get_payment_info() -> PaymentInfo {
             None,
             Some(Address {
                 phone: None,
-                address: Some(api::AddressDetails {
+                address: Some(AddressDetails {
                     city: None,
                     country: Some(api_models::enums::CountryAlpha2::PA),
                     line1: None,

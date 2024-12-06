@@ -2,8 +2,8 @@
 
 use std::{borrow::Cow, marker::PhantomData, str::FromStr, sync::Arc};
 
-use api_models::payments::{Address, AddressDetails, PhoneDetails};
 use common_utils::id_type;
+use hyperswitch_domain_models::address::{Address, AddressDetails, PhoneDetails};
 use masking::Secret;
 use router::{
     configs::settings::Settings,
@@ -129,6 +129,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        psd2_sca_exemption_type: None,
     }
 }
 
@@ -199,11 +200,11 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        psd2_sca_exemption_type: None,
     }
 }
 
 #[actix_web::test]
-
 async fn payments_create_success() {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
@@ -216,7 +217,10 @@ async fn payments_create_success() {
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
 
     use router::connector::Aci;
@@ -263,7 +267,10 @@ async fn payments_create_failure() {
         ))
         .await;
         let state = Arc::new(app_state)
-            .get_session_state("public", || {})
+            .get_session_state(
+                &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+                || {},
+            )
             .unwrap();
         let connector = utils::construct_connector_data_old(
             Box::new(Aci::new()),
@@ -306,7 +313,6 @@ async fn payments_create_failure() {
 }
 
 #[actix_web::test]
-
 async fn refund_for_successful_payments() {
     let conf = Settings::new().unwrap();
     use router::connector::Aci;
@@ -326,7 +332,10 @@ async fn refund_for_successful_payments() {
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
     let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
         types::api::Authorize,
@@ -396,7 +405,10 @@ async fn refunds_create_failure() {
     ))
     .await;
     let state = Arc::new(app_state)
-        .get_session_state("public", || {})
+        .get_session_state(
+            &id_type::TenantId::try_from_string("public".to_string()).unwrap(),
+            || {},
+        )
         .unwrap();
     let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
         types::api::Execute,

@@ -179,10 +179,7 @@ pub async fn revoke_api_key(
     call_decision_service(state, decision_config, rule, RULE_DELETE_METHOD).await
 }
 
-///
-///
 /// Safety: i64::MAX < u64::MAX
-///
 #[allow(clippy::as_conversions)]
 pub fn convert_expiry(expiry: time::PrimitiveDateTime) -> u64 {
     let now = common_utils::date_time::now();

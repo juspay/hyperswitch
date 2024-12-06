@@ -8,10 +8,9 @@ use api_models::analytics::{
     },
     GetPaymentIntentFiltersRequest, GetPaymentIntentMetricRequest, PaymentIntentFilterValue,
     PaymentIntentFiltersResponse, PaymentIntentsAnalyticsMetadata, PaymentIntentsMetricsResponse,
-    SankeyResponse,
 };
 use bigdecimal::ToPrimitive;
-use common_enums::{Currency, IntentStatus};
+use common_enums::Currency;
 use common_utils::{errors::CustomResult, types::TimeRange};
 use currency_conversion::{conversion::convert, types::ExchangeRates};
 use error_stack::ResultExt;
@@ -24,7 +23,7 @@ use router_env::{
 use super::{
     filters::{get_payment_intent_filter_for_dimension, PaymentIntentFilterRow},
     metrics::PaymentIntentMetricRow,
-    sankey::{get_sankey_data, SessionizerRefundStatus},
+    sankey::{get_sankey_data, SankeyRow},
     PaymentIntentMetricsAccumulator,
 };
 use crate::{
@@ -51,7 +50,7 @@ pub async fn get_sankey(
     pool: &AnalyticsProvider,
     auth: &AuthInfo,
     req: TimeRange,
-) -> AnalyticsResult<SankeyResponse> {
+) -> AnalyticsResult<Vec<SankeyRow>> {
     match pool {
         AnalyticsProvider::Sqlx(_) => Err(AnalyticsError::NotImplemented(
             "Sankey not implemented for sqlx",
@@ -62,69 +61,7 @@ pub async fn get_sankey(
             let sankey_rows = get_sankey_data(ckh_pool, auth, &req)
                 .await
                 .change_context(AnalyticsError::UnknownError)?;
-            let mut sankey_response = SankeyResponse::default();
-            for i in sankey_rows {
-                match (
-                    i.status.as_ref(),
-                    i.refunds_status.unwrap_or_default().as_ref(),
-                    i.attempt_count,
-                ) {
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::FullRefunded, 1) => {
-                        sankey_response.refunded += i.count;
-                        sankey_response.normal_success += i.count
-                    }
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::PartialRefunded, 1) => {
-                        sankey_response.partial_refunded += i.count;
-                        sankey_response.normal_success += i.count
-                    }
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::FullRefunded, _) => {
-                        sankey_response.refunded += i.count;
-                        sankey_response.smart_retried_success += i.count
-                    }
-                    (IntentStatus::Succeeded, SessionizerRefundStatus::PartialRefunded, _) => {
-                        sankey_response.partial_refunded += i.count;
-                        sankey_response.smart_retried_success += i.count
-                    }
-                    (
-                        IntentStatus::Succeeded
-                        | IntentStatus::PartiallyCaptured
-                        | IntentStatus::PartiallyCapturedAndCapturable
-                        | IntentStatus::RequiresCapture,
-                        SessionizerRefundStatus::NotRefunded,
-                        1,
-                    ) => sankey_response.normal_success += i.count,
-                    (
-                        IntentStatus::Succeeded
-                        | IntentStatus::PartiallyCaptured
-                        | IntentStatus::PartiallyCapturedAndCapturable
-                        | IntentStatus::RequiresCapture,
-                        SessionizerRefundStatus::NotRefunded,
-                        _,
-                    ) => sankey_response.smart_retried_success += i.count,
-                    (IntentStatus::Failed, _, 1) => sankey_response.normal_failure += i.count,
-                    (IntentStatus::Failed, _, _) => {
-                        sankey_response.smart_retried_failure += i.count
-                    }
-                    (IntentStatus::Cancelled, _, _) => sankey_response.cancelled += i.count,
-                    (IntentStatus::Processing, _, _) => sankey_response.pending += i.count,
-                    (IntentStatus::RequiresCustomerAction, _, _) => {
-                        sankey_response.customer_awaited += i.count
-                    }
-                    (IntentStatus::RequiresMerchantAction, _, _) => {
-                        sankey_response.merchant_awaited += i.count
-                    }
-                    (IntentStatus::RequiresPaymentMethod, _, _) => {
-                        sankey_response.pm_awaited += i.count
-                    }
-                    (IntentStatus::RequiresConfirmation, _, _) => {
-                        sankey_response.confirmation_awaited += i.count
-                    }
-                    i @ (_, _, _) => {
-                        router_env::logger::error!(status=?i, "Unknown status in sankey data");
-                    }
-                }
-            }
-            Ok(sankey_response)
+            Ok(sankey_rows)
         }
     }
 }
@@ -161,7 +98,7 @@ pub async fn get_metrics(
                         &req.group_by_names.clone(),
                         &auth_scoped,
                         &req.filters,
-                        &req.time_series.map(|t| t.granularity),
+                        req.time_series.map(|t| t.granularity),
                         &req.time_range,
                     )
                     .await

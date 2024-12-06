@@ -57,6 +57,7 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -100,6 +101,7 @@ pub struct ProfileNew {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -140,6 +142,7 @@ pub struct ProfileUpdateInternal {
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -179,6 +182,7 @@ impl ProfileUpdateInternal {
             is_network_tokenization_enabled,
             is_auto_retries_enabled,
             max_auto_retries_enabled,
+            is_click_to_pay_enabled,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -238,6 +242,8 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_network_tokenization_enabled),
             is_auto_retries_enabled: is_auto_retries_enabled.or(source.is_auto_retries_enabled),
             max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
+            is_click_to_pay_enabled: is_click_to_pay_enabled
+                .unwrap_or(source.is_click_to_pay_enabled),
         }
     }
 }
@@ -292,6 +298,7 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: bool,
 }
 
 impl Profile {
@@ -350,6 +357,7 @@ pub struct ProfileNew {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -392,6 +400,7 @@ pub struct ProfileUpdateInternal {
     pub is_network_tokenization_enabled: Option<bool>,
     pub is_auto_retries_enabled: Option<bool>,
     pub max_auto_retries_enabled: Option<i16>,
+    pub is_click_to_pay_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -433,6 +442,7 @@ impl ProfileUpdateInternal {
             is_network_tokenization_enabled,
             is_auto_retries_enabled,
             max_auto_retries_enabled,
+            is_click_to_pay_enabled,
         } = self;
         Profile {
             id: source.id,
@@ -497,6 +507,8 @@ impl ProfileUpdateInternal {
                 .unwrap_or(source.is_network_tokenization_enabled),
             is_auto_retries_enabled: is_auto_retries_enabled.or(source.is_auto_retries_enabled),
             max_auto_retries_enabled: max_auto_retries_enabled.or(source.max_auto_retries_enabled),
+            is_click_to_pay_enabled: is_click_to_pay_enabled
+                .unwrap_or(source.is_click_to_pay_enabled),
         }
     }
 }
@@ -543,6 +555,7 @@ pub struct PaymentLinkConfigRequest {
     pub display_sdk_only: Option<bool>,
     pub enabled_saved_payment_method: Option<bool>,
     pub hide_card_nickname_field: Option<bool>,
+    pub show_card_form_by_default: Option<bool>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);

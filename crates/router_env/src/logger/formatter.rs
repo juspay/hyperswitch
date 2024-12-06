@@ -1,6 +1,4 @@
-//!
 //! Formatting [layer](https://docs.rs/tracing-subscriber/0.3.15/tracing_subscriber/layer/trait.Layer.html) for Router.
-//!
 
 use std::{
     collections::{HashMap, HashSet},
@@ -117,10 +115,8 @@ impl fmt::Display for RecordType {
     }
 }
 
-///
 /// Format log records.
 /// `FormattingLayer` relies on the `tracing_bunyan_formatter::JsonStorageLayer` which is storage of entries.
-///
 #[derive(Debug)]
 pub struct FormattingLayer<W, F>
 where
@@ -145,7 +141,6 @@ where
     W: for<'a> MakeWriter<'a> + 'static,
     F: Formatter + Clone,
 {
-    ///
     /// Constructor of `FormattingLayer`.
     ///
     /// A `name` will be attached to all records during formatting.
@@ -155,7 +150,6 @@ where
     /// ```rust
     /// let formatting_layer = router_env::FormattingLayer::new("my_service", std::io::stdout, serde_json::ser::CompactFormatter);
     /// ```
-    ///
     pub fn new(
         service: &str,
         dst_writer: W,
@@ -296,11 +290,9 @@ where
         Ok(())
     }
 
-    ///
     /// Flush memory buffer into an output stream trailing it with next line.
     ///
     /// Should be done by single `write_all` call to avoid fragmentation of log because of mutlithreading.
-    ///
     fn flush(&self, mut buffer: Vec<u8>) -> Result<(), std::io::Error> {
         buffer.write_all(b"\n")?;
         self.dst_writer.make_writer().write_all(&buffer)
@@ -338,7 +330,7 @@ where
     /// Serialize event into a buffer of bytes using parent span.
     pub fn event_serialize<S>(
         &self,
-        span: &Option<&SpanRef<'_, S>>,
+        span: Option<&SpanRef<'_, S>>,
         event: &Event<'_>,
     ) -> std::io::Result<Vec<u8>>
     where
@@ -355,18 +347,15 @@ where
         let name = span.map_or("?", SpanRef::name);
         Self::event_message(span, event, &mut storage);
 
-        self.common_serialize(&mut map_serializer, event.metadata(), *span, &storage, name)?;
+        self.common_serialize(&mut map_serializer, event.metadata(), span, &storage, name)?;
 
         map_serializer.end()?;
         Ok(buffer)
     }
 
-    ///
     /// Format message of a span.
     ///
     /// Example: "[FN_WITHOUT_COLON - START]"
-    ///
-
     fn span_message<S>(span: &SpanRef<'_, S>, ty: RecordType) -> String
     where
         S: Subscriber + for<'a> LookupSpan<'a>,
@@ -374,17 +363,11 @@ where
         format!("[{} - {}]", span.metadata().name().to_uppercase(), ty)
     }
 
-    ///
     /// Format message of an event.
     ///
     /// Examples: "[FN_WITHOUT_COLON - EVENT] Message"
-    ///
-
-    fn event_message<S>(
-        span: &Option<&SpanRef<'_, S>>,
-        event: &Event<'_>,
-        storage: &mut Storage<'_>,
-    ) where
+    fn event_message<S>(span: Option<&SpanRef<'_, S>>, event: &Event<'_>, storage: &mut Storage<'_>)
+    where
         S: Subscriber + for<'a> LookupSpan<'a>,
     {
         // Get value of kept "message" or "target" if does not exist.
@@ -411,7 +394,7 @@ where
         // Event could have no span.
         let span = ctx.lookup_current();
 
-        let result: std::io::Result<Vec<u8>> = self.event_serialize(&span.as_ref(), event);
+        let result: std::io::Result<Vec<u8>> = self.event_serialize(span.as_ref(), event);
         if let Ok(formatted) = result {
             let _ = self.flush(formatted);
         }

@@ -1,11 +1,11 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
-#[cfg(feature = "recon")]
-use masking::PeekInterface;
 
 #[cfg(feature = "dummy_connector")]
 use crate::user::sample_data::SampleDataRequest;
-#[cfg(feature = "recon")]
-use crate::user::VerifyTokenResponse;
+#[cfg(feature = "control_center_theme")]
+use crate::user::theme::{
+    CreateThemeRequest, GetThemeResponse, UpdateThemeRequest, UploadFileRequest,
+};
 use crate::user::{
     dashboard_metadata::{
         GetMetaDataRequest, GetMetaDataResponse, GetMultipleMetaDataPayload, SetMetaDataRequest,
@@ -22,15 +22,6 @@ use crate::user::{
     UserFromEmailRequest, UserMerchantCreate, VerifyEmailRequest, VerifyRecoveryCodeRequest,
     VerifyTotpRequest,
 };
-
-#[cfg(feature = "recon")]
-impl ApiEventMetric for VerifyTokenResponse {
-    fn get_api_event_type(&self) -> Option<ApiEventsType> {
-        Some(ApiEventsType::User {
-            user_id: self.user_email.peek().to_string(),
-        })
-    }
-}
 
 common_utils::impl_api_event_type!(
     Miscellaneous,
@@ -75,6 +66,17 @@ common_utils::impl_api_event_type!(
         GetSsoAuthUrlRequest,
         SsoSignInRequest,
         AuthSelectRequest
+    )
+);
+
+#[cfg(feature = "control_center_theme")]
+common_utils::impl_api_event_type!(
+    Miscellaneous,
+    (
+        GetThemeResponse,
+        UploadFileRequest,
+        CreateThemeRequest,
+        UpdateThemeRequest
     )
 );
 

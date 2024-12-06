@@ -145,7 +145,9 @@ impl ConnectorValidation for Payme {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 connector_utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
@@ -1280,7 +1282,7 @@ impl api::IncomingWebhook for Payme {
 
         Ok(api::disputes::DisputePayload {
             amount: webhook_object.price.to_string(),
-            currency: webhook_object.currency.to_string(),
+            currency: webhook_object.currency,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: webhook_object.payme_transaction_id,
             connector_reason: None,
