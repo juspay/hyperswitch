@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS dynamic_routing_stats (
     attempt_id VARCHAR(64) NOT NULL,
     merchant_id VARCHAR(64) NOT NULL,
     profile_id VARCHAR(64) NOT NULL,
+    amount BIGINT NOT NULL,
     success_based_routing_connector VARCHAR(64) NOT NULL,
     payment_connector VARCHAR(64) NOT NULL,
     currency "Currency",

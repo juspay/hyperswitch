@@ -401,6 +401,7 @@ diesel::table! {
         merchant_id -> Varchar,
         #[max_length = 64]
         profile_id -> Varchar,
+        amount -> Int8,
         #[max_length = 64]
         success_based_routing_connector -> Varchar,
         #[max_length = 64]

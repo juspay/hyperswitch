@@ -758,6 +758,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             attempt_id: payment_attempt.attempt_id.clone(),
             merchant_id: payment_attempt.merchant_id.to_owned(),
             profile_id: payment_attempt.profile_id.to_owned(),
+            amount: payment_attempt.get_total_amount(),
             success_based_routing_connector: first_success_based_connector.to_string(),
             payment_connector: payment_connector.to_string(),
             currency: payment_attempt.currency,
