@@ -932,8 +932,32 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
         state: &SessionState,
         payment_data: &mut PaymentData<F>,
         _merchant_account: &domain::MerchantAccount,
+        connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        populate_surcharge_details(state, payment_data).await
+        populate_surcharge_details(state, payment_data).await?;
+        payment_data.payment_attempt.request_extended_authorization = payment_data
+            .payment_intent
+            .request_extended_authorization
+            .map(|intent_request_extended_authorization| {
+                let connector_and_payment_method_supports_extended_authorization = || {
+                    payment_data
+                        .payment_attempt
+                        .payment_method_type
+                        .is_some_and(|payment_method_type| {
+                            state
+                                .conf
+                                .connectors_supporting_extended_authentication
+                                .is_connector_and_payment_method_type_supported(
+                                    connector_data.connector_name,
+                                    payment_method_type,
+                                )
+                        })
+                };
+                (intent_request_extended_authorization.is_true()
+                    && connector_and_payment_method_supports_extended_authorization())
+                .into()
+            });
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]

@@ -1667,6 +1667,19 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 payment_data.payment_attempt.connector.clone(),
                                 payment_data.payment_attempt.merchant_id.clone(),
                             );
+                            let (capture_before, extended_authorization_applied) = router_data
+                                .connector_response
+                                .as_ref()
+                                .and_then(|connector_response| {
+                                    connector_response.get_extended_authorization_response_data()
+                                })
+                                .and_then(|extended_auth_resp| {
+                                    Some((
+                                        extended_auth_resp.capture_before,
+                                        extended_auth_resp.extended_authentication_applied,
+                                    ))
+                                })
+                                .unwrap_or((None, None));
                             let (capture_updates, payment_attempt_update) = match payment_data
                                 .multiple_capture_data
                             {
@@ -1728,6 +1741,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         authentication_data,
                                         encoded_data,
                                         payment_method_data: additional_payment_method_data,
+                                        capture_before,
+                                        extended_authorization_applied,
                                         charge_id,
                                         connector_mandate_detail: payment_data
                                             .payment_attempt
