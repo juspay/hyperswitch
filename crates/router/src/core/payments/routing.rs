@@ -2,6 +2,8 @@ mod transformers;
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::collections::hash_map;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -31,6 +33,8 @@ use kgraph_utils::{
 };
 use masking::PeekInterface;
 use rand::distributions::{self, Distribution};
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use rand::SeedableRng;
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
 
@@ -1015,16 +1019,12 @@ pub async fn perform_session_flow_routing(
     let mut pm_type_map: FxHashMap<api_enums::PaymentMethodType, FxHashMap<String, api::GetToken>> =
         FxHashMap::default();
 
-    #[cfg(feature = "v1")]
     let profile_id = session_input
         .payment_intent
         .profile_id
         .clone()
         .get_required_value("profile_id")
         .change_context(errors::RoutingError::ProfileIdMissing)?;
-
-    #[cfg(feature = "v2")]
-    let profile_id = session_input.payment_intent.profile_id.clone();
 
     let business_profile = session_input
         .state
@@ -1036,11 +1036,7 @@ pub async fn perform_session_flow_routing(
         )
         .await
         .change_context(errors::RoutingError::ProfileNotFound)?;
-    #[cfg(feature = "v2")]
-    let routing_algorithm =
-        MerchantAccountRoutingAlgorithm::V1(business_profile.routing_algorithm_id.clone());
 
-    #[cfg(feature = "v1")]
     let routing_algorithm: MerchantAccountRoutingAlgorithm = {
         business_profile
             .routing_algorithm
@@ -1057,7 +1053,6 @@ pub async fn perform_session_flow_routing(
         card_network: None,
     };
 
-    #[cfg(feature = "v1")]
     let payment_input = dsl_inputs::PaymentInput {
         amount: session_input.payment_attempt.get_total_amount(),
         currency: session_input
@@ -1083,9 +1078,6 @@ pub async fn perform_session_flow_routing(
         business_label: session_input.payment_intent.business_label.clone(),
         setup_future_usage: session_input.payment_intent.setup_future_usage,
     };
-
-    #[cfg(feature = "v2")]
-    let payment_input = todo!();
 
     let metadata = session_input
         .payment_intent
