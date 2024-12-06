@@ -192,3 +192,73 @@ export function extractIntegerAtEnd(str) {
   const match = str.match(/(\d+)$/);
   return match ? parseInt(match[0], 10) : 0;
 }
+
+export function createProfileAndConnector(
+  fixtures,
+  globalState,
+  paymentMethodsEnabled,
+  businessProfileUpdate = { flag: false }
+) {
+  const connectorConfigs = getConnectorDetails(globalState.get("connectorId"))[
+    "multi_credential_config"
+  ] || { value: "connector_1" };
+
+  // Map connector names to their config
+  const connectorMap = {
+    connector_1: { index: 0, iterations: 1 },
+    connector_2: { index: 1, iterations: 1 },
+  };
+
+  const currentConnector = connectorMap[connectorConfigs.value];
+
+  cy.task("getSharedState").then((state) => {
+    const multipleConnectors = state.MULTIPLE_CONNECTORS;
+    cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
+
+    // If multiple connectors are enabled
+    if (multipleConnectors?.status) {
+      // Create profiles and connectors for additional connectors
+      // Skip index 0 since default profile/connector already exists
+
+      const i = currentConnector.index;
+      const profilePrefix = i === 0 ? "profile" : `profile${i}`;
+      const connectorPrefix =
+        i === 0 ? "merchantConnector" : `merchantConnector${i}`;
+
+      // Create business profile with indexed prefix
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState,
+        profilePrefix
+      );
+
+      // Create connector with indexed prefix
+      cy.createConnectorCallTest(
+        "payment_processor",
+        fixtures.createConnectorBody,
+        paymentMethodsEnabled,
+        globalState,
+        profilePrefix,
+        connectorPrefix
+      );
+
+      // Update business profile if needed
+      if (businessProfileUpdate?.flag) {
+        cy.UpdateBusinessProfileTest(
+          fixtures.businessProfile.bpUpdate,
+          businessProfileUpdate.is_connector_agnostic_enabled,
+          businessProfileUpdate.collect_billing_address_from_wallet_connector,
+          businessProfileUpdate.collect_shipping_address_from_wallet_connector,
+          businessProfileUpdate.always_collect_billing_address_from_wallet_connector,
+          businessProfileUpdate.always_collect_shipping_address_from_wallet_connector,
+          globalState,
+          profilePrefix
+        );
+      }
+    } else {
+      cy.log(
+        "Multiple connectors disabled - using default profile and connector only"
+      );
+    }
+  });
+}

@@ -176,7 +176,7 @@ Cypress.Commands.add(
     const baseUrl = globalState.get("baseUrl");
     const connectorId = globalState.get("connectorId");
     const merchantId = globalState.get("merchantId");
-    const profileName = `${connectorId}_${profilePrefix}_${Math.random().toString(36).substring(7)}`;
+    const profileName = `${connectorId}_${profilePrefix}_${RequestBodyUtils.generateRandomString()}`;
     const url = `${baseUrl}/account/${merchantId}/business_profile`;
 
     createBusinessProfile.profile_name = profileName;
@@ -657,9 +657,11 @@ Cypress.Commands.add(
     const connector_id = globalState.get("connectorId");
     const merchant_id = globalState.get("merchantId");
     const merchant_connector_id = globalState.get("merchantConnectorId");
+    const connectorLabel = `updated_${connector_id}_${RequestBodyUtils.generateRandomString()}`;
     const url = `${base_url}/account/${merchant_id}/connectors/${merchant_connector_id}`;
 
     updateConnectorBody.connector_type = connectorType;
+    updateConnectorBody.connector_label = connectorLabel;
 
     cy.request({
       method: "POST",
@@ -679,7 +681,7 @@ Cypress.Commands.add(
       expect(response.body.merchant_connector_id).to.equal(
         merchant_connector_id
       );
-      expect(response.body.connector_label).to.equal("updated_connector_label");
+      expect(response.body.connector_label).to.equal(connectorLabel);
     });
   }
 );
