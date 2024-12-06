@@ -880,6 +880,9 @@ pub enum ProfileUpdate {
     CollectCvvDuringPaymentUpdate {
         should_collect_cvv_during_payment: bool,
     },
+    ClickToPayUpdate {
+        is_click_to_pay_enabled: bool,
+    },
 }
 
 #[cfg(feature = "v2")]
