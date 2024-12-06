@@ -273,6 +273,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _state: &SessionState,
         _payment_data: &mut D,
         _merchant_account: &domain::MerchantAccount,
+        _connector_data: &api::ConnectorData,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }

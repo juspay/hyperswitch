@@ -2435,7 +2435,7 @@ where
 
     operation
         .to_domain()?
-        .populate_payment_data(state, payment_data, merchant_account)
+        .populate_payment_data(state, payment_data, merchant_account, &connector)
         .await?;
 
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
