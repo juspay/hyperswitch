@@ -1929,6 +1929,27 @@ impl api::IncomingWebhook for Adyen {
                 });
         Ok(mandate_reference)
     }
+
+    fn get_network_txn_id(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
+        errors::ConnectorError,
+    > {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let optional_network_txn_id =
+            notif
+                .additional_data
+                .network_tx_reference
+                .map(|network_txn_id| {
+                    hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId::new(
+                        network_txn_id,
+                    )
+                });
+        Ok(optional_network_txn_id)
+    }
 }
 
 impl api::Dispute for Adyen {}
