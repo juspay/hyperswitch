@@ -143,7 +143,17 @@ function determineConnectorConfig(connectorConfig) {
   }
 
   // Check if current spec matches any in specName
-  const currentSpec = Cypress.spec.name.toLowerCase();
+  const currentSpec =
+    // edge case for running in ui
+    Cypress.spec.name.toLowerCase() === "__all"
+      ? String(
+          Cypress.mocha.getRunner().suite.ctx.test.invocationDetails
+            .relativeFile
+        )
+          .split("/")
+          .pop()
+      : Cypress.spec.name.toLowerCase();
+
   try {
     const matchesSpec = specName.some(
       (name) => name && currentSpec.includes(name.toLowerCase())
