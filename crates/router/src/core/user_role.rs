@@ -698,7 +698,7 @@ pub async fn list_users_in_lineage(
         requestor_role_info.get_entity_type(),
         request.entity_type,
     )? {
-        EntityType::Organization => {
+        EntityType::Tenant | EntityType::Organization => {
             utils::user_role::fetch_user_roles_by_payload(
                 &state,
                 ListUserRolesByOrgIdPayload {
@@ -871,6 +871,10 @@ pub async fn list_invitations_for_user(
                 .attach_printable("Failed to compute entity id and type")?;
 
             match entity_type {
+                EntityType::Tenant => {
+                    return Err(report!(UserErrors::InternalServerError))
+                        .attach_printable("Tenant roles are not allowed for this operation");
+                }
                 EntityType::Organization => org_ids.push(
                     user_role
                         .org_id
@@ -975,6 +979,10 @@ pub async fn list_invitations_for_user(
                 .attach_printable("Failed to compute entity id and type")?;
 
             let entity_name = match entity_type {
+                EntityType::Tenant => {
+                    return Err(report!(UserErrors::InternalServerError))
+                        .attach_printable("Tenant roles are not allowed for this operation");
+                }
                 EntityType::Organization => user_role
                     .org_id
                     .as_ref()
