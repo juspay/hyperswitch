@@ -38,7 +38,6 @@ pub struct UploadFileRequest {
 pub struct CreateThemeRequest {
     pub lineage: ThemeLineage,
     pub theme_name: String,
-    pub email_theme_data: EmailThemeConfig,
     pub theme_data: ThemeData,
     pub email_config: EmailThemeConfig,
 }
