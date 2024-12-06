@@ -220,9 +220,6 @@ pub enum ProfileUpdate {
     NetworkTokenizationUpdate {
         is_network_tokenization_enabled: bool,
     },
-    ClickToPayUpdate {
-        is_click_to_pay_enabled: bool,
-    },
 }
 
 #[cfg(feature = "v1")]
