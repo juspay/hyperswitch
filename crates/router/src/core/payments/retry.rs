@@ -464,6 +464,8 @@ where
                 encoded_data,
                 unified_code: None,
                 unified_message: None,
+                capture_before: None,
+                extended_authorization_applied: None,
                 payment_method_data: additional_payment_method_data,
                 charge_id,
                 connector_mandate_detail: None,
