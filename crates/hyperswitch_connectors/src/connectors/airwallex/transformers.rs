@@ -189,7 +189,9 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(
                             request.capture_method,
-                            Some(enums::CaptureMethod::Automatic) | None
+                            Some(enums::CaptureMethod::Automatic)
+                                | Some(enums::CaptureMethod::SequentialAutomatic)
+                                | None
                         ),
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {

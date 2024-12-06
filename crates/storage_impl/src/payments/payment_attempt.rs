@@ -60,7 +60,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
             .map(PaymentAttempt::from_storage_model)
@@ -83,7 +83,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|error| {
-                let new_error = diesel_error_to_data_error(error.current_context());
+                let new_error = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_error)
             })?
             .convert(
@@ -108,7 +108,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .update_with_attempt_id(&conn, payment_attempt.to_storage_model())
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
             .map(PaymentAttempt::from_storage_model)
@@ -135,7 +135,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             )
             .await
             .map_err(|error| {
-                let new_error = diesel_error_to_data_error(error.current_context());
+                let new_error = diesel_error_to_data_error(*error.current_context());
                 error.change_context(new_error)
             })?
             .convert(
@@ -151,7 +151,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        connector_transaction_id: &str,
+        connector_transaction_id: &ConnectorTransactionId,
         payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: MerchantStorageScheme,
@@ -165,7 +165,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -187,7 +187,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -209,7 +209,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -231,7 +231,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -255,7 +255,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })?
         .convert(
@@ -286,7 +286,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -313,7 +313,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         DieselPaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
             .map(
@@ -352,7 +352,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -370,7 +370,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         DieselPaymentAttempt::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
             .map(|a| {
@@ -393,7 +393,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         DieselPaymentAttempt::find_by_merchant_id_attempt_id(&conn, merchant_id, attempt_id)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
             .map(PaymentAttempt::from_storage_model)
@@ -413,7 +413,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         DieselPaymentAttempt::find_by_id(&conn, attempt_id)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })?
             .convert(
@@ -464,7 +464,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
     }
@@ -793,7 +793,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     #[instrument(skip_all)]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        connector_transaction_id: &str,
+        connector_transaction_id: &ConnectorTransactionId,
         payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
@@ -818,8 +818,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
                 let lookup_id = format!(
-                    "pa_conn_trans_{}_{connector_transaction_id}",
-                    merchant_id.get_string_repr()
+                    "pa_conn_trans_{}_{}",
+                    merchant_id.get_string_repr(),
+                    connector_transaction_id.get_id()
                 );
                 let lookup = fallback_reverse_lookup_not_found!(
                     self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)

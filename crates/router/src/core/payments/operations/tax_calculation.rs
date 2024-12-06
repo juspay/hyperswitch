@@ -78,7 +78,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_not_allowed_statuses(
-            &payment_intent.status,
+            payment_intent.status,
             &[
                 storage_enums::IntentStatus::Failed,
                 storage_enums::IntentStatus::Succeeded,
@@ -129,7 +129,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalcu
             })?;
 
         let tax_data = payments::TaxData {
-            shipping_details: request.shipping.clone(),
+            shipping_details: request.shipping.clone().into(),
             payment_method_type: request.payment_method_type,
         };
 
@@ -403,7 +403,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCalculati
 
             let shipping_address = helpers::create_or_update_address_for_payment_by_request(
                 state,
-                shipping_address.as_ref(),
+                shipping_address.map(From::from).as_ref(),
                 payment_data.payment_intent.shipping_address_id.as_deref(),
                 &payment_data.payment_intent.merchant_id,
                 payment_data.payment_intent.customer_id.as_ref(),

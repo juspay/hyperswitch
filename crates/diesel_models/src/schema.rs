@@ -214,6 +214,7 @@ diesel::table! {
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
         always_request_extended_authorization -> Nullable<Bool>,
+        is_click_to_pay_enabled -> Bool,
     }
 }
 
@@ -509,6 +510,8 @@ diesel::table! {
         unified_code -> Nullable<Varchar>,
         #[max_length = 1024]
         unified_message -> Nullable<Varchar>,
+        #[max_length = 64]
+        error_category -> Nullable<Varchar>,
     }
 }
 

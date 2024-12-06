@@ -1199,7 +1199,7 @@ struct ConnectorAuthTypeAndMetadataValidation<'a> {
     connector_meta_data: &'a Option<pii::SecretSerdeValue>,
 }
 
-impl<'a> ConnectorAuthTypeAndMetadataValidation<'a> {
+impl ConnectorAuthTypeAndMetadataValidation<'_> {
     pub fn validate_auth_and_metadata_type(
         &self,
     ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
@@ -1576,7 +1576,7 @@ struct ConnectorAuthTypeValidation<'a> {
     auth_type: &'a types::ConnectorAuthType,
 }
 
-impl<'a> ConnectorAuthTypeValidation<'a> {
+impl ConnectorAuthTypeValidation<'_> {
     fn validate_connector_auth_type(
         &self,
     ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
@@ -1666,7 +1666,7 @@ struct ConnectorStatusAndDisabledValidation<'a> {
     current_status: &'a api_enums::ConnectorStatus,
 }
 
-impl<'a> ConnectorStatusAndDisabledValidation<'a> {
+impl ConnectorStatusAndDisabledValidation<'_> {
     fn validate_status_and_disabled(
         &self,
     ) -> RouterResult<(api_enums::ConnectorStatus, Option<bool>)> {
@@ -1709,7 +1709,7 @@ struct PaymentMethodsEnabled<'a> {
     payment_methods_enabled: &'a Option<Vec<api_models::admin::PaymentMethodsEnabled>>,
 }
 
-impl<'a> PaymentMethodsEnabled<'a> {
+impl PaymentMethodsEnabled<'_> {
     fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<pii::SecretSerdeValue>>> {
         let mut vec = Vec::new();
         let payment_methods_enabled = match self.payment_methods_enabled.clone() {
@@ -1735,7 +1735,7 @@ struct ConnectorMetadata<'a> {
     connector_metadata: &'a Option<pii::SecretSerdeValue>,
 }
 
-impl<'a> ConnectorMetadata<'a> {
+impl ConnectorMetadata<'_> {
     fn validate_apple_pay_certificates_in_mca_metadata(&self) -> RouterResult<()> {
         self.connector_metadata
             .clone()
@@ -1826,7 +1826,7 @@ struct ConnectorTypeAndConnectorName<'a> {
     connector_name: &'a api_enums::Connector,
 }
 
-impl<'a> ConnectorTypeAndConnectorName<'a> {
+impl ConnectorTypeAndConnectorName<'_> {
     fn get_routable_connector(&self) -> RouterResult<Option<api_enums::RoutableConnectors>> {
         let mut routable_connector =
             api_enums::RoutableConnectors::from_str(&self.connector_name.to_string()).ok();
@@ -2723,7 +2723,6 @@ pub async fn create_connector(
     let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
     req.connector_name
-        .clone()
         .validate_dummy_connector_enabled(state.conf.dummy_connector.enabled)
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Invalid connector name".to_string(),
@@ -3556,6 +3555,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
             always_request_extended_authorization: self.always_request_extended_authorization,
+            is_click_to_pay_enabled: self.is_click_to_pay_enabled,
         }))
     }
 
@@ -3663,6 +3663,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             tax_connector_id: self.tax_connector_id,
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+            is_click_to_pay_enabled: self.is_click_to_pay_enabled,
         }))
     }
 }
@@ -3912,6 +3913,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
+                is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             },
         )))
     }
@@ -4008,6 +4010,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 always_collect_shipping_details_from_wallet_connector: self
                     .always_collect_shipping_details_from_wallet_connector,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
+                is_click_to_pay_enabled: self.is_click_to_pay_enabled,
             },
         )))
     }

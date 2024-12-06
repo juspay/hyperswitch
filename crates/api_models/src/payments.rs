@@ -320,6 +320,10 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     pub client_secret: common_utils::types::ClientSecret,
 
+    /// The identifier for the profile. This is inferred from the `x-profile-id` header
+    #[schema(value_type = String)]
+    pub profile_id: id_type::ProfileId,
+
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
     #[schema(
@@ -480,10 +484,10 @@ pub struct AmountDetailsResponse {
     pub order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
     #[schema(value_type = TaxCalculationOverride)]
-    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    pub external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
     #[schema(value_type = SurchargeCalculationOverride)]
-    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    pub surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
     pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
@@ -506,10 +510,10 @@ pub struct ConfirmIntentAmountDetailsResponse {
     pub order_tax_amount: Option<MinorUnit>,
     /// The action to whether calculate tax by calling external tax provider or not
     #[schema(value_type = TaxCalculationOverride)]
-    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
+    pub external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
     #[schema(value_type = SurchargeCalculationOverride)]
-    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
+    pub surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
     pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
@@ -2479,7 +2483,6 @@ pub enum AdditionalPaymentData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-
 pub struct KlarnaSdkPaymentMethod {
     pub payment_type: Option<String>,
 }
@@ -2526,7 +2529,6 @@ pub enum BankRedirectData {
     Giropay {
         /// The billing details for bank redirection
         billing_details: Option<BankRedirectBilling>,
-        /// Bank account details for Giropay
 
         #[schema(value_type = Option<String>)]
         /// Bank account bic code
@@ -3704,7 +3706,6 @@ pub enum WalletResponseData {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-
 pub struct KlarnaSdkPaymentMethodResponse {
     pub payment_type: Option<String>,
 }
@@ -4218,7 +4219,6 @@ pub struct ReceiverDetails {
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema, router_derive::PolymorphicSchema)]
 #[generate_schemas(PaymentsCreateResponseOpenApi)]
-
 pub struct PaymentsResponse {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant.
@@ -4763,6 +4763,12 @@ pub struct PaymentsRetrieveResponse {
 
     /// Error details for the payment if any
     pub error: Option<ErrorDetails>,
+
+    /// The shipping address associated with the payment intent
+    pub shipping: Option<Address>,
+
+    /// The billing address associated with the payment intent
+    pub billing: Option<Address>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -6114,6 +6120,7 @@ pub struct ApplepayErrorResponse {
     pub status_message: String,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Default, Debug, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentsSessionResponse {
     /// The identifier for the payment
@@ -6122,6 +6129,16 @@ pub struct PaymentsSessionResponse {
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     #[schema(value_type = String)]
     pub client_secret: Secret<String, pii::ClientSecret>,
+    /// The list of session token object
+    pub session_token: Vec<SessionToken>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsSessionResponse {
+    /// The identifier for the payment
+    #[schema(value_type = String)]
+    pub payment_id: id_type::GlobalPaymentId,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
 }
@@ -6374,7 +6391,7 @@ mod payment_id_type {
     struct PaymentIdVisitor;
     struct OptionalPaymentIdVisitor;
 
-    impl<'de> Visitor<'de> for PaymentIdVisitor {
+    impl Visitor<'_> for PaymentIdVisitor {
         type Value = PaymentIdType;
 
         fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -6452,7 +6469,7 @@ mod payment_id_type {
     struct PaymentIdVisitor;
     struct OptionalPaymentIdVisitor;
 
-    impl<'de> Visitor<'de> for PaymentIdVisitor {
+    impl Visitor<'_> for PaymentIdVisitor {
         type Value = PaymentIdType;
 
         fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -6526,7 +6543,7 @@ pub mod amount {
 
     // This is defined to provide guarded deserialization of amount
     // which itself handles zero and non-zero values internally
-    impl<'de> de::Visitor<'de> for AmountVisitor {
+    impl de::Visitor<'_> for AmountVisitor {
         type Value = Amount;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -6689,6 +6706,7 @@ pub struct PaymentLinkDetails {
     pub sdk_layout: String,
     pub display_sdk_only: bool,
     pub hide_card_nickname_field: bool,
+    pub show_card_form_by_default: bool,
     pub locale: Option<String>,
     pub transaction_details: Option<Vec<admin::PaymentLinkTransactionDetails>>,
 }
@@ -6697,6 +6715,7 @@ pub struct PaymentLinkDetails {
 pub struct SecurePaymentLinkDetails {
     pub enabled_saved_payment_method: bool,
     pub hide_card_nickname_field: bool,
+    pub show_card_form_by_default: bool,
     #[serde(flatten)]
     pub payment_link_details: PaymentLinkDetails,
 }
@@ -6724,7 +6743,6 @@ pub struct PaymentLinkStatusDetails {
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-
 pub struct PaymentLinkListConstraints {
     /// limit on the number of objects to return
     pub limit: Option<i64>,

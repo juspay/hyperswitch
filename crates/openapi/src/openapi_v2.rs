@@ -127,6 +127,17 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_confirm_intent,
         routes::payments::payment_status,
 
+        //Routes for payment methods
+        routes::payment_method::list_customer_payment_method_for_payment,
+        routes::payment_method::list_customer_payment_method_api,
+        routes::payment_method::create_payment_method_api,
+        routes::payment_method::create_payment_method_intent_api,
+        routes::payment_method::confirm_payment_method_intent_api,
+        routes::payment_method::payment_method_update_api,
+        routes::payment_method::payment_method_retrieve_api,
+        routes::payment_method::payment_method_delete_api,
+
+
         //Routes for refunds
         routes::refunds::refunds_create,
     ),
@@ -170,9 +181,12 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::customers::CustomerRequest,
         api_models::customers::CustomerDeleteResponse,
         api_models::payment_methods::PaymentMethodCreate,
+        api_models::payment_methods::PaymentMethodIntentCreate,
+        api_models::payment_methods::PaymentMethodIntentConfirm,
         api_models::payment_methods::PaymentMethodResponse,
         api_models::payment_methods::PaymentMethodResponseData,
         api_models::payment_methods::CustomerPaymentMethod,
+        api_models::payment_methods::PaymentMethodListRequest,
         api_models::payment_methods::PaymentMethodListResponse,
         api_models::payment_methods::ResponsePaymentMethodsEnabled,
         api_models::payment_methods::ResponsePaymentMethodTypes,
@@ -189,6 +203,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodCreateData,
         api_models::payment_methods::CardDetail,
         api_models::payment_methods::CardDetailUpdate,
+        api_models::payment_methods::CardType,
         api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::payment_methods::CardType,
         api_models::payment_methods::PaymentMethodListData,
@@ -554,6 +569,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::ToggleBlocklistResponse,
         api_models::blocklist::ListBlocklistQuery,
         api_models::enums::BlocklistDataKind,
+        api_models::enums::ErrorCategory,
         api_models::webhook_events::EventListItemResponse,
         api_models::webhook_events::EventRetrieveResponse,
         api_models::webhook_events::OutgoingWebhookRequestContent,

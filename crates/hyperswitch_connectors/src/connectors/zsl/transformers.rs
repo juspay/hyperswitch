@@ -414,20 +414,10 @@ impl<F> TryFrom<ResponseRouterData<F, ZslWebhookResponse, PaymentsSyncData, Paym
             .consr_paid_amt
             .parse::<i64>()
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let txn_amount = item
-            .response
-            .txn_amt
-            .parse::<i64>()
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let status = if txn_amount > paid_amount {
-            enums::AttemptStatus::PartialCharged
-        } else {
-            enums::AttemptStatus::Charged
-        };
 
         if item.response.status == "0" {
             Ok(Self {
-                status,
+                status: enums::AttemptStatus::Charged,
                 amount_captured: Some(paid_amount),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.txn_id.clone()),

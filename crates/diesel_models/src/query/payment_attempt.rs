@@ -97,14 +97,14 @@ impl PaymentAttempt {
     #[cfg(feature = "v1")]
     pub async fn find_by_connector_transaction_id_payment_id_merchant_id(
         conn: &PgPooledConn,
-        connector_transaction_id: &str,
+        connector_transaction_id: &common_utils::types::ConnectorTransactionId,
         payment_id: &common_utils::id_type::PaymentId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::connector_transaction_id
-                .eq(connector_transaction_id.to_owned())
+                .eq(connector_transaction_id.get_id().to_owned())
                 .and(dsl::payment_id.eq(payment_id.to_owned()))
                 .and(dsl::merchant_id.eq(merchant_id.to_owned())),
         )

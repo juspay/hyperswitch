@@ -1,7 +1,5 @@
-//!
 //! Data types and type conversions
 //! from `fred`'s internal data-types to custom data-types
-//!
 
 use common_utils::errors::CustomResult;
 use fred::types::RedisValue as FredRedisValue;

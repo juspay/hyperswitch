@@ -82,7 +82,7 @@ pub trait PaymentAttemptInterface {
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        connector_transaction_id: &str,
+        connector_transaction_id: &ConnectorTransactionId,
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -382,6 +382,17 @@ impl PaymentAttempt {
 
         let now = common_utils::date_time::now();
 
+        let payment_method_billing_address = encrypted_data
+            .payment_method_billing_address
+            .as_ref()
+            .map(|data| {
+                data.clone()
+                    .deserialize_inner_value(|value| value.parse_value("Address"))
+            })
+            .transpose()
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to decode billing address")?;
+
         Ok(Self {
             payment_id: payment_intent.id.clone(),
             merchant_id: payment_intent.merchant_id.clone(),
@@ -424,8 +435,7 @@ impl PaymentAttempt {
             payment_method_subtype: request.payment_method_subtype,
             authentication_applied: None,
             external_reference_id: None,
-            // TODO: encrypt and store this
-            payment_method_billing_address: None,
+            payment_method_billing_address,
             error: None,
             connector_mandate_detail: None,
             id,

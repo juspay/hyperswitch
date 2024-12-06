@@ -14,7 +14,9 @@ use hyperswitch_domain_models::{
         CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsPreProcessingData, PaymentsSyncData, ResponseId,
     },
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
@@ -48,10 +50,57 @@ impl<T> From<(StringMinorUnit, T)> for NexixpayRouterData<T> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum NexixpayRecurringAction {
+    NoRecurring,
+    SubsequentPayment,
+    ContractCreation,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ContractType {
+    MitUnscheduled,
+    MitScheduled,
+    Cit,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecurrenceRequest {
+    action: NexixpayRecurringAction,
+    contract_id: Secret<String>,
+    contract_type: ContractType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayNonMandatePaymentRequest {
+    card: NexixpayCard,
+    recurrence: Option<RecurrenceRequest>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayMandatePaymentRequest {
+    contract_id: Secret<String>,
+    capture_type: Option<NexixpayCaptureType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum NexixpayPaymentsRequestData {
+    NexixpayNonMandatePaymentRequest(Box<NexixpayNonMandatePaymentRequest>),
+    NexixpayMandatePaymentRequest(Box<NexixpayMandatePaymentRequest>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayPaymentsRequest {
     order: Order,
-    card: NexixpayCard,
+    #[serde(flatten)]
+    payment_data: NexixpayPaymentsRequestData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,6 +118,7 @@ pub struct NexixpayCompleteAuthorizeRequest {
     operation_id: String,
     capture_type: Option<NexixpayCaptureType>,
     three_d_s_auth_data: ThreeDSAuthData,
+    recurrence: Option<RecurrenceRequest>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,18 +158,28 @@ pub struct Order {
 #[serde(rename_all = "camelCase")]
 pub struct CustomerInfo {
     card_holder_name: Secret<String>,
-    billing_address: Address,
-    shipping_address: Option<Address>,
+    billing_address: BillingAddress,
+    shipping_address: Option<ShippingAddress>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Address {
+pub struct BillingAddress {
     name: Secret<String>,
     street: Secret<String>,
     city: String,
     post_code: Secret<String>,
     country: enums::CountryAlpha2,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShippingAddress {
+    name: Option<Secret<String>>,
+    street: Option<Secret<String>>,
+    city: Option<String>,
+    post_code: Option<Secret<String>>,
+    country: Option<enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,10 +197,24 @@ struct Recurrence {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NexixpayPaymentsResponse {
+pub struct PaymentsResponse {
     operation: Operation,
     three_d_s_auth_request: String,
     three_d_s_auth_url: Secret<url::Url>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NexixpayMandateResponse {
+    operation: Operation,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+pub enum NexixpayPaymentsResponse {
+    PaymentResponse(Box<PaymentsResponse>),
+    MandateResponse(Box<NexixpayMandateResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -371,54 +445,158 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
     fn try_from(
         item: &NexixpayRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data {
-            PaymentMethodData::Card(ref req_card) => {
-                let card = NexixpayCard {
-                    pan: req_card.card_number.clone(),
-                    expiry_date: req_card.get_expiry_date_as_mmyy()?,
+        let billing_address_street = format!(
+            "{}, {}",
+            item.router_data.get_billing_line1()?.expose(),
+            item.router_data.get_billing_line2()?.expose()
+        );
+
+        let billing_address = BillingAddress {
+            name: item.router_data.get_billing_full_name()?,
+            street: Secret::new(billing_address_street),
+            city: item.router_data.get_billing_city()?,
+            post_code: item.router_data.get_billing_zip()?,
+            country: item.router_data.get_billing_country()?,
+        };
+        let shipping_address_street = match (
+            item.router_data.get_optional_shipping_line1(),
+            item.router_data.get_optional_shipping_line2(),
+        ) {
+            (Some(line1), Some(line2)) => Some(Secret::new(format!(
+                "{}, {}",
+                line1.expose(),
+                line2.expose()
+            ))),
+            (Some(line1), None) => Some(Secret::new(line1.expose())),
+            (None, Some(line2)) => Some(Secret::new(line2.expose())),
+            (None, None) => None,
+        };
+
+        let shipping_address = item
+            .router_data
+            .get_optional_billing()
+            .map(|_| ShippingAddress {
+                name: item.router_data.get_optional_shipping_full_name(),
+                street: shipping_address_street,
+                city: item.router_data.get_optional_shipping_city(),
+                post_code: item.router_data.get_optional_shipping_zip(),
+                country: item.router_data.get_optional_shipping_country(),
+            });
+        let customer_info = CustomerInfo {
+            card_holder_name: item.router_data.get_billing_full_name()?,
+            billing_address: billing_address.clone(),
+            shipping_address: shipping_address.clone(),
+        };
+        let order = Order {
+            order_id: item.router_data.connector_request_reference_id.clone(),
+            amount: item.amount.clone(),
+            currency: item.router_data.request.currency,
+            description: item.router_data.description.clone(),
+            customer_info,
+        };
+        let payment_data = NexixpayPaymentsRequestData::try_from(item)?;
+        Ok(Self {
+            order,
+            payment_data,
+        })
+    }
+}
+
+impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaymentsRequestData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &NexixpayRouterData<&PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item
+            .router_data
+            .request
+            .mandate_id
+            .clone()
+            .and_then(|mandate_id| mandate_id.mandate_reference_id)
+        {
+            None => {
+                let recurrence_request_obj = if item.router_data.request.is_mandate_payment() {
+                    let contract_id = item
+                        .router_data
+                        .connector_mandate_request_reference_id
+                        .clone()
+                        .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                            field_name: "connector_mandate_request_reference_id",
+                        })?;
+                    Some(RecurrenceRequest {
+                        action: NexixpayRecurringAction::ContractCreation,
+                        contract_id: Secret::new(contract_id),
+                        contract_type: ContractType::MitUnscheduled,
+                    })
+                } else {
+                    None
                 };
-                let billing_address = Address {
-                    name: item.router_data.get_billing_full_name()?,
-                    street: item.router_data.get_billing_line1()?,
-                    city: item.router_data.get_billing_city()?,
-                    post_code: item.router_data.get_billing_zip()?,
-                    country: item.router_data.get_billing_country()?,
-                };
-                let customer_info = CustomerInfo {
-                    card_holder_name: item.router_data.get_billing_full_name()?,
-                    billing_address: billing_address.clone(),
-                    shipping_address: Some(billing_address),
-                };
-                let order = Order {
-                    order_id: item.router_data.connector_request_reference_id.clone(),
-                    amount: item.amount.clone(),
-                    currency: item.router_data.request.currency,
-                    description: item.router_data.description.clone(),
-                    customer_info,
-                };
-                Ok(Self { order, card })
+
+                match item.router_data.request.payment_method_data {
+                    PaymentMethodData::Card(ref req_card) => {
+                        if item.router_data.is_three_ds() {
+                            Ok(Self::NexixpayNonMandatePaymentRequest(Box::new(
+                                NexixpayNonMandatePaymentRequest {
+                                    card: NexixpayCard {
+                                        pan: req_card.card_number.clone(),
+                                        expiry_date: req_card.get_expiry_date_as_mmyy()?,
+                                    },
+                                    recurrence: recurrence_request_obj,
+                                },
+                            )))
+                        } else {
+                            Err(errors::ConnectorError::NotSupported {
+                                message: "No threeds is not supported".to_string(),
+                                connector: "nexixpay",
+                            }
+                            .into())
+                        }
+                    }
+                    PaymentMethodData::CardRedirect(_)
+                    | PaymentMethodData::Wallet(_)
+                    | PaymentMethodData::PayLater(_)
+                    | PaymentMethodData::BankRedirect(_)
+                    | PaymentMethodData::BankDebit(_)
+                    | PaymentMethodData::BankTransfer(_)
+                    | PaymentMethodData::Crypto(_)
+                    | PaymentMethodData::MandatePayment
+                    | PaymentMethodData::Reward
+                    | PaymentMethodData::RealTimePayment(_)
+                    | PaymentMethodData::Upi(_)
+                    | PaymentMethodData::MobilePayment(_)
+                    | PaymentMethodData::Voucher(_)
+                    | PaymentMethodData::GiftCard(_)
+                    | PaymentMethodData::OpenBanking(_)
+                    | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::NetworkToken(_) => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            get_unimplemented_payment_method_error_message("nexixpay"),
+                        ))?
+                    }
+                }
             }
-            PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
-            | PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
-            | PaymentMethodData::Reward
-            | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            Some(api_models::payments::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
+                let contract_id = Secret::new(
+                    mandate_data
+                        .get_connector_mandate_request_reference_id()
+                        .ok_or(errors::ConnectorError::MissingConnectorMandateID)?,
+                );
+                let capture_type =
+                    get_nexixpay_capture_type(item.router_data.request.capture_method)?;
+                Ok(Self::NexixpayMandatePaymentRequest(Box::new(
+                    NexixpayMandatePaymentRequest {
+                        contract_id,
+                        capture_type,
+                    },
+                )))
+            }
+            Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(api_models::payments::MandateReferenceId::NetworkMandateId(_)) => {
                 Err(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("nexixpay"),
-                ))?
+                )
+                .into())
             }
         }
     }
@@ -570,7 +748,9 @@ fn get_nexixpay_capture_type(
 ) -> CustomResult<Option<NexixpayCaptureType>, errors::ConnectorError> {
     match item {
         Some(CaptureMethod::Manual) => Ok(Some(NexixpayCaptureType::Explicit)),
-        Some(CaptureMethod::Automatic) | None => Ok(Some(NexixpayCaptureType::Implicit)),
+        Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) | None => {
+            Ok(Some(NexixpayCaptureType::Implicit))
+        }
         Some(item) => Err(errors::ConnectorError::FlowNotSupported {
             flow: item.to_string(),
             connector: "Nexixpay".to_string(),
@@ -598,45 +778,81 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let complete_authorize_url = item.data.request.get_complete_authorize_url()?;
-        let operation_id: String = item.response.operation.operation_id;
-        let redirection_form = nexixpay_threeds_link(NexixpayRedirectionRequest {
-            three_d_s_auth_url: item.response.three_d_s_auth_url.expose().to_string(),
-            three_ds_request: item.response.three_d_s_auth_request.clone(),
-            return_url: complete_authorize_url.clone(),
-            transaction_id: operation_id.clone(),
-        })?;
-        let is_auto_capture = item.data.request.is_auto_capture()?;
-        let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
-            three_d_s_auth_result: None,
-            three_d_s_auth_response: None,
-            authorization_operation_id: Some(operation_id.clone()),
-            cancel_operation_id: None,
-            capture_operation_id: {
-                if is_auto_capture {
-                    Some(operation_id)
-                } else {
-                    None
-                }
-            },
-            psync_flow: NexixpayPaymentIntent::Authorize
-        }));
-        Ok(Self {
-            status: AttemptStatus::from(item.response.operation.operation_result),
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.operation.order_id.clone(),
-                ),
-                redirection_data: Box::new(Some(redirection_form.clone())),
-                mandate_reference: Box::new(None),
-                connector_metadata,
-                network_txn_id: None,
-                connector_response_reference_id: Some(item.response.operation.order_id),
-                incremental_authorization_allowed: None,
-                charge_id: None,
+        match item.response {
+            NexixpayPaymentsResponse::PaymentResponse(ref response_body) => {
+                let complete_authorize_url = item.data.request.get_complete_authorize_url()?;
+                let operation_id: String = response_body.operation.operation_id.clone();
+                let redirection_form = nexixpay_threeds_link(NexixpayRedirectionRequest {
+                    three_d_s_auth_url: response_body
+                        .three_d_s_auth_url
+                        .clone()
+                        .expose()
+                        .to_string(),
+                    three_ds_request: response_body.three_d_s_auth_request.clone(),
+                    return_url: complete_authorize_url.clone(),
+                    transaction_id: operation_id.clone(),
+                })?;
+                let is_auto_capture = item.data.request.is_auto_capture()?;
+                let connector_metadata = Some(serde_json::json!(NexixpayConnectorMetaData {
+                    three_d_s_auth_result: None,
+                    three_d_s_auth_response: None,
+                    authorization_operation_id: Some(operation_id.clone()),
+                    cancel_operation_id: None,
+                    capture_operation_id: {
+                        if is_auto_capture {
+                            Some(operation_id)
+                        } else {
+                            None
+                        }
+                    },
+                    psync_flow: NexixpayPaymentIntent::Authorize
+                }));
+                Ok(Self {
+                    status: AttemptStatus::from(response_body.operation.operation_result.clone()),
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            response_body.operation.order_id.clone(),
+                        ),
+                        redirection_data: Box::new(Some(redirection_form.clone())),
+                        mandate_reference: Box::new(Some(MandateReference {
+                            connector_mandate_id: item
+                                .data
+                                .connector_mandate_request_reference_id
+                                .clone(),
+                            payment_method_id: None,
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        })),
+                        connector_metadata,
+                        network_txn_id: None,
+                        connector_response_reference_id: Some(
+                            response_body.operation.order_id.clone(),
+                        ),
+                        incremental_authorization_allowed: None,
+                        charge_id: None,
+                    }),
+                    ..item.data
+                })
+            }
+            NexixpayPaymentsResponse::MandateResponse(ref mandate_response) => Ok(Self {
+                status: AttemptStatus::from(mandate_response.operation.operation_result.clone()),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        mandate_response.operation.order_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: Some(
+                        mandate_response.operation.order_id.clone(),
+                    ),
+                    incremental_authorization_allowed: None,
+                    charge_id: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
 
@@ -738,7 +954,6 @@ impl<F>
             meta_data,
             is_auto_capture,
         })?);
-
         Ok(Self {
             status: AttemptStatus::from(item.response.operation.operation_result),
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -746,7 +961,12 @@ impl<F>
                     item.response.operation.order_id.clone(),
                 ),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(Some(MandateReference {
+                    connector_mandate_id: item.data.connector_mandate_request_reference_id.clone(),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.operation.order_id),
@@ -775,17 +995,47 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
 
         let order_id = item.router_data.connector_request_reference_id.clone();
         let amount = item.amount.clone();
-        let billing_address = Address {
+        let billing_address_street = format!(
+            "{}, {}",
+            item.router_data.get_billing_line1()?.expose(),
+            item.router_data.get_billing_line2()?.expose()
+        );
+
+        let billing_address = BillingAddress {
             name: item.router_data.get_billing_full_name()?,
-            street: item.router_data.get_billing_line1()?,
+            street: Secret::new(billing_address_street),
             city: item.router_data.get_billing_city()?,
             post_code: item.router_data.get_billing_zip()?,
             country: item.router_data.get_billing_country()?,
         };
+        let shipping_address_street = match (
+            item.router_data.get_optional_shipping_line1(),
+            item.router_data.get_optional_shipping_line2(),
+        ) {
+            (Some(line1), Some(line2)) => Some(Secret::new(format!(
+                "{}, {}",
+                line1.expose(),
+                line2.expose()
+            ))),
+            (Some(line1), None) => Some(Secret::new(line1.expose())),
+            (None, Some(line2)) => Some(Secret::new(line2.expose())),
+            (None, None) => None,
+        };
+
+        let shipping_address = item
+            .router_data
+            .get_optional_billing()
+            .map(|_| ShippingAddress {
+                name: item.router_data.get_optional_shipping_full_name(),
+                street: shipping_address_street,
+                city: item.router_data.get_optional_shipping_city(),
+                post_code: item.router_data.get_optional_shipping_zip(),
+                country: item.router_data.get_optional_shipping_country(),
+            });
         let customer_info = CustomerInfo {
             card_holder_name: item.router_data.get_billing_full_name()?,
             billing_address: billing_address.clone(),
-            shipping_address: Some(billing_address),
+            shipping_address: shipping_address.clone(),
         };
         let order_data = Order {
             order_id,
@@ -841,12 +1091,25 @@ impl TryFrom<&NexixpayRouterData<&PaymentsCompleteAuthorizeRouterData>>
                     .into())
                 }
             };
+        let contract_id = Secret::new(
+            item.router_data
+                .connector_mandate_request_reference_id
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                    field_name: "connector_mandate_request_reference_id",
+                })?,
+        );
         Ok(Self {
             order: order_data,
             card: card?,
             operation_id,
             capture_type,
             three_d_s_auth_data,
+            recurrence: Some(RecurrenceRequest {
+                action: NexixpayRecurringAction::ContractCreation,
+                contract_id,
+                contract_type: ContractType::MitUnscheduled,
+            }),
         })
     }
 }
@@ -870,7 +1133,12 @@ impl<F>
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
                 redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
+                mandate_reference: Box::new(Some(MandateReference {
+                    connector_mandate_id: item.data.connector_mandate_request_reference_id.clone(),
+                    payment_method_id: None,
+                    mandate_metadata: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata: item.data.request.connector_meta.clone(),
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),

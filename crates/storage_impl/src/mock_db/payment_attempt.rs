@@ -257,7 +257,7 @@ impl PaymentAttemptInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        _connector_transaction_id: &str,
+        _connector_transaction_id: &common_utils::types::ConnectorTransactionId,
         _payment_id: &common_utils::id_type::PaymentId,
         _merchant_id: &common_utils::id_type::MerchantId,
         _storage_scheme: storage_enums::MerchantStorageScheme,

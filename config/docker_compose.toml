@@ -183,6 +183,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://sandbox.juspay.in/"
+redsys.base_url = "https://sis-t.redsys.es:25443/sis/realizarPago"
 riskified.base_url = "https://sandbox.riskified.com/api"
 shift4.base_url = "https://api.shift4.com/"
 signifyd.base_url = "https://api.signifyd.com/"
@@ -276,6 +277,7 @@ cards = [
     "plaid",
     "powertranz",
     "prophetpay",
+    "redsys",
     "shift4",
     "square",
     "stax",
@@ -689,3 +691,6 @@ prod_intent_recipient_email = "business@example.com" # Recipient email for prod 
 [email.aws_ses]
 email_role_arn = ""        # The amazon resource name ( arn ) of the role which has permission to send emails
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
+
+[theme_storage]
+file_storage_backend = "file_system" # Theme storage backend to be used
