@@ -642,46 +642,45 @@ pub fn get_payment_link_config_based_on_priority(
         (hide_card_nickname_field, DEFAULT_HIDE_CARD_NICKNAME_FIELD),
         (show_card_form_by_default, DEFAULT_SHOW_CARD_FORM)
     );
-    let payment_link_config = PaymentLinkConfig {
-        theme,
-        logo,
-        seller_name,
-        sdk_layout,
-        display_sdk_only,
-        enabled_saved_payment_method,
-        hide_card_nickname_field,
-        show_card_form_by_default,
-        allowed_domains,
-        branding_visibility,
-        transaction_details: payment_create_link_config
-            .as_ref()
-            .and_then(|payment_link_config| {
-                payment_link_config.theme_config.transaction_details.clone()
-            }),
-        details_layout: payment_create_link_config
-            .as_ref()
-            .and_then(|payment_link_config| payment_link_config.theme_config.details_layout)
-            .or_else(|| {
-                business_theme_configs
-                    .as_ref()
-                    .and_then(|business_theme_config| business_theme_config.details_layout)
-            }),
-        background_image: payment_create_link_config
-            .as_ref()
-            .and_then(|payment_link_config| {
-                payment_link_config.theme_config.background_image.clone()
-            })
-            .or_else(|| {
-                business_theme_configs
-                    .as_ref()
-                    .and_then(|business_theme_config| {
-                        business_theme_config
-                            .background_image
-                            .as_ref()
-                            .map(|background_image| background_image.clone().foreign_into())
-                    })
-            }),
-    };
+    let payment_link_config =
+        PaymentLinkConfig {
+            theme,
+            logo,
+            seller_name,
+            sdk_layout,
+            display_sdk_only,
+            enabled_saved_payment_method,
+            hide_card_nickname_field,
+            show_card_form_by_default,
+            allowed_domains,
+            branding_visibility,
+            transaction_details: payment_create_link_config.as_ref().and_then(
+                |payment_link_config| payment_link_config.theme_config.transaction_details.clone(),
+            ),
+            details_layout: payment_create_link_config
+                .as_ref()
+                .and_then(|payment_link_config| payment_link_config.theme_config.details_layout)
+                .or_else(|| {
+                    business_theme_configs
+                        .as_ref()
+                        .and_then(|business_theme_config| business_theme_config.details_layout)
+                }),
+            background_image: payment_create_link_config
+                .as_ref()
+                .and_then(|payment_link_config| {
+                    payment_link_config.theme_config.background_image.clone()
+                })
+                .or_else(|| {
+                    business_theme_configs
+                        .as_ref()
+                        .and_then(|business_theme_config| {
+                            business_theme_config
+                                .background_image
+                                .as_ref()
+                                .map(|background_image| background_image.clone().foreign_into())
+                        })
+                }),
+        };
 
     Ok((payment_link_config, domain_name))
 }
