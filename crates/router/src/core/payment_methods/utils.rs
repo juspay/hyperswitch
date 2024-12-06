@@ -429,7 +429,7 @@ fn construct_supported_connectors_for_update_mandate_node(
         }
     }
 
-    if agg_nodes.len() > 0 {
+    if !agg_nodes.is_empty() {
         Ok(Some(
             builder
                 .make_any_aggregator(
