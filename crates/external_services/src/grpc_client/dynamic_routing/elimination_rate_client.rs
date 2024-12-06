@@ -148,10 +148,10 @@ impl ForeignTryFrom<EliminationConfig> for EliminationBucketConfig {
                     field: "bucket_size".to_string(),
                 })?,
             bucket_leak_interval_in_secs: config
-                .bucket_ttl_in_mins
-                .get_required_value("bucket_ttl_in_mins")
+                .bucket_leak_interval_in_secs
+                .get_required_value("bucket_leak_interval_in_secs")
                 .change_context(DynamicRoutingError::MissingRequiredField {
-                    field: "bucket_ttl_in_mins".to_string(),
+                    field: "bucket_leak_interval_in_secs".to_string(),
                 })?,
         })
     }

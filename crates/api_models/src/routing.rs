@@ -746,7 +746,7 @@ pub struct EliminationRoutingConfig {
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct EliminationAnalyserConfig {
     pub bucket_size: Option<u64>,
-    pub bucket_ttl_in_mins: Option<u64>,
+    pub bucket_leak_interval_in_secs: Option<u64>,
 }
 
 impl Default for EliminationRoutingConfig {
@@ -755,7 +755,7 @@ impl Default for EliminationRoutingConfig {
             params: Some(vec![DynamicRoutingConfigParams::PaymentMethod]),
             elimination_analyser_config: Some(EliminationAnalyserConfig {
                 bucket_size: Some(5),
-                bucket_ttl_in_mins: Some(2),
+                bucket_leak_interval_in_secs: Some(2),
             }),
         }
     }
