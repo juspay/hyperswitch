@@ -5575,7 +5575,8 @@
           "automatic",
           "manual",
           "manual_multiple",
-          "scheduled"
+          "scheduled",
+          "sequential_automatic"
         ]
       },
       "CaptureResponse": {
@@ -17553,7 +17554,8 @@
       "ProfileCreate": {
         "type": "object",
         "required": [
-          "profile_name"
+          "profile_name",
+          "is_click_to_pay_enabled"
         ],
         "properties": {
           "profile_name": {
@@ -17711,6 +17713,12 @@
           "is_network_tokenization_enabled": {
             "type": "boolean",
             "description": "Indicates if network tokenization is enabled or not."
+          },
+          "is_click_to_pay_enabled": {
+            "type": "boolean",
+            "description": "Indicates if click to pay is enabled or not.",
+            "default": false,
+            "example": false
           }
         },
         "additionalProperties": false
@@ -17743,7 +17751,8 @@
           "redirect_to_merchant_with_http_post",
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
-          "should_collect_cvv_during_payment"
+          "should_collect_cvv_during_payment",
+          "is_click_to_pay_enabled"
         ],
         "properties": {
           "merchant_id": {
@@ -17923,6 +17932,12 @@
           "should_collect_cvv_during_payment": {
             "type": "boolean",
             "description": "Indicates if CVV should be collected during payment or not."
+          },
+          "is_click_to_pay_enabled": {
+            "type": "boolean",
+            "description": "Indicates if click to pay is enabled or not.",
+            "default": false,
+            "example": false
           }
         }
       },
