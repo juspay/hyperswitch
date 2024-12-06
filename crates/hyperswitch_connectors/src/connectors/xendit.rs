@@ -1,10 +1,12 @@
 pub mod transformers;
 
+use base64::Engine;
 use common_utils::{
+    consts,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
@@ -13,16 +15,17 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        CreateConnectorCustomer,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -30,23 +33,27 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::{self, Response},
+    types::{self, ConnectorCustomerType, Response, TokenizationType},
     webhooks,
 };
 use masking::{ExposeInterface, Mask};
 use transformers as xendit;
 
-use crate::{constants::headers, types::ResponseRouterData, utils};
+use crate::{
+    constants::headers,
+    types::ResponseRouterData,
+    utils::{self, RouterData as _},
+};
 
 #[derive(Clone)]
 pub struct Xendit {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Xendit {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -63,12 +70,6 @@ impl api::Refund for Xendit {}
 impl api::RefundExecute for Xendit {}
 impl api::RefundSync for Xendit {}
 impl api::PaymentToken for Xendit {}
-
-impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Xendit
-{
-    // Not Implemented (R)
-}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Xendit
 where
@@ -96,9 +97,6 @@ impl ConnectorCommon for Xendit {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
-        //    TODO! Check connector documentation, on which unit they are processing the currency.
-        //    If the connector accepts amount in lower unit ( i.e cents for USD) then return api::CurrencyUnit::Minor,
-        //    if connector accepts amount in base unit (i.e dollars for USD) then return api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -115,9 +113,12 @@ impl ConnectorCommon for Xendit {
     ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = xendit::XenditAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let api_key = format!("{}:", auth.api_key.expose());
+        let xendit_secret_key = format!("Basic {}", consts::BASE64_ENGINE.encode(api_key));
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
+            xendit_secret_key.into_masked(),
         )])
     }
 
@@ -126,14 +127,13 @@ impl ConnectorCommon for Xendit {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        println!("^^^^^error_response{:?}", res.response);
         let response: xendit::XenditErrorResponse = res
             .response
             .parse_struct("XenditErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
-
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code,
@@ -149,6 +149,10 @@ impl ConnectorValidation for Xendit {
     //TODO: implement functions when support enabled
 }
 
+// Xendit customer
+
+impl api::ConnectorCustomer for Xendit {}
+
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Xendit {
     //TODO: implement sessions flow
 }
@@ -156,6 +160,178 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Xendit {}
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Xendit {}
+
+impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>
+    for Xendit
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/customers", self.base_url(connectors),))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_request = xendit::XenditCustomerRequest::try_from(req)?;
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_request)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("cucucucureq {:?}", printrequest);
+
+        Ok(RequestContent::Json(Box::new(connector_request)))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorCustomerRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&ConnectorCustomerType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(ConnectorCustomerType::get_headers(self, req, connectors)?)
+                .set_body(ConnectorCustomerType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorCustomerRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorCustomerRouterData, errors::ConnectorError>
+    where
+        PaymentsResponseData: Clone,
+    {
+        println!("cucucucures{:?}", res.response);
+        let response: xendit::XenditCustomerResponse = res
+            .response
+            .parse_struct("XenditCustomerResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+}
+
+impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
+    for Xendit
+{
+    fn get_headers(
+        &self,
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/v2/payment_methods", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &TokenizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        println!("toktokstart^^^");
+
+        let connector_request = xendit::XenditLinkedAccountTokenizationRequest::try_from(req)?;
+
+        let printrequest =
+            common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_request)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("toktokreq {:?}", printrequest);
+
+        Ok(RequestContent::Json(Box::new(connector_request)))
+    }
+
+    fn build_request(
+        &self,
+        req: &TokenizationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&TokenizationType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(TokenizationType::get_headers(self, req, connectors)?)
+                .set_body(TokenizationType::get_request_body(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &TokenizationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<TokenizationRouterData, errors::ConnectorError>
+    where
+        PaymentsResponseData: Clone,
+    {
+        println!("toktokresponse^^^^^{:?}", res.response);
+        let response: xendit::XenditLinkedAccountTokenizationResponse = res
+            .response
+            .parse_struct("XenditLinkedAccountTokenizationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Xendit {
     fn get_headers(
@@ -173,9 +349,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     fn get_url(
         &self,
         _req: &PaymentsAuthorizeRouterData,
-        _connectors: &Connectors,
+        connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        println!("auth_get_url");
+        Ok(format!("{}/payme`nt_requests", self.base_url(connectors),))
     }
 
     fn get_request_body(
@@ -183,6 +360,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        println!("authauthauthreqstart");
+
         let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
@@ -191,6 +370,9 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = xendit::XenditRouterData::from((amount, req));
         let connector_req = xendit::XenditPaymentsRequest::try_from(&connector_router_data)?;
+        let printrequest = common_utils::ext_traits::Encode::encode_to_string_of_json(&connector_req)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        println!("$$$$$^^^^ {:?}", printrequest);
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -199,6 +381,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        println!("authstart");
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -222,9 +405,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        println!("authresponse^^^^^^{:?}", res.response);
         let response: xendit::XenditPaymentsResponse = res
             .response
-            .parse_struct("Xendit PaymentsAuthorizeResponse")
+            .parse_struct("XenditPaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
