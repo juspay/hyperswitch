@@ -29,7 +29,7 @@ where
     let batches = divide(tasks, settings);
     // Safety: Assuming we won't deal with more than `u64::MAX` batches at once
     #[allow(clippy::as_conversions)]
-    metrics::BATCHES_CREATED.add(&metrics::CONTEXT, batches.len() as u64, &[]); // Metrics
+    metrics::BATCHES_CREATED.add(batches.len() as u64, &[]); // Metrics
     for batch in batches {
         let result = update_status_and_append(state, flow, batch).await;
         match result {
@@ -209,7 +209,7 @@ pub async fn get_batches(
         }
     };
 
-    metrics::BATCHES_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
+    metrics::BATCHES_CONSUMED.add(1, &[]);
 
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response.into_values().map(|entries| {
         entries.into_iter().try_fold(
@@ -291,7 +291,6 @@ pub fn add_histogram_metrics(
         logger::error!("Time delta for scheduled tasks: {pickup_schedule_delta} seconds");
         let runner_name = runner.clone();
         metrics::CONSUMER_STATS.record(
-            &metrics::CONTEXT,
             pickup_schedule_delta,
             &[opentelemetry::KeyValue::new(
                 stream_name.to_owned(),

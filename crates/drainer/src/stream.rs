@@ -69,7 +69,6 @@ impl Store {
         .await;
 
         metrics::REDIS_STREAM_READ_TIME.record(
-            &metrics::CONTEXT,
             execution_time,
             &[metrics::KeyValue::new("stream", stream_name.to_owned())],
         );
@@ -104,7 +103,6 @@ impl Store {
             .await;
 
         metrics::REDIS_STREAM_TRIM_TIME.record(
-            &metrics::CONTEXT,
             execution_time,
             &[metrics::KeyValue::new("stream", stream_name.to_owned())],
         );

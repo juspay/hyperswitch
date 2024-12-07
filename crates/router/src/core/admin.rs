@@ -2927,7 +2927,6 @@ pub async fn create_connector(
         .await?;
 
     metrics::MCA_CREATE.add(
-        &metrics::CONTEXT,
         1,
         &add_attributes([
             ("connector", req.connector_name.to_string()),

@@ -296,7 +296,6 @@ pub async fn make_card_network_tokenization_request(
                 )
             },
             &metrics::GENERATE_NETWORK_TOKEN_TIME,
-            &metrics::CONTEXT,
             &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
         )
         .await
@@ -399,7 +398,6 @@ pub async fn get_token_from_tokenization_service(
             .attach_printable("Fetch network token failed")
                 },
                 &metrics::FETCH_NETWORK_TOKEN_TIME,
-                &metrics::CONTEXT,
                 &[],
             )
             .await
@@ -483,7 +481,7 @@ pub async fn do_status_check_for_network_token(
                         )
                     },
                     &metrics::CHECK_NETWORK_TOKEN_STATUS_TIME,
-                    &metrics::CONTEXT,
+
                     &[],
                 )
                 .await?;
@@ -608,7 +606,6 @@ pub async fn delete_network_token_from_locker_and_token_service(
                 .await
             },
             &metrics::DELETE_NETWORK_TOKEN_TIME,
-            &metrics::CONTEXT,
             &[],
         )
         .await;

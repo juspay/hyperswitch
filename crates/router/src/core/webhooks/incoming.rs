@@ -134,7 +134,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let key_manager_state = &(&state).into();
 
     metrics::WEBHOOK_INCOMING_COUNT.add(
-        &metrics::CONTEXT,
         1,
         &[metrics::KeyValue::new(
             MERCHANT_ID,
@@ -200,7 +199,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             );
 
             metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
-                &metrics::CONTEXT,
                 1,
                 &[
                     metrics::KeyValue::new(MERCHANT_ID, merchant_account.get_id().clone()),
@@ -328,7 +326,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
         if source_verified {
             metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
-                &metrics::CONTEXT,
                 1,
                 &[metrics::KeyValue::new(
                     MERCHANT_ID,
@@ -498,7 +495,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         }
     } else {
         metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
-            &metrics::CONTEXT,
             1,
             &[metrics::KeyValue::new(
                 MERCHANT_ID,
@@ -661,7 +657,6 @@ async fn payments_incoming_webhook_flow(
                         .unwrap_or(true) =>
                 {
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
-                        &metrics::CONTEXT,
                         1,
                         &add_attributes([("merchant_id", merchant_account.get_id().clone())]),
                     );
@@ -722,7 +717,7 @@ async fn payouts_incoming_webhook_flow(
     event_type: webhooks::IncomingWebhookEvent,
     source_verified: bool,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
+    metrics::INCOMING_PAYOUT_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
         let db = &*state.store;
         //find payout_attempt by object_reference_id
@@ -838,7 +833,7 @@ async fn payouts_incoming_webhook_flow(
             status: updated_payout_attempt.status,
         })
     } else {
-        metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
+        metrics::INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
         Err(report!(
             errors::ApiErrorResponse::WebhookAuthenticationFailed
         ))
@@ -998,7 +993,7 @@ async fn get_or_update_dispute_object(
     let db = &*state.store;
     match option_dispute {
         None => {
-            metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
+            metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(1, &[]);
             let dispute_id = generate_id(consts::ID_LENGTH, "dp");
             let new_dispute = diesel_models::dispute::DisputeNew {
                 dispute_id,
@@ -1034,7 +1029,7 @@ async fn get_or_update_dispute_object(
         }
         Some(dispute) => {
             logger::info!("Dispute Already exists, Updating the dispute details");
-            metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(&metrics::CONTEXT, 1, &[]);
+            metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
             let dispute_status = diesel_models::enums::DisputeStatus::foreign_try_from(event_type)
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("event type to dispute state conversion failure")?;
@@ -1449,7 +1444,7 @@ async fn disputes_incoming_webhook_flow(
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
-    metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
+    metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
         let db = &*state.store;
         let dispute_details = connector.get_dispute_details(request_details).switch()?;
@@ -1495,14 +1490,14 @@ async fn disputes_incoming_webhook_flow(
             Some(dispute_object.created_at),
         ))
         .await?;
-        metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(&metrics::CONTEXT, 1, &[]);
+        metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(1, &[]);
         Ok(WebhookResponseTracker::Dispute {
             dispute_id: dispute_object.dispute_id,
             payment_id: dispute_object.payment_id,
             status: dispute_object.dispute_status,
         })
     } else {
-        metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
+        metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
         Err(report!(
             errors::ApiErrorResponse::WebhookAuthenticationFailed
         ))

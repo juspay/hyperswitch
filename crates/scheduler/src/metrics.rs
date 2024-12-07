@@ -1,6 +1,5 @@
-use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};
+use router_env::{counter_metric, global_meter, histogram_metric};
 
-metrics_context!(CONTEXT);
 global_meter!(PT_METER, "PROCESS_TRACKER");
 
 histogram_metric!(CONSUMER_STATS, PT_METER, "CONSUMER_OPS");

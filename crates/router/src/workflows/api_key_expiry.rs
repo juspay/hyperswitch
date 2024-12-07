@@ -134,11 +134,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             db.process_tracker_update_process_status_by_ids(task_ids, updated_process_tracker_data)
                 .await?;
             // Remaining tasks are re-scheduled, so will be resetting the added count
-            metrics::TASKS_RESET_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([("flow", "ApiKeyExpiry")]),
-            );
+            metrics::TASKS_RESET_COUNT.add(1, &add_attributes([("flow", "ApiKeyExpiry")]));
         }
 
         Ok(())

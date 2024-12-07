@@ -1,16 +1,5 @@
 //! Utilities to easily create opentelemetry contexts, meters and metrics.
 
-/// Create a metrics [`Context`][Context] with the specified name.
-///
-/// [Context]: opentelemetry::Context
-#[macro_export]
-macro_rules! metrics_context {
-    ($name:ident) => {
-        pub(crate) static $name: once_cell::sync::Lazy<$crate::opentelemetry::Context> =
-            once_cell::sync::Lazy::new($crate::opentelemetry::Context::current);
-    };
-}
-
 /// Create a global [`Meter`][Meter] with the specified name and an optional description.
 ///
 /// [Meter]: opentelemetry::metrics::Meter
@@ -36,12 +25,12 @@ macro_rules! counter_metric {
     ($name:ident, $meter:ident) => {
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Counter<u64>,
-        > = once_cell::sync::Lazy::new(|| $meter.u64_counter(stringify!($name)).init());
+        > = once_cell::sync::Lazy::new(|| $meter.u64_counter(stringify!($name)).build());
     };
     ($name:ident, $meter:ident, description:literal) => {
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Counter<u64>,
-        > = once_cell::sync::Lazy::new(|| $meter.u64_counter($description).init());
+        > = once_cell::sync::Lazy::new(|| $meter.u64_counter($description).build());
     };
 }
 
@@ -55,12 +44,12 @@ macro_rules! histogram_metric {
     ($name:ident, $meter:ident) => {
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Histogram<f64>,
-        > = once_cell::sync::Lazy::new(|| $meter.f64_histogram(stringify!($name)).init());
+        > = once_cell::sync::Lazy::new(|| $meter.f64_histogram(stringify!($name)).build());
     };
     ($name:ident, $meter:ident, $description:literal) => {
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Histogram<f64>,
-        > = once_cell::sync::Lazy::new(|| $meter.f64_histogram($description).init());
+        > = once_cell::sync::Lazy::new(|| $meter.f64_histogram($description).build());
     };
 }
 
@@ -74,50 +63,29 @@ macro_rules! histogram_metric_u64 {
     ($name:ident, $meter:ident) => {
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Histogram<u64>,
-        > = once_cell::sync::Lazy::new(|| $meter.u64_histogram(stringify!($name)).init());
+        > = once_cell::sync::Lazy::new(|| $meter.u64_histogram(stringify!($name)).build());
     };
     ($name:ident, $meter:ident, $description:literal) => {
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Histogram<u64>,
-        > = once_cell::sync::Lazy::new(|| $meter.u64_histogram($description).init());
+        > = once_cell::sync::Lazy::new(|| $meter.u64_histogram($description).build());
     };
 }
 
-/// Create a [`Histogram`][Histogram] i64 metric with the specified name and an optional description,
+/// Create a [`Gauge`][Gauge] metric with the specified name and an optional description,
 /// associated with the specified meter. Note that the meter must be to a valid [`Meter`][Meter].
 ///
-/// [Histogram]: opentelemetry::metrics::Histogram
-/// [Meter]: opentelemetry::metrics::Meter
-#[macro_export]
-macro_rules! histogram_metric_i64 {
-    ($name:ident, $meter:ident) => {
-        pub(crate) static $name: once_cell::sync::Lazy<
-            $crate::opentelemetry::metrics::Histogram<i64>,
-        > = once_cell::sync::Lazy::new(|| $meter.i64_histogram(stringify!($name)).init());
-    };
-    ($name:ident, $meter:ident, $description:literal) => {
-        pub(crate) static $name: once_cell::sync::Lazy<
-            $crate::opentelemetry::metrics::Histogram<i64>,
-        > = once_cell::sync::Lazy::new(|| $meter.i64_histogram($description).init());
-    };
-}
-
-/// Create a [`ObservableGauge`][ObservableGauge] metric with the specified name and an optional description,
-/// associated with the specified meter. Note that the meter must be to a valid [`Meter`][Meter].
-///
-/// [ObservableGauge]: opentelemetry::metrics::ObservableGauge
+/// [Gauge]: opentelemetry::metrics::Gauge
 /// [Meter]: opentelemetry::metrics::Meter
 #[macro_export]
 macro_rules! gauge_metric {
     ($name:ident, $meter:ident) => {
-        pub(crate) static $name: once_cell::sync::Lazy<
-            $crate::opentelemetry::metrics::ObservableGauge<u64>,
-        > = once_cell::sync::Lazy::new(|| $meter.u64_observable_gauge(stringify!($name)).init());
+        pub(crate) static $name: once_cell::sync::Lazy<$crate::opentelemetry::metrics::Gauge<u64>> =
+            once_cell::sync::Lazy::new(|| $meter.u64_gauge(stringify!($name)).build());
     };
     ($name:ident, $meter:ident, description:literal) => {
-        pub(crate) static $name: once_cell::sync::Lazy<
-            $crate::opentelemetry::metrics::ObservableGauge<u64>,
-        > = once_cell::sync::Lazy::new(|| $meter.u64_observable_gauge($description).init());
+        pub(crate) static $name: once_cell::sync::Lazy<$crate::opentelemetry::metrics::Gauge<u64>> =
+            once_cell::sync::Lazy::new(|| $meter.u64_gauge($description).build());
     };
 }
 

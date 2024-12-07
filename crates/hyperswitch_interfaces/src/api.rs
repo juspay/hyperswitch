@@ -120,11 +120,7 @@ pub trait ConnectorIntegration<T, Req, Resp>:
         req: &RouterData<T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        metrics::UNIMPLEMENTED_FLOW.add(
-            &metrics::CONTEXT,
-            1,
-            &add_attributes([("connector", req.connector.clone())]),
-        );
+        metrics::UNIMPLEMENTED_FLOW.add(1, &add_attributes([("connector", req.connector.clone())]));
         Ok(None)
     }
 

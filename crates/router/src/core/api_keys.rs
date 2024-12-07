@@ -160,7 +160,6 @@ pub async fn create_api_key(
     );
 
     metrics::API_KEY_CREATED.add(
-        &metrics::CONTEXT,
         1,
         &add_attributes([("merchant", merchant_id.get_string_repr().to_owned())]),
     );
@@ -244,11 +243,7 @@ pub async fn add_api_key_expiry_task(
                 api_key.key_id
             )
         })?;
-    metrics::TASKS_ADDED_COUNT.add(
-        &metrics::CONTEXT,
-        1,
-        &add_attributes([("flow", "ApiKeyExpiry")]),
-    );
+    metrics::TASKS_ADDED_COUNT.add(1, &add_attributes([("flow", "ApiKeyExpiry")]));
 
     Ok(())
 }
@@ -456,7 +451,7 @@ pub async fn revoke_api_key(
         );
     }
 
-    metrics::API_KEY_REVOKED.add(&metrics::CONTEXT, 1, &[]);
+    metrics::API_KEY_REVOKED.add(1, &[]);
 
     #[cfg(feature = "email")]
     {

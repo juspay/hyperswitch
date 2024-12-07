@@ -205,7 +205,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 &auth_router_data.response,
             );
             auth_router_data.integrity_check = integrity_result;
-            metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Move outside of the if block
+            metrics::PAYMENT_COUNT.add(1, &[]); // Move outside of the if block
 
             match auth_router_data.response.clone() {
                 Err(_) => Ok(auth_router_data),
@@ -363,7 +363,6 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 > = connector.connector.get_connector_integration();
 
                 metrics::EXECUTE_PRETASK_COUNT.add(
-                    &metrics::CONTEXT,
                     1,
                     &add_attributes([
                         ("connector", connector.connector_name.to_string()),
@@ -497,7 +496,6 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         .to_payment_failed_response()?;
 
         metrics::PREPROCESSING_STEPS_COUNT.add(
-            &metrics::CONTEXT,
             1,
             &add_attributes([
                 ("connector", connector.connector_name.to_string()),

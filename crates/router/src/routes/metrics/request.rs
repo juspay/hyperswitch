@@ -11,14 +11,9 @@ where
     F: futures::Future<Output = R>,
 {
     let key = "request_type";
-    super::REQUESTS_RECEIVED.add(
-        &super::CONTEXT,
-        1,
-        &add_attributes([(key, flow.to_string())]),
-    );
+    super::REQUESTS_RECEIVED.add(1, &add_attributes([(key, flow.to_string())]));
     let (result, time) = metric_utils::time_future(future).await;
     super::REQUEST_TIME.record(
-        &super::CONTEXT,
         time.as_secs_f64(),
         &add_attributes([(key, flow.to_string())]),
     );
@@ -31,7 +26,6 @@ pub fn status_code_metrics(
     merchant_id: common_utils::id_type::MerchantId,
 ) {
     super::REQUEST_STATUS.add(
-        &super::CONTEXT,
         1,
         &add_attributes([
             ("status_code", status_code),

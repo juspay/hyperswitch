@@ -1397,22 +1397,16 @@ where
             Some(stime) => {
                 if !requeue {
                     // Here, increment the count of added tasks every time a payment has been confirmed or PSync has been called
-                    metrics::TASKS_ADDED_COUNT.add(
-                        &metrics::CONTEXT,
-                        1,
-                        &add_attributes([("flow", format!("{:#?}", operation))]),
-                    );
+                    metrics::TASKS_ADDED_COUNT
+                        .add(1, &add_attributes([("flow", format!("{:#?}", operation))]));
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
                     // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
-                    metrics::TASKS_RESET_COUNT.add(
-                        &metrics::CONTEXT,
-                        1,
-                        &add_attributes([("flow", format!("{:#?}", operation))]),
-                    );
+                    metrics::TASKS_RESET_COUNT
+                        .add(1, &add_attributes([("flow", format!("{:#?}", operation))]));
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1723,7 +1717,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         updated_by: None,
                         version: hyperswitch_domain_models::consts::API_VERSION,
                     };
-                    metrics::CUSTOMER_CREATED.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::CUSTOMER_CREATED.add(1, &[]);
                     db.insert_customer(new_customer, key_manager_state, key_store, storage_scheme)
                         .await
                 }
@@ -3959,7 +3953,6 @@ pub fn get_attempt_type(
                 Some(api_models::enums::RetryAction::ManualRetry)
             ) {
                 metrics::MANUAL_RETRY_REQUEST_COUNT.add(
-                    &metrics::CONTEXT,
                     1,
                     &add_attributes([(
                         "merchant_id",
@@ -3986,7 +3979,6 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::PaymentMethodAwaited
                     | enums::AttemptStatus::DeviceDataCollectionPending => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
-                            &metrics::CONTEXT,
                             1,
                             &add_attributes([(
                                 "merchant_id",
@@ -4001,7 +3993,6 @@ pub fn get_attempt_type(
                     | storage_enums::AttemptStatus::RouterDeclined
                     | storage_enums::AttemptStatus::CaptureFailed => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
-                            &metrics::CONTEXT,
                             1,
                             &add_attributes([(
                                 "merchant_id",
@@ -4019,7 +4010,6 @@ pub fn get_attempt_type(
                     | storage_enums::AttemptStatus::AuthorizationFailed
                     | storage_enums::AttemptStatus::Failure => {
                         metrics::MANUAL_RETRY_COUNT.add(
-                            &metrics::CONTEXT,
                             1,
                             &add_attributes([(
                                 "merchant_id",
@@ -5465,9 +5455,9 @@ pub async fn get_gsm_record(
                         error_code,
                         error_message
                     );
-                    metrics::AUTO_RETRY_GSM_MISS_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_RETRY_GSM_MISS_COUNT.add( 1, &[]);
                 } else {
-                    metrics::AUTO_RETRY_GSM_FETCH_FAILURE_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::AUTO_RETRY_GSM_FETCH_FAILURE_COUNT.add( 1, &[]);
                 };
                 err.change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to fetch decision from gsm")

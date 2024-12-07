@@ -56,12 +56,8 @@ pub mod db_metrics {
             KeyValue::new("operation", format!("{:?}", operation)),
         ];
 
-        crate::metrics::DATABASE_CALLS_COUNT.add(&crate::metrics::CONTEXT, 1, &attributes);
-        crate::metrics::DATABASE_CALL_TIME.record(
-            &crate::metrics::CONTEXT,
-            time_elapsed.as_secs_f64(),
-            &attributes,
-        );
+        crate::metrics::DATABASE_CALLS_COUNT.add(1, &attributes);
+        crate::metrics::DATABASE_CALL_TIME.record(time_elapsed.as_secs_f64(), &attributes);
 
         output
     }

@@ -19,7 +19,7 @@ where
         ("source", source.to_string()),
     ]);
     let value = time.as_secs_f64();
-    metric.record(&super::CONTEXT, value, attributes);
+    metric.record(value, attributes);
 
     router_env::logger::debug!("Attributes: {:?}, Time: {}", attributes, value);
     result

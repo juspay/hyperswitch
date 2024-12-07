@@ -53,7 +53,6 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     .to_payment_failed_response()?;
 
     metrics::CONNECTOR_CUSTOMER_CREATE.add(
-        &metrics::CONTEXT,
         1,
         &add_attributes([("connector", connector.connector_name.to_string())]),
     );

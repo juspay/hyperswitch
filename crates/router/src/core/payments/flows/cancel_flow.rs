@@ -86,7 +86,6 @@ impl Feature<api::Void, types::PaymentsCancelData>
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::PAYMENT_CANCEL_COUNT.add(
-            &metrics::CONTEXT,
             1,
             &add_attributes([("connector", connector.connector_name.to_string())]),
         );

@@ -292,7 +292,6 @@ async fn trigger_webhook_to_merchant(
         .await;
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(
-        &metrics::CONTEXT,
         1,
         &[metrics::KeyValue::new(
             MERCHANT_ID,
@@ -563,19 +562,13 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
 
     match db.insert_process(process_tracker_entry).await {
         Ok(process_tracker) => {
-            crate::routes::metrics::TASKS_ADDED_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([("flow", "OutgoingWebhookRetry")]),
-            );
+            crate::routes::metrics::TASKS_ADDED_COUNT
+                .add(1, &add_attributes([("flow", "OutgoingWebhookRetry")]));
             Ok(process_tracker)
         }
         Err(error) => {
-            crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([("flow", "OutgoingWebhookRetry")]),
-            );
+            crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT
+                .add(1, &add_attributes([("flow", "OutgoingWebhookRetry")]));
             Err(error)
         }
     }
@@ -848,7 +841,6 @@ async fn update_event_in_storage(
 
 fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {
     metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
-        &metrics::CONTEXT,
         1,
         &[metrics::KeyValue::new(
             MERCHANT_ID,
@@ -887,7 +879,6 @@ async fn error_response_handler(
     schedule_webhook_retry: ScheduleWebhookRetry,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-        &metrics::CONTEXT,
         1,
         &[metrics::KeyValue::new(
             MERCHANT_ID,

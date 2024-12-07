@@ -40,7 +40,7 @@ use crate::{
     utils::StringExt,
 };
 #[cfg(feature = "v1")]
-use crate::{core::metrics as core_metrics, routes::metrics, types::transformers::ForeignInto};
+use crate::{core::metrics as core_metrics, types::transformers::ForeignInto};
 pub const SUCCESS_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
     "Success rate based dynamic routing algorithm";
 pub const ELIMINATION_BASED_DYNAMIC_ROUTING_ALGORITHM: &str =
@@ -771,7 +771,6 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         };
 
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
-            &metrics::CONTEXT,
             1,
             &add_attributes([
                 (
@@ -1070,11 +1069,8 @@ pub async fn disable_dynamic_routing_algorithm(
     )
     .await?;
 
-    core_metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
-        &metrics::CONTEXT,
-        1,
-        &add_attributes([("profile_id", profile_id)]),
-    );
+    core_metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE
+        .add(1, &add_attributes([("profile_id", profile_id)]));
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -1187,7 +1183,6 @@ where
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
     let updated_routing_record = routing_algorithm.foreign_into();
     core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-        &metrics::CONTEXT,
         1,
         &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
     );
@@ -1268,7 +1263,6 @@ pub async fn default_specific_dynamic_routing_setup(
     let new_record = record.foreign_into();
 
     core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
-        &metrics::CONTEXT,
         1,
         &add_attributes([("profile_id", profile_id.get_string_repr().to_string())]),
     );

@@ -128,7 +128,7 @@ pub async fn get_metrics(
 
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
-                    metrics::BUCKETS_FETCHED.record(&metrics::CONTEXT, val, attributes);
+                    metrics::BUCKETS_FETCHED.record(val, attributes);
                     logger::debug!("Attributes: {:?}, Buckets fetched: {}", attributes, val);
                 }
 
@@ -174,7 +174,7 @@ pub async fn get_metrics(
                 ]);
                 let value = u64::try_from(data.len());
                 if let Ok(val) = value {
-                    metrics::BUCKETS_FETCHED.record(&metrics::CONTEXT, val, attributes);
+                    metrics::BUCKETS_FETCHED.record(val, attributes);
                     logger::debug!("Attributes: {:?}, Buckets fetched: {}", attributes, val);
                 }
 

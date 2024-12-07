@@ -96,7 +96,6 @@ pub async fn add_access_token<
                     access_token.expires
                 );
                 metrics::ACCESS_TOKEN_CACHE_HIT.add(
-                    &metrics::CONTEXT,
                     1,
                     &add_attributes([("connector", connector.connector_name.to_string())]),
                 );
@@ -104,7 +103,6 @@ pub async fn add_access_token<
             }
             None => {
                 metrics::ACCESS_TOKEN_CACHE_MISS.add(
-                    &metrics::CONTEXT,
                     1,
                     &add_attributes([("connector", connector.connector_name.to_string())]),
                 );
@@ -242,7 +240,6 @@ pub async fn refresh_connector_auth(
     }?;
 
     metrics::ACCESS_TOKEN_CREATION.add(
-        &metrics::CONTEXT,
         1,
         &add_attributes([("connector", connector.connector_name.to_string())]),
     );

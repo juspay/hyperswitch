@@ -143,7 +143,7 @@ mod encrypt {
                     Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
                     Err(err) => {
                         logger::error!("Encryption error {:?}", err);
-                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::ENCRYPTION_API_FAILURES.add(1, &[]);
                         logger::info!("Fall back to Application Encryption");
                         Self::encrypt(masked_data, key, crypt_algo).await
                     }
@@ -187,7 +187,7 @@ mod encrypt {
                 match decrypted {
                     Ok(de) => Ok(de),
                     Err(_) => {
-                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::DECRYPTION_API_FAILURES.add(1, &[]);
                         logger::info!("Fall back to Application Decryption");
                         Self::decrypt(encrypted_data, key, crypt_algo).await
                     }
@@ -202,7 +202,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(1, &[]);
             let encrypted_data = crypt_algo.encode_message(key, masked_data.peek().as_bytes())?;
             Ok(Self::new(masked_data, encrypted_data.into()))
         }
@@ -214,7 +214,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
             let encrypted = encrypted_data.into_inner();
             let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
@@ -251,7 +251,7 @@ mod encrypt {
                 match result {
                     Ok(response) => Ok(ForeignFrom::foreign_from((masked_data, response))),
                     Err(err) => {
-                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::ENCRYPTION_API_FAILURES.add(1, &[]);
                         logger::error!("Encryption error {:?}", err);
                         logger::info!("Fall back to Application Encryption");
                         Self::batch_encrypt(masked_data, key, crypt_algo).await
@@ -295,7 +295,7 @@ mod encrypt {
                 match decrypted {
                     Ok(de) => Ok(de),
                     Err(_) => {
-                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::DECRYPTION_API_FAILURES.add(1, &[]);
                         logger::info!("Fall back to Application Decryption");
                         Self::batch_decrypt(encrypted_data, key, crypt_algo).await
                     }
@@ -310,7 +310,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(1, &[]);
             masked_data
                 .into_iter()
                 .map(|(k, v)| {
@@ -332,7 +332,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
@@ -380,7 +380,7 @@ mod encrypt {
                     Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
                     Err(err) => {
                         logger::error!("Encryption error {:?}", err);
-                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::ENCRYPTION_API_FAILURES.add(1, &[]);
                         logger::info!("Fall back to Application Encryption");
                         Self::encrypt(masked_data, key, crypt_algo).await
                     }
@@ -423,7 +423,7 @@ mod encrypt {
                 match decrypted {
                     Ok(de) => Ok(de),
                     Err(_) => {
-                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::DECRYPTION_API_FAILURES.add(1, &[]);
                         logger::info!("Fall back to Application Decryption");
                         Self::decrypt(encrypted_data, key, crypt_algo).await
                     }
@@ -438,7 +438,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(1, &[]);
             let data = serde_json::to_vec(&masked_data.peek())
                 .change_context(errors::CryptoError::DecodingFailed)?;
             let encrypted_data = crypt_algo.encode_message(key, &data)?;
@@ -452,7 +452,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
             let encrypted = encrypted_data.into_inner();
             let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
@@ -487,7 +487,7 @@ mod encrypt {
                 match result {
                     Ok(response) => Ok(ForeignFrom::foreign_from((masked_data, response))),
                     Err(err) => {
-                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::ENCRYPTION_API_FAILURES.add(1, &[]);
                         logger::error!("Encryption error {:?}", err);
                         logger::info!("Fall back to Application Encryption");
                         Self::batch_encrypt(masked_data, key, crypt_algo).await
@@ -531,7 +531,7 @@ mod encrypt {
                 match decrypted {
                     Ok(de) => Ok(de),
                     Err(_) => {
-                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::DECRYPTION_API_FAILURES.add(1, &[]);
                         logger::info!("Fall back to Application Decryption");
                         Self::batch_decrypt(encrypted_data, key, crypt_algo).await
                     }
@@ -546,7 +546,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(1, &[]);
             masked_data
                 .into_iter()
                 .map(|(k, v)| {
@@ -567,7 +567,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
@@ -851,7 +851,7 @@ mod encrypt {
                     Ok(response) => Ok(ForeignFrom::foreign_from((masked_data.clone(), response))),
                     Err(err) => {
                         logger::error!("Encryption error {:?}", err);
-                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::ENCRYPTION_API_FAILURES.add(1, &[]);
                         logger::info!("Fall back to Application Encryption");
                         Self::encrypt(masked_data, key, crypt_algo).await
                     }
@@ -894,7 +894,7 @@ mod encrypt {
                 match decrypted {
                     Ok(de) => Ok(de),
                     Err(_) => {
-                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::DECRYPTION_API_FAILURES.add(1, &[]);
                         logger::info!("Fall back to Application Decryption");
                         Self::decrypt(encrypted_data, key, crypt_algo).await
                     }
@@ -909,7 +909,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(1, &[]);
             let encrypted_data = crypt_algo.encode_message(key, masked_data.peek())?;
             Ok(Self::new(masked_data, encrypted_data.into()))
         }
@@ -921,7 +921,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
-            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
             let encrypted = encrypted_data.into_inner();
             let data = crypt_algo.decode_message(key, encrypted.clone())?;
             Ok(Self::new(data.into(), encrypted))
@@ -953,7 +953,7 @@ mod encrypt {
                 match result {
                     Ok(response) => Ok(ForeignFrom::foreign_from((masked_data, response))),
                     Err(err) => {
-                        metrics::ENCRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::ENCRYPTION_API_FAILURES.add(1, &[]);
                         logger::error!("Encryption error {:?}", err);
                         logger::info!("Fall back to Application Encryption");
                         Self::batch_encrypt(masked_data, key, crypt_algo).await
@@ -997,7 +997,7 @@ mod encrypt {
                 match decrypted {
                     Ok(de) => Ok(de),
                     Err(_) => {
-                        metrics::DECRYPTION_API_FAILURES.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::DECRYPTION_API_FAILURES.add(1, &[]);
                         logger::info!("Fall back to Application Decryption");
                         Self::batch_decrypt(encrypted_data, key, crypt_algo).await
                     }
@@ -1012,7 +1012,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            metrics::APPLICATION_ENCRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_ENCRYPTION_COUNT.add(1, &[]);
             masked_data
                 .into_iter()
                 .map(|(k, v)| {
@@ -1031,7 +1031,7 @@ mod encrypt {
             key: &[u8],
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
-            metrics::APPLICATION_DECRYPTION_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
@@ -1140,7 +1140,6 @@ where
     record_operation_time(
         crypto::Encryptable::encrypt_via_api(state, inner, identifier, key, crypto::GcmAes256),
         &metrics::ENCRYPTION_TIME,
-        &metrics::CONTEXT,
         &[],
     )
     .await
@@ -1167,7 +1166,6 @@ where
                 crypto::GcmAes256,
             ),
             &metrics::ENCRYPTION_TIME,
-            &metrics::CONTEXT,
             &[],
         )
         .await
@@ -1223,7 +1221,6 @@ where
     record_operation_time(
         crypto::Encryptable::decrypt_via_api(state, inner, identifier, key, crypto::GcmAes256),
         &metrics::DECRYPTION_TIME,
-        &metrics::CONTEXT,
         &[],
     )
     .await
@@ -1250,7 +1247,6 @@ where
                 crypto::GcmAes256,
             ),
             &metrics::ENCRYPTION_TIME,
-            &metrics::CONTEXT,
             &[],
         )
         .await
@@ -1320,9 +1316,8 @@ where
 }
 
 pub(crate) mod metrics {
-    use router_env::{counter_metric, global_meter, histogram_metric, metrics_context, once_cell};
+    use router_env::{counter_metric, global_meter, histogram_metric, once_cell};
 
-    metrics_context!(CONTEXT);
     global_meter!(GLOBAL_METER, "ROUTER_API");
 
     // Encryption and Decryption metrics

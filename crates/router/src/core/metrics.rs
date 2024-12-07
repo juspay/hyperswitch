@@ -1,7 +1,6 @@
 pub use router_env::opentelemetry::KeyValue;
-use router_env::{counter_metric, global_meter, metrics_context};
+use router_env::{counter_metric, global_meter};
 
-metrics_context!(CONTEXT);
 global_meter!(GLOBAL_METER, "ROUTER_API");
 
 counter_metric!(INCOMING_DISPUTE_WEBHOOK_METRIC, GLOBAL_METER); // No. of incoming dispute webhooks

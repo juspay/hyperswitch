@@ -2084,7 +2084,6 @@ where
     };
 
     metrics::PAYMENT_OPS_COUNT.add(
-        &metrics::CONTEXT,
         1,
         &add_attributes([
             ("operation", format!("{:?}", operation)),

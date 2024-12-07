@@ -65,11 +65,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<String, errors::ConnectorError> {
-        metrics::UNIMPLEMENTED_FLOW.add(
-            &metrics::CONTEXT,
-            1,
-            &add_attributes([("connector", self.id())]),
-        );
+        metrics::UNIMPLEMENTED_FLOW.add(1, &add_attributes([("connector", self.id())]));
         Ok(String::new())
     }
 

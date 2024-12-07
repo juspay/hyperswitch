@@ -2,9 +2,8 @@ pub mod bg_metrics_collector;
 pub mod request;
 pub mod utils;
 
-use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};
+use router_env::{counter_metric, global_meter, histogram_metric};
 
-metrics_context!(CONTEXT);
 global_meter!(GLOBAL_METER, "ROUTER_API");
 
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits

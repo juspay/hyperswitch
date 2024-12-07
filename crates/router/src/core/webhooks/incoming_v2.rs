@@ -126,7 +126,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     serde_json::Value,
 )> {
     metrics::WEBHOOK_INCOMING_COUNT.add(
-        &metrics::CONTEXT,
         1,
         &[metrics::KeyValue::new(
             MERCHANT_ID,
@@ -183,7 +182,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             );
 
             metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
-                &metrics::CONTEXT,
                 1,
                 &[
                     metrics::KeyValue::new(MERCHANT_ID, merchant_account.get_id().clone()),
@@ -288,7 +286,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
         if source_verified {
             metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
-                &metrics::CONTEXT,
                 1,
                 &[metrics::KeyValue::new(
                     MERCHANT_ID,
@@ -356,7 +353,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         }
     } else {
         metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
-            &metrics::CONTEXT,
             1,
             &[metrics::KeyValue::new(
                 MERCHANT_ID,
@@ -476,7 +472,6 @@ async fn payments_incoming_webhook_flow(
                         .unwrap_or(true) =>
                 {
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
-                        &metrics::CONTEXT,
                         1,
                         &add_attributes([("merchant_id", merchant_account.get_id().clone())]),
                     );

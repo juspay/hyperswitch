@@ -129,7 +129,6 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
-            &metrics::CONTEXT,
             1,
             &add_attributes([("connector", connector.connector_name.to_string())]),
         );

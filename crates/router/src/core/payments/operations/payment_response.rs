@@ -1655,7 +1655,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     }
                                 }
 
-                                metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
+                                metrics::SUCCESSFUL_PAYMENT.add(1, &[]);
                             }
 
                             let payment_method_id =
@@ -2034,7 +2034,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         Ok(()) => Ok(payment_data),
         Err(err) => {
             metrics::INTEGRITY_CHECK_FAILED.add(
-                &metrics::CONTEXT,
                 1,
                 &add_attributes([
                     (

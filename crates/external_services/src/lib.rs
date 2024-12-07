@@ -30,9 +30,8 @@ pub mod consts {
 /// Metrics for interactions with external systems.
 #[cfg(feature = "aws_kms")]
 pub mod metrics {
-    use router_env::{counter_metric, global_meter, histogram_metric, metrics_context};
+    use router_env::{counter_metric, global_meter, histogram_metric};
 
-    metrics_context!(CONTEXT);
     global_meter!(GLOBAL_METER, "EXTERNAL_SERVICES");
 
     #[cfg(feature = "aws_kms")]

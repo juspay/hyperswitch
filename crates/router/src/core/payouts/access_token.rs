@@ -185,7 +185,6 @@ pub async fn refresh_connector_auth(
     }?;
 
     metrics::ACCESS_TOKEN_CREATION.add(
-        &metrics::CONTEXT,
         1,
         &add_attributes([("connector", connector.connector_name.to_string())]),
     );

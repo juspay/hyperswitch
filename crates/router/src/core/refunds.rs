@@ -152,11 +152,7 @@ pub async fn trigger_refund_to_gateway(
         .attach_printable("Failed to retrieve connector from payment attempt")?;
 
     let storage_scheme = merchant_account.storage_scheme;
-    metrics::REFUND_COUNT.add(
-        &metrics::CONTEXT,
-        1,
-        &add_attributes([("connector", routed_through.clone())]),
-    );
+    metrics::REFUND_COUNT.add(1, &add_attributes([("connector", routed_through.clone())]));
 
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -302,7 +298,6 @@ pub async fn trigger_refund_to_gateway(
                             (Some(refund_id), refund_data)
                         });
                     metrics::INTEGRITY_CHECK_FAILED.add(
-                        &metrics::CONTEXT,
                         1,
                         &add_attributes([
                             ("connector", connector.connector_name.to_string()),
@@ -327,7 +322,6 @@ pub async fn trigger_refund_to_gateway(
                 Ok(()) => {
                     if response.refund_status == diesel_models::enums::RefundStatus::Success {
                         metrics::SUCCESSFUL_REFUND.add(
-                            &metrics::CONTEXT,
                             1,
                             &add_attributes([("connector", connector.connector_name.to_string())]),
                         )
@@ -619,7 +613,6 @@ pub async fn sync_refund_with_gateway(
         Ok(response) => match router_data_res.integrity_check.clone() {
             Err(err) => {
                 metrics::INTEGRITY_CHECK_FAILED.add(
-                    &metrics::CONTEXT,
                     1,
                     &add_attributes([
                         ("connector", connector.connector_name.to_string()),
@@ -1590,7 +1583,7 @@ pub async fn add_refund_sync_task(
                 refund.refund_id
             )
         })?;
-    metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &add_attributes([("flow", "Refund")]));
+    metrics::TASKS_ADDED_COUNT.add(1, &add_attributes([("flow", "Refund")]));
 
     Ok(response)
 }
