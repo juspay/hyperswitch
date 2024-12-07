@@ -1316,13 +1316,13 @@ where
 }
 
 pub(crate) mod metrics {
-    use router_env::{counter_metric, global_meter, histogram_metric, once_cell};
+    use router_env::{counter_metric, global_meter, histogram_metric_f64, once_cell};
 
     global_meter!(GLOBAL_METER, "ROUTER_API");
 
     // Encryption and Decryption metrics
-    histogram_metric!(ENCRYPTION_TIME, GLOBAL_METER);
-    histogram_metric!(DECRYPTION_TIME, GLOBAL_METER);
+    histogram_metric_f64!(ENCRYPTION_TIME, GLOBAL_METER);
+    histogram_metric_f64!(DECRYPTION_TIME, GLOBAL_METER);
     counter_metric!(ENCRYPTION_API_FAILURES, GLOBAL_METER);
     counter_metric!(DECRYPTION_API_FAILURES, GLOBAL_METER);
     counter_metric!(APPLICATION_ENCRYPTION_COUNT, GLOBAL_METER);

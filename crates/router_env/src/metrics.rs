@@ -34,22 +34,32 @@ macro_rules! counter_metric {
     };
 }
 
-/// Create a [`Histogram`][Histogram] metric with the specified name and an optional description,
+/// Create a [`Histogram`][Histogram] f64 metric with the specified name and an optional description,
 /// associated with the specified meter. Note that the meter must be to a valid [`Meter`][Meter].
 ///
 /// [Histogram]: opentelemetry::metrics::Histogram
 /// [Meter]: opentelemetry::metrics::Meter
 #[macro_export]
-macro_rules! histogram_metric {
+macro_rules! histogram_metric_f64 {
     ($name:ident, $meter:ident) => {
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Histogram<f64>,
-        > = once_cell::sync::Lazy::new(|| $meter.f64_histogram(stringify!($name)).build());
+        > = once_cell::sync::Lazy::new(|| {
+            $meter
+                .f64_histogram(stringify!($name))
+                .with_boundaries($crate::metrics::f64_histogram_buckets())
+                .build()
+        });
     };
     ($name:ident, $meter:ident, $description:literal) => {
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Histogram<f64>,
-        > = once_cell::sync::Lazy::new(|| $meter.f64_histogram($description).build());
+        > = once_cell::sync::Lazy::new(|| {
+            $meter
+                .f64_histogram($description)
+                .with_boundaries($crate::metrics::f64_histogram_buckets())
+                .build()
+        });
     };
 }
 
@@ -63,12 +73,22 @@ macro_rules! histogram_metric_u64 {
     ($name:ident, $meter:ident) => {
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Histogram<u64>,
-        > = once_cell::sync::Lazy::new(|| $meter.u64_histogram(stringify!($name)).build());
+        > = once_cell::sync::Lazy::new(|| {
+            $meter
+                .u64_histogram(stringify!($name))
+                .with_boundaries($crate::metrics::f64_histogram_buckets())
+                .build()
+        });
     };
     ($name:ident, $meter:ident, $description:literal) => {
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Histogram<u64>,
-        > = once_cell::sync::Lazy::new(|| $meter.u64_histogram($description).build());
+        > = once_cell::sync::Lazy::new(|| {
+            $meter
+                .u64_histogram($description)
+                .with_boundaries($crate::metrics::f64_histogram_buckets())
+                .build()
+        });
     };
 }
 
@@ -89,7 +109,7 @@ macro_rules! gauge_metric {
     };
 }
 
-pub use helpers::add_attributes;
+pub use helpers::{add_attributes, f64_histogram_buckets};
 
 mod helpers {
     pub fn add_attributes<T, U>(attributes: U) -> Vec<opentelemetry::KeyValue>
@@ -101,5 +121,19 @@ mod helpers {
             .into_iter()
             .map(|(key, value)| opentelemetry::KeyValue::new(key, value))
             .collect::<Vec<_>>()
+    }
+
+    /// Returns the buckets to be used for a f64 histogram
+    #[inline(always)]
+    pub fn f64_histogram_buckets() -> Vec<f64> {
+        let mut init = 0.01;
+        let mut buckets: [f64; 15] = [0.0; 15];
+
+        for bucket in &mut buckets {
+            init *= 2.0;
+            *bucket = init;
+        }
+
+        Vec::from(buckets)
     }
 }
