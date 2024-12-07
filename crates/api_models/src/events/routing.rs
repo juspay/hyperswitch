@@ -6,8 +6,8 @@ use crate::routing::{
     ProfileDefaultRoutingConfig, RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord,
     RoutingKind, RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
     RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, RoutingVolumeSplitWrapper,
-    SuccessBasedRoutingConfig, SuccessBasedRoutingPayloadWrapper,
-    SuccessBasedRoutingUpdateConfigQuery, ToggleDynamicRoutingQuery, ToggleDynamicRoutingWrapper,
+    SuccessBasedRoutingConfig, SuccessBasedRoutingPayloadWrapper, ToggleDynamicRoutingQuery,
+    ToggleDynamicRoutingWrapper,
 };
 
 impl ApiEventMetric for RoutingKind {

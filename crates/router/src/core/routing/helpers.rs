@@ -984,25 +984,17 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to retrieve success_rate based dynamic routing configs")?;
 
+        // check if this id is correct
         let tenant_business_profile_id = generate_tenant_business_profile_id(
             &state.tenant.redis_key_prefix,
             business_profile.get_id().get_string_repr(),
         );
 
-        let contract_based_routing_config_params = dynamic_routing_config_params_interpolator
-            .get_string_val(
-                contract_based_routing_config
-                    .params
-                    .as_ref()
-                    .ok_or(errors::RoutingError::SuccessBasedRoutingParamsNotFoundError)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
-            );
-
         let contract_scores = client
             .calculate_contract_score(
                 tenant_business_profile_id.clone(),
                 contract_based_routing_config.clone(),
-                contract_based_routing_config_params.clone(),
+                "".to_string(),
                 routable_connectors.clone(),
             )
             .await
@@ -1012,7 +1004,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             )?;
 
         let payment_status_attribute =
-            get_desired_payment_status_for_success_routing_metrics(&payment_attempt.status);
+            get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
 
         let first_contract_based_connector = &contract_scores
             .labels_with_score
@@ -1117,11 +1109,17 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to get LabelInformation from ContractBasedRoutingConfig")?;
 
+        logger::debug!("final_label_info - {:?}", final_label_info);
+
         let request_label_info = routing_types::LabelInformation {
-            label: final_label_info.label.clone(),
+            label: format!(
+                "{}:{}",
+                final_label_info.label.clone(),
+                final_label_info.mca_id.get_string_repr()
+            ),
             target_count: final_label_info.target_count,
             target_time: final_label_info.target_time,
-            incremental_count: 1,
+            incremental_count: Some(1),
             mca_id: final_label_info.mca_id.to_owned(),
         };
 
@@ -1135,7 +1133,7 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             .update_contracts(
                 tenant_business_profile_id,
                 vec![request_label_info],
-                contract_based_routing_config_params,
+                "".to_string(),
                 vec![routing_types::RoutableConnectorChoiceWithStatus::new(
                     routing_types::RoutableConnectorChoice {
                         choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
@@ -1354,7 +1352,7 @@ pub async fn disable_dynamic_routing_algorithm(
             routing_types::DynamicRoutingType::ContractBasedRouting => {
                 let Some(algorithm_ref) = dynamic_routing_algo_ref.contract_based_routing else {
                     Err(errors::ApiErrorResponse::PreconditionFailed {
-                        message: "Elimination routing is already disabled".to_string(),
+                        message: "Contract routing is already disabled".to_string(),
                     })?
                 };
                 let Some(algorithm_id) = algorithm_ref.algorithm_id_with_timestamp.algorithm_id
@@ -1378,6 +1376,8 @@ pub async fn disable_dynamic_routing_algorithm(
                         success_based_algorithm: dynamic_routing_algo_ref.success_based_algorithm,
                         elimination_routing_algorithm: dynamic_routing_algo_ref
                             .elimination_routing_algorithm,
+                        dynamic_routing_volume_split: dynamic_routing_algo_ref
+                            .dynamic_routing_volume_split,
                         contract_based_routing: Some(routing_types::ContractRoutingAlgorithm {
                             algorithm_id_with_timestamp:
                                 routing_types::DynamicAlgorithmWithTimestamp {
@@ -1435,15 +1435,18 @@ pub async fn enable_dynamic_routing_algorithm(
     dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef,
     dynamic_routing_type: routing_types::DynamicRoutingType,
 ) -> RouterResult<ApplicationResponse<routing_types::RoutingDictionaryRecord>> {
-    let dynamic_routing = dynamic_routing_algo_ref.clone();
+    let mut dynamic_routing = dynamic_routing_algo_ref.clone();
     match dynamic_routing_type {
         routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
+            dynamic_routing
+                .disable_algorithm_id(routing_types::DynamicRoutingType::ContractBasedRouting);
+
             enable_specific_routing_algorithm(
                 state,
                 key_store,
                 business_profile,
                 feature_to_enable,
-                dynamic_routing_algo_ref,
+                dynamic_routing.clone(), // check this in review
                 dynamic_routing_type,
                 dynamic_routing.success_based_algorithm,
             )
@@ -1455,7 +1458,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 key_store,
                 business_profile,
                 feature_to_enable,
-                dynamic_routing_algo_ref,
+                dynamic_routing.clone(),
                 dynamic_routing_type,
                 dynamic_routing.elimination_routing_algorithm,
             )
@@ -1466,18 +1469,7 @@ pub async fn enable_dynamic_routing_algorithm(
                 message: "Contract routing cannot be set as default".to_string(),
             })
             .into())
-        } // routing_types::DynamicRoutingType::ContractBasedRouting => {
-          //     enable_specific_routing_algorithm(
-          //         state,
-          //         key_store,
-          //         business_profile,
-          //         feature_to_enable,
-          //         dynamic_routing_algo_ref,
-          //         dynamic_routing_type,
-          //         dynamic_routing.contract_based_routing,
-          //     )
-          //     .await
-          // }
+        }
     }
 }
 
@@ -1646,6 +1638,7 @@ pub async fn default_specific_dynamic_routing_setup(
     Ok(ApplicationResponse::Json(new_record))
 }
 
+#[derive(Debug, Clone)]
 pub struct DynamicRoutingConfigParamsInterpolator {
     pub payment_method: Option<common_enums::PaymentMethod>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,

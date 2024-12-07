@@ -733,6 +733,44 @@ impl DynamicRoutingAlgorithmRef {
             }
         };
     }
+
+    pub fn disable_algorithm_id(&mut self, dynamic_routing_type: DynamicRoutingType) {
+        match dynamic_routing_type {
+            DynamicRoutingType::SuccessRateBasedRouting => {
+                if let Some(success_based_algo) = &self.success_based_algorithm {
+                    self.success_based_algorithm = Some(SuccessBasedAlgorithm {
+                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
+                            algorithm_id: None,
+                            timestamp: common_utils::date_time::now_unix_timestamp(),
+                        },
+                        enabled_feature: success_based_algo.enabled_feature,
+                    });
+                }
+            }
+            DynamicRoutingType::EliminationRouting => {
+                if let Some(elimination_based_algo) = &self.elimination_routing_algorithm {
+                    self.elimination_routing_algorithm = Some(EliminationRoutingAlgorithm {
+                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
+                            algorithm_id: None,
+                            timestamp: common_utils::date_time::now_unix_timestamp(),
+                        },
+                        enabled_feature: elimination_based_algo.enabled_feature,
+                    });
+                }
+            }
+            DynamicRoutingType::ContractBasedRouting => {
+                if let Some(contract_based_algo) = &self.contract_based_routing {
+                    self.contract_based_routing = Some(ContractRoutingAlgorithm {
+                        algorithm_id_with_timestamp: DynamicAlgorithmWithTimestamp {
+                            algorithm_id: None,
+                            timestamp: common_utils::date_time::now_unix_timestamp(),
+                        },
+                        enabled_feature: contract_based_algo.enabled_feature,
+                    });
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -870,7 +908,9 @@ pub struct ContractBasedRoutingSetupPayloadWrapper {
     pub features_to_enable: DynamicRoutingFeatures,
 }
 
-#[derive(Debug, Clone, strum::Display, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, strum::Display, serde::Serialize, serde::Deserialize, PartialEq, Eq,
+)]
 pub enum DynamicRoutingType {
     SuccessRateBasedRouting,
     EliminationRouting,
@@ -917,7 +957,6 @@ impl CurrentBlockThreshold {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
 pub struct ContractBasedRoutingConfig {
-    pub params: Option<Vec<DynamicRoutingConfigParams>>,
     pub config: Option<ContractBasedRoutingConfigBody>,
     pub label_info: Option<Vec<LabelInformation>>,
 }
@@ -933,7 +972,7 @@ pub struct LabelInformation {
     pub label: String,
     pub target_count: u64,
     pub target_time: u64,
-    pub incremental_count: u64,
+    pub incremental_count: Option<u64>,
     pub mca_id: common_utils::id_type::MerchantConnectorAccountId,
 }
 
@@ -946,7 +985,6 @@ pub enum ContractBasedTimeScale {
 impl Default for ContractBasedRoutingConfig {
     fn default() -> Self {
         Self {
-            params: None,
             config: Some(ContractBasedRoutingConfigBody {
                 constants: Some(vec![0.7, 0.35]),
                 time_scale: Some(ContractBasedTimeScale::Day),
@@ -958,9 +996,6 @@ impl Default for ContractBasedRoutingConfig {
 
 impl ContractBasedRoutingConfig {
     pub fn update(&mut self, new: Self) {
-        if let Some(params) = new.params {
-            self.params = Some(params)
-        }
         if let Some(new_config) = new.config {
             self.config.as_mut().map(|config| config.update(new_config));
         }

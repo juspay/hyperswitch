@@ -1973,7 +1973,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             let state = state.clone();
             let business_profile = business_profile.clone();
             let payment_attempt = payment_attempt.clone();
-            let success_based_routing_config_params_interpolator =
+            let dynamic_routing_config_params_interpolator =
                 routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                     payment_attempt.payment_method,
                     payment_attempt.payment_method_type,
@@ -2008,9 +2008,9 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     routing_helpers::push_metrics_with_update_window_for_success_based_routing(
                         &state,
                         &payment_attempt,
-                        routable_connectors,
+                        routable_connectors.clone(),
                         &business_profile,
-                        success_based_routing_config_params_interpolator,
+                        dynamic_routing_config_params_interpolator.clone(),
                     )
                     .await
                     .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))
@@ -2021,7 +2021,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         &payment_attempt,
                         routable_connectors,
                         &business_profile,
-                        success_based_routing_config_params_interpolator,
+                        dynamic_routing_config_params_interpolator,
                     )
                     .await
                     .map_err(|e| logger::error!(dynamic_routing_metrics_error=?e))

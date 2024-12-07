@@ -1791,7 +1791,7 @@ impl Profile {
                     )
                     .service(
                         web::scope("/contracts")
-                            .service(web::resource("/config/setup").route(
+                            .service(web::resource("/toggle").route(
                                 web::post().to(routing::contract_based_routing_setup_config),
                             ))
                             .service(web::resource("/config/{algorithm_id}").route(

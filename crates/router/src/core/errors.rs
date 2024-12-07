@@ -344,6 +344,16 @@ pub enum RoutingError {
     GenericNotFoundError { field: String },
     #[error("Unable to deserialize from '{from}' to '{to}'")]
     DeserializationError { from: String, to: String },
+    #[error("Unable to retrieve contract based routing config")]
+    ContractBasedRoutingConfigError,
+    #[error("Params not found in contract based routing config")]
+    ContractBasedRoutingParamsNotFoundError,
+    #[error("Unable to calculate contract score from dynamic routing service")]
+    ContractScoreCalculationError,
+    #[error("contract routing client from dynamic routing gRPC service not initialized")]
+    ContractRoutingClientInitializationError,
+    #[error("Invalid contract based connector label received from dynamic routing service: '{0}'")]
+    InvalidContractBasedConnectorLabel(String),
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

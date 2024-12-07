@@ -6056,8 +6056,8 @@ where
                     .attach_printable("failed to perform volume split on routing type")?;
 
             if routing_choice.routing_type.is_dynamic_routing() {
-                let success_based_routing_config_params_interpolator =
-                    routing_helpers::SuccessBasedRoutingConfigParamsInterpolator::new(
+                let dynamic_routing_config_params_interpolator =
+                    routing_helpers::DynamicRoutingConfigParamsInterpolator::new(
                         payment_data.get_payment_attempt().payment_method,
                         payment_data.get_payment_attempt().payment_method_type,
                         payment_data.get_payment_attempt().authentication_type,
@@ -6087,15 +6087,15 @@ where
                             .and_then(|card_isin| card_isin.as_str())
                             .map(|card_isin| card_isin.to_string()),
                     );
-                // add logic for contract based routing as well
-                routing::perform_success_based_routing(
+
+                routing::perform_dynamic_routing(
                     state,
                     connectors.clone(),
                     business_profile,
-                    success_based_routing_config_params_interpolator,
+                    dynamic_routing_config_params_interpolator,
                 )
                 .await
-                .map_err(|e| logger::error!(success_rate_routing_error=?e))
+                .map_err(|e| logger::error!(dynamic_routing_error=?e))
                 .unwrap_or(connectors)
             } else {
                 connectors
