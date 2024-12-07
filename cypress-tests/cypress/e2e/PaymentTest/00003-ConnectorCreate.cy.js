@@ -1,7 +1,7 @@
 import * as fixtures from "../../fixtures/imports";
 import State from "../../utils/State";
 import { payment_methods_enabled } from "../PaymentUtils/Commons";
-import { createProfileAndConnector } from "../PaymentUtils/Utils";
+import * as utils from "../PaymentUtils/Utils";
 
 let globalState;
 describe("Connector Account Create flow test", () => {
@@ -15,7 +15,7 @@ describe("Connector Account Create flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  it("connector-create-call-test", () => {
+  it("Create merchant connector account", () => {
     cy.createConnectorCallTest(
       "payment_processor",
       fixtures.createConnectorBody,
@@ -25,7 +25,26 @@ describe("Connector Account Create flow test", () => {
   });
 
   // subsequent profile and mca ids should check for the existence of multiple connectors
-  it("check and create multiple connectors", () => {
-    createProfileAndConnector(fixtures, globalState, payment_methods_enabled);
-  });
+  context(
+    "Create another business profile and merchant connector account if MULTIPLE_CONNECTORS flag is true",
+    () => {
+      it("Create business profile", () => {
+        utils.createBusinessProfile(
+          fixtures.businessProfile.bpCreate,
+          globalState,
+          { nextConnector: true }
+        );
+      });
+
+      it("Create merchant connector account", () => {
+        utils.createMerchantConnectorAccount(
+          "payment_processor",
+          fixtures.createConnectorBody,
+          globalState,
+          payment_methods_enabled,
+          { nextConnector: true }
+        );
+      });
+    }
+  );
 });
