@@ -5373,6 +5373,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "opentelemetry-aws"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85eacb6bb0b662955ba69d788c979462b079e70903e29867c2303cc1305ec8de"
+dependencies = [
+ "once_cell",
+ "opentelemetry",
+ "opentelemetry_sdk",
+ "tracing",
+]
+
+[[package]]
 name = "opentelemetry-otlp"
 version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6643,6 +6655,7 @@ dependencies = [
  "gethostname",
  "once_cell",
  "opentelemetry",
+ "opentelemetry-aws",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
  "rustc-hash",

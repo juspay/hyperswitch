@@ -14,6 +14,7 @@ error-stack = "0.4.1"
 gethostname = "0.4.3"
 once_cell = "1.19.0"
 opentelemetry = { version = "0.27.1", default-features = false, features = ["internal-logs", "metrics", "trace"] }
+opentelemetry-aws = { version = "0.15.0", default-features = false, features = ["internal-logs", "trace"] }
 opentelemetry-otlp = { version = "0.27.0", default-features = false, features = ["grpc-tonic", "metrics", "trace"] }
 opentelemetry_sdk = { version = "0.27.1", default-features = false, features = ["rt-tokio-current-thread", "metrics", "trace"] }
 rustc-hash = "1.1"

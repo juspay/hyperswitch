@@ -26,14 +26,12 @@ pub fn setup(
 ) -> error_stack::Result<TelemetryGuard, ConfigError> {
     let mut guards = Vec::new();
 
-    /*
     // Setup OpenTelemetry traces and metrics
     let traces_layer = if config.telemetry.traces_enabled {
         setup_tracing_pipeline(&config.telemetry, service_name)
     } else {
         None
     };
-    */
 
     if config.telemetry.metrics_enabled {
         setup_metrics_pipeline(&config.telemetry)
@@ -65,7 +63,7 @@ pub fn setup(
     };
 
     let subscriber = tracing_subscriber::registry()
-        // .with(traces_layer)
+        .with(traces_layer)
         .with(StorageSubscription)
         .with(file_writer);
 
@@ -137,7 +135,6 @@ fn get_opentelemetry_exporter_config(
     exporter_config
 }
 
-/*
 #[derive(Debug, Clone)]
 enum TraceUrlAssert {
     Match(String),
@@ -181,98 +178,119 @@ impl TraceAssertion {
 
 /// Conditional Sampler for providing control on url based tracing
 #[derive(Clone, Debug)]
-struct ConditionalSampler<T: trace::ShouldSample + Clone + 'static>(TraceAssertion, T);
+struct ConditionalSampler<T: opentelemetry_sdk::trace::ShouldSample + Clone + 'static>(
+    TraceAssertion,
+    T,
+);
 
-impl<T: trace::ShouldSample + Clone + 'static> trace::ShouldSample for ConditionalSampler<T> {
+impl<T: opentelemetry_sdk::trace::ShouldSample + Clone + 'static>
+    opentelemetry_sdk::trace::ShouldSample for ConditionalSampler<T>
+{
     fn should_sample(
         &self,
         parent_context: Option<&opentelemetry::Context>,
         trace_id: opentelemetry::trace::TraceId,
         name: &str,
         span_kind: &opentelemetry::trace::SpanKind,
-        attributes: &opentelemetry::trace::OrderMap<opentelemetry::Key, opentelemetry::Value>,
+        attributes: &[opentelemetry::KeyValue],
         links: &[opentelemetry::trace::Link],
-        instrumentation_library: &opentelemetry::InstrumentationLibrary,
     ) -> opentelemetry::trace::SamplingResult {
+        use opentelemetry::trace::TraceContextExt;
+
         match attributes
-            .get(&opentelemetry::Key::new("http.route"))
+            .iter()
+            .find(|&kv| kv.key == opentelemetry::Key::new("http.route"))
             .map_or(self.0.default, |inner| {
-                self.0.should_trace_url(&inner.as_str())
+                self.0.should_trace_url(&inner.value.as_str())
             }) {
-            true => self.1.should_sample(
-                parent_context,
-                trace_id,
-                name,
-                span_kind,
-                attributes,
-                links,
-                instrumentation_library,
-            ),
+            true => {
+                self.1
+                    .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
+            }
             false => opentelemetry::trace::SamplingResult {
                 decision: opentelemetry::trace::SamplingDecision::Drop,
                 attributes: Vec::new(),
                 trace_state: match parent_context {
                     Some(ctx) => ctx.span().span_context().trace_state().clone(),
-                    None => TraceState::default(),
+                    None => opentelemetry::trace::TraceState::default(),
                 },
             },
         }
     }
 }
- */
 
-/*
 fn setup_tracing_pipeline(
     config: &config::LogTelemetry,
     service_name: &str,
-) -> Option<tracing_opentelemetry::OpenTelemetryLayer<tracing_subscriber::Registry, trace::Tracer>>
-{
-    global::set_text_map_propagator(TraceContextPropagator::new());
+) -> Option<
+    tracing_opentelemetry::OpenTelemetryLayer<
+        tracing_subscriber::Registry,
+        opentelemetry_sdk::trace::Tracer,
+    >,
+> {
+    use opentelemetry::trace::TracerProvider;
+    use opentelemetry_otlp::WithExportConfig;
+    use opentelemetry_sdk::trace;
 
-    let mut trace_config = trace::config()
+    opentelemetry::global::set_text_map_propagator(
+        opentelemetry_sdk::propagation::TraceContextPropagator::new(),
+    );
+
+    // Set the export interval to 1 second
+    let batch_config = trace::BatchConfigBuilder::default()
+        .with_scheduled_delay(Duration::from_millis(1000))
+        .build();
+
+    let exporter_result = opentelemetry_otlp::SpanExporter::builder()
+        .with_tonic()
+        .with_export_config(get_opentelemetry_exporter_config(config))
+        .build();
+
+    let exporter = if config.ignore_errors {
+        #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
+        exporter_result
+            .inspect_err(|error| eprintln!("Failed to build traces exporter: {error:?}"))
+            .ok()?
+    } else {
+        // Safety: This is conditional, there is an option to avoid this behavior at runtime.
+        #[allow(clippy::expect_used)]
+        exporter_result.expect("Failed to build traces exporter")
+    };
+
+    let mut provider_builder = trace::TracerProvider::builder()
+        .with_span_processor(
+            trace::BatchSpanProcessor::builder(
+                exporter,
+                // The runtime would have to be updated if a different web framework is used
+                opentelemetry_sdk::runtime::TokioCurrentThread,
+            )
+            .with_batch_config(batch_config)
+            .build(),
+        )
         .with_sampler(trace::Sampler::ParentBased(Box::new(ConditionalSampler(
             TraceAssertion {
                 clauses: config
                     .route_to_trace
                     .clone()
-                    .map(|inner| inner.into_iter().map(Into::into).collect()),
+                    .map(|inner| inner.into_iter().map(TraceUrlAssert::from).collect()),
                 default: false,
             },
             trace::Sampler::TraceIdRatioBased(config.sampling_rate.unwrap_or(1.0)),
         ))))
-        .with_resource(Resource::new(vec![KeyValue::new(
-            "service.name",
-            service_name.to_owned(),
-        )]));
+        .with_resource(opentelemetry_sdk::Resource::new(vec![
+            opentelemetry::KeyValue::new("service.name", service_name.to_owned()),
+        ]));
+
     if config.use_xray_generator {
-        trace_config = trace_config.with_id_generator(trace::XrayIdGenerator::default());
+        provider_builder = provider_builder
+            .with_id_generator(opentelemetry_aws::trace::XrayIdGenerator::default());
     }
 
-    // Change the default export interval from 5 seconds to 1 second
-    let batch_config = BatchConfig::default().with_scheduled_delay(Duration::from_millis(1000));
-
-    let traces_layer_result = opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(get_opentelemetry_exporter(config))
-        .with_batch_config(batch_config)
-        .with_trace_config(trace_config)
-        .install_batch(runtime::TokioCurrentThread)
-        .map(|tracer| tracing_opentelemetry::layer().with_tracer(tracer));
-
-    #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
-    if config.ignore_errors {
-        traces_layer_result
-            .map_err(|error| {
-                eprintln!("Failed to create an `opentelemetry_otlp` tracer: {error:?}")
-            })
-            .ok()
-    } else {
-        // Safety: This is conditional, there is an option to avoid this behavior at runtime.
-        #[allow(clippy::expect_used)]
-        Some(traces_layer_result.expect("Failed to create an `opentelemetry_otlp` tracer"))
-    }
+    Some(
+        tracing_opentelemetry::layer()
+            .with_tracer(provider_builder.build().tracer(service_name.to_owned())),
+    )
 }
- */
 
 fn setup_metrics_pipeline(config: &config::LogTelemetry) {
     use opentelemetry_otlp::WithExportConfig;
@@ -286,13 +304,13 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) {
     let exporter = if config.ignore_errors {
         #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
         exporter_result
-            .inspect_err(|error| eprintln!("Failed to setup metrics pipeline: {error:?}"))
+            .inspect_err(|error| eprintln!("Failed to build metrics exporter: {error:?}"))
             .ok();
         return;
     } else {
         // Safety: This is conditional, there is an option to avoid this behavior at runtime.
         #[allow(clippy::expect_used)]
-        exporter_result.expect("Failed to setup metrics pipeline")
+        exporter_result.expect("Failed to build metrics exporter")
     };
 
     let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(
