@@ -41,12 +41,15 @@ pub fn setup(
 ) -> error_stack::Result<TelemetryGuard, ConfigError> {
     let mut guards = Vec::new();
 
+    /*
     // Setup OpenTelemetry traces and metrics
     let traces_layer = if config.telemetry.traces_enabled {
         setup_tracing_pipeline(&config.telemetry, service_name)
     } else {
         None
     };
+    */
+
     let _metrics_controller = if config.telemetry.metrics_enabled {
         setup_metrics_pipeline(&config.telemetry)
     } else {
@@ -79,7 +82,7 @@ pub fn setup(
     };
 
     let subscriber = tracing_subscriber::registry()
-        .with(traces_layer)
+        // .with(traces_layer)
         .with(StorageSubscription)
         .with(file_writer);
 
@@ -149,6 +152,7 @@ fn get_opentelemetry_exporter(config: &config::LogTelemetry) -> TonicExporterBui
     exporter_builder
 }
 
+/*
 #[derive(Debug, Clone)]
 enum TraceUrlAssert {
     Match(String),
@@ -230,7 +234,9 @@ impl<T: trace::ShouldSample + Clone + 'static> trace::ShouldSample for Condition
         }
     }
 }
+ */
 
+/*
 fn setup_tracing_pipeline(
     config: &config::LogTelemetry,
     service_name: &str,
@@ -281,6 +287,7 @@ fn setup_tracing_pipeline(
         Some(traces_layer_result.expect("Failed to create an `opentelemetry_otlp` tracer"))
     }
 }
+ */
 
 fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicController> {
     let histogram_buckets = {
