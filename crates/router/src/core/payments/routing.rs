@@ -7,24 +7,6 @@ use std::{
     sync::Arc,
 };
 
-#[cfg(feature = "v2")]
-use crate::core::admin;
-#[cfg(feature = "payouts")]
-use crate::core::payouts;
-use crate::{
-    core::{
-        errors, errors as oss_errors, payments as payments_oss,
-        routing::{self},
-    },
-    logger,
-    types::{
-        api::{self, routing as routing_types},
-        domain, storage as oss_storage,
-        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
-    },
-    utils::{OptionExt, ValueExt},
-    SessionState,
-};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing as api_routing;
 use api_models::{
@@ -60,6 +42,25 @@ use rand::{
 };
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::{CacheKey, CGRAPH_CACHE, ROUTING_CACHE};
+
+#[cfg(feature = "v2")]
+use crate::core::admin;
+#[cfg(feature = "payouts")]
+use crate::core::payouts;
+use crate::{
+    core::{
+        errors, errors as oss_errors, payments as payments_oss,
+        routing::{self},
+    },
+    logger,
+    types::{
+        api::{self, routing as routing_types},
+        domain, storage as oss_storage,
+        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
+    },
+    utils::{OptionExt, ValueExt},
+    SessionState,
+};
 
 pub enum CachedAlgorithm {
     Single(Box<routing_types::RoutableConnectorChoice>),
