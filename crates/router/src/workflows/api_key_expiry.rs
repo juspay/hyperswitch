@@ -1,4 +1,4 @@
-use common_utils::{errors::ValidationError, ext_traits::ValueExt};
+use common_utils::{errors::ValidationError, ext_traits::ValueExt, types::theme::ThemeLineage};
 use diesel_models::{
     enums as storage_enums, process_tracker::business_status, ApiKeyExpiryTrackingData,
 };
@@ -11,7 +11,7 @@ use crate::{
     routes::{metrics, SessionState},
     services::email::types::ApiKeyExpiryReminder,
     types::{api, domain::UserEmail, storage},
-    utils::OptionExt,
+    utils::{user::theme as theme_utils, OptionExt},
 };
 
 pub struct ApiKeyExpiryWorkflow;
@@ -48,6 +48,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
 
         let email_id = merchant_account
             .merchant_details
+            .clone()
             .parse_value::<api::MerchantDetails>("MerchantDetails")?
             .primary_email
             .ok_or(errors::ProcessTrackerError::EValidationError(
@@ -73,6 +74,20 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             )
             .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?;
 
+        let theme = theme_utils::get_most_specific_theme_using_lineage(
+            state,
+            ThemeLineage::Merchant {
+                tenant_id: state.tenant.tenant_id.clone(),
+                org_id: merchant_account.get_org_id().clone(),
+                merchant_id: merchant_account.get_id().clone(),
+            },
+        )
+        .await
+        .map_err(|err| {
+            logger::error!(?err, "Failed to get theme");
+            errors::ProcessTrackerError::EApiErrorResponse
+        })?;
+
         let email_contents = ApiKeyExpiryReminder {
             recipient_email: UserEmail::from_pii_email(email_id).map_err(|error| {
                 logger::error!(
@@ -85,6 +100,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             expires_in: *expires_in,
             api_key_name,
             prefix,
+            theme: theme.map(Into::into),
         };
 
         state

@@ -1,4 +1,5 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+use common_enums::EntityType;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
@@ -15,7 +16,7 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, ApplicationResponse},
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
-    utils::user::dashboard_metadata as utils,
+    utils::user::{dashboard_metadata as utils, theme as theme_utils},
 };
 
 pub async fn set_metadata(
@@ -476,7 +477,15 @@ async fn insert_metadata(
                     .expose();
 
                 if utils::is_prod_email_required(&data, user_email) {
-                    let email_contents = email_types::BizEmailProd::new(state, data)?;
+                    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+                        state,
+                        &user,
+                        EntityType::Merchant,
+                    )
+                    .await?;
+
+                    let email_contents =
+                        email_types::BizEmailProd::new(state, data, theme.map(Into::into))?;
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(

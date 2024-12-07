@@ -1,7 +1,7 @@
 //! Interactions with the AWS SES SDK
 
 use aws_sdk_sesv2::types::Body;
-use common_utils::{errors::CustomResult, pii};
+use common_utils::{errors::CustomResult, pii, types::theme::EmailThemeConfig};
 use serde::Deserialize;
 
 /// Implementation of aws ses client
@@ -160,6 +160,9 @@ pub struct EmailSettings {
 
     /// Recipient email for recon emails
     pub prod_intent_recipient_email: pii::Email,
+
+    /// Theme settings for the emails
+    pub email_theme_settings: EmailThemeConfig,
 }
 
 impl EmailSettings {
