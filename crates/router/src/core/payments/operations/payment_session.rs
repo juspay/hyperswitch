@@ -378,11 +378,11 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("profile_id is not set in payment_intent")?;
 
-        let filtered_connector_accounts = helpers::filter_mca_based_on_profile_and_connector_type(
-            all_connector_accounts,
-            &profile_id,
-            common_enums::ConnectorType::PaymentProcessor,
-        );
+        let filtered_connector_accounts = all_connector_accounts
+            .filter_based_on_profile_and_connector_type(
+                &profile_id,
+                common_enums::ConnectorType::PaymentProcessor,
+            );
 
         let requested_payment_method_types = request.wallets.clone();
         let mut connector_and_supporting_payment_method_type = Vec::new();
