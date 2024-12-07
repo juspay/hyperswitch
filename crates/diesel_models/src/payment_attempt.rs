@@ -1,6 +1,9 @@
 use common_utils::{
     id_type, pii,
-    types::{ConnectorTransactionId, ConnectorTransactionIdTrait, MinorUnit},
+    types::{
+        ConnectorTransactionId, ConnectorTransactionIdTrait, ExtendedAuthorizationAppliedBool,
+        MinorUnit, RequestExtendedAuthorizationBool,
+    },
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
@@ -94,6 +97,9 @@ pub struct PaymentAttempt {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -172,6 +178,9 @@ pub struct PaymentAttempt {
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_transaction_data: Option<String>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -278,6 +287,9 @@ pub struct PaymentAttemptNew {
     pub payment_method_subtype: storage_enums::PaymentMethodType,
     pub id: id_type::GlobalAttemptId,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    pub capture_before: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]
@@ -351,6 +363,10 @@ pub struct PaymentAttemptNew {
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
+    pub extended_authorization_applied: Option<ExtendedAuthorizationAppliedBool>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub capture_before: Option<PrimitiveDateTime>,
 }
 
 #[cfg(feature = "v1")]

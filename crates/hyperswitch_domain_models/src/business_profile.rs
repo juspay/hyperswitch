@@ -4,7 +4,7 @@ use common_utils::{
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     pii, type_name,
-    types::keymanager,
+    types::{keymanager, AlwaysRequestExtendedAuthorization},
 };
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
@@ -58,6 +58,7 @@ pub struct Profile {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
 }
 
@@ -99,6 +100,7 @@ pub struct ProfileSetter {
     pub is_network_tokenization_enabled: bool,
     pub is_auto_retries_enabled: bool,
     pub max_auto_retries_enabled: Option<i16>,
+    pub always_request_extended_authorization: Option<AlwaysRequestExtendedAuthorization>,
     pub is_click_to_pay_enabled: bool,
 }
 
@@ -147,6 +149,7 @@ impl From<ProfileSetter> for Profile {
             is_network_tokenization_enabled: value.is_network_tokenization_enabled,
             is_auto_retries_enabled: value.is_auto_retries_enabled,
             max_auto_retries_enabled: value.max_auto_retries_enabled,
+            always_request_extended_authorization: value.always_request_extended_authorization,
             is_click_to_pay_enabled: value.is_click_to_pay_enabled,
         }
     }
@@ -298,6 +301,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_network_tokenization_enabled,
                     is_auto_retries_enabled,
                     max_auto_retries_enabled,
+                    always_request_extended_authorization: None,
                     is_click_to_pay_enabled,
                 }
             }
@@ -338,6 +342,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
             },
             ProfileUpdate::DynamicRoutingAlgorithmUpdate {
@@ -376,6 +381,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
@@ -414,6 +420,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
@@ -452,6 +459,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: None,
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
@@ -490,6 +498,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_network_tokenization_enabled: Some(is_network_tokenization_enabled),
                 is_auto_retries_enabled: None,
                 max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
                 is_click_to_pay_enabled: None,
             },
         }
@@ -547,6 +556,7 @@ impl super::behaviour::Conversion for Profile {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: Some(self.is_auto_retries_enabled),
             max_auto_retries_enabled: self.max_auto_retries_enabled,
+            always_request_extended_authorization: self.always_request_extended_authorization,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
         })
     }
@@ -616,6 +626,7 @@ impl super::behaviour::Conversion for Profile {
                 is_network_tokenization_enabled: item.is_network_tokenization_enabled,
                 is_auto_retries_enabled: item.is_auto_retries_enabled.unwrap_or(false),
                 max_auto_retries_enabled: item.max_auto_retries_enabled,
+                always_request_extended_authorization: item.always_request_extended_authorization,
                 is_click_to_pay_enabled: item.is_click_to_pay_enabled,
             })
         }
@@ -1254,6 +1265,7 @@ impl super::behaviour::Conversion for Profile {
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_auto_retries_enabled: None,
             max_auto_retries_enabled: None,
+            always_request_extended_authorization: None,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
         })
     }

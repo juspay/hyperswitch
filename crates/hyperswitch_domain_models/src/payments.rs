@@ -11,7 +11,7 @@ use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
     id_type, pii,
-    types::{keymanager::ToEncryptable, MinorUnit},
+    types::{keymanager::ToEncryptable, MinorUnit, RequestExtendedAuthorizationBool},
 };
 use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
@@ -103,6 +103,7 @@ pub struct PaymentIntent {
     pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
