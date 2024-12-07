@@ -3,20 +3,6 @@
 use std::time::Duration;
 
 use ::config::ConfigError;
-use opentelemetry::{
-    global, runtime,
-    sdk::{
-        export::metrics::aggregation::cumulative_temporality_selector,
-        metrics::{controllers::BasicController, selectors::simple},
-        propagation::TraceContextPropagator,
-        trace,
-        trace::BatchConfig,
-        Resource,
-    },
-    trace::{TraceContextExt, TraceState},
-    KeyValue,
-};
-use opentelemetry_otlp::{TonicExporterBuilder, WithExportConfig};
 use serde_json::ser::{CompactFormatter, PrettyFormatter};
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{fmt, prelude::*, util::SubscriberInitExt, EnvFilter, Layer};
@@ -27,7 +13,6 @@ use crate::{config, FormattingLayer, StorageSubscription};
 #[derive(Debug)]
 pub struct TelemetryGuard {
     _log_guards: Vec<WorkerGuard>,
-    _metrics_controller: Option<BasicController>,
 }
 
 /// Setup logging sub-system specifying the logging configuration, service (binary) name, and a
@@ -50,10 +35,8 @@ pub fn setup(
     };
     */
 
-    let _metrics_controller = if config.telemetry.metrics_enabled {
+    if config.telemetry.metrics_enabled {
         setup_metrics_pipeline(&config.telemetry)
-    } else {
-        None
     };
 
     // Setup file logging
@@ -135,21 +118,23 @@ pub fn setup(
     // dropped
     Ok(TelemetryGuard {
         _log_guards: guards,
-        _metrics_controller,
     })
 }
 
-fn get_opentelemetry_exporter(config: &config::LogTelemetry) -> TonicExporterBuilder {
-    let mut exporter_builder = opentelemetry_otlp::new_exporter().tonic();
+fn get_opentelemetry_exporter_config(
+    config: &config::LogTelemetry,
+) -> opentelemetry_otlp::ExportConfig {
+    let mut exporter_config = opentelemetry_otlp::ExportConfig {
+        protocol: opentelemetry_otlp::Protocol::Grpc,
+        endpoint: config.otel_exporter_otlp_endpoint.clone(),
+        ..Default::default()
+    };
 
-    if let Some(ref endpoint) = config.otel_exporter_otlp_endpoint {
-        exporter_builder = exporter_builder.with_endpoint(endpoint);
-    }
     if let Some(timeout) = config.otel_exporter_otlp_timeout {
-        exporter_builder = exporter_builder.with_timeout(Duration::from_millis(timeout));
+        exporter_config.timeout = Duration::from_millis(timeout);
     }
 
-    exporter_builder
+    exporter_config
 }
 
 /*
@@ -289,47 +274,47 @@ fn setup_tracing_pipeline(
 }
  */
 
-fn setup_metrics_pipeline(config: &config::LogTelemetry) -> Option<BasicController> {
-    let histogram_buckets = {
-        let mut init = 0.01;
-        let mut buckets: [f64; 15] = [0.0; 15];
+fn setup_metrics_pipeline(config: &config::LogTelemetry) {
+    use opentelemetry_otlp::WithExportConfig;
 
-        for bucket in &mut buckets {
-            init *= 2.0;
-            *bucket = init;
-        }
-        buckets
-    };
-
-    let metrics_controller_result = opentelemetry_otlp::new_pipeline()
-        .metrics(
-            simple::histogram(histogram_buckets),
-            cumulative_temporality_selector(),
-            // This would have to be updated if a different web framework is used
-            runtime::TokioCurrentThread,
-        )
-        .with_exporter(get_opentelemetry_exporter(config))
-        .with_period(Duration::from_secs(3))
-        .with_timeout(Duration::from_secs(10))
-        .with_resource(Resource::new(vec![KeyValue::new(
-            "pod",
-            std::env::var("POD_NAME").map_or(
-                "hyperswitch-server-default".into(),
-                Into::<opentelemetry::Value>::into,
-            ),
-        )]))
+    let exporter_result = opentelemetry_otlp::MetricExporter::builder()
+        .with_tonic()
+        .with_temporality(opentelemetry_sdk::metrics::Temporality::Cumulative)
+        .with_export_config(get_opentelemetry_exporter_config(config))
         .build();
 
-    #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
-    if config.ignore_errors {
-        metrics_controller_result
-            .map_err(|error| eprintln!("Failed to setup metrics pipeline: {error:?}"))
-            .ok()
+    let exporter = if config.ignore_errors {
+        #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
+        exporter_result
+            .inspect_err(|error| eprintln!("Failed to setup metrics pipeline: {error:?}"))
+            .ok();
+        return;
     } else {
         // Safety: This is conditional, there is an option to avoid this behavior at runtime.
         #[allow(clippy::expect_used)]
-        Some(metrics_controller_result.expect("Failed to setup metrics pipeline"))
-    }
+        exporter_result.expect("Failed to setup metrics pipeline")
+    };
+
+    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(
+        exporter,
+        // The runtime would have to be updated if a different web framework is used
+        opentelemetry_sdk::runtime::TokioCurrentThread,
+    )
+    .with_interval(Duration::from_secs(3))
+    .with_timeout(Duration::from_secs(10))
+    .build();
+
+    let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
+        .with_reader(reader)
+        .with_resource(opentelemetry_sdk::Resource::new([
+            opentelemetry::KeyValue::new(
+                "pod",
+                std::env::var("POD_NAME").unwrap_or(String::from("hyperswitch-server-default")),
+            ),
+        ]))
+        .build();
+
+    opentelemetry::global::set_meter_provider(provider);
 }
 
 fn get_envfilter(
