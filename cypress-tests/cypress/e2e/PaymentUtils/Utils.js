@@ -1,4 +1,4 @@
-import { validateConfig } from "../../utils/featureFlags.js";
+import { execConfig, validateConfig } from "../../utils/featureFlags.js";
 
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
@@ -193,101 +193,23 @@ export function extractIntegerAtEnd(str) {
   return match ? parseInt(match[0], 10) : 0;
 }
 
-export function createProfileAndConnector(
-  fixtures,
+export function createBusinessProfile(
+  createBusinessProfileBody,
   globalState,
-  paymentMethodsEnabled,
-  businessProfileUpdate = { flag: false }
+  multipleConnector = { nextConnector: false }
 ) {
-  const connectorConfigs = getConnectorDetails(globalState.get("connectorId"))[
-    "multi_credential_config"
-  ] || { value: "connector_1" };
-
-  // Map connector names to their config
-  const connectorMap = {
-    connector_1: { index: 0, iterations: 1 },
-    connector_2: { index: 1, iterations: 1 },
-  };
-
-  const currentConnector = connectorMap[connectorConfigs.value];
-
-  cy.task("getSharedState").then((state) => {
-    const multipleConnectors = state.MULTIPLE_CONNECTORS;
-    cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
-
-    // If multiple connectors are enabled
-    if (multipleConnectors?.status) {
-      // Create profiles and connectors for additional connectors
-      // Skip index 0 since default profile/connector already exists
-
-      const i = currentConnector.index;
-      const profilePrefix = i === 0 ? "profile" : `profile${i}`;
-      const connectorPrefix =
-        i === 0 ? "merchantConnector" : `merchantConnector${i}`;
-
-      // Create business profile with indexed prefix
-      cy.createBusinessProfileTest(
-        fixtures.businessProfile.bpCreate,
-        globalState,
-        profilePrefix
-      );
-
-      // Create connector with indexed prefix
-      cy.createConnectorCallTest(
-        "payment_processor",
-        fixtures.createConnectorBody,
-        paymentMethodsEnabled,
-        globalState,
-        profilePrefix,
-        connectorPrefix
-      );
-
-      // Update business profile if needed
-      if (businessProfileUpdate?.flag) {
-        cy.UpdateBusinessProfileTest(
-          fixtures.businessProfile.bpUpdate,
-          businessProfileUpdate.is_connector_agnostic_enabled,
-          businessProfileUpdate.collect_billing_address_from_wallet_connector,
-          businessProfileUpdate.collect_shipping_address_from_wallet_connector,
-          businessProfileUpdate.always_collect_billing_address_from_wallet_connector,
-          businessProfileUpdate.always_collect_shipping_address_from_wallet_connector,
-          globalState,
-          profilePrefix
-        );
-      }
-    } else {
-      cy.log(
-        "Multiple connectors disabled - using default profile and connector only"
-      );
-    }
-  });
-}
-
-// Helper function to get connector configuration
-function getConnectorConfig(globalState) {
-  const connectorConfigs = getConnectorDetails(globalState.get("connectorId"))[
-    "multi_credential_config"
-  ] || { value: "connector_1" };
-
-  const connectorMap = {
-    connector_1: { index: 0, iterations: 1 },
-    connector_2: { index: 1, iterations: 1 },
-  };
-
-  return connectorMap[connectorConfigs.value];
-}
-
-export function createBusinessProfile(createBusinessProfileBody, globalState) {
   cy.task("getSharedState").then((state) => {
     const multipleConnectors = state.MULTIPLE_CONNECTORS;
     cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
 
     if (multipleConnectors?.status) {
-      const currentConnector = getConnectorConfig(globalState);
-      const profilePrefix =
-        currentConnector.index === 0
-          ? "profile"
-          : `profile${currentConnector.index}`;
+      // Get MCA config and determine profile prefix
+      const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+      const { profilePrefix } = execConfig({
+        CONNECTOR_CREDENTIAL: multipleConnector?.nextConnector
+          ? multipleConnector
+          : mcaConfig?.multi_credential_config || multipleConnector,
+      });
 
       cy.createBusinessProfileTest(
         createBusinessProfileBody,
@@ -302,22 +224,21 @@ export function createMerchantConnectorAccount(
   paymentType,
   createMerchantConnectorAccountBody,
   globalState,
-  paymentMethodsEnabled
+  paymentMethodsEnabled,
+  multipleConnector = { nextConnector: false }
 ) {
   cy.task("getSharedState").then((state) => {
     const multipleConnectors = state.MULTIPLE_CONNECTORS;
     cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
 
     if (multipleConnectors?.status) {
-      const currentConnector = getConnectorConfig(globalState);
-      const profilePrefix =
-        currentConnector.index === 0
-          ? "profile"
-          : `profile${currentConnector.index}`;
-      const connectorPrefix =
-        currentConnector.index === 0
-          ? "merchantConnector"
-          : `merchantConnector${currentConnector.index}`;
+      // Get MCA config
+      const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+      const { profilePrefix, merchantConnectorPrefix } = execConfig({
+        CONNECTOR_CREDENTIAL: multipleConnector?.nextConnector
+          ? multipleConnector
+          : mcaConfig?.multi_credential_config || multipleConnector,
+      });
 
       cy.createConnectorCallTest(
         paymentType,
@@ -325,7 +246,7 @@ export function createMerchantConnectorAccount(
         paymentMethodsEnabled,
         globalState,
         profilePrefix,
-        connectorPrefix
+        merchantConnectorPrefix
       );
     }
   });
@@ -345,11 +266,11 @@ export function updateBusinessProfile(
     cy.log(`MULTIPLE_CONNECTORS: ${JSON.stringify(multipleConnectors)}`);
 
     if (multipleConnectors?.status) {
-      const currentConnector = getConnectorConfig(globalState);
-      const profilePrefix =
-        currentConnector.index === 0
-          ? "profile"
-          : `profile${currentConnector.index}`;
+      // Get MCA config and determine profile prefix
+      const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+      const { profilePrefix } = execConfig({
+        CONNECTOR_CREDENTIAL: mcaConfig?.multi_credential_config,
+      });
 
       cy.UpdateBusinessProfileTest(
         updateBusinessProfileBody,

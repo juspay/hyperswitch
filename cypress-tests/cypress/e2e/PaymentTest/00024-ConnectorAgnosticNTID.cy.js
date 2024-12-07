@@ -52,14 +52,6 @@ describe("Connector Agnostic Tests", () => {
         }
       });
 
-      // it("Create Business Profile and Merchant connector account", () => {
-      //   utils.createProfileAndConnector(
-      //     fixtures,
-      //     globalState,
-      //     payment_methods_enabled
-      //   );
-      // });
-
       it("Create business profile", () => {
         utils.createBusinessProfile(
           fixtures.businessProfile.bpCreate,
@@ -112,28 +104,13 @@ describe("Connector Agnostic Tests", () => {
         cy.listCustomerPMByClientSecret(globalState);
       });
 
-      // it("Create Business Profile and Merchant connector account", () => {
-      //   utils.createProfileAndConnector(
-      //     fixtures,
-      //     globalState,
-      //     payment_methods_enabled,
-      //     {
-      //       flag: true,
-      //       is_connector_agnostic_enabled: true,
-      //       collect_billing_address_from_wallet_connector: false,
-      //       collect_shipping_address_from_wallet_connector: false,
-      //       always_collect_billing_address_from_wallet_connector: false,
-      //       always_collect_shipping_address_from_wallet_connector: false,
-      //     }
-      //   );
-      // });
-
       it("Create business profile", () => {
         utils.createBusinessProfile(
           fixtures.businessProfile.bpCreate,
           globalState
         );
       });
+
       it("Create merchant connector account", () => {
         utils.createMerchantConnectorAccount(
           "payment_processor",
@@ -214,28 +191,13 @@ describe("Connector Agnostic Tests", () => {
       }
     });
 
-    it("Create Business Profile and Merchant connector account", () => {
-      utils.createProfileAndConnector(
-        fixtures,
-        globalState,
-        payment_methods_enabled,
-        {
-          flag: true,
-          is_connector_agnostic_enabled: true,
-          collect_billing_address_from_wallet_connector: false,
-          collect_shipping_address_from_wallet_connector: false,
-          always_collect_billing_address_from_wallet_connector: false,
-          always_collect_shipping_address_from_wallet_connector: false,
-        }
-      );
-    });
-
     it("Create business profile", () => {
       utils.createBusinessProfile(
         fixtures.businessProfile.bpCreate,
         globalState
       );
     });
+
     it("Create merchant connector account", () => {
       utils.createMerchantConnectorAccount(
         "payment_processor",
@@ -289,22 +251,6 @@ describe("Connector Agnostic Tests", () => {
 
     it("List Payment Method for Customer using Client Secret", () => {
       cy.listCustomerPMByClientSecret(globalState);
-    });
-
-    it("Create Business Profile and Merchant connector account", () => {
-      utils.createProfileAndConnector(
-        fixtures,
-        globalState,
-        payment_methods_enabled,
-        {
-          flag: true,
-          is_connector_agnostic_enabled: true,
-          collect_billing_address_from_wallet_connector: false,
-          collect_shipping_address_from_wallet_connector: false,
-          always_collect_billing_address_from_wallet_connector: false,
-          always_collect_shipping_address_from_wallet_connector: false,
-        }
-      );
     });
 
     it("Create business profile", () => {
