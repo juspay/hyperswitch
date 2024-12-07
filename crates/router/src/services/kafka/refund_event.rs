@@ -24,9 +24,9 @@ pub struct KafkaRefundEvent<'a> {
     pub sent_to_gateway: &'a bool,
     pub refund_error_message: Option<&'a String>,
     pub refund_arn: Option<&'a String>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::milliseconds")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
     pub description: Option<&'a String>,
     pub attempt_id: &'a String,
