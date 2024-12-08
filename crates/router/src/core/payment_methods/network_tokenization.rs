@@ -296,7 +296,7 @@ pub async fn make_card_network_tokenization_request(
                 )
             },
             &metrics::GENERATE_NETWORK_TOKEN_TIME,
-            &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
+            router_env::metric_attributes!(("locker", "rust")),
         )
         .await
     } else {

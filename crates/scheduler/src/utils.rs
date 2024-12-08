@@ -5,7 +5,7 @@ use diesel_models::enums::{self, ProcessTrackerStatus};
 pub use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
 use redis_interface::{RedisConnectionPool, RedisEntryId};
-use router_env::{instrument, opentelemetry, tracing};
+use router_env::{instrument, tracing};
 use uuid::Uuid;
 
 use super::{
@@ -292,10 +292,7 @@ pub fn add_histogram_metrics(
         let runner_name = runner.clone();
         metrics::CONSUMER_STATS.record(
             pickup_schedule_delta,
-            &[opentelemetry::KeyValue::new(
-                stream_name.to_owned(),
-                runner_name,
-            )],
+            router_env::metric_attributes!((stream_name.to_owned(), runner_name)),
         );
     };
 }

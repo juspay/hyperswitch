@@ -1,4 +1,3 @@
-pub use router_env::opentelemetry::KeyValue;
 use router_env::{counter_metric, global_meter};
 
 global_meter!(GLOBAL_METER, "ROUTER_API");

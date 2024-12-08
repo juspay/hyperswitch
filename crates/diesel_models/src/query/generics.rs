@@ -25,8 +25,6 @@ use router_env::logger;
 use crate::{errors, PgPooledConn, StorageResult};
 
 pub mod db_metrics {
-    use router_env::opentelemetry::KeyValue;
-
     #[derive(Debug)]
     pub enum DatabaseOperation {
         FindOne,
@@ -51,13 +49,13 @@ pub mod db_metrics {
 
         let table_name = std::any::type_name::<T>().rsplit("::").nth(1);
 
-        let attributes = [
-            KeyValue::new("table", table_name.unwrap_or("undefined")),
-            KeyValue::new("operation", format!("{:?}", operation)),
-        ];
+        let attributes = router_env::metric_attributes!(
+            ("table", table_name.unwrap_or("undefined")),
+            ("operation", format!("{:?}", operation))
+        );
 
-        crate::metrics::DATABASE_CALLS_COUNT.add(1, &attributes);
-        crate::metrics::DATABASE_CALL_TIME.record(time_elapsed.as_secs_f64(), &attributes);
+        crate::metrics::DATABASE_CALLS_COUNT.add(1, attributes);
+        crate::metrics::DATABASE_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
 
         output
     }

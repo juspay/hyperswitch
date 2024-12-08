@@ -2454,15 +2454,12 @@ pub async fn add_card_to_locker(
             .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     1,
-                    &[
-                        router_env::opentelemetry::KeyValue::new("locker", "rust"),
-                        router_env::opentelemetry::KeyValue::new("operation", "add"),
-                    ],
+                    router_env::metric_attributes!(("locker", "rust"), ("operation", "add")),
                 );
             })
         },
         &metrics::CARD_ADD_TIME,
-        &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
+        router_env::metric_attributes!(("locker", "rust")),
     ))
     .await?;
 
@@ -2493,15 +2490,12 @@ pub async fn get_card_from_locker(
             .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
                     1,
-                    &[
-                        router_env::opentelemetry::KeyValue::new("locker", "rust"),
-                        router_env::opentelemetry::KeyValue::new("operation", "get"),
-                    ],
+                    router_env::metric_attributes!(("locker", "rust"), ("operation", "get")),
                 );
             })
         },
         &metrics::CARD_GET_TIME,
-        &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
+        router_env::metric_attributes!(("locker", "rust")),
     )
     .await?;
 
@@ -2524,10 +2518,7 @@ pub async fn delete_card_from_locker(
                 .inspect_err(|_| {
                     metrics::CARD_LOCKER_FAILURES.add(
                         1,
-                        &[
-                            router_env::opentelemetry::KeyValue::new("locker", "rust"),
-                            router_env::opentelemetry::KeyValue::new("operation", "delete"),
-                        ],
+                        router_env::metric_attributes!(("locker", "rust"), ("operation", "delete")),
                     );
                 })
         },

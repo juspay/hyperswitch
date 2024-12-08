@@ -127,10 +127,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 )> {
     metrics::WEBHOOK_INCOMING_COUNT.add(
         1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            merchant_account.get_id().get_string_repr().to_owned(),
-        )],
+        router_env::metric_attributes!((MERCHANT_ID, merchant_account.get_id().clone())),
     );
     let mut request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
@@ -183,10 +180,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
             metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
                 1,
-                &[
-                    metrics::KeyValue::new(MERCHANT_ID, merchant_account.get_id().clone()),
-                    metrics::KeyValue::new("connector", connector_name.to_string()),
-                ],
+                router_env::metric_attributes!(
+                    (MERCHANT_ID, merchant_account.get_id().clone()),
+                    ("connector", connector_name)
+                ),
             );
 
             let response = connector
@@ -287,10 +284,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         if source_verified {
             metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
                 1,
-                &[metrics::KeyValue::new(
-                    MERCHANT_ID,
-                    merchant_account.get_id().clone(),
-                )],
+                router_env::metric_attributes!((MERCHANT_ID, merchant_account.get_id().clone())),
             );
         }
 
@@ -354,10 +348,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     } else {
         metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
             1,
-            &[metrics::KeyValue::new(
-                MERCHANT_ID,
-                merchant_account.get_id().get_string_repr().to_owned(),
-            )],
+            router_env::metric_attributes!((MERCHANT_ID, merchant_account.get_id().clone())),
         );
         WebhookResponseTracker::NoEffect
     };

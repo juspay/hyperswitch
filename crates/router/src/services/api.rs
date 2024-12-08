@@ -433,10 +433,10 @@ pub async fn send_request(
     )?;
 
     let headers = request.headers.construct_header_map()?;
-    let metrics_tag = router_env::opentelemetry::KeyValue::new(
+    let metrics_tag = router_env::metric_attributes!((
         consts::METRICS_HOST_TAG_NAME,
-        url.host_str().unwrap_or_default().to_owned(),
-    );
+        url.host_str().unwrap_or_default().to_owned()
+    ));
     let request = {
         match request.method {
             Method::Get => client.get(url),
@@ -533,7 +533,7 @@ pub async fn send_request(
     let response = common_utils::metrics::utils::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
-        &[metrics_tag.clone()],
+        metrics_tag,
     )
     .await;
     // Retry once if the response is connection closed.
@@ -560,7 +560,7 @@ pub async fn send_request(
                     common_utils::metrics::utils::record_operation_time(
                         cloned_request,
                         &metrics::EXTERNAL_REQUEST_TIME,
-                        &[metrics_tag],
+                        metrics_tag,
                     )
                     .await
                 }

@@ -109,6 +109,14 @@ macro_rules! gauge_metric {
     };
 }
 
+/// Create attributes to associate with a metric from key-value pairs.
+#[macro_export]
+macro_rules! metric_attributes {
+    ($(($key:expr, $value:expr)),+) => {
+        &[$($crate::opentelemetry::KeyValue::new($key, $value)),+]
+    };
+}
+
 pub use helpers::{add_attributes, f64_histogram_buckets};
 
 mod helpers {

@@ -25,10 +25,7 @@ impl ExecuteQuery for kv::DBOperation {
         let operation = self.operation();
         let table = self.table();
 
-        let tags: &[metrics::KeyValue] = &[
-            metrics::KeyValue::new("operation", operation),
-            metrics::KeyValue::new("table", table),
-        ];
+        let tags = router_env::metric_attributes!(("operation", operation), ("table", table));
 
         let (result, execution_time) =
             Box::pin(common_utils::date_time::time_it(|| self.execute(&conn))).await;
@@ -52,7 +49,12 @@ impl ExecuteQuery for kv::DBOperation {
 }
 
 #[inline(always)]
-fn push_drainer_delay(pushed_at: i64, operation: &str, table: &str, tags: &[metrics::KeyValue]) {
+fn push_drainer_delay(
+    pushed_at: i64,
+    operation: &str,
+    table: &str,
+    tags: &[router_env::opentelemetry::KeyValue],
+) {
     let drained_at = common_utils::date_time::now_unix_timestamp();
     let delay = drained_at - pushed_at;
 

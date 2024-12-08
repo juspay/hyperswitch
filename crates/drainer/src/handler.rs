@@ -237,7 +237,7 @@ async fn drainer(
 
     metrics::JOBS_PICKED_PER_STREAM.add(
         u64::try_from(read_count).unwrap_or(u64::MIN),
-        &[metrics::KeyValue::new("stream", stream_name.to_owned())],
+        router_env::metric_attributes!(("stream", stream_name.to_owned())),
     );
 
     let session_id = common_utils::generate_id_with_default_len("drainer_session");
@@ -249,8 +249,10 @@ async fn drainer(
             Ok(data) => data,
             Err(err) => {
                 logger::error!(operation = "deserialization", err=?err);
-                metrics::STREAM_PARSE_FAIL
-                    .add(1, &[metrics::KeyValue::new("operation", "deserialization")]);
+                metrics::STREAM_PARSE_FAIL.add(
+                    1,
+                    router_env::metric_attributes!(("operation", "deserialization")),
+                );
 
                 // break from the loop in case of a deser error
                 break;

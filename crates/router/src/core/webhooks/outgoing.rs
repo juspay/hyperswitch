@@ -293,10 +293,7 @@ async fn trigger_webhook_to_merchant(
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(
         1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            business_profile.merchant_id.get_string_repr().to_owned(),
-        )],
+        router_env::metric_attributes!((MERCHANT_ID, business_profile.merchant_id.clone())),
     );
     logger::debug!(outgoing_webhook_response=?response);
 
@@ -842,10 +839,7 @@ async fn update_event_in_storage(
 fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {
     metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
         1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            merchant_id.get_string_repr().to_owned(),
-        )],
+        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
     )
 }
 
@@ -880,10 +874,7 @@ async fn error_response_handler(
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
         1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            merchant_id.get_string_repr().to_owned(),
-        )],
+        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
     );
 
     let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);
