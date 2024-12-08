@@ -62,18 +62,36 @@ pub struct Event {
 #[derive(Clone, Debug, Deserialize, Serialize, AsExpression, diesel::FromSqlRow)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub enum EventMetadata {
+    #[cfg(feature = "v1")]
     Payment {
         payment_id: common_utils::id_type::PaymentId,
+    },
+    #[cfg(feature = "v2")]
+    Payment {
+        payment_id: common_utils::id_type::GlobalPaymentId,
     },
     Payout {
         payout_id: String,
     },
+    #[cfg(feature = "v1")]
     Refund {
         payment_id: common_utils::id_type::PaymentId,
         refund_id: String,
     },
+    #[cfg(feature = "v2")]
+    Refund {
+        payment_id: common_utils::id_type::GlobalPaymentId,
+        refund_id: common_utils::id_type::GlobalRefundId,
+    },
+    #[cfg(feature = "v1")]
     Dispute {
         payment_id: common_utils::id_type::PaymentId,
+        attempt_id: String,
+        dispute_id: String,
+    },
+    #[cfg(feature = "v2")]
+    Dispute {
+        payment_id: common_utils::id_type::GlobalPaymentId,
         attempt_id: String,
         dispute_id: String,
     },
