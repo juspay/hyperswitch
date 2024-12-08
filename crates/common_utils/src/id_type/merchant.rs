@@ -34,8 +34,7 @@ crate::impl_to_sql_from_sql_id_type!(MerchantId);
 /// This is implemented so that we can use merchant id directly as attribute in metrics
 impl From<MerchantId> for router_env::opentelemetry::Value {
     fn from(val: MerchantId) -> Self {
-        let string_value = val.0 .0 .0;
-        Self::String(router_env::opentelemetry::StringValue::from(string_value))
+        Self::from(val.0 .0 .0)
     }
 }
 
