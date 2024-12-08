@@ -76,6 +76,7 @@ pub async fn validate_create_request(
     Option<payouts::PayoutMethodData>,
     common_utils::id_type::ProfileId,
     Option<domain::Customer>,
+    Option<domain::PaymentMethod>,
 )> {
     let merchant_id = merchant_account.get_id();
 
@@ -181,6 +182,18 @@ pub async fn validate_create_request(
             field_name: "profile_id",
         })
         .attach_printable("Profile id is a mandatory parameter")?;
+
+    // //Validate payout_method_id //here
+    // let payment_method = match req.payout_method_id {
+    //     Some(payout_method_id) => {
+    //         db.find_payment_method(
+
+    //         )
+    //     }
+    //     =>{
+
+    //     }
+    // }
 
     Ok((payout_id, payout_method_data, profile_id, customer))
 }
