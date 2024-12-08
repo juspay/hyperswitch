@@ -26,6 +26,7 @@ impl Role {
         .await
     }
 
+    // TODO: Remove once find_by_role_id_in_lineage is stable
     pub async fn find_by_role_id_in_merchant_scope(
         conn: &PgPooledConn,
         role_id: &str,
@@ -43,7 +44,27 @@ impl Role {
         .await
     }
 
-    pub async fn find_by_role_id_in_org_scope(
+    pub async fn find_by_role_id_in_lineage(
+        conn: &PgPooledConn,
+        role_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::role_id
+                .eq(role_id.to_owned())
+                .and(dsl::org_id.eq(org_id.to_owned()))
+                .and(
+                    dsl::scope.eq(RoleScope::Organization).or(dsl::merchant_id
+                        .eq(merchant_id.to_owned())
+                        .and(dsl::scope.eq(RoleScope::Merchant))),
+                ),
+        )
+        .await
+    }
+
+    pub async fn find_by_role_id_and_org_id(
         conn: &PgPooledConn,
         role_id: &str,
         org_id: &id_type::OrganizationId,
@@ -88,9 +109,11 @@ impl Role {
         merchant_id: &id_type::MerchantId,
         org_id: &id_type::OrganizationId,
     ) -> StorageResult<Vec<Self>> {
-        let predicate = dsl::merchant_id.eq(merchant_id.to_owned()).or(dsl::org_id
-            .eq(org_id.to_owned())
-            .and(dsl::scope.eq(RoleScope::Organization)));
+        let predicate = dsl::org_id.eq(org_id.to_owned()).and(
+            dsl::scope.eq(RoleScope::Organization).or(dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::scope.eq(RoleScope::Merchant))),
+        );
 
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -115,9 +138,10 @@ impl Role {
 
         if let Some(merchant_id) = merchant_id {
             query = query.filter(
-                dsl::merchant_id
+                (dsl::merchant_id
                     .eq(merchant_id)
-                    .or(dsl::scope.eq(RoleScope::Organization)),
+                    .and(dsl::scope.eq(RoleScope::Merchant)))
+                .or(dsl::scope.eq(RoleScope::Organization)),
             );
         }
 
