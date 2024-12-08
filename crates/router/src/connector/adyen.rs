@@ -27,7 +27,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -2292,3 +2292,5 @@ impl api::FileUpload for Adyen {
         Ok(())
     }
 }
+
+impl ConnectorSpecifications for Adyen {}

@@ -27,7 +27,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -1719,3 +1719,5 @@ impl api::IncomingWebhook for Cybersource {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Cybersource {}

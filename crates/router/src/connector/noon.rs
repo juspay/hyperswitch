@@ -27,7 +27,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -946,3 +946,5 @@ impl api::IncomingWebhook for Noon {
         Ok(Box::new(noon::NoonPaymentsResponse::from(resource)))
     }
 }
+
+impl ConnectorSpecifications for Noon {}

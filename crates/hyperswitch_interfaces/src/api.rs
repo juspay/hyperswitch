@@ -36,7 +36,10 @@ use hyperswitch_domain_models::{
     router_request_types::{
         AccessTokenRequestData, MandateRevokeRequestData, VerifyWebhookSourceRequestData,
     },
-    router_response_types::{MandateRevokeResponseData, VerifyWebhookSourceResponseData},
+    router_response_types::{
+        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
+        VerifyWebhookSourceResponseData,
+    },
 };
 use masking::Maskable;
 use router_env::metrics::add_attributes;
@@ -46,12 +49,8 @@ use serde_json::json;
 pub use self::payouts::*;
 pub use self::{payments::*, refunds::*};
 use crate::{
-    configs::Connectors,
-    connector_integration_v2::ConnectorIntegrationV2,
-    consts, errors,
-    events::connector_api_logs::ConnectorEvent,
-    metrics,
-    types::{self, SupportedPaymentMethods},
+    configs::Connectors, connector_integration_v2::ConnectorIntegrationV2, consts, errors,
+    events::connector_api_logs::ConnectorEvent, metrics, types,
 };
 
 /// type BoxedConnectorIntegration
@@ -265,11 +264,6 @@ pub trait ConnectorCommon {
     /// The base URL for interacting with the connector's API.
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str;
 
-    /// Details related to payment method supported by the connector
-    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
-        None
-    }
-
     /// common error response for a connector if it is same in all case
     fn build_error_response(
         &self,
@@ -284,6 +278,24 @@ pub trait ConnectorCommon {
             attempt_status: None,
             connector_transaction_id: None,
         })
+    }
+}
+
+/// The trait that provides specifications about the connector
+pub trait ConnectorSpecifications {
+    /// Details related to payment method supported by the connector
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        None
+    }
+
+    /// Supported webhooks flows
+    fn get_supported_webhook_flows(&self) -> Option<Vec<api_models::webhooks::WebhookFlow>> {
+        None
+    }
+
+    /// Details related to connector
+    fn get_connector_data(&self) -> Option<ConnectorInfo> {
+        None
     }
 }
 
@@ -352,7 +364,7 @@ pub trait ConnectorVerifyWebhookSourceV2:
 }
 
 /// trait ConnectorValidation
-pub trait ConnectorValidation: ConnectorCommon {
+pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     /// fn validate_payment_method
     fn validate_payment_method(
         &self,
@@ -366,8 +378,10 @@ pub trait ConnectorValidation: ConnectorCommon {
                 payment_method_type,
                 self.id(),
             )?;
+            Ok(())
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     /// fn validate_capture_method
@@ -480,7 +494,7 @@ fn get_connector_payment_method_type_info(
     payment_method: &PaymentMethod,
     payment_method_type: &Option<PaymentMethodType>,
     connector: &'static str,
-) -> CustomResult<Option<types::PaymentMethodDetails>, errors::ConnectorError> {
+) -> CustomResult<Option<PaymentMethodDetails>, errors::ConnectorError> {
     let payment_method_details = supported_payment_method
         .get(payment_method)
         .ok_or_else(|| errors::ConnectorError::NotSupported {

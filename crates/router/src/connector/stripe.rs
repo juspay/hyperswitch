@@ -29,7 +29,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -2904,3 +2904,5 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
+
+impl ConnectorSpecifications for Stripe {}

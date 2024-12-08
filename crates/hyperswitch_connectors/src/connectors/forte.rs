@@ -30,7 +30,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts::NO_ERROR_CODE,
     errors,
@@ -728,3 +731,5 @@ impl IncomingWebhook for Forte {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Forte {}

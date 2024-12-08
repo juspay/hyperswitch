@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::webhooks::WebhookFlow;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -22,7 +23,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
@@ -32,15 +36,14 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        self, PaymentMethodDetails, PaymentMethodTypeMetadata, PaymentsAuthorizeType,
-        PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsSyncType, PaymentsVoidType,
-        Response, SupportedPaymentMethods,
+        self, PaymentsAuthorizeType, PaymentsCaptureType, PaymentsCompleteAuthorizeType,
+        PaymentsSyncType, PaymentsVoidType, Response,
     },
     webhooks,
 };
@@ -118,35 +121,6 @@ impl ConnectorCommon for Bambora {
             headers::AUTHORIZATION.to_string(),
             auth.api_key.into_masked(),
         )])
-    }
-
-    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
-        let mut supported_payment_methods = SupportedPaymentMethods::new();
-        let mut card_payment_method = PaymentMethodTypeMetadata::new();
-        let bambora_default_capture_methods = vec![
-            enums::CaptureMethod::Automatic,
-            enums::CaptureMethod::Manual,
-            enums::CaptureMethod::SequentialAutomatic,
-        ];
-
-        card_payment_method.insert(
-            enums::PaymentMethodType::Credit,
-            PaymentMethodDetails {
-                supports_mandate: false,
-                supports_refund: true,
-                supported_capture_methods: bambora_default_capture_methods.clone(),
-            },
-        );
-        card_payment_method.insert(
-            enums::PaymentMethodType::Debit,
-            PaymentMethodDetails {
-                supports_mandate: false,
-                supports_refund: true,
-                supported_capture_methods: bambora_default_capture_methods.clone(),
-            },
-        );
-        supported_payment_methods.insert(enums::PaymentMethod::Card, card_payment_method);
-        Some(supported_payment_methods)
     }
 
     fn build_error_response(
@@ -840,5 +814,46 @@ impl webhooks::IncomingWebhook for Bambora {
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    }
+}
+
+impl ConnectorSpecifications for Bambora {
+    fn get_connector_data(&self) -> Option<ConnectorInfo> {
+        Some(ConnectorInfo {
+            description:
+                "Bambora is a leading online payment provider in Canada and United States."
+                    .to_string(),
+            connector_type: enums::PaymentsConnectorType::PaymentGateway,
+        })
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        let bambora_default_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut bambora_supported_payment_methods = SupportedPaymentMethods::new();
+        bambora_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            false,
+            true,
+            bambora_default_capture_methods.clone(),
+        );
+        bambora_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            false,
+            true,
+            bambora_default_capture_methods.clone(),
+        );
+
+        Some(bambora_supported_payment_methods)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<Vec<WebhookFlow>> {
+        Some(Vec::new())
     }
 }

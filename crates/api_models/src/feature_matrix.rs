@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums;
+use crate::{enums, webhooks::WebhookFlow};
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub struct FeatureMatrixRequest {
@@ -12,7 +12,7 @@ pub struct FeatureMatrixRequest {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct SupportedPaymentMethod {
     pub payment_method: enums::PaymentMethodType,
     pub supports_mandate: bool,
@@ -23,25 +23,28 @@ pub struct SupportedPaymentMethod {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, ToSchema, Serialize)]
+#[derive(Debug, ToSchema, Serialize)]
 pub struct SupportedPaymentMethodTypes {
     pub payment_method_type: enums::PaymentMethod,
     pub payment_methods: Vec<SupportedPaymentMethod>,
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, ToSchema, Serialize)]
-pub struct FeatureMatrixResponse {
-    pub connector: enums::Connector,
+#[derive(Debug, ToSchema, Serialize)]
+pub struct ConnectorFeatureMatrixResponse {
+    pub connector: String,
+    pub description: Option<String>,
+    pub connector_type: Option<enums::PaymentsConnectorType>,
     pub payment_method_types: Vec<SupportedPaymentMethodTypes>,
+    pub supported_webhook_flows: Option<Vec<WebhookFlow>>,
 }
 
-#[derive(Clone, Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct FeatureMatrixListResponse {
-    /// The number of connectors included in the list
+    /// The number of connectors included in the response
     pub size: usize,
     // The list of payments response objects
-    pub data: Vec<FeatureMatrixResponse>,
+    pub data: Vec<ConnectorFeatureMatrixResponse>,
 }
 
 impl common_utils::events::ApiEventMetric for FeatureMatrixListResponse {}

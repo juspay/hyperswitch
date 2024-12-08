@@ -19,7 +19,7 @@ use crate::{
     },
     events::connector_api_logs::ConnectorEvent,
     headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, PaymentsCompleteAuthorize},
@@ -1058,3 +1058,5 @@ impl services::ConnectorRedirectResponse for Authorizedotnet {
         }
     }
 }
+
+impl ConnectorSpecifications for Authorizedotnet {}

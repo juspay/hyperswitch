@@ -3,7 +3,9 @@ pub use api_models::payments::PaymentsRequest;
 #[cfg(feature = "v2")]
 pub use api_models::payments::{PaymentsCreateIntentRequest, PaymentsIntentResponse};
 pub use api_models::{
-    feature_matrix::{FeatureMatrixListResponse, FeatureMatrixRequest, FeatureMatrixResponse},
+    feature_matrix::{
+        ConnectorFeatureMatrixResponse, FeatureMatrixListResponse, FeatureMatrixRequest,
+    },
     payments::{
         AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
         CryptoData, CustomerAcceptance, CustomerDetailsResponse, MandateAmountData, MandateData,

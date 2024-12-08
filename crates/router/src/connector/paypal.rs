@@ -36,7 +36,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation, PaymentAction,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation, PaymentAction,
     },
     types::{
         self,
@@ -2207,3 +2207,5 @@ impl ConnectorErrorTypeMapping for Paypal {
         }
     }
 }
+
+impl ConnectorSpecifications for Paypal {}

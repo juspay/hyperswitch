@@ -21,7 +21,7 @@ use crate::{
     },
     events::connector_api_logs::ConnectorEvent,
     headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -981,3 +981,5 @@ impl services::ConnectorRedirectResponse for Nuvei {
         }
     }
 }
+
+impl ConnectorSpecifications for Nuvei {}

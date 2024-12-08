@@ -31,7 +31,9 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
+    },
     configs::Connectors,
     disputes::DisputePayload,
     errors,
@@ -947,3 +949,5 @@ impl IncomingWebhook for Rapyd {
         })
     }
 }
+
+impl ConnectorSpecifications for Rapyd {}

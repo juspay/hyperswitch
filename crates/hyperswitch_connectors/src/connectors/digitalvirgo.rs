@@ -35,7 +35,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -539,3 +539,5 @@ impl webhooks::IncomingWebhook for Digitalvirgo {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Digitalvirgo {}

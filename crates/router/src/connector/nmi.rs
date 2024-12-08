@@ -19,7 +19,7 @@ use crate::{
         payments,
     },
     events::connector_api_logs::ConnectorEvent,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -1034,3 +1034,5 @@ impl services::ConnectorRedirectResponse for Nmi {
         }
     }
 }
+
+impl ConnectorSpecifications for Nmi {}

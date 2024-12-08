@@ -21,7 +21,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -1026,3 +1026,5 @@ impl api::IncomingWebhook for Klarna {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Klarna {}

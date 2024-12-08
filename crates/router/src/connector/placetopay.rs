@@ -16,7 +16,7 @@ use crate::{
     services::{
         self,
         request::{self},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -690,3 +690,5 @@ impl api::IncomingWebhook for Placetopay {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Placetopay {}

@@ -33,7 +33,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts, errors,
     events::connector_api_logs::ConnectorEvent,
@@ -919,3 +922,5 @@ impl webhooks::IncomingWebhook for Stax {
         Ok(Box::new(reference_object))
     }
 }
+
+impl ConnectorSpecifications for Stax {}

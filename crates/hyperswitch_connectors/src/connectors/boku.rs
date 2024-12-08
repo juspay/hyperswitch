@@ -28,7 +28,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     consts::NO_ERROR_CODE,
     errors,
@@ -709,3 +712,5 @@ fn get_xml_deserialized(
         }
     }
 }
+
+impl ConnectorSpecifications for Boku {}

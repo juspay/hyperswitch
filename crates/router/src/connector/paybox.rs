@@ -21,7 +21,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -712,3 +712,5 @@ impl services::ConnectorRedirectResponse for Paybox {
         }
     }
 }
+
+impl ConnectorSpecifications for Paybox {}

@@ -16,7 +16,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -614,3 +614,5 @@ impl<const T: u8> api::IncomingWebhook for DummyConnector<T> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl<const T: u8> ConnectorSpecifications for DummyConnector<T> {}

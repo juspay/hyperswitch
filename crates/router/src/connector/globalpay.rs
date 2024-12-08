@@ -28,7 +28,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -1044,3 +1044,5 @@ impl services::ConnectorRedirectResponse for Globalpay {
         }
     }
 }
+
+impl ConnectorSpecifications for Globalpay {}

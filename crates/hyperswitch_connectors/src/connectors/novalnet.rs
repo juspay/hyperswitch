@@ -34,7 +34,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     disputes, errors,
@@ -921,3 +921,5 @@ impl webhooks::IncomingWebhook for Novalnet {
         })
     }
 }
+
+impl ConnectorSpecifications for Novalnet {}

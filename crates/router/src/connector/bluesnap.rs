@@ -28,7 +28,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -1381,3 +1381,5 @@ fn get_rsync_url_with_connector_refund_id(
         req.request.get_connector_refund_id()?
     ))
 }
+
+impl ConnectorSpecifications for Bluesnap {}

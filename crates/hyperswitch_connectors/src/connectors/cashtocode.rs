@@ -25,7 +25,10 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsSyncRouterData},
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -453,3 +456,5 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Cashtoc
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Cashtocode {
     // default implementation of build_request method will be executed
 }
+
+impl ConnectorSpecifications for Cashtocode {}

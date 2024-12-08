@@ -30,7 +30,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration, ConnectorValidation,
+        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     types::{
         self,
@@ -1210,3 +1210,5 @@ impl
         self.build_error_response(res, event_builder)
     }
 }
+
+impl ConnectorSpecifications for Braintree {}

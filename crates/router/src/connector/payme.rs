@@ -23,7 +23,7 @@ use crate::{
     },
     events::connector_api_logs::ConnectorEvent,
     headers,
-    services::{self, request, ConnectorIntegration, ConnectorValidation},
+    services::{self, request, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -1295,3 +1295,5 @@ impl api::IncomingWebhook for Payme {
         })
     }
 }
+
+impl ConnectorSpecifications for Payme {}
