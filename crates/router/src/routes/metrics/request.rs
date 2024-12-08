@@ -1,5 +1,3 @@
-use router_env::metrics::add_attributes;
-
 use super::utils as metric_utils;
 use crate::services::ApplicationResponse;
 
@@ -11,16 +9,11 @@ where
     F: futures::Future<Output = R>,
 {
     let key = "request_type";
-    super::REQUESTS_RECEIVED.add(
-        &super::CONTEXT,
-        1,
-        &add_attributes([(key, flow.to_string())]),
-    );
+    super::REQUESTS_RECEIVED.add(1, router_env::metric_attributes!((key, flow.to_string())));
     let (result, time) = metric_utils::time_future(future).await;
     super::REQUEST_TIME.record(
-        &super::CONTEXT,
         time.as_secs_f64(),
-        &add_attributes([(key, flow.to_string())]),
+        router_env::metric_attributes!((key, flow.to_string())),
     );
     result
 }
@@ -31,13 +24,12 @@ pub fn status_code_metrics(
     merchant_id: common_utils::id_type::MerchantId,
 ) {
     super::REQUEST_STATUS.add(
-        &super::CONTEXT,
         1,
-        &add_attributes([
+        router_env::metric_attributes!(
             ("status_code", status_code),
             ("flow", flow),
-            ("merchant_id", merchant_id.get_string_repr().to_owned()),
-        ]),
+            ("merchant_id", merchant_id.clone()),
+        ),
     )
 }
 

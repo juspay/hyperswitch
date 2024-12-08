@@ -1,6 +1,5 @@
 use common_utils::{errors::CustomResult, request::RequestContent};
 use masking::{ErasedMaskSerialize, Secret};
-use router_env::opentelemetry::KeyValue;
 use serde::Serialize;
 use storage_impl::errors::ApiClientError;
 
@@ -197,19 +196,13 @@ where
     E: std::fmt::Debug,
     F: futures::Future<Output = Result<(), E>> + Send + 'static,
 {
-    metrics::API_KEY_REQUEST_INITIATED.add(
-        &metrics::CONTEXT,
-        1,
-        &[KeyValue::new("type", request_type)],
-    );
+    metrics::API_KEY_REQUEST_INITIATED
+        .add(1, router_env::metric_attributes!(("type", request_type)));
     tokio::spawn(async move {
         match future.await {
             Ok(_) => {
-                metrics::API_KEY_REQUEST_COMPLETED.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[KeyValue::new("type", request_type)],
-                );
+                metrics::API_KEY_REQUEST_COMPLETED
+                    .add(1, router_env::metric_attributes!(("type", request_type)));
             }
             Err(e) => {
                 router_env::error!("Error in tracked job: {:?}", e);

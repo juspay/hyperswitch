@@ -1,6 +1,6 @@
 use common_utils::pii;
 use masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 
 use crate::{
     core::{
@@ -53,9 +53,8 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     .to_payment_failed_response()?;
 
     metrics::CONNECTOR_CUSTOMER_CREATE.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([("connector", connector.connector_name.to_string())]),
+        router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
     );
 
     let connector_customer_id = match resp.response {

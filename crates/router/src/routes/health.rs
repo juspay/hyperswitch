@@ -14,7 +14,7 @@ use crate::{
 #[instrument(skip_all, fields(flow = ?Flow::HealthCheck))]
 // #[actix_web::get("/health")]
 pub async fn health() -> impl actix_web::Responder {
-    metrics::HEALTH_METRIC.add(&metrics::CONTEXT, 1, &[]);
+    metrics::HEALTH_METRIC.add(1, &[]);
     logger::info!("Health was called");
 
     actix_web::HttpResponse::Ok().body("health is good")
@@ -25,7 +25,7 @@ pub async fn deep_health_check(
     state: web::Data<app::AppState>,
     request: HttpRequest,
 ) -> impl actix_web::Responder {
-    metrics::HEALTH_METRIC.add(&metrics::CONTEXT, 1, &[]);
+    metrics::HEALTH_METRIC.add(1, &[]);
 
     let flow = Flow::DeepHealthCheck;
 
