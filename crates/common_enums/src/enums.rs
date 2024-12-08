@@ -3422,3 +3422,15 @@ pub enum ErrorCategory {
     IssueWithPaymentMethod,
     ProcessorDeclineIncorrectData,
 }
+
+/// Connector Access Method
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentsConnectorType {
+    PaymentGateway,
+    AlternativePaymentMethod,
+    BankAcquirer,
+}

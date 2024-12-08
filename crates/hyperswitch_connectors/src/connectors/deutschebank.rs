@@ -3,8 +3,9 @@ pub mod transformers;
 use std::time::SystemTime;
 
 use actix_web::http::header::Date;
+use api_models::webhooks::WebhookFlow;
 use base64::Engine;
-use common_enums::enums;
+use common_enums::{enums, PaymentsConnectorType};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -27,7 +28,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
@@ -35,7 +39,10 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation,
+    },
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -172,22 +179,6 @@ impl ConnectorCommon for Deutschebank {
 }
 
 impl ConnectorValidation for Deutschebank {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-
     fn validate_mandate_payment(
         &self,
         pm_type: Option<enums::PaymentMethodType>,
@@ -946,5 +937,38 @@ impl webhooks::IncomingWebhook for Deutschebank {
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    }
+}
+
+impl ConnectorSpecifications for Deutschebank {
+    fn get_connector_data(&self) -> Option<ConnectorInfo> {
+        Some(ConnectorInfo {
+            description:
+                "Deutsche Bank is a German multinational investment bank and financial services company "
+                    .to_string(),
+            connector_type: PaymentsConnectorType::BankAcquirer,
+        })
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        let deutschebank_default_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+        let mut deutschebank_supported_payment_methods = SupportedPaymentMethods::new();
+        deutschebank_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::Sepa,
+            true,
+            true,
+            deutschebank_default_capture_methods.clone(),
+        );
+
+        Some(deutschebank_supported_payment_methods)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<Vec<WebhookFlow>> {
+        Some(Vec::new())
     }
 }

@@ -6,6 +6,7 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use masking::PeekInterface;
 use transformers as aci;
 
@@ -616,3 +617,5 @@ impl api::IncomingWebhook for Aci {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for Aci {}

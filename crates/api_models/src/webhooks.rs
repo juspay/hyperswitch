@@ -59,6 +59,7 @@ pub enum IncomingWebhookEvent {
     PayoutReversed,
 }
 
+#[derive(Clone, Debug, Serialize)]
 pub enum WebhookFlow {
     Payment,
     #[cfg(feature = "payouts")]
