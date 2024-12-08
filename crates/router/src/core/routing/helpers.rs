@@ -591,7 +591,7 @@ impl DynamicRoutingCache for routing_types::SuccessBasedRoutingConfig {
         key: &str,
     ) -> Option<Arc<Self>> {
         cache::SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
-            .get_val::<Arc<routing_types::SuccessBasedRoutingConfig>>(cache::CacheKey {
+            .get_val::<Arc<Self>>(cache::CacheKey {
                 key: key.to_string(),
                 prefix: state.tenant.redis_key_prefix.clone(),
             })
@@ -624,7 +624,7 @@ impl DynamicRoutingCache for routing_types::ContractBasedRoutingConfig {
         key: &str,
     ) -> Option<Arc<Self>> {
         cache::CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
-            .get_val::<Arc<routing_types::ContractBasedRoutingConfig>>(cache::CacheKey {
+            .get_val::<Arc<Self>>(cache::CacheKey {
                 key: key.to_string(),
                 prefix: state.tenant.redis_key_prefix.clone(),
             })

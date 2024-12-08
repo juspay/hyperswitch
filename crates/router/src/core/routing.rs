@@ -2,9 +2,11 @@ pub mod helpers;
 pub mod transformers;
 use std::collections::HashSet;
 
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use api_models::routing::DynamicRoutingAlgoAccessor;
 use api_models::{
     enums, mandates as mandates_api, routing,
-    routing::{self as routing_types, DynamicRoutingAlgoAccessor, RoutingRetrieveQuery},
+    routing::{self as routing_types, RoutingRetrieveQuery},
 };
 use async_trait::async_trait;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -37,12 +39,13 @@ use super::{
 use crate::utils::ValueExt;
 #[cfg(feature = "v2")]
 use crate::{core::admin, utils::ValueExt};
+
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::core::routing::helpers::DynamicRoutingCache;
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, StorageErrorExt},
-        metrics,
-        routing::helpers::DynamicRoutingCache,
-        utils as core_utils,
+        metrics, utils as core_utils,
     },
     db::StorageInterface,
     routes::SessionState,
