@@ -1001,12 +1001,13 @@ where
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_intent_operation_core<F, Req, Op, D>(
     state: &SessionState,
-    _req_state: ReqState,
+    req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
+    payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>)>
 where
@@ -1022,8 +1023,6 @@ where
     let _validate_result = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
-
-    let payment_id = id_type::GlobalPaymentId::generate(&state.conf.cell_information.id.clone());
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
@@ -1051,6 +1050,22 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
+
+    let (_operation, payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
+            state,
+            req_state,
+            payment_data,
+            customer.clone(),
+            merchant_account.storage_scheme,
+            None,
+            &key_store,
+            None,
+            header_payload,
+        )
+        .await?;
+
     Ok((payment_data, req, customer))
 }
 
@@ -1436,6 +1451,7 @@ pub async fn payments_intent_core<F, Res, Req, Op, D>(
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
+    payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
 where
@@ -1453,6 +1469,7 @@ where
         key_store,
         operation.clone(),
         req,
+        payment_id,
         header_payload.clone(),
     )
     .await?;

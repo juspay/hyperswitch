@@ -302,36 +302,12 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
                     payment_method_type: None,
                 }
             }),
-            skip_external_tax_calculation: payments::TaxCalculationOverride::from(
-                amount_details.skip_external_tax_calculation(),
-            ),
-            skip_surcharge_calculation: payments::SurchargeCalculationOverride::from(
-                amount_details.skip_surcharge_calculation(),
-            ),
+            skip_external_tax_calculation: amount_details.skip_external_tax_calculation(),
+            skip_surcharge_calculation: amount_details.skip_surcharge_calculation(),
             surcharge_amount: amount_details.surcharge_amount(),
             tax_on_surcharge: amount_details.tax_on_surcharge(),
             // We will not receive this in the request. This will be populated after calling the connector / processor
             amount_captured: None,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<common_enums::SurchargeCalculationOverride> for payments::SurchargeCalculationOverride {
-    fn from(surcharge_calculation_override: common_enums::SurchargeCalculationOverride) -> Self {
-        match surcharge_calculation_override {
-            common_enums::SurchargeCalculationOverride::Calculate => Self::Calculate,
-            common_enums::SurchargeCalculationOverride::Skip => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<common_enums::TaxCalculationOverride> for payments::TaxCalculationOverride {
-    fn from(tax_calculation_override: common_enums::TaxCalculationOverride) -> Self {
-        match tax_calculation_override {
-            common_enums::TaxCalculationOverride::Calculate => Self::Calculate,
-            common_enums::TaxCalculationOverride::Skip => Self::Skip,
         }
     }
 }

@@ -10,6 +10,8 @@ use common_utils::{
 };
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
+#[cfg(feature = "v1")]
+use diesel_models::payment_intent::PaymentIntentUpdate as DieselPaymentIntentUpdate;
 #[cfg(feature = "olap")]
 use diesel_models::query::generics::db_metrics;
 #[cfg(all(feature = "v1", feature = "olap"))]
@@ -23,11 +25,7 @@ use diesel_models::schema_v2::{
     payment_intent::dsl as pi_dsl,
 };
 use diesel_models::{
-    enums::MerchantStorageScheme,
-    kv,
-    payment_intent::{
-        PaymentIntent as DieselPaymentIntent, PaymentIntentUpdate as DieselPaymentIntentUpdate,
-    },
+    enums::MerchantStorageScheme, kv, payment_intent::PaymentIntent as DieselPaymentIntent,
 };
 use error_stack::ResultExt;
 #[cfg(feature = "olap")]
