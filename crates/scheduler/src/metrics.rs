@@ -2,7 +2,7 @@ use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
 global_meter!(PT_METER, "PROCESS_TRACKER");
 
-histogram_metric_f64!(CONSUMER_STATS, PT_METER, "CONSUMER_OPS");
+histogram_metric_f64!(CONSUMER_OPS, PT_METER);
 
 counter_metric!(PAYMENT_COUNT, PT_METER); // No. of payments created
 counter_metric!(TASKS_PICKED_COUNT, PT_METER); // Tasks picked by

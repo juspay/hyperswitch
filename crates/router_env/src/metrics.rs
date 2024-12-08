@@ -9,9 +9,9 @@ macro_rules! global_meter {
         static $name: once_cell::sync::Lazy<$crate::opentelemetry::metrics::Meter> =
             once_cell::sync::Lazy::new(|| $crate::opentelemetry::global::meter(stringify!($name)));
     };
-    ($name:ident, $description:literal) => {
-        static $name: once_cell::sync::Lazy<$crate::opentelemetry::metrics::Meter> =
-            once_cell::sync::Lazy::new(|| $crate::opentelemetry::global::meter($description));
+    ($meter:ident, $name:literal) => {
+        static $meter: once_cell::sync::Lazy<$crate::opentelemetry::metrics::Meter> =
+            once_cell::sync::Lazy::new(|| $crate::opentelemetry::global::meter(stringify!($name)));
     };
 }
 
@@ -28,9 +28,15 @@ macro_rules! counter_metric {
         > = once_cell::sync::Lazy::new(|| $meter.u64_counter(stringify!($name)).build());
     };
     ($name:ident, $meter:ident, description:literal) => {
+        #[doc = $description]
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Counter<u64>,
-        > = once_cell::sync::Lazy::new(|| $meter.u64_counter($description).build());
+        > = once_cell::sync::Lazy::new(|| {
+            $meter
+                .u64_counter(stringify!($name))
+                .with_description($description)
+                .build()
+        });
     };
 }
 
@@ -52,11 +58,13 @@ macro_rules! histogram_metric_f64 {
         });
     };
     ($name:ident, $meter:ident, $description:literal) => {
+        #[doc = $description]
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Histogram<f64>,
         > = once_cell::sync::Lazy::new(|| {
             $meter
-                .f64_histogram($description)
+                .f64_histogram(stringify!($name))
+                .with_description($description)
                 .with_boundaries($crate::metrics::f64_histogram_buckets())
                 .build()
         });
@@ -81,11 +89,13 @@ macro_rules! histogram_metric_u64 {
         });
     };
     ($name:ident, $meter:ident, $description:literal) => {
+        #[doc = $description]
         pub(crate) static $name: once_cell::sync::Lazy<
             $crate::opentelemetry::metrics::Histogram<u64>,
         > = once_cell::sync::Lazy::new(|| {
             $meter
-                .u64_histogram($description)
+                .u64_histogram(stringify!($name))
+                .with_description($description)
                 .with_boundaries($crate::metrics::f64_histogram_buckets())
                 .build()
         });
@@ -104,8 +114,14 @@ macro_rules! gauge_metric {
             once_cell::sync::Lazy::new(|| $meter.u64_gauge(stringify!($name)).build());
     };
     ($name:ident, $meter:ident, description:literal) => {
+        #[doc = $description]
         pub(crate) static $name: once_cell::sync::Lazy<$crate::opentelemetry::metrics::Gauge<u64>> =
-            once_cell::sync::Lazy::new(|| $meter.u64_gauge($description).build());
+            once_cell::sync::Lazy::new(|| {
+                $meter
+                    .u64_gauge(stringify!($name))
+                    .with_description($description)
+                    .build()
+            });
     };
 }
 

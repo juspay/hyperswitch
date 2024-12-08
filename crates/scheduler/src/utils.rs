@@ -290,7 +290,7 @@ pub fn add_histogram_metrics(
         let pickup_schedule_delta = (*pickup_time - *schedule_time).as_seconds_f64();
         logger::error!("Time delta for scheduled tasks: {pickup_schedule_delta} seconds");
         let runner_name = runner.clone();
-        metrics::CONSUMER_STATS.record(
+        metrics::CONSUMER_OPS.record(
             pickup_schedule_delta,
             router_env::metric_attributes!((stream_name.to_owned(), runner_name)),
         );
