@@ -162,7 +162,7 @@ fn is_dynamic_fields_required(
     required_fields: &settings::RequiredFields,
     payment_method: enums::PaymentMethod,
     payment_method_type: enums::PaymentMethodType,
-    connector: &types::Connector,
+    connector: types::Connector,
     required_field_type: Vec<enums::FieldType>,
 ) -> bool {
     required_fields
@@ -170,7 +170,7 @@ fn is_dynamic_fields_required(
         .get(&payment_method)
         .and_then(|pm_type| pm_type.0.get(&payment_method_type))
         .and_then(|required_fields_for_connector| {
-            required_fields_for_connector.fields.get(connector)
+            required_fields_for_connector.fields.get(&connector)
         })
         .map(|required_fields_final| {
             required_fields_final
@@ -371,7 +371,7 @@ async fn create_applepay_session_token(
                 &state.conf.required_fields,
                 enums::PaymentMethod::Wallet,
                 enums::PaymentMethodType::ApplePay,
-                &connector.connector_name,
+                connector.connector_name,
                 billing_variants,
             )
             .then_some(payment_types::ApplePayBillingContactFields(vec![
@@ -399,7 +399,7 @@ async fn create_applepay_session_token(
                 &state.conf.required_fields,
                 enums::PaymentMethod::Wallet,
                 enums::PaymentMethodType::ApplePay,
-                &connector.connector_name,
+                connector.connector_name,
                 shipping_variants,
             )
             .then_some(payment_types::ApplePayShippingContactFields(vec![
@@ -839,7 +839,7 @@ fn create_gpay_session_token(
                 &state.conf.required_fields,
                 enums::PaymentMethod::Wallet,
                 enums::PaymentMethodType::GooglePay,
-                &connector.connector_name,
+                connector.connector_name,
                 billing_variants,
             )
         } else {
@@ -901,7 +901,7 @@ fn create_gpay_session_token(
                     &state.conf.required_fields,
                     enums::PaymentMethod::Wallet,
                     enums::PaymentMethodType::GooglePay,
-                    &connector.connector_name,
+                    connector.connector_name,
                     shipping_variants,
                 )
             } else {

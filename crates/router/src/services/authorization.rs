@@ -98,7 +98,7 @@ where
 }
 
 pub fn check_permission(
-    required_permission: &permissions::Permission,
+    required_permission: permissions::Permission,
     role_info: &roles::RoleInfo,
 ) -> RouterResult<()> {
     role_info

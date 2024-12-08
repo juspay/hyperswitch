@@ -361,6 +361,8 @@ pub enum Flow {
     VerifyPaymentConnector,
     /// Internal user signup
     InternalUserSignup,
+    /// Create tenant level user
+    TenantUserCreate,
     /// Switch org
     SwitchOrg,
     /// Switch merchant v2
@@ -391,6 +393,8 @@ pub enum Flow {
     UpdateUserRole,
     /// Create merchant account for user in a org
     UserMerchantAccountCreate,
+    /// Create Org in a given tenancy
+    UserOrgMerchantCreate,
     /// Generate Sample Data
     GenerateSampleData,
     /// Delete Sample Data
@@ -521,6 +525,8 @@ pub enum Flow {
     PaymentsPostSessionTokens,
     /// Payments start redirection flow
     PaymentStartRedirection,
+    /// Volume split on the routing type
+    VolumeSplitOnRoutingType,
 }
 
 /// Trait for providing generic behaviour to flow metric

@@ -12,6 +12,7 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod customers;
 pub mod dispute;
+pub mod dynamic_routing_stats;
 pub mod enums;
 pub mod ephemeral_key;
 pub mod errors;

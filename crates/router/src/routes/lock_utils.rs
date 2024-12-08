@@ -67,7 +67,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DecisionManagerRetrieveConfig
             | Flow::ToggleDynamicRouting
             | Flow::UpdateDynamicRoutingConfigs
-            | Flow::DecisionManagerUpsertConfig => Self::Routing,
+            | Flow::DecisionManagerUpsertConfig
+            | Flow::VolumeSplitOnRoutingType => Self::Routing,
 
             Flow::RetrieveForexFlow => Self::Forex,
 
@@ -223,9 +224,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::GetMultipleDashboardMetadata
             | Flow::VerifyPaymentConnector
             | Flow::InternalUserSignup
+            | Flow::TenantUserCreate
             | Flow::SwitchOrg
             | Flow::SwitchMerchantV2
             | Flow::SwitchProfile
+            | Flow::UserOrgMerchantCreate
             | Flow::UserMerchantAccountCreate
             | Flow::GenerateSampleData
             | Flow::DeleteSampleData
