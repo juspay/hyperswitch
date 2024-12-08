@@ -9,10 +9,7 @@ use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
-use router_env::{
-    metrics::add_attributes,
-    tracing::{self, instrument},
-};
+use router_env::tracing::{self, instrument};
 
 use crate::{
     errors::StorageError,
@@ -194,10 +191,10 @@ impl Cache {
         let eviction_listener = move |_, _, cause| {
             metrics::IN_MEMORY_CACHE_EVICTION_COUNT.add(
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     ("cache_type", name.to_owned()),
                     ("removal_cause", format!("{:?}", cause)),
-                ]),
+                ),
             );
         };
         let mut cache_builder = MokaCache::builder()
@@ -224,9 +221,11 @@ impl Cache {
 
         // Add cache hit and cache miss metrics
         if val.is_some() {
-            metrics::IN_MEMORY_CACHE_HIT.add(1, &add_attributes([("cache_type", self.name)]));
+            metrics::IN_MEMORY_CACHE_HIT
+                .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         } else {
-            metrics::IN_MEMORY_CACHE_MISS.add(1, &add_attributes([("cache_type", self.name)]));
+            metrics::IN_MEMORY_CACHE_MISS
+                .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         }
 
         let val = (*val?).as_any().downcast_ref::<T>().cloned();
@@ -262,7 +261,7 @@ impl Cache {
 
         metrics::IN_MEMORY_CACHE_ENTRY_COUNT.record(
             self.get_entry_count(),
-            &add_attributes([("cache_type", self.name)]),
+            router_env::metric_attributes!(("cache_type", self.name)),
         );
     }
 }

@@ -11,7 +11,6 @@ use api_models::analytics::{
 use error_stack::ResultExt;
 use router_env::{
     logger,
-    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -72,10 +71,10 @@ pub async fn get_metrics(
         .change_context(AnalyticsError::UnknownError)?
     {
         let data = data?;
-        let attributes = &add_attributes([
+        let attributes = router_env::metric_attributes!(
             ("metric_type", metric.to_string()),
             ("source", pool.to_string()),
-        ]);
+        );
 
         let value = u64::try_from(data.len());
         if let Ok(val) = value {

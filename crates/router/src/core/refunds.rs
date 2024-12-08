@@ -15,7 +15,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::router_data::ErrorResponse;
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use masking::PeekInterface;
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
@@ -152,7 +152,10 @@ pub async fn trigger_refund_to_gateway(
         .attach_printable("Failed to retrieve connector from payment attempt")?;
 
     let storage_scheme = merchant_account.storage_scheme;
-    metrics::REFUND_COUNT.add(1, &add_attributes([("connector", routed_through.clone())]));
+    metrics::REFUND_COUNT.add(
+        1,
+        router_env::metric_attributes!(("connector", routed_through.clone())),
+    );
 
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -299,13 +302,10 @@ pub async fn trigger_refund_to_gateway(
                         });
                     metrics::INTEGRITY_CHECK_FAILED.add(
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             ("connector", connector.connector_name.to_string()),
-                            (
-                                "merchant_id",
-                                merchant_account.get_id().get_string_repr().to_owned(),
-                            ),
-                        ]),
+                            ("merchant_id", merchant_account.get_id().clone()),
+                        ),
                     );
                     storage::RefundUpdate::ErrorUpdate {
                         refund_status: Some(enums::RefundStatus::ManualReview),
@@ -323,7 +323,10 @@ pub async fn trigger_refund_to_gateway(
                     if response.refund_status == diesel_models::enums::RefundStatus::Success {
                         metrics::SUCCESSFUL_REFUND.add(
                             1,
-                            &add_attributes([("connector", connector.connector_name.to_string())]),
+                            router_env::metric_attributes!((
+                                "connector",
+                                connector.connector_name.to_string(),
+                            )),
                         )
                     }
                     let (connector_refund_id, connector_refund_data) =
@@ -614,13 +617,10 @@ pub async fn sync_refund_with_gateway(
             Err(err) => {
                 metrics::INTEGRITY_CHECK_FAILED.add(
                     1,
-                    &add_attributes([
+                    router_env::metric_attributes!(
                         ("connector", connector.connector_name.to_string()),
-                        (
-                            "merchant_id",
-                            merchant_account.get_id().get_string_repr().to_owned(),
-                        ),
-                    ]),
+                        ("merchant_id", merchant_account.get_id().clone()),
+                    ),
                 );
                 let (refund_connector_transaction_id, connector_refund_data) = err
                     .connector_transaction_id
@@ -1583,7 +1583,7 @@ pub async fn add_refund_sync_task(
                 refund.refund_id
             )
         })?;
-    metrics::TASKS_ADDED_COUNT.add(1, &add_attributes([("flow", "Refund")]));
+    metrics::TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "Refund")));
 
     Ok(response)
 }

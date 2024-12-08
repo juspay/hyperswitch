@@ -16,8 +16,6 @@ use external_services::grpc_client::dynamic_routing::SuccessBasedDynamicRouting;
 use hyperswitch_domain_models::{mandates, payment_address};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use router_env::logger;
-#[cfg(feature = "v1")]
-use router_env::metrics::add_attributes;
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use storage_impl::redis::cache;
@@ -1208,7 +1206,7 @@ pub async fn toggle_specific_dynamic_routing(
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1278,7 +1276,7 @@ pub async fn configure_dynamic_routing_volume_split(
 ) -> RouterResponse<()> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
@@ -1339,7 +1337,7 @@ pub async fn success_based_routing_update_configs(
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
     let db = state.store.as_ref();
 
@@ -1396,7 +1394,7 @@ pub async fn success_based_routing_update_configs(
 
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
 
     let prefix_of_dynamic_routing_keys = helpers::generate_tenant_business_profile_id(

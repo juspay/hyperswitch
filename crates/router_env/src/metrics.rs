@@ -112,25 +112,14 @@ macro_rules! gauge_metric {
 /// Create attributes to associate with a metric from key-value pairs.
 #[macro_export]
 macro_rules! metric_attributes {
-    ($(($key:expr, $value:expr)),+) => {
+    ($(($key:expr, $value:expr $(,)?)),+ $(,)?) => {
         &[$($crate::opentelemetry::KeyValue::new($key, $value)),+]
     };
 }
 
-pub use helpers::{add_attributes, f64_histogram_buckets};
+pub use helpers::f64_histogram_buckets;
 
 mod helpers {
-    pub fn add_attributes<T, U>(attributes: U) -> Vec<opentelemetry::KeyValue>
-    where
-        T: Into<opentelemetry::Value>,
-        U: IntoIterator<Item = (&'static str, T)>,
-    {
-        attributes
-            .into_iter()
-            .map(|(key, value)| opentelemetry::KeyValue::new(key, value))
-            .collect::<Vec<_>>()
-    }
-
     /// Returns the buckets to be used for a f64 histogram
     #[inline(always)]
     pub fn f64_histogram_buckets() -> Vec<f64> {

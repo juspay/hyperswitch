@@ -46,7 +46,7 @@ pub use hyperswitch_interfaces::{
     },
 };
 use masking::{Maskable, PeekInterface};
-use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 use tera::{Context, Error as TeraError, Tera};
@@ -165,7 +165,7 @@ where
         payments::CallConnectorAction::Trigger => {
             metrics::CONNECTOR_CALL_COUNT.add(
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     ("connector", req.connector.to_string()),
                     (
                         "flow",
@@ -173,9 +173,8 @@ where
                             .split("::")
                             .last()
                             .unwrap_or_default()
-                            .to_string(),
                     ),
-                ]),
+                ),
             );
 
             let connector_request = match connector_request {
@@ -190,7 +189,10 @@ where
                         ) {
                             metrics::REQUEST_BUILD_FAILURE.add(
                                 1,
-                                &add_attributes([("connector", req.connector.to_string())]),
+                                router_env::metric_attributes!((
+                                    "connector",
+                                    req.connector.clone()
+                                )),
                             )
                         }
                     })?,
@@ -254,10 +256,10 @@ where
                                             metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
 
                                                 1,
-                                                &add_attributes([(
+                                                router_env::metric_attributes!((
                                                     "connector",
-                                                    req.connector.to_string(),
-                                                )]),
+                                                    req.connector.clone(),
+                                                )),
                                             )
                                         }
                                         });
@@ -293,7 +295,10 @@ where
                                     );
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         1,
-                                        &add_attributes([("connector", req.connector.clone())]),
+                                        router_env::metric_attributes!((
+                                            "connector",
+                                            req.connector.clone(),
+                                        )),
                                     );
 
                                     let error = match body.status_code {

@@ -35,7 +35,6 @@ use hyperswitch_domain_models::{
     router_response_types::{MandateRevokeResponseData, VerifyWebhookSourceResponseData},
 };
 use masking::Maskable;
-use router_env::metrics::add_attributes;
 use serde_json::json;
 
 #[cfg(feature = "payouts")]
@@ -120,7 +119,10 @@ pub trait ConnectorIntegration<T, Req, Resp>:
         req: &RouterData<T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        metrics::UNIMPLEMENTED_FLOW.add(1, &add_attributes([("connector", req.connector.clone())]));
+        metrics::UNIMPLEMENTED_FLOW.add(
+            1,
+            router_env::metric_attributes!(("connector", req.connector.clone())),
+        );
         Ok(None)
     }
 

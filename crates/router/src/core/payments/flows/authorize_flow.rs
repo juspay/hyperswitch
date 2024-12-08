@@ -4,7 +4,6 @@ use hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use masking::ExposeInterface;
-use router_env::metrics::add_attributes;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -364,10 +363,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
                 metrics::EXECUTE_PRETASK_COUNT.add(
                     1,
-                    &add_attributes([
+                    router_env::metric_attributes!(
                         ("connector", connector.connector_name.to_string()),
                         ("flow", format!("{:?}", api::Authorize)),
-                    ]),
+                    ),
                 );
 
                 logger::debug!(completed_pre_tasks=?true);
@@ -497,7 +496,7 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
 
         metrics::PREPROCESSING_STEPS_COUNT.add(
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 ("connector", connector.connector_name.to_string()),
                 ("payment_method", router_data.payment_method.to_string()),
                 (
@@ -505,11 +504,10 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
                     router_data
                         .request
                         .payment_method_type
-                        .as_ref()
                         .map(|inner| inner.to_string())
                         .unwrap_or("null".to_string()),
                 ),
-            ]),
+            ),
         );
         let mut authorize_router_data = helpers::router_data_type_conversion::<_, F, _, _, _, _>(
             resp.clone(),

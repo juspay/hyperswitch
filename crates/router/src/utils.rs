@@ -38,7 +38,6 @@ use hyperswitch_domain_models::payments::PaymentIntent;
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use masking::{ExposeInterface, SwitchStrategy};
 use nanoid::nanoid;
-use router_env::metrics::add_attributes;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tracing_futures::Instrument;
@@ -678,7 +677,8 @@ pub fn handle_json_response_deserialization_failure(
     res: types::Response,
     connector: &'static str,
 ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-    metrics::RESPONSE_DESERIALIZATION_FAILURE.add(1, &add_attributes([("connector", connector)]));
+    metrics::RESPONSE_DESERIALIZATION_FAILURE
+        .add(1, router_env::metric_attributes!(("connector", connector)));
 
     let response_data = String::from_utf8(res.response.to_vec())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -1036,23 +1036,23 @@ pub fn add_apple_pay_flow_metrics(
         match flow {
             domain::ApplePayFlow::Simplified(_) => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                ]),
+                    ("merchant_id", merchant_id.clone()),
+                ),
             ),
             domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     (
                         "connector",
                         connector.to_owned().unwrap_or("null".to_string()),
                     ),
-                    ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                ]),
+                    ("merchant_id", merchant_id.clone()),
+                ),
             ),
         }
     }
@@ -1070,25 +1070,25 @@ pub fn add_apple_pay_payment_status_metrics(
                 domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                        ]),
+                            ("merchant_id", merchant_id.clone()),
+                        ),
                     )
                 }
                 domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
                     .add(
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                        ]),
+                            ("merchant_id", merchant_id.clone()),
+                        ),
                     ),
             }
         }
@@ -1098,24 +1098,24 @@ pub fn add_apple_pay_payment_status_metrics(
                 domain::ApplePayFlow::Simplified(_) => {
                     metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
                         1,
-                        &add_attributes([
+                        router_env::metric_attributes!(
                             (
                                 "connector",
                                 connector.to_owned().unwrap_or("null".to_string()),
                             ),
-                            ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                        ]),
+                            ("merchant_id", merchant_id.clone()),
+                        ),
                     )
                 }
                 domain::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
                     1,
-                    &add_attributes([
+                    router_env::metric_attributes!(
                         (
                             "connector",
                             connector.to_owned().unwrap_or("null".to_string()),
                         ),
-                        ("merchant_id", merchant_id.get_string_repr().to_owned()),
-                    ]),
+                        ("merchant_id", merchant_id.clone()),
+                    ),
                 ),
             }
         }

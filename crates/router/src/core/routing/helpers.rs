@@ -24,7 +24,7 @@ use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use router_env::logger;
 #[cfg(any(feature = "dynamic_routing", feature = "v1"))]
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 
@@ -772,7 +772,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 (
                     "tenant",
                     state.tenant.tenant_id.get_string_repr().to_owned(),
@@ -826,7 +826,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
                 ),
                 ("payment_status", payment_attempt.status.to_string()),
                 ("conclusive_classification", outcome.to_string()),
-            ]),
+            ),
         );
         logger::debug!("successfully pushed success_based_routing metrics");
 
@@ -952,11 +952,7 @@ pub async fn disable_dynamic_routing_algorithm(
     let db = state.store.as_ref();
     let key_manager_state = &state.into();
     let timestamp = common_utils::date_time::now_unix_timestamp();
-    let profile_id = business_profile
-        .get_id()
-        .clone()
-        .get_string_repr()
-        .to_owned();
+    let profile_id = business_profile.get_id().clone();
     let (algorithm_id, dynamic_routing_algorithm, cache_entries_to_redact) =
         match dynamic_routing_type {
             routing_types::DynamicRoutingType::SuccessRateBasedRouting => {
@@ -1069,8 +1065,10 @@ pub async fn disable_dynamic_routing_algorithm(
     )
     .await?;
 
-    core_metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE
-        .add(1, &add_attributes([("profile_id", profile_id)]));
+    core_metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(
+        1,
+        router_env::metric_attributes!(("profile_id", profile_id)),
+    );
 
     Ok(ApplicationResponse::Json(response))
 }
@@ -1184,7 +1182,7 @@ where
     let updated_routing_record = routing_algorithm.foreign_into();
     core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_owned())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
     Ok(ApplicationResponse::Json(updated_routing_record))
 }
@@ -1264,7 +1262,7 @@ pub async fn default_specific_dynamic_routing_setup(
 
     core_metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(
         1,
-        &add_attributes([("profile_id", profile_id.get_string_repr().to_string())]),
+        router_env::metric_attributes!(("profile_id", profile_id.clone())),
     );
     Ok(ApplicationResponse::Json(new_record))
 }

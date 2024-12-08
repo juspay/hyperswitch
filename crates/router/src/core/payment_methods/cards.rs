@@ -54,7 +54,7 @@ use hyperswitch_domain_models::customer::CustomerUpdate;
 ))]
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 use serde_json::json;
 use strum::IntoEnumIterator;
 
@@ -5764,7 +5764,10 @@ impl TempLockerCardSupport {
         )
         .await?;
         metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
-        metrics::TASKS_ADDED_COUNT.add(1, &add_attributes([("flow", "DeleteTokenizeData")]));
+        metrics::TASKS_ADDED_COUNT.add(
+            1,
+            router_env::metric_attributes!(("flow", "DeleteTokenizeData")),
+        );
         Ok(card)
     }
 }

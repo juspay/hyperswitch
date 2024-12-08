@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use router_env::metrics::add_attributes;
 
 use crate::{
     consts,
@@ -97,14 +96,20 @@ pub async fn add_access_token<
                 );
                 metrics::ACCESS_TOKEN_CACHE_HIT.add(
                     1,
-                    &add_attributes([("connector", connector.connector_name.to_string())]),
+                    router_env::metric_attributes!((
+                        "connector",
+                        connector.connector_name.to_string()
+                    )),
                 );
                 Ok(Some(access_token))
             }
             None => {
                 metrics::ACCESS_TOKEN_CACHE_MISS.add(
                     1,
-                    &add_attributes([("connector", connector.connector_name.to_string())]),
+                    router_env::metric_attributes!((
+                        "connector",
+                        connector.connector_name.to_string()
+                    )),
                 );
 
                 let cloned_router_data = router_data.clone();
@@ -241,7 +246,7 @@ pub async fn refresh_connector_auth(
 
     metrics::ACCESS_TOKEN_CREATION.add(
         1,
-        &add_attributes([("connector", connector.connector_name.to_string())]),
+        router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
     );
     Ok(access_token_router_data)
 }

@@ -9,7 +9,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
 #[cfg(feature = "payouts")]
@@ -1478,7 +1478,10 @@ pub async fn retry_delete_tokenize(
                 .retry_process(pt, s_time)
                 .await
                 .map_err(Into::into);
-            metrics::TASKS_RESET_COUNT.add(1, &add_attributes([("flow", "DeleteTokenizeData")]));
+            metrics::TASKS_RESET_COUNT.add(
+                1,
+                router_env::metric_attributes!(("flow", "DeleteTokenizeData")),
+            );
             retry_schedule
         }
         None => db

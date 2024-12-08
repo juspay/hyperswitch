@@ -17,7 +17,6 @@ use hyperswitch_interfaces::consts;
 use masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use router_env::{
     instrument,
-    metrics::add_attributes,
     tracing::{self, Instrument},
 };
 
@@ -557,15 +556,14 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     )
     .map_err(errors::StorageError::from)?;
 
+    let attributes = router_env::metric_attributes!(("flow", "OutgoingWebhookRetry"));
     match db.insert_process(process_tracker_entry).await {
         Ok(process_tracker) => {
-            crate::routes::metrics::TASKS_ADDED_COUNT
-                .add(1, &add_attributes([("flow", "OutgoingWebhookRetry")]));
+            crate::routes::metrics::TASKS_ADDED_COUNT.add(1, attributes);
             Ok(process_tracker)
         }
         Err(error) => {
-            crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT
-                .add(1, &add_attributes([("flow", "OutgoingWebhookRetry")]));
+            crate::routes::metrics::TASK_ADDITION_FAILURES_COUNT.add(1, attributes);
             Err(error)
         }
     }

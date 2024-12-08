@@ -1,7 +1,5 @@
 use std::time;
 
-use router_env::metrics::add_attributes;
-
 #[inline]
 pub async fn record_operation_time<F, R, T>(
     future: F,
@@ -14,10 +12,10 @@ where
     T: ToString,
 {
     let (result, time) = time_future(future).await;
-    let attributes = &add_attributes([
+    let attributes = router_env::metric_attributes!(
         ("metric_name", metric_name.to_string()),
         ("source", source.to_string()),
-    ]);
+    );
     let value = time.as_secs_f64();
     metric.record(value, attributes);
 
