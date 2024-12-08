@@ -1,5 +1,5 @@
-use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use common_enums::{enums, Currency};
+use common_utils::types::{FloatMajorUnit, StringMinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors;
 use masking::Secret;
-use serde::{Deserialize, Serialize};
+use serde::{self, Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -31,6 +31,111 @@ impl<T> From<(StringMinorUnit, T)> for UnifiedAuthenticationServiceRouterData<T>
             router_data: item,
         }
     }
+}
+
+
+pub struct ServiceDetails {
+    pub merchant_transaction_id: Option<String>,
+    pub correlation_id: Option<String>,
+    pub x_src_flow_id: Option<String>,
+}
+
+pub struct TransactionDetails {
+    pub amount: f64,
+    pub currency: Currency,
+}
+
+pub struct AuthCreds {
+    pub auth_type: String,
+    pub api_key: Secret<String>,
+}
+
+pub struct UnifiedAuthenticationServicePreAuthenticationRequest {
+    pub authenticate_by: String,
+    pub session_id: String,
+    pub source_authentication_id: String,
+    pub authentication_info: Option<AuthenticationInfo>,
+    pub service_details: Option<ServiceDetails>,
+    pub customer_details: Option<CustomerDetails>,
+    pub pmt_details: Option<PaymentDetails>,
+    pub transaction_details: Option<TransactionDetails>,
+    pub auth_creds: AuthCreds
+}
+
+pub struct UnifiedAuthenticationServicePreAuthenticationResponse {
+    pub status: String,
+    pub device_details: Option<DeviceDetails>,
+    pub authenticate_by: String,
+    pub eligibility: Option<String>,
+}
+
+/***************************************************************************/
+pub struct VerificationData {
+    #[serde(rename = "type")]
+    pub verification_type: String,
+    pub entity: u32,
+    pub method: u32,
+    pub results: u32,
+    pub timestamp: u64,
+    pub data: String,
+}
+pub struct UnifiedAuthenticationServicePostAuthenticatioRequest{
+    pub authenticate_by: String,
+    pub source_authentication_id: String,
+    pub auth_creds: AuthCreds,
+    pub consumer_account_details: Option<PaymentDetails>,
+    pub verification_data: Option<VerificationData>,
+    pub cryptogram_type: Option<String>,
+    pub x_src_flow_id: Option<String>,
+}
+
+pub struct TokenDetails {
+    pub payment_token: String,
+    pub payment_account_reference: String,
+    pub token_expiration_month: String,
+    pub token_expiration_year: String,
+}
+
+pub struct DynamicDataDetails {
+    pub dynamic_data_value: Option<String>,
+    #[serde(rename = "type")]
+    pub dynamic_data_type: String,
+    pub ds_trans_id:Option<String>,
+}
+
+pub struct AuthenticationDetails {
+    pub eci: Option<String>,
+    pub token_details: TokenDetails,
+    pub dynamic_data_details: Option<DynamicDataDetails>,
+}
+
+pub struct UnifiedAuthenticationServicePostAuthenticatioResponse {
+    pub device_details: Option<serde_json::Value>,
+    pub authentication_metadata: Option<serde_json::Value>,
+    pub authentication_details: AuthenticationDetails,
+}
+/***************************************************************************/
+
+pub struct UnifiedAuthenticationServiceConfirmationRequest {
+    pub authenticate_by: String,
+    pub source_authentication_id: String,
+    pub x_src_flow_id: Option<String>,
+    pub transaction_amount: Option<FloatMajorUnit>,
+    pub transaction_currency:  Option<String>,
+    pub checkout_event_type:  Option<String>,
+    pub checkout_event_status: Option<String>,
+    pub confirmation_status: Option<String>,
+    pub confirmation_reason: Option<String>,
+    pub confirmation_timestamp: Option<String>,
+    pub network_authorization_code: Option<String>,
+    pub network_transaction_identifier: Option<String>,
+    pub correlation_id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
+    pub auth_creds: Option<AuthCreds>,
+}
+
+pub struct UnifiedAuthenticationServiceConfirmationResponse {
+    pub status: String
 }
 
 //TODO: Fill the struct with respective fields
@@ -244,3 +349,4 @@ pub struct UnifiedAuthenticationServiceErrorResponse {
     pub message: String,
     pub reason: Option<String>,
 }
+

@@ -1,5 +1,4 @@
 //! API interface
-
 pub mod disputes;
 pub mod disputes_v2;
 pub mod files;
@@ -37,6 +36,7 @@ use hyperswitch_domain_models::{
 use masking::Maskable;
 use router_env::metrics::add_attributes;
 use serde_json::json;
+// use crate::authentication;
 
 #[cfg(feature = "payouts")]
 pub use self::payouts::*;

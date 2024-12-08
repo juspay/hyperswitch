@@ -1,5 +1,4 @@
 pub mod transformers;
-
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -598,3 +597,117 @@ impl webhooks::IncomingWebhook for UnifiedAuthenticationService {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+
+
+
+
+impl
+    ConnectorIntegration<
+        api::PreAuthentication,
+        types::authentication::PreAuthNRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for UnifiedAuthenticationService
+{
+    fn get_headers(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = build_endpoint(self.base_url(connectors), &req.connector_meta_data)?;
+        Ok(format!("{}/3ds/versioning", base_url,))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_router_data = unified_authentication_service::UnifiedAuthenticationServiceRouterData::try_from((0, req))?;
+        let req_obj =
+        unified_authentication_service::UnifiedAuthenticationServicePreAuthenticationRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(req_obj)))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::authentication::PreAuthNRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let unified_authentication_service_auth_type = unified_authentication_service::UnifiedAuthenticationServiceAuthType::try_from(&req.connector_auth_type)?;
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(
+                    &types::authentication::ConnectorPreAuthenticationType::get_url(
+                        self, req, connectors,
+                    )?,
+                )
+                .attach_default_headers()
+                .headers(
+                    types::authentication::ConnectorPreAuthenticationType::get_headers(
+                        self, req, connectors,
+                    )?,
+                )
+                .set_body(
+                    types::authentication::ConnectorPreAuthenticationType::get_request_body(
+                        self, req, connectors,
+                    )?,
+                )
+                .add_certificate(Some(unified_authentication_service_auth_type.certificate))
+                .add_certificate_key(Some(unified_authentication_service_auth_type.private_key))
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::authentication::PreAuthNRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<types::authentication::PreAuthNRouterData, errors::ConnectorError> {
+        let response: unified_authentication_service::UnifiedAuthenticationServicePreAuthenticationResponse = res
+            .response
+            .parse_struct("unified_authentication_service UnifiedAuthenticationServicePreAuthenticationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+
+impl
+    ConnectorIntegration<
+        api::PostAuthentication,
+        types::authentication::ConnectorPostAuthenticationRequestData,
+        types::authentication::AuthenticationResponseData,
+    > for UnifiedAuthenticationService
+{
+}
+
+
