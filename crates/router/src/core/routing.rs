@@ -35,13 +35,12 @@ use super::{
         OperationSessionGetters,
     },
 };
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use crate::core::routing::helpers::DynamicRoutingCache;
 #[cfg(feature = "v1")]
 use crate::utils::ValueExt;
 #[cfg(feature = "v2")]
 use crate::{core::admin, utils::ValueExt};
-
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use crate::core::routing::helpers::DynamicRoutingCache;
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResponse, StorageErrorExt},
