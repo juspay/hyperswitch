@@ -75,6 +75,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
         let ApiFeatureMetadata {
             redirect_response,
             search_tags,
+            apple_pay_recurring_details: _,
         } = from;
         Self {
             redirect_response: redirect_response.map(RedirectResponse::convert_from),
@@ -91,6 +92,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             redirect_response: redirect_response
                 .map(|redirect_response| redirect_response.convert_back()),
             search_tags,
+            apple_pay_recurring_details: None,
         }
     }
 }
