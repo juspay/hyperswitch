@@ -16,7 +16,7 @@ macro_rules! global_meter {
 }
 
 /// Create a [`Counter`][Counter] metric with the specified name and an optional description,
-/// associated with the specified meter. Note that the meter must be to a valid [`Meter`][Meter].
+/// associated with the specified meter. Note that the meter must be a valid [`Meter`][Meter].
 ///
 /// [Counter]: opentelemetry::metrics::Counter
 /// [Meter]: opentelemetry::metrics::Meter
@@ -35,7 +35,7 @@ macro_rules! counter_metric {
 }
 
 /// Create a [`Histogram`][Histogram] f64 metric with the specified name and an optional description,
-/// associated with the specified meter. Note that the meter must be to a valid [`Meter`][Meter].
+/// associated with the specified meter. Note that the meter must be a valid [`Meter`][Meter].
 ///
 /// [Histogram]: opentelemetry::metrics::Histogram
 /// [Meter]: opentelemetry::metrics::Meter
@@ -64,7 +64,7 @@ macro_rules! histogram_metric_f64 {
 }
 
 /// Create a [`Histogram`][Histogram] u64 metric with the specified name and an optional description,
-/// associated with the specified meter. Note that the meter must be to a valid [`Meter`][Meter].
+/// associated with the specified meter. Note that the meter must be a valid [`Meter`][Meter].
 ///
 /// [Histogram]: opentelemetry::metrics::Histogram
 /// [Meter]: opentelemetry::metrics::Meter
@@ -93,7 +93,7 @@ macro_rules! histogram_metric_u64 {
 }
 
 /// Create a [`Gauge`][Gauge] metric with the specified name and an optional description,
-/// associated with the specified meter. Note that the meter must be to a valid [`Meter`][Meter].
+/// associated with the specified meter. Note that the meter must be a valid [`Meter`][Meter].
 ///
 /// [Gauge]: opentelemetry::metrics::Gauge
 /// [Meter]: opentelemetry::metrics::Meter
