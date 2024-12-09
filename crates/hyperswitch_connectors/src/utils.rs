@@ -34,7 +34,7 @@ use image::Luma;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use router_env::{logger, metrics::add_attributes};
+use router_env::logger;
 use serde::Serializer;
 use serde_json::Value;
 
@@ -133,11 +133,8 @@ pub(crate) fn handle_json_response_deserialization_failure(
     res: Response,
     connector: &'static str,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    crate::metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE.add(
-        &crate::metrics::CONTEXT,
-        1,
-        &add_attributes([("connector", connector)]),
-    );
+    crate::metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE
+        .add(1, router_env::metric_attributes!(("connector", connector)));
 
     let response_data = String::from_utf8(res.response.to_vec())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

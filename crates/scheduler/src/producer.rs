@@ -175,6 +175,6 @@ pub async fn fetch_producer_tasks(
 
     // Safety: Assuming we won't deal with more than `u64::MAX` tasks at once
     #[allow(clippy::as_conversions)]
-    metrics::TASKS_PICKED_COUNT.add(&metrics::CONTEXT, new_tasks.len() as u64, &[]);
+    metrics::TASKS_PICKED_COUNT.add(new_tasks.len() as u64, &[]);
     Ok(new_tasks)
 }

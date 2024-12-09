@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use masking::ExposeInterface;
-use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -256,12 +255,11 @@ pub async fn complete_authorize_preprocessing_steps<F: Clone>(
         .to_payment_failed_response()?;
 
         metrics::PREPROCESSING_STEPS_COUNT.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 ("connector", connector.connector_name.to_string()),
                 ("payment_method", router_data.payment_method.to_string()),
-            ]),
+            ),
         );
 
         let mut router_data_request = router_data.request.to_owned();

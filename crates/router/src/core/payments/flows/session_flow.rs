@@ -9,7 +9,6 @@ use error_stack::{Report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
 use masking::ExposeInterface;
-use router_env::metrics::add_attributes;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -129,9 +128,8 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<Self> {
         metrics::SESSION_TOKEN_CREATED.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([("connector", connector.connector_name.to_string())]),
+            router_env::metric_attributes!(("connector", connector.connector_name.to_string())),
         );
         self.decide_flow(
             state,
