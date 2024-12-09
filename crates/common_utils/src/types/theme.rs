@@ -173,6 +173,9 @@ pub struct EmailThemeConfig {
     /// The primary color to be used in the email
     pub primary_color: String,
 
-    /// The secondary color to be used in the email
-    pub secondary_color: String,
+    /// The foreground color to be used in the email
+    pub foreground_color: String,
+
+    /// The background color to be used in the email
+    pub background_color: String,
 }

@@ -1,7 +1,6 @@
 use api_models::user::dashboard_metadata::ProdIntent;
 use common_enums::EntityType;
 use common_utils::{errors::CustomResult, pii, types::theme::EmailThemeConfig};
-use diesel_models::user::theme::Theme;
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use masking::{ExposeInterface, Secret};
@@ -226,26 +225,13 @@ pub fn get_link_with_token(
     email_url
 }
 
-pub struct EmailThemeData {
-    pub theme_id: String,
-    pub config: EmailThemeConfig,
-}
-
-impl From<Theme> for EmailThemeData {
-    fn from(theme: Theme) -> Self {
-        Self {
-            config: theme.email_data(),
-            theme_id: theme.theme_id,
-        }
-    }
-}
-
 pub struct VerifyEmail {
     pub recipient_email: domain::UserEmail,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
-    pub theme: Option<EmailThemeData>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 /// Currently only HTML is supported
@@ -266,7 +252,7 @@ impl EmailData for VerifyEmail {
             token,
             "verify_email",
             &self.auth_id,
-            &self.theme.as_ref().map(|theme| theme.theme_id.as_str()),
+            &self.theme_id,
         );
 
         let body = html::get_html_body(EmailBody::Verify {
@@ -287,7 +273,8 @@ pub struct ResetPassword {
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
-    pub theme: Option<EmailThemeData>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]
@@ -307,7 +294,7 @@ impl EmailData for ResetPassword {
             token,
             "set_password",
             &self.auth_id,
-            &self.theme.as_ref().map(|theme| theme.theme_id.as_str()),
+            &self.theme_id,
         );
 
         let body = html::get_html_body(EmailBody::Reset {
@@ -329,7 +316,8 @@ pub struct MagicLink {
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
     pub auth_id: Option<String>,
-    pub theme: Option<EmailThemeData>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]
@@ -349,7 +337,7 @@ impl EmailData for MagicLink {
             token,
             "verify_email",
             &self.auth_id,
-            &self.theme.as_ref().map(|theme| theme.theme_id.as_str()),
+            &self.theme_id,
         );
 
         let body = html::get_html_body(EmailBody::MagicLink {
@@ -372,7 +360,8 @@ pub struct InviteUser {
     pub subject: &'static str,
     pub entity: Entity,
     pub auth_id: Option<String>,
-    pub theme: Option<EmailThemeData>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]
@@ -392,7 +381,7 @@ impl EmailData for InviteUser {
             token,
             "accept_invite_from_email",
             &self.auth_id,
-            &self.theme.as_ref().map(|theme| theme.theme_id.as_str()),
+            &self.theme_id,
         );
         let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,
@@ -411,7 +400,8 @@ pub struct ReconActivation {
     pub recipient_email: domain::UserEmail,
     pub user_name: domain::UserName,
     pub subject: &'static str,
-    pub theme: Option<EmailThemeData>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]
@@ -438,14 +428,16 @@ pub struct BizEmailProd {
     pub business_website: String,
     pub settings: std::sync::Arc<configs::Settings>,
     pub subject: &'static str,
-    pub theme: Option<EmailThemeData>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 impl BizEmailProd {
     pub fn new(
         state: &SessionState,
         data: ProdIntent,
-        theme: Option<EmailThemeData>,
+        theme_id: Option<String>,
+        theme_config: EmailThemeConfig,
     ) -> UserResult<Self> {
         Ok(Self {
             recipient_email: domain::UserEmail::from_pii_email(
@@ -461,7 +453,8 @@ impl BizEmailProd {
                 .unwrap_or(common_enums::CountryAlpha2::AD)
                 .to_string(),
             business_website: data.business_website.unwrap_or_default(),
-            theme,
+            theme_id,
+            theme_config,
         })
     }
 }
@@ -492,7 +485,8 @@ pub struct ProFeatureRequest {
     pub user_name: domain::UserName,
     pub user_email: domain::UserEmail,
     pub subject: String,
-    pub theme: Option<EmailThemeData>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]
@@ -521,7 +515,8 @@ pub struct ApiKeyExpiryReminder {
     pub expires_in: u8,
     pub api_key_name: String,
     pub prefix: String,
-    pub theme: Option<EmailThemeData>,
+    pub theme_id: Option<String>,
+    pub theme_config: EmailThemeConfig,
 }
 
 #[async_trait::async_trait]

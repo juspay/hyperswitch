@@ -325,6 +325,13 @@ prod_intent_recipient_email = "business@example.com"
 email_role_arn = ""
 sts_role_session_name = ""
 
+[email.email_theme_config]
+entity_name = "Hyperswitch"
+entity_logo = "https://app.hyperswitch.io/email-assets/HyperswitchLogo.png"
+foreground_color = "#000000"
+primary_color = "#006DF9"
+background_color = "#FFFFFF"
+
 [user]
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300

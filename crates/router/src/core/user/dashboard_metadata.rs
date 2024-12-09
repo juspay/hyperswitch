@@ -1,4 +1,5 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
+#[cfg(feature = "email")]
 use common_enums::EntityType;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
@@ -9,15 +10,15 @@ use masking::ExposeInterface;
 #[cfg(feature = "email")]
 use router_env::logger;
 
-#[cfg(feature = "email")]
-use crate::services::email::types as email_types;
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
     services::{authentication::UserFromToken, ApplicationResponse},
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
-    utils::user::{dashboard_metadata as utils, theme as theme_utils},
+    utils::user::dashboard_metadata as utils,
 };
+#[cfg(feature = "email")]
+use crate::{services::email::types as email_types, utils::user::theme as theme_utils};
 
 pub async fn set_metadata(
     state: SessionState,
@@ -484,8 +485,14 @@ async fn insert_metadata(
                     )
                     .await?;
 
-                    let email_contents =
-                        email_types::BizEmailProd::new(state, data, theme.map(Into::into))?;
+                    let email_contents = email_types::BizEmailProd::new(
+                        state,
+                        data,
+                        theme.as_ref().map(|theme| theme.theme_id.clone()),
+                        theme
+                            .map(|theme| theme.email_config())
+                            .unwrap_or(state.conf.email.email_theme_config.clone()),
+                    )?;
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(

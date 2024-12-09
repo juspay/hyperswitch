@@ -189,7 +189,8 @@ impl ThemeInterface for MockDb {
             entity_type: new_theme.entity_type,
             theme_name: new_theme.theme_name,
             email_primary_color: new_theme.email_primary_color,
-            email_secondary_color: new_theme.email_secondary_color,
+            email_foreground_color: new_theme.email_foreground_color,
+            email_background_color: new_theme.email_background_color,
             email_entity_name: new_theme.email_entity_name,
             email_entity_logo: new_theme.email_entity_logo,
         };

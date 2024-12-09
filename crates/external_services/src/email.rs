@@ -162,7 +162,7 @@ pub struct EmailSettings {
     pub prod_intent_recipient_email: pii::Email,
 
     /// Theme settings for the emails
-    pub email_theme_settings: EmailThemeConfig,
+    pub email_theme_config: EmailThemeConfig,
 }
 
 impl EmailSettings {

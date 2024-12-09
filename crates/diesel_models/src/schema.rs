@@ -1291,7 +1291,9 @@ diesel::table! {
         #[max_length = 64]
         email_primary_color -> Varchar,
         #[max_length = 64]
-        email_secondary_color -> Varchar,
+        email_foreground_color -> Varchar,
+        #[max_length = 64]
+        email_background_color -> Varchar,
         #[max_length = 64]
         email_entity_name -> Varchar,
         #[max_length = 255]

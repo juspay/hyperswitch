@@ -21,7 +21,8 @@ pub struct Theme {
     pub entity_type: EntityType,
     pub theme_name: String,
     pub email_primary_color: String,
-    pub email_secondary_color: String,
+    pub email_foreground_color: String,
+    pub email_background_color: String,
     pub email_entity_name: String,
     pub email_entity_logo: String,
 }
@@ -39,7 +40,8 @@ pub struct ThemeNew {
     pub entity_type: EntityType,
     pub theme_name: String,
     pub email_primary_color: String,
-    pub email_secondary_color: String,
+    pub email_foreground_color: String,
+    pub email_background_color: String,
     pub email_entity_name: String,
     pub email_entity_logo: String,
 }
@@ -64,7 +66,8 @@ impl ThemeNew {
             created_at: now,
             last_modified_at: now,
             email_primary_color: email_data.primary_color,
-            email_secondary_color: email_data.secondary_color,
+            email_foreground_color: email_data.foreground_color,
+            email_background_color: email_data.background_color,
             email_entity_name: email_data.entity_name,
             email_entity_logo: email_data.entity_logo,
         }
@@ -72,10 +75,11 @@ impl ThemeNew {
 }
 
 impl Theme {
-    pub fn email_data(&self) -> EmailThemeConfig {
+    pub fn email_config(&self) -> EmailThemeConfig {
         EmailThemeConfig {
             primary_color: self.email_primary_color.clone(),
-            secondary_color: self.email_secondary_color.clone(),
+            foreground_color: self.email_foreground_color.clone(),
+            background_color: self.email_background_color.clone(),
             entity_name: self.email_entity_name.clone(),
             entity_logo: self.email_entity_logo.clone(),
         }

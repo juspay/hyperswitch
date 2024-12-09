@@ -72,7 +72,10 @@ pub async fn send_recon_request(
                 consts::EMAIL_SUBJECT_DASHBOARD_FEATURE_REQUEST,
                 user_email.expose().peek()
             ),
-            theme: theme.map(Into::into),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.email.email_theme_config.clone()),
         };
         state
             .email_client
@@ -198,7 +201,10 @@ pub async fn recon_merchant_account_update(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to form username")?,
             subject: consts::EMAIL_SUBJECT_APPROVAL_RECON_REQUEST,
-            theme: theme.map(Into::into),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.email.email_theme_config.clone()),
         };
         if req.recon_status == enums::ReconStatus::Active {
             let _ = state

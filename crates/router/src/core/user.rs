@@ -87,7 +87,10 @@ pub async fn signup_with_merchant_id(
         settings: state.conf.clone(),
         subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
-        theme: theme.map(Into::into),
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.email.email_theme_config.clone()),
     };
 
     let send_email_result = state
@@ -228,7 +231,10 @@ pub async fn connect_account(
             user_name: domain::UserName::new(user_from_db.get_name())?,
             subject: consts::user::EMAIL_SUBJECT_MAGIC_LINK,
             auth_id,
-            theme: theme.map(Into::into),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.email.email_theme_config.clone()),
         };
 
         let send_email_result = state
@@ -280,7 +286,10 @@ pub async fn connect_account(
             settings: state.conf.clone(),
             subject: consts::user::EMAIL_SUBJECT_SIGNUP,
             auth_id,
-            theme: theme.map(Into::into),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.email.email_theme_config.clone()),
         };
 
         let magic_link_result = state
@@ -421,7 +430,10 @@ pub async fn forgot_password(
         user_name: domain::UserName::new(user_from_db.get_name())?,
         subject: consts::user::EMAIL_SUBJECT_RESET_PASSWORD,
         auth_id,
-        theme: theme.map(Into::into),
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.email.email_theme_config.clone()),
     };
 
     state
@@ -825,7 +837,10 @@ async fn handle_existing_user_invitation(
             subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
-            theme: theme.map(Into::into),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.email.email_theme_config.clone()),
         };
 
         is_email_sent = state
@@ -978,7 +993,10 @@ async fn handle_new_user_invitation(
             subject: consts::user::EMAIL_SUBJECT_INVITATION,
             entity,
             auth_id: auth_id.clone(),
-            theme: theme.map(Into::into),
+            theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+            theme_config: theme
+                .map(|theme| theme.email_config())
+                .unwrap_or(state.conf.email.email_theme_config.clone()),
         };
         let send_email_result = state
             .email_client
@@ -1119,7 +1137,10 @@ pub async fn resend_invite(
             entity_type,
         },
         auth_id: auth_id.clone(),
-        theme: theme.map(Into::into),
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.email.email_theme_config.clone()),
     };
 
     state
@@ -1748,7 +1769,10 @@ pub async fn send_verification_mail(
         settings: state.conf.clone(),
         subject: consts::user::EMAIL_SUBJECT_SIGNUP,
         auth_id,
-        theme: theme.map(Into::into),
+        theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
+        theme_config: theme
+            .map(|theme| theme.email_config())
+            .unwrap_or(state.conf.email.email_theme_config.clone()),
     };
 
     state
