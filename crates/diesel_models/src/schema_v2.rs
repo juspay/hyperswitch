@@ -1243,8 +1243,7 @@ diesel::table! {
         email_background_color -> Varchar,
         #[max_length = 64]
         email_entity_name -> Varchar,
-        #[max_length = 255]
-        email_entity_logo -> Varchar,
+        email_entity_logo_url -> Text,
     }
 }
 

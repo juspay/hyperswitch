@@ -693,11 +693,11 @@ email_role_arn = ""        # The amazon resource name ( arn ) of the role which 
 sts_role_session_name = "" # An identifier for the assumed role session, used to uniquely identify a session.
 
 [email.email_theme_config]
-entity_name = "Hyperswitch"                  # Name of the entity to be showed in emails
-entity_logo = "https://example.com/logo.svg" # Logo URL of the entity to be used in emails
-foreground_color = "#000000"                 # Foreground color of email text
-primary_color = "#006DF9"                    # Primary color of email body
-background_color = "#FFFFFF"                 # Background color of email body
+entity_name = "Hyperswitch"                      # Name of the entity to be showed in emails
+entity_logo_url = "https://example.com/logo.svg" # Logo URL of the entity to be used in emails
+foreground_color = "#000000"                     # Foreground color of email text
+primary_color = "#006DF9"                        # Primary color of email body
+background_color = "#FFFFFF"                     # Background color of email body
 
 [theme_storage]
 file_storage_backend = "file_system" # Theme storage backend to be used

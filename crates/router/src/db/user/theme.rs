@@ -192,7 +192,7 @@ impl ThemeInterface for MockDb {
             email_foreground_color: new_theme.email_foreground_color,
             email_background_color: new_theme.email_background_color,
             email_entity_name: new_theme.email_entity_name,
-            email_entity_logo: new_theme.email_entity_logo,
+            email_entity_logo_url: new_theme.email_entity_logo_url,
         };
         themes.push(theme.clone());
 

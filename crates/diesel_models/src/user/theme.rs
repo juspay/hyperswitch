@@ -24,7 +24,7 @@ pub struct Theme {
     pub email_foreground_color: String,
     pub email_background_color: String,
     pub email_entity_name: String,
-    pub email_entity_logo: String,
+    pub email_entity_logo_url: String,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -43,7 +43,7 @@ pub struct ThemeNew {
     pub email_foreground_color: String,
     pub email_background_color: String,
     pub email_entity_name: String,
-    pub email_entity_logo: String,
+    pub email_entity_logo_url: String,
 }
 
 impl ThemeNew {
@@ -69,7 +69,7 @@ impl ThemeNew {
             email_foreground_color: email_config.foreground_color,
             email_background_color: email_config.background_color,
             email_entity_name: email_config.entity_name,
-            email_entity_logo: email_config.entity_logo,
+            email_entity_logo_url: email_config.entity_logo_url,
         }
     }
 }
@@ -81,7 +81,7 @@ impl Theme {
             foreground_color: self.email_foreground_color.clone(),
             background_color: self.email_background_color.clone(),
             entity_name: self.email_entity_name.clone(),
-            entity_logo: self.email_entity_logo.clone(),
+            entity_logo_url: self.email_entity_logo_url.clone(),
         }
     }
 }

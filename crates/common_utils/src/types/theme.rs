@@ -168,7 +168,7 @@ pub struct EmailThemeConfig {
     pub entity_name: String,
 
     /// The URL of the entity logo to be used in the email
-    pub entity_logo: String,
+    pub entity_logo_url: String,
 
     /// The primary color to be used in the email
     pub primary_color: String,
