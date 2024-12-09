@@ -1118,12 +1118,19 @@ pub async fn resend_invite(
         .get_entity_id_and_type()
         .ok_or(UserErrors::InternalServerError)?;
 
-    let role_info = user_from_token.get_role_info_from_db(&state).await?;
+    let invitee_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+        &state,
+        &user_role.role_id,
+        &user_from_token.merchant_id,
+        &user_from_token.org_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
 
     let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
         &state,
         &user_from_token,
-        role_info.get_entity_type(),
+        invitee_role_info.get_entity_type(),
     )
     .await?;
 

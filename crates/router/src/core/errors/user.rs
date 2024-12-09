@@ -106,7 +106,7 @@ pub enum UserErrors {
     ThemeAlreadyExists,
     #[error("Invalid field: {0} in lineage")]
     InvalidThemeLineage(String),
-    #[error("Missing required field email_config")]
+    #[error("Missing required field: email_config")]
     MissingEmailConfig,
 }
 
@@ -346,7 +346,7 @@ impl UserErrors {
             Self::InvalidThemeLineage(field_name) => {
                 format!("Invalid field: {} in lineage", field_name)
             }
-            Self::MissingEmailConfig => "Missing required field email_config".to_string(),
+            Self::MissingEmailConfig => "Missing required field: email_config".to_string(),
         }
     }
 }
