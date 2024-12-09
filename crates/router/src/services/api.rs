@@ -228,6 +228,7 @@ where
                         })
                         .unwrap_or_default();
                     let mut connector_event = ConnectorEvent::new(
+                        state.tenant.tenant_id.clone(),
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
@@ -851,6 +852,7 @@ where
     };
 
     let api_event = ApiEvent::new(
+        tenant_id,
         Some(merchant_id.clone()),
         flow,
         &request_id,
