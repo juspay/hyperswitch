@@ -1,3 +1,4 @@
+use common_enums::EventClass;
 use common_utils::{crypto, errors::CustomResult, request::Request};
 use hyperswitch_domain_models::{
     router_data::RouterData,
@@ -449,7 +450,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     /// Supported webhooks flows
-    fn get_supported_webhook_flows(&self) -> Option<Vec<api_models::webhooks::WebhookFlow>> {
+    fn get_supported_webhook_flows(&self) -> Option<Vec<EventClass>> {
         match self {
             Self::Old(connector) => connector.get_supported_webhook_flows(),
             Self::New(connector) => connector.get_supported_webhook_flows(),

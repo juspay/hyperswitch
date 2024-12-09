@@ -18,7 +18,7 @@ pub mod refunds;
 pub mod refunds_v2;
 
 use common_enums::{
-    enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType},
+    enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType, EventClass},
     PaymentMethod,
 };
 use common_utils::{
@@ -289,7 +289,7 @@ pub trait ConnectorSpecifications {
     }
 
     /// Supported webhooks flows
-    fn get_supported_webhook_flows(&self) -> Option<Vec<api_models::webhooks::WebhookFlow>> {
+    fn get_supported_webhook_flows(&self) -> Option<Vec<EventClass>> {
         None
     }
 

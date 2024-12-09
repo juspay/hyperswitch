@@ -13,7 +13,7 @@ use crate::{
     types::api::{self as api_types, payments as payment_types},
 };
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+
 #[instrument(skip_all)]
 pub async fn fetch_connector_feature_matrix(
     state: web::Data<app::AppState>,
@@ -37,7 +37,7 @@ pub async fn fetch_connector_feature_matrix(
     .await
 }
 
-#[cfg(feature = "v1")]
+
 pub async fn generate_connector_feature_matrix(
     state: app::SessionState,
     req: payment_types::FeatureMatrixRequest,

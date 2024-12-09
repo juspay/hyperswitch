@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{enums::{PaymentMethodType, CaptureMethod, CountryAlpha2, Currency, Connector, PaymentMethod, PaymentsConnectorType}, webhooks::WebhookFlow};
+use crate::enums::{PaymentMethodType, CaptureMethod, CountryAlpha2, Currency, Connector, PaymentMethod, PaymentsConnectorType, EventClass};
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub struct FeatureMatrixRequest {
@@ -11,7 +11,7 @@ pub struct FeatureMatrixRequest {
     pub connectors: Option<Vec<Connector>>,
 }
 
-#[cfg(feature = "v1")]
+
 #[derive(Debug, ToSchema, Serialize)]
 pub struct SupportedPaymentMethod {
     pub payment_method: PaymentMethodType,
@@ -22,21 +22,21 @@ pub struct SupportedPaymentMethod {
     pub supported_currencies: Option<HashSet<Currency>>,
 }
 
-#[cfg(feature = "v1")]
+
 #[derive(Debug, ToSchema, Serialize)]
 pub struct SupportedPaymentMethodTypes {
     pub payment_method_type: PaymentMethod,
     pub payment_methods: Vec<SupportedPaymentMethod>,
 }
 
-#[cfg(feature = "v1")]
+
 #[derive(Debug, ToSchema, Serialize)]
 pub struct ConnectorFeatureMatrixResponse {
     pub connector: String,
     pub description: Option<String>,
     pub connector_type: Option<PaymentsConnectorType>,
     pub payment_method_types: Vec<SupportedPaymentMethodTypes>,
-    pub supported_webhook_flows: Option<Vec<WebhookFlow>>,
+    pub supported_webhook_flows: Option<Vec<EventClass>>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]

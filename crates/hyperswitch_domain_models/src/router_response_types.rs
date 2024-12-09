@@ -520,7 +520,7 @@ pub struct PaymentMethodDetails {
     pub supports_mandate: bool,
     /// Indicates whether refund is supported by this payment method.
     pub supports_refund: bool,
-    /// Indicates whether manual capture supported is supported by this payment method.
+    /// List of supported capture methods
     pub supported_capture_methods: Vec<CaptureMethod>,
 }
 

@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::webhooks::WebhookFlow;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -853,7 +852,7 @@ impl ConnectorSpecifications for Bambora {
         Some(bambora_supported_payment_methods)
     }
 
-    fn get_supported_webhook_flows(&self) -> Option<Vec<WebhookFlow>> {
+    fn get_supported_webhook_flows(&self) -> Option<Vec<enums::EventClass>> {
         Some(Vec::new())
     }
 }

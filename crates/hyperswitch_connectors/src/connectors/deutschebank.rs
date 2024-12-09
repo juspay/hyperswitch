@@ -3,7 +3,6 @@ pub mod transformers;
 use std::time::SystemTime;
 
 use actix_web::http::header::Date;
-use api_models::webhooks::WebhookFlow;
 use base64::Engine;
 use common_enums::{enums, PaymentsConnectorType};
 use common_utils::{
@@ -968,7 +967,7 @@ impl ConnectorSpecifications for Deutschebank {
         Some(deutschebank_supported_payment_methods)
     }
 
-    fn get_supported_webhook_flows(&self) -> Option<Vec<WebhookFlow>> {
+    fn get_supported_webhook_flows(&self) -> Option<Vec<enums::EventClass>> {
         Some(Vec::new())
     }
 }

@@ -8827,7 +8827,7 @@
           "supported_webhook_flows": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/WebhookFlow"
+              "$ref": "#/components/schemas/EventClass"
             },
             "nullable": true
           }
@@ -25316,21 +25316,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "WebhookFlow": {
-        "type": "string",
-        "enum": [
-          "Payment",
-          "Payout",
-          "Refund",
-          "Dispute",
-          "Subscription",
-          "ReturnResponse",
-          "BankTransfer",
-          "Mandate",
-          "ExternalAuthentication",
-          "FraudCheck"
-        ]
       }
     },
     "securitySchemes": {

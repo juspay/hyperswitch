@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId, WebhookFlow};
+use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::{enums, PaymentsConnectorType};
 use common_utils::{
     errors::CustomResult,
@@ -489,7 +489,7 @@ impl ConnectorSpecifications for Zsl {
         Some(zsl_supported_payment_methods)
     }
 
-    fn get_supported_webhook_flows(&self) -> Option<Vec<WebhookFlow>> {
+    fn get_supported_webhook_flows(&self) -> Option<Vec<enums::EventClass>> {
         Some(Vec::new())
     }
 }
