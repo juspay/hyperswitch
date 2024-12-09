@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
-    RequestSurchargeDetails, SplitPaymentsResponse, StripeSplitPaymentsResponse,
+    RequestSurchargeDetails,
 };
 use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
@@ -1881,12 +1881,14 @@ where
             None => None,
             Some(split_payments) => match split_payments {
                 SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) => Some(
-                    SplitPaymentsResponse::StripeSplitPayment(StripeSplitPaymentsResponse {
-                        charge_id: payment_attempt.charge_id.clone(),
-                        charge_type: stripe_split_payment.charge_type,
-                        application_fees: stripe_split_payment.application_fees,
-                        transfer_account_id: stripe_split_payment.transfer_account_id,
-                    }),
+                    api_models::payments::SplitPaymentsResponse::StripeSplitPayment(
+                        api_models::payments::StripeSplitPaymentsResponse {
+                            charge_id: payment_attempt.charge_id.clone(),
+                            charge_type: stripe_split_payment.charge_type,
+                            application_fees: stripe_split_payment.application_fees,
+                            transfer_account_id: stripe_split_payment.transfer_account_id,
+                        },
+                    ),
                 ),
             },
         };

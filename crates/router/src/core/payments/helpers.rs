@@ -14,7 +14,7 @@ use common_utils::{
     pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState, ToEncryptable},
-        MinorUnit, SplitPaymentsRequest,
+        MinorUnit,
     },
 };
 use diesel_models::enums;
@@ -6103,9 +6103,12 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
 
 pub fn validate_platform_fees_for_marketplace(
     amount: api::Amount,
-    split_payments: Option<SplitPaymentsRequest>,
+    split_payments: Option<common_utils::types::SplitPaymentsRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) = split_payments {
+    if let Some(common_utils::types::SplitPaymentsRequest::StripeSplitPayment(
+        stripe_split_payment,
+    )) = split_payments
+    {
         match amount {
             api::Amount::Zero => {
                 if stripe_split_payment.application_fees.get_amount_as_i64() != 0 {

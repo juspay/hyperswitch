@@ -4,7 +4,7 @@ use std::{collections::HashMap, ops::Deref};
 
 use common_utils::{
     request::RequestContent,
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector, SplitPaymentsRequest},
+    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use diesel_models::enums;
 use error_stack::ResultExt;
@@ -765,7 +765,9 @@ impl
 
         if let Some(split_payments) = &req.request.split_payments {
             match split_payments {
-                SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) => {
+                common_utils::types::SplitPaymentsRequest::StripeSplitPayment(
+                    stripe_split_payment,
+                ) => {
                     transformers::transform_headers_for_connect_platform(
                         stripe_split_payment.charge_type.clone(),
                         stripe_split_payment.transfer_account_id.clone(),
@@ -940,7 +942,9 @@ impl
 
         if let Some(split_payments) = &req.request.split_payments {
             match split_payments {
-                SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) => {
+                common_utils::types::SplitPaymentsRequest::StripeSplitPayment(
+                    stripe_split_payment,
+                ) => {
                     if stripe_split_payment.charge_type
                         == api::enums::PaymentChargeType::Stripe(
                             api::enums::StripeChargeType::Direct,

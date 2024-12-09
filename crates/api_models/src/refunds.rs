@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-pub use common_utils::types::{MinorUnit, SplitRefund};
+pub use common_utils::types::MinorUnit;
 use common_utils::{pii, types::TimeRange};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -58,7 +58,7 @@ pub struct RefundRequest {
 
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<SplitRefund>)]
-    pub split_refunds: Option<SplitRefund>,
+    pub split_refunds: Option<common_utils::types::SplitRefund>,
 }
 
 #[cfg(feature = "v2")]
@@ -205,7 +205,7 @@ pub struct RefundResponse {
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// Charge specific fields for controlling the revert of funds from either platform or connected account
     #[schema(value_type = Option<SplitRefund>,)]
-    pub split_refunds: Option<SplitRefund>,
+    pub split_refunds: Option<common_utils::types::SplitRefund>,
 }
 
 #[cfg(feature = "v1")]

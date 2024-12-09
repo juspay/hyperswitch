@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use api_models::admin::MerchantConnectorInfo;
 use common_utils::{
     ext_traits::AsyncExt,
-    types::{ConnectorTransactionId, MinorUnit, SplitPaymentsRequest},
+    types::{ConnectorTransactionId, MinorUnit},
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::{report, ResultExt};
@@ -750,7 +750,7 @@ pub async fn validate_and_create_refund(
     let db = &*state.store;
 
     let split_refunds = match payment_intent.split_payments.as_ref() {
-        Some(SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
+        Some(common_utils::types::SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
             let refund_request = req
                 .split_refunds
                 .clone()
@@ -1469,7 +1469,9 @@ pub async fn trigger_refund_execute_workflow(
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
             let split_refunds = match payment_intent.split_payments.as_ref() {
-                Some(SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
+                Some(common_utils::types::SplitPaymentsRequest::StripeSplitPayment(
+                    stripe_payment,
+                )) => {
                     let refund_request = refund
                         .split_refunds
                         .clone()

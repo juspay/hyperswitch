@@ -16,7 +16,7 @@ use common_utils::{
     hashing::HashedString,
     id_type,
     pii::{self, Email},
-    types::{MinorUnit, SplitPaymentsRequest, StringMajorUnit},
+    types::{MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret, WithType};
@@ -849,7 +849,7 @@ pub struct PaymentsRequest {
     pub recurring_details: Option<RecurringDetails>,
 
     /// Fee information to be charged on the payment being collected
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<common_utils::types::SplitPaymentsRequest>,
 
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.
