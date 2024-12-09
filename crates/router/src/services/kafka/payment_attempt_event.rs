@@ -25,15 +25,15 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub connector_transaction_id: Option<&'a String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub capture_on: Option<OffsetDateTime>,
     pub confirm: bool,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
-    #[serde(with = "time::serde::timestamp::milliseconds")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub created_at: OffsetDateTime,
-    #[serde(with = "time::serde::timestamp::milliseconds")]
+    #[serde(with = "time::serde::timestamp::nanoseconds")]
     pub modified_at: OffsetDateTime,
-    #[serde(default, with = "time::serde::timestamp::milliseconds::option")]
+    #[serde(default, with = "time::serde::timestamp::nanoseconds::option")]
     pub last_synced: Option<OffsetDateTime>,
     pub cancellation_reason: Option<&'a String>,
     pub amount_to_capture: Option<MinorUnit>,
