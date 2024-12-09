@@ -89,7 +89,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
-          shipping: 50,
+          shipping_cost: 50,
           amount: 6500,
         },
       },
