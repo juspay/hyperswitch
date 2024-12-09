@@ -199,7 +199,7 @@ pub async fn get_most_specific_theme_using_lineage(
             if e.current_context().is_db_not_found() {
                 Ok(None)
             } else {
-                Err(e.change_context(UserErrors::InternalServerError.into()))
+                Err(e.change_context(UserErrors::InternalServerError))
             }
         }
     }
@@ -219,7 +219,7 @@ pub async fn get_theme_using_optional_theme_id(
             if e.current_context().is_db_not_found() {
                 Ok(None)
             } else {
-                Err(e.change_context(UserErrors::InternalServerError.into()))
+                Err(e.change_context(UserErrors::InternalServerError))
             }
         }
     }
