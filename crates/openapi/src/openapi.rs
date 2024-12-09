@@ -655,6 +655,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DisplayAmountOnSdk,
         api_models::payments::PaymentsPostSessionTokensRequest,
         api_models::payments::PaymentsPostSessionTokensResponse,
+        api_models::payments::ServiceDetails
     )),
     modifiers(&SecurityAddon)
 )]
