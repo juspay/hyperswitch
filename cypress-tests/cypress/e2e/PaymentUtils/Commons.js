@@ -661,14 +661,6 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          shipping_cost: 50,
-          amount_received: 6550,
-        },
-      },
     }),
     "3DSManualCapture": getCustomExchange({
       Request: {

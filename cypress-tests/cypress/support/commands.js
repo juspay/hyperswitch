@@ -1079,7 +1079,7 @@ Cypress.Commands.add(
           createPaymentBody.setup_future_usage,
           "setup_future_usage"
         ).to.equal(response.body.setup_future_usage);
-        if (!createPaymentBody.hasOwnProperty("shipping_cost")) {
+        if (createPaymentBody.shipping_cost === undefined) {
           expect(createPaymentBody.amount, "amount_capturable").to.equal(
             response.body.amount_capturable
           );
