@@ -1991,7 +1991,6 @@ pub async fn retrieve_card_with_permanent_token(
                     .network_tokenization_supported_connectors
                     .connector_list;
                 let connector_variant = connector.as_ref().map(|conn| api_enums::Connector::from_str(conn.as_str())
-                    .change_context(errors::ConnectorError::InvalidConnectorName)
                     .change_context(errors::ApiErrorResponse::InvalidDataValue {
                         field_name: "connector",
                     })
