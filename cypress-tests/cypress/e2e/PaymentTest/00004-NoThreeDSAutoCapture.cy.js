@@ -97,51 +97,51 @@ describe("Card - NoThreeDS payment flow test", () => {
     });
   });
 
-   context("Card-NoThreeDS payment with shipping cost", () => {
-     let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
+  context("Card-NoThreeDS payment with shipping cost", () => {
+    let shouldContinue = true; // variable that will be used to skip tests if a previous test fails
 
-     beforeEach(function () {
-       if (!shouldContinue) {
-         this.skip();
-       }
-     });
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
 
-     it("create-payment-call-test", () => {
-       const data = getConnectorDetails(globalState.get("connectorId"))[
-         "card_pm"
-       ]["PaymentIntentWithShippingCost"];
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentWithShippingCost"];
 
-       cy.createPaymentIntentTest(
-         fixtures.createPaymentBody,
-         data,
-         "no_three_ds",
-         "automatic",
-         globalState
-       );
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
 
-       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-     });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
 
-     it("payment_methods-call-test", () => {
-       cy.paymentMethodsCallTest(globalState);
-     });
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
 
-     it("Confirm No 3DS", () => {
-       const data = getConnectorDetails(globalState.get("connectorId"))[
-         "card_pm"
-       ]["PaymentConfirmWithShippingCost"];
+    it("Confirm No 3DS", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentConfirmWithShippingCost"];
 
-       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-     });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
 
-     it("retrieve-payment-call-test", () => {
-       const data = getConnectorDetails(globalState.get("connectorId"))[
-         "card_pm"
-       ]["PaymentConfirmWithShippingCost"];
+    it("retrieve-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentConfirmWithShippingCost"];
 
-       cy.retrievePaymentCallTest(globalState, data);
-     });
-   });
+      cy.retrievePaymentCallTest(globalState, data);
+    });
+  });
 });
