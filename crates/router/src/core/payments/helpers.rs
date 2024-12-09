@@ -1990,18 +1990,21 @@ pub async fn retrieve_card_with_permanent_token(
                     .conf
                     .network_tokenization_supported_connectors
                     .connector_list;
-                let connector_variant = connector.as_ref().map(|conn| api_enums::Connector::from_str(conn.as_str())
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "connector",
+                let connector_variant = connector
+                    .as_ref()
+                    .map(|conn| {
+                        api_enums::Connector::from_str(conn.as_str())
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "connector",
+                            })
+                            .attach_printable_lazy(|| {
+                                format!("unable to parse connector name {connector:?}")
+                            })
                     })
-                    .attach_printable_lazy(|| {
-                        format!("unable to parse connector name {connector:?}")
-                    })).transpose()?;
+                    .transpose()?;
                 if let (Some(_conn), Some(token_ref)) = (
-                    connector_variant.filter(|conn| {
-                        network_tokenization_supported_connectors
-                            .contains(conn)
-                    }),
+                    connector_variant
+                        .filter(|conn| network_tokenization_supported_connectors.contains(conn)),
                     pm_data.network_token_requestor_reference_id.clone(),
                 ) {
                     logger::info!("Fetching network token data from tokenization service");
