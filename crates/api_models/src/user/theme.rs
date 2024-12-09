@@ -39,13 +39,12 @@ pub struct CreateThemeRequest {
     pub lineage: ThemeLineage,
     pub theme_name: String,
     pub theme_data: ThemeData,
-    pub email_config: EmailThemeConfig,
+    pub email_config: Option<EmailThemeConfig>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateThemeRequest {
     pub lineage: ThemeLineage,
-    pub email_theme_data: EmailThemeConfig,
     pub theme_data: ThemeData,
     // TODO: Add support to update email config
 }
