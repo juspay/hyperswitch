@@ -510,15 +510,6 @@ impl ForeignFrom<(KlarnaCheckoutStatus, bool)> for enums::AttemptStatus {
     }
 }
 
-impl From<KlarnaCheckoutStatus> for enums::AttemptStatus {
-    fn from(klarna_status: KlarnaCheckoutStatus) -> Self {
-        match klarna_status {
-            KlarnaCheckoutStatus::CheckoutComplete => Self::Charged,
-            KlarnaCheckoutStatus::CheckoutIncomplete => Self::AuthenticationPending,
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum KlarnaPsyncResponse {
