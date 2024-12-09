@@ -1079,7 +1079,7 @@ Cypress.Commands.add(
           createPaymentBody.setup_future_usage,
           "setup_future_usage"
         ).to.equal(response.body.setup_future_usage);
-      // If 'shipping_cost' is not included in the request, the 'amount' in 'createPaymentBody' should match the 'amount_capturable' in the response.
+        // If 'shipping_cost' is not included in the request, the 'amount' in 'createPaymentBody' should match the 'amount_capturable' in the response.
         if (typeof createPaymentBody?.shipping_cost === "undefined") {
           expect(createPaymentBody.amount, "amount_capturable").to.equal(
             response.body.amount_capturable
