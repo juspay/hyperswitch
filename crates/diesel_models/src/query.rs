@@ -13,6 +13,7 @@ pub mod blocklist_fingerprint;
 pub mod customers;
 pub mod dashboard_metadata;
 pub mod dispute;
+pub mod dynamic_routing_stats;
 pub mod events;
 pub mod file;
 pub mod fraud_check;

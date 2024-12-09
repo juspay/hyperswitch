@@ -90,6 +90,24 @@ const payment_method_data_3ds = {
   billing: null,
 };
 
+const billing_with_newline = {
+  address: {
+    line1: "1467",
+    line2: "Harrison Street\nApt 101",
+    line3: "Harrison Street\nApt 101",
+    city: "San Fransico\n city",
+    state: "California",
+    zip: "94122",
+    country: "NL",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "9123456789",
+    country_code: "+91",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -215,6 +233,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: billing_with_newline,
       },
       Response: {
         status: 200,
