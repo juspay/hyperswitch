@@ -346,11 +346,6 @@ pub struct SsoSignInRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AuthIdQueryParam {
-    pub auth_id: Option<String>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AuthIdAndThemeIdQueryParam {
     pub auth_id: Option<String>,
     pub theme_id: Option<String>,

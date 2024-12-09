@@ -439,7 +439,7 @@ pub async fn invite_multiple_user(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<Vec<user_api::InviteUserRequest>>,
-    auth_id_query_param: web::Query<user_api::AuthIdQueryParam>,
+    auth_id_query_param: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::InviteMultipleUser;
     let auth_id = auth_id_query_param.into_inner().auth_id;
@@ -464,7 +464,7 @@ pub async fn resend_invite(
     state: web::Data<AppState>,
     req: HttpRequest,
     payload: web::Json<user_api::ReInviteUserRequest>,
-    query: web::Query<user_api::AuthIdQueryParam>,
+    query: web::Query<user_api::AuthIdAndThemeIdQueryParam>,
 ) -> HttpResponse {
     let flow = Flow::ReInviteUser;
     let auth_id = query.into_inner().auth_id;
