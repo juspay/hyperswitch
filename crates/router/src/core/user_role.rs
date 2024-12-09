@@ -159,6 +159,10 @@ pub async fn update_user_role(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user_to_be_updated.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             &user_from_token.profile_id,
@@ -213,6 +217,10 @@ pub async fn update_user_role(
             .global_store
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
                 Some(&user_from_token.merchant_id),
                 Some(&user_from_token.profile_id),
@@ -232,6 +240,10 @@ pub async fn update_user_role(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user_to_be_updated.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             &user_from_token.profile_id,
@@ -286,6 +298,10 @@ pub async fn update_user_role(
             .global_store
             .update_user_role_by_user_id_and_lineage(
                 user_to_be_updated.get_user_id(),
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
                 Some(&user_from_token.merchant_id),
                 Some(&user_from_token.profile_id),
@@ -320,6 +336,10 @@ pub async fn accept_invitations_v2(
         utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
             &state,
             &user_from_token.user_id,
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             entity.entity_id,
             entity.entity_type,
         )
@@ -335,6 +355,10 @@ pub async fn accept_invitations_v2(
                 utils::user_role::update_v1_and_v2_user_roles_in_db(
                     &state,
                     user_from_token.user_id.as_str(),
+                    user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id,
                     merchant_id.as_ref(),
                     profile_id.as_ref(),
@@ -372,6 +396,10 @@ pub async fn accept_invitations_pre_auth(
         utils::user_role::get_lineage_for_user_id_and_entity_for_accepting_invite(
             &state,
             &user_token.user_id,
+            user_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             entity.entity_id,
             entity.entity_type,
         )
@@ -387,6 +415,10 @@ pub async fn accept_invitations_pre_auth(
                 utils::user_role::update_v1_and_v2_user_roles_in_db(
                     &state,
                     user_token.user_id.as_str(),
+                    user_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id,
                     merchant_id.as_ref(),
                     profile_id.as_ref(),
@@ -440,7 +472,7 @@ pub async fn delete_user_role(
 ) -> UserResponse<()> {
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?.into_inner())
+        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -473,6 +505,10 @@ pub async fn delete_user_role(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             &user_from_token.profile_id,
@@ -520,6 +556,10 @@ pub async fn delete_user_role(
             .global_store
             .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
                 &user_from_token.profile_id,
@@ -535,6 +575,10 @@ pub async fn delete_user_role(
         .global_store
         .find_user_role_by_user_id_and_lineage(
             user_from_db.get_user_id(),
+            user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             &user_from_token.org_id,
             &user_from_token.merchant_id,
             &user_from_token.profile_id,
@@ -582,6 +626,10 @@ pub async fn delete_user_role(
             .global_store
             .delete_user_role_by_user_id_and_lineage(
                 user_from_db.get_user_id(),
+                user_from_token
+                    .tenant_id
+                    .as_ref()
+                    .unwrap_or(&state.tenant.tenant_id),
                 &user_from_token.org_id,
                 &user_from_token.merchant_id,
                 &user_from_token.profile_id,
@@ -602,6 +650,11 @@ pub async fn delete_user_role(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: user_from_db.get_user_id(),
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
+
             org_id: None,
             merchant_id: None,
             profile_id: None,
@@ -645,11 +698,15 @@ pub async fn list_users_in_lineage(
         requestor_role_info.get_entity_type(),
         request.entity_type,
     )? {
-        EntityType::Organization => {
+        EntityType::Tenant | EntityType::Organization => {
             utils::user_role::fetch_user_roles_by_payload(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: &user_from_token.org_id,
                     merchant_id: None,
                     profile_id: None,
@@ -665,6 +722,10 @@ pub async fn list_users_in_lineage(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: None,
@@ -680,6 +741,10 @@ pub async fn list_users_in_lineage(
                 &state,
                 ListUserRolesByOrgIdPayload {
                     user_id: None,
+                    tenant_id: user_from_token
+                        .tenant_id
+                        .as_ref()
+                        .unwrap_or(&state.tenant.tenant_id),
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: Some(&user_from_token.profile_id),
@@ -779,6 +844,10 @@ pub async fn list_invitations_for_user(
         .global_store
         .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
             user_id: &user_from_token.user_id,
+            tenant_id: user_from_token
+                .tenant_id
+                .as_ref()
+                .unwrap_or(&state.tenant.tenant_id),
             org_id: None,
             merchant_id: None,
             profile_id: None,
@@ -802,6 +871,10 @@ pub async fn list_invitations_for_user(
                 .attach_printable("Failed to compute entity id and type")?;
 
             match entity_type {
+                EntityType::Tenant => {
+                    return Err(report!(UserErrors::InternalServerError))
+                        .attach_printable("Tenant roles are not allowed for this operation");
+                }
                 EntityType::Organization => org_ids.push(
                     user_role
                         .org_id
@@ -906,6 +979,10 @@ pub async fn list_invitations_for_user(
                 .attach_printable("Failed to compute entity id and type")?;
 
             let entity_name = match entity_type {
+                EntityType::Tenant => {
+                    return Err(report!(UserErrors::InternalServerError))
+                        .attach_printable("Tenant roles are not allowed for this operation");
+                }
                 EntityType::Organization => user_role
                     .org_id
                     .as_ref()

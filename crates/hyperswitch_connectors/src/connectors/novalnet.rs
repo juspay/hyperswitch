@@ -165,7 +165,9 @@ impl ConnectorValidation for Novalnet {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
             enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
@@ -906,7 +908,7 @@ impl webhooks::IncomingWebhook for Novalnet {
             novalnet::get_novalnet_dispute_status(notif.event.event_type).to_string();
         Ok(disputes::DisputePayload {
             amount: novalnet::option_to_result(amount)?.to_string(),
-            currency: novalnet::option_to_result(currency)?.to_string(),
+            currency: novalnet::option_to_result(currency)?,
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: notif.event.tid.to_string(),
             connector_reason: reason,

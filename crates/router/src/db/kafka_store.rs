@@ -3,7 +3,7 @@ use std::sync::Arc;
 use common_enums::enums::MerchantStorageScheme;
 use common_utils::{
     errors::CustomResult,
-    id_type, pii,
+    id_type,
     types::{keymanager::KeyManagerState, theme::ThemeLineage},
 };
 use diesel_models::{
@@ -1048,6 +1048,19 @@ impl MerchantAccountInterface for KafkaStore {
             .list_multiple_merchant_accounts(state, merchant_ids)
             .await
     }
+
+    #[cfg(feature = "olap")]
+    async fn list_merchant_and_org_ids(
+        &self,
+        state: &KeyManagerState,
+        limit: u32,
+        offset: Option<u32>,
+    ) -> CustomResult<Vec<(id_type::MerchantId, id_type::OrganizationId)>, errors::StorageError>
+    {
+        self.diesel_store
+            .list_merchant_and_org_ids(state, limit, offset)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -1454,7 +1467,7 @@ impl PaymentAttemptInterface for KafkaStore {
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
-        connector_transaction_id: &str,
+        connector_transaction_id: &common_utils::types::ConnectorTransactionId,
         payment_id: &id_type::PaymentId,
         merchant_id: &id_type::MerchantId,
         storage_scheme: MerchantStorageScheme,
@@ -2983,7 +2996,7 @@ impl UserInterface for KafkaStore {
 
     async fn find_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
     ) -> CustomResult<storage::User, errors::StorageError> {
         self.diesel_store.find_user_by_email(user_email).await
     }
@@ -3007,7 +3020,7 @@ impl UserInterface for KafkaStore {
 
     async fn update_user_by_email(
         &self,
-        user_email: &pii::Email,
+        user_email: &domain::UserEmail,
         user: storage::UserUpdate,
     ) -> CustomResult<storage::User, errors::StorageError> {
         self.diesel_store
@@ -3048,6 +3061,7 @@ impl UserRoleInterface for KafkaStore {
     async fn find_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
@@ -3056,6 +3070,7 @@ impl UserRoleInterface for KafkaStore {
         self.diesel_store
             .find_user_role_by_user_id_and_lineage(
                 user_id,
+                tenant_id,
                 org_id,
                 merchant_id,
                 profile_id,
@@ -3067,6 +3082,7 @@ impl UserRoleInterface for KafkaStore {
     async fn update_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: Option<&id_type::MerchantId>,
         profile_id: Option<&id_type::ProfileId>,
@@ -3076,6 +3092,7 @@ impl UserRoleInterface for KafkaStore {
         self.diesel_store
             .update_user_role_by_user_id_and_lineage(
                 user_id,
+                tenant_id,
                 org_id,
                 merchant_id,
                 profile_id,
@@ -3088,6 +3105,7 @@ impl UserRoleInterface for KafkaStore {
     async fn delete_user_role_by_user_id_and_lineage(
         &self,
         user_id: &str,
+        tenant_id: &id_type::TenantId,
         org_id: &id_type::OrganizationId,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
@@ -3096,6 +3114,7 @@ impl UserRoleInterface for KafkaStore {
         self.diesel_store
             .delete_user_role_by_user_id_and_lineage(
                 user_id,
+                tenant_id,
                 org_id,
                 merchant_id,
                 profile_id,
@@ -3715,6 +3734,13 @@ impl ThemeInterface for KafkaStore {
         theme: storage::theme::ThemeNew,
     ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
         self.diesel_store.insert_theme(theme).await
+    }
+
+    async fn find_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::theme::Theme, errors::StorageError> {
+        self.diesel_store.find_theme_by_theme_id(theme_id).await
     }
 
     async fn find_theme_by_lineage(

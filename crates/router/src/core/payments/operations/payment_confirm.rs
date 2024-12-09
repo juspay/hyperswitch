@@ -115,7 +115,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         .contains(&header_payload.payment_confirm_source)
         {
             helpers::validate_payment_status_against_not_allowed_statuses(
-                &payment_intent.status,
+                payment_intent.status,
                 &[
                     storage_enums::IntentStatus::Cancelled,
                     storage_enums::IntentStatus::Succeeded,
@@ -127,7 +127,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )?;
         } else {
             helpers::validate_payment_status_against_not_allowed_statuses(
-                &payment_intent.status,
+                payment_intent.status,
                 &[
                     storage_enums::IntentStatus::Cancelled,
                     storage_enums::IntentStatus::Succeeded,
@@ -352,6 +352,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.setup_future_usage = request
             .setup_future_usage
             .or(payment_intent.setup_future_usage);
+
+        payment_intent.psd2_sca_exemption_type = request
+            .psd2_sca_exemption_type
+            .or(payment_intent.psd2_sca_exemption_type);
 
         let browser_info = request
             .browser_info
@@ -635,12 +639,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         } else {
             None
         };
-        payment_attempt.payment_method_data = additional_pm_data_from_locker
-            .as_ref()
-            .map(Encode::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode additional pm data")?;
+        // Only set `payment_attempt.payment_method_data` if `additional_pm_data_from_locker` is not None
+        if let Some(additional_pm_data) = additional_pm_data_from_locker.as_ref() {
+            payment_attempt.payment_method_data = Some(
+                Encode::encode_to_value(additional_pm_data)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode additional pm data")?,
+            );
+        }
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
 
@@ -653,7 +659,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .or(payment_attempt.payment_method_type)
             .or(payment_method_info
                 .as_ref()
-                .and_then(|pm_info| pm_info.payment_method_type));
+                .and_then(|pm_info| pm_info.get_payment_method_subtype()));
 
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = mandate_data.map(|mut sm| {
@@ -704,7 +710,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .and_then(|pmd| pmd.payment_method_data.as_ref())
             .and_then(|payment_method_data_billing| {
                 payment_method_data_billing.get_billing_address()
-            });
+            })
+            .map(From::from);
 
         let unified_address =
             address.unify_with_payment_method_data_billing(payment_method_data_billing);

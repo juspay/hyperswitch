@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use api_models::user_role::role::{self as role_api};
+use api_models::user_role::role as role_api;
 use common_enums::{EntityType, ParentGroup, PermissionGroup, RoleScope};
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{RoleNew, RoleUpdate};
@@ -274,7 +274,7 @@ pub async fn list_roles_with_info(
     let user_role_entity = user_role_info.get_entity_type();
     let custom_roles =
         match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
-            EntityType::Organization => state
+            EntityType::Tenant | EntityType::Organization => state
                 .store
                 .list_roles_for_org_by_parameters(
                     &user_from_token.org_id,
@@ -347,7 +347,7 @@ pub async fn list_roles_at_entity_level(
         .collect::<Vec<_>>();
 
     let custom_roles = match req.entity_type {
-        EntityType::Organization => state
+        EntityType::Tenant | EntityType::Organization => state
             .store
             .list_roles_for_org_by_parameters(
                 &user_from_token.org_id,

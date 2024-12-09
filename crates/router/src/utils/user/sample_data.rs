@@ -274,6 +274,7 @@ pub async fn generate_sample_data(
             shipping_cost: None,
             tax_details: None,
             skip_external_tax_calculation: None,
+            psd2_sca_exemption_type: None,
         };
         let (connector_transaction_id, connector_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -435,6 +436,7 @@ pub async fn generate_sample_data(
                     merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
                     dispute_amount: amount * 100,
                     organization_id: org_id.clone(),
+                    dispute_currency: Some(payment_intent.currency.unwrap_or_default()),
                 })
             } else {
                 None

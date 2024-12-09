@@ -214,7 +214,9 @@ fn get_transaction_type_and_stored_creds(
         } else {
             match item.request.capture_method {
                 Some(CaptureMethod::Manual) => Ok((PayeezyTransactionType::Authorize, None)),
-                Some(CaptureMethod::Automatic) => Ok((PayeezyTransactionType::Purchase, None)),
+                Some(CaptureMethod::SequentialAutomatic) | Some(CaptureMethod::Automatic) => {
+                    Ok((PayeezyTransactionType::Purchase, None))
+                }
 
                 Some(CaptureMethod::ManualMultiple) | Some(CaptureMethod::Scheduled) | None => {
                     Err(ConnectorError::FlowNotSupported {

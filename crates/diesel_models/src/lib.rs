@@ -12,6 +12,7 @@ pub mod blocklist;
 pub mod blocklist_fingerprint;
 pub mod customers;
 pub mod dispute;
+pub mod dynamic_routing_stats;
 pub mod enums;
 pub mod ephemeral_key;
 pub mod errors;
@@ -75,7 +76,6 @@ pub use self::{
 /// `Option<T>` values.
 ///
 /// [diesel-2.0-array-nullability]: https://diesel.rs/guides/migration_guide.html#2-0-0-nullability-of-array-elements
-
 #[doc(hidden)]
 pub(crate) mod diesel_impl {
     use diesel::{

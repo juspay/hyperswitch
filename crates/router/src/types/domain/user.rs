@@ -103,7 +103,7 @@ impl UserEmail {
     pub fn new(email: Secret<String, pii::EmailStrategy>) -> UserResult<Self> {
         use validator::ValidateEmail;
 
-        let email_string = email.expose();
+        let email_string = email.expose().to_lowercase();
         let email =
             pii::Email::from_str(&email_string).change_context(UserErrors::EmailParsingError)?;
 
@@ -123,25 +123,16 @@ impl UserEmail {
     }
 
     pub fn from_pii_email(email: pii::Email) -> UserResult<Self> {
-        use validator::ValidateEmail;
-
-        let email_string = email.peek();
-        if email_string.validate_email() {
-            let (_username, domain) = match email_string.split_once('@') {
-                Some((u, d)) => (u, d),
-                None => return Err(UserErrors::EmailParsingError.into()),
-            };
-            if BLOCKED_EMAIL.contains(domain) {
-                return Err(UserErrors::InvalidEmailError.into());
-            }
-            Ok(Self(email))
-        } else {
-            Err(UserErrors::EmailParsingError.into())
-        }
+        let email_string = email.expose().map(|inner| inner.to_lowercase());
+        Self::new(email_string)
     }
 
     pub fn into_inner(self) -> pii::Email {
         self.0
+    }
+
+    pub fn get_inner(&self) -> &pii::Email {
+        &self.0
     }
 
     pub fn get_secret(self) -> Secret<String, pii::EmailStrategy> {
@@ -318,6 +309,40 @@ impl From<InviteeUserRequestWithInvitedUserToken> for NewUserOrganization {
         let new_organization = api_org::OrganizationNew::new(None);
         let db_organization = ForeignFrom::foreign_from(new_organization);
         Self(db_organization)
+    }
+}
+
+impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUserOrganization {
+    fn from(
+        (_value, merchant_account_identifier): (
+            user_api::CreateTenantUserRequest,
+            MerchantAccountIdentifier,
+        ),
+    ) -> Self {
+        let new_organization = api_org::OrganizationNew {
+            org_id: merchant_account_identifier.org_id,
+            org_name: None,
+        };
+        let db_organization = ForeignFrom::foreign_from(new_organization);
+        Self(db_organization)
+    }
+}
+
+impl ForeignFrom<api_models::user::UserOrgMerchantCreateRequest>
+    for diesel_models::organization::OrganizationNew
+{
+    fn foreign_from(item: api_models::user::UserOrgMerchantCreateRequest) -> Self {
+        let org_id = id_type::OrganizationId::default();
+        let api_models::user::UserOrgMerchantCreateRequest {
+            organization_name,
+            organization_details,
+            metadata,
+            ..
+        } = item;
+        let mut org_new_db = Self::new(org_id, Some(organization_name.expose()));
+        org_new_db.organization_details = organization_details;
+        org_new_db.metadata = metadata;
+        org_new_db
     }
 }
 
@@ -544,6 +569,18 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUserMerchant {
     }
 }
 
+impl From<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUserMerchant {
+    fn from(value: (user_api::CreateTenantUserRequest, MerchantAccountIdentifier)) -> Self {
+        let merchant_id = value.1.merchant_id.clone();
+        let new_organization = NewUserOrganization::from(value);
+        Self {
+            company_name: None,
+            merchant_id,
+            new_organization,
+        }
+    }
+}
+
 type UserMerchantCreateRequestWithToken =
     (UserFromStorage, user_api::UserMerchantCreate, UserFromToken);
 
@@ -562,6 +599,12 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
             new_organization: NewUserOrganization::from(value),
         })
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct MerchantAccountIdentifier {
+    pub merchant_id: id_type::MerchantId,
+    pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Clone)]
@@ -630,7 +673,7 @@ impl NewUser {
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
         if state
             .global_store
-            .find_user_by_email(&self.get_email().into_inner())
+            .find_user_by_email(&self.get_email())
             .await
             .is_ok()
         {
@@ -860,6 +903,34 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
             name,
             email,
             password,
+            new_merchant,
+        })
+    }
+}
+
+impl TryFrom<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for NewUser {
+    type Error = error_stack::Report<UserErrors>;
+
+    fn try_from(
+        (value, merchant_account_identifier): (
+            user_api::CreateTenantUserRequest,
+            MerchantAccountIdentifier,
+        ),
+    ) -> UserResult<Self> {
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let email = value.email.clone().try_into()?;
+        let name = UserName::new(value.name.clone())?;
+        let password = NewUserPassword {
+            password: UserPassword::new(value.password.clone())?,
+            is_temporary: false,
+        };
+        let new_merchant = NewUserMerchant::from((value, merchant_account_identifier));
+
+        Ok(Self {
+            user_id,
+            name,
+            email,
+            password: Some(password),
             new_merchant,
         })
     }
@@ -1118,21 +1189,26 @@ impl RecoveryCodes {
 pub struct NoLevel;
 
 #[derive(Clone)]
+pub struct TenantLevel {
+    pub tenant_id: id_type::TenantId,
+}
+
+#[derive(Clone)]
 pub struct OrganizationLevel {
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
 }
 
 #[derive(Clone)]
 pub struct MerchantLevel {
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
 }
 
 #[derive(Clone)]
 pub struct ProfileLevel {
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
     pub org_id: id_type::OrganizationId,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
@@ -1169,12 +1245,25 @@ impl NewUserRole<NoLevel> {
 }
 
 pub struct EntityInfo {
-    tenant_id: String,
-    org_id: id_type::OrganizationId,
+    tenant_id: id_type::TenantId,
+    org_id: Option<id_type::OrganizationId>,
     merchant_id: Option<id_type::MerchantId>,
     profile_id: Option<id_type::ProfileId>,
     entity_id: String,
     entity_type: EntityType,
+}
+
+impl From<TenantLevel> for EntityInfo {
+    fn from(value: TenantLevel) -> Self {
+        Self {
+            entity_id: value.tenant_id.get_string_repr().to_owned(),
+            entity_type: EntityType::Tenant,
+            tenant_id: value.tenant_id,
+            org_id: None,
+            merchant_id: None,
+            profile_id: None,
+        }
+    }
 }
 
 impl From<OrganizationLevel> for EntityInfo {
@@ -1183,7 +1272,7 @@ impl From<OrganizationLevel> for EntityInfo {
             entity_id: value.org_id.get_string_repr().to_owned(),
             entity_type: EntityType::Organization,
             tenant_id: value.tenant_id,
-            org_id: value.org_id,
+            org_id: Some(value.org_id),
             merchant_id: None,
             profile_id: None,
         }
@@ -1196,9 +1285,9 @@ impl From<MerchantLevel> for EntityInfo {
             entity_id: value.merchant_id.get_string_repr().to_owned(),
             entity_type: EntityType::Merchant,
             tenant_id: value.tenant_id,
-            org_id: value.org_id,
-            profile_id: None,
+            org_id: Some(value.org_id),
             merchant_id: Some(value.merchant_id),
+            profile_id: None,
         }
     }
 }
@@ -1209,7 +1298,7 @@ impl From<ProfileLevel> for EntityInfo {
             entity_id: value.profile_id.get_string_repr().to_owned(),
             entity_type: EntityType::Profile,
             tenant_id: value.tenant_id,
-            org_id: value.org_id,
+            org_id: Some(value.org_id),
             merchant_id: Some(value.merchant_id),
             profile_id: Some(value.profile_id),
         }
@@ -1229,7 +1318,7 @@ where
             last_modified_by: self.last_modified_by,
             created_at: self.created_at,
             last_modified: self.last_modified,
-            org_id: Some(entity.org_id),
+            org_id: entity.org_id,
             merchant_id: entity.merchant_id,
             profile_id: entity.profile_id,
             entity_id: Some(entity.entity_id),

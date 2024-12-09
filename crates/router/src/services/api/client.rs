@@ -403,9 +403,7 @@ impl ApiClient for ProxyClient {
     fn add_flow_name(&mut self, _flow_name: String) {}
 }
 
-///
 /// Api client for testing sending request
-///
 #[derive(Clone)]
 pub struct MockApiClient;
 
