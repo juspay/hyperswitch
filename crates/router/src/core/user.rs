@@ -90,7 +90,7 @@ pub async fn signup_with_merchant_id(
         theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
         theme_config: theme
             .map(|theme| theme.email_config())
-            .unwrap_or(state.conf.email.email_theme_config.clone()),
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     let send_email_result = state
@@ -234,7 +234,7 @@ pub async fn connect_account(
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
             theme_config: theme
                 .map(|theme| theme.email_config())
-                .unwrap_or(state.conf.email.email_theme_config.clone()),
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
         let send_email_result = state
@@ -289,7 +289,7 @@ pub async fn connect_account(
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
             theme_config: theme
                 .map(|theme| theme.email_config())
-                .unwrap_or(state.conf.email.email_theme_config.clone()),
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
         let magic_link_result = state
@@ -433,7 +433,7 @@ pub async fn forgot_password(
         theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
         theme_config: theme
             .map(|theme| theme.email_config())
-            .unwrap_or(state.conf.email.email_theme_config.clone()),
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     state
@@ -840,7 +840,7 @@ async fn handle_existing_user_invitation(
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
             theme_config: theme
                 .map(|theme| theme.email_config())
-                .unwrap_or(state.conf.email.email_theme_config.clone()),
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
         is_email_sent = state
@@ -996,7 +996,7 @@ async fn handle_new_user_invitation(
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
             theme_config: theme
                 .map(|theme| theme.email_config())
-                .unwrap_or(state.conf.email.email_theme_config.clone()),
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
         let send_email_result = state
             .email_client
@@ -1140,7 +1140,7 @@ pub async fn resend_invite(
         theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
         theme_config: theme
             .map(|theme| theme.email_config())
-            .unwrap_or(state.conf.email.email_theme_config.clone()),
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     state
@@ -1772,7 +1772,7 @@ pub async fn send_verification_mail(
         theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
         theme_config: theme
             .map(|theme| theme.email_config())
-            .unwrap_or(state.conf.email.email_theme_config.clone()),
+            .unwrap_or(state.conf.theme.email_config.clone()),
     };
 
     state

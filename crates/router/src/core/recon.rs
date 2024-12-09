@@ -75,7 +75,7 @@ pub async fn send_recon_request(
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
             theme_config: theme
                 .map(|theme| theme.email_config())
-                .unwrap_or(state.conf.email.email_theme_config.clone()),
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
         state
             .email_client
@@ -204,7 +204,7 @@ pub async fn recon_merchant_account_update(
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
             theme_config: theme
                 .map(|theme| theme.email_config())
-                .unwrap_or(state.conf.email.email_theme_config.clone()),
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
         if req.recon_status == enums::ReconStatus::Active {
             let _ = state

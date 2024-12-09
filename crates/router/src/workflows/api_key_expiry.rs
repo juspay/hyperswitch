@@ -103,7 +103,7 @@ impl ProcessTrackerWorkflow<SessionState> for ApiKeyExpiryWorkflow {
             theme_id: theme.as_ref().map(|theme| theme.theme_id.clone()),
             theme_config: theme
                 .map(|theme| theme.email_config())
-                .unwrap_or(state.conf.email.email_theme_config.clone()),
+                .unwrap_or(state.conf.theme.email_config.clone()),
         };
 
         state
