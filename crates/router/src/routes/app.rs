@@ -558,6 +558,10 @@ impl Payments {
                         .route(web::get().to(payments::payments_get_intent)),
                 )
                 .service(
+                    web::resource("/update-intent")
+                        .route(web::put().to(payments::payments_update_intent)),
+                )
+                .service(
                     web::resource("/create-external-sdk-tokens")
                         .route(web::post().to(payments::payments_connector_session)),
                 )
@@ -1889,6 +1893,10 @@ impl User {
             .service(
                 web::resource("/internal_signup").route(web::post().to(user::internal_user_signup)),
             )
+            .service(
+                web::resource("/tenant_signup").route(web::post().to(user::create_tenant_user)),
+            )
+            .service(web::resource("/create_org").route(web::post().to(user::user_org_create)))
             .service(
                 web::resource("/create_merchant")
                     .route(web::post().to(user::user_merchant_account_create)),
