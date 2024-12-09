@@ -48,7 +48,7 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for &PaymentSessionIntent {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsSessionRequest> for &PaymentSessionIntent {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -66,7 +66,7 @@ impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for &PaymentSessionIn
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsSessionRequest> for PaymentSessionIntent {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsSessionRequest> for PaymentSessionIntent {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,

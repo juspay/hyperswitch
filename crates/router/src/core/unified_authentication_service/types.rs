@@ -21,6 +21,7 @@ pub struct ClickToPay;
 
 #[async_trait::async_trait]
 pub trait UnifiedAuthenticationService<F: Clone + Sync> {
+    #[allow(clippy::too_many_arguments)]
     async fn pre_authentication(
         _state: &SessionState,
         _key_store: &domain::MerchantKeyStore,

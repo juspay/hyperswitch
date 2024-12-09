@@ -53,7 +53,7 @@ type BoxedConfirmOperation<'b, F> =
 
 // TODO: change the macro to include changes for v2
 // TODO: PaymentData in the macro should be an input
-impl<F: Send + Clone> Operation<F, PaymentsRetrieveRequest> for &PaymentGet {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsRetrieveRequest> for &PaymentGet {
     type Data = PaymentStatusData<F>;
     fn to_validate_request(
         &self,
@@ -77,7 +77,7 @@ impl<F: Send + Clone> Operation<F, PaymentsRetrieveRequest> for &PaymentGet {
     }
 }
 #[automatically_derived]
-impl<F: Send + Clone> Operation<F, PaymentsRetrieveRequest> for PaymentGet {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsRetrieveRequest> for PaymentGet {
     type Data = PaymentStatusData<F>;
     fn to_validate_request(
         &self,

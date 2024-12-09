@@ -22,7 +22,7 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentGetIntent;
 
-impl<F: Send + Clone> Operation<F, PaymentsGetIntentRequest> for &PaymentGetIntent {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsGetIntentRequest> for &PaymentGetIntent {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
@@ -47,7 +47,7 @@ impl<F: Send + Clone> Operation<F, PaymentsGetIntentRequest> for &PaymentGetInte
     }
 }
 
-impl<F: Send + Clone> Operation<F, PaymentsGetIntentRequest> for PaymentGetIntent {
+impl<F: Send + Clone + Sync> Operation<F, PaymentsGetIntentRequest> for PaymentGetIntent {
     type Data = payments::PaymentIntentData<F>;
     fn to_validate_request(
         &self,
