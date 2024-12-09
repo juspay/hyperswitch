@@ -474,12 +474,11 @@ pub async fn refund_retrieve_core(
         .clone()
         .zip(refund.split_refunds.clone())
         .map(|(split_payments, split_refunds)| {
-            SplitRefundInput {
+            SplitRefundsRequest::try_from(SplitRefundInput {
                 refund_request: split_refunds,
                 payment_charges: split_payments,
                 charge_id: payment_attempt.charge_id.clone(),
-            }
-            .try_into()
+            })
         })
         .transpose()?;
 
