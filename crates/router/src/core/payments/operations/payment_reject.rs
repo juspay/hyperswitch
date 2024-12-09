@@ -30,7 +30,9 @@ pub struct PaymentReject;
 type PaymentRejectOperation<'b, F> = BoxedOperation<'b, F, PaymentsCancelRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for PaymentReject {
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest>
+    for PaymentReject
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -206,7 +208,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsCancelRequest> for P
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for PaymentReject {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for PaymentReject {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -281,7 +283,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> for Payme
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsCancelRequest, PaymentData<F>> for PaymentReject {
+impl<F: Send + Clone + Sync> ValidateRequest<F, PaymentsCancelRequest, PaymentData<F>>
+    for PaymentReject
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,

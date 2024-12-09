@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use common_enums::enums::PaymentMethod;
 use common_utils::ext_traits::ValueExt;
-use diesel_models::authentication::{Authentication, AuthenticationNew, AuthenticationUpdate};
+use diesel_models::authentication::{Authentication, AuthenticationUpdate};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
@@ -17,12 +17,8 @@ use super::types::{
     IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW,
 };
 use crate::{
-    consts,
     core::{
-        errors::{
-            utils::{ConnectorErrorExt, StorageErrorExt},
-            RouterResult,
-        },
+        errors::{utils::ConnectorErrorExt, RouterResult},
         payments,
         unified_authentication_service::MerchantConnectorAccountType,
     },
@@ -103,64 +99,6 @@ where
     .await
     .to_payment_failed_response()?;
     Ok(router_data)
-}
-
-pub async fn create_new_authentication(
-    state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
-    authentication_connector: String,
-    profile_id: common_utils::id_type::ProfileId,
-    payment_id: Option<common_utils::id_type::PaymentId>,
-    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-) -> RouterResult<Authentication> {
-    let authentication_id =
-        common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
-    let new_authorization = AuthenticationNew {
-        authentication_id: authentication_id.clone(),
-        merchant_id,
-        authentication_connector,
-        connector_authentication_id: None,
-        payment_method_id: "".to_string(),
-        authentication_type: None,
-        authentication_status: common_enums::AuthenticationStatus::Started,
-        authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus::Unused,
-        error_message: None,
-        error_code: None,
-        connector_metadata: None,
-        maximum_supported_version: None,
-        threeds_server_transaction_id: None,
-        cavv: None,
-        authentication_flow_type: None,
-        message_version: None,
-        eci: None,
-        trans_status: None,
-        acquirer_bin: None,
-        acquirer_merchant_id: None,
-        three_ds_method_data: None,
-        three_ds_method_url: None,
-        acs_url: None,
-        challenge_request: None,
-        acs_reference_number: None,
-        acs_trans_id: None,
-        acs_signed_content: None,
-        profile_id,
-        payment_id,
-        merchant_connector_id,
-        ds_trans_id: None,
-        directory_server_id: None,
-        acquirer_country_code: None,
-        service_details: None,
-    };
-    state
-        .store
-        .insert_authentication(new_authorization)
-        .await
-        .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
-            message: format!(
-                "Authentication with authentication_id {} already exists",
-                authentication_id
-            ),
-        })
 }
 
 pub fn construct_uas_router_data<F: Clone, Req, Res>(

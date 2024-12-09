@@ -34,7 +34,7 @@ type PaymentIncrementalAuthorizationOperation<'b, F> =
     BoxedOperation<'b, F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone>
+impl<F: Send + Clone + Sync>
     GetTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
@@ -187,7 +187,8 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
+impl<F: Clone + Sync>
+    UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAuthorizationRequest>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]
@@ -279,7 +280,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, PaymentsIncrementalAut
     }
 }
 
-impl<F: Send + Clone>
+impl<F: Send + Clone + Sync>
     ValidateRequest<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
@@ -305,7 +306,8 @@ impl<F: Send + Clone>
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
+impl<F: Clone + Send + Sync>
+    Domain<F, PaymentsIncrementalAuthorizationRequest, payments::PaymentData<F>>
     for PaymentIncrementalAuthorization
 {
     #[instrument(skip_all)]

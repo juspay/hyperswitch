@@ -38,8 +38,9 @@ use crate::{
             self, helpers, operations, populate_surcharge_details, CustomerDetails, PaymentAddress,
             PaymentData,
         },
-        unified_authentication_service::types::{
-            ClickToPay, UnifiedAuthenticationService, CTP_MASTERCARD,
+        unified_authentication_service::{
+            self,
+            types::{ClickToPay, UnifiedAuthenticationService, CTP_MASTERCARD},
         },
         utils as core_utils,
     },
@@ -62,7 +63,9 @@ pub struct PaymentConfirm;
 type PaymentConfirmOperation<'b, F> = BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
+    for PaymentConfirm
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -832,7 +835,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentConfirm {
+impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -1058,24 +1061,59 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
                 )
                 .await?;
 
-                let pre_authentication = ClickToPay::pre_authentication(
+                let authentication_id =
+                    common_utils::generate_id_with_default_len(consts::AUTHENTICATION_ID_PREFIX);
+
+                let payment_method = payment_data.payment_attempt.payment_method.ok_or(
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "payment_method",
+                    },
+                )?;
+
+                let connector_transaction_id = connector_mca
+                    .clone()
+                    .get_mca_id()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Error while finding mca_id from merchant_connector_account",
+                    )?;
+
+                ClickToPay::pre_authentication(
                     state,
                     key_store,
                     business_profile,
                     payment_data,
                     &connector_mca,
                     connector_name,
+                    &authentication_id,
+                    payment_method,
                 )
                 .await?;
 
-                ClickToPay::post_authentication(
+                payment_data.payment_attempt.authentication_id = Some(authentication_id.clone());
+
+                let network_token = ClickToPay::post_authentication(
                     state,
                     key_store,
                     business_profile,
                     payment_data,
                     &connector_mca,
-                    Some(pre_authentication),
                     connector_name,
+                    payment_method,
+                )
+                .await?;
+
+                payment_data.payment_method_data =
+                    network_token.map(domain::PaymentMethodData::NetworkToken);
+
+                unified_authentication_service::create_new_authentication(
+                    state,
+                    payment_data.payment_attempt.merchant_id.clone(),
+                    connector_name.to_string(),
+                    business_profile.get_id().clone(),
+                    Some(payment_data.payment_intent.get_id().clone()),
+                    connector_transaction_id,
+                    &authentication_id,
                 )
                 .await?;
             }
@@ -1168,7 +1206,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest, PaymentData<F>> for Paymen
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -1194,7 +1232,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -1597,7 +1635,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>> for PaymentConfirm {
+impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentData<F>>
+    for PaymentConfirm
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,

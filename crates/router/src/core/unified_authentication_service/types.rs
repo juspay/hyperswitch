@@ -1,5 +1,3 @@
-use diesel_models::authentication::Authentication;
-
 use crate::{
     core::{
         errors::RouterResult,
@@ -22,31 +20,33 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str
 pub struct ClickToPay;
 
 #[async_trait::async_trait]
-pub trait UnifiedAuthenticationService<F: Clone> {
+pub trait UnifiedAuthenticationService<F: Clone + Sync> {
+    #[allow(clippy::too_many_arguments)]
     async fn pre_authentication(
         _state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        _payment_data: &mut PaymentData<F>,
+        _payment_data: &PaymentData<F>,
         _merchant_connector_account: &MerchantConnectorAccountType,
         _connector_name: &str,
-    ) -> RouterResult<Authentication>;
+        _authentication_id: &str,
+        _payment_method: common_enums::PaymentMethod,
+    ) -> RouterResult<()>;
 
     async fn post_authentication(
         _state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        _payment_data: &mut PaymentData<F>,
+        _payment_data: &PaymentData<F>,
         _merchant_connector_account: &MerchantConnectorAccountType,
-        _authentication: Option<Authentication>,
         _connector_name: &str,
-    ) -> RouterResult<Authentication>;
+        _payment_method: common_enums::PaymentMethod,
+    ) -> RouterResult<Option<hyperswitch_domain_models::payment_method_data::NetworkTokenData>>;
 
     fn confirmation(
         _state: &SessionState,
         _key_store: &domain::MerchantKeyStore,
         _business_profile: &domain::Profile,
-        _payment_data: &mut PaymentData<F>,
         _merchant_connector_account: &MerchantConnectorAccountType,
     ) -> RouterResult<()>;
 }

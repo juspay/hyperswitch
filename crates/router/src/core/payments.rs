@@ -4319,7 +4319,7 @@ pub fn if_not_create_change_operation<'a, Op, F>(
     current: &'a Op,
 ) -> BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>
 where
-    F: Send + Clone,
+    F: Send + Clone + Sync,
     Op: Operation<F, api::PaymentsRequest, Data = PaymentData<F>> + Send + Sync,
     &'a Op: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
     PaymentStatus: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
