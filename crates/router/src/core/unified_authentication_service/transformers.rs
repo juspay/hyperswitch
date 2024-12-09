@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
 use crate::core::payments::PaymentData;
 
 #[cfg(feature = "v1")]
-impl<F: Clone> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestData {
+impl<F: Clone + Sync> TryFrom<PaymentData<F>> for UasPreAuthenticationRequestData {
     type Error = Report<ApiErrorResponse>;
     fn try_from(payment_data: PaymentData<F>) -> Result<Self, Self::Error> {
         let service_details = ServiceDetails {
