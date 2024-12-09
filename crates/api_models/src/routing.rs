@@ -956,27 +956,30 @@ impl CurrentBlockThreshold {
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct ContractBasedRoutingConfig {
     pub config: Option<ContractBasedRoutingConfigBody>,
     pub label_info: Option<Vec<LabelInformation>>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct ContractBasedRoutingConfigBody {
     pub constants: Option<Vec<f64>>,
     pub time_scale: Option<ContractBasedTimeScale>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct LabelInformation {
     pub label: String,
     pub target_count: u64,
     pub target_time: u64,
-    pub incremental_count: Option<u64>,
     pub mca_id: common_utils::id_type::MerchantConnectorAccountId,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum ContractBasedTimeScale {
     Day,
     Month,

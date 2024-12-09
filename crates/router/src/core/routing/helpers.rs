@@ -990,9 +990,52 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
             business_profile.get_id().get_string_repr(),
         );
 
+        let mut existing_label_info = None;
+
+        contract_based_routing_config
+            .label_info
+            .as_ref()
+            .map(|label_info_vec| {
+                for label_info in label_info_vec {
+                    if Some(&label_info.mca_id) == payment_attempt.merchant_connector_id.as_ref() {
+                        existing_label_info = Some(label_info.clone());
+                    }
+                }
+            });
+
+        let final_label_info = existing_label_info
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to get LabelInformation from ContractBasedRoutingConfig")?;
+
+        logger::debug!("final_label_info - {:?}", final_label_info);
+
+        let request_label_info = routing_types::LabelInformation {
+            label: format!(
+                "{}:{}",
+                final_label_info.label.clone(),
+                final_label_info.mca_id.get_string_repr()
+            ),
+            target_count: final_label_info.target_count,
+            target_time: final_label_info.target_time,
+            mca_id: final_label_info.mca_id.to_owned(),
+        };
+
+        client
+            .update_contracts(
+                tenant_business_profile_id.clone(),
+                vec![request_label_info],
+                "".to_string(),
+                vec![],
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "unable to update success based routing window in dynamic routing service",
+            )?;
+
         let contract_scores = client
             .calculate_contract_score(
-                tenant_business_profile_id.clone(),
+                tenant_business_profile_id,
                 contract_based_routing_config.clone(),
                 "".to_string(),
                 routable_connectors.clone(),
@@ -1092,66 +1135,11 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
         );
         logger::debug!("successfully pushed contract_based_routing metrics");
 
-        let mut existing_label_info = None;
-
-        contract_based_routing_config
-            .label_info
-            .as_ref()
-            .map(|label_info_vec| {
-                for label_info in label_info_vec {
-                    if Some(&label_info.mca_id) == payment_attempt.merchant_connector_id.as_ref() {
-                        existing_label_info = Some(label_info.clone());
-                    }
-                }
-            });
-
-        let final_label_info = existing_label_info
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to get LabelInformation from ContractBasedRoutingConfig")?;
-
-        logger::debug!("final_label_info - {:?}", final_label_info);
-
-        let request_label_info = routing_types::LabelInformation {
-            label: format!(
-                "{}:{}",
-                final_label_info.label.clone(),
-                final_label_info.mca_id.get_string_repr()
-            ),
-            target_count: final_label_info.target_count,
-            target_time: final_label_info.target_time,
-            incremental_count: Some(1),
-            mca_id: final_label_info.mca_id.to_owned(),
-        };
-
         // let new_contract_config = routing_types::ContractBasedRoutingConfig {
         //     params: contract_based_routing_config.params,
         //     config: contract_based_routing_config.config,
         //     label_info: Some(request_label_info),
         // };
-
-        client
-            .update_contracts(
-                tenant_business_profile_id,
-                vec![request_label_info],
-                "".to_string(),
-                vec![routing_types::RoutableConnectorChoiceWithStatus::new(
-                    routing_types::RoutableConnectorChoice {
-                        choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
-                        connector: common_enums::RoutableConnectors::from_str(
-                            payment_connector.as_str(),
-                        )
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("unable to infer routable_connector from connector")?,
-                        merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
-                    },
-                    payment_status_attribute == common_enums::AttemptStatus::Charged,
-                )],
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "unable to update success based routing window in dynamic routing service",
-            )?;
 
         // final_label_info.current_count += 1;
 

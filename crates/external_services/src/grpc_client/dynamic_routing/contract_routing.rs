@@ -169,7 +169,7 @@ impl ForeignFrom<LabelInformation> for ProtoLabelInfo {
             label: config.label,
             target_count: config.target_count,
             target_time: config.target_time,
-            current_count: config.incremental_count.unwrap_or_default(),
+            current_count: 1,
         }
     }
 }
