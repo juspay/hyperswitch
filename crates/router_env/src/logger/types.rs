@@ -168,6 +168,8 @@ pub enum Flow {
     PaymentsCreateIntent,
     /// Payments Get Intent flow
     PaymentsGetIntent,
+    /// Payments Update Intent flow
+    PaymentsUpdateIntent,
     #[cfg(feature = "payouts")]
     /// Payouts create flow
     PayoutsCreate,

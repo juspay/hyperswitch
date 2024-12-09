@@ -3345,8 +3345,9 @@ pub enum MitExemptionRequest {
     Skip,
 }
 
-/// Set to true to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be false when merchant's doing merchant initiated payments and customer is not present while doing the payment.
+/// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum PresenceOfCustomerDuringPayment {
     /// Customer is present during the payment. This is the default value
     #[default]
@@ -3365,7 +3366,9 @@ impl From<ConnectorType> for TransactionType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum TaxCalculationOverride {
     /// Skip calling the external tax provider
@@ -3375,7 +3378,27 @@ pub enum TaxCalculationOverride {
     Calculate,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+impl From<Option<bool>> for TaxCalculationOverride {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Calculate,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl TaxCalculationOverride {
+    pub fn as_bool(self) -> bool {
+        match self {
+            Self::Skip => false,
+            Self::Calculate => true,
+        }
+    }
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum SurchargeCalculationOverride {
     /// Skip calculating surcharge
@@ -3383,6 +3406,24 @@ pub enum SurchargeCalculationOverride {
     Skip,
     /// Calculate surcharge
     Calculate,
+}
+
+impl From<Option<bool>> for SurchargeCalculationOverride {
+    fn from(value: Option<bool>) -> Self {
+        match value {
+            Some(true) => Self::Calculate,
+            _ => Self::Skip,
+        }
+    }
+}
+
+impl SurchargeCalculationOverride {
+    pub fn as_bool(self) -> bool {
+        match self {
+            Self::Skip => false,
+            Self::Calculate => true,
+        }
+    }
 }
 
 /// Connector Mandate Status
