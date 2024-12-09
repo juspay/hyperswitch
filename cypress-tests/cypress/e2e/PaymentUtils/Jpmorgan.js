@@ -36,7 +36,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message: "Three_ds payments is not supported by Jpmorgan",
+            message: "3DS payments is not supported by Jpmorgan",
             code: "IR_00",
           },
         },
@@ -128,66 +128,6 @@ export const connectorDetails = {
         },
       },
     },
-    /*Refund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    manualPaymentRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    manualPaymentPartialRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    PartialRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },*/
     Refund: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -268,22 +208,6 @@ export const connectorDetails = {
         },
       },
     },
-    /*SyncRefund: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
-      },
-      Response: {
-        status: 200,
-        trigger_skip: true,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }*/
     SyncRefund: {
       Configs: {
         TRIGGER_SKIP: true,
