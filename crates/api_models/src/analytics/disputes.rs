@@ -3,7 +3,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use super::{NameDescription, TimeRange};
+use super::{ForexMetric, NameDescription, TimeRange};
 use crate::enums::DisputeStage;
 
 #[derive(
@@ -27,6 +27,14 @@ pub enum DisputeMetrics {
     SessionizedDisputeStatusMetric,
     SessionizedTotalAmountDisputed,
     SessionizedTotalDisputeLostAmount,
+}
+impl ForexMetric for DisputeMetrics {
+    fn is_forex_metric(&self) -> bool {
+        matches!(
+            self,
+            Self::TotalAmountDisputed | Self::TotalDisputeLostAmount
+        )
+    }
 }
 
 #[derive(

@@ -62,7 +62,42 @@ pub enum Granularity {
     #[serde(rename = "G_ONEDAY")]
     OneDay,
 }
+pub trait ForexMetric {
+    fn is_forex_metric(&self) -> bool;
+}
 
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalyticsRequest {
+    pub payment_intent: Option<GetPaymentIntentMetricRequest>,
+    pub payment_attempt: Option<GetPaymentMetricRequest>,
+    pub refund: Option<GetRefundMetricRequest>,
+    pub dispute: Option<GetDisputeMetricRequest>,
+}
+
+impl AnalyticsRequest {
+    pub fn requires_forex_functionality(&self) -> bool {
+        self.payment_attempt
+            .as_ref()
+            .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+            .unwrap_or_default()
+            || self
+                .payment_intent
+                .as_ref()
+                .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+                .unwrap_or_default()
+            || self
+                .refund
+                .as_ref()
+                .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+                .unwrap_or_default()
+            || self
+                .dispute
+                .as_ref()
+                .map(|req| req.metrics.iter().any(|metric| metric.is_forex_metric()))
+                .unwrap_or_default()
+    }
+}
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetPaymentMetricRequest {
