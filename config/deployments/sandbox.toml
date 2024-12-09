@@ -15,7 +15,7 @@ open_banking_uk.adyen.banks = "aib,bank_of_scotland,danske_bank,first_direct,fir
 przelewy24.stripe.banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,banki_spbdzielcze,blik,bnp_paribas,boz,citi,credit_agricole,e_transfer_pocztowy24,getin_bank,idea_bank,inteligo,mbank_mtransfer,nest_przelew,noble_pay,pbac_z_ipko,plus_bank,santander_przelew24,toyota_bank,volkswagen_bank"
 
 [connector_customer]
-connector_list = "stax,stripe,gocardless"
+connector_list = "stax,stripe,gocardless,xendit"
 payout_connector_list = "stripe,wise"
 
 # Connector configuration, provided attributes will be used to fulfill API requests.
@@ -374,6 +374,8 @@ red_pagos = { country = "UY", currency = "UYU" }
 [pm_filters.zsl]
 local_bank_transfer = { country = "CN", currency = "CNY" }
 
+[pm_filters.xendit]
+local_bank_transfer = { country = "US", currency = "USD" }
 
 [pm_filters.fiuu]
 duit_now = { country ="MY", currency = "MYR" }
@@ -405,6 +407,7 @@ gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 mollie = { long_lived_token = false, payment_method = "card" }
 payme = { long_lived_token = false, payment_method = "card" }
 square = { long_lived_token = false, payment_method = "card" }
+xendit = { long_lived_token = true, payment_method = "card,bank_transfer" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { list = "google_pay", type = "disable_only" } }
 billwerk = {long_lived_token = false, payment_method = "card"}
