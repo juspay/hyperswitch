@@ -179,6 +179,7 @@ impl<F: Send + Clone + Sync>
             poll_config: None,
             tax_data: Some(tax_data),
             session_id: request.session_id.clone(),
+            service_details: None,
         };
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
