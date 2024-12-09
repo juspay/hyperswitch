@@ -2226,3 +2226,112 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Zsl,
     connector::Plaid
 );
+
+macro_rules! default_imp_for_new_connector_integration_uas {
+    ($($path:ident::$connector:ident),*) => {
+        $( impl api::UnifiedAuthenticationServiceV2 for $path::$connector {}
+            impl api::UasPreAuthenticationV2 for $path::$connector {}
+            impl api::UasPostAuthenticationV2 for $path::$connector {}
+            impl
+            services::ConnectorIntegrationV2<
+            api::PreAuthenticate,
+            types::UasFlowData,
+            types::UasPreAuthenticationRequestData,
+            types::UasAuthenticationResponseData,
+        > for $path::$connector
+        {}
+        impl
+            services::ConnectorIntegrationV2<
+            api::PostAuthenticate,
+            types::UasFlowData,
+            types::UasPostAuthenticationRequestData,
+            types::UasAuthenticationResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+default_imp_for_new_connector_integration_uas!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Adyenplatform,
+    connector::Airwallex,
+    connector::Amazonpay,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bamboraapac,
+    connector::Bankofamerica,
+    connector::Billwerk,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Coinbase,
+    connector::Cybersource,
+    connector::Datatrans,
+    connector::Deutschebank,
+    connector::Digitalvirgo,
+    connector::Dlocal,
+    connector::Ebanx,
+    connector::Elavon,
+    connector::Fiserv,
+    connector::Fiservemea,
+    connector::Forte,
+    connector::Fiuu,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Gpayments,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Itaubank,
+    connector::Jpmorgan,
+    connector::Klarna,
+    connector::Mifinity,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Netcetera,
+    connector::Nexinets,
+    connector::Nexixpay,
+    connector::Nmi,
+    connector::Nomupay,
+    connector::Noon,
+    connector::Novalnet,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Paybox,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payone,
+    connector::Paypal,
+    connector::Payu,
+    connector::Placetopay,
+    connector::Powertranz,
+    connector::Prophetpay,
+    connector::Rapyd,
+    connector::Razorpay,
+    connector::Riskified,
+    connector::Signifyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Taxjar,
+    connector::Trustpay,
+    connector::Threedsecureio,
+    connector::Thunes,
+    connector::Tsys,
+    connector::Volt,
+    connector::Wellsfargo,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen,
+    connector::Zsl,
+    connector::Plaid
+);

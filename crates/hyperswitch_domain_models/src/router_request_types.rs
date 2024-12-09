@@ -1,6 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
-use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
+pub mod unified_authentication_service;
+use api_models::payments::{AdditionalPaymentData, Address, RequestSurchargeDetails};
 use common_utils::{
     consts, errors,
     ext_traits::OptionExt,

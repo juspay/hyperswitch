@@ -16,7 +16,7 @@ use common_utils::{
     pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState, ToEncryptable},
-        MinorUnit,
+        AmountConvertor, FloatMajorUnitForConnector, MinorUnit,
     },
 };
 use diesel_models::enums;
@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
         payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
         PaymentIntent,
     },
-    router_data::KlarnaSdkResponse,
+    router_data::{ConnectorAuthType, KlarnaSdkResponse},
 };
 use hyperswitch_interfaces::integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject};
 use josekit::jwe;
@@ -3937,7 +3937,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         additional_merchant_data: router_data.additional_merchant_data,
         header_payload: router_data.header_payload,
         connector_mandate_request_reference_id: router_data.connector_mandate_request_reference_id,
-        psd2_sca_exemption_type: router_data.psd2_sca_exemption_type,
+        authentication_id: None,
     }
 }
 
@@ -5830,6 +5830,25 @@ pub fn validate_mandate_data_and_future_usage(
     }
 }
 
+// pub enum UnifiedAuthenticationOperation {
+//     ClickToPay {
+//         pre_authentication_flow_details : ClickToPayPreAuthentication,
+//         post_authentication_flow_details : ClickToPayPostAuthentication
+//     }
+// }
+
+// pub struct ClickToPayPreAuthentication {
+//     source_authetication_id: String,
+//     service_details: authentication::types::ServiceDetails,
+//     transaction_details: authentication::types::TransactionDetails,
+//     auth_creds : ConnectorAuthType
+// }
+
+// pub struct ClickToPayPostAuthentication {
+//     source_authetication_id: String,
+//     auth_creds : ConnectorAuthType
+// }
+
 pub enum PaymentExternalAuthenticationFlow {
     PreAuthenticationFlow {
         acquirer_details: authentication::types::AcquirerDetails,
@@ -5932,6 +5951,37 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
         None
     })
 }
+
+// pub async fn get_unified_authentication_service_operation_during_confirm<F: Clone>(
+//     state: &SessionState,
+//     key_store: &domain::MerchantKeyStore,
+//     business_profile: &domain::Profile,
+//     payment_data: &mut PaymentData<F>,
+//     connector_call_type: &api::ConnectorCallType,
+// ) -> RouterResult<Option<UnifiedAuthenticationOperation>> {
+//     // fetch and check whether the operation is satisfied based on merchant configs
+//     let service_details = authentication::types::ServiceDetails {
+//         merchant_transaction_id: None,
+//         correlation_id: None,
+//         x_src_flow_id: None
+//     };
+//     let required_conversion = common_utils::types::FloatMajorUnitForConnector;
+//     let amount = required_conversion.convert(payment_data.payment_attempt.net_amount.get_order_amount())?;
+//     let transaction_details = authentication::types::TransactionDetails {
+//         amount,
+//         currency: payment_data.payment_attempt.currency
+//     };
+//     let authentication_id = payment_data.payment_attempt.authentication_id.clone();
+//     Ok(Some(UnifiedAuthenticationOperation::ClickToPay { pre_authentication_flow_details: ClickToPayPreAuthentication {
+//         source_authetication_id: authentication_id.unwrap(),
+//         service_details,
+//         transaction_details,
+//         auth_creds: todo!(),
+//     }, post_authentication_flow_details: ClickToPayPostAuthentication {
+//         source_authetication_id:  authentication_id.unwrap(),
+//         auth_creds: todo!(),
+//     } }))
+// }
 
 pub fn get_redis_key_for_extended_card_info(
     merchant_id: &id_type::MerchantId,

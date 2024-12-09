@@ -103,6 +103,9 @@ pub type BoxedAccessTokenConnectorIntegrationInterface<T, Req, Resp> =
 pub type BoxedFilesConnectorIntegrationInterface<T, Req, Resp> =
     BoxedConnectorIntegrationInterface<T, common_types::FilesFlowData, Req, Resp>;
 
+pub type BoxedUnifiedAuthenticationServiceInterface<T, Req, Resp> =
+    BoxedConnectorIntegrationInterface<T, common_types::UasFlowData, Req, Resp>;
+
 /// Handle the flow by interacting with connector module
 /// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
 /// In other cases, It will be created if required, even if it is not passed
