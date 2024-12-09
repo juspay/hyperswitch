@@ -10248,6 +10248,61 @@
           "none"
         ]
       },
+      "ElementPosition": {
+        "type": "string",
+        "enum": [
+          "left",
+          "top left",
+          "top",
+          "top right",
+          "right",
+          "bottom right",
+          "bottom",
+          "bottom left",
+          "center"
+        ]
+      },
+      "ElementSize": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "Variants"
+            ],
+            "properties": {
+              "Variants": {
+                "$ref": "#/components/schemas/SizeVariants"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Percentage"
+            ],
+            "properties": {
+              "Percentage": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "Pixels"
+            ],
+            "properties": {
+              "Pixels": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          }
+        ]
+      },
       "EnabledPaymentMethod": {
         "type": "object",
         "description": "Object for EnabledPaymentMethod",
@@ -23925,6 +23980,13 @@
               }
             }
           }
+        ]
+      },
+      "SizeVariants": {
+        "type": "string",
+        "enum": [
+          "cover",
+          "contain"
         ]
       },
       "StraightThroughAlgorithm": {
