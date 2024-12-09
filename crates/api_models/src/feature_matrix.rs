@@ -3,14 +3,16 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::enums::{PaymentMethodType, CaptureMethod, CountryAlpha2, Currency, Connector, PaymentMethod, PaymentsConnectorType, EventClass};
+use crate::enums::{
+    CaptureMethod, Connector, CountryAlpha2, Currency, EventClass, PaymentMethod,
+    PaymentMethodType, PaymentsConnectorType,
+};
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub struct FeatureMatrixRequest {
     // List of connectors for which the feature matrix is requested
     pub connectors: Option<Vec<Connector>>,
 }
-
 
 #[derive(Debug, ToSchema, Serialize)]
 pub struct SupportedPaymentMethod {
@@ -22,13 +24,11 @@ pub struct SupportedPaymentMethod {
     pub supported_currencies: Option<HashSet<Currency>>,
 }
 
-
 #[derive(Debug, ToSchema, Serialize)]
 pub struct SupportedPaymentMethodTypes {
     pub payment_method_type: PaymentMethod,
     pub payment_methods: Vec<SupportedPaymentMethod>,
 }
-
 
 #[derive(Debug, ToSchema, Serialize)]
 pub struct ConnectorFeatureMatrixResponse {

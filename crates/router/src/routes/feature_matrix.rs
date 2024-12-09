@@ -13,7 +13,6 @@ use crate::{
     types::api::{self as api_types, payments as payment_types},
 };
 
-
 #[instrument(skip_all)]
 pub async fn fetch_connector_feature_matrix(
     state: web::Data<app::AppState>,
@@ -36,7 +35,6 @@ pub async fn fetch_connector_feature_matrix(
     ))
     .await
 }
-
 
 pub async fn generate_connector_feature_matrix(
     state: app::SessionState,

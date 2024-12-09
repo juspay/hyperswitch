@@ -1,26 +1,32 @@
 #[cfg(feature = "v1")]
 pub use api_models::payments::PaymentsRequest;
-pub use api_models::payments::{
-    AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, CustomerDetailsResponse, MandateAmountData, MandateData,
-    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
-    OpenBankingSessionToken, PayLaterData, PaymentIdType, PaymentListConstraints,
-    PaymentListFilterConstraints, PaymentListFilters, PaymentListFiltersV2, PaymentListResponse,
-    PaymentListResponseV2, PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse,
-    PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse,
-    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
-    PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
-    PaymentsDynamicTaxCalculationResponse, PaymentsExternalAuthenticationRequest,
-    PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
-    PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest,
-    VerifyResponse, WalletData,
-};
 #[cfg(feature = "v2")]
 pub use api_models::payments::{
     PaymentsCreateIntentRequest, PaymentsIntentResponse, PaymentsUpdateIntentRequest,
+};
+pub use api_models::{
+    feature_matrix::{
+        ConnectorFeatureMatrixResponse, FeatureMatrixListResponse, FeatureMatrixRequest,
+    },
+    payments::{
+        AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
+        CryptoData, CustomerAcceptance, CustomerDetailsResponse, MandateAmountData, MandateData,
+        MandateTransactionType, MandateType, MandateValidationFields, NextActionType,
+        OnlineMandate, OpenBankingSessionToken, PayLaterData, PaymentIdType,
+        PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters,
+        PaymentListFiltersV2, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
+        PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
+        PaymentRetrieveBodyWithCredentials, PaymentsAggregateResponse, PaymentsApproveRequest,
+        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
+        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
+        PaymentsExternalAuthenticationRequest, PaymentsIncrementalAuthorizationRequest,
+        PaymentsManualUpdateRequest, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRedirectRequest, PaymentsRedirectionResponse,
+        PaymentsRejectRequest, PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest,
+        PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse,
+        PhoneDetails, RedirectionResponse, SessionToken, UrlDetails, VerifyRequest, VerifyResponse,
+        WalletData,
+    },
 };
 use error_stack::ResultExt;
 pub use hyperswitch_domain_models::router_flow_types::payments::{
@@ -43,10 +49,6 @@ pub use super::payments_v2::{
     PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
     PaymentSyncV2, PaymentTokenV2, PaymentV2, PaymentVoidV2, PaymentsCompleteAuthorizeV2,
     PaymentsPostProcessingV2, PaymentsPreProcessingV2, TaxCalculationV2,
-};
-
-pub use api_models::feature_matrix::{
-    ConnectorFeatureMatrixResponse, FeatureMatrixListResponse, FeatureMatrixRequest,
 };
 use crate::core::errors;
 

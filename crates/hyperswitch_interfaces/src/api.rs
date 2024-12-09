@@ -18,7 +18,7 @@ pub mod refunds;
 pub mod refunds_v2;
 
 use common_enums::{
-    enums::{CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethodType, EventClass},
+    enums::{CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType},
     PaymentMethod,
 };
 use common_utils::{
