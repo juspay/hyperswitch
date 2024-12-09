@@ -124,6 +124,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
         },
       },
     },
@@ -141,6 +143,7 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           shipping_cost: 50,
+          amount: 6500,
         },
       },
     },
