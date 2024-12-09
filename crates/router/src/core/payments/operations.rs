@@ -197,6 +197,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         profile: &domain::Profile,
         mechant_key_store: &domain::MerchantKeyStore,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        platform_merchant_account: Option<&domain::MerchantAccount>,
     ) -> RouterResult<GetTrackerResponse<D>>;
 }
 

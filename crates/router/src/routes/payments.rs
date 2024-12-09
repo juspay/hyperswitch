@@ -140,6 +140,7 @@ pub async fn payments_create_intent(
                 payments::operations::PaymentIntentCreate,
                 req,
                 header_payload.clone(),
+                auth.platform_merchant_account 
             )
         },
         match env::which() {
@@ -200,6 +201,7 @@ pub async fn payments_get_intent(
                 payments::operations::PaymentGetIntent,
                 req,
                 header_payload.clone(),
+                auth.platform_merchant_account
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth),
@@ -753,6 +755,7 @@ pub async fn payments_connector_session(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
+                auth.platform_merchant_account
             )
         },
         &auth::HeaderAuth(auth::PublishableKeyAuth),
@@ -2395,6 +2398,7 @@ pub async fn payments_finish_redirection(
                 auth.key_store,
                 auth.profile,
                 req,
+                auth.platform_merchant_account
             )
         },
         &auth::PublishableKeyAndProfileIdAuth {

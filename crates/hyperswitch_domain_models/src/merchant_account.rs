@@ -136,6 +136,7 @@ pub struct MerchantAccountSetter {
     pub modified_at: time::PrimitiveDateTime,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: diesel_models::enums::ReconStatus,
+    pub is_platform_account: bool
 }
 
 #[cfg(feature = "v2")]
@@ -152,6 +153,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             modified_at,
             organization_id,
             recon_status,
+            is_platform_account
         } = item;
         Self {
             id,
@@ -164,6 +166,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             modified_at,
             organization_id,
             recon_status,
+            is_platform_account
         }
     }
 }
@@ -181,6 +184,7 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: diesel_models::enums::ReconStatus,
+    pub is_platform_account: bool
 }
 
 impl MerchantAccount {
@@ -256,6 +260,7 @@ pub enum MerchantAccountUpdate {
         recon_status: diesel_models::enums::ReconStatus,
     },
     ModifiedAtUpdate,
+    ToPlatformAccount
 }
 
 #[cfg(feature = "v1")]
@@ -426,6 +431,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 pm_collect_link_config: None,
                 is_platform_account: None,
             },
+            // TODO: Change it to toggle
             MerchantAccountUpdate::ToPlatformAccount => Self {
                 modified_at: now,
                 merchant_name: None,
@@ -478,6 +484,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 storage_scheme: None,
                 organization_id: None,
                 recon_status: None,
+                is_platform_account: None
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -488,6 +495,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 metadata: None,
                 organization_id: None,
                 recon_status: None,
+                is_platform_account: None
             },
             MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -498,6 +506,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 storage_scheme: None,
                 metadata: None,
                 organization_id: None,
+                is_platform_account: None
             },
             MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -508,7 +517,19 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 metadata: None,
                 organization_id: None,
                 recon_status: None,
+                is_platform_account: None
             },
+            MerchantAccountUpdate::ToPlatformAccount => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                storage_scheme: None,
+                metadata: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: Some(true)
+            }
         }
     }
 }
@@ -533,6 +554,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             organization_id: self.organization_id,
             recon_status: self.recon_status,
             version: crate::consts::API_VERSION,
+            is_platform_account: self.is_platform_account
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -592,6 +614,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 modified_at: item.modified_at,
                 organization_id: item.organization_id,
                 recon_status: item.recon_status,
+                is_platform_account: item.is_platform_account
             })
         }
         .await
@@ -613,6 +636,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             organization_id: self.organization_id,
             recon_status: self.recon_status,
             version: crate::consts::API_VERSION,
+            is_platform_account: self.is_platform_account
         })
     }
 }

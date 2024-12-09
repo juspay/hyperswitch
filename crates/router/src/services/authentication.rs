@@ -68,6 +68,7 @@ pub struct AuthenticationData {
     pub merchant_account: domain::MerchantAccount,
     pub key_store: domain::MerchantKeyStore,
     pub profile: domain::Profile,
+    pub platform_merchant_account: Option<domain::MerchantAccount>
 }
 
 #[derive(Clone, Debug)]
@@ -455,6 +456,27 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
+        // Get connected merchant account if API call is done by Platform merchant account on behalf of connected merchant account
+        let (merchant, platform_merchant_account) =
+            get_platform_merchant_account(state, request_headers, merchant).await?;
+
+        let key_store = {
+            if platform_merchant_account.is_some() {
+                state
+                    .store()
+                    .get_merchant_key_store_by_merchant_id(
+                        key_manager_state,
+                        merchant.get_id(),
+                        &state.store().get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Failed to fetch merchant key store for the merchant id")?
+            } else {
+                key_store
+            }   
+        };
+
         let profile = state
             .store()
             .find_business_profile_by_profile_id(key_manager_state, &key_store, &profile_id)
@@ -463,6 +485,7 @@ where
 
         let auth = AuthenticationData {
             merchant_account: merchant,
+            platform_merchant_account,
             key_store,
             profile,
         };
@@ -701,6 +724,7 @@ where
 
         let auth_data_v2 = AuthenticationData {
             merchant_account: auth_data.merchant_account,
+            platform_merchant_account: auth_data.platform_merchant_account,
             key_store: auth_data.key_store,
             profile,
         };
@@ -1017,6 +1041,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        throw_error_if_platform_merchant_authentication_required(request_headers)?;
         AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
@@ -1055,6 +1080,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
+            platform_merchant_account: None,
         };
 
         Ok((
@@ -1076,6 +1102,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationDataWithoutProfile, AuthenticationType)> {
+        throw_error_if_platform_merchant_authentication_required(request_headers)?;
         AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
@@ -1267,6 +1294,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        throw_error_if_platform_merchant_authentication_required(request_headers)?;
         AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
@@ -1307,6 +1335,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
+            platform_merchant_account: None
         };
         Ok((
             auth,
@@ -1327,6 +1356,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationDataWithoutProfile, AuthenticationType)> {
+        throw_error_if_platform_merchant_authentication_required(request_headers)?;
         AdminApiAuth
             .authenticate_and_fetch(request_headers, state)
             .await?;
@@ -1447,6 +1477,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        throw_error_if_platform_merchant_authentication_required(request_headers)?;
         let key_manager_state = &(&state.session_state()).into();
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
@@ -1481,6 +1512,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
+            platform_merchant_account: None,
         };
         Ok((
             auth.clone(),
@@ -1509,6 +1541,7 @@ where
         request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        throw_error_if_platform_merchant_authentication_required(request_headers)?;
         let key_manager_state = &(&state.session_state()).into();
         let key_store = state
             .store()
@@ -1540,6 +1573,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
+            platform_merchant_account: None
         };
         Ok((
             auth.clone(),
@@ -1599,6 +1633,7 @@ where
                 merchant_account,
                 key_store,
                 profile,
+                platform_merchant_account: None,
             },
             AuthenticationType::PublishableKey { merchant_id },
         ))
@@ -1690,6 +1725,7 @@ where
                 merchant_account,
                 key_store,
                 profile,
+                platform_merchant_account: None
             },
             AuthenticationType::PublishableKey { merchant_id },
         ))
@@ -2061,6 +2097,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
+            platform_merchant_account: None
         };
 
         Ok((
@@ -2303,6 +2340,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
+            platform_merchant_account: None
         };
         Ok((
             auth.clone(),
@@ -2583,6 +2621,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
+            platform_merchant_account: None
         };
         Ok((
             auth.clone(),
@@ -2748,6 +2787,7 @@ where
             merchant_account: merchant,
             key_store,
             profile,
+            platform_merchant_account: None
         };
         Ok((
             auth,
@@ -3310,7 +3350,7 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)
         .attach_printable("Failed to fetch merchant account for the merchant id")?;
-    //TODO CHANGE ALL ERROR TYPES
+
     if platform_org_id != connected_merchant_account.organization_id {
         return Err(errors::ApiErrorResponse::InvalidPlatformOperation)
             .attach_printable("Access for merchant id Unauthorized");
@@ -3334,7 +3374,7 @@ where
         .map(|merchant_id| {
             merchant_account
                 .is_platform_account
-                .then(|| merchant_id)
+                .then_some(merchant_id)
                 .ok_or(errors::ApiErrorResponse::InvalidPlatformOperation)
         })
         .transpose()

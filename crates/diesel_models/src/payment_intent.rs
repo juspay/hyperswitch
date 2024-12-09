@@ -73,6 +73,7 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>
 }
 
 #[cfg(feature = "v1")]
@@ -292,6 +293,7 @@ pub struct PaymentIntentNew {
     pub enable_payment_link: Option<bool>,
     pub apply_mit_exemption: Option<bool>,
     pub id: common_utils::id_type::GlobalPaymentId,
+    pub platform_merchant_id: Option<common_utils::id_type::MerchantId>
 }
 
 #[cfg(feature = "v1")]

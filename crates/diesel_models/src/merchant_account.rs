@@ -151,6 +151,7 @@ pub struct MerchantAccount {
     pub recon_status: storage_enums::ReconStatus,
     pub version: common_enums::ApiVersion,
     pub id: common_utils::id_type::MerchantId,
+    pub is_platform_account: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -168,6 +169,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             organization_id: item.organization_id,
             recon_status: item.recon_status,
             version: item.version,
+            is_platform_account: item.is_platform_account,
         }
     }
 }
@@ -185,6 +187,7 @@ pub struct MerchantAccountSetter {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub recon_status: storage_enums::ReconStatus,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
 impl MerchantAccount {
@@ -248,6 +251,7 @@ pub struct MerchantAccountNew {
     pub recon_status: storage_enums::ReconStatus,
     pub id: common_utils::id_type::MerchantId,
     pub version: common_enums::ApiVersion,
+    pub is_platform_account: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -262,6 +266,7 @@ pub struct MerchantAccountUpdateInternal {
     pub modified_at: time::PrimitiveDateTime,
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub recon_status: Option<storage_enums::ReconStatus>,
+    pub is_platform_account: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -276,6 +281,7 @@ impl MerchantAccountUpdateInternal {
             modified_at,
             organization_id,
             recon_status,
+            is_platform_account
         } = self;
 
         MerchantAccount {
@@ -290,6 +296,7 @@ impl MerchantAccountUpdateInternal {
             recon_status: recon_status.unwrap_or(source.recon_status),
             version: source.version,
             id: source.id,
+            is_platform_account: is_platform_account.unwrap_or(source.is_platform_account)
         }
     }
 }

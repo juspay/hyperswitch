@@ -226,6 +226,7 @@ where
         _payment_data: &mut D,
         _customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
+        _platform_merchant_account: Option<&domain::MerchantAccount>
     ) -> RouterResult<Option<FrmData>> {
         todo!()
     }
