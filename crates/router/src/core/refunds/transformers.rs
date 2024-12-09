@@ -2,25 +2,23 @@ use error_stack::{report, Report};
 use hyperswitch_domain_models::router_request_types;
 
 use super::validator;
-use crate::{core::errors, types::transformers::ForeignTryFrom};
+use crate::core::errors;
 
-impl
-    ForeignTryFrom<(
-        common_utils::types::SplitRefund,
-        common_utils::types::SplitPaymentsRequest,
-        Option<String>,
-    )> for router_request_types::SplitRefundsRequest
-{
+pub struct SplitRefundInput {
+    pub refund_request: common_utils::types::SplitRefund,
+    pub payment_charges: common_utils::types::SplitPaymentsRequest,
+    pub charge_id: Option<String>,
+}
+
+impl TryFrom<SplitRefundInput> for router_request_types::SplitRefundsRequest {
     type Error = Report<errors::ApiErrorResponse>;
 
-    fn foreign_try_from(
-        item: (
-            common_utils::types::SplitRefund,
-            common_utils::types::SplitPaymentsRequest,
-            Option<String>,
-        ),
-    ) -> Result<Self, Self::Error> {
-        let (refund_request, payment_charges, charge_id) = item;
+    fn try_from(value: SplitRefundInput) -> Result<Self, Self::Error> {
+        let SplitRefundInput {
+            refund_request,
+            payment_charges,
+            charge_id,
+        } = value;
 
         match refund_request {
             common_utils::types::SplitRefund::StripeSplitRefund(stripe_refund) => {

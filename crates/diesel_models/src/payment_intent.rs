@@ -1,9 +1,5 @@
 use common_enums::{PaymentMethodType, RequestIncrementalAuthorization};
-use common_utils::{
-    encryption::Encryption,
-    pii,
-    types::{MinorUnit, SplitPaymentsRequest},
-};
+use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -77,7 +73,7 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<PaymentLinkConfigRequestForPayments>,
     pub id: common_utils::id_type::GlobalPaymentId,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<common_utils::types::SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -143,7 +139,7 @@ pub struct PaymentIntent {
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<common_utils::types::SplitPaymentsRequest>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
@@ -363,7 +359,7 @@ pub struct PaymentIntentNew {
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<common_utils::types::SplitPaymentsRequest>,
 }
 
 #[cfg(feature = "v2")]

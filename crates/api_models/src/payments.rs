@@ -849,6 +849,7 @@ pub struct PaymentsRequest {
     pub recurring_details: Option<RecurringDetails>,
 
     /// Fee information to be charged on the payment being collected
+    #[schema(value_type = Option<SplitPaymentsRequest>)]
     pub split_payments: Option<common_utils::types::SplitPaymentsRequest>,
 
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
