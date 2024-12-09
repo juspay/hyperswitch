@@ -2,6 +2,7 @@ pub mod transformers;
 pub mod types;
 pub mod utils;
 
+use api_models::payments::ServiceDetails;
 use diesel_models::authentication::{Authentication, AuthenticationNew};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -130,6 +131,7 @@ impl<F: Clone + Sync> UnifiedAuthenticationService<F> for ClickToPay {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_new_authentication(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
@@ -138,7 +140,15 @@ pub async fn create_new_authentication(
     payment_id: Option<common_utils::id_type::PaymentId>,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     authentication_id: &str,
+    service_details: Option<ServiceDetails>,
 ) -> RouterResult<Authentication> {
+    let service_details_value = service_details
+        .map(serde_json::to_value)
+        .transpose()
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "unable to parse service details into json value while inserting to DB",
+        )?;
     let new_authorization = AuthenticationNew {
         authentication_id: authentication_id.to_owned(),
         merchant_id,
@@ -173,7 +183,7 @@ pub async fn create_new_authentication(
         ds_trans_id: None,
         directory_server_id: None,
         acquirer_country_code: None,
-        service_details: None,
+        service_details: service_details_value,
     };
     state
         .store

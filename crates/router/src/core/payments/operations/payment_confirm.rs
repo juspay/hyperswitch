@@ -1114,6 +1114,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     Some(payment_data.payment_intent.get_id().clone()),
                     connector_transaction_id,
                     &authentication_id,
+                    payment_data.service_details.clone()
                 )
                 .await?;
             }

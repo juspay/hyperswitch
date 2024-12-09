@@ -373,8 +373,11 @@ where
             should_continue_transaction,
             should_continue_capture,
         );
+    
+        let temp = "ctp";
 
-        operation
+        if temp == "three_ds" {
+            operation
             .to_domain()?
             .call_external_three_ds_authentication_if_eligible(
                 state,
@@ -386,6 +389,20 @@ where
                 mandate_type,
             )
             .await?;
+        }
+        else {
+            operation
+            .to_domain()?
+            .call_unified_authentication_service_if_eligible(
+                state,
+                &mut payment_data,
+                &mut should_continue_transaction,
+                &connector_details,
+                &business_profile,
+                &key_store,
+            ).await?;
+
+        };
 
         operation
             .to_domain()?
