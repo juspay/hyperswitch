@@ -39,7 +39,7 @@ pub struct CreateThemeRequest {
     pub lineage: ThemeLineage,
     pub theme_name: String,
     pub theme_data: ThemeData,
-    pub email_config: EmailThemeConfig,
+    pub email_config: Option<EmailThemeConfig>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

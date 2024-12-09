@@ -115,11 +115,19 @@ pub async fn create_theme(
 ) -> UserResponse<theme_api::GetThemeResponse> {
     theme_utils::validate_lineage(&state, &request.lineage).await?;
 
+    let email_config = if cfg!(feature = "email") {
+        request.email_config.ok_or(UserErrors::MissingEmailConfig)?
+    } else {
+        request
+            .email_config
+            .unwrap_or(state.conf.email.email_theme_config.clone())
+    };
+
     let new_theme = ThemeNew::new(
         Uuid::new_v4().to_string(),
         request.theme_name,
         request.lineage,
-        request.email_config,
+        email_config,
     );
 
     let db_theme = state

@@ -51,7 +51,7 @@ impl ThemeNew {
         theme_id: String,
         theme_name: String,
         lineage: ThemeLineage,
-        email_data: EmailThemeConfig,
+        email_config: EmailThemeConfig,
     ) -> Self {
         let now = date_time::now();
 
@@ -65,11 +65,11 @@ impl ThemeNew {
             entity_type: lineage.entity_type(),
             created_at: now,
             last_modified_at: now,
-            email_primary_color: email_data.primary_color,
-            email_foreground_color: email_data.foreground_color,
-            email_background_color: email_data.background_color,
-            email_entity_name: email_data.entity_name,
-            email_entity_logo: email_data.entity_logo,
+            email_primary_color: email_config.primary_color,
+            email_foreground_color: email_config.foreground_color,
+            email_background_color: email_config.background_color,
+            email_entity_name: email_config.entity_name,
+            email_entity_logo: email_config.entity_logo,
         }
     }
 }
