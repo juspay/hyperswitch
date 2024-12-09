@@ -1,12 +1,15 @@
 use std::path::PathBuf;
 
-use common_utils::{id_type, types::theme::ThemeLineage};
+use common_enums::EntityType;
+use common_utils::{ext_traits::AsyncExt, id_type, types::theme::ThemeLineage};
+use diesel_models::user::theme::Theme;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResult},
     routes::SessionState,
+    services::authentication::UserFromToken,
 };
 
 fn get_theme_dir_key(theme_id: &str) -> PathBuf {
@@ -54,6 +57,10 @@ pub async fn upload_file_to_theme_bucket(
 
 pub async fn validate_lineage(state: &SessionState, lineage: &ThemeLineage) -> UserResult<()> {
     match lineage {
+        ThemeLineage::Tenant { tenant_id } => {
+            validate_tenant(state, tenant_id)?;
+            Ok(())
+        }
         ThemeLineage::Organization { tenant_id, org_id } => {
             validate_tenant(state, tenant_id)?;
             validate_org(state, org_id).await?;
@@ -96,8 +103,8 @@ async fn validate_org(state: &SessionState, org_id: &id_type::OrganizationId) ->
         .store
         .find_organization_by_org_id(org_id)
         .await
-        .to_not_found_response(UserErrors::InvalidThemeLineage("org_id".to_string()))?;
-    Ok(())
+        .to_not_found_response(UserErrors::InvalidThemeLineage("org_id".to_string()))
+        .map(|_| ())
 }
 
 async fn validate_merchant_and_get_key_store(
@@ -153,6 +160,67 @@ async fn validate_profile(
             profile_id,
         )
         .await
-        .to_not_found_response(UserErrors::InvalidThemeLineage("profile_id".to_string()))?;
-    Ok(())
+        .to_not_found_response(UserErrors::InvalidThemeLineage("profile_id".to_string()))
+        .map(|_| ())
+}
+
+pub async fn get_most_specific_theme_using_token_and_min_entity(
+    state: &SessionState,
+    user_from_token: &UserFromToken,
+    min_entity: EntityType,
+) -> UserResult<Option<Theme>> {
+    get_most_specific_theme_using_lineage(
+        state,
+        ThemeLineage::new(
+            min_entity,
+            user_from_token
+                .tenant_id
+                .clone()
+                .unwrap_or(state.tenant.tenant_id.clone()),
+            user_from_token.org_id.clone(),
+            user_from_token.merchant_id.clone(),
+            user_from_token.profile_id.clone(),
+        ),
+    )
+    .await
+}
+
+pub async fn get_most_specific_theme_using_lineage(
+    state: &SessionState,
+    lineage: ThemeLineage,
+) -> UserResult<Option<Theme>> {
+    match state
+        .global_store
+        .find_most_specific_theme_in_lineage(lineage)
+        .await
+    {
+        Ok(theme) => Ok(Some(theme)),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                Ok(None)
+            } else {
+                Err(e.change_context(UserErrors::InternalServerError))
+            }
+        }
+    }
+}
+
+pub async fn get_theme_using_optional_theme_id(
+    state: &SessionState,
+    theme_id: Option<String>,
+) -> UserResult<Option<Theme>> {
+    match theme_id
+        .async_map(|theme_id| state.global_store.find_theme_by_theme_id(theme_id))
+        .await
+        .transpose()
+    {
+        Ok(theme) => Ok(theme),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                Ok(None)
+            } else {
+                Err(e.change_context(UserErrors::InternalServerError))
+            }
+        }
+    }
 }
