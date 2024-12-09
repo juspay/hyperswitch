@@ -1079,9 +1079,16 @@ Cypress.Commands.add(
           createPaymentBody.setup_future_usage,
           "setup_future_usage"
         ).to.equal(response.body.setup_future_usage);
-        expect(createPaymentBody.amount, "amount_capturable").to.equal(
-          response.body.amount_capturable
-        );
+        if (!createPaymentBody.hasOwnProperty("shipping_cost")) {
+          expect(createPaymentBody.amount, "amount_capturable").to.equal(
+            response.body.amount_capturable
+          );
+        } else {
+          expect(
+            createPaymentBody.amount + createPaymentBody.shipping_cost,
+            "amount_capturable"
+          ).to.equal(response.body.amount_capturable);
+        }
         expect(response.body.amount_received, "amount_received").to.be.oneOf([
           0,
           null,
