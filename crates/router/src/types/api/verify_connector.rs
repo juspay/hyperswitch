@@ -54,7 +54,7 @@ impl VerifyConnectorData {
             request_incremental_authorization: false,
             authentication_data: None,
             customer_acceptance: None,
-            charges: None,
+            split_payments: None,
             merchant_order_reference_id: None,
             integrity_object: None,
             additional_payment_method_data: None,

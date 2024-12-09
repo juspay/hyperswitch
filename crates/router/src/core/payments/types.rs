@@ -9,7 +9,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 pub use hyperswitch_domain_models::router_request_types::{
-    AuthenticationData, PaymentCharges, SurchargeDetails,
+    AuthenticationData, SplitRefundsRequest, StripeSplitRefund, SurchargeDetails,
 };
 use redis_interface::errors::RedisError;
 use router_env::{instrument, logger, tracing};
