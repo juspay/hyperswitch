@@ -54,6 +54,7 @@ pub struct PaymentMethod {
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
     pub connector_mandate_details: Option<serde_json::Value>,
+    pub transaction_flow: Option<String>, //here
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -142,6 +143,7 @@ pub struct PaymentMethodNew {
     pub locker_id: Option<String>,
     pub last_used_at: PrimitiveDateTime,
     pub connector_mandate_details: Option<serde_json::Value>,
+    pub transaction_flow: Option<String>,
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
@@ -247,6 +249,7 @@ pub enum PaymentMethodUpdate {
     },
     ConnectorMandateDetailsUpdate {
         connector_mandate_details: Option<serde_json::Value>,
+        transaction_flow: Option<String>,
     },
     NetworkTokenDataUpdate {
         network_token_requestor_reference_id: Option<String>,
@@ -389,6 +392,7 @@ pub struct PaymentMethodUpdateInternal {
     network_token_requestor_reference_id: Option<String>,
     payment_method: Option<storage_enums::PaymentMethod>,
     connector_mandate_details: Option<serde_json::Value>,
+    transaction_flow: Option<String>,
     updated_by: Option<String>,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
     payment_method_issuer: Option<String>,
@@ -413,6 +417,7 @@ impl PaymentMethodUpdateInternal {
             network_token_requestor_reference_id,
             payment_method,
             connector_mandate_details,
+            transaction_flow,
             updated_by,
             payment_method_type,
             payment_method_issuer,
@@ -447,6 +452,7 @@ impl PaymentMethodUpdateInternal {
             last_used_at: last_used_at.unwrap_or(source.last_used_at),
             connector_mandate_details: connector_mandate_details
                 .or(source.connector_mandate_details),
+            transaction_flow: transaction_flow.or(source.transaction_flow), //here
             customer_acceptance: source.customer_acceptance,
             status: status.unwrap_or(source.status),
             network_transaction_id: network_transaction_id.or(source.network_transaction_id),
@@ -483,6 +489,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                transaction_flow: None,
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
@@ -502,6 +509,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                transaction_flow: None,
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
@@ -519,6 +527,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                transaction_flow: None,
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
@@ -539,6 +548,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                transaction_flow: None,
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
@@ -559,6 +569,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                transaction_flow: None,
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
@@ -576,6 +587,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 payment_method: None,
                 connector_mandate_details: None,
+                transaction_flow: None,
                 updated_by: None,
                 payment_method_issuer: None,
                 payment_method_type: None,
@@ -603,6 +615,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id,
                 payment_method,
                 connector_mandate_details: None,
+                transaction_flow: None,
                 updated_by: None,
                 payment_method_issuer,
                 payment_method_type,
@@ -612,6 +625,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
+                transaction_flow,
             } => Self {
                 metadata: None,
                 payment_method_data: None,
@@ -621,6 +635,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id: None,
                 payment_method: None,
                 connector_mandate_details,
+                transaction_flow, //here
                 network_transaction_id: None,
                 updated_by: None,
                 payment_method_issuer: None,
@@ -841,6 +856,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             payment_method_data: payment_method_new.payment_method_data.clone(),
             last_used_at: payment_method_new.last_used_at,
             connector_mandate_details: payment_method_new.connector_mandate_details.clone(),
+            transaction_flow: payment_method_new.transaction_flow.clone(), //here
             customer_acceptance: payment_method_new.customer_acceptance.clone(),
             status: payment_method_new.status,
             network_transaction_id: payment_method_new.network_transaction_id.clone(),
