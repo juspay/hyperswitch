@@ -8012,7 +8012,8 @@
           "automatic",
           "manual",
           "manual_multiple",
-          "scheduled"
+          "scheduled",
+          "sequential_automatic"
         ]
       },
       "CaptureResponse": {

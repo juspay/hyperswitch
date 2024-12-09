@@ -12,6 +12,8 @@ use api_models::routing as routing_types;
 use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type, types::keymanager::KeyManagerState};
 use diesel_models::configs;
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+use diesel_models::dynamic_routing_stats::DynamicRoutingStatsNew;
 #[cfg(feature = "v1")]
 use diesel_models::routing_algorithm;
 use error_stack::ResultExt;
@@ -725,7 +727,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             )?;
 
         let payment_status_attribute =
-            get_desired_payment_status_for_success_routing_metrics(&payment_attempt.status);
+            get_desired_payment_status_for_success_routing_metrics(payment_attempt.status);
 
         let first_success_based_connector_label = &success_based_connectors
             .labels_with_score
@@ -746,10 +748,27 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
             ))?;
 
         let outcome = get_success_based_metrics_outcome_for_payment(
-            &payment_status_attribute,
+            payment_status_attribute,
             payment_connector.to_string(),
             first_success_based_connector.to_string(),
         );
+
+        let dynamic_routing_stats = DynamicRoutingStatsNew {
+            payment_id: payment_attempt.payment_id.to_owned(),
+            attempt_id: payment_attempt.attempt_id.clone(),
+            merchant_id: payment_attempt.merchant_id.to_owned(),
+            profile_id: payment_attempt.profile_id.to_owned(),
+            amount: payment_attempt.get_total_amount(),
+            success_based_routing_connector: first_success_based_connector.to_string(),
+            payment_connector: payment_connector.to_string(),
+            currency: payment_attempt.currency,
+            payment_method: payment_attempt.payment_method,
+            capture_method: payment_attempt.capture_method,
+            authentication_type: payment_attempt.authentication_type,
+            payment_status: payment_attempt.status,
+            conclusive_classification: outcome,
+            created_at: common_utils::date_time::now(),
+        };
 
         core_metrics::DYNAMIC_SUCCESS_BASED_ROUTING.add(
             &metrics::CONTEXT,
@@ -812,6 +831,13 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
         );
         logger::debug!("successfully pushed success_based_routing metrics");
 
+        state
+            .store
+            .insert_dynamic_routing_stat_entry(dynamic_routing_stats)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to push dynamic routing stats to db")?;
+
         client
             .update_success_rate(
                 tenant_business_profile_id,
@@ -843,7 +869,7 @@ pub async fn push_metrics_with_update_window_for_success_based_routing(
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 fn get_desired_payment_status_for_success_routing_metrics(
-    attempt_status: &common_enums::AttemptStatus,
+    attempt_status: common_enums::AttemptStatus,
 ) -> common_enums::AttemptStatus {
     match attempt_status {
         common_enums::AttemptStatus::Charged
@@ -879,7 +905,7 @@ fn get_desired_payment_status_for_success_routing_metrics(
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 fn get_success_based_metrics_outcome_for_payment(
-    payment_status_attribute: &common_enums::AttemptStatus,
+    payment_status_attribute: common_enums::AttemptStatus,
     payment_connector: String,
     first_success_based_connector: String,
 ) -> common_enums::SuccessBasedRoutingConclusiveState {

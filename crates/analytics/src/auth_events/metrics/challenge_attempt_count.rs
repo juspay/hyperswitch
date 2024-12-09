@@ -31,7 +31,7 @@ where
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         _publishable_key: &str,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(AuthEventMetricsBucketIdentifier, AuthEventMetricRow)>> {
@@ -45,7 +45,7 @@ where
             })
             .switch()?;
 
-        if let Some(granularity) = granularity.as_ref() {
+        if let Some(granularity) = granularity {
             query_builder
                 .add_granularity_in_mins(granularity)
                 .switch()?;

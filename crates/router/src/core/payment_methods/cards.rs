@@ -28,7 +28,7 @@ use common_utils::{
     consts,
     crypto::{self, Encryptable},
     encryption::Encryption,
-    ext_traits::{AsyncExt, BytesExt, Encode, StringExt, ValueExt},
+    ext_traits::{AsyncExt, BytesExt, ConfigExt, Encode, StringExt, ValueExt},
     generate_id, id_type,
     request::Request,
     type_name,
@@ -55,6 +55,7 @@ use hyperswitch_domain_models::customer::CustomerUpdate;
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
 use router_env::{instrument, metrics::add_attributes, tracing};
+use serde_json::json;
 use strum::IntoEnumIterator;
 
 use super::{
@@ -381,7 +382,7 @@ pub async fn migrate_payment_method(
     key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodMigrateResponse> {
     let mut req = req;
-    let card_details = req.card.as_ref().get_required_value("card")?;
+    let card_details = &req.card.get_required_value("card")?;
 
     let card_number_validation_result =
         cards::CardNumber::from_str(card_details.card_number.peek());
@@ -780,17 +781,6 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    migration_status.network_transaction_id_migrated(network_transaction_id.as_ref().map(|_| true));
-
-    migration_status.connector_mandate_details_migrated(
-        connector_mandate_details
-            .as_ref()
-            .map(|_| true)
-            .or_else(|| req.connector_mandate_details.as_ref().map(|_| false)),
-    );
-
-    migration_status.card_migrated(false);
-
     let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
     let current_time = common_utils::date_time::now();
@@ -810,11 +800,11 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 scheme: req.card_network.clone().or(card.scheme.clone()),
                 metadata: payment_method_metadata.map(Secret::new),
                 payment_method_data: payment_method_data_encrypted.map(Into::into),
-                connector_mandate_details,
+                connector_mandate_details: connector_mandate_details.clone(),
                 customer_acceptance: None,
                 client_secret: None,
                 status: enums::PaymentMethodStatus::Active,
-                network_transaction_id,
+                network_transaction_id: network_transaction_id.clone(),
                 payment_method_issuer_code: None,
                 accepted_currency: None,
                 token: None,
@@ -842,6 +832,21 @@ pub async fn skip_locker_call_and_migrate_payment_method(
         .attach_printable("Failed to add payment method in db")?;
 
     logger::debug!("Payment method inserted in db");
+
+    migration_status.network_transaction_id_migrated(
+        network_transaction_id.and_then(|val| (!val.is_empty_after_trim()).then_some(true)),
+    );
+
+    migration_status.connector_mandate_details_migrated(
+        connector_mandate_details
+            .clone()
+            .and_then(|val| if val == json!({}) { None } else { Some(true) })
+            .or_else(|| {
+                req.connector_mandate_details
+                    .clone()
+                    .and_then(|val| (!val.0.is_empty()).then_some(false))
+            }),
+    );
 
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = set_default_payment_method(
@@ -1166,10 +1171,14 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         migration_status.connector_mandate_details_migrated(
             connector_mandate_details
                 .clone()
-                .map(|_| true)
-                .or_else(|| req.connector_mandate_details.clone().map(|_| false)),
+                .and_then(|val| (val != json!({})).then_some(true))
+                .or_else(|| {
+                    req.connector_mandate_details
+                        .clone()
+                        .and_then(|val| (!val.0.is_empty()).then_some(false))
+                }),
         );
-
+        //card is not migrated in this case
         migration_status.card_migrated(false);
 
         if res.status == enums::PaymentMethodStatus::AwaitingData {
@@ -1722,15 +1731,6 @@ pub async fn save_migration_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    migration_status.network_transaction_id_migrated(network_transaction_id.as_ref().map(|_| true));
-
-    migration_status.connector_mandate_details_migrated(
-        connector_mandate_details
-            .as_ref()
-            .map(|_| true)
-            .or_else(|| req.connector_mandate_details.as_ref().map(|_| false)),
-    );
-
     let response = match payment_method {
         #[cfg(feature = "payouts")]
         api_enums::PaymentMethod::BankTransfer => match req.bank_transfer.clone() {
@@ -1940,8 +1940,8 @@ pub async fn save_migration_payment_method(
                 pm_metadata.cloned(),
                 None,
                 locker_id,
-                connector_mandate_details,
-                network_transaction_id,
+                connector_mandate_details.clone(),
+                network_transaction_id.clone(),
                 merchant_account.storage_scheme,
                 payment_method_billing_address.map(Into::into),
                 None,
@@ -1953,6 +1953,20 @@ pub async fn save_migration_payment_method(
             resp.client_secret = pm.client_secret;
         }
     }
+
+    migration_status.card_migrated(true);
+    migration_status.network_transaction_id_migrated(
+        network_transaction_id.and_then(|val| (!val.is_empty_after_trim()).then_some(true)),
+    );
+
+    migration_status.connector_mandate_details_migrated(
+        connector_mandate_details
+            .and_then(|val| if val == json!({}) { None } else { Some(true) })
+            .or_else(|| {
+                req.connector_mandate_details
+                    .and_then(|val| (!val.0.is_empty()).then_some(false))
+            }),
+    );
 
     Ok(services::ApplicationResponse::Json(resp))
 }
@@ -3335,7 +3349,7 @@ pub async fn list_payment_methods(
             None
         };
 
-        helpers::infer_payment_type(&amount, mandate_type.as_ref())
+        helpers::infer_payment_type(amount, mandate_type.as_ref())
     });
 
     // Include profile context, remove merchant ID
@@ -3861,7 +3875,7 @@ pub async fn list_payment_methods(
                                             .extend(required_fields_final.non_mandate.clone());
                                     }
                                  required_fields_hs = should_collect_shipping_or_billing_details_from_wallet_connector(
-                                    &payment_method,
+                                    payment_method,
                                     element.payment_experience.as_ref(),
                                     business_profile.as_ref(),
                                     required_fields_hs.clone(),
@@ -4297,7 +4311,7 @@ pub async fn list_payment_methods(
 }
 
 fn should_collect_shipping_or_billing_details_from_wallet_connector(
-    payment_method: &api_enums::PaymentMethod,
+    payment_method: api_enums::PaymentMethod,
     payment_experience_optional: Option<&api_enums::PaymentExperience>,
     business_profile: Option<&Profile>,
     mut required_fields_hs: HashMap<String, RequiredFieldInfo>,
@@ -4587,7 +4601,7 @@ pub async fn filter_payment_methods(
                     // Can use HashSet instead of Vec
                     let filter_pm_based_on_allowed_types = filter_pm_based_on_allowed_types(
                         allowed_payment_method_types.as_ref(),
-                        &payment_method_object.payment_method_type,
+                        payment_method_object.payment_method_type,
                     );
 
                     // Ignore mandate related stuff (this and next block), ensure normal payments (non-mandate stuff) are not affected in any manner
@@ -4632,7 +4646,7 @@ pub async fn filter_payment_methods(
                     let filter_pm_card_network_based = filter_pm_card_network_based(
                         payment_method_object.card_networks.as_ref(),
                         req.card_networks.as_ref(),
-                        &payment_method_object.payment_method_type,
+                        payment_method_object.payment_method_type,
                     );
 
                     // Check with the team, do not include if this part is only needed for PM management
@@ -4734,7 +4748,7 @@ fn filter_installment_based(
 fn filter_pm_card_network_based(
     pm_card_networks: Option<&Vec<api_enums::CardNetwork>>,
     request_card_networks: Option<&Vec<api_enums::CardNetwork>>,
-    pm_type: &api_enums::PaymentMethodType,
+    pm_type: api_enums::PaymentMethodType,
 ) -> bool {
     match pm_type {
         api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
@@ -4752,9 +4766,9 @@ fn filter_pm_card_network_based(
 
 fn filter_pm_based_on_allowed_types(
     allowed_types: Option<&Vec<api_enums::PaymentMethodType>>,
-    payment_method_type: &api_enums::PaymentMethodType,
+    payment_method_type: api_enums::PaymentMethodType,
 ) -> bool {
-    allowed_types.map_or(true, |pm| pm.contains(payment_method_type))
+    allowed_types.map_or(true, |pm| pm.contains(&payment_method_type))
 }
 
 fn filter_recurring_based(

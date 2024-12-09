@@ -47,7 +47,7 @@ pub struct Level(pub(super) tracing::Level);
 
 impl Level {
     /// Returns the most verbose [`tracing::Level`]
-    pub fn into_level(&self) -> tracing::Level {
+    pub fn into_level(self) -> tracing::Level {
         self.0
     }
 }

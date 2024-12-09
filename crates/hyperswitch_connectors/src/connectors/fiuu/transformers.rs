@@ -101,7 +101,9 @@ impl TryFrom<Option<CaptureMethod>> for TxnType {
     type Error = Report<errors::ConnectorError>;
     fn try_from(capture_method: Option<CaptureMethod>) -> Result<Self, Self::Error> {
         match capture_method {
-            Some(CaptureMethod::Automatic) => Ok(Self::Sals),
+            Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) | None => {
+                Ok(Self::Sals)
+            }
             Some(CaptureMethod::Manual) => Ok(Self::Auts),
             _ => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1244,7 +1246,9 @@ impl TryFrom<FiuuWebhookStatus> for enums::AttemptStatus {
     fn try_from(webhook_status: FiuuWebhookStatus) -> Result<Self, Self::Error> {
         match webhook_status.status {
             FiuuPaymentWebhookStatus::Success => match webhook_status.capture_method {
-                Some(CaptureMethod::Automatic) => Ok(Self::Charged),
+                Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) => {
+                    Ok(Self::Charged)
+                }
                 Some(CaptureMethod::Manual) => Ok(Self::Authorized),
                 _ => Err(errors::ConnectorError::UnexpectedResponseError(
                     bytes::Bytes::from(webhook_status.status.to_string()),

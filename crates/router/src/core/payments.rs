@@ -405,7 +405,11 @@ where
                 should_continue_capture,
                 payment_data.get_payment_attempt().capture_method,
             ) {
-                (false, Some(storage_enums::CaptureMethod::Automatic))
+                (
+                    false,
+                    Some(storage_enums::CaptureMethod::Automatic)
+                    | Some(storage_enums::CaptureMethod::SequentialAutomatic),
+                )
                 | (false, Some(storage_enums::CaptureMethod::Scheduled)) => {
                     if let Some(info) = &mut frm_info {
                         if let Some(frm_data) = &mut info.frm_data {
@@ -3277,8 +3281,8 @@ where
         payment_data.set_surcharge_details(session_surcharge_details.as_ref().and_then(
             |session_surcharge_details| {
                 session_surcharge_details.fetch_surcharge_details(
-                    &session_connector_data.payment_method_type.into(),
-                    &session_connector_data.payment_method_type,
+                    session_connector_data.payment_method_type.into(),
+                    session_connector_data.payment_method_type,
                     None,
                 )
             },
@@ -3732,8 +3736,8 @@ where
 fn is_payment_method_tokenization_enabled_for_connector(
     state: &SessionState,
     connector_name: &str,
-    payment_method: &storage::enums::PaymentMethod,
-    payment_method_type: &Option<storage::enums::PaymentMethodType>,
+    payment_method: storage::enums::PaymentMethod,
+    payment_method_type: Option<storage::enums::PaymentMethodType>,
     apple_pay_flow: &Option<domain::ApplePayFlow>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
@@ -3743,7 +3747,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
             connector_filter
                 .payment_method
                 .clone()
-                .contains(payment_method)
+                .contains(&payment_method)
                 && is_payment_method_type_allowed_for_connector(
                     payment_method_type,
                     connector_filter.payment_method_type.clone(),
@@ -3758,7 +3762,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
 }
 
 fn is_apple_pay_pre_decrypt_type_connector_tokenization(
-    payment_method_type: &Option<storage::enums::PaymentMethodType>,
+    payment_method_type: Option<storage::enums::PaymentMethodType>,
     apple_pay_flow: &Option<domain::ApplePayFlow>,
     apple_pay_pre_decrypt_flow_filter: Option<ApplePayPreDecryptFlow>,
 ) -> bool {
@@ -3776,7 +3780,7 @@ fn is_apple_pay_pre_decrypt_type_connector_tokenization(
 
 fn decide_apple_pay_flow(
     state: &SessionState,
-    payment_method_type: &Option<enums::PaymentMethodType>,
+    payment_method_type: Option<enums::PaymentMethodType>,
     merchant_connector_account: Option<&helpers::MerchantConnectorAccountType>,
 ) -> Option<domain::ApplePayFlow> {
     payment_method_type.and_then(|pmt| match pmt {
@@ -3868,10 +3872,10 @@ fn check_apple_pay_metadata(
 }
 
 fn is_payment_method_type_allowed_for_connector(
-    current_pm_type: &Option<storage::enums::PaymentMethodType>,
+    current_pm_type: Option<storage::enums::PaymentMethodType>,
     pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
 ) -> bool {
-    match (*current_pm_type).zip(pm_type_filter) {
+    match (current_pm_type).zip(pm_type_filter) {
         Some((pm_type, type_filter)) => match type_filter {
             PaymentMethodTypeTokenFilter::AllAccepted => true,
             PaymentMethodTypeTokenFilter::EnableOnly(enabled) => enabled.contains(&pm_type),
@@ -3884,7 +3888,7 @@ fn is_payment_method_type_allowed_for_connector(
 async fn decide_payment_method_tokenize_action(
     state: &SessionState,
     connector_name: &str,
-    payment_method: &storage::enums::PaymentMethod,
+    payment_method: storage::enums::PaymentMethod,
     pm_parent_token: Option<&str>,
     is_connector_tokenization_enabled: bool,
     apple_pay_flow: Option<domain::ApplePayFlow>,
@@ -4037,11 +4041,11 @@ where
             TokenizationAction::SkipConnectorTokenization,
         ),
         Some(connector) if is_operation_confirm(&operation) => {
-            let payment_method = &payment_data
+            let payment_method = payment_data
                 .get_payment_attempt()
                 .payment_method
                 .get_required_value("payment_method")?;
-            let payment_method_type = &payment_data.get_payment_attempt().payment_method_type;
+            let payment_method_type = payment_data.get_payment_attempt().payment_method_type;
 
             let apple_pay_flow =
                 decide_apple_pay_flow(state, payment_method_type, Some(merchant_connector_account));
@@ -4068,7 +4072,7 @@ where
                 payment_data.get_token(),
                 is_connector_tokenization_enabled,
                 apple_pay_flow,
-                *payment_method_type,
+                payment_method_type,
             )
             .await?;
 
@@ -6264,7 +6268,7 @@ pub async fn payment_external_authentication(
         })?
     }
     helpers::validate_payment_status_against_allowed_statuses(
-        &payment_intent.status,
+        payment_intent.status,
         &[storage_enums::IntentStatus::RequiresCustomerAction],
         "authenticate",
     )?;
