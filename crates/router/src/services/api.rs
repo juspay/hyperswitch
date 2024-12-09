@@ -852,7 +852,6 @@ where
     };
 
     let api_event = ApiEvent::new(
-        #[cfg(feature = "v1")]
         tenant_id,
         Some(merchant_id.clone()),
         flow,
