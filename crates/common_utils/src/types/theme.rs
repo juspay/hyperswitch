@@ -134,6 +134,9 @@ impl ThemeLineage {
             Self::Merchant {
                 tenant_id, org_id, ..
             } => vec![
+                Self::Tenant {
+                    tenant_id: tenant_id.clone(),
+                },
                 Self::Organization {
                     tenant_id: tenant_id.clone(),
                     org_id: org_id.clone(),
@@ -146,6 +149,9 @@ impl ThemeLineage {
                 merchant_id,
                 ..
             } => vec![
+                Self::Tenant {
+                    tenant_id: tenant_id.clone(),
+                },
                 Self::Organization {
                     tenant_id: tenant_id.clone(),
                     org_id: org_id.clone(),
