@@ -3694,6 +3694,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_auto_retries_enabled: self.is_auto_retries_enabled.unwrap_or_default(),
             max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            always_request_overcapture: self.always_request_overcapture,
         }))
     }
 
@@ -3802,6 +3803,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_tax_connector_enabled: self.is_tax_connector_enabled,
             is_network_tokenization_enabled: self.is_network_tokenization_enabled,
             is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+            always_request_overcapture: self.always_request_overcapture,
         }))
     }
 }
@@ -4052,6 +4054,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 is_auto_retries_enabled: self.is_auto_retries_enabled,
                 max_auto_retries_enabled: self.max_auto_retries_enabled.map(i16::from),
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+                always_request_overcapture: self.always_request_overcapture,
             },
         )))
     }
@@ -4149,6 +4152,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .always_collect_shipping_details_from_wallet_connector,
                 is_network_tokenization_enabled: self.is_network_tokenization_enabled,
                 is_click_to_pay_enabled: self.is_click_to_pay_enabled,
+                always_request_overcapture: self.always_request_overcapture,
             },
         )))
     }
