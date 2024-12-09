@@ -8796,6 +8796,43 @@
           "zsl"
         ]
       },
+      "ConnectorFeatureMatrixResponse": {
+        "type": "object",
+        "required": [
+          "connector",
+          "payment_method_types"
+        ],
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "connector_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentsConnectorType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_method_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportedPaymentMethodTypes"
+            }
+          },
+          "supported_webhook_flows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookFlow"
+            },
+            "nullable": true
+          }
+        }
+      },
       "ConnectorMetadata": {
         "type": "object",
         "description": "Some connectors like Apple Pay, Airwallex and Noon might require some additional information, find specific details in the child attributes below.",
@@ -10579,6 +10616,38 @@
           "error_message": {
             "type": "string",
             "description": "Error Message",
+            "nullable": true
+          }
+        }
+      },
+      "FeatureMatrixListResponse": {
+        "type": "object",
+        "required": [
+          "size",
+          "data"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "description": "The number of connectors included in the response",
+            "minimum": 0
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorFeatureMatrixResponse"
+            }
+          }
+        }
+      },
+      "FeatureMatrixRequest": {
+        "type": "object",
+        "properties": {
+          "connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Connector"
+            },
             "nullable": true
           }
         }
@@ -17093,6 +17162,15 @@
             "nullable": true
           }
         }
+      },
+      "PaymentsConnectorType": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer"
+        ]
       },
       "PaymentsCreateRequest": {
         "type": "object",
@@ -23926,6 +24004,66 @@
           "destination"
         ]
       },
+      "SupportedPaymentMethod": {
+        "type": "object",
+        "required": [
+          "payment_method",
+          "supports_mandate",
+          "supports_refund",
+          "supported_capture_methods"
+        ],
+        "properties": {
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethodType"
+          },
+          "supports_mandate": {
+            "type": "boolean"
+          },
+          "supports_refund": {
+            "type": "boolean"
+          },
+          "supported_capture_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureMethod"
+            }
+          },
+          "supported_countries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryAlpha2"
+            },
+            "uniqueItems": true,
+            "nullable": true
+          },
+          "supported_currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "uniqueItems": true,
+            "nullable": true
+          }
+        }
+      },
+      "SupportedPaymentMethodTypes": {
+        "type": "object",
+        "required": [
+          "payment_method_type",
+          "payment_methods"
+        ],
+        "properties": {
+          "payment_method_type": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupportedPaymentMethod"
+            }
+          }
+        }
+      },
       "SurchargeDetailsResponse": {
         "type": "object",
         "required": [
@@ -25178,6 +25316,21 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebhookFlow": {
+        "type": "string",
+        "enum": [
+          "Payment",
+          "Payout",
+          "Refund",
+          "Dispute",
+          "Subscription",
+          "ReturnResponse",
+          "BankTransfer",
+          "Mandate",
+          "ExternalAuthentication",
+          "FraudCheck"
+        ]
       }
     },
     "securitySchemes": {
