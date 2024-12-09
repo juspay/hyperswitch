@@ -23662,6 +23662,23 @@
           }
         }
       },
+      "ServiceDetails": {
+        "type": "object",
+        "properties": {
+          "merchant_transaction_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "correlation_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "x_src_flow_id": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "SessionToken": {
         "oneOf": [
           {
