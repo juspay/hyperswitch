@@ -122,11 +122,11 @@ impl ThemeLineage {
     }
 
     /// Get higher lineages from the current lineage
-    pub fn get_same_and_higher_lineages(self) -> Vec<ThemeLineage> {
+    pub fn get_same_and_higher_lineages(self) -> Vec<Self> {
         match &self {
             Self::Tenant { .. } => vec![self],
             Self::Organization { tenant_id, .. } => vec![
-                ThemeLineage::Tenant {
+                Self::Tenant {
                     tenant_id: tenant_id.clone(),
                 },
                 self,
@@ -134,7 +134,7 @@ impl ThemeLineage {
             Self::Merchant {
                 tenant_id, org_id, ..
             } => vec![
-                ThemeLineage::Organization {
+                Self::Organization {
                     tenant_id: tenant_id.clone(),
                     org_id: org_id.clone(),
                 },
@@ -146,11 +146,11 @@ impl ThemeLineage {
                 merchant_id,
                 ..
             } => vec![
-                ThemeLineage::Organization {
+                Self::Organization {
                     tenant_id: tenant_id.clone(),
                     org_id: org_id.clone(),
                 },
-                ThemeLineage::Merchant {
+                Self::Merchant {
                     tenant_id: tenant_id.clone(),
                     org_id: org_id.clone(),
                     merchant_id: merchant_id.clone(),
