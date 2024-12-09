@@ -1673,11 +1673,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .and_then(|connector_response| {
                                     connector_response.get_extended_authorization_response_data()
                                 })
-                                .and_then(|extended_auth_resp| {
-                                    Some((
+                                .map(|extended_auth_resp| {
+                                    (
                                         extended_auth_resp.capture_before,
                                         extended_auth_resp.extended_authentication_applied,
-                                    ))
+                                    )
                                 })
                                 .unwrap_or((None, None));
                             let (capture_updates, payment_attempt_update) = match payment_data
