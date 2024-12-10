@@ -418,3 +418,11 @@ impl ApiEventMetric for PaymentStartRedirectionRequest {
         })
     }
 }
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for payments::PaymentMethodListResponse {
+    // Payment id would be populated by the request
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        None
+    }
+}

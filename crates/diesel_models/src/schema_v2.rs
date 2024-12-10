@@ -718,7 +718,7 @@ diesel::table! {
         connector_name -> Varchar,
         connector_account_details -> Bytea,
         disabled -> Nullable<Bool>,
-        payment_methods_enabled -> Nullable<Array<Nullable<Json>>>,
+        payment_methods_enabled -> Nullable<Array<Nullable<Jsonb>>>,
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
         #[max_length = 255]

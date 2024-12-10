@@ -2114,10 +2114,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         key_manager_state: &KeyManagerState,
         merchant_account: &domain::MerchantAccount,
     ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
-        let payment_methods_enabled = PaymentMethodsEnabled {
-            payment_methods_enabled: &self.payment_methods_enabled,
-        };
-        let payment_methods_enabled = payment_methods_enabled.get_payment_methods_enabled()?;
+        let payment_methods_enabled = self.payment_methods_enabled.clone();
 
         let frm_configs = self.get_frm_config_as_secret();
 
@@ -2454,11 +2451,8 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     ) -> RouterResult<domain::MerchantConnectorAccount> {
         // If connector label is not passed in the request, generate one
         let connector_label = self.get_connector_label(business_profile.profile_name.clone());
-        let payment_methods_enabled = PaymentMethodsEnabled {
-            payment_methods_enabled: &self.payment_methods_enabled,
-        };
-        let payment_methods_enabled = payment_methods_enabled.get_payment_methods_enabled()?;
         let frm_configs = self.get_frm_config_as_secret();
+        let payment_methods_enabled = self.payment_methods_enabled;
         // Validate Merchant api details and return error if not in correct format
         let auth = types::ConnectorAuthType::from_option_secret_value(
             self.connector_account_details.clone(),

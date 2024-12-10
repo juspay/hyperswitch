@@ -676,9 +676,11 @@ pub struct MerchantConnectorCreate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: api_enums::Connector,
+
     /// This is an unique label you can generate and pass in order to identify this connector account on your Hyperswitch dashboard and reports, If not passed then if will take `connector_name`_`profile_name`. Eg: if your profile label is `default`, connector label can be `stripe_default`
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
@@ -721,7 +723,7 @@ pub struct MerchantConnectorCreate {
             "installment_payment_enabled": true
         }
     ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -1085,7 +1087,7 @@ pub struct MerchantConnectorResponse {
             "installment_payment_enabled": true
         }
     ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({
@@ -1410,7 +1412,7 @@ pub struct MerchantConnectorListResponse {
             "installment_payment_enabled": true
         }
     ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
 
     /// A boolean value to indicate if the connector is disabled. By default, its value is false.
     #[schema(default = false, example = false)]
@@ -1597,7 +1599,7 @@ pub struct MerchantConnectorUpdate {
             "installment_payment_enabled": true
         }
     ]))]
-    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
     #[schema(example = json!({

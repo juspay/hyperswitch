@@ -35,6 +35,9 @@ use crate::{
     refunds,
 };
 
+#[cfg(feature = "v2")]
+use crate::payment_methods;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {
     Create,
@@ -6274,6 +6277,23 @@ pub struct SdkInformation {
     pub sdk_reference_number: String,
     /// Indicates maximum amount of time in minutes
     pub sdk_max_timeout: u8,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
+pub struct PaymentMethodsListRequest {}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct PaymentMethodListResponse {
+    /// The list of payment methods that are enabled for the business profile
+    pub payment_methods: Vec<payment_methods::ResponsePaymentMethodsEnabled>,
+
+    /// flag that indicates whether to collect shipping details from wallets or from the customer
+    pub collect_shipping_details_from_wallets: Option<bool>,
+
+    /// flag that indicates whether to collect billing details from wallets or from the customer
+    pub collect_billing_details_from_wallets: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

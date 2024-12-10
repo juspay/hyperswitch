@@ -76,8 +76,8 @@ pub struct MerchantConnectorAccount {
     pub connector_name: String,
     pub connector_account_details: Encryption,
     pub disabled: Option<bool>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<common_utils::types::PaymentMethodsEnabled>)]
+    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
     pub connector_type: storage_enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: Option<String>,
@@ -146,7 +146,8 @@ pub struct MerchantConnectorAccountNew {
     pub connector_name: Option<String>,
     pub connector_account_details: Option<Encryption>,
     pub disabled: Option<bool>,
-    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<common_utils::types::PaymentMethodsEnabled>)]
+    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_label: Option<String>,
     pub created_at: time::PrimitiveDateTime,
@@ -199,7 +200,8 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_account_details: Option<Encryption>,
     pub connector_label: Option<String>,
     pub disabled: Option<bool>,
-    pub payment_methods_enabled: Option<Vec<pii::SecretSerdeValue>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<common_utils::types::PaymentMethodsEnabled>)]
+    pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<time::PrimitiveDateTime>,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,

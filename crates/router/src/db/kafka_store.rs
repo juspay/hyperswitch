@@ -1194,6 +1194,23 @@ impl MerchantConnectorAccountInterface for KafkaStore {
             .await
     }
 
+    #[cfg(all(feature = "oltp", feature = "v2"))]
+    async fn list_enabled_connector_accounts_by_profile_id(
+        &self,
+        state: &KeyManagerState,
+        profile_id: &id_type::ProfileId,
+        key_store: &domain::MerchantKeyStore,
+        connector_type: common_enums::ConnectorType,
+    ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::StorageError> {
+        self.list_enabled_connector_accounts_by_profile_id(
+            state,
+            profile_id,
+            key_store,
+            connector_type,
+        )
+        .await
+    }
+
     async fn insert_merchant_connector_account(
         &self,
         state: &KeyManagerState,

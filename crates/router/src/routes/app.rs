@@ -565,8 +565,8 @@ impl Payments {
                         .route(web::get().to(payments::payments_start_redirection)),
                 )
                 .service(
-                    web::resource("/saved-payment-methods")
-                        .route(web::get().to(list_customer_payment_method_for_payment)),
+                    web::resource("/payment-methods")
+                        .route(web::get().to(payments::list_payment_methods)),
                 )
                 .service(
                     web::resource("/finish-redirection/{publishable_key}/{profile_id}")
