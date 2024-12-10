@@ -98,16 +98,16 @@ jobs:
           toolchain: stable
 
       - name: Install git-cliff
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: taiki-e/install-action@v2.42.18
         with:
-          crate: git-cliff
-          version: 1.4.0
+          tool: git-cliff@2.4.0
+          checksum: true
 
       - name: Install cocogitto
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: taiki-e/install-action@v2.42.18
         with:
-          crate: cocogitto
-          version: 6.1.0
+          tool: cocogitto@6.1.0
+          checksum: true
 
       - name: Obtain previous and next tag information
         shell: bash
