@@ -1961,8 +1961,9 @@ mod payment_method_data_serde {
                                     PaymentMethodData::Card(ref mut card),
                                     Some(billing_address_details),
                                 ) => {
-                                    card.card_holder_name =
-                                        billing_address_details.get_optional_full_name();
+                                    if card.card_holder_name.is_none() {
+                                        card.card_holder_name = billing_address_details.get_optional_full_name();   
+                                    }
                                     Some(PaymentMethodData::Card(card.clone()))
                                 }
                                 _ => Some(payment_method_data),

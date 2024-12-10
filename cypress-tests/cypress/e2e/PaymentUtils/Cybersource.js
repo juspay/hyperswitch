@@ -59,7 +59,7 @@ const payment_method_data_no3ds = {
     card_extended_bin: null,
     card_exp_month: "01",
     card_exp_year: "50",
-    card_holder_name: null,
+    card_holder_name: "joseph Doe",
     payment_checks: {
       avs_response: {
         code: "Y",
@@ -83,7 +83,7 @@ const payment_method_data_3ds = {
     card_extended_bin: null,
     card_exp_month: "01",
     card_exp_year: "50",
-    card_holder_name: null,
+    card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
   },
