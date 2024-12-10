@@ -817,12 +817,12 @@ impl webhooks::IncomingWebhook for Bambora {
 }
 
 impl ConnectorSpecifications for Bambora {
-    fn get_connector_data(&self) -> Option<ConnectorInfo> {
+    fn get_connector_about(&self) -> Option<ConnectorInfo> {
         Some(ConnectorInfo {
             description:
                 "Bambora is a leading online payment provider in Canada and United States."
                     .to_string(),
-            connector_type: enums::PaymentsConnectorType::PaymentGateway,
+            connector_type: enums::PaymentConnectorCategory::PaymentGateway,
         })
     }
 

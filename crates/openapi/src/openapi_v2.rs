@@ -248,7 +248,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::ConnectorStatus,
         api_models::enums::AuthorizationStatus,
         api_models::enums::PaymentMethodStatus,
-        api_models::enums::PaymentsConnectorType,
+        api_models::enums::PaymentConnectorCategory,
         api_models::enums::OrderFulfillmentTimeOrigin,
         api_models::enums::UIWidgetFormLayout,
         api_models::admin::MerchantConnectorCreate,

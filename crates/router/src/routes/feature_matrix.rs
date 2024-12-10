@@ -1,6 +1,7 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{connector_enums::Connector, feature_matrix};
-use hyperswitch_domain_models::api::ApplicationResponse;
+use common_enums::enums;
+use hyperswitch_domain_models::{api::ApplicationResponse, router_response_types::PaymentMethodTypeMetadata};
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_env::{instrument, tracing, Flow};
 use strum::IntoEnumIterator;
@@ -14,7 +15,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-pub async fn fetch_connector_feature_matrix(
+pub async fn fetch_feature_matrix(
     state: web::Data<app::AppState>,
     req: HttpRequest,
     json_payload: Option<web::Json<payment_types::FeatureMatrixRequest>>,
@@ -29,14 +30,14 @@ pub async fn fetch_connector_feature_matrix(
         state,
         &req,
         payload,
-        |state, (), req, _| generate_connector_feature_matrix(state, req),
+        |state, (), req, _| generate_feature_matrix(state, req),
         &auth::NoAuth,
         LockAction::NotApplicable,
     ))
     .await
 }
 
-pub async fn generate_connector_feature_matrix(
+pub async fn generate_feature_matrix(
     state: app::SessionState,
     req: payment_types::FeatureMatrixRequest,
 ) -> RouterResponse<feature_matrix::FeatureMatrixListResponse> {
@@ -73,59 +74,71 @@ fn build_connector_feature_details(
     connector: ConnectorEnum,
     connector_name: String,
 ) -> Option<feature_matrix::ConnectorFeatureMatrixResponse> {
-    connector
-        .get_supported_payment_methods()
-        .map(|supported_methods| {
-            let payment_method_types = supported_methods
-                .into_iter()
-                .map(|(payment_method, supported_payment_method_types)| {
-                    let payment_methods = supported_payment_method_types
-                        .into_iter()
-                        .map(|(payment_method_type, feature_metadata)| {
-                            let payment_method_type_config =
-                                state.conf.pm_filters.0.get(&connector_name).and_then(
-                                    |selected_connector| {
-                                        selected_connector.0.get(
-                                            &settings::PaymentMethodFilterKey::PaymentMethodType(
-                                                payment_method_type,
-                                            ),
-                                        )
-                                    },
-                                );
+    let connector_integration_features = connector.get_supported_payment_methods();
 
-                            let supported_countries = payment_method_type_config
-                                .and_then(|config| config.country.clone());
+    connector_integration_features.map(|connector_integration_feature_data| {
+        let supported_payment_methods = connector_integration_feature_data
+            .into_iter()
+            .map(|(payment_method, supported_payment_method_types)| {
+                build_connector_payment_method_data(
+                    state,
+                    &connector_name,
+                    payment_method,
+                    supported_payment_method_types,
+                )
+            })
+            .collect();
 
-                            let supported_currencies = payment_method_type_config
-                                .and_then(|config| config.currency.clone());
+        let connector_about = connector.get_connector_about();
+        feature_matrix::ConnectorFeatureMatrixResponse {
+            connector: connector_name,
+            description: connector_about.clone().map(|about| about.description),
+            connector_type: connector_about.clone().map(|about| about.connector_type),
+            supported_webhook_flows: connector.get_supported_webhook_flows(),
+            supported_payment_methods,
+        }
+    })
+}
 
-                            feature_matrix::SupportedPaymentMethod {
-                                payment_method: payment_method_type,
-                                supports_mandate: feature_metadata.supports_mandate,
-                                supports_refund: feature_metadata.supports_refund,
-                                supported_capture_methods: feature_metadata
-                                    .supported_capture_methods,
-                                supported_countries,
-                                supported_currencies,
-                            }
-                        })
-                        .collect();
+fn build_connector_payment_method_data(
+    state: &app::SessionState,
+    connector_name: &str,
+    payment_method: enums::PaymentMethod,
+    supported_payment_method_types: PaymentMethodTypeMetadata,
+) -> feature_matrix::SupportedPaymentMethodTypes {
+    let payment_methods = supported_payment_method_types
+        .into_iter()
+        .map(|(payment_method_type, feature_metadata)| {
+            let payment_method_type_config = state
+                .conf
+                .pm_filters
+                .0
+                .get(connector_name)
+                .and_then(|selected_connector| {
+                    selected_connector.0.get(
+                        &settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type),
+                    )
+                });
 
-                    feature_matrix::SupportedPaymentMethodTypes {
-                        payment_method_type: payment_method,
-                        payment_methods,
-                    }
-                })
-                .collect();
+            let supported_countries = payment_method_type_config
+                .and_then(|config| config.country.clone());
 
-            let connector_about = connector.get_connector_data();
+            let supported_currencies = payment_method_type_config
+                .and_then(|config| config.currency.clone());
 
-            payment_types::ConnectorFeatureMatrixResponse {
-                connector: connector_name,
-                description: connector_about.clone().map(|about| about.description),
-                connector_type: connector_about.clone().map(|about| about.connector_type),
-                supported_webhook_flows: connector.get_supported_webhook_flows(),
-                payment_method_types,
+            feature_matrix::SupportedPaymentMethod {
+                payment_method: payment_method_type,
+                supports_mandate: feature_metadata.supports_mandate,
+                supports_refund: feature_metadata.supports_refund,
+                supported_capture_methods: feature_metadata.supported_capture_methods,
+                supported_countries,
+                supported_currencies,
             }
         })
+        .collect();
+
+    feature_matrix::SupportedPaymentMethodTypes {
+        payment_method_type: payment_method,
+        payment_methods,
+    }
 }

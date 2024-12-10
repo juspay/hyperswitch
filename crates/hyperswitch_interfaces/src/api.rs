@@ -294,7 +294,7 @@ pub trait ConnectorSpecifications {
     }
 
     /// Details related to connector
-    fn get_connector_data(&self) -> Option<ConnectorInfo> {
+    fn get_connector_about(&self) -> Option<ConnectorInfo> {
         None
     }
 }
@@ -368,8 +368,8 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     /// fn validate_payment_method
     fn validate_payment_method(
         &self,
-        payment_method_type: &Option<PaymentMethodType>,
-        payment_method: &PaymentMethod,
+        payment_method_type: Option<PaymentMethodType>,
+        payment_method: PaymentMethod,
     ) -> CustomResult<(), errors::ConnectorError> {
         if let Some(supported_payment_methods) = self.get_supported_payment_methods() {
             get_connector_payment_method_type_info(
@@ -388,7 +388,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     fn validate_capture_method(
         &self,
         capture_method: Option<CaptureMethod>,
-        payment_method: &PaymentMethod,
+        payment_method: PaymentMethod,
         pmt: Option<PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -396,7 +396,7 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
             let connector_payment_method_type_info = get_connector_payment_method_type_info(
                 supported_payment_methods,
                 payment_method,
-                &pmt,
+                pmt,
                 self.id(),
             )?;
 
@@ -491,23 +491,24 @@ pub trait Payouts {}
 
 fn get_connector_payment_method_type_info(
     supported_payment_method: SupportedPaymentMethods,
-    payment_method: &PaymentMethod,
-    payment_method_type: &Option<PaymentMethodType>,
+    payment_method: PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
     connector: &'static str,
 ) -> CustomResult<Option<PaymentMethodDetails>, errors::ConnectorError> {
-    let payment_method_details = supported_payment_method
-        .get(payment_method)
-        .ok_or_else(|| errors::ConnectorError::NotSupported {
-            message: payment_method.to_string(),
-            connector: connector,
-        })?;
+    let payment_method_details =
+        supported_payment_method
+            .get(&payment_method)
+            .ok_or_else(|| errors::ConnectorError::NotSupported {
+                message: payment_method.to_string(),
+                connector,
+            })?;
 
     payment_method_type
         .map(|pmt| {
             payment_method_details.get(&pmt).cloned().ok_or_else(|| {
                 errors::ConnectorError::NotSupported {
-                    message: format!("{} {}", payment_method.to_string(), pmt),
-                    connector: connector,
+                    message: format!("{} {}", payment_method, pmt),
+                    connector,
                 }
                 .into()
             })

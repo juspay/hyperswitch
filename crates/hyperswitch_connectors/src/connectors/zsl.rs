@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
-use common_enums::{enums, PaymentsConnectorType};
+use common_enums::{enums, PaymentConnectorCategory};
 use common_utils::{
     errors::CustomResult,
     ext_traits::{BytesExt, ValueExt},
@@ -131,7 +131,7 @@ impl ConnectorValidation for Zsl {
     fn validate_capture_method(
         &self,
         capture_method: Option<enums::CaptureMethod>,
-        _payment_method: &enums::PaymentMethod,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
@@ -465,12 +465,12 @@ fn get_webhook_object_from_body(
 }
 
 impl ConnectorSpecifications for Zsl {
-    fn get_connector_data(&self) -> Option<ConnectorInfo> {
+    fn get_connector_about(&self) -> Option<ConnectorInfo> {
         Some(ConnectorInfo {
             description:
                 "Zsl is a payment gateway operating in China, specializing in facilitating local bank transfers"
                     .to_string(),
-            connector_type: PaymentsConnectorType::PaymentGateway,
+            connector_type: PaymentConnectorCategory::PaymentGateway,
         })
     }
 

@@ -8800,7 +8800,7 @@
         "type": "object",
         "required": [
           "connector",
-          "payment_method_types"
+          "supported_payment_methods"
         ],
         "properties": {
           "connector": {
@@ -8813,12 +8813,12 @@
           "connector_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentsConnectorType"
+                "$ref": "#/components/schemas/PaymentConnectorCategory"
               }
             ],
             "nullable": true
           },
-          "payment_method_types": {
+          "supported_payment_methods": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupportedPaymentMethodTypes"
@@ -15224,6 +15224,15 @@
           }
         ]
       },
+      "PaymentConnectorCategory": {
+        "type": "string",
+        "description": "Connector Access Method",
+        "enum": [
+          "payment_gateway",
+          "alternative_payment_method",
+          "bank_acquirer"
+        ]
+      },
       "PaymentCreatePaymentLinkConfig": {
         "allOf": [
           {
@@ -17162,15 +17171,6 @@
             "nullable": true
           }
         }
-      },
-      "PaymentsConnectorType": {
-        "type": "string",
-        "description": "Connector Access Method",
-        "enum": [
-          "payment_gateway",
-          "alternative_payment_method",
-          "bank_acquirer"
-        ]
       },
       "PaymentsCreateRequest": {
         "type": "object",

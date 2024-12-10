@@ -2,7 +2,7 @@ pub mod disputes;
 pub mod fraud_check;
 use std::collections::HashMap;
 
-use common_enums::{CaptureMethod, PaymentMethod, PaymentMethodType, PaymentsConnectorType};
+use common_enums::{CaptureMethod, PaymentConnectorCategory, PaymentMethod, PaymentMethodType};
 use common_utils::{request::Method, types as common_types, types::MinorUnit};
 pub use disputes::{AcceptDisputeResponse, DefendDisputeResponse, SubmitEvidenceResponse};
 
@@ -536,7 +536,7 @@ pub struct ConnectorInfo {
     pub description: String,
 
     /// Connector Type
-    pub connector_type: PaymentsConnectorType,
+    pub connector_type: PaymentConnectorCategory,
 }
 
 pub trait SupportedPaymentMethodsExt {
@@ -559,9 +559,7 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
         supports_refund: bool,
         supported_capture_methods: Vec<CaptureMethod>,
     ) {
-        // Check if `payment_method` exists in the map
         if let Some(payment_method_data) = self.get_mut(&payment_method) {
-            // If it exists, insert or update the data for `payment_method_type`
             payment_method_data.insert(
                 payment_method_type,
                 PaymentMethodDetails {
@@ -571,7 +569,6 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
                 },
             );
         } else {
-            // If it doesn't exist, create a new entry
             let payment_method_details = PaymentMethodDetails {
                 supports_mandate,
                 supports_refund,

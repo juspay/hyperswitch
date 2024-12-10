@@ -160,7 +160,7 @@ impl ConnectorValidation for Dlocal {
     fn validate_capture_method(
         &self,
         capture_method: Option<enums::CaptureMethod>,
-        _payment_method: &enums::PaymentMethod,
+        _payment_method: enums::PaymentMethod,
         _pmt: Option<enums::PaymentMethodType>,
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();

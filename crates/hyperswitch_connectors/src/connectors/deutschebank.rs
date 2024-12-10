@@ -4,7 +4,7 @@ use std::time::SystemTime;
 
 use actix_web::http::header::Date;
 use base64::Engine;
-use common_enums::{enums, PaymentsConnectorType};
+use common_enums::{enums, PaymentConnectorCategory};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -940,12 +940,12 @@ impl webhooks::IncomingWebhook for Deutschebank {
 }
 
 impl ConnectorSpecifications for Deutschebank {
-    fn get_connector_data(&self) -> Option<ConnectorInfo> {
+    fn get_connector_about(&self) -> Option<ConnectorInfo> {
         Some(ConnectorInfo {
             description:
                 "Deutsche Bank is a German multinational investment bank and financial services company "
                     .to_string(),
-            connector_type: PaymentsConnectorType::BankAcquirer,
+            connector_type: PaymentConnectorCategory::BankAcquirer,
         })
     }
 

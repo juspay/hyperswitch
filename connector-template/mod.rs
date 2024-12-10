@@ -3,7 +3,7 @@ pub mod transformers;
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask};
 
-use common_enums::enums::PaymentsConnectorType;
+use common_enums::enums::PaymentConnectorCategory;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt},
+    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods},
     types::{
         PaymentsAuthorizeRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
@@ -555,18 +555,18 @@ impl webhooks::IncomingWebhook for {{project-name | downcase | pascal_case}} {
 }
 
 impl ConnectorSpecifications for {{project-name | downcase | pascal_case}} {
-    fn get_connector_data(&self) -> Option<ConnectorInfo> {
+    fn get_connector_about(&self) -> Option<ConnectorInfo> {
         Some(ConnectorInfo {
             description:
                 "Connector About"
                     .to_string(),
-            connector_type: PaymentsConnectorType::PaymentGateway,
+            connector_type: PaymentConnectorCategory::PaymentGateway,
         })
     }
 
     fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
-        let mut bambora_supported_payment_methods  = SupportedPaymentMethods::new();
-        Some(bambora_supported_payment_methods)
+        let mut supported_payment_methods  = SupportedPaymentMethods::new();
+        Some(supported_payment_methods)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<Vec<WebhookFlow>> {

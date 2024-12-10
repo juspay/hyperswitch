@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::enums::{
-    CaptureMethod, Connector, CountryAlpha2, Currency, EventClass, PaymentMethod,
-    PaymentMethodType, PaymentsConnectorType,
+    CaptureMethod, Connector, CountryAlpha2, Currency, EventClass, PaymentConnectorCategory,
+    PaymentMethod, PaymentMethodType,
 };
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
@@ -34,8 +34,8 @@ pub struct SupportedPaymentMethodTypes {
 pub struct ConnectorFeatureMatrixResponse {
     pub connector: String,
     pub description: Option<String>,
-    pub connector_type: Option<PaymentsConnectorType>,
-    pub payment_method_types: Vec<SupportedPaymentMethodTypes>,
+    pub connector_type: Option<PaymentConnectorCategory>,
+    pub supported_payment_methods: Vec<SupportedPaymentMethodTypes>,
     pub supported_webhook_flows: Option<Vec<EventClass>>,
 }
 

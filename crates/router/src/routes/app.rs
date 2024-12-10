@@ -2228,7 +2228,7 @@ impl FeatureMatrix {
             .app_data(web::Data::new(state))
             .service(
                 web::resource("")
-                    .route(web::get().to(feature_matrix::fetch_connector_feature_matrix)),
+                    .route(web::get().to(feature_matrix::fetch_feature_matrix)),
             )
     }
 }

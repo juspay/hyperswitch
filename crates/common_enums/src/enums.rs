@@ -3478,7 +3478,7 @@ pub enum ErrorCategory {
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum PaymentsConnectorType {
+pub enum PaymentConnectorCategory {
     PaymentGateway,
     AlternativePaymentMethod,
     BankAcquirer,
