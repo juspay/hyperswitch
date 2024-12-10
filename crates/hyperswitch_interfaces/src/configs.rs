@@ -3,7 +3,6 @@ use common_enums::ApplicationError;
 use masking::Secret;
 use router_derive;
 use serde::Deserialize;
-
 // struct Connectors
 #[allow(missing_docs, missing_debug_implementations)]
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
