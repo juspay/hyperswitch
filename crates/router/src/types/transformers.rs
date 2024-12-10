@@ -1691,6 +1691,7 @@ impl ForeignFrom<gsm_api_types::GsmCreateRequest> for storage::GatewayStatusMapp
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
+            clear_pan_possible: value.clear_pan_possible,
         }
     }
 }
@@ -1710,6 +1711,7 @@ impl ForeignFrom<storage::GatewayStatusMap> for gsm_api_types::GsmResponse {
             unified_code: value.unified_code,
             unified_message: value.unified_message,
             error_category: value.error_category,
+            clear_pan_possible: value.clear_pan_possible,
         }
     }
 }
