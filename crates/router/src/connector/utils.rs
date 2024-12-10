@@ -682,7 +682,9 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
 
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -799,6 +801,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn connector_mandate_id(&self) -> Option<String>;
     fn get_optional_network_transaction_id(&self) -> Option<String>;
     fn is_mandate_payment(&self) -> bool;
+    fn is_cit_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
@@ -832,7 +835,9 @@ impl PaymentMethodTokenizationRequestData for types::PaymentMethodTokenizationDa
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -908,6 +913,12 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
                 .as_ref()
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
+    }
+    fn is_cit_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            })
     }
     fn get_webhook_url(&self) -> Result<String, Error> {
         self.webhook_url
@@ -1090,12 +1101,15 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_mandate_payment(&self) -> bool;
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
+    fn is_cit_mandate_payment(&self) -> bool;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1130,6 +1144,12 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
     }
+    fn is_cit_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage.map_or(false, |setup_future_usage| {
+                setup_future_usage == storage_enums::FutureUsage::OffSession
+            })
+    }
     /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
         self.mandate_id
@@ -1154,7 +1174,9 @@ pub trait PaymentsSyncRequestData {
 impl PaymentsSyncRequestData for types::PaymentsSyncData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1178,7 +1200,9 @@ pub trait PaymentsPostSessionTokensRequestData {
 impl PaymentsPostSessionTokensRequestData for types::PaymentsPostSessionTokensData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }

@@ -99,7 +99,7 @@ impl RoutingAlgorithmUpdate {
         request: &routing_types::RoutingConfigRequest,
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: common_utils::id_type::ProfileId,
-        transaction_type: &enums::TransactionType,
+        transaction_type: enums::TransactionType,
     ) -> Self {
         let algorithm_id = common_utils::generate_routing_id_of_default_length();
         let timestamp = common_utils::date_time::now();
@@ -113,7 +113,7 @@ impl RoutingAlgorithmUpdate {
             algorithm_data: serde_json::json!(request.algorithm),
             created_at: timestamp,
             modified_at: timestamp,
-            algorithm_for: transaction_type.to_owned(),
+            algorithm_for: transaction_type,
         };
         Self(algo)
     }
@@ -170,7 +170,7 @@ pub async fn create_routing_algorithm_under_profile(
     key_store: domain::MerchantKeyStore,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = &*state.store;
@@ -240,7 +240,7 @@ pub async fn create_routing_algorithm_under_profile(
     key_store: domain::MerchantKeyStore,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     request: routing_types::RoutingConfigRequest,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(&metrics::CONTEXT, 1, &[]);
     let db = state.store.as_ref();

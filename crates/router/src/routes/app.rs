@@ -728,7 +728,7 @@ impl Routing {
             .app_data(web::Data::new(state.clone()))
             .service(
                 web::resource("").route(web::post().to(|state, req, payload| {
-                    routing::routing_create_config(state, req, payload, &TransactionType::Payment)
+                    routing::routing_create_config(state, req, payload, TransactionType::Payment)
                 })),
             )
             .service(
@@ -770,7 +770,7 @@ impl Routing {
                             state,
                             req,
                             payload,
-                            &TransactionType::Payment,
+                            TransactionType::Payment,
                         )
                     })),
             )
@@ -850,7 +850,7 @@ impl Routing {
                                 state,
                                 req,
                                 payload,
-                                &TransactionType::Payout,
+                                TransactionType::Payout,
                             )
                         })),
                 )
@@ -1887,6 +1887,10 @@ impl User {
             .service(
                 web::resource("/internal_signup").route(web::post().to(user::internal_user_signup)),
             )
+            .service(
+                web::resource("/tenant_signup").route(web::post().to(user::create_tenant_user)),
+            )
+            .service(web::resource("/create_org").route(web::post().to(user::user_org_create)))
             .service(
                 web::resource("/create_merchant")
                     .route(web::post().to(user::user_merchant_account_create)),

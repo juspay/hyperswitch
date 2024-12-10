@@ -5,9 +5,11 @@ use common_enums::UserAuthType;
 use common_utils::{
     encryption::Encryption, errors::CustomResult, id_type, type_name, types::keymanager::Identifier,
 };
+use diesel_models::{organization, organization::OrganizationBridge};
 use error_stack::ResultExt;
 use masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionPool;
+use router_env::env;
 
 use crate::{
     consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
@@ -268,9 +270,45 @@ pub fn get_oidc_sso_redirect_url(state: &SessionState, provider: &str) -> String
     format!("{}/redirect/oidc/{}", state.conf.user.base_url, provider)
 }
 
-pub fn is_sso_auth_type(auth_type: &UserAuthType) -> bool {
+pub fn is_sso_auth_type(auth_type: UserAuthType) -> bool {
     match auth_type {
         UserAuthType::OpenIdConnect => true,
         UserAuthType::Password | UserAuthType::MagicLink => false,
     }
+}
+
+#[cfg(feature = "v1")]
+pub fn create_merchant_account_request_for_org(
+    req: user_api::UserOrgMerchantCreateRequest,
+    org: organization::Organization,
+) -> UserResult<api_models::admin::MerchantAccountCreate> {
+    let merchant_id = if matches!(env::which(), env::Env::Production) {
+        id_type::MerchantId::try_from(domain::MerchantId::new(req.merchant_name.clone().expose())?)?
+    } else {
+        id_type::MerchantId::new_from_unix_timestamp()
+    };
+
+    let company_name = domain::UserCompanyName::new(req.merchant_name.expose())?;
+    Ok(api_models::admin::MerchantAccountCreate {
+        merchant_id,
+        metadata: None,
+        locker_id: None,
+        return_url: None,
+        merchant_name: Some(Secret::new(company_name.get_secret())),
+        webhook_details: None,
+        publishable_key: None,
+        organization_id: Some(org.get_organization_id()),
+        merchant_details: None,
+        routing_algorithm: None,
+        parent_merchant_id: None,
+        sub_merchants_enabled: None,
+        frm_routing_algorithm: None,
+        #[cfg(feature = "payouts")]
+        payout_routing_algorithm: None,
+        primary_business_details: None,
+        payment_response_hash_key: None,
+        enable_payment_response_hash: None,
+        redirect_to_merchant_with_http_post: None,
+        pm_collect_link_config: None,
+    })
 }

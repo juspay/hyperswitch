@@ -213,6 +213,7 @@ diesel::table! {
         is_network_tokenization_enabled -> Bool,
         is_auto_retries_enabled -> Nullable<Bool>,
         max_auto_retries_enabled -> Nullable<Int2>,
+        is_click_to_pay_enabled -> Bool,
     }
 }
 
@@ -385,6 +386,35 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Varchar,
         dispute_currency -> Nullable<Currency>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    dynamic_routing_stats (attempt_id, merchant_id) {
+        #[max_length = 64]
+        payment_id -> Varchar,
+        #[max_length = 64]
+        attempt_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        profile_id -> Varchar,
+        amount -> Int8,
+        #[max_length = 64]
+        success_based_routing_connector -> Varchar,
+        #[max_length = 64]
+        payment_connector -> Varchar,
+        currency -> Nullable<Currency>,
+        #[max_length = 64]
+        payment_method -> Nullable<Varchar>,
+        capture_method -> Nullable<CaptureMethod>,
+        authentication_type -> Nullable<AuthenticationType>,
+        payment_status -> AttemptStatus,
+        conclusive_classification -> SuccessBasedRoutingConclusiveState,
+        created_at -> Timestamp,
     }
 }
 
@@ -1413,6 +1443,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     customers,
     dashboard_metadata,
     dispute,
+    dynamic_routing_stats,
     events,
     file_metadata,
     fraud_check,
