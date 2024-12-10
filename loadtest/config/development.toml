@@ -277,8 +277,8 @@ klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,N
 ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.bambora]
-credit = { country = "US,CA", currency = "USD,CAD" }
-debit = { country = "US,CA", currency = "USD,CAD" }
+credit = { country = "US,CA", currency = "USD" }
+debit = { country = "US,CA", currency = "USD" }
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
