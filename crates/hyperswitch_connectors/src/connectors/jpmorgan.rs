@@ -34,7 +34,7 @@ use hyperswitch_interfaces::{
     types::{self, RefreshTokenType, Response},
     webhooks,
 };
-use masking::{Mask, PeekInterface};
+use masking::{Mask, Maskable, PeekInterface};
 use transformers::{self as jpmorgan, JpmorganErrorResponse};
 
 use crate::{
@@ -74,8 +74,6 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 {
     // Not Implemented (R)
 }
-
-use masking::Maskable;
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Jpmorgan
 where

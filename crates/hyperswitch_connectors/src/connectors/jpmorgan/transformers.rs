@@ -83,7 +83,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganAuthUpdateResponse, T, AccessTo
 pub struct JpmorganPaymentsRequest {
     capture_method: CapMethod,
     amount: MinorUnit,
-    currency: String,
+    currency: common_enums::Currency,
     merchant: JpmorganMerchant,
     payment_method_type: JpmorganPaymentMethodType,
 }
@@ -148,7 +148,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 let capture_method =
                     map_capture_method(item.router_data.request.capture_method.unwrap_or_default());
 
-                let currency = item.router_data.request.currency.to_string();
+                let currency = item.router_data.request.currency;
 
                 let merchant_software = JpmorganMerchantSoftware {
                     company_name: String::from("JPMC"),
@@ -206,10 +206,8 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
 }
 #[derive(Debug)]
 pub struct JpmorganAuthType {
-    #[allow(dead_code)]
-    pub(super) api_key: Secret<String>,
-    #[allow(dead_code)]
-    pub(super) key1: Secret<String>,
+    pub(super) _api_key: Secret<String>,
+    pub(super) _key1: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for JpmorganAuthType {
@@ -217,8 +215,8 @@ impl TryFrom<&ConnectorAuthType> for JpmorganAuthType {
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_owned(),
-                key1: key1.to_owned(),
+                _api_key: api_key.to_owned(),
+                _key1: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -263,7 +261,7 @@ pub struct JpmorganPaymentsResponse {
     approval_code: Option<String>,
     host_message: Option<String>,
     amount: Option<i64>,
-    currency: Option<String>,
+    currency: Option<common_enums::Currency>,
     remaining_refundable_amount: Option<i64>,
     remaining_auth_amount: Option<i64>,
     host_reference_id: Option<String>,
@@ -422,7 +420,7 @@ pub struct JpmorganCaptureRequest {
     original_transaction_id: Option<String>,
     is_amount_final: Option<bool>,
     amount: MinorUnit,
-    currency: Option<String>,
+    currency: Option<common_enums::Currency>,
     merchant_order_number: Option<String>,
     risk: Option<RiskCapReq>,
     retail_addenda: Option<RetailAddendaCapReq>,
@@ -483,7 +481,7 @@ pub struct BusinessInformation {
 #[serde(rename_all = "camelCase")]
 pub struct PartnerService {
     pub external_vendor_product_name: Option<String>,
-    pub currency: Option<String>,
+    pub currency: Option<common_enums::Currency>,
     pub external_monthly_service_fee_amount: Option<i64>,
 }
 
@@ -510,7 +508,7 @@ pub struct MerchantReportedRevenue {
     pub amount: Option<i64>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
-    pub currency: Option<String>,
+    pub currency: Option<common_enums::Currency>,
     pub amount_type: Option<String>,
 }
 
@@ -846,7 +844,7 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
             .as_ref()
             .map(|cm| cm.to_string());
 
-        let currency = Some(item.router_data.request.currency.to_string());
+        let currency = Some(item.router_data.request.currency);
         let amount = item.amount;
         Ok(Self {
             capture_method,
@@ -874,7 +872,6 @@ impl TryFrom<&JpmorganRouterData<&PaymentsCaptureRouterData>> for JpmorganCaptur
     }
 }
 
-//made changes here in JpmorganTransactionState
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCaptureResponse {
@@ -1053,7 +1050,7 @@ pub struct JpmorganRefundResponse {
     pub request_id: String,
     pub transaction_state: JpmorganTransactionState,
     pub amount: MinorUnit,
-    pub currency: String,
+    pub currency: common_enums::Currency,
     pub response_status: JpmorganResponseStatus,
     pub response_code: String,
     pub response_message: String,
@@ -1134,7 +1131,7 @@ pub struct JpmorganRefundSyncResponse {
     request_id: String,
     transaction_state: JpmorganTransactionState,
     amount: MinorUnit,
-    currency: String,
+    currency: common_enums::Currency,
     response_status: JpmorganResponseStatus,
     response_code: String,
 }

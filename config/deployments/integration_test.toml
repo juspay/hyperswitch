@@ -287,6 +287,10 @@ debit.currency = "USD"
 ali_pay.currency = "GBP,CNY"
 we_chat_pay.currency = "GBP,CNY"
 
+[pm.filters.jpmorgan]
+debit = { country = "CA, EU, UK, US", currency = "CAD, EUR, GBP, USD" }
+credit = { country = "CA, EU, UK, US", currency = "CAD, EUR, GBP, USD" }
+
 [pm_filters.klarna]
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
 
