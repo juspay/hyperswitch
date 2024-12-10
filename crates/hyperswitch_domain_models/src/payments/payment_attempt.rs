@@ -1089,7 +1089,6 @@ impl PaymentAttemptUpdate {
                 client_version,
                 customer_acceptance,
                 shipping_cost: net_amount.get_shipping_cost(),
-                // order_tax_amount: net_amount.get_order_tax_amount(),
                 connector_mandate_detail,
             },
             Self::VoidUpdate {

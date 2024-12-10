@@ -1423,11 +1423,17 @@ impl PaymentCreate {
 
         let skip_external_tax_calculation = request.skip_external_tax_calculation;
         let tax_amount = request.order_tax_amount.unwrap_or(MinorUnit::new(0));
+        // // let tax_details = Some(diesel_models::TaxDetails {
+        // //     default: Some(diesel_models::DefaultTax {
+        // //         order_tax_amount: tax_amount,
+        // //     }),
+        // //     ..Default::default()
+        // // });
         let tax_details = Some(diesel_models::TaxDetails {
             default: Some(diesel_models::DefaultTax {
                 order_tax_amount: tax_amount,
             }),
-            ..Default::default()
+            payment_method_type:None,
         });
 
         Ok(storage::PaymentIntent {

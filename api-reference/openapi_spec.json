@@ -11996,15 +11996,6 @@
       "KakaoPayRedirection": {
         "type": "object"
       },
-      "KlarnaCheckoutPaymentMethodResponse": {
-        "type": "object",
-        "properties": {
-          "payment_type": {
-            "type": "string",
-            "nullable": true
-          }
-        }
-      },
       "KlarnaSdkPaymentMethodResponse": {
         "type": "object",
         "properties": {
@@ -14930,15 +14921,7 @@
               }
             ],
             "nullable": true
-          },
-          "klarna_checkout": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/KlarnaCheckoutPaymentMethodResponse"
-              }
-            ],
-            "nullable": true
-          }
+          } 
         }
       },
       "PaymentAttemptResponse": {

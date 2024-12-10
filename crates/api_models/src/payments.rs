@@ -582,7 +582,7 @@ pub struct PaymentsRequest {
     pub amount: Option<Amount>,
 
     /// Total tax amount applicable to the order
-    #[schema(value_type = i64, example = 6540)]
+    #[schema(value_type = Option<i64>, example = 6540)]
     pub order_tax_amount: Option<MinorUnit>,
 
     /// The three letter ISO currency code in uppercase. Eg: 'USD' to charge US Dollars
@@ -1152,7 +1152,7 @@ pub struct PaymentAttemptResponse {
     #[schema(value_type = i64, example = 6540)]
     pub amount: MinorUnit,
     /// The payment attempt tax_amount.
-    #[schema(value_type = i64, example = 6540)]
+    #[schema(value_type = Option<i64>, example = 6540)]
     pub order_tax_amount: Option<MinorUnit>,
     /// The currency of the amount of the payment attempt
     #[schema(value_type = Option<Currency>, example = "USD")]
@@ -2469,12 +2469,6 @@ pub enum AdditionalPaymentData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 
 pub struct KlarnaSdkPaymentMethod {
-    pub payment_type: Option<String>,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-
-pub struct KlarnaCheckoutPaymentMethod {
     pub payment_type: Option<String>,
 }
 
