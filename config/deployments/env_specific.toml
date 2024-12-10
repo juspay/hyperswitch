@@ -329,7 +329,7 @@ port = 7000        # Client Port
 service = "dynamo" # Service name
 
 [theme.storage]
-file_storage_backend = "file_system" # Theme storage backend to be used
+file_storage_backend = "aws_s3" # Theme storage backend to be used
 
 [theme.storage.aws_s3]
 region = "bucket_region" # AWS region where the S3 bucket for theme storage is located
