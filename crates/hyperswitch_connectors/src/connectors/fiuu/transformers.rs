@@ -993,6 +993,8 @@ pub struct FiuuRefundSuccessResponse {
     #[serde(rename = "RefundID")]
     refund_id: i64,
     status: String,
+    #[serde(rename = "reason")]
+    reason: Option<String>,
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -1019,20 +1021,40 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                 }),
                 ..item.data
             }),
-            FiuuRefundResponse::Success(refund_data) => Ok(Self {
-                response: Ok(RefundsResponseData {
-                    connector_refund_id: refund_data.refund_id.to_string(),
-                    refund_status: match refund_data.status.as_str() {
-                        "00" => Ok(enums::RefundStatus::Success),
-                        "11" => Ok(enums::RefundStatus::Failure),
-                        "22" => Ok(enums::RefundStatus::Pending),
-                        other => Err(errors::ConnectorError::UnexpectedResponseError(
-                            bytes::Bytes::from(other.to_owned()),
-                        )),
-                    }?,
-                }),
-                ..item.data
-            }),
+            FiuuRefundResponse::Success(refund_data) => {
+                let refund_status = match refund_data.status.as_str() {
+                    "00" => Ok(enums::RefundStatus::Success),
+                    "11" => Ok(enums::RefundStatus::Failure),
+                    "22" => Ok(enums::RefundStatus::Pending),
+                    other => Err(errors::ConnectorError::UnexpectedResponseError(
+                        bytes::Bytes::from(other.to_owned()),
+                    )),
+                }?;
+                if refund_status == enums::RefundStatus::Failure {
+                    Ok(Self {
+                        response: Err(ErrorResponse {
+                            code: refund_data.status.clone(),
+                            message: refund_data
+                                .reason
+                                .clone()
+                                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                            reason: refund_data.reason.clone(),
+                            status_code: item.http_code,
+                            attempt_status: None,
+                            connector_transaction_id: None,
+                        }),
+                        ..item.data
+                    })
+                } else {
+                    Ok(Self {
+                        response: Ok(RefundsResponseData {
+                            connector_refund_id: refund_data.refund_id.to_string(),
+                            refund_status,
+                        }),
+                        ..item.data
+                    })
+                }
+            }
         }
     }
 }
