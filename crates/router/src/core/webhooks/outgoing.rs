@@ -499,6 +499,7 @@ async fn raise_webhooks_analytics_event(
     });
 
     let webhook_event = OutgoingWebhookEvent::new(
+        state.tenant.tenant_id.clone(),
         merchant_id,
         event_id,
         event.event_type,
