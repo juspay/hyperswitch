@@ -431,6 +431,9 @@ pub async fn connector_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
+                // This should ideally be ProfileConnectorRead, but since this API responds with
+                // sensitive data, keeping this as ProfileConnectorWrite
+                // TODO: Convert this to ProfileConnectorRead once data is masked.
                 required_permission: Permission::ProfileConnectorWrite,
             },
             req.headers(),
