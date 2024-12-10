@@ -143,6 +143,7 @@ impl PaymentAttemptInterface for MockDb {
             status: payment_attempt.status,
             net_amount: payment_attempt.net_amount,
             currency: payment_attempt.currency,
+            order_tax_amount: payment_attempt.order_tax_amount,
             save_to_locker: payment_attempt.save_to_locker,
             connector: payment_attempt.connector,
             error_message: payment_attempt.error_message,

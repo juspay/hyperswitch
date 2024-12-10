@@ -29,6 +29,7 @@ impl VerifyConnectorData {
             amount: 1000,
             minor_amount: common_utils::types::MinorUnit::new(1000),
             confirm: true,
+            order_tax_amount: None,
             currency: storage_enums::Currency::USD,
             metadata: None,
             mandate_id: None,
