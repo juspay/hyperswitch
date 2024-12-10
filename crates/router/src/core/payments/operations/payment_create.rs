@@ -1280,6 +1280,9 @@ impl PaymentCreate {
                 organization_id: organization_id.clone(),
                 profile_id,
                 connector_mandate_detail: None,
+                request_extended_authorization: None,
+                extended_authorization_applied: None,
+                capture_before: None,
             },
             additional_pm_data,
 
@@ -1487,6 +1490,7 @@ impl PaymentCreate {
             shipping_cost: request.shipping_cost,
             tax_details: None,
             skip_external_tax_calculation,
+            request_extended_authorization: None,
             psd2_sca_exemption_type: request.psd2_sca_exemption_type,
         })
     }

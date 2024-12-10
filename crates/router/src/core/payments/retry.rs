@@ -654,6 +654,9 @@ pub fn make_new_payment_attempt(
         charge_id: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
+        request_extended_authorization: Default::default(),
+        extended_authorization_applied: Default::default(),
+        capture_before: Default::default(),
     }
 }
 
