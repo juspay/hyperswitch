@@ -61,7 +61,7 @@ const payment_method_data_3ds = {
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "50",
-    card_holder_name: null,
+    card_holder_name: "morino",
     payment_checks: null,
     authentication_data: null,
   },
@@ -79,7 +79,7 @@ const payment_method_data_no3ds = {
     card_extended_bin: null,
     card_exp_month: "10",
     card_exp_year: "50",
-    card_holder_name: null,
+    card_holder_name: "morino",
     payment_checks: {
       cvc_check: "pass",
       address_line1_check: "pass",
