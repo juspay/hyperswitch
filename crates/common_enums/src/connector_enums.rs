@@ -120,6 +120,7 @@ pub enum RoutableConnectors {
     // Thunes
     // Tsys,
     Tsys,
+    // UnifiedAuthenticationService,
     Volt,
     Wellsfargo,
     // Wellsfargopayout,
