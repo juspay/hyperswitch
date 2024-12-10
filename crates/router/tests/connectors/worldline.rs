@@ -83,6 +83,7 @@ impl WorldlineTest {
                 card_issuing_country: None,
                 bank_code: None,
                 nick_name: Some(Secret::new("nick_name".into())),
+                card_holder_name: Some(Secret::new("card holder name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
