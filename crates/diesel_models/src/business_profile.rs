@@ -544,6 +544,7 @@ pub struct BusinessPaymentLinkConfig {
     pub default_config: Option<PaymentLinkConfigRequest>,
     pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
     pub allowed_domains: Option<HashSet<String>>,
+    pub branding_visibility: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -556,6 +557,15 @@ pub struct PaymentLinkConfigRequest {
     pub enabled_saved_payment_method: Option<bool>,
     pub hide_card_nickname_field: Option<bool>,
     pub show_card_form_by_default: Option<bool>,
+    pub background_image: Option<PaymentLinkBackgroundImageConfig>,
+    pub details_layout: Option<common_enums::PaymentLinkDetailsLayout>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
+pub struct PaymentLinkBackgroundImageConfig {
+    pub url: common_utils::types::Url,
+    pub position: Option<common_enums::ElementPosition>,
+    pub size: Option<common_enums::ElementSize>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPaymentLinkConfig);
