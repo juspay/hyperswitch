@@ -229,6 +229,47 @@ pub async fn internal_user_signup(
     .await
 }
 
+pub async fn create_tenant_user(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::CreateTenantUserRequest>,
+) -> HttpResponse {
+    let flow = Flow::TenantUserCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        json_payload.into_inner(),
+        |state, _, req, _| user_core::create_tenant_user(state, req),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+pub async fn user_org_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::UserOrgMerchantCreateRequest>,
+) -> HttpResponse {
+    let flow = Flow::UserOrgMerchantCreate;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _auth: auth::UserFromToken, json_payload, _| {
+            user_core::create_org_merchant_for_user(state, json_payload)
+        },
+        &auth::JWTAuth {
+            permission: Permission::TenantAccountWrite,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 pub async fn user_merchant_account_create(
     state: web::Data<AppState>,
     req: HttpRequest,

@@ -1931,6 +1931,9 @@ pub mod routes {
                                 EntityType::Organization => Some(AuthInfo::OrgLevel {
                                     org_id: user_role.org_id.clone()?,
                                 }),
+                                EntityType::Tenant => Some(AuthInfo::OrgLevel {
+                                    org_id: auth.org_id.clone(),
+                                }),
                             })
                     })
                     .collect();
@@ -2053,6 +2056,9 @@ pub mod routes {
                                 }),
                                 EntityType::Organization => Some(AuthInfo::OrgLevel {
                                     org_id: user_role.org_id.clone()?,
+                                }),
+                                EntityType::Tenant => Some(AuthInfo::OrgLevel {
+                                    org_id: auth.org_id.clone(),
                                 }),
                             })
                     })

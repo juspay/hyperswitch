@@ -50,7 +50,8 @@ pub use hyperswitch_connectors::connectors::{
     payu::Payu, placetopay, placetopay::Placetopay, powertranz, powertranz::Powertranz, prophetpay,
     prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay, razorpay::Razorpay, redsys,
     redsys::Redsys, shift4, shift4::Shift4, square, square::Square, stax, stax::Stax, taxjar,
-    taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, worldline,
+    taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt, volt::Volt, unified_authentication_service,
+    unified_authentication_service::UnifiedAuthenticationService, worldline,
     worldline::Worldline, worldpay, worldpay::Worldpay, xendit, xendit::Xendit, zen, zen::Zen, zsl,
     zsl::Zsl,
 };

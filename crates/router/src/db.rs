@@ -12,6 +12,7 @@ pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
 pub mod dispute;
+pub mod dynamic_routing_stats;
 pub mod ephemeral_key;
 pub mod events;
 pub mod file;
@@ -107,6 +108,7 @@ pub trait StorageInterface:
     + payment_method::PaymentMethodInterface
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
+    + dynamic_routing_stats::DynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
     + PayoutAttemptInterface
     + PayoutsInterface
