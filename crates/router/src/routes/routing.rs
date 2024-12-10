@@ -1089,7 +1089,6 @@ pub async fn success_based_routing_update_configs(
             },
             req.headers(),
         ),
-
         api_locking::LockAction::NotApplicable,
     ))
     .await
