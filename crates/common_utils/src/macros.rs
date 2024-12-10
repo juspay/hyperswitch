@@ -379,6 +379,7 @@ macro_rules! create_list_wrapper {
             $($function_def: tt)*
         }
     ) => {
+        #[derive(Clone, Debug)]
         pub struct $wrapper_name(Vec<$type_name>);
         impl $wrapper_name {
             pub fn new(list: Vec<$type_name>) -> Self {
@@ -393,6 +394,14 @@ macro_rules! create_list_wrapper {
             type Item = $type_name;
             fn next(&mut self) -> Option<Self::Item> {
                 self.0.pop()
+            }
+        }
+
+        impl<'a> IntoIterator for &'a $wrapper_name {
+            type Item = &'a $type_name;
+            type IntoIter = std::slice::Iter<'a, $type_name>;
+            fn into_iter(self) -> Self::IntoIter {
+                self.0.iter()
             }
         }
 
