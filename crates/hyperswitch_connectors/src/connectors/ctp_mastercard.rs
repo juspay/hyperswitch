@@ -1,13 +1,10 @@
-
 use hyperswitch_interfaces::{
+    api::{self, ConnectorCommon, ConnectorValidation},
     configs::Connectors,
-    api::{self, ConnectorCommon, ConnectorValidation}
 };
-
 
 #[derive(Debug, Clone)]
 pub struct CtpMastercard;
-
 
 impl ConnectorCommon for CtpMastercard {
     fn id(&self) -> &'static str {

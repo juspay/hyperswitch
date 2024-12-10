@@ -8,7 +8,9 @@ use serde::Deserialize;
 pub struct NoParams;
 
 impl NoParams {
-    pub fn validate(&self, _parent_field: &str) -> Result<(), ApplicationError> { Ok(()) }
+    pub fn validate(&self, _parent_field: &str) -> Result<(), ApplicationError> {
+        Ok(())
+    }
 }
 
 // struct Connectors

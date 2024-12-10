@@ -1320,9 +1320,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 cryptopay::transformers::CryptopayAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::CtpMastercard => {
-                Ok(())
-            }
+            api_enums::Connector::CtpMastercard => Ok(()),
             api_enums::Connector::Cybersource => {
                 cybersource::transformers::CybersourceAuthType::try_from(self.auth_type)?;
                 cybersource::transformers::CybersourceConnectorMetadataObject::try_from(
