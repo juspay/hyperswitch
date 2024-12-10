@@ -321,6 +321,19 @@ impl api::IncomingWebhook for ConnectorEnum {
             Self::New(connector) => connector.get_mandate_details(request),
         }
     }
+
+    fn get_network_txn_id(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorNetworkTxnId>,
+        errors::ConnectorError,
+    > {
+        match self {
+            Self::Old(connector) => connector.get_network_txn_id(request),
+            Self::New(connector) => connector.get_network_txn_id(request),
+        }
+    }
 }
 
 impl api::ConnectorTransactionId for ConnectorEnum {

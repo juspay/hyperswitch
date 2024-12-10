@@ -538,12 +538,16 @@ fn get_status(item: (PaymentStatus, CaptureMethod)) -> AttemptStatus {
         PaymentStatus::Rejected => AttemptStatus::Failure,
         PaymentStatus::RejectedCapture => AttemptStatus::CaptureFailed,
         PaymentStatus::CaptureRequested => {
-            if capture_method == CaptureMethod::Automatic {
+            if matches!(
+                capture_method,
+                CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic
+            ) {
                 AttemptStatus::Pending
             } else {
                 AttemptStatus::CaptureInitiated
             }
         }
+
         PaymentStatus::PendingApproval => AttemptStatus::Authorized,
         PaymentStatus::Created => AttemptStatus::Started,
         PaymentStatus::Redirected => AttemptStatus::AuthenticationPending,

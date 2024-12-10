@@ -748,7 +748,9 @@ fn get_nexixpay_capture_type(
 ) -> CustomResult<Option<NexixpayCaptureType>, errors::ConnectorError> {
     match item {
         Some(CaptureMethod::Manual) => Ok(Some(NexixpayCaptureType::Explicit)),
-        Some(CaptureMethod::Automatic) | None => Ok(Some(NexixpayCaptureType::Implicit)),
+        Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) | None => {
+            Ok(Some(NexixpayCaptureType::Implicit))
+        }
         Some(item) => Err(errors::ConnectorError::FlowNotSupported {
             flow: item.to_string(),
             connector: "Nexixpay".to_string(),

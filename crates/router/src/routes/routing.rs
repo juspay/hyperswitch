@@ -21,7 +21,7 @@ pub async fn routing_create_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
@@ -62,7 +62,7 @@ pub async fn routing_create_config(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
-    transaction_type: &enums::TransactionType,
+    transaction_type: enums::TransactionType,
 ) -> impl Responder {
     let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
@@ -1089,7 +1089,6 @@ pub async fn success_based_routing_update_configs(
             },
             req.headers(),
         ),
-
         api_locking::LockAction::NotApplicable,
     ))
     .await
