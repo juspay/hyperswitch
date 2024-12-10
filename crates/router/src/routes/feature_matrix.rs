@@ -1,7 +1,9 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models::{connector_enums::Connector, feature_matrix};
 use common_enums::enums;
-use hyperswitch_domain_models::{api::ApplicationResponse, router_response_types::PaymentMethodTypeMetadata};
+use hyperswitch_domain_models::{
+    api::ApplicationResponse, router_response_types::PaymentMethodTypeMetadata,
+};
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_env::{instrument, tracing, Flow};
 use strum::IntoEnumIterator;
@@ -109,22 +111,25 @@ fn build_connector_payment_method_data(
     let payment_methods = supported_payment_method_types
         .into_iter()
         .map(|(payment_method_type, feature_metadata)| {
-            let payment_method_type_config = state
-                .conf
-                .pm_filters
-                .0
-                .get(connector_name)
-                .and_then(|selected_connector| {
-                    selected_connector.0.get(
-                        &settings::PaymentMethodFilterKey::PaymentMethodType(payment_method_type),
-                    )
-                });
+            let payment_method_type_config =
+                state
+                    .conf
+                    .pm_filters
+                    .0
+                    .get(connector_name)
+                    .and_then(|selected_connector| {
+                        selected_connector.0.get(
+                            &settings::PaymentMethodFilterKey::PaymentMethodType(
+                                payment_method_type,
+                            ),
+                        )
+                    });
 
-            let supported_countries = payment_method_type_config
-                .and_then(|config| config.country.clone());
+            let supported_countries =
+                payment_method_type_config.and_then(|config| config.country.clone());
 
-            let supported_currencies = payment_method_type_config
-                .and_then(|config| config.currency.clone());
+            let supported_currencies =
+                payment_method_type_config.and_then(|config| config.currency.clone());
 
             feature_matrix::SupportedPaymentMethod {
                 payment_method: payment_method_type,

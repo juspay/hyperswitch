@@ -2226,9 +2226,6 @@ impl FeatureMatrix {
     pub fn server(state: AppState) -> Scope {
         web::scope("/feature_matrix")
             .app_data(web::Data::new(state))
-            .service(
-                web::resource("")
-                    .route(web::get().to(feature_matrix::fetch_feature_matrix)),
-            )
+            .service(web::resource("").route(web::get().to(feature_matrix::fetch_feature_matrix)))
     }
 }
