@@ -10,6 +10,7 @@ use crate::services::kafka::KafkaMessage;
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct OutgoingWebhookEvent {
+    tenant_id: common_utils::id_type::TenantId,
     merchant_id: common_utils::id_type::MerchantId,
     event_id: String,
     event_type: OutgoingWebhookEventType,
@@ -147,6 +148,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
 impl OutgoingWebhookEvent {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        tenant_id: common_utils::id_type::TenantId,
         merchant_id: common_utils::id_type::MerchantId,
         event_id: String,
         event_type: OutgoingWebhookEventType,
@@ -157,6 +159,7 @@ impl OutgoingWebhookEvent {
         delivery_attempt: Option<WebhookDeliveryAttempt>,
     ) -> Self {
         Self {
+            tenant_id,
             merchant_id,
             event_id,
             event_type,

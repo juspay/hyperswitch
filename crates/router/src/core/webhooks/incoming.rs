@@ -99,6 +99,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .attach_printable("Could not convert webhook effect to string")?;
 
     let api_event = ApiEvent::new(
+        state.tenant.tenant_id.clone(),
         Some(merchant_account.get_id().clone()),
         flow,
         &request_id,
