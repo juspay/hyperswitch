@@ -36,6 +36,8 @@ pub mod payment_confirm_intent;
 pub mod payment_create_intent;
 #[cfg(feature = "v2")]
 pub mod payment_get_intent;
+#[cfg(feature = "v2")]
+pub mod payment_update_intent;
 
 #[cfg(feature = "v2")]
 pub mod payment_get;
@@ -52,6 +54,8 @@ pub use self::payment_get::PaymentGet;
 #[cfg(feature = "v2")]
 pub use self::payment_get_intent::PaymentGetIntent;
 pub use self::payment_response::PaymentResponse;
+#[cfg(feature = "v2")]
+pub use self::payment_update_intent::PaymentUpdateIntent;
 #[cfg(feature = "v1")]
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,

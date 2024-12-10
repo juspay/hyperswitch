@@ -109,7 +109,9 @@ impl TryFrom<&RapydRouterData<&types::PaymentsAuthorizeRouterData>> for RapydPay
                 (
                     Some(matches!(
                         item.router_data.request.capture_method,
-                        Some(enums::CaptureMethod::Automatic) | None
+                        Some(enums::CaptureMethod::Automatic)
+                            | Some(enums::CaptureMethod::SequentialAutomatic)
+                            | None
                     )),
                     Some(payment_method_options),
                 )

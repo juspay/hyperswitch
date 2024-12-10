@@ -106,6 +106,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                 let should_capture = matches!(
                     item.router_data.request.capture_method,
                     Some(enums::CaptureMethod::Automatic)
+                        | Some(enums::CaptureMethod::SequentialAutomatic)
                 );
                 let payment_request = Self {
                     amount: item.amount,

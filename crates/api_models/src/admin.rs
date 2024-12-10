@@ -1966,6 +1966,10 @@ pub struct ProfileCreate {
 
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<u8>,
+
+    /// Indicates if click to pay is enabled or not.
+    #[serde(default)]
+    pub is_click_to_pay_enabled: bool,
 }
 
 #[nutype::nutype(
@@ -2074,6 +2078,10 @@ pub struct ProfileCreate {
     /// Indicates if network tokenization is enabled or not.
     #[serde(default)]
     pub is_network_tokenization_enabled: bool,
+
+    /// Indicates if click to pay is enabled or not.
+    #[schema(default = false, example = false)]
+    pub is_click_to_pay_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2202,6 +2210,10 @@ pub struct ProfileResponse {
 
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<i16>,
+
+    /// Indicates if click to pay is enabled or not.
+    #[schema(default = false, example = false)]
+    pub is_click_to_pay_enabled: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -2317,6 +2329,10 @@ pub struct ProfileResponse {
 
     /// Indicates if CVV should be collected during payment or not.
     pub should_collect_cvv_during_payment: bool,
+
+    /// Indicates if click to pay is enabled or not.
+    #[schema(default = false, example = false)]
+    pub is_click_to_pay_enabled: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -2439,6 +2455,10 @@ pub struct ProfileUpdate {
 
     /// Maximum number of auto retries allowed for a payment
     pub max_auto_retries_enabled: Option<u8>,
+
+    /// Indicates if click to pay is enabled or not.
+    #[schema(default = false, example = false)]
+    pub is_click_to_pay_enabled: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -2542,6 +2562,10 @@ pub struct ProfileUpdate {
 
     /// Indicates if network tokenization is enabled or not.
     pub is_network_tokenization_enabled: Option<bool>,
+
+    /// Indicates if click to pay is enabled or not.
+    #[schema(default = false, example = false)]
+    pub is_click_to_pay_enabled: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

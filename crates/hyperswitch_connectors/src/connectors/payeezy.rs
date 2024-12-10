@@ -158,7 +158,9 @@ impl ConnectorValidation for Payeezy {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            CaptureMethod::Automatic | CaptureMethod::Manual => Ok(()),
+            CaptureMethod::Automatic
+            | CaptureMethod::Manual
+            | CaptureMethod::SequentialAutomatic => Ok(()),
             CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => Err(
                 construct_not_implemented_error_report(capture_method, self.id()),
             ),
