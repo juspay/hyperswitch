@@ -171,6 +171,8 @@ impl CustomerResponse {
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct CustomerResponse {
+    /// Global id
+    pub id: String,
     /// The identifier for the customer object
     #[schema(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub merchant_reference_id: Option<id_type::CustomerId>,
@@ -207,8 +209,6 @@ pub struct CustomerResponse {
     /// The identifier for the default payment method.
     #[schema(max_length = 64, example = "pm_djh2837dwduh890123")]
     pub default_payment_method_id: Option<String>,
-    /// Global id
-    pub id: String,
 }
 
 #[cfg(all(feature = "v2", feature = "customer_v2"))]

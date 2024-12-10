@@ -7563,16 +7563,21 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500\ncharacters long. Metadata is useful for storing additional, structured information on an\nobject.",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CustomerResponse": {
         "type": "object",
         "required": [
+          "id",
           "merchant_reference_id",
-          "created_at",
-          "id"
+          "created_at"
         ],
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Global id"
+          },
           "merchant_reference_id": {
             "type": "string",
             "description": "The identifier for the customer object",
@@ -7648,10 +7653,6 @@
             "example": "pm_djh2837dwduh890123",
             "nullable": true,
             "maxLength": 64
-          },
-          "id": {
-            "type": "string",
-            "description": "Global id"
           }
         }
       },
