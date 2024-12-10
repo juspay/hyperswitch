@@ -751,7 +751,7 @@ pub async fn validate_and_create_refund(
     let db = &*state.store;
 
     let split_refunds = match payment_intent.split_payments.as_ref() {
-        Some(common_utils::types::SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
+        Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe_payment)) => {
             if let Some(charge_id) = payment_attempt.charge_id.clone() {
                 let refund_request = req
                     .split_refunds
@@ -1470,7 +1470,7 @@ pub async fn trigger_refund_execute_workflow(
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
             let split_refunds = match payment_intent.split_payments.as_ref() {
-                Some(common_utils::types::SplitPaymentsRequest::StripeSplitPayment(
+                Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
                     stripe_payment,
                 )) => {
                     let refund_request = refund
@@ -1485,7 +1485,7 @@ pub async fn trigger_refund_execute_workflow(
 
                     let charge_id = payment_attempt.charge_id.clone().ok_or_else(|| {
                         report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                "Transaction in invalid. Missing field \"charge_id\" in payment_attempt.",
+                "Transaction is invalid. Missing field \"charge_id\" in payment_attempt.",
             )
                     })?;
 

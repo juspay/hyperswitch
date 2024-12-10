@@ -765,7 +765,7 @@ impl
 
         if let Some(split_payments) = &req.request.split_payments {
             match split_payments {
-                common_utils::types::SplitPaymentsRequest::StripeSplitPayment(
+                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
                     stripe_split_payment,
                 ) => {
                     transformers::transform_headers_for_connect_platform(
@@ -942,7 +942,7 @@ impl
 
         if let Some(split_payments) = &req.request.split_payments {
             match split_payments {
-                common_utils::types::SplitPaymentsRequest::StripeSplitPayment(
+                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
                     stripe_split_payment,
                 ) => {
                     if stripe_split_payment.charge_type

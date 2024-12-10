@@ -147,12 +147,12 @@ pub fn validate_for_valid_refunds(
 }
 
 pub fn validate_charge_refund(
-    charges: &common_utils::types::SplitRefund,
+    charges: &common_types::refunds::SplitRefund,
     charge_type: &api_enums::PaymentChargeType,
 ) -> RouterResult<types::ChargeRefundsOptions> {
     match charge_type {
         api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Direct) => {
-            let common_utils::types::SplitRefund::StripeSplitRefund(stripe_charge) = charges;
+            let common_types::refunds::SplitRefund::StripeSplitRefund(stripe_charge) = charges;
 
             Ok(types::ChargeRefundsOptions::Direct(
                 types::DirectChargeRefund {
@@ -163,7 +163,7 @@ pub fn validate_charge_refund(
             ))
         }
         api_enums::PaymentChargeType::Stripe(api_enums::StripeChargeType::Destination) => {
-            let common_utils::types::SplitRefund::StripeSplitRefund(stripe_charge) = charges;
+            let common_types::refunds::SplitRefund::StripeSplitRefund(stripe_charge) = charges;
 
             Ok(types::ChargeRefundsOptions::Destination(
                 types::DestinationChargeRefund {

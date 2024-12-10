@@ -850,7 +850,7 @@ pub struct PaymentsRequest {
 
     /// Fee information to be charged on the payment being collected
     #[schema(value_type = Option<SplitPaymentsRequest>)]
-    pub split_payments: Option<common_utils::types::SplitPaymentsRequest>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
     /// if the connector provides support to accept multiple reference ids.

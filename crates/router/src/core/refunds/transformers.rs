@@ -5,8 +5,8 @@ use super::validator;
 use crate::core::errors;
 
 pub struct SplitRefundInput {
-    pub refund_request: common_utils::types::SplitRefund,
-    pub payment_charges: common_utils::types::SplitPaymentsRequest,
+    pub refund_request: common_types::refunds::SplitRefund,
+    pub payment_charges: common_types::payments::SplitPaymentsRequest,
     pub charge_id: Option<String>,
 }
 
@@ -21,9 +21,9 @@ impl TryFrom<SplitRefundInput> for router_request_types::SplitRefundsRequest {
         } = value;
 
         match refund_request {
-            common_utils::types::SplitRefund::StripeSplitRefund(stripe_refund) => {
+            common_types::refunds::SplitRefund::StripeSplitRefund(stripe_refund) => {
                 match payment_charges {
-                    common_utils::types::SplitPaymentsRequest::StripeSplitPayment(
+                    common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
                         stripe_payment,
                     ) => {
                         let charge_id = charge_id.ok_or_else(|| {
@@ -32,7 +32,7 @@ impl TryFrom<SplitRefundInput> for router_request_types::SplitRefundsRequest {
                         })?;
 
                         let options = validator::validate_charge_refund(
-                            &common_utils::types::SplitRefund::StripeSplitRefund(
+                            &common_types::refunds::SplitRefund::StripeSplitRefund(
                                 stripe_refund.clone(),
                             ),
                             &stripe_payment.charge_type,

@@ -1,12 +1,7 @@
 pub mod authentication;
 pub mod fraud_check;
 use api_models::payments::{AdditionalPaymentData, RequestSurchargeDetails};
-use common_utils::{
-    consts, errors,
-    ext_traits::OptionExt,
-    id_type, pii,
-    types::{self as common_types, MinorUnit},
-};
+use common_utils::{consts, errors, ext_traits::OptionExt, id_type, pii, types::MinorUnit};
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
 use masking::Secret;
@@ -62,7 +57,7 @@ pub struct PaymentsAuthorizeData {
     pub request_incremental_authorization: bool,
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
-    pub split_payments: Option<common_utils::types::SplitPaymentsRequest>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
@@ -438,7 +433,7 @@ pub struct PaymentsSyncData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub currency: storage_enums::Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
-    pub split_payments: Option<common_utils::types::SplitPaymentsRequest>,
+    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
     pub amount: MinorUnit,
     pub integrity_object: Option<SyncIntegrityObject>,
 }
@@ -582,7 +577,7 @@ pub struct AuthenticationData {
     pub eci: Option<String>,
     pub cavv: String,
     pub threeds_server_transaction_id: String,
-    pub message_version: common_types::SemanticVersion,
+    pub message_version: common_utils::types::SemanticVersion,
     pub ds_trans_id: Option<String>,
 }
 

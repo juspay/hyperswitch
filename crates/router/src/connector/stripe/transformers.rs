@@ -6,7 +6,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode},
     pii::{self, Email},
     request::RequestContent,
-    types::{MinorUnit, SplitPaymentsRequest},
+    types::MinorUnit,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -1918,7 +1918,9 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntent
         };
 
         let (charges, customer) = match &item.request.split_payments {
-            Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) => {
+            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                stripe_split_payment,
+            )) => {
                 let charges = match &stripe_split_payment.charge_type {
                     api_models::enums::PaymentChargeType::Stripe(charge_type) => {
                         match charge_type {

@@ -53,7 +53,7 @@ pub struct Refund {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub connector_refund_data: Option<String>,
     pub connector_transaction_data: Option<String>,
-    pub split_refunds: Option<common_utils::types::SplitRefund>,
+    pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
 #[derive(
@@ -99,7 +99,7 @@ pub struct RefundNew {
     pub organization_id: common_utils::id_type::OrganizationId,
     pub connector_refund_data: Option<String>,
     pub connector_transaction_data: Option<String>,
-    pub split_refunds: Option<common_utils::types::SplitRefund>,
+    pub split_refunds: Option<common_types::refunds::SplitRefund>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

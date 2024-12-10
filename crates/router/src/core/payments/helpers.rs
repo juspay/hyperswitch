@@ -6103,9 +6103,9 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
 
 pub fn validate_platform_fees_for_marketplace(
     amount: api::Amount,
-    split_payments: Option<common_utils::types::SplitPaymentsRequest>,
+    split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if let Some(common_utils::types::SplitPaymentsRequest::StripeSplitPayment(
+    if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
         stripe_split_payment,
     )) = split_payments
     {

@@ -459,6 +459,7 @@ dependencies = [
  "actix-web",
  "cards",
  "common_enums",
+ "common_types",
  "common_utils",
  "error-stack",
  "euclid",
@@ -2071,6 +2072,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "common_types"
+version = "0.1.0"
+dependencies = [
+ "common_enums",
+ "common_utils",
+ "diesel",
+ "serde",
+ "serde_json",
+ "utoipa",
+]
+
+[[package]]
 name = "common_utils"
 version = "0.1.0"
 dependencies = [
@@ -2780,6 +2793,7 @@ version = "0.1.0"
 dependencies = [
  "async-bb8-diesel",
  "common_enums",
+ "common_types",
  "common_utils",
  "diesel",
  "error-stack",
@@ -4087,6 +4101,7 @@ dependencies = [
  "async-trait",
  "cards",
  "common_enums",
+ "common_types",
  "common_utils",
  "diesel_models",
  "error-stack",
@@ -5308,6 +5323,7 @@ name = "openapi"
 version = "0.1.0"
 dependencies = [
  "api_models",
+ "common_types",
  "common_utils",
  "router_env",
  "serde_json",
@@ -6626,6 +6642,7 @@ dependencies = [
  "cards",
  "clap",
  "common_enums",
+ "common_types",
  "common_utils",
  "config",
  "cookie 0.18.1",

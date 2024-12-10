@@ -8,10 +8,7 @@ use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
     consts::X_HS_LATENCY,
     fp_utils, pii,
-    types::{
-        self as common_utils_type, AmountConvertor, MinorUnit, SplitPaymentsRequest,
-        StringMajorUnitForConnector,
-    },
+    types::{self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
 use diesel_models::{
     ephemeral_key,
@@ -1880,7 +1877,9 @@ where
         let split_payments_response = match payment_intent.split_payments {
             None => None,
             Some(split_payments) => match split_payments {
-                SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) => Some(
+                common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
+                    stripe_split_payment,
+                ) => Some(
                     api_models::payments::SplitPaymentsResponse::StripeSplitPayment(
                         api_models::payments::StripeSplitPaymentsResponse {
                             charge_id: payment_attempt.charge_id.clone(),

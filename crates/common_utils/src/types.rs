@@ -1071,69 +1071,6 @@ pub struct ChargeRefunds {
 
 crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 
-#[derive(
-    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
-#[serde(rename_all = "snake_case")]
-#[serde(deny_unknown_fields)]
-/// Charge specific fields for controlling the revert of funds from either platform or connected account. Check sub-fields for more details.
-pub enum SplitRefund {
-    /// StripeSplitRefundRequest
-    StripeSplitRefund(StripeSplitRefundRequest),
-}
-crate::impl_to_sql_from_sql_json!(SplitRefund);
-
-#[derive(
-    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
-/// Charge specific fields for controlling the revert of funds from either platform or connected account for Stripe. Check sub-fields for more details.
-pub struct StripeSplitRefundRequest {
-    /// Toggle for reverting the application fee that was collected for the payment.
-    /// If set to false, the funds are pulled from the destination account.
-    pub revert_platform_fee: Option<bool>,
-
-    /// Toggle for reverting the transfer that was made during the charge.
-    /// If set to false, the funds are pulled from the main platform's account.
-    pub revert_transfer: Option<bool>,
-}
-crate::impl_to_sql_from_sql_json!(StripeSplitRefundRequest);
-
-#[derive(
-    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
-#[serde(rename_all = "snake_case")]
-#[serde(deny_unknown_fields)]
-/// Fee information for Split Payments to be charged on the payment being collected
-pub enum SplitPaymentsRequest {
-    /// StripeSplitPayment
-    StripeSplitPayment(StripeSplitPaymentRequest),
-}
-crate::impl_to_sql_from_sql_json!(SplitPaymentsRequest);
-
-#[derive(
-    Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
-#[serde(deny_unknown_fields)]
-/// Fee information for Split Payments to be charged on the payment being collected for Stripe
-pub struct StripeSplitPaymentRequest {
-    /// Stripe's charge type
-    #[schema(value_type = PaymentChargeType, example = "direct")]
-    pub charge_type: enums::PaymentChargeType,
-
-    /// Platform fees to be collected on the payment
-    #[schema(value_type = i64, example = 6540)]
-    pub application_fees: MinorUnit,
-
-    /// Identifier for the reseller's account to send the funds to
-    pub transfer_account_id: String,
-}
-crate::impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
-
 /// A common type of domain type that can be used for fields that contain a string with restriction of length
 #[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
