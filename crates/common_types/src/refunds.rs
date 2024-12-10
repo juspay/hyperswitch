@@ -1,3 +1,5 @@
+//! Refund related types
+
 use common_utils::impl_to_sql_from_sql_json;
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
