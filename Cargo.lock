@@ -7153,9 +7153,8 @@ dependencies = [
 
 [[package]]
 name = "scylla"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8139623d3fb0c8205b15e84fa587f3aa0ba61f876c19a9157b688f7c1763a7c5"
+version = "0.15.0"
+source = "git+https://github.com/juspay/scylla-rust-driver.git?rev=5700aa2847b25437cdd4fcf34d707aa90dca8b89#5700aa2847b25437cdd4fcf34d707aa90dca8b89"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -7184,9 +7183,8 @@ dependencies = [
 
 [[package]]
 name = "scylla-cql"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de7020bcd1f6fdbeaed356cd426bf294b2071bd7120d48d2e8e319295e2acdcd"
+version = "0.4.0"
+source = "git+https://github.com/juspay/scylla-rust-driver.git?rev=5700aa2847b25437cdd4fcf34d707aa90dca8b89#5700aa2847b25437cdd4fcf34d707aa90dca8b89"
 dependencies = [
  "async-trait",
  "byteorder",
@@ -7194,16 +7192,17 @@ dependencies = [
  "lz4_flex",
  "scylla-macros",
  "snap",
+ "stable_deref_trait",
  "thiserror",
  "tokio 1.40.0",
  "uuid",
+ "yoke",
 ]
 
 [[package]]
 name = "scylla-macros"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3859b6938663fc5062e3b26f3611649c9bd26fb252e85f6fdfa581e0d2ce74b6"
+version = "0.7.0"
+source = "git+https://github.com/juspay/scylla-rust-driver.git?rev=5700aa2847b25437cdd4fcf34d707aa90dca8b89#5700aa2847b25437cdd4fcf34d707aa90dca8b89"
 dependencies = [
  "darling 0.20.10",
  "proc-macro2",
