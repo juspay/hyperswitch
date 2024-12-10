@@ -38,6 +38,7 @@ pub enum AnalyticsCollection {
     ConnectorEvents,
     OutgoingWebhookEvent,
     Dispute,
+    DisputeSessionized,
     ApiEventsAnalytics,
     ActivePaymentsAnalytics,
 }

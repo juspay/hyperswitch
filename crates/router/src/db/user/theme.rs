@@ -16,6 +16,11 @@ pub trait ThemeInterface {
         theme: storage::ThemeNew,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
 
+    async fn find_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::Theme, errors::StorageError>;
+
     async fn find_theme_by_lineage(
         &self,
         lineage: ThemeLineage,
@@ -37,6 +42,16 @@ impl ThemeInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         theme
             .insert(&conn)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn find_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::Theme, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Theme::find_by_theme_id(&conn, theme_id)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -65,12 +80,13 @@ impl ThemeInterface for Store {
 
 fn check_theme_with_lineage(theme: &storage::Theme, lineage: &ThemeLineage) -> bool {
     match lineage {
-        ThemeLineage::Tenant { tenant_id } => {
-            &theme.tenant_id == tenant_id
-                && theme.org_id.is_none()
-                && theme.merchant_id.is_none()
-                && theme.profile_id.is_none()
-        }
+        // TODO: Add back Tenant variant when we introduce Tenant Variant in EntityType
+        // ThemeLineage::Tenant { tenant_id } => {
+        //     &theme.tenant_id == tenant_id
+        //         && theme.org_id.is_none()
+        //         && theme.merchant_id.is_none()
+        //         && theme.profile_id.is_none()
+        // }
         ThemeLineage::Organization { tenant_id, org_id } => {
             &theme.tenant_id == tenant_id
                 && theme
@@ -156,10 +172,30 @@ impl ThemeInterface for MockDb {
             profile_id: new_theme.profile_id,
             created_at: new_theme.created_at,
             last_modified_at: new_theme.last_modified_at,
+            entity_type: new_theme.entity_type,
+            theme_name: new_theme.theme_name,
         };
         themes.push(theme.clone());
 
         Ok(theme)
+    }
+
+    async fn find_theme_by_theme_id(
+        &self,
+        theme_id: String,
+    ) -> CustomResult<storage::Theme, errors::StorageError> {
+        let themes = self.themes.lock().await;
+        themes
+            .iter()
+            .find(|theme| theme.theme_id == theme_id)
+            .cloned()
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "Theme with id {} not found",
+                    theme_id
+                ))
+                .into(),
+            )
     }
 
     async fn find_theme_by_lineage(

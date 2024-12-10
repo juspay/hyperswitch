@@ -1,3 +1,4 @@
+pub mod address;
 pub mod api;
 pub mod behaviour;
 pub mod business_profile;
@@ -190,6 +191,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout: item.sdk_layout,
             display_sdk_only: item.display_sdk_only,
             enabled_saved_payment_method: item.enabled_saved_payment_method,
+            hide_card_nickname_field: item.hide_card_nickname_field,
+            show_card_form_by_default: item.show_card_form_by_default,
             transaction_details: item.transaction_details.map(|transaction_details| {
                 transaction_details
                     .into_iter()
@@ -210,6 +213,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout,
             display_sdk_only,
             enabled_saved_payment_method,
+            hide_card_nickname_field,
+            show_card_form_by_default,
             transaction_details,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
@@ -219,6 +224,8 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             sdk_layout,
             display_sdk_only,
             enabled_saved_payment_method,
+            hide_card_nickname_field,
+            show_card_form_by_default,
             transaction_details: transaction_details.map(|transaction_details| {
                 transaction_details
                     .into_iter()
@@ -295,36 +302,12 @@ impl From<api_models::payments::AmountDetails> for payments::AmountDetails {
                     payment_method_type: None,
                 }
             }),
-            skip_external_tax_calculation: payments::TaxCalculationOverride::from(
-                amount_details.skip_external_tax_calculation(),
-            ),
-            skip_surcharge_calculation: payments::SurchargeCalculationOverride::from(
-                amount_details.skip_surcharge_calculation(),
-            ),
+            skip_external_tax_calculation: amount_details.skip_external_tax_calculation(),
+            skip_surcharge_calculation: amount_details.skip_surcharge_calculation(),
             surcharge_amount: amount_details.surcharge_amount(),
             tax_on_surcharge: amount_details.tax_on_surcharge(),
             // We will not receive this in the request. This will be populated after calling the connector / processor
             amount_captured: None,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<common_enums::SurchargeCalculationOverride> for payments::SurchargeCalculationOverride {
-    fn from(surcharge_calculation_override: common_enums::SurchargeCalculationOverride) -> Self {
-        match surcharge_calculation_override {
-            common_enums::SurchargeCalculationOverride::Calculate => Self::Calculate,
-            common_enums::SurchargeCalculationOverride::Skip => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<common_enums::TaxCalculationOverride> for payments::TaxCalculationOverride {
-    fn from(tax_calculation_override: common_enums::TaxCalculationOverride) -> Self {
-        match tax_calculation_override {
-            common_enums::TaxCalculationOverride::Calculate => Self::Calculate,
-            common_enums::TaxCalculationOverride::Skip => Self::Skip,
         }
     }
 }

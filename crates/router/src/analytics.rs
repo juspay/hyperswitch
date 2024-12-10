@@ -792,6 +792,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetSdkEventMetricRequest` element.
@@ -830,6 +831,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetActivePaymentsMetricRequest` element.
@@ -869,6 +871,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     /// # Panics
     ///
     /// Panics if `json_payload` array does not contain one `GetAuthEventMetricRequest` element.
@@ -1148,6 +1151,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_sdk_event_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1241,6 +1245,7 @@ pub mod routes {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_profile_sdk_events(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -1859,6 +1864,7 @@ pub mod routes {
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
+                        tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: Some(&auth.org_id),
                         merchant_id: None,
                         profile_id: None,
@@ -1924,6 +1930,9 @@ pub mod routes {
                                 }),
                                 EntityType::Organization => Some(AuthInfo::OrgLevel {
                                     org_id: user_role.org_id.clone()?,
+                                }),
+                                EntityType::Tenant => Some(AuthInfo::OrgLevel {
+                                    org_id: auth.org_id.clone(),
                                 }),
                             })
                     })
@@ -1982,6 +1991,7 @@ pub mod routes {
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: &auth.user_id,
+                        tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: Some(&auth.org_id),
                         merchant_id: None,
                         profile_id: None,
@@ -2046,6 +2056,9 @@ pub mod routes {
                                 }),
                                 EntityType::Organization => Some(AuthInfo::OrgLevel {
                                     org_id: user_role.org_id.clone()?,
+                                }),
+                                EntityType::Tenant => Some(AuthInfo::OrgLevel {
+                                    org_id: auth.org_id.clone(),
                                 }),
                             })
                     })

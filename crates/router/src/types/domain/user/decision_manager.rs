@@ -1,6 +1,7 @@
 use common_enums::TokenPurpose;
+use common_utils::id_type;
 use diesel_models::{enums::UserStatus, user_role::UserRole};
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use masking::Secret;
 
 use super::UserFromStorage;
@@ -24,9 +25,10 @@ impl UserFlow {
         user: &UserFromStorage,
         path: &[TokenPurpose],
         state: &SessionState,
+        user_tenant_id: &id_type::TenantId,
     ) -> UserResult<bool> {
         match self {
-            Self::SPTFlow(flow) => flow.is_required(user, path, state).await,
+            Self::SPTFlow(flow) => flow.is_required(user, path, state, user_tenant_id).await,
             Self::JWTFlow(flow) => flow.is_required(user, state).await,
         }
     }
@@ -50,6 +52,7 @@ impl SPTFlow {
         user: &UserFromStorage,
         path: &[TokenPurpose],
         state: &SessionState,
+        user_tenant_id: &id_type::TenantId,
     ) -> UserResult<bool> {
         match self {
             // Auth
@@ -68,6 +71,7 @@ impl SPTFlow {
                 .global_store
                 .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                     user_id: user.get_user_id(),
+                    tenant_id: user_tenant_id,
                     org_id: None,
                     merchant_id: None,
                     profile_id: None,
@@ -120,19 +124,19 @@ impl JWTFlow {
         next_flow: &NextFlow,
         user_role: &UserRole,
     ) -> UserResult<Secret<String>> {
-        let (merchant_id, profile_id) =
-            utils::user_role::get_single_merchant_id_and_profile_id(state, user_role).await?;
+        let org_id = utils::user_role::get_single_org_id(state, user_role).await?;
+        let merchant_id =
+            utils::user_role::get_single_merchant_id(state, user_role, &org_id).await?;
+        let profile_id =
+            utils::user_role::get_single_profile_id(state, user_role, &merchant_id).await?;
+
         auth::AuthToken::new_token(
             next_flow.user.get_user_id().to_string(),
             merchant_id,
             user_role.role_id.clone(),
             &state.conf,
-            user_role
-                .org_id
-                .clone()
-                .ok_or(report!(UserErrors::InternalServerError))
-                .attach_printable("org_id not found")?,
-            Some(profile_id),
+            org_id,
+            profile_id,
             Some(user_role.tenant_id.clone()),
         )
         .await
@@ -220,6 +224,7 @@ pub struct CurrentFlow {
     origin: Origin,
     current_flow_index: usize,
     path: Vec<TokenPurpose>,
+    tenant_id: Option<id_type::TenantId>,
 }
 
 impl CurrentFlow {
@@ -239,6 +244,7 @@ impl CurrentFlow {
             origin: token.origin,
             current_flow_index: index,
             path,
+            tenant_id: token.tenant_id,
         })
     }
 
@@ -247,12 +253,21 @@ impl CurrentFlow {
         let remaining_flows = flows.iter().skip(self.current_flow_index + 1);
 
         for flow in remaining_flows {
-            if flow.is_required(&user, &self.path, state).await? {
+            if flow
+                .is_required(
+                    &user,
+                    &self.path,
+                    state,
+                    self.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+                )
+                .await?
+            {
                 return Ok(NextFlow {
                     origin: self.origin.clone(),
                     next_flow: *flow,
                     user,
                     path: self.path,
+                    tenant_id: self.tenant_id,
                 });
             }
         }
@@ -265,6 +280,7 @@ pub struct NextFlow {
     next_flow: UserFlow,
     user: UserFromStorage,
     path: Vec<TokenPurpose>,
+    tenant_id: Option<id_type::TenantId>,
 }
 
 impl NextFlow {
@@ -276,12 +292,16 @@ impl NextFlow {
         let flows = origin.get_flows();
         let path = vec![];
         for flow in flows {
-            if flow.is_required(&user, &path, state).await? {
+            if flow
+                .is_required(&user, &path, state, &state.tenant.tenant_id)
+                .await?
+            {
                 return Ok(Self {
                     origin,
                     next_flow: *flow,
                     user,
                     path,
+                    tenant_id: Some(state.tenant.tenant_id.clone()),
                 });
             }
         }
@@ -304,6 +324,7 @@ impl NextFlow {
                     .global_store
                     .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
                         user_id: self.user.get_user_id(),
+                        tenant_id: self.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
                         org_id: None,
                         merchant_id: None,
                         profile_id: None,
@@ -352,12 +373,16 @@ impl NextFlow {
             .ok_or(UserErrors::InternalServerError)?;
         let remaining_flows = flows.iter().skip(index + 1);
         for flow in remaining_flows {
-            if flow.is_required(&user, &self.path, state).await? {
+            if flow
+                .is_required(&user, &self.path, state, &state.tenant.tenant_id)
+                .await?
+            {
                 return Ok(Self {
                     origin: self.origin.clone(),
                     next_flow: *flow,
                     user,
                     path: self.path,
+                    tenant_id: Some(state.tenant.tenant_id.clone()),
                 });
             }
         }

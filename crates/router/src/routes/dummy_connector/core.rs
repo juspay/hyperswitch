@@ -9,6 +9,7 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn payment(
     state: SessionState,
     req: types::DummyConnectorPaymentRequest,
@@ -54,6 +55,7 @@ pub async fn payment_data(
     Ok(api::ApplicationResponse::Json(payment_data.into()))
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn payment_authorize(
     state: SessionState,
     req: types::DummyConnectorPaymentConfirmRequest,
@@ -82,6 +84,7 @@ pub async fn payment_authorize(
     }
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn payment_complete(
     state: SessionState,
     req: types::DummyConnectorPaymentCompleteRequest,
@@ -144,6 +147,7 @@ pub async fn payment_complete(
     ))
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn refund_payment(
     state: SessionState,
     req: types::DummyConnectorRefundRequest,
@@ -197,6 +201,7 @@ pub async fn refund_payment(
     Ok(api::ApplicationResponse::Json(refund_data))
 }
 
+#[cfg(all(feature = "dummy_connector", feature = "v1"))]
 pub async fn refund_data(
     state: SessionState,
     req: types::DummyConnectorRefundRetrieveRequest,

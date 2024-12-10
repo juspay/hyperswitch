@@ -203,7 +203,7 @@ pub struct CashtocodePaymentsSyncResponse {
 }
 
 fn get_redirect_form_data(
-    payment_method_type: &enums::PaymentMethodType,
+    payment_method_type: enums::PaymentMethodType,
     response_data: CashtocodePaymentsResponseData,
 ) -> CustomResult<RedirectForm, errors::ConnectorError> {
     match payment_method_type {
@@ -260,7 +260,6 @@ impl<F>
                     .data
                     .request
                     .payment_method_type
-                    .as_ref()
                     .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
                 let redirection_data = get_redirect_form_data(payment_method_type, response_data)?;
                 (

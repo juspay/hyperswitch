@@ -12,6 +12,7 @@ mod payment;
 mod profile;
 mod refunds;
 mod routing;
+mod tenant;
 
 #[cfg(feature = "v2")]
 mod global_id;
@@ -40,12 +41,13 @@ pub use profile::ProfileId;
 pub use refunds::RefundReferenceId;
 pub use routing::RoutingId;
 use serde::{Deserialize, Serialize};
+pub use tenant::TenantId;
 use thiserror::Error;
 
 use crate::{fp_utils::when, generate_id_with_default_len};
 
 #[inline]
-fn is_valid_id_character(input_char: &char) -> bool {
+fn is_valid_id_character(input_char: char) -> bool {
     input_char.is_ascii_alphanumeric() || matches!(input_char, '_' | '-')
 }
 
@@ -55,7 +57,7 @@ fn get_invalid_input_character(input_string: Cow<'static, str>) -> Option<char> 
     input_string
         .trim()
         .chars()
-        .find(|char| !is_valid_id_character(char))
+        .find(|&char| !is_valid_id_character(char))
 }
 
 #[derive(Debug, PartialEq, Hash, Serialize, Clone, Eq)]
