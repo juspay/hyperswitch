@@ -285,7 +285,7 @@ pub async fn toggle_success_based_routing() {}
 ///
 /// Update success based dynamic routing algorithm
 #[utoipa::path(
-    post,
+    patch,
     path = "/account/:account_id/business_profile/:profile_id/dynamic_routing/success_based/config/:algorithm_id",
     params(
         ("account_id" = String, Path, description = "Merchant id"),
