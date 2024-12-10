@@ -337,8 +337,7 @@ impl NextFlow {
                     .change_context(UserErrors::InternalServerError)?
                     .pop()
                     .ok_or(UserErrors::InternalServerError)?;
-                utils::user_role::set_role_permissions_in_cache_by_user_role(state, &user_role)
-                    .await;
+                utils::user_role::set_role_info_in_cache_by_user_role(state, &user_role).await;
 
                 jwt_flow.generate_jwt(state, self, &user_role).await
             }
@@ -357,8 +356,7 @@ impl NextFlow {
                 {
                     self.user.get_verification_days_left(state)?;
                 }
-                utils::user_role::set_role_permissions_in_cache_by_user_role(state, user_role)
-                    .await;
+                utils::user_role::set_role_info_in_cache_by_user_role(state, user_role).await;
 
                 jwt_flow.generate_jwt(state, self, user_role).await
             }
