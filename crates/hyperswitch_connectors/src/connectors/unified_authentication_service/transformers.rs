@@ -4,7 +4,7 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_request_types::{unified_authentication_service::{UasPreAuthenticationRequestData, UasAuthenticationResponseData, UasPostAuthenticationRequestData}, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
@@ -34,22 +34,49 @@ impl<T> From<(StringMinorUnit, T)> for UnifiedAuthenticationServiceRouterData<T>
 }
 
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ServiceDetails {
     pub merchant_transaction_id: Option<String>,
     pub correlation_id: Option<String>,
     pub x_src_flow_id: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TransactionDetails {
     pub amount: f64,
     pub currency: Currency,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AuthCreds {
     pub auth_type: String,
     pub api_key: Secret<String>,
 }
 
+
+/******** just to fix error **********/
+#[derive(Serialize, Deserialize, Debug)]
+pub struct AuthenticationInfo{
+    pub a: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CustomerDetails{
+    pub a: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PaymentDetails{
+    pub a: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DeviceDetails{
+    pub a: String,
+}
+/************************************/
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UnifiedAuthenticationServicePreAuthenticationRequest {
     pub authenticate_by: String,
     pub session_id: String,
@@ -62,6 +89,7 @@ pub struct UnifiedAuthenticationServicePreAuthenticationRequest {
     pub auth_creds: AuthCreds
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UnifiedAuthenticationServicePreAuthenticationResponse {
     pub status: String,
     pub device_details: Option<DeviceDetails>,
@@ -70,6 +98,7 @@ pub struct UnifiedAuthenticationServicePreAuthenticationResponse {
 }
 
 /***************************************************************************/
+#[derive(Serialize, Deserialize, Debug)]
 pub struct VerificationData {
     #[serde(rename = "type")]
     pub verification_type: String,
@@ -79,6 +108,8 @@ pub struct VerificationData {
     pub timestamp: u64,
     pub data: String,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UnifiedAuthenticationServicePostAuthenticatioRequest{
     pub authenticate_by: String,
     pub source_authentication_id: String,
@@ -89,6 +120,7 @@ pub struct UnifiedAuthenticationServicePostAuthenticatioRequest{
     pub x_src_flow_id: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TokenDetails {
     pub payment_token: String,
     pub payment_account_reference: String,
@@ -96,6 +128,7 @@ pub struct TokenDetails {
     pub token_expiration_year: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct DynamicDataDetails {
     pub dynamic_data_value: Option<String>,
     #[serde(rename = "type")]
@@ -103,12 +136,14 @@ pub struct DynamicDataDetails {
     pub ds_trans_id:Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct AuthenticationDetails {
     pub eci: Option<String>,
     pub token_details: TokenDetails,
     pub dynamic_data_details: Option<DynamicDataDetails>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UnifiedAuthenticationServicePostAuthenticatioResponse {
     pub device_details: Option<serde_json::Value>,
     pub authentication_metadata: Option<serde_json::Value>,
@@ -116,6 +151,7 @@ pub struct UnifiedAuthenticationServicePostAuthenticatioResponse {
 }
 /***************************************************************************/
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UnifiedAuthenticationServiceConfirmationRequest {
     pub authenticate_by: String,
     pub source_authentication_id: String,
@@ -134,6 +170,7 @@ pub struct UnifiedAuthenticationServiceConfirmationRequest {
     pub auth_creds: Option<AuthCreds>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UnifiedAuthenticationServiceConfirmationResponse {
     pub status: String
 }
@@ -349,4 +386,27 @@ pub struct UnifiedAuthenticationServiceErrorResponse {
     pub message: String,
     pub reason: Option<String>,
 }
+
+
+impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRequestData>> 
+    for  UnifiedAuthenticationServicePreAuthenticationRequest {
+        type Error = error_stack::Report<errors::ConnectorError>;
+
+        fn try_from(
+            value: &UnifiedAuthenticationServiceRouterData<&types::authentication::PreAuthNRouterData>,
+        ) -> Result<Self, Self::Error> {
+            let router_data = value.router_data;
+            Ok(Self { 
+                authenticate_by: (), 
+                session_id: (), 
+                source_authentication_id: (), 
+                authentication_info: (), 
+                service_details: (), 
+                customer_details: (), 
+                pmt_details: (), 
+                transaction_details: (), 
+                auth_creds: () 
+            })
+        }
+    }
 

@@ -1022,6 +1022,7 @@ impl<F1, F2>
             additional_merchant_data: data.additional_merchant_data.clone(),
             header_payload: data.header_payload.clone(),
             connector_mandate_request_reference_id: None,
+            authentication_id: None,
         }
     }
 }
