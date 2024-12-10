@@ -1961,6 +1961,7 @@ pub async fn retrieve_card_with_permanent_token(
                             card_issuing_country: None,
                             bank_code: None,
                             nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+                            card_holder_name: card_details_from_locker.name_on_card.clone(),
                         };
 
             Ok(
@@ -2106,6 +2107,7 @@ pub async fn retrieve_card_with_permanent_token(
                             card_issuing_country: None,
                             bank_code: None,
                             nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+                            card_holder_name: card_details_from_locker.name_on_card,
                         };
 
                         Ok(
@@ -4384,7 +4386,7 @@ pub async fn get_additional_payment_data(
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
-                        card_holder_name: card_data.nick_name.clone(), //todo!
+                        card_holder_name: card_data.card_holder_name.clone(),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                         card_extended_bin: card_extended_bin.clone(),
@@ -4417,7 +4419,7 @@ pub async fn get_additional_payment_data(
                                 card_extended_bin: card_extended_bin.clone(),
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
-                                card_holder_name: card_data.nick_name.clone(), //todo!
+                                card_holder_name: card_data.card_holder_name.clone(),
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
@@ -4437,7 +4439,7 @@ pub async fn get_additional_payment_data(
                             card_extended_bin,
                             card_exp_month: Some(card_data.card_exp_month.clone()),
                             card_exp_year: Some(card_data.card_exp_year.clone()),
-                            card_holder_name: card_data.nick_name.clone(), //todo!
+                            card_holder_name: card_data.card_holder_name.clone(),
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
@@ -4647,7 +4649,7 @@ pub async fn get_additional_payment_data(
                         bank_code: card_data.bank_code.to_owned(),
                         card_exp_month: Some(card_data.card_exp_month.clone()),
                         card_exp_year: Some(card_data.card_exp_year.clone()),
-                        card_holder_name: card_data.nick_name.clone(), //todo!
+                        card_holder_name: card_data.card_holder_name.clone(),
                         last4: last4.clone(),
                         card_isin: card_isin.clone(),
                         card_extended_bin: card_extended_bin.clone(),
@@ -4680,7 +4682,7 @@ pub async fn get_additional_payment_data(
                                 card_extended_bin: card_extended_bin.clone(),
                                 card_exp_month: Some(card_data.card_exp_month.clone()),
                                 card_exp_year: Some(card_data.card_exp_year.clone()),
-                                card_holder_name: card_data.nick_name.clone(), //todo!
+                                card_holder_name: card_data.card_holder_name.clone(),
                                 // These are filled after calling the processor / connector
                                 payment_checks: None,
                                 authentication_data: None,
@@ -4700,7 +4702,7 @@ pub async fn get_additional_payment_data(
                             card_extended_bin,
                             card_exp_month: Some(card_data.card_exp_month.clone()),
                             card_exp_year: Some(card_data.card_exp_year.clone()),
-                            card_holder_name: card_data.nick_name.clone(), //todo!
+                            card_holder_name: card_data.card_holder_name.clone(),
                             // These are filled after calling the processor / connector
                             payment_checks: None,
                             authentication_data: None,
