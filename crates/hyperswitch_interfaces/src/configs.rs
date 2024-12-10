@@ -4,13 +4,6 @@ use masking::Secret;
 use router_derive;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct NoParams;
-
-impl NoParams {
-    pub fn validate(&self, _parent_field: &str) -> Result<(), ApplicationError> { Ok(()) }
-}
-
 // struct Connectors
 #[allow(missing_docs, missing_debug_implementations)]
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
@@ -115,6 +108,17 @@ pub struct ConnectorParams {
     pub base_url: String,
     /// secondary base url
     pub secondary_base_url: Option<String>,
+}
+
+///struct No Param for connectors with no params
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NoParams;
+
+impl NoParams {
+    /// function to statisfy connector param validation macro
+    pub fn validate(&self, _parent_field: &str) -> Result<(), ApplicationError> {
+        Ok(())
+    }
 }
 
 /// struct ConnectorParamsWithKeys

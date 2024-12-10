@@ -2589,7 +2589,7 @@ pub enum AuthenticationConnectors {
     Threedsecureio,
     Netcetera,
     Gpayments,
-    CtpMastercard
+    CtpMastercard,
 }
 
 impl AuthenticationConnectors {

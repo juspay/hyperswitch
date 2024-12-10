@@ -43,18 +43,19 @@ pub use hyperswitch_connectors::connectors::{
     airwallex, airwallex::Airwallex, amazonpay, amazonpay::Amazonpay, bambora, bambora::Bambora,
     bamboraapac, bamboraapac::Bamboraapac, billwerk, billwerk::Billwerk, bitpay, bitpay::Bitpay,
     boku, boku::Boku, cashtocode, cashtocode::Cashtocode, coinbase, coinbase::Coinbase, cryptopay,
-    cryptopay::Cryptopay, deutschebank, deutschebank::Deutschebank, digitalvirgo,
-    digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal, elavon, elavon::Elavon, fiserv,
-    fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu, fiuu::Fiuu, forte, forte::Forte,
-    globepay, globepay::Globepay, gocardless, gocardless::Gocardless, helcim, helcim::Helcim,
-    inespay, inespay::Inespay, jpmorgan, jpmorgan::Jpmorgan, mollie, mollie::Mollie, multisafepay,
-    multisafepay::Multisafepay, nexinets, nexinets::Nexinets, nexixpay, nexixpay::Nexixpay,
-    nomupay, nomupay::Nomupay, novalnet, novalnet::Novalnet, payeezy, payeezy::Payeezy, payu,
-    payu::Payu, powertranz, powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd,
-    rapyd::Rapyd, razorpay, razorpay::Razorpay, redsys, redsys::Redsys, shift4, shift4::Shift4,
-    square, square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys,
-    tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline, worldpay, worldpay::Worldpay,
-    xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl, ctp_mastercard, ctp_mastercard::CtpMastercard
+    cryptopay::Cryptopay, ctp_mastercard, ctp_mastercard::CtpMastercard, deutschebank,
+    deutschebank::Deutschebank, digitalvirgo, digitalvirgo::Digitalvirgo, dlocal, dlocal::Dlocal,
+    elavon, elavon::Elavon, fiserv, fiserv::Fiserv, fiservemea, fiservemea::Fiservemea, fiuu,
+    fiuu::Fiuu, forte, forte::Forte, globepay, globepay::Globepay, gocardless,
+    gocardless::Gocardless, helcim, helcim::Helcim, inespay, inespay::Inespay, jpmorgan,
+    jpmorgan::Jpmorgan, mollie, mollie::Mollie, multisafepay, multisafepay::Multisafepay, nexinets,
+    nexinets::Nexinets, nexixpay, nexixpay::Nexixpay, nomupay, nomupay::Nomupay, novalnet,
+    novalnet::Novalnet, payeezy, payeezy::Payeezy, payu, payu::Payu, powertranz,
+    powertranz::Powertranz, prophetpay, prophetpay::Prophetpay, rapyd, rapyd::Rapyd, razorpay,
+    razorpay::Razorpay, redsys, redsys::Redsys, shift4, shift4::Shift4, square, square::Square,
+    stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys, tsys::Tsys, volt,
+    volt::Volt, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, xendit,
+    xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
 };
 
 #[cfg(feature = "dummy_connector")]
@@ -70,4 +71,3 @@ pub use self::{
     threedsecureio::Threedsecureio, trustpay::Trustpay, wellsfargo::Wellsfargo,
     wellsfargopayout::Wellsfargopayout, wise::Wise,
 };
-

@@ -2722,7 +2722,7 @@ default_imp_for_uas_pre_authentication!(
     connector::Zsl,
     connector::Inespay,
     connector::Redsys,
-    connectors::tpMastercard
+    connector::CtpMastercard
 );
 
 macro_rules! default_imp_for_uas_post_authentication {
@@ -2834,7 +2834,7 @@ default_imp_for_uas_post_authentication!(
     connector::Zsl,
     connector::Inespay,
     connector::Redsys,
-    connectors::tpMastercard
+    connector::CtpMastercard
 );
 /// Determines whether a capture API call should be made for a payment attempt
 /// This function evaluates whether an authorized payment should proceed with a capture API call

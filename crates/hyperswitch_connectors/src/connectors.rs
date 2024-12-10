@@ -8,6 +8,7 @@ pub mod boku;
 pub mod cashtocode;
 pub mod coinbase;
 pub mod cryptopay;
+pub mod ctp_mastercard;
 pub mod deutschebank;
 pub mod digitalvirgo;
 pub mod dlocal;
@@ -46,18 +47,17 @@ pub mod worldpay;
 pub mod xendit;
 pub mod zen;
 pub mod zsl;
-pub mod ctp_mastercard;
 
 pub use self::{
     airwallex::Airwallex, amazonpay::Amazonpay, bambora::Bambora, bamboraapac::Bamboraapac,
     billwerk::Billwerk, bitpay::Bitpay, boku::Boku, cashtocode::Cashtocode, coinbase::Coinbase,
-    cryptopay::Cryptopay, deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal,
-    elavon::Elavon, fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte,
-    globepay::Globepay, gocardless::Gocardless, helcim::Helcim, inespay::Inespay,
-    jpmorgan::Jpmorgan, mollie::Mollie, multisafepay::Multisafepay, nexinets::Nexinets,
-    nexixpay::Nexixpay, nomupay::Nomupay, novalnet::Novalnet, payeezy::Payeezy, payu::Payu,
-    powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
-    redsys::Redsys, shift4::Shift4, square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes,
-    tsys::Tsys, volt::Volt, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
-    zsl::Zsl, ctp_mastercard::CtpMastercard
+    cryptopay::Cryptopay, ctp_mastercard::CtpMastercard, deutschebank::Deutschebank,
+    digitalvirgo::Digitalvirgo, dlocal::Dlocal, elavon::Elavon, fiserv::Fiserv,
+    fiservemea::Fiservemea, fiuu::Fiuu, forte::Forte, globepay::Globepay, gocardless::Gocardless,
+    helcim::Helcim, inespay::Inespay, jpmorgan::Jpmorgan, mollie::Mollie,
+    multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay,
+    novalnet::Novalnet, payeezy::Payeezy, payu::Payu, powertranz::Powertranz,
+    prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, redsys::Redsys, shift4::Shift4,
+    square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt,
+    worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen, zsl::Zsl,
 };
