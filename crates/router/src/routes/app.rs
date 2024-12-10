@@ -973,8 +973,8 @@ impl Customers {
                 .service(web::resource("").route(web::post().to(customers_create)))
                 .service(
                     web::resource("/{id}")
-                        .route(web::post().to(customers_update))
-                        .route(web::post().to(customers_retrieve))
+                        .route(web::put().to(customers_update))
+                        .route(web::get().to(customers_retrieve))
                         .route(web::delete().to(customers_delete)),
                 )
         }
