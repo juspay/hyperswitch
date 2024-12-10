@@ -9466,6 +9466,23 @@
           "ZWL"
         ]
       },
+      "CurrentBlockThreshold": {
+        "type": "object",
+        "properties": {
+          "duration_in_mins": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          },
+          "max_total_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "minimum": 0
+          }
+        }
+      },
       "CustomerAcceptance": {
         "type": "object",
         "description": "This \"CustomerAcceptance\" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.",
@@ -10233,6 +10250,18 @@
             "nullable": true
           }
         }
+      },
+      "DynamicRoutingConfigParams": {
+        "type": "string",
+        "enum": [
+          "PaymentMethod",
+          "PaymentMethodType",
+          "AuthenticationType",
+          "Currency",
+          "Country",
+          "CardNetwork",
+          "CardBin"
+        ]
       },
       "DynamicRoutingFeatures": {
         "type": "string",
@@ -23913,6 +23942,56 @@
           "direct",
           "destination"
         ]
+      },
+      "SuccessBasedRoutingConfig": {
+        "type": "object",
+        "properties": {
+          "params": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRoutingConfigParams"
+            },
+            "nullable": true
+          },
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SuccessBasedRoutingConfigBody"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SuccessBasedRoutingConfigBody": {
+        "type": "object",
+        "properties": {
+          "min_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "default_success_rate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "max_aggregates_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "current_block_threshold": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CurrentBlockThreshold"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "SurchargeDetailsResponse": {
         "type": "object",
