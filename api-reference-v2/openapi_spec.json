@@ -6437,18 +6437,18 @@
       "ConnectorFeatureMatrixResponse": {
         "type": "object",
         "required": [
-          "connector",
+          "name",
           "supported_payment_methods"
         ],
         "properties": {
-          "connector": {
+          "name": {
             "type": "string"
           },
           "description": {
             "type": "string",
             "nullable": true
           },
-          "connector_type": {
+          "category": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentConnectorCategory"
@@ -8281,16 +8281,16 @@
       "FeatureMatrixListResponse": {
         "type": "object",
         "required": [
-          "size",
-          "data"
+          "connector_count",
+          "connectors"
         ],
         "properties": {
-          "size": {
+          "connector_count": {
             "type": "integer",
             "description": "The number of connectors included in the response",
             "minimum": 0
           },
-          "data": {
+          "connectors": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ConnectorFeatureMatrixResponse"

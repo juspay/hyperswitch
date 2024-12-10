@@ -65,8 +65,8 @@ pub async fn generate_feature_matrix(
 
     Ok(ApplicationResponse::Json(
         payment_types::FeatureMatrixListResponse {
-            size: feature_matrix_response.len(),
-            data: feature_matrix_response,
+            connector_count: feature_matrix_response.len(),
+            connectors: feature_matrix_response,
         },
     ))
 }
@@ -93,9 +93,9 @@ fn build_connector_feature_details(
 
         let connector_about = connector.get_connector_about();
         feature_matrix::ConnectorFeatureMatrixResponse {
-            connector: connector_name,
+            name: connector_name,
             description: connector_about.clone().map(|about| about.description),
-            connector_type: connector_about.clone().map(|about| about.connector_type),
+            category: connector_about.clone().map(|about| about.connector_type),
             supported_webhook_flows: connector.get_supported_webhook_flows(),
             supported_payment_methods,
         }

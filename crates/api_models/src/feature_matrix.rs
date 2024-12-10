@@ -32,9 +32,9 @@ pub struct SupportedPaymentMethodTypes {
 
 #[derive(Debug, ToSchema, Serialize)]
 pub struct ConnectorFeatureMatrixResponse {
-    pub connector: String,
+    pub name: String,
     pub description: Option<String>,
-    pub connector_type: Option<PaymentConnectorCategory>,
+    pub category: Option<PaymentConnectorCategory>,
     pub supported_payment_methods: Vec<SupportedPaymentMethodTypes>,
     pub supported_webhook_flows: Option<Vec<EventClass>>,
 }
@@ -42,9 +42,9 @@ pub struct ConnectorFeatureMatrixResponse {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct FeatureMatrixListResponse {
     /// The number of connectors included in the response
-    pub size: usize,
+    pub connector_count: usize,
     // The list of payments response objects
-    pub data: Vec<ConnectorFeatureMatrixResponse>,
+    pub connectors: Vec<ConnectorFeatureMatrixResponse>,
 }
 
 impl common_utils::events::ApiEventMetric for FeatureMatrixListResponse {}
