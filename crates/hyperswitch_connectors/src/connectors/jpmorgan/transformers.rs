@@ -14,14 +14,10 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use strum::Display;
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{
-        get_unimplemented_payment_method_error_message, PaymentsAuthorizeRequestData,
-        RouterData as OtherRouterData,
-    },
+    utils::{get_unimplemented_payment_method_error_message, RouterData as OtherRouterData},
 };
 pub struct JpmorganRouterData<T> {
     pub amount: MinorUnit,
@@ -93,7 +89,6 @@ pub struct JpmorganPaymentsRequest {
 pub struct JpmorganCard {
     account_number: Secret<String>,
     expiry: Expiry,
-    is_bill_payment: bool,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -122,11 +117,17 @@ pub struct JpmorganMerchant {
     merchant_software: JpmorganMerchantSoftware,
 }
 
-fn map_capture_method(capture_method: CaptureMethod) -> CapMethod {
+fn map_capture_method(
+    capture_method: CaptureMethod,
+) -> Result<CapMethod, error_stack::Report<errors::ConnectorError>> {
     match capture_method {
-        CaptureMethod::Automatic => CapMethod::Now,
-        CaptureMethod::Manual | CaptureMethod::ManualMultiple => CapMethod::Manual,
-        CaptureMethod::Scheduled | CaptureMethod::SequentialAutomatic => CapMethod::Delayed,
+        CaptureMethod::Automatic => Ok(CapMethod::Now),
+        CaptureMethod::Manual => Ok(CapMethod::Manual),
+        CaptureMethod::Scheduled
+        | CaptureMethod::ManualMultiple
+        | CaptureMethod::SequentialAutomatic => {
+            Err(errors::ConnectorError::NotImplemented("Capture Method".to_string()).into())
+        }
     }
 }
 
@@ -167,13 +168,12 @@ impl TryFrom<&JpmorganRouterData<&PaymentsAuthorizeRouterData>> for JpmorganPaym
                 let card = JpmorganCard {
                     account_number,
                     expiry,
-                    is_bill_payment: item.router_data.request.is_auto_capture()?,
                 };
 
                 let payment_method_type = JpmorganPaymentMethodType { card };
 
                 Ok(Self {
-                    capture_method,
+                    capture_method: capture_method?,
                     currency,
                     amount: item.amount,
                     merchant,
@@ -231,7 +231,7 @@ pub enum JpmorganTransactionStatus {
     Error,
 }
 
-#[derive(Default, Display, Debug, Serialize, Deserialize, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum JpmorganTransactionState {
     Closed,
@@ -296,7 +296,6 @@ pub struct Card {
     expiry: Option<ExpiryResponse>,
     card_type: Option<String>,
     card_type_name: Option<String>,
-    is_bill_payment: Option<bool>,
     masked_account_number: Option<String>,
     card_type_indicators: Option<CardTypeIndicators>,
     network_response: Option<NetworkResponse>,
@@ -326,20 +325,7 @@ pub struct CardTypeIndicators {
 }
 
 pub trait FromTransactionState {
-    fn from_transaction_state(transaction_state: String) -> Self;
-}
-
-impl FromTransactionState for common_enums::AttemptStatus {
-    fn from_transaction_state(transaction_state: String) -> Self {
-        match transaction_state.as_str() {
-            "Authorized" => Self::Authorized,
-            "Closed" => Self::Charged,
-            "Declined" | "Error" => Self::Failure,
-            "Pending" => Self::Pending,
-            "Voided" => Self::Voided,
-            _ => Self::Failure,
-        }
-    }
+    fn from_transaction_state(transaction_state: JpmorganTransactionState) -> Self;
 }
 
 pub trait FromResponseStatus {
@@ -364,6 +350,18 @@ impl From<JpmorganTransactionStatus> for common_enums::AttemptStatus {
     }
 }
 
+impl FromTransactionState for common_enums::AttemptStatus {
+    fn from_transaction_state(transaction_state: JpmorganTransactionState) -> Self {
+        match transaction_state {
+            JpmorganTransactionState::Authorized => Self::Authorized,
+            JpmorganTransactionState::Closed => Self::Charged,
+            JpmorganTransactionState::Declined | JpmorganTransactionState::Error => Self::Failure,
+            JpmorganTransactionState::Pending => Self::Pending,
+            JpmorganTransactionState::Voided => Self::Voided,
+        }
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
@@ -372,16 +370,17 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, JpmorganPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let mut transaction_state = item.response.transaction_state.to_string();
-
-        if transaction_state == "Closed" {
-            let capture_method = item.response.capture_method.clone();
-            if capture_method == Some("NOW".to_string()) {
-                transaction_state = String::from("Closed");
-            } else if capture_method == Some("MANUAL".to_string()) {
-                transaction_state = String::from("Authorized");
-            }
-        }
+        let transaction_state = match item.response.transaction_state {
+            JpmorganTransactionState::Closed => match item.response.capture_method.as_deref() {
+                Some("NOW") => JpmorganTransactionState::Closed,
+                _ => JpmorganTransactionState::Authorized,
+            },
+            JpmorganTransactionState::Authorized => JpmorganTransactionState::Authorized,
+            JpmorganTransactionState::Voided => JpmorganTransactionState::Voided,
+            JpmorganTransactionState::Pending => JpmorganTransactionState::Pending,
+            JpmorganTransactionState::Declined => JpmorganTransactionState::Declined,
+            JpmorganTransactionState::Error => JpmorganTransactionState::Error,
+        };
 
         let status = common_enums::AttemptStatus::from_transaction_state(transaction_state);
 
@@ -734,7 +733,6 @@ pub struct CardCapReq {
     wallet_provider: Option<String>,
     cvv: Option<String>,
     original_network_transaction_id: Option<String>,
-    is_bill_payment: Option<bool>,
     account_updater: Option<AccountUpdaterCapReq>,
     authentication: Option<AuthenticationCapReq>,
     encryption_integrity_check: Option<String>,
@@ -917,7 +915,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsRes
     fn try_from(
         item: ResponseRouterData<F, JpmorganCaptureResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let transaction_state = item.response.transaction_state.to_string();
+        let transaction_state = item.response.transaction_state;
         let status = common_enums::AttemptStatus::from_transaction_state(transaction_state);
 
         let transaction_id = item.response.transaction_id.clone();
@@ -970,7 +968,7 @@ impl<F, PaymentsSyncData>
     fn try_from(
         item: ResponseRouterData<F, JpmorganPSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let transaction_state = item.response.transaction_state.to_string();
+        let transaction_state = item.response.transaction_state;
         let status = common_enums::AttemptStatus::from_transaction_state(transaction_state);
 
         let transaction_id = item.response.transaction_id.clone();
@@ -1085,16 +1083,17 @@ pub struct RefundResponse {
 }
 
 pub trait FromRefundState {
-    fn from_transaction_state(transaction_state: String) -> Self;
+    fn from_transaction_state(transaction_state: JpmorganTransactionState) -> Self;
 }
 
 impl FromRefundState for common_enums::RefundStatus {
-    fn from_transaction_state(transaction_state: String) -> Self {
-        match transaction_state.as_str() {
-            "Closed" | "Authorized" => Self::Success,
-            "Declined" | "Error" => Self::Failure,
-            "Pending" => Self::Pending,
-            _ => Self::Failure,
+    fn from_transaction_state(transaction_state: JpmorganTransactionState) -> Self {
+        match transaction_state {
+            JpmorganTransactionState::Voided | JpmorganTransactionState::Closed => Self::Success,
+            JpmorganTransactionState::Declined | JpmorganTransactionState::Error => Self::Failure,
+            JpmorganTransactionState::Pending | JpmorganTransactionState::Authorized => {
+                Self::Pending
+            }
         }
     }
 }
@@ -1112,7 +1111,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, JpmorganRefundResponse>>
             .clone()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
-        let transaction_state = item.response.transaction_state.to_string();
+        let transaction_state = item.response.transaction_state;
         let refund_status = common_enums::RefundStatus::from_transaction_state(transaction_state);
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -1144,7 +1143,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>>
         item: RefundsResponseRouterData<RSync, JpmorganRefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
         let refund_id = item.response.transaction_id.clone();
-        let transaction_state = item.response.transaction_state.to_string();
+        let transaction_state = item.response.transaction_state;
         let status = common_enums::RefundStatus::from_transaction_state(transaction_state);
         Ok(Self {
             response: Ok(RefundsResponseData {
