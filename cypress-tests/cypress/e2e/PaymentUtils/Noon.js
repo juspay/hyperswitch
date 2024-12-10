@@ -115,6 +115,38 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "AED",
+        shipping_cost: 50,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          shipping_cost: 50,
+          amount: 6500,
+        },
+      },
+    },
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
