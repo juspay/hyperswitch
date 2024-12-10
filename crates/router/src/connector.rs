@@ -54,7 +54,7 @@ pub use hyperswitch_connectors::connectors::{
     rapyd::Rapyd, razorpay, razorpay::Razorpay, redsys, redsys::Redsys, shift4, shift4::Shift4,
     square, square::Square, stax, stax::Stax, taxjar, taxjar::Taxjar, thunes, thunes::Thunes, tsys,
     tsys::Tsys, volt, volt::Volt, worldline, worldline::Worldline, worldpay, worldpay::Worldpay,
-    xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl,
+    xendit, xendit::Xendit, zen, zen::Zen, zsl, zsl::Zsl, ctp_mastercard, ctp_mastercard::CtpMastercard
 };
 
 #[cfg(feature = "dummy_connector")]
@@ -70,3 +70,4 @@ pub use self::{
     threedsecureio::Threedsecureio, trustpay::Trustpay, wellsfargo::Wellsfargo,
     wellsfargopayout::Wellsfargopayout, wise::Wise,
 };
+

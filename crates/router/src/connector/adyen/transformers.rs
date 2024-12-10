@@ -5397,7 +5397,7 @@ impl<'a> TryFrom<(&domain::NetworkTokenData, Option<Secret<String>>)> for AdyenP
             expiry_month: token_data.token_exp_month.clone(),
             expiry_year: token_data.get_expiry_year_4_digit(),
             holder_name: card_holder_name,
-            brand: Some(CardBrand::Visa), // FIXME: Remove hardcoding
+            brand: None, // FIXME: Remove hardcoding
             network_payment_reference: None,
         };
         Ok(AdyenPaymentMethod::NetworkToken(Box::new(

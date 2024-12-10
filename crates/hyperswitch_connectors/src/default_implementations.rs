@@ -135,7 +135,8 @@ default_imp_for_authorize_session_token!(
     connectors::Worldpay,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_calculate_tax {
@@ -199,7 +200,8 @@ default_imp_for_calculate_tax!(
     connectors::Worldpay,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_session_update {
@@ -264,7 +266,8 @@ default_imp_for_session_update!(
     connectors::Thunes,
     connectors::Tsys,
     connectors::Deutschebank,
-    connectors::Volt
+    connectors::Volt,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_post_session_tokens {
@@ -329,7 +332,8 @@ default_imp_for_post_session_tokens!(
     connectors::Deutschebank,
     connectors::Volt,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 use crate::connectors;
@@ -386,7 +390,8 @@ default_imp_for_complete_authorize!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_incremental_authorization {
@@ -452,7 +457,8 @@ default_imp_for_incremental_authorization!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_create_customer {
@@ -516,7 +522,8 @@ default_imp_for_create_customer!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_connector_redirect_response {
@@ -577,7 +584,8 @@ default_imp_for_connector_redirect_response!(
     connectors::Worldline,
     connectors::Volt,
     connectors::Xendit,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_pre_processing_steps{
@@ -639,7 +647,8 @@ default_imp_for_pre_processing_steps!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_post_processing_steps{
@@ -705,7 +714,8 @@ default_imp_for_post_processing_steps!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_approve {
@@ -771,7 +781,8 @@ default_imp_for_approve!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_reject {
@@ -837,7 +848,8 @@ default_imp_for_reject!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_webhook_source_verification {
@@ -903,7 +915,8 @@ default_imp_for_webhook_source_verification!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_accept_dispute {
@@ -970,7 +983,8 @@ default_imp_for_accept_dispute!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_submit_evidence {
@@ -1036,7 +1050,8 @@ default_imp_for_submit_evidence!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_defend_dispute {
@@ -1102,7 +1117,8 @@ default_imp_for_defend_dispute!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_file_upload {
@@ -1177,7 +1193,8 @@ default_imp_for_file_upload!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_payouts {
@@ -1235,7 +1252,8 @@ default_imp_for_payouts!(
     connectors::Worldpay,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "payouts")]
@@ -1303,7 +1321,8 @@ default_imp_for_payouts_create!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "payouts")]
@@ -1371,7 +1390,8 @@ default_imp_for_payouts_retrieve!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "payouts")]
@@ -1439,7 +1459,8 @@ default_imp_for_payouts_eligibility!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "payouts")]
@@ -1507,7 +1528,8 @@ default_imp_for_payouts_fulfill!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "payouts")]
@@ -1575,7 +1597,8 @@ default_imp_for_payouts_cancel!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "payouts")]
@@ -1643,7 +1666,8 @@ default_imp_for_payouts_quote!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "payouts")]
@@ -1711,7 +1735,8 @@ default_imp_for_payouts_recipient!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "payouts")]
@@ -1779,7 +1804,8 @@ default_imp_for_payouts_recipient_account!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "frm")]
@@ -1847,7 +1873,8 @@ default_imp_for_frm_sale!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "frm")]
@@ -1915,7 +1942,8 @@ default_imp_for_frm_checkout!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "frm")]
@@ -1983,7 +2011,8 @@ default_imp_for_frm_transaction!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "frm")]
@@ -2051,7 +2080,8 @@ default_imp_for_frm_fulfillment!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 #[cfg(feature = "frm")]
@@ -2119,7 +2149,8 @@ default_imp_for_frm_record_return!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );
 
 macro_rules! default_imp_for_revoking_mandates {
@@ -2184,5 +2215,6 @@ default_imp_for_revoking_mandates!(
     connectors::Volt,
     connectors::Xendit,
     connectors::Zen,
-    connectors::Zsl
+    connectors::Zsl,
+    connectors::CtpMastercard
 );

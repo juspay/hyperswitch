@@ -1151,7 +1151,8 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Plaid
+    connector::Plaid,
+    connector::CtpMastercard
 );
 
 #[cfg(feature = "payouts")]
@@ -1753,7 +1754,8 @@ default_imp_for_new_connector_integration_frm!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Plaid
+    connector::Plaid,
+    connector::CtpMastercard
 );
 
 #[cfg(feature = "frm")]
@@ -2221,7 +2223,8 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Worldpay,
     connector::Zen,
     connector::Zsl,
-    connector::Plaid
+    connector::Plaid,
+    connector::CtpMastercard
 );
 
 macro_rules! default_imp_for_new_connector_integration_uas {
@@ -2332,5 +2335,6 @@ default_imp_for_new_connector_integration_uas!(
     connector::Worldpay,
     connector::Zen,
     connector::Zsl,
-    connector::Plaid
+    connector::Plaid,
+    connector::CtpMastercard
 );

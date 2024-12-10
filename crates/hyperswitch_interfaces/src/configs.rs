@@ -4,6 +4,13 @@ use masking::Secret;
 use router_derive;
 use serde::Deserialize;
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct NoParams;
+
+impl NoParams {
+    pub fn validate(&self, _parent_field: &str) -> Result<(), ApplicationError> { Ok(()) }
+}
+
 // struct Connectors
 #[allow(missing_docs, missing_debug_implementations)]
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
@@ -28,6 +35,7 @@ pub struct Connectors {
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
     pub cryptopay: ConnectorParams,
+    pub ctp_mastercard: NoParams,
     pub cybersource: ConnectorParams,
     pub datatrans: ConnectorParams,
     pub deutschebank: ConnectorParams,

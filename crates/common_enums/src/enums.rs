@@ -2589,12 +2589,13 @@ pub enum AuthenticationConnectors {
     Threedsecureio,
     Netcetera,
     Gpayments,
+    CtpMastercard
 }
 
 impl AuthenticationConnectors {
     pub fn is_separate_version_call_required(self) -> bool {
         match self {
-            Self::Threedsecureio | Self::Netcetera => false,
+            Self::Threedsecureio | Self::Netcetera | Self::CtpMastercard => false,
             Self::Gpayments => true,
         }
     }

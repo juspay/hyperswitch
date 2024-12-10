@@ -515,7 +515,8 @@ default_imp_for_connector_request_id!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::CtpMastercard
 );
 
 macro_rules! default_imp_for_accept_dispute {
@@ -1718,7 +1719,8 @@ default_imp_for_fraud_check!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::CtpMastercard
 );
 
 #[cfg(feature = "frm")]
@@ -2348,7 +2350,8 @@ default_imp_for_connector_authentication!(
     connector::Worldline,
     connector::Worldpay,
     connector::Zen,
-    connector::Zsl
+    connector::Zsl,
+    connector::CtpMastercard
 );
 
 macro_rules! default_imp_for_authorize_session_token {
@@ -2718,7 +2721,8 @@ default_imp_for_uas_pre_authentication!(
     connector::Zen,
     connector::Zsl,
     connector::Inespay,
-    connector::Redsys
+    connector::Redsys,
+    connectors::tpMastercard
 );
 
 macro_rules! default_imp_for_uas_post_authentication {
@@ -2829,7 +2833,8 @@ default_imp_for_uas_post_authentication!(
     connector::Zen,
     connector::Zsl,
     connector::Inespay,
-    connector::Redsys
+    connector::Redsys,
+    connectors::tpMastercard
 );
 /// Determines whether a capture API call should be made for a payment attempt
 /// This function evaluates whether an authorized payment should proceed with a capture API call

@@ -46,6 +46,7 @@ pub mod worldpay;
 pub mod xendit;
 pub mod zen;
 pub mod zsl;
+pub mod ctp_mastercard;
 
 pub use self::{
     airwallex::Airwallex, amazonpay::Amazonpay, bambora::Bambora, bamboraapac::Bamboraapac,
@@ -58,5 +59,5 @@ pub use self::{
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     redsys::Redsys, shift4::Shift4, square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes,
     tsys::Tsys, volt::Volt, worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen,
-    zsl::Zsl,
+    zsl::Zsl, ctp_mastercard::CtpMastercard
 };
