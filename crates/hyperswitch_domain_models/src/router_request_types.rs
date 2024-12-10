@@ -829,6 +829,7 @@ pub struct PaymentsSessionData {
     pub email: Option<pii::Email>,
     // Minor Unit amount for amount frame work
     pub minor_amount: MinorUnit,
+    pub apple_pay_recurring_details: Option<api_models::payments::ApplePayRecurringPaymentRequest>,
 }
 
 #[derive(Debug, Clone, Default)]
