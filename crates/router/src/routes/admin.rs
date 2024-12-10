@@ -431,7 +431,7 @@ pub async fn connector_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
-                required_permission: Permission::ProfileConnectorRead,
+                required_permission: Permission::ProfileConnectorWrite,
             },
             req.headers(),
         ),
