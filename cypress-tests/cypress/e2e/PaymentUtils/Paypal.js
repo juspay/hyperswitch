@@ -426,17 +426,6 @@ export const connectorDetails = {
         },
       },
     },
-    SaveCardConfirmAutoCaptureOffSession: {
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
     SaveCardConfirmManualCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
