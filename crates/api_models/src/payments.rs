@@ -2108,7 +2108,8 @@ mod payment_method_data_serde {
                                     Some(billing_address_details),
                                 ) => {
                                     if card.card_holder_name.is_none() {
-                                        card.card_holder_name = billing_address_details.get_optional_full_name();   
+                                        card.card_holder_name =
+                                            billing_address_details.get_optional_full_name();
                                     }
                                     Some(PaymentMethodData::Card(card.clone()))
                                 }
