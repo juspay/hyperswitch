@@ -11109,84 +11109,6 @@
           }
         }
       },
-      "OrderDetails": {
-        "type": "object",
-        "required": [
-          "product_name",
-          "quantity"
-        ],
-        "properties": {
-          "product_name": {
-            "type": "string",
-            "description": "Name of the product that is being purchased",
-            "example": "shirt",
-            "maxLength": 255
-          },
-          "quantity": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The quantity of the product to be purchased",
-            "example": 1,
-            "minimum": 0
-          },
-          "tax_rate": {
-            "type": "number",
-            "format": "double",
-            "description": "tax rate applicable to the product",
-            "nullable": true
-          },
-          "total_tax_amount": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MinorUnit"
-              }
-            ],
-            "nullable": true
-          },
-          "requires_shipping": {
-            "type": "boolean",
-            "nullable": true
-          },
-          "product_img_link": {
-            "type": "string",
-            "description": "The image URL of the product",
-            "nullable": true
-          },
-          "product_id": {
-            "type": "string",
-            "description": "ID of the product that is being purchased",
-            "nullable": true
-          },
-          "category": {
-            "type": "string",
-            "description": "Category of the product that is being purchased",
-            "nullable": true
-          },
-          "sub_category": {
-            "type": "string",
-            "description": "Sub category of the product that is being purchased",
-            "nullable": true
-          },
-          "brand": {
-            "type": "string",
-            "description": "Brand of the product that is being purchased",
-            "nullable": true
-          },
-          "product_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ProductType"
-              }
-            ],
-            "nullable": true
-          },
-          "product_tax_code": {
-            "type": "string",
-            "description": "The tax code for the product",
-            "nullable": true
-          }
-        }
-      },
       "OrderDetailsWithAmount": {
         "type": "object",
         "required": [
@@ -11769,6 +11691,13 @@
             "format": "int64",
             "description": "The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540
+          },
+          "order_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The payment attempt tax_amount.",
+            "example": 6540,
+            "nullable": true
           },
           "currency": {
             "allOf": [
