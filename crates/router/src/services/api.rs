@@ -46,7 +46,7 @@ pub use hyperswitch_interfaces::{
     },
 };
 use masking::{Maskable, PeekInterface};
-use router_env::{instrument, metrics::add_attributes, tracing, tracing_actix_web::RequestId, Tag};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 use tera::{Context, Error as TeraError, Tera};
@@ -164,9 +164,8 @@ where
         }
         payments::CallConnectorAction::Trigger => {
             metrics::CONNECTOR_CALL_COUNT.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     ("connector", req.connector.to_string()),
                     (
                         "flow",
@@ -174,9 +173,8 @@ where
                             .split("::")
                             .last()
                             .unwrap_or_default()
-                            .to_string(),
                     ),
-                ]),
+                ),
             );
 
             let connector_request = match connector_request {
@@ -190,9 +188,11 @@ where
                                 | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
                         ) {
                             metrics::REQUEST_BUILD_FAILURE.add(
-                                &metrics::CONTEXT,
                                 1,
-                                &add_attributes([("connector", req.connector.to_string())]),
+                                router_env::metric_attributes!((
+                                    "connector",
+                                    req.connector.clone()
+                                )),
                             )
                         }
                     })?,
@@ -228,6 +228,7 @@ where
                         })
                         .unwrap_or_default();
                     let mut connector_event = ConnectorEvent::new(
+                        state.tenant.tenant_id.clone(),
                         req.connector.clone(),
                         std::any::type_name::<T>(),
                         masked_request_body,
@@ -254,12 +255,12 @@ where
                                             == &errors::ConnectorError::ResponseDeserializationFailed
                                         {
                                             metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
-                                                &metrics::CONTEXT,
+
                                                 1,
-                                                &add_attributes([(
+                                                router_env::metric_attributes!((
                                                     "connector",
-                                                    req.connector.to_string(),
-                                                )]),
+                                                    req.connector.clone(),
+                                                )),
                                             )
                                         }
                                         });
@@ -294,9 +295,11 @@ where
                                             .map_or(external_latency, |val| val + external_latency),
                                     );
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
-                                        &metrics::CONTEXT,
                                         1,
-                                        &add_attributes([("connector", req.connector.clone())]),
+                                        router_env::metric_attributes!((
+                                            "connector",
+                                            req.connector.clone(),
+                                        )),
                                     );
 
                                     let error = match body.status_code {
@@ -436,10 +439,10 @@ pub async fn send_request(
     )?;
 
     let headers = request.headers.construct_header_map()?;
-    let metrics_tag = router_env::opentelemetry::KeyValue {
-        key: consts::METRICS_HOST_TAG_NAME.into(),
-        value: url.host_str().unwrap_or_default().to_string().into(),
-    };
+    let metrics_tag = router_env::metric_attributes!((
+        consts::METRICS_HOST_TAG_NAME,
+        url.host_str().unwrap_or_default().to_owned()
+    ));
     let request = {
         match request.method {
             Method::Get => client.get(url),
@@ -503,11 +506,11 @@ pub async fn send_request(
             .await
             .map_err(|error| match error {
                 error if error.is_timeout() => {
-                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::REQUEST_BUILD_FAILURE.add(1, &[]);
                     errors::ApiClientError::RequestTimeoutReceived
                 }
                 error if is_connection_closed_before_message_could_complete(&error) => {
-                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::REQUEST_BUILD_FAILURE.add(1, &[]);
                     errors::ApiClientError::ConnectionClosedIncompleteMessage
                 }
                 _ => errors::ApiClientError::RequestNotSent(error.to_string()),
@@ -521,11 +524,11 @@ pub async fn send_request(
             .await
             .map_err(|error| match error {
                 error if error.is_timeout() => {
-                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::REQUEST_BUILD_FAILURE.add(1, &[]);
                     errors::ApiClientError::RequestTimeoutReceived
                 }
                 error if is_connection_closed_before_message_could_complete(&error) => {
-                    metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                    metrics::REQUEST_BUILD_FAILURE.add(1, &[]);
                     errors::ApiClientError::ConnectionClosedIncompleteMessage
                 }
                 _ => errors::ApiClientError::RequestNotSent(error.to_string()),
@@ -536,8 +539,7 @@ pub async fn send_request(
     let response = common_utils::metrics::utils::record_operation_time(
         send_request,
         &metrics::EXTERNAL_REQUEST_TIME,
-        &metrics::CONTEXT,
-        &[metrics_tag.clone()],
+        metrics_tag,
     )
     .await;
     // Retry once if the response is connection closed.
@@ -555,7 +557,7 @@ pub async fn send_request(
             if error.current_context()
                 == &errors::ApiClientError::ConnectionClosedIncompleteMessage =>
         {
-            metrics::AUTO_RETRY_CONNECTION_CLOSED.add(&metrics::CONTEXT, 1, &[]);
+            metrics::AUTO_RETRY_CONNECTION_CLOSED.add(1, &[]);
             match cloned_send_request {
                 Some(cloned_request) => {
                     logger::info!(
@@ -564,8 +566,7 @@ pub async fn send_request(
                     common_utils::metrics::utils::record_operation_time(
                         cloned_request,
                         &metrics::EXTERNAL_REQUEST_TIME,
-                        &metrics::CONTEXT,
-                        &[metrics_tag],
+                        metrics_tag,
                     )
                     .await
                 }
@@ -851,6 +852,7 @@ where
     };
 
     let api_event = ApiEvent::new(
+        tenant_id,
         Some(merchant_id.clone()),
         flow,
         &request_id,
