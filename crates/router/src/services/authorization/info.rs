@@ -43,7 +43,7 @@ fn get_group_description(group: PermissionGroup) -> &'static str {
         PermissionGroup::ReconReportsView => "View and access reconciliation reports and analytics",
         PermissionGroup::ReconReportsManage => "Manage reconciliation reports",
         PermissionGroup::ReconOpsView => "View and access reconciliation operations",
-        PermissionGroup::ReconOpsManage => "Manage reconciliation operations",
+        PermissionGroup::ReconOpsManage | PermissionGroup::ReconOps => "Manage reconciliation operations",
     }
 }
 
