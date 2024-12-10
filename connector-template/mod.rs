@@ -3,6 +3,7 @@ pub mod transformers;
 use error_stack::{report, ResultExt};
 use masking::{ExposeInterface, Mask};
 
+use common_enums::enums::PaymentsConnectorType;
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -10,6 +11,7 @@ use common_utils::{
     request::{Method, Request, RequestBuilder, RequestContent},
 };
 
+use api_models::webhooks::WebhookFlow;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
@@ -25,14 +27,14 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt},
     types::{
         PaymentsAuthorizeRouterData,
         PaymentsCaptureRouterData, PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
-    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation},
+    api::{self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorValidation, ConnectorSpecifications},
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -551,3 +553,24 @@ impl webhooks::IncomingWebhook for {{project-name | downcase | pascal_case}} {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
+
+impl ConnectorSpecifications for {{project-name | downcase | pascal_case}} {
+    fn get_connector_data(&self) -> Option<ConnectorInfo> {
+        Some(ConnectorInfo {
+            description:
+                "Connector About"
+                    .to_string(),
+            connector_type: PaymentsConnectorType::PaymentGateway,
+        })
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        let mut bambora_supported_payment_methods  = SupportedPaymentMethods::new();
+        Some(bambora_supported_payment_methods)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<Vec<WebhookFlow>> {
+        Some(Vec::new())
+    }
+}
+

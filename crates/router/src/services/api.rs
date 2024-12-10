@@ -39,7 +39,8 @@ pub use hyperswitch_domain_models::{
 pub use hyperswitch_interfaces::{
     api::{
         BoxedConnectorIntegration, CaptureSyncMethod, ConnectorIntegration,
-        ConnectorIntegrationAny, ConnectorRedirectResponse, ConnectorValidation,
+        ConnectorIntegrationAny, ConnectorRedirectResponse, ConnectorSpecifications,
+        ConnectorValidation,
     },
     connector_integration_v2::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,

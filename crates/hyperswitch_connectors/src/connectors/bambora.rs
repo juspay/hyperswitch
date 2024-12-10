@@ -22,7 +22,10 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData,
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
+    },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundSyncRouterData,
@@ -32,7 +35,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
-        ConnectorValidation,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -144,23 +147,7 @@ impl ConnectorCommon for Bambora {
     }
 }
 
-impl ConnectorValidation for Bambora {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-        _pmt: Option<enums::PaymentMethodType>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::SequentialAutomatic => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
-                utils::construct_not_implemented_error_report(capture_method, self.id()),
-            ),
-        }
-    }
-}
+impl ConnectorValidation for Bambora {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Bambora
@@ -826,5 +813,46 @@ impl webhooks::IncomingWebhook for Bambora {
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    }
+}
+
+impl ConnectorSpecifications for Bambora {
+    fn get_connector_data(&self) -> Option<ConnectorInfo> {
+        Some(ConnectorInfo {
+            description:
+                "Bambora is a leading online payment provider in Canada and United States."
+                    .to_string(),
+            connector_type: enums::PaymentsConnectorType::PaymentGateway,
+        })
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<SupportedPaymentMethods> {
+        let bambora_default_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+            enums::CaptureMethod::SequentialAutomatic,
+        ];
+
+        let mut bambora_supported_payment_methods = SupportedPaymentMethods::new();
+        bambora_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Credit,
+            false,
+            true,
+            bambora_default_capture_methods.clone(),
+        );
+        bambora_supported_payment_methods.add(
+            enums::PaymentMethod::Card,
+            enums::PaymentMethodType::Debit,
+            false,
+            true,
+            bambora_default_capture_methods.clone(),
+        );
+
+        Some(bambora_supported_payment_methods)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<Vec<enums::EventClass>> {
+        Some(Vec::new())
     }
 }
