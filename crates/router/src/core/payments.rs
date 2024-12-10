@@ -5920,12 +5920,7 @@ where
     //     }
     // }
 
-    let routing_enabled_pms = HashSet::from([
-        enums::PaymentMethodType::GooglePay,
-        enums::PaymentMethodType::ApplePay,
-        enums::PaymentMethodType::Klarna,
-        enums::PaymentMethodType::Paypal,
-    ]);
+    let routing_enabled_pms = crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
     let mut chosen = Vec::<api::SessionConnectorData>::new();
     for connector_data in &connectors {
