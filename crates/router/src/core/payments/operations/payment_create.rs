@@ -1433,7 +1433,7 @@ impl PaymentCreate {
             default: Some(diesel_models::DefaultTax {
                 order_tax_amount: tax_amount,
             }),
-            payment_method_type:None,
+            payment_method_type: None,
         });
 
         Ok(storage::PaymentIntent {
