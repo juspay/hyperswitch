@@ -1705,32 +1705,6 @@ impl ConnectorStatusAndDisabledValidation<'_> {
     }
 }
 
-struct PaymentMethodsEnabled<'a> {
-    payment_methods_enabled: &'a Option<Vec<api_models::admin::PaymentMethodsEnabled>>,
-}
-
-impl PaymentMethodsEnabled<'_> {
-    fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<pii::SecretSerdeValue>>> {
-        let mut vec = Vec::new();
-        let payment_methods_enabled = match self.payment_methods_enabled.clone() {
-            Some(val) => {
-                for pm in val.into_iter() {
-                    let pm_value = pm
-                        .encode_to_value()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed while encoding to serde_json::Value, PaymentMethod",
-                        )?;
-                    vec.push(Secret::new(pm_value))
-                }
-                Some(vec)
-            }
-            None => None,
-        };
-        Ok(payment_methods_enabled)
-    }
-}
-
 struct ConnectorMetadata<'a> {
     connector_metadata: &'a Option<pii::SecretSerdeValue>,
 }

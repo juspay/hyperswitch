@@ -6287,13 +6287,7 @@ pub struct PaymentMethodsListRequest {}
 #[derive(Debug, serde::Serialize, ToSchema)]
 pub struct PaymentMethodListResponse {
     /// The list of payment methods that are enabled for the business profile
-    pub payment_methods: Vec<payment_methods::ResponsePaymentMethodsEnabled>,
-
-    /// flag that indicates whether to collect shipping details from wallets or from the customer
-    pub collect_shipping_details_from_wallets: Option<bool>,
-
-    /// flag that indicates whether to collect billing details from wallets or from the customer
-    pub collect_billing_details_from_wallets: Option<bool>,
+    pub payment_methods: Vec<payment_methods::ResponsePaymentMethodTypes>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
