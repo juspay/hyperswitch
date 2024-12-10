@@ -1348,7 +1348,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     m_payment_data_payment_attempt,
                     storage::PaymentAttemptUpdate::ConfirmUpdate {
                         currency: payment_data.currency,
-                        order_tax_amount: order_tax_amount,
+                        order_tax_amount,
                         status: attempt_status,
                         payment_method,
                         authentication_type,

@@ -2425,11 +2425,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             capture_method: payment_data.payment_attempt.capture_method,
             amount: amount.get_amount_as_i64(),
             order_tax_amount: payment_data
-                    .payment_intent
-                    .tax_details
-                    .as_ref()
-                    .and_then(|td| td.default.as_ref())
-                    .map(|default_tax| default_tax.order_tax_amount),
+                .payment_intent
+                .tax_details
+                .as_ref()
+                .and_then(|td| td.default.as_ref())
+                .map(|default_tax| default_tax.order_tax_amount),
             minor_amount: amount,
             currency: payment_data.currency,
             browser_info,
