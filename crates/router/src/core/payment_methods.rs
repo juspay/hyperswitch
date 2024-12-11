@@ -1766,6 +1766,11 @@ pub async fn retrieve_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+    when(
+        payment_method.status == enums::PaymentMethodStatus::Inactive,
+        || Err(errors::ApiErrorResponse::PaymentMethodNotFound),
+    )?;
+
     let pmd = payment_method
         .payment_method_data
         .clone()
@@ -1907,12 +1912,7 @@ pub async fn delete_payment_method(
 
     when(
         payment_method.status == enums::PaymentMethodStatus::Inactive,
-        || {
-            Err(errors::ApiErrorResponse::PreconditionFailed {
-                message: "This Payment method is already inactive and hence cannot be deleted"
-                    .to_string(),
-            })
-        },
+        || Err(errors::ApiErrorResponse::PaymentMethodNotFound),
     )?;
 
     let vault_id = payment_method
