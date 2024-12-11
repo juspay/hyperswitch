@@ -3326,6 +3326,16 @@ pub enum External3dsAuthenticationRequest {
     Skip,
 }
 
+/// Whether overcapture is requested or not
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
+pub enum OverCaptureRequest {
+    /// Request for overcapture
+    Enable,
+    /// Skip overcapture
+    #[default]
+    Skip,
+}
+
 /// Whether payment link is requested to be enabled or not for this transaction
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema)]
 pub enum EnablePaymentLinkRequest {

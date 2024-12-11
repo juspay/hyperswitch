@@ -929,6 +929,7 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
+        request_overcapture -> Nullable<Bool>,
     }
 }
 

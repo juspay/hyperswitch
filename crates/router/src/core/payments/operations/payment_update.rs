@@ -391,6 +391,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .request_external_three_ds_authentication
             .or(payment_intent.request_external_three_ds_authentication);
 
+        payment_intent.request_overcapture = request
+            .request_overcapture
+            .or(payment_intent.request_overcapture);
+
         payment_intent.merchant_order_reference_id = request
             .merchant_order_reference_id
             .clone()
@@ -884,6 +888,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let metadata = payment_data.payment_intent.metadata.clone();
         let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
         let session_expiry = payment_data.payment_intent.session_expiry;
+        let request_overcapture = payment_data.payment_intent.request_overcapture;
         let merchant_order_reference_id = payment_data
             .payment_intent
             .merchant_order_reference_id
@@ -923,6 +928,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     shipping_details,
                     is_payment_processor_token_flow: None,
                     tax_details: None,
+                    request_overcapture,
                 })),
                 key_store,
                 storage_scheme,

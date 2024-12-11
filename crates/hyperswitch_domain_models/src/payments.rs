@@ -106,6 +106,7 @@ pub struct PaymentIntent {
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
     pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
+    pub request_overcapture: Option<bool>,
 }
 
 impl PaymentIntent {
@@ -362,6 +363,8 @@ pub struct PaymentIntent {
     pub payment_link_config: Option<diesel_models::PaymentLinkConfigRequestForPayments>,
     /// The straight through routing algorithm id that is used for this payment. This overrides the default routing algorithm that is configured in business profile.
     pub routing_algorithm_id: Option<id_type::RoutingId>,
+    /// Denotes whether to request for overcapture
+    pub request_overcapture: common_enums::OverCaptureRequest,
 }
 
 #[cfg(feature = "v2")]
@@ -501,6 +504,8 @@ impl PaymentIntent {
                 .payment_link_config
                 .map(ApiModelToDieselModelConvertor::convert_from),
             routing_algorithm_id: request.routing_algorithm_id,
+            request_overcapture: request.request_overcapture
+                .unwrap_or_default(),
         })
     }
 }

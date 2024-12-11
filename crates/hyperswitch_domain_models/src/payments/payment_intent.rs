@@ -164,6 +164,7 @@ pub struct PaymentIntentUpdateFields {
 
     // updated_by is set internally, field not present in request
     pub updated_by: String,
+    pub request_overcapture: Option<common_enums::OverCaptureRequest>,
 }
 
 #[cfg(feature = "v1")]
@@ -196,6 +197,7 @@ pub struct PaymentIntentUpdateFields {
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
+    pub request_overcapture: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -345,6 +347,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub is_payment_processor_token_flow: Option<bool>,
     pub tax_details: Option<diesel_models::TaxDetails>,
+    pub request_overcapture: Option<bool>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -390,6 +393,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
+                request_overcapture: None,
             },
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate { status, updated_by } => Self {
@@ -426,6 +430,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::SyncUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -461,6 +466,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                 frm_metadata: None,
                 request_external_three_ds_authentication: None,
                 updated_by,
+                request_overcapture: None,
             },
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -494,6 +500,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                     frm_metadata,
                     request_external_three_ds_authentication,
                     updated_by,
+                    request_overcapture,
                 } = *boxed_intent;
                 Self {
                     status: None,
@@ -537,6 +544,7 @@ impl From<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal {
                         request_external_three_ds_authentication.map(|val| val.as_bool()),
 
                     updated_by,
+                    request_overcapture: request_overcapture.map(|val| val.as_bool()),
                 }
             }
         }
@@ -584,6 +592,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 merchant_order_reference_id: value.merchant_order_reference_id,
                 shipping_details: value.shipping_details,
                 is_payment_processor_token_flow: value.is_payment_processor_token_flow,
+                request_overcapture: value.request_overcapture,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -817,6 +826,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     shipping_details: value.shipping_details.map(Encryption::from),
                     is_payment_processor_token_flow: value.is_payment_processor_token_flow,
                     tax_details: value.tax_details,
+                    request_overcapture: value.request_overcapture,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -973,6 +983,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_details,
             is_payment_processor_token_flow,
             tax_details,
+            request_overcapture,
         } = value;
         Self {
             amount,
@@ -1011,6 +1022,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_details: shipping_details.map(Encryption::from),
             is_payment_processor_token_flow,
             tax_details,
+            request_overcapture,
         }
     }
 }
@@ -1268,6 +1280,7 @@ impl behaviour::Conversion for PaymentIntent {
             customer_present,
             routing_algorithm_id,
             payment_link_config,
+            request_overcapture,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -1338,6 +1351,9 @@ impl behaviour::Conversion for PaymentIntent {
             payment_link_config,
             routing_algorithm_id,
             psd2_sca_exemption_type: None,
+            request_overcapture: Some(
+                request_overcapture.as_bool(),
+            ),
         })
     }
     async fn convert_back(
@@ -1463,6 +1479,7 @@ impl behaviour::Conversion for PaymentIntent {
                 customer_present: storage_model.customer_present.into(),
                 payment_link_config: storage_model.payment_link_config,
                 routing_algorithm_id: storage_model.routing_algorithm_id,
+                request_overcapture: storage_model.request_overcapture.into(),
             })
         }
         .await
@@ -1535,6 +1552,9 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: amount_details.tax_details,
             enable_payment_link: Some(self.enable_payment_link.as_bool()),
             apply_mit_exemption: Some(self.apply_mit_exemption.as_bool()),
+            request_overcapture: Some(
+                self.request_overcapture.as_bool(),
+            ),
         })
     }
 }
@@ -1600,6 +1620,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
+            request_overcapture: self.request_overcapture,
         })
     }
 
@@ -1688,6 +1709,7 @@ impl behaviour::Conversion for PaymentIntent {
                 organization_id: storage_model.organization_id,
                 skip_external_tax_calculation: storage_model.skip_external_tax_calculation,
                 psd2_sca_exemption_type: storage_model.psd2_sca_exemption_type,
+                request_overcapture: storage_model.request_overcapture,
             })
         }
         .await
@@ -1751,6 +1773,7 @@ impl behaviour::Conversion for PaymentIntent {
             tax_details: self.tax_details,
             skip_external_tax_calculation: self.skip_external_tax_calculation,
             psd2_sca_exemption_type: self.psd2_sca_exemption_type,
+            request_overcapture: self.request_overcapture,
         })
     }
 }

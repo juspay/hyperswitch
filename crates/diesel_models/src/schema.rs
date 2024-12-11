@@ -966,6 +966,7 @@ diesel::table! {
         tax_details -> Nullable<Jsonb>,
         skip_external_tax_calculation -> Nullable<Bool>,
         psd2_sca_exemption_type -> Nullable<ScaExemptionType>,
+        request_overcapture -> Nullable<Bool>,
     }
 }
 
