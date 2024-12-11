@@ -4,6 +4,14 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2024.12.09.0-hotfix2
+
+### Bug Fixes
+
+- **router:** Card network for co-badged card and update regex ([#6804](https://github.com/juspay/hyperswitch/pull/6804)) ([`e520d05`](https://github.com/juspay/hyperswitch/commit/e520d054157e35161a35a0958f6ceefeee82d1b0))
+
+- - -
+
 ## 2024.12.09.0-hotfix1
 
 ### Features
