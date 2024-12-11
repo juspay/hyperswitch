@@ -758,11 +758,14 @@ enabled = false
 global_tenant = { schema = "public", redis_key_prefix = "", clickhouse_database = "default"}
 
 [multitenancy.tenants.public]
-base_url = "http://localhost:8080"               # url of the tenant
-schema = "public"                                # postgres db schema
-redis_key_prefix = ""                            # redis key distinguisher
-clickhouse_database = "default"                  # clickhouse database
-user = { cc_url =  "http://localhost:9090" }     # user config for tenant
+base_url = "http://localhost:8080"               # URL of the tenant
+schema = "public"                                # Postgres db schema
+redis_key_prefix = ""                            # Redis key distinguisher
+clickhouse_database = "default"                  # Clickhouse database
+
+[multitenancy.tenants.public.user]
+control_center_url =  "http://localhost:9000"    # Control center URL
+
 
 [user_auth_methods]
 encryption_key = "" # Encryption key used for encrypting data in user_authentication_methods table

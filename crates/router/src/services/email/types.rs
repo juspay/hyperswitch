@@ -225,7 +225,7 @@ pub fn get_base_url(state: &SessionState) -> String {
     if !state.conf.multitenancy.enabled {
         state.conf.user.base_url.clone()
     } else {
-        state.tenant.user.cc_url.clone()
+        state.tenant.user.control_center_url.clone()
     }
 }
 

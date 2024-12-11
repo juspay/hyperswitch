@@ -388,7 +388,9 @@ base_url = "http://localhost:8080"
 schema = "public"     
 redis_key_prefix = ""
 clickhouse_database = "default"
-user = { cc_url =  "http://localhost:9090" }
+
+[multitenancy.tenants.public.user]
+control_center_url =  "http://localhost:9000"
 
 [email]
 sender_email = "example@example.com"

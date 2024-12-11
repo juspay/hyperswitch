@@ -174,7 +174,7 @@ pub struct Tenant {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct User {
-    pub cc_url: String,
+    pub control_center_url: String,
 }
 
 impl storage_impl::config::TenantConfig for Tenant {
