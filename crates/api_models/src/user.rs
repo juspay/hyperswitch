@@ -308,10 +308,15 @@ pub struct CreateUserAuthenticationMethodRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct UpdateUserAuthenticationMethodRequest {
-    pub id: String,
-    // TODO: When adding more fields make config and new fields option
-    pub auth_method: AuthConfig,
+pub enum UpdateUserAuthenticationMethodRequest {
+    AuthMethod {
+        id: String,
+        auth_method: AuthConfig,
+    },
+    EmailDomain {
+        auth_id: String,
+        email_domain: String,
+    },
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

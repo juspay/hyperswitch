@@ -242,6 +242,13 @@ impl UserAuthenticationMethodInterface for MockDb {
                         last_modified_at: common_utils::date_time::now(),
                         ..auth_method_inner.to_owned()
                     },
+                    storage::UserAuthenticationMethodUpdate::EmailDomain { email_domain } => {
+                        storage::UserAuthenticationMethod {
+                            email_domain: email_domain.to_owned(),
+                            last_modified_at: common_utils::date_time::now(),
+                            ..auth_method_inner.to_owned()
+                        }
+                    }
                 };
                 auth_method_inner.to_owned()
             })

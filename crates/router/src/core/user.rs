@@ -2257,6 +2257,9 @@ pub async fn create_user_authentication_method(
 
     for db_auth_method in auth_methods {
         let is_type_same = db_auth_method.auth_type == (&req.auth_method).foreign_into();
+        if req.email_domain != db_auth_method.email_domain {
+            return Err(UserErrors::InvalidUserAuthMethodOperation.into());
+        }
         let is_extra_identifier_same = match &req.auth_method {
             user_api::AuthConfig::OpenIdConnect { public_config, .. } => {
                 let db_auth_name = db_auth_method
@@ -2317,25 +2320,58 @@ pub async fn update_user_authentication_method(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to decode DEK")?;
 
-    let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
-        &state,
-        &req.auth_method,
-        &user_auth_encryption_key,
-        req.id.clone(),
-    )
-    .await?;
-
-    state
-        .store
-        .update_user_authentication_method(
-            &req.id,
-            UserAuthenticationMethodUpdate::UpdateConfig {
-                private_config,
-                public_config,
-            },
+    if let user_api::UpdateUserAuthenticationMethodRequest::AuthMethod {
+        ref id,
+        ref auth_method,
+    } = req
+    {
+        let (private_config, public_config) = utils::user::construct_public_and_private_db_configs(
+            &state,
+            &auth_method,
+            &user_auth_encryption_key,
+            id.clone(),
         )
-        .await
-        .change_context(UserErrors::InvalidUserAuthMethodOperation)?;
+        .await?;
+
+        state
+            .store
+            .update_user_authentication_method(
+                &id,
+                UserAuthenticationMethodUpdate::UpdateConfig {
+                    private_config,
+                    public_config,
+                },
+            )
+            .await
+            .change_context(UserErrors::InvalidUserAuthMethodOperation)?;
+    }
+
+    if let user_api::UpdateUserAuthenticationMethodRequest::EmailDomain {
+        auth_id,
+        email_domain,
+    } = req
+    {
+        let auth_methods = state
+            .store
+            .list_user_authentication_methods_for_auth_id(&auth_id)
+            .await
+            .change_context(UserErrors::InternalServerError)?;
+
+        futures::future::try_join_all(auth_methods.iter().map(|auth_method| async {
+            state
+                .store
+                .update_user_authentication_method(
+                    &auth_method.id,
+                    UserAuthenticationMethodUpdate::EmailDomain {
+                        email_domain: email_domain.clone(),
+                    },
+                )
+                .await
+                .change_context(UserErrors::InvalidUserAuthMethodOperation)
+        }))
+        .await?;
+    }
+
     Ok(ApplicationResponse::StatusOk)
 }
 
