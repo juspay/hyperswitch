@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
 use crate::payment_attempt::PaymentAttemptUpdateInternal;
+#[cfg(feature = "v1")]
+use crate::payment_intent::PaymentIntentUpdate;
 #[cfg(feature = "v2")]
 use crate::payment_intent::PaymentIntentUpdateInternal;
 use crate::{
@@ -10,7 +12,7 @@ use crate::{
     customers::{Customer, CustomerNew, CustomerUpdateInternal},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
-    payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
+    payment_intent::PaymentIntentNew,
     payout_attempt::{PayoutAttempt, PayoutAttemptNew, PayoutAttemptUpdate},
     payouts::{Payouts, PayoutsNew, PayoutsUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
@@ -115,11 +117,9 @@ impl DBOperation {
                     DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
                 }
                 #[cfg(feature = "v2")]
-                Updateable::PaymentIntentUpdate(a) => DBResult::PaymentIntent(Box::new(
-                    a.orig
-                        .update(conn, PaymentIntentUpdateInternal::from(a.update_data))
-                        .await?,
-                )),
+                Updateable::PaymentIntentUpdate(a) => {
+                    DBResult::PaymentIntent(Box::new(a.orig.update(conn, a.update_data).await?))
+                }
                 #[cfg(feature = "v1")]
                 Updateable::PaymentAttemptUpdate(a) => DBResult::PaymentAttempt(Box::new(
                     a.orig.update_with_attempt_id(conn, a.update_data).await?,
@@ -247,11 +247,18 @@ pub struct AddressUpdateMems {
     pub orig: Address,
     pub update_data: AddressUpdateInternal,
 }
-
+#[cfg(feature = "v1")]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaymentIntentUpdateMems {
     pub orig: PaymentIntent,
     pub update_data: PaymentIntentUpdate,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymentIntentUpdateMems {
+    pub orig: PaymentIntent,
+    pub update_data: PaymentIntentUpdateInternal,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -4,8 +4,8 @@ use base64::Engine;
 use common_utils::types::{AmountConvertor, MinorUnit, MinorUnitForConnector};
 use error_stack::{report, ResultExt};
 use masking::PeekInterface;
-use transformers::{self as datatrans};
 
+use self::transformers as datatrans;
 use super::{utils as connector_utils, utils::RefundsRequestData};
 use crate::{
     configs::settings,
@@ -144,7 +144,9 @@ impl ConnectorValidation for Datatrans {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            CaptureMethod::Automatic | CaptureMethod::Manual => Ok(()),
+            CaptureMethod::Automatic
+            | CaptureMethod::Manual
+            | CaptureMethod::SequentialAutomatic => Ok(()),
             CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
                 Err(errors::ConnectorError::NotSupported {
                     message: capture_method.to_string(),

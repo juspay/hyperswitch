@@ -3,6 +3,8 @@ pub mod keymanager;
 
 /// Enum for Authentication Level
 pub mod authentication;
+/// Enum for Theme Lineage
+pub mod theme;
 
 use std::{
     borrow::Cow,
@@ -35,7 +37,9 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use crate::{
-    consts::{self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH},
+    consts::{
+        self, MAX_DESCRIPTION_LENGTH, MAX_STATEMENT_DESCRIPTOR_LENGTH, PUBLISHABLE_KEY_LENGTH,
+    },
     errors::{CustomResult, ParsingError, PercentageError, ValidationError},
     fp_utils::when,
 };
@@ -330,7 +334,6 @@ impl AmountConvertor for FloatMajorUnitForConnector {
 }
 
 /// Connector required amount type
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct MinorUnitForConnector;
 
@@ -372,7 +375,7 @@ pub struct MinorUnit(i64);
 
 impl MinorUnit {
     /// gets amount as i64 value will be removed in future
-    pub fn get_amount_as_i64(&self) -> i64 {
+    pub fn get_amount_as_i64(self) -> i64 {
         self.0
     }
 
@@ -499,7 +502,6 @@ impl Sum for MinorUnit {
 }
 
 /// Connector specific types to send
-
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq)]
 pub struct StringMinorUnit(String);
 
@@ -599,7 +601,6 @@ impl StringMajorUnit {
     pub fn zero() -> Self {
         Self("0".to_string())
     }
-
     /// Get string amount from struct to be removed in future
     pub fn get_amount_as_string(&self) -> String {
         self.0.clone()
@@ -636,6 +637,17 @@ impl Url {
     /// Get the inner url
     pub fn into_inner(self) -> url::Url {
         self.0
+    }
+
+    /// Add query params to the url
+    pub fn add_query_params(mut self, (key, value): (&str, &str)) -> Self {
+        let url = self
+            .0
+            .query_pairs_mut()
+            .append_pair(key, value)
+            .finish()
+            .clone();
+        Self(url)
     }
 }
 
@@ -734,7 +746,7 @@ mod client_secret_type {
         {
             struct ClientSecretVisitor;
 
-            impl<'de> Visitor<'de> for ClientSecretVisitor {
+            impl Visitor<'_> for ClientSecretVisitor {
                 type Value = ClientSecret;
 
                 fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -830,7 +842,7 @@ mod client_secret_type {
             Ok(row)
         }
     }
-
+    crate::impl_serializable_secret_id_type!(ClientSecret);
     #[cfg(test)]
     mod client_secret_tests {
         #![allow(clippy::expect_used)]
@@ -1062,7 +1074,7 @@ crate::impl_to_sql_from_sql_json!(ChargeRefunds);
 /// A common type of domain type that can be used for fields that contain a string with restriction of length
 #[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
 #[diesel(sql_type = sql_types::Text)]
-pub(crate) struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u8>(String);
+pub(crate) struct LengthString<const MAX_LENGTH: u16, const MIN_LENGTH: u16>(String);
 
 /// Error generated from violation of constraints for MerchantReferenceId
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -1073,10 +1085,10 @@ pub(crate) enum LengthStringError {
 
     #[error("the minimum required length for this field is {0}")]
     /// Minimum length of string violated
-    MinLengthViolated(u8),
+    MinLengthViolated(u16),
 }
 
-impl<const MAX_LENGTH: u16, const MIN_LENGTH: u8> LengthString<MAX_LENGTH, MIN_LENGTH> {
+impl<const MAX_LENGTH: u16, const MIN_LENGTH: u16> LengthString<MAX_LENGTH, MIN_LENGTH> {
     /// Generates new [MerchantReferenceId] from the given input string
     pub fn from(input_string: Cow<'static, str>) -> Result<Self, LengthStringError> {
         let trimmed_input_string = input_string.trim().to_string();
@@ -1087,7 +1099,7 @@ impl<const MAX_LENGTH: u16, const MIN_LENGTH: u8> LengthString<MAX_LENGTH, MIN_L
             Err(LengthStringError::MaxLengthViolated(MAX_LENGTH))
         })?;
 
-        when(length_of_input_string < u16::from(MIN_LENGTH), || {
+        when(length_of_input_string < MIN_LENGTH, || {
             Err(LengthStringError::MinLengthViolated(MIN_LENGTH))
         })?;
 
@@ -1099,7 +1111,7 @@ impl<const MAX_LENGTH: u16, const MIN_LENGTH: u8> LengthString<MAX_LENGTH, MIN_L
     }
 }
 
-impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Deserialize<'de>
+impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u16> Deserialize<'de>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -1111,7 +1123,7 @@ impl<'de, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Deserialize<'de>
     }
 }
 
-impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> FromSql<sql_types::Text, DB>
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u16> FromSql<sql_types::Text, DB>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
     DB: Backend,
@@ -1123,7 +1135,7 @@ where
     }
 }
 
-impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> ToSql<sql_types::Text, DB>
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u16> ToSql<sql_types::Text, DB>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
     DB: Backend,
@@ -1134,7 +1146,7 @@ where
     }
 }
 
-impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u8> Queryable<sql_types::Text, DB>
+impl<DB, const MAX_LENGTH: u16, const MIN_LENGTH: u16> Queryable<sql_types::Text, DB>
     for LengthString<MAX_LENGTH, MIN_LENGTH>
 where
     DB: Backend,
@@ -1514,5 +1526,56 @@ pub trait ConnectorTransactionIdTrait {
     /// Returns an optional connector refund ID
     fn get_optional_connector_refund_id(&self) -> Option<&String> {
         self.get_optional_connector_transaction_id()
+    }
+}
+
+/// Domain type for PublishableKey
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize, AsExpression)]
+#[diesel(sql_type = sql_types::Text)]
+pub struct PublishableKey(LengthString<PUBLISHABLE_KEY_LENGTH, PUBLISHABLE_KEY_LENGTH>);
+
+impl PublishableKey {
+    /// Create a new PublishableKey Domain type without any length check from a static str
+    pub fn generate(env_prefix: &'static str) -> Self {
+        let publishable_key_string = format!("pk_{env_prefix}_{}", uuid::Uuid::now_v7().simple());
+        Self(LengthString::new_unchecked(publishable_key_string))
+    }
+
+    /// Get the string representation of the PublishableKey
+    pub fn get_string_repr(&self) -> &str {
+        &self.0 .0
+    }
+}
+
+impl<DB> Queryable<sql_types::Text, DB> for PublishableKey
+where
+    DB: Backend,
+    Self: FromSql<sql_types::Text, DB>,
+{
+    type Row = Self;
+
+    fn build(row: Self::Row) -> deserialize::Result<Self> {
+        Ok(row)
+    }
+}
+
+impl<DB> FromSql<sql_types::Text, DB> for PublishableKey
+where
+    DB: Backend,
+    LengthString<PUBLISHABLE_KEY_LENGTH, PUBLISHABLE_KEY_LENGTH>: FromSql<sql_types::Text, DB>,
+{
+    fn from_sql(bytes: DB::RawValue<'_>) -> deserialize::Result<Self> {
+        let val = LengthString::<PUBLISHABLE_KEY_LENGTH, PUBLISHABLE_KEY_LENGTH>::from_sql(bytes)?;
+        Ok(Self(val))
+    }
+}
+
+impl<DB> ToSql<sql_types::Text, DB> for PublishableKey
+where
+    DB: Backend,
+    LengthString<PUBLISHABLE_KEY_LENGTH, PUBLISHABLE_KEY_LENGTH>: ToSql<sql_types::Text, DB>,
+{
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, DB>) -> diesel::serialize::Result {
+        self.0.to_sql(out)
     }
 }

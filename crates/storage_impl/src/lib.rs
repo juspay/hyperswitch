@@ -262,9 +262,9 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                     .change_context(RedisError::JsonSerializationFailed)?,
             )
             .await
-            .map(|_| metrics::KV_PUSHED_TO_DRAINER.add(&metrics::CONTEXT, 1, &[]))
+            .map(|_| metrics::KV_PUSHED_TO_DRAINER.add(1, &[]))
             .inspect_err(|error| {
-                metrics::KV_FAILED_TO_PUSH_TO_DRAINER.add(&metrics::CONTEXT, 1, &[]);
+                metrics::KV_FAILED_TO_PUSH_TO_DRAINER.add(1, &[]);
                 logger::error!(?error, "Failed to add entry in drainer stream");
             })
             .change_context(RedisError::StreamAppendFailed)
@@ -280,7 +280,7 @@ pub trait DataModelExt {
 }
 
 pub(crate) fn diesel_error_to_data_error(
-    diesel_error: &diesel_models::errors::DatabaseError,
+    diesel_error: diesel_models::errors::DatabaseError,
 ) -> StorageError {
     match diesel_error {
         diesel_models::errors::DatabaseError::DatabaseConnectionError => {
@@ -293,7 +293,7 @@ pub(crate) fn diesel_error_to_data_error(
             entity: "entity ",
             key: None,
         },
-        _ => StorageError::DatabaseError(error_stack::report!(*diesel_error)),
+        _ => StorageError::DatabaseError(error_stack::report!(diesel_error)),
     }
 }
 

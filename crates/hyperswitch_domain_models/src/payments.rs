@@ -2,7 +2,9 @@
 use std::marker::PhantomData;
 
 #[cfg(feature = "v2")]
-use api_models::payments::Address;
+use api_models::payments::SessionToken;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::ValueExt;
 use common_utils::{
     self,
     crypto::Encryptable,
@@ -15,6 +17,8 @@ use diesel_models::payment_intent::TaxDetails;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
 use masking::Secret;
+#[cfg(feature = "v2")]
+use payment_intent::PaymentIntentUpdate;
 use router_derive::ToEncryption;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -28,11 +32,13 @@ use common_enums as storage_enums;
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 
 use self::payment_attempt::PaymentAttempt;
+#[cfg(feature = "v1")]
 use crate::RemoteStorageObject;
 #[cfg(feature = "v2")]
-use crate::{business_profile, merchant_account};
-#[cfg(feature = "v2")]
-use crate::{errors, payment_method_data, ApiModelToDieselModelConvertor};
+use crate::{
+    address::Address, business_profile, errors, merchant_account, payment_address,
+    payment_method_data, ApiModelToDieselModelConvertor,
+};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -99,6 +105,7 @@ pub struct PaymentIntent {
     pub organization_id: id_type::OrganizationId,
     pub tax_details: Option<TaxDetails>,
     pub skip_external_tax_calculation: Option<bool>,
+    pub psd2_sca_exemption_type: Option<storage_enums::ScaExemptionType>,
 }
 
 impl PaymentIntent {
@@ -113,13 +120,14 @@ impl PaymentIntent {
     }
 
     #[cfg(feature = "v2")]
+    /// This is the url to which the customer will be redirected to, to complete the redirection flow
     pub fn create_start_redirection_url(
         &self,
         base_url: &str,
         publishable_key: String,
     ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
         let start_redirection_url = &format!(
-            "{}/v2/payments/{}/start_redirection?publishable_key={}&profile_id={}",
+            "{}/v2/payments/{}/start-redirection?publishable_key={}&profile_id={}",
             base_url,
             self.get_id().get_string_repr(),
             publishable_key,
@@ -129,43 +137,23 @@ impl PaymentIntent {
             .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("Error creating start redirection url")
     }
-}
 
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, Copy, serde::Serialize)]
-pub enum TaxCalculationOverride {
-    /// Skip calling the external tax provider
-    Skip,
-    /// Calculate tax by calling the external tax provider
-    Calculate,
-}
+    #[cfg(feature = "v2")]
+    /// This is the url to which the customer will be redirected to, after completing the redirection flow
+    pub fn create_finish_redirection_url(
+        &self,
+        base_url: &str,
+        publishable_key: &str,
+    ) -> CustomResult<url::Url, errors::api_error_response::ApiErrorResponse> {
+        let finish_redirection_url = format!(
+            "{base_url}/v2/payments/{}/finish-redirection/{publishable_key}/{}",
+            self.id.get_string_repr(),
+            self.profile_id.get_string_repr()
+        );
 
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, PartialEq, Copy, serde::Serialize)]
-pub enum SurchargeCalculationOverride {
-    /// Skip calculating surcharge
-    Skip,
-    /// Calculate surcharge
-    Calculate,
-}
-
-#[cfg(feature = "v2")]
-impl From<Option<bool>> for TaxCalculationOverride {
-    fn from(value: Option<bool>) -> Self {
-        match value {
-            Some(true) => Self::Calculate,
-            _ => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<Option<bool>> for SurchargeCalculationOverride {
-    fn from(value: Option<bool>) -> Self {
-        match value {
-            Some(true) => Self::Calculate,
-            _ => Self::Skip,
-        }
+        url::Url::parse(&finish_redirection_url)
+            .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error creating finish redirection url")
     }
 }
 
@@ -181,9 +169,9 @@ pub struct AmountDetails {
     /// Tax details related to the order. This will be calculated by the external tax provider
     pub tax_details: Option<TaxDetails>,
     /// The action to whether calculate tax by calling external tax provider or not
-    pub skip_external_tax_calculation: TaxCalculationOverride,
+    pub skip_external_tax_calculation: common_enums::TaxCalculationOverride,
     /// The action to whether calculate surcharge or not
-    pub skip_surcharge_calculation: SurchargeCalculationOverride,
+    pub skip_surcharge_calculation: common_enums::SurchargeCalculationOverride,
     /// The surcharge amount to be added to the order, collected from the merchant
     pub surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
@@ -197,18 +185,12 @@ pub struct AmountDetails {
 impl AmountDetails {
     /// Get the action to whether calculate surcharge or not as a boolean value
     fn get_surcharge_action_as_bool(&self) -> bool {
-        match self.skip_surcharge_calculation {
-            SurchargeCalculationOverride::Skip => false,
-            SurchargeCalculationOverride::Calculate => true,
-        }
+        self.skip_surcharge_calculation.as_bool()
     }
 
     /// Get the action to whether calculate external tax or not as a boolean value
     fn get_external_tax_action_as_bool(&self) -> bool {
-        match self.skip_external_tax_calculation {
-            TaxCalculationOverride::Skip => false,
-            TaxCalculationOverride::Calculate => true,
-        }
+        self.skip_external_tax_calculation.as_bool()
     }
 
     /// Calculate the net amount for the order
@@ -226,20 +208,22 @@ impl AmountDetails {
         let net_amount = self.calculate_net_amount();
 
         let surcharge_amount = match self.skip_surcharge_calculation {
-            SurchargeCalculationOverride::Skip => self.surcharge_amount,
-            SurchargeCalculationOverride::Calculate => None,
+            common_enums::SurchargeCalculationOverride::Skip => self.surcharge_amount,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
         };
 
         let tax_on_surcharge = match self.skip_surcharge_calculation {
-            SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
-            SurchargeCalculationOverride::Calculate => None,
+            common_enums::SurchargeCalculationOverride::Skip => self.tax_on_surcharge,
+            common_enums::SurchargeCalculationOverride::Calculate => None,
         };
 
         let order_tax_amount = match self.skip_external_tax_calculation {
-            TaxCalculationOverride::Skip => self.tax_details.as_ref().and_then(|tax_details| {
-                tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
-            }),
-            TaxCalculationOverride::Calculate => None,
+            common_enums::TaxCalculationOverride::Skip => {
+                self.tax_details.as_ref().and_then(|tax_details| {
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
+                })
+            }
+            common_enums::TaxCalculationOverride::Calculate => None,
         };
 
         payment_attempt::AttemptAmountDetails {
@@ -251,6 +235,33 @@ impl AmountDetails {
             amount_capturable: MinorUnit::zero(),
             shipping_cost: self.shipping_cost,
             order_tax_amount,
+        }
+    }
+
+    pub fn update_from_request(self, req: &api_models::payments::AmountDetailsUpdate) -> Self {
+        Self {
+            order_amount: req
+                .order_amount()
+                .unwrap_or(self.order_amount.into())
+                .into(),
+            currency: req.currency().unwrap_or(self.currency),
+            shipping_cost: req.shipping_cost().or(self.shipping_cost),
+            tax_details: req
+                .order_tax_amount()
+                .map(|order_tax_amount| TaxDetails {
+                    default: Some(diesel_models::DefaultTax { order_tax_amount }),
+                    payment_method_type: None,
+                })
+                .or(self.tax_details),
+            skip_external_tax_calculation: req
+                .skip_external_tax_calculation()
+                .unwrap_or(self.skip_external_tax_calculation),
+            skip_surcharge_calculation: req
+                .skip_surcharge_calculation()
+                .unwrap_or(self.skip_surcharge_calculation),
+            surcharge_amount: req.surcharge_amount().or(self.surcharge_amount),
+            tax_on_surcharge: req.tax_on_surcharge().or(self.tax_on_surcharge),
+            amount_captured: self.amount_captured,
         }
     }
 }
@@ -329,10 +340,10 @@ pub struct PaymentIntent {
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
     /// The billing address for the order in a denormalized form.
     #[encrypt(ty = Value)]
-    pub billing_address: Option<Encryptable<Secret<Address>>>,
+    pub billing_address: Option<Encryptable<Address>>,
     /// The shipping address for the order in a denormalized form.
     #[encrypt(ty = Value)]
-    pub shipping_address: Option<Encryptable<Secret<Address>>>,
+    pub shipping_address: Option<Encryptable<Address>>,
     /// Capture method for the payment
     pub capture_method: storage_enums::CaptureMethod,
     /// Authentication type that is requested by the merchant for this payment.
@@ -396,8 +407,7 @@ impl PaymentIntent {
         merchant_account: &merchant_account::MerchantAccount,
         profile: &business_profile::Profile,
         request: api_models::payments::PaymentsCreateIntentRequest,
-        billing_address: Option<Encryptable<Secret<Address>>>,
-        shipping_address: Option<Encryptable<Secret<Address>>>,
+        decrypted_payment_intent: DecryptedPaymentIntent,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let connector_metadata = request
             .get_connector_metadata_as_value()
@@ -460,8 +470,26 @@ impl PaymentIntent {
             frm_metadata: request.frm_metadata,
             customer_details: None,
             merchant_reference_id: request.merchant_reference_id,
-            billing_address,
-            shipping_address,
+            billing_address: decrypted_payment_intent
+                .billing_address
+                .as_ref()
+                .map(|data| {
+                    data.clone()
+                        .deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode billing address")?,
+            shipping_address: decrypted_payment_intent
+                .shipping_address
+                .as_ref()
+                .map(|data| {
+                    data.clone()
+                        .deserialize_inner_value(|value| value.parse_value("Address"))
+                })
+                .transpose()
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode shipping address")?,
             capture_method: request.capture_method.unwrap_or_default(),
             authentication_type: request.authentication_type.unwrap_or_default(),
             prerouting_algorithm: None,
@@ -527,6 +555,7 @@ where
 {
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
+    pub sessions_token: Vec<SessionToken>,
 }
 
 // TODO: Check if this can be merged with existing payment data
@@ -540,6 +569,7 @@ where
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
     pub payment_method_data: Option<payment_method_data::PaymentMethodData>,
+    pub payment_address: payment_address::PaymentAddress,
 }
 
 #[cfg(feature = "v2")]
@@ -551,7 +581,18 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub payment_attempt: Option<PaymentAttempt>,
+    pub payment_address: payment_address::PaymentAddress,
     /// Should the payment status be synced with connector
     /// This will depend on the payment status and the force sync flag in the request
     pub should_sync_with_connector: bool,
+}
+
+#[cfg(feature = "v2")]
+impl<F> PaymentStatusData<F>
+where
+    F: Clone,
+{
+    pub fn get_payment_id(&self) -> &id_type::GlobalPaymentId {
+        &self.payment_intent.id
+    }
 }

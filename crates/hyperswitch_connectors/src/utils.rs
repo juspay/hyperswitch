@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use api_models::payments::{self, Address, AddressDetails, PhoneDetails};
+use api_models::payments;
 use base64::Engine;
 use common_enums::{
     enums,
@@ -16,12 +16,13 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
+    address::{Address, AddressDetails, PhoneDetails},
     payment_method_data::{Card, PaymentMethodData},
     router_data::{
         ApplePayPredecryptData, ErrorResponse, PaymentMethodToken, RecurringMandatePaymentData,
     },
     router_request_types::{
-        AuthenticationData, BrowserInformation, CompleteAuthorizeData,
+        AuthenticationData, BrowserInformation, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSyncData, RefundsData, ResponseId,
         SetupMandateRequestData,
@@ -33,7 +34,7 @@ use image::Luma;
 use masking::{ExposeInterface, PeekInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use router_env::{logger, metrics::add_attributes};
+use router_env::logger;
 use serde::Serializer;
 use serde_json::Value;
 
@@ -119,7 +120,7 @@ where
 
 pub(crate) fn missing_field_err(
     message: &'static str,
-) -> Box<dyn Fn() -> error_stack::Report<errors::ConnectorError> + '_> {
+) -> Box<dyn Fn() -> error_stack::Report<errors::ConnectorError> + 'static> {
     Box::new(move || {
         errors::ConnectorError::MissingRequiredField {
             field_name: message,
@@ -132,11 +133,8 @@ pub(crate) fn handle_json_response_deserialization_failure(
     res: Response,
     connector: &'static str,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-    crate::metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE.add(
-        &crate::metrics::CONTEXT,
-        1,
-        &add_attributes([("connector", connector)]),
-    );
+    crate::metrics::CONNECTOR_RESPONSE_DESERIALIZATION_FAILURE
+        .add(1, router_env::metric_attributes!(("connector", connector)));
 
     let response_data = String::from_utf8(res.response.to_vec())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -299,6 +297,7 @@ pub trait RouterData {
     fn get_optional_shipping_state(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_first_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_last_name(&self) -> Option<Secret<String>>;
+    fn get_optional_shipping_full_name(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>>;
     fn get_optional_shipping_email(&self) -> Option<Email>;
 
@@ -366,6 +365,12 @@ impl<Flow, Request, Response> RouterData
                 .address
                 .and_then(|shipping_details| shipping_details.last_name)
         })
+    }
+
+    fn get_optional_shipping_full_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping()
+            .and_then(|shipping_details| shipping_details.address.as_ref())
+            .and_then(|shipping_address| shipping_address.get_optional_full_name())
     }
 
     fn get_optional_shipping_line1(&self) -> Option<Secret<String>> {
@@ -844,6 +849,7 @@ pub trait CardData {
     fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error>;
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error>;
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error>;
 }
 
 impl CardData for Card {
@@ -916,6 +922,14 @@ impl CardData for Card {
     }
     fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
         self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)
+            .map(Secret::new)
+    }
+    fn get_expiry_year_as_4_digit_i32(&self) -> Result<Secret<i32>, Error> {
+        self.get_expiry_year_4_digit()
             .peek()
             .clone()
             .parse::<i32>()
@@ -1129,6 +1143,15 @@ impl PhoneDetailsData for PhoneDetails {
     }
 }
 
+pub trait CustomerData {
+    fn get_email(&self) -> Result<Email, Error>;
+}
+
+impl CustomerData for ConnectorCustomerData {
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+}
 pub trait PaymentsAuthorizeRequestData {
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
@@ -1158,12 +1181,15 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_card_holder_name_from_additional_payment_method_data(
         &self,
     ) -> Result<Secret<String>, Error>;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1336,6 +1362,20 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .into()),
         }
     }
+    /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_request_reference_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+            .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
@@ -1368,7 +1408,9 @@ pub trait PaymentsSyncRequestData {
 impl PaymentsSyncRequestData for PaymentsSyncData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1495,12 +1537,15 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_mandate_payment(&self) -> bool;
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | Some(enums::CaptureMethod::SequentialAutomatic)
+            | None => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
@@ -1535,6 +1580,20 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                 .and_then(|mandate_ids| mandate_ids.mandate_reference_id.as_ref())
                 .is_some()
     }
+    /// Attempts to retrieve the connector mandate reference ID as a `Result<String, Error>`.
+    fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_request_reference_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | None
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+            })
+            .ok_or_else(missing_field_err("connector_mandate_request_reference_id"))
+    }
 }
 pub trait AddressData {
     fn get_optional_full_name(&self) -> Option<Secret<String>>;
@@ -1556,7 +1615,9 @@ pub trait PaymentsPreProcessingRequestData {
 impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
-            Some(enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(enums::CaptureMethod::Automatic)
+            | None
+            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
             Some(enums::CaptureMethod::Manual) => Ok(false),
             Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
                 Err(errors::ConnectorError::CaptureMethodNotSupported.into())
@@ -2240,4 +2301,21 @@ impl WalletData for hyperswitch_domain_models::payment_method_data::WalletData {
             ),
         }
     }
+}
+
+pub fn deserialize_xml_to_struct<T: serde::de::DeserializeOwned>(
+    xml_data: &[u8],
+) -> Result<T, errors::ConnectorError> {
+    let response_str = std::str::from_utf8(xml_data)
+        .map_err(|e| {
+            router_env::logger::error!("Error converting response data to UTF-8: {:?}", e);
+            errors::ConnectorError::ResponseDeserializationFailed
+        })?
+        .trim();
+    let result: T = quick_xml::de::from_str(response_str).map_err(|e| {
+        router_env::logger::error!("Error deserializing XML response: {:?}", e);
+        errors::ConnectorError::ResponseDeserializationFailed
+    })?;
+
+    Ok(result)
 }

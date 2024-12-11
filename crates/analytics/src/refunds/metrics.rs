@@ -10,6 +10,7 @@ mod refund_count;
 mod refund_processed_amount;
 mod refund_success_count;
 mod refund_success_rate;
+mod sessionized_metrics;
 use std::collections::HashSet;
 
 use refund_count::RefundCount;
@@ -30,6 +31,8 @@ pub struct RefundMetricRow {
     pub connector: Option<String>,
     pub refund_type: Option<DBEnumWrapper<RefundType>>,
     pub profile_id: Option<String>,
+    pub refund_reason: Option<String>,
+    pub refund_error_message: Option<String>,
     pub total: Option<bigdecimal::BigDecimal>,
     pub count: Option<i64>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -55,7 +58,7 @@ where
         dimensions: &[RefundDimensions],
         auth: &AuthInfo,
         filters: &RefundFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>>;
@@ -76,7 +79,7 @@ where
         dimensions: &[RefundDimensions],
         auth: &AuthInfo,
         filters: &RefundFilters,
-        granularity: &Option<Granularity>,
+        granularity: Option<Granularity>,
         time_range: &TimeRange,
         pool: &T,
     ) -> MetricsResult<HashSet<(RefundMetricsBucketIdentifier, RefundMetricRow)>> {
@@ -98,6 +101,36 @@ where
             }
             Self::RefundProcessedAmount => {
                 RefundProcessedAmount::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundSuccessRate => {
+                sessionized_metrics::RefundSuccessRate::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundCount => {
+                sessionized_metrics::RefundCount::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundSuccessCount => {
+                sessionized_metrics::RefundSuccessCount::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundProcessedAmount => {
+                sessionized_metrics::RefundProcessedAmount::default()
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundReason => {
+                sessionized_metrics::RefundReason
+                    .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
+                    .await
+            }
+            Self::SessionizedRefundErrorMessage => {
+                sessionized_metrics::RefundErrorMessage
                     .load_metrics(dimensions, auth, filters, granularity, time_range, pool)
                     .await
             }

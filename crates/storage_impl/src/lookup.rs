@@ -44,7 +44,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DatabaseConnectionError)?;
         new.insert(&conn).await.map_err(|er| {
-            let new_err = diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })
     }
@@ -58,7 +58,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         DieselReverseLookup::find_by_lookup_id(id, &conn)
             .await
             .map_err(|er| {
-                let new_err = diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })
     }

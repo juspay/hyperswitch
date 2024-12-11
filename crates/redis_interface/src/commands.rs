@@ -3,8 +3,6 @@
 //! The folder provides generic functions for providing serialization
 //! and deserialization while calling redis.
 //! It also includes instruments to provide tracing.
-//!
-//!
 
 use std::fmt::Debug;
 

@@ -72,7 +72,9 @@ impl From<Option<enums::CaptureMethod>> for StripeCaptureMethod {
             Some(p) => match p {
                 enums::CaptureMethod::ManualMultiple => Self::Manual,
                 enums::CaptureMethod::Manual => Self::Manual,
-                enums::CaptureMethod::Automatic => Self::Automatic,
+                enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
+                    Self::Automatic
+                }
                 enums::CaptureMethod::Scheduled => Self::Manual,
             },
             None => Self::Automatic,
@@ -3640,7 +3642,8 @@ pub struct WebhookEventObjectData {
     pub id: String,
     pub object: WebhookEventObjectType,
     pub amount: Option<i32>,
-    pub currency: String,
+    #[serde(default, deserialize_with = "connector_util::convert_uppercase")]
+    pub currency: enums::Currency,
     pub payment_intent: Option<String>,
     pub client_secret: Option<Secret<String>>,
     pub reason: Option<String>,

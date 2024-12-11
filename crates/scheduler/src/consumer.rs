@@ -7,7 +7,7 @@ use std::{
 pub mod types;
 pub mod workflows;
 
-use common_utils::{errors::CustomResult, signals::get_allowed_signals};
+use common_utils::{errors::CustomResult, id_type, signals::get_allowed_signals};
 use diesel_models::enums;
 pub use diesel_models::{self, process_tracker as storage};
 use error_stack::ResultExt;
@@ -42,7 +42,7 @@ pub async fn start_consumer<T: SchedulerAppState + 'static, U: SchedulerSessionS
     app_state_to_session_state: F,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    F: Fn(&T, &str) -> CustomResult<U, errors::ProcessTrackerError>,
+    F: Fn(&T, &id_type::TenantId) -> CustomResult<U, errors::ProcessTrackerError>,
 {
     use std::time::Duration;
 
@@ -88,7 +88,7 @@ where
                 let start_time = std_time::Instant::now();
                 let tenants = state.get_tenants();
                 for tenant in tenants {
-                    let session_state = app_state_to_session_state(state, tenant.as_str())?;
+                    let session_state = app_state_to_session_state(state, &tenant)?;
                     pt_utils::consumer_operation_handler(
                         session_state.clone(),
                         settings.clone(),
@@ -165,7 +165,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
 
         pt_utils::add_histogram_metrics(&pickup_time, task, &stream_name);
 
-        metrics::TASK_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TASK_CONSUMED.add(1, &[]);
 
         handler.push(tokio::task::spawn(start_workflow(
             state.clone(),
@@ -244,7 +244,7 @@ where
         .inspect_err(|error| {
             logger::error!(?error, "Failed to trigger workflow");
         });
-    metrics::TASK_PROCESSED.add(&metrics::CONTEXT, 1, &[]);
+    metrics::TASK_PROCESSED.add(1, &[]);
     res
 }
 

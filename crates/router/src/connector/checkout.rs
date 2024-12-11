@@ -162,6 +162,7 @@ impl ConnectorValidation for Checkout {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
             enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::SequentialAutomatic
             | enums::CaptureMethod::Manual
             | enums::CaptureMethod::ManualMultiple => Ok(()),
             enums::CaptureMethod::Scheduled => Err(

@@ -9,10 +9,7 @@ use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
-use router_env::{
-    metrics::add_attributes,
-    tracing::{self, instrument},
-};
+use router_env::tracing::{self, instrument};
 
 use crate::{
     errors::StorageError,
@@ -72,10 +69,20 @@ pub static PM_FILTERS_CGRAPH_CACHE: Lazy<Cache> = Lazy::new(|| {
     )
 });
 
-/// Dynamic Algorithm Cache
+/// Success based Dynamic Algorithm Cache
 pub static SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
     Cache::new(
         "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
+        CACHE_TTL,
+        CACHE_TTI,
+        Some(MAX_CAPACITY),
+    )
+});
+
+/// Elimination based Dynamic Algorithm Cache
+pub static ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE: Lazy<Cache> = Lazy::new(|| {
+    Cache::new(
+        "ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE",
         CACHE_TTL,
         CACHE_TTI,
         Some(MAX_CAPACITY),
@@ -102,6 +109,7 @@ pub enum CacheKind<'a> {
     Surcharge(Cow<'a, str>),
     CGraph(Cow<'a, str>),
     SuccessBasedDynamicRoutingCache(Cow<'a, str>),
+    EliminationBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
     All(Cow<'a, str>),
 }
@@ -117,7 +125,7 @@ impl<'a> TryFrom<CacheRedact<'a>> for RedisValue {
     }
 }
 
-impl<'a> TryFrom<RedisValue> for CacheRedact<'a> {
+impl TryFrom<RedisValue> for CacheRedact<'_> {
     type Error = Report<errors::ValidationError>;
 
     fn try_from(v: RedisValue) -> Result<Self, Self::Error> {
@@ -182,12 +190,11 @@ impl Cache {
         // Record the metrics of manual invalidation of cache entry by the application
         let eviction_listener = move |_, _, cause| {
             metrics::IN_MEMORY_CACHE_EVICTION_COUNT.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([
+                router_env::metric_attributes!(
                     ("cache_type", name.to_owned()),
                     ("removal_cause", format!("{:?}", cause)),
-                ]),
+                ),
             );
         };
         let mut cache_builder = MokaCache::builder()
@@ -214,17 +221,11 @@ impl Cache {
 
         // Add cache hit and cache miss metrics
         if val.is_some() {
-            metrics::IN_MEMORY_CACHE_HIT.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([("cache_type", self.name)]),
-            );
+            metrics::IN_MEMORY_CACHE_HIT
+                .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         } else {
-            metrics::IN_MEMORY_CACHE_MISS.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([("cache_type", self.name)]),
-            );
+            metrics::IN_MEMORY_CACHE_MISS
+                .add(1, router_env::metric_attributes!(("cache_type", self.name)));
         }
 
         let val = (*val?).as_any().downcast_ref::<T>().cloned();
@@ -258,10 +259,9 @@ impl Cache {
     pub async fn record_entry_count_metric(&self) {
         self.run_pending_tasks().await;
 
-        metrics::IN_MEMORY_CACHE_ENTRY_COUNT.observe(
-            &metrics::CONTEXT,
+        metrics::IN_MEMORY_CACHE_ENTRY_COUNT.record(
             self.get_entry_count(),
-            &add_attributes([("cache_type", self.name)]),
+            router_env::metric_attributes!(("cache_type", self.name)),
         );
     }
 }

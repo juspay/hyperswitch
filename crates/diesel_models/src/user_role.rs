@@ -24,21 +24,24 @@ pub struct UserRole {
     pub entity_id: Option<String>,
     pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
 }
 
 impl UserRole {
     pub fn get_entity_id_and_type(&self) -> Option<(String, EntityType)> {
-        match (self.version, self.role_id.as_str()) {
-            (enums::UserRoleVersion::V1, consts::ROLE_ID_ORGANIZATION_ADMIN) => {
+        match (self.version, self.entity_type, self.role_id.as_str()) {
+            (enums::UserRoleVersion::V1, None, consts::ROLE_ID_ORGANIZATION_ADMIN) => {
                 let org_id = self.org_id.clone()?.get_string_repr().to_string();
                 Some((org_id, EntityType::Organization))
             }
-            (enums::UserRoleVersion::V1, _) => {
+            (enums::UserRoleVersion::V1, None, _) => {
                 let merchant_id = self.merchant_id.clone()?.get_string_repr().to_string();
                 Some((merchant_id, EntityType::Merchant))
             }
-            (enums::UserRoleVersion::V2, _) => self.entity_id.clone().zip(self.entity_type),
+            (enums::UserRoleVersion::V1, Some(_), _) => {
+                self.entity_id.clone().zip(self.entity_type)
+            }
+            (enums::UserRoleVersion::V2, _, _) => self.entity_id.clone().zip(self.entity_type),
         }
     }
 }
@@ -88,7 +91,7 @@ pub struct UserRoleNew {
     pub entity_id: Option<String>,
     pub entity_type: Option<EntityType>,
     pub version: enums::UserRoleVersion,
-    pub tenant_id: String,
+    pub tenant_id: id_type::TenantId,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]

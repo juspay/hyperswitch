@@ -5,7 +5,7 @@ use diesel_models::enums::{self, ProcessTrackerStatus};
 pub use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
 use redis_interface::{RedisConnectionPool, RedisEntryId};
-use router_env::{instrument, opentelemetry, tracing};
+use router_env::{instrument, tracing};
 use uuid::Uuid;
 
 use super::{
@@ -29,7 +29,7 @@ where
     let batches = divide(tasks, settings);
     // Safety: Assuming we won't deal with more than `u64::MAX` batches at once
     #[allow(clippy::as_conversions)]
-    metrics::BATCHES_CREATED.add(&metrics::CONTEXT, batches.len() as u64, &[]); // Metrics
+    metrics::BATCHES_CREATED.add(batches.len() as u64, &[]); // Metrics
     for batch in batches {
         let result = update_status_and_append(state, flow, batch).await;
         match result {
@@ -209,7 +209,7 @@ pub async fn get_batches(
         }
     };
 
-    metrics::BATCHES_CONSUMED.add(&metrics::CONTEXT, 1, &[]);
+    metrics::BATCHES_CONSUMED.add(1, &[]);
 
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response.into_values().map(|entries| {
         entries.into_iter().try_fold(
@@ -290,13 +290,9 @@ pub fn add_histogram_metrics(
         let pickup_schedule_delta = (*pickup_time - *schedule_time).as_seconds_f64();
         logger::error!("Time delta for scheduled tasks: {pickup_schedule_delta} seconds");
         let runner_name = runner.clone();
-        metrics::CONSUMER_STATS.record(
-            &metrics::CONTEXT,
+        metrics::CONSUMER_OPS.record(
             pickup_schedule_delta,
-            &[opentelemetry::KeyValue::new(
-                stream_name.to_owned(),
-                runner_name,
-            )],
+            router_env::metric_attributes!((stream_name.to_owned(), runner_name)),
         );
     };
 }
@@ -321,10 +317,10 @@ pub fn get_schedule_time(
 
 pub fn get_pm_schedule_time(
     mapping: process_data::PaymentMethodsPTMapping,
-    pm: &enums::PaymentMethod,
+    pm: enums::PaymentMethod,
     retry_count: i32,
 ) -> Option<i32> {
-    let mapping = match mapping.custom_pm_mapping.get(pm) {
+    let mapping = match mapping.custom_pm_mapping.get(&pm) {
         Some(map) => map.clone(),
         None => mapping.default_mapping,
     };

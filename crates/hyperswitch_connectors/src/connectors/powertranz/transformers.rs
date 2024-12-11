@@ -1,4 +1,4 @@
-use common_enums::enums::{self, AuthenticationType, Currency};
+use common_enums::enums::{self, AuthenticationType};
 use common_utils::pii::IpAddress;
 use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
@@ -148,7 +148,7 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest {
                 item.request.amount,
                 item.request.currency,
             )?,
-            currency_code: Currency::iso_4217(&item.request.currency).to_string(),
+            currency_code: item.request.currency.iso_4217().to_string(),
             three_d_secure,
             source,
             order_identifier: item.connector_request_reference_id.clone(),

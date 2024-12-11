@@ -1325,6 +1325,25 @@ required=true
 type="MultiSelect"
 options=["visa","masterCard","amex","discover"]
 
+[[cybersource.connector_wallets_details.paze]]
+name="client_id"
+label="Client Id"
+placeholder="Enter paze Client Id"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.paze]]
+name="client_profile_id"
+label="Client Profile Id"
+placeholder="Enter Client Profile Id"
+required=true
+type="Text"
+[[cybersource.connector_wallets_details.paze]]
+name="client_name"
+label="Display Name"
+placeholder="Enter Display Name"
+required=true
+type="Text"
+
 [cybersource.metadata.acquirer_bin]
 name="acquirer_bin"
 label="Acquirer Bin"
@@ -3524,8 +3543,8 @@ merchant_secret="Source verification key"
 [[worldpay.wallet]]
   payment_method_type = "apple_pay"
 [worldpay.connector_auth.SignatureKey]
-api_key="Username"
-key1="Password"
+key1="Username"
+api_key="Password"
 api_secret="Merchant Identifier"
 [worldpay.connector_webhook_details]
 merchant_secret="Source verification key"
@@ -4313,3 +4332,45 @@ options=["Hyperswitch"]
 
 [fiuu.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[elavon]
+[[elavon.credit]]
+  payment_method_type = "Mastercard"
+[[elavon.credit]]
+  payment_method_type = "Visa"
+[[elavon.credit]]
+  payment_method_type = "Interac"
+[[elavon.credit]]
+  payment_method_type = "AmericanExpress"
+[[elavon.credit]]
+  payment_method_type = "JCB"
+[[elavon.credit]]
+  payment_method_type = "DinersClub"
+[[elavon.credit]]
+  payment_method_type = "Discover"
+[[elavon.credit]]
+  payment_method_type = "CartesBancaires"
+[[elavon.credit]]
+  payment_method_type = "UnionPay"
+[[elavon.debit]]
+  payment_method_type = "Mastercard"
+[[elavon.debit]]
+  payment_method_type = "Visa"
+[[elavon.debit]]
+  payment_method_type = "Interac"
+[[elavon.debit]]
+  payment_method_type = "AmericanExpress"
+[[elavon.debit]]
+  payment_method_type = "JCB"
+[[elavon.debit]]
+  payment_method_type = "DinersClub"
+[[elavon.debit]]
+  payment_method_type = "Discover"
+[[elavon.debit]]
+  payment_method_type = "CartesBancaires"
+[[elavon.debit]]
+  payment_method_type = "UnionPay"
+[elavon.connector_auth.SignatureKey]
+api_key="Account Id"
+key1="User ID"
+api_secret="Pin"

@@ -5,7 +5,7 @@ use common_utils::{ext_traits::Encode, id_type};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use futures::future;
-use router_env::{instrument, logger, metrics::add_attributes, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::payments::helpers as payment_helper;
 use crate::{
@@ -341,9 +341,8 @@ where
                     .change_context(errors::ApiErrorResponse::MandateUpdateFailed),
             }?;
             metrics::SUBSEQUENT_MANDATE_PAYMENT.add(
-                &metrics::CONTEXT,
                 1,
-                &add_attributes([("connector", mandate.connector)]),
+                router_env::metric_attributes!(("connector", mandate.connector)),
             );
             Ok(Some(mandate_id.clone()))
         }
@@ -396,11 +395,7 @@ where
                 .insert_mandate(new_mandate_data, storage_scheme)
                 .await
                 .to_duplicate_response(errors::ApiErrorResponse::DuplicateMandate)?;
-            metrics::MANDATE_COUNT.add(
-                &metrics::CONTEXT,
-                1,
-                &add_attributes([("connector", connector)]),
-            );
+            metrics::MANDATE_COUNT.add(1, router_env::metric_attributes!(("connector", connector)));
             Ok(Some(res_mandate_id))
         }
     }
