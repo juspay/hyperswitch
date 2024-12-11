@@ -3571,6 +3571,7 @@ impl RoleInterface for KafkaStore {
         self.diesel_store.delete_role_by_role_id(role_id).await
     }
 
+    //TODO: Remove once find_by_role_name is stable
     async fn list_all_roles(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -3579,6 +3580,17 @@ impl RoleInterface for KafkaStore {
         self.diesel_store.list_all_roles(merchant_id, org_id).await
     }
 
+    async fn find_role_by_role_name_in_lineage(
+        &self,
+        role_name: &str,
+        entity_type: storage::ListRolesByEntityPayload,
+    ) -> CustomResult<storage::Role, errors::StorageError> {
+        self.diesel_store
+            .find_role_by_role_name_in_lineage(role_name, entity_type)
+            .await
+    }
+
+    //TODO: Remove once generic_list_roles_by_entity_type is stable
     async fn list_roles_for_org_by_parameters(
         &self,
         org_id: &id_type::OrganizationId,
@@ -3588,6 +3600,17 @@ impl RoleInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
         self.diesel_store
             .list_roles_for_org_by_parameters(org_id, merchant_id, entity_type, limit)
+            .await
+    }
+
+    async fn generic_list_roles_by_entity_type(
+        &self,
+        entity_type: diesel_models::role::ListRolesByEntityPayload,
+        is_lineage_data_required: bool,
+        limit: Option<u32>,
+    ) -> CustomResult<Vec<storage::Role>, errors::StorageError> {
+        self.diesel_store
+            .generic_list_roles_by_entity_type(entity_type, is_lineage_data_required, limit)
             .await
     }
 }

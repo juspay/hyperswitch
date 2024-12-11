@@ -19,6 +19,7 @@ pub struct Role {
     pub last_modified_at: PrimitiveDateTime,
     pub last_modified_by: String,
     pub entity_type: enums::EntityType,
+    pub profile_id: Option<id_type::ProfileId>,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -36,6 +37,7 @@ pub struct RoleNew {
     pub last_modified_at: PrimitiveDateTime,
     pub last_modified_by: String,
     pub entity_type: enums::EntityType,
+    pub profile_id: Option<id_type::ProfileId>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -70,6 +72,41 @@ impl From<RoleUpdate> for RoleUpdateInternal {
                 last_modified_at,
                 last_modified_by,
             },
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum ListRolesByEntityPayload {
+    Profile(
+        id_type::OrganizationId,
+        id_type::MerchantId,
+        id_type::ProfileId,
+    ),
+    Merchant(id_type::OrganizationId, id_type::MerchantId),
+    Organization(id_type::OrganizationId),
+}
+
+impl ListRolesByEntityPayload {
+    pub fn get_organization_id(&self) -> Option<id_type::OrganizationId> {
+        match self {
+            ListRolesByEntityPayload::Organization(org_id)
+            | ListRolesByEntityPayload::Merchant(org_id, _)
+            | ListRolesByEntityPayload::Profile(org_id, _, _) => Some(org_id.to_owned()),
+        }
+    }
+    pub fn get_merchant_id(&self) -> Option<id_type::MerchantId> {
+        match self {
+            ListRolesByEntityPayload::Organization(_) => None,
+            ListRolesByEntityPayload::Merchant(_, merchant_id)
+            | ListRolesByEntityPayload::Profile(_, merchant_id, _) => Some(merchant_id.to_owned()),
+        }
+    }
+    pub fn get_profile_id(&self) -> Option<id_type::ProfileId> {
+        match self {
+            ListRolesByEntityPayload::Organization(_)
+            | ListRolesByEntityPayload::Merchant(_, _) => None,
+            ListRolesByEntityPayload::Profile(_, _, profile_id) => Some(profile_id.to_owned()),
         }
     }
 }

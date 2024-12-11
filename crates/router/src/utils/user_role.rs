@@ -4,8 +4,10 @@ use common_enums::{EntityType, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
     enums::{UserRoleVersion, UserStatus},
+    role::ListRolesByEntityPayload,
     user_role::{UserRole, UserRoleUpdate},
 };
+
 use error_stack::{report, Report, ResultExt};
 use router_env::logger;
 use storage_impl::errors::StorageError;
@@ -48,6 +50,8 @@ pub async fn validate_role_name(
     role_name: &domain::RoleName,
     merchant_id: &id_type::MerchantId,
     org_id: &id_type::OrganizationId,
+    profile_id: &id_type::ProfileId,
+    entity_type: &EntityType,
 ) -> UserResult<()> {
     let role_name_str = role_name.clone().get_role_name();
 
@@ -55,16 +59,58 @@ pub async fn validate_role_name(
         .iter()
         .any(|(_, role_info)| role_info.get_role_name() == role_name_str);
 
-    // TODO: Create and use find_by_role_name to make this efficient
-    let is_present_in_custom_roles = state
-        .store
-        .list_all_roles(merchant_id, org_id)
-        .await
-        .change_context(UserErrors::InternalServerError)?
-        .iter()
-        .any(|role| role.role_name == role_name_str);
+    let entity_type_for_role = match entity_type {
+        EntityType::Tenant | EntityType::Organization => {
+            ListRolesByEntityPayload::Organization(org_id.to_owned())
+        }
+        EntityType::Merchant => {
+            ListRolesByEntityPayload::Merchant(org_id.to_owned(), merchant_id.to_owned())
+        }
+        EntityType::Profile => ListRolesByEntityPayload::Profile(
+            org_id.to_owned(),
+            merchant_id.to_owned(),
+            profile_id.to_owned(),
+        ),
+    };
 
-    if is_present_in_predefined_roles || is_present_in_custom_roles {
+    let is_present_in_custom_roles_in_my_lineage = match state
+        .store
+        .find_role_by_role_name_in_lineage(
+            role_name.clone().get_role_name().as_str(),
+            entity_type_for_role.clone(),
+        )
+        .await
+    {
+        Ok(_) => true,
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                false
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+    let is_present_in_custom_roles_below_me = match state
+        .store
+        .generic_list_roles_by_entity_type(entity_type_for_role, true, None)
+        .await
+    {
+        Ok(roles_list) => roles_list
+            .iter()
+            .any(|role| role.role_name == role_name_str),
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                false
+            } else {
+                return Err(UserErrors::InternalServerError.into());
+            }
+        }
+    };
+
+    if is_present_in_predefined_roles
+        || is_present_in_custom_roles_in_my_lineage
+        || is_present_in_custom_roles_below_me
+    {
         return Err(UserErrors::RoleNameAlreadyExists.into());
     }
 
