@@ -2570,12 +2570,12 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     }
 }
 
-#[cfg(feature= "v1")]
+#[cfg(feature = "v1")]
 struct PaymentMethodsEnabled<'a> {
     payment_methods_enabled: &'a Option<Vec<api_models::admin::PaymentMethodsEnabled>>,
 }
 
-#[cfg(feature= "v1")]
+#[cfg(feature = "v1")]
 impl PaymentMethodsEnabled<'_> {
     fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<pii::SecretSerdeValue>>> {
         let mut vec = Vec::new();
@@ -2597,7 +2597,6 @@ impl PaymentMethodsEnabled<'_> {
         Ok(payment_methods_enabled)
     }
 }
-
 
 #[cfg(all(feature = "v1", feature = "olap"))]
 #[async_trait::async_trait]

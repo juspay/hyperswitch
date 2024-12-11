@@ -1,10 +1,11 @@
 //! Contains functions of payment methods that are used in payments
 //! one of such functions is `list_payment_methods`
 
-use super::errors;
-use crate::{db::errors::StorageErrorExt, routes, types::domain};
 use common_utils::{ext_traits::OptionExt, id_type};
 use error_stack::ResultExt;
+
+use super::errors;
+use crate::{db::errors::StorageErrorExt, routes, types::domain};
 
 #[cfg(all(
     feature = "v2",

@@ -27,6 +27,8 @@ use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
+#[cfg(feature = "v2")]
+use crate::payment_methods;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     disputes, enums as api_enums,
@@ -34,9 +36,6 @@ use crate::{
     mandates::RecurringDetails,
     refunds,
 };
-
-#[cfg(feature = "v2")]
-use crate::payment_methods;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {

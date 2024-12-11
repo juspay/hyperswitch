@@ -1486,7 +1486,7 @@ pub struct MerchantConnectorUpdate {
     pub connector_account_details: Option<pii::SecretSerdeValue>,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-   #[schema(value_type = Option<Vec<PaymentMethodsEnabled>>)]
+    #[schema(value_type = Option<Vec<PaymentMethodsEnabled>>)]
     pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
