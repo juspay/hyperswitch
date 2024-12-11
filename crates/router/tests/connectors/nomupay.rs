@@ -40,17 +40,20 @@ impl NomupayTest {
             currency: Some(enums::Currency::GBP),
             address: Some(PaymentAddress::new(
                 None,
-                Some(Address {
-                    address: Some(AddressDetails {
-                        country: Some(api_models::enums::CountryAlpha2::GB),
-                        city: Some("London".to_string()),
-                        zip: Some(Secret::new("10025".to_string())),
-                        line1: Some(Secret::new("50 Branson Ave".to_string())),
-                        ..Default::default()
-                    }),
-                    phone: None,
-                    email: None,
-                }.into()),
+                Some(
+                    Address {
+                        address: Some(AddressDetails {
+                            country: Some(api_models::enums::CountryAlpha2::GB),
+                            city: Some("London".to_string()),
+                            zip: Some(Secret::new("10025".to_string())),
+                            line1: Some(Secret::new("50 Branson Ave".to_string())),
+                            ..Default::default()
+                        }),
+                        phone: None,
+                        email: None,
+                    }
+                    .into(),
+                ),
                 None,
                 None,
             )),
