@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use drainer::{
-    errors::DrainerResult, logger::logger, services, settings, start_drainer, start_web_server,
-};
+use drainer::{errors::DrainerResult, logger, services, settings, start_drainer, start_web_server};
 use router_env::tracing::Instrument;
 
 #[tokio::main]

@@ -257,19 +257,16 @@ where
         }
     };
 
+    let attributes = router_env::metric_attributes!(("operation", operation.clone()));
     result
         .await
         .inspect(|_| {
             logger::debug!(kv_operation= %operation, status="success");
-            let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation.clone());
-
-            metrics::KV_OPERATION_SUCCESSFUL.add(&metrics::CONTEXT, 1, &[keyvalue]);
+            metrics::KV_OPERATION_SUCCESSFUL.add(1, attributes);
         })
         .inspect_err(|err| {
             logger::error!(kv_operation = %operation, status="error", error = ?err);
-            let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation);
-
-            metrics::KV_OPERATION_FAILED.add(&metrics::CONTEXT, 1, &[keyvalue]);
+            metrics::KV_OPERATION_FAILED.add(1, attributes);
         })
 }
 
@@ -320,7 +317,7 @@ where
                 .await
                 {
                     Ok(_) => {
-                        metrics::KV_SOFT_KILL_ACTIVE_UPDATE.add(&metrics::CONTEXT, 1, &[]);
+                        metrics::KV_SOFT_KILL_ACTIVE_UPDATE.add(1, &[]);
                         MerchantStorageScheme::RedisKv
                     }
                     Err(_) => MerchantStorageScheme::PostgresOnly,

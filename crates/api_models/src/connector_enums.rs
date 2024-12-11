@@ -123,6 +123,7 @@ pub enum Connector {
     //Thunes,
     Trustpay,
     Tsys,
+    // UnifiedAuthenticationService,
     Volt,
     Wellsfargo,
     // Wellsfargopayout,
@@ -260,6 +261,7 @@ impl Connector {
             // | Self::Thunes
             | Self::Trustpay
             | Self::Tsys
+            // | Self::UnifiedAuthenticationService
             | Self::Volt
             | Self::Wellsfargo
             // | Self::Wellsfargopayout

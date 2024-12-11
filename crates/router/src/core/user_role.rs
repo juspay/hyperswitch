@@ -83,10 +83,9 @@ pub async fn get_parent_group_info(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<Vec<role_api::ParentGroupInfo>> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -119,7 +118,7 @@ pub async fn update_user_role(
     req: user_role_api::UpdateUserRoleRequest,
     _req_state: ReqState,
 ) -> UserResponse<()> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_in_lineage(
         &state,
         &req.role_id,
         &user_from_token.merchant_id,
@@ -144,10 +143,9 @@ pub async fn update_user_role(
             .attach_printable("User Changing their own role");
     }
 
-    let updator_role = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let updator_role = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -181,10 +179,9 @@ pub async fn update_user_role(
     };
 
     if let Some(user_role) = v2_user_role_to_be_updated {
-        let role_to_be_updated = roles::RoleInfo::from_role_id_in_merchant_scope(
+        let role_to_be_updated = roles::RoleInfo::from_role_id_and_org_id(
             &state,
             &user_role.role_id,
-            &user_from_token.merchant_id,
             &user_from_token.org_id,
         )
         .await
@@ -262,10 +259,9 @@ pub async fn update_user_role(
     };
 
     if let Some(user_role) = v1_user_role_to_be_updated {
-        let role_to_be_updated = roles::RoleInfo::from_role_id_in_merchant_scope(
+        let role_to_be_updated = roles::RoleInfo::from_role_id_and_org_id(
             &state,
             &user_role.role_id,
-            &user_from_token.merchant_id,
             &user_from_token.org_id,
         )
         .await
@@ -489,10 +485,9 @@ pub async fn delete_user_role(
             .attach_printable("User deleting himself");
     }
 
-    let deletion_requestor_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let deletion_requestor_role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -527,7 +522,7 @@ pub async fn delete_user_role(
     };
 
     if let Some(role_to_be_deleted) = user_role_v2 {
-        let target_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+        let target_role_info = roles::RoleInfo::from_role_id_in_lineage(
             &state,
             &role_to_be_deleted.role_id,
             &user_from_token.merchant_id,
@@ -597,7 +592,7 @@ pub async fn delete_user_role(
     };
 
     if let Some(role_to_be_deleted) = user_role_v1 {
-        let target_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+        let target_role_info = roles::RoleInfo::from_role_id_in_lineage(
             &state,
             &role_to_be_deleted.role_id,
             &user_from_token.merchant_id,
@@ -685,10 +680,9 @@ pub async fn list_users_in_lineage(
     user_from_token: auth::UserFromToken,
     request: user_role_api::ListUsersInEntityRequest,
 ) -> UserResponse<Vec<user_role_api::ListUsersInEntityResponse>> {
-    let requestor_role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let requestor_role_info = roles::RoleInfo::from_role_id_and_org_id(
         &state,
         &user_from_token.role_id,
-        &user_from_token.merchant_id,
         &user_from_token.org_id,
     )
     .await
@@ -783,7 +777,7 @@ pub async fn list_users_in_lineage(
 
     let role_info_map =
         futures::future::try_join_all(user_roles_set.iter().map(|user_role| async {
-            roles::RoleInfo::from_role_id_in_org_scope(
+            roles::RoleInfo::from_role_id_and_org_id(
                 &state,
                 &user_role.role_id,
                 &user_from_token.org_id,
