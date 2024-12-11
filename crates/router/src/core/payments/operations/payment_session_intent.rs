@@ -68,6 +68,15 @@ impl<F: Send + Clone + Sync> Operation<F, PaymentsSessionRequest> for &PaymentSe
     fn to_domain(&self) -> RouterResult<&(dyn Domain<F, PaymentsSessionRequest, Self::Data>)> {
         Ok(*self)
     }
+    fn to_update_tracker(
+        &self,
+    ) -> RouterResult<
+        &(dyn UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsSessionRequest>
+              + Send
+              + Sync),
+    > {
+        Ok(*self)
+    }
 }
 
 impl<F: Send + Clone + Sync> Operation<F, PaymentsSessionRequest> for PaymentSessionIntent {

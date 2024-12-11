@@ -5921,13 +5921,13 @@ where
     //     }
     // }
 
-    let routing_enabled_pmts = crate::consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
-    let routing_enabled_pms = crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
+    let routing_enabled_pmts = &crate::consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
+    let routing_enabled_pms = &crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
     let mut chosen = Vec::<api::SessionConnectorData>::new();
     for connector_data in &connectors {
         if routing_enabled_pmts.contains(&connector_data.payment_method_type)
-            || routing_enabled_pms.constains(connector_data.payment_method)
+            || routing_enabled_pms.contains(&connector_data.payment_method)
         {
             chosen.push(connector_data.clone());
         }
@@ -5954,7 +5954,7 @@ where
     let mut final_list: Vec<api::SessionConnectorData> = Vec::new();
 
     for connector_data in connectors {
-        if !routing_enabled_pms.contains(&connector_data.payment_method_type) {
+        if !routing_enabled_pmts.contains(&connector_data.payment_method_type) {
             final_list.push(connector_data);
         } else if let Some(choice) = result.get(&connector_data.payment_method_type) {
             let routing_choice = choice
@@ -5972,7 +5972,7 @@ where
     Ok(final_list)
 }
 
-struct SessionTokenRoutingResult {
+pub struct SessionTokenRoutingResult {
     pub final_result: Vec<api::SessionConnectorData>,
     pub routing_result:
         FxHashMap<common_enums::PaymentMethodType, Vec<api::routing::SessionRoutingChoice>>,
@@ -5989,8 +5989,8 @@ where
     F: Clone,
     D: OperationSessionGetters<F>,
 {
-    let routing_enabled_pmts = crate::consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
-    let routing_enabled_pms = crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
+    let routing_enabled_pmts = &crate::consts::ROUTING_ENABLED_PAYMENT_METHOD_TYPES;
+    let routing_enabled_pms = &crate::consts::ROUTING_ENABLED_PAYMENT_METHODS;
 
     let mut chosen = Vec::<api::SessionConnectorData>::new();
     for connector_data in &connectors {

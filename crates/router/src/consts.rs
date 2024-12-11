@@ -174,7 +174,7 @@ pub const DEFAULT_PRODUCT_IMG: &str =
 /// Default SDK Layout
 pub const DEFAULT_SDK_LAYOUT: &str = "tabs";
 
-pub const ROUTING_ENABLED_PAYMENT_METHODS: Lazy<HashSet<common_enums::PaymentMethod>> =
+pub static ROUTING_ENABLED_PAYMENT_METHODS: Lazy<HashSet<common_enums::PaymentMethod>> =
     Lazy::new(|| {
         let mut set = HashSet::new();
         set.insert(common_enums::PaymentMethod::BankTransfer);
@@ -183,7 +183,7 @@ pub const ROUTING_ENABLED_PAYMENT_METHODS: Lazy<HashSet<common_enums::PaymentMet
         set
     });
 
-pub const ROUTING_ENABLED_PAYMENT_METHOD_TYPES: Lazy<HashSet<common_enums::PaymentMethodType>> =
+pub static ROUTING_ENABLED_PAYMENT_METHOD_TYPES: Lazy<HashSet<common_enums::PaymentMethodType>> =
     Lazy::new(|| {
         let mut set = HashSet::new();
         set.insert(common_enums::PaymentMethodType::GooglePay);
