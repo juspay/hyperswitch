@@ -6287,7 +6287,7 @@ pub struct PaymentMethodsListRequest {}
 pub struct PaymentMethodListResponseForPayments {
     /// The list of payment methods that are enabled for the business profile
     #[schema(value_type = Vec<ResponsePaymentMethodTypes>)]
-    pub payment_methods: Vec<payment_methods::ResponsePaymentMethodTypes>,
+    pub payment_methods_enabled: Vec<payment_methods::ResponsePaymentMethodTypes>,
 
     /// The list of payment methods that are saved by the given customer
     /// This field is only returned if the customer_id is provided in the request

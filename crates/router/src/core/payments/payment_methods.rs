@@ -68,20 +68,16 @@ pub async fn list_payment_methods(
     ))
 }
 
+/// Holds the payment methods enabled for a connector along with the connector name
+/// This struct is a flattened representation of the payment methods enabled for a connector
+#[derive(Debug)]
 struct PaymentMethodsEnabledForConnector {
     payment_methods_enabled: common_utils::types::RequestPaymentMethodTypes,
     payment_method: common_enums::PaymentMethod,
     connector: String,
 }
 
-struct PaymentMethodsEnabled {
-    payment_methods_enabled: Vec<PaymentMethodsEnabledForConnector>,
-}
-
-struct FilteredPaymentMethodsEnabled {
-    payment_methods_enabled: Vec<PaymentMethodsEnabledForConnector>,
-}
-
+/// Container for the inputs required for the required fields
 struct RequiredFieldsInput {}
 
 impl RequiredFieldsInput {
@@ -90,10 +86,15 @@ impl RequiredFieldsInput {
     }
 }
 
+/// Container for the filtered payment methods
+struct FilteredPaymentMethodsEnabled {
+    payment_methods_enabled: Vec<PaymentMethodsEnabledForConnector>,
+}
+
 impl FilteredPaymentMethodsEnabled {
     fn get_required_fields(
         self,
-        input: RequiredFieldsInput,
+        _input: RequiredFieldsInput,
     ) -> PaymentMethodsEnabledWithRequiredFieldsContainer {
         let required_fields_info = self
             .payment_methods_enabled
@@ -114,16 +115,19 @@ impl FilteredPaymentMethodsEnabled {
     }
 }
 
+/// Element container to hold the filtered payment methods with required fields
 struct PaymentMethodsEnabledWithRequiredFields {
     required_field:
         Option<std::collections::HashMap<String, api_models::payment_methods::RequiredFieldInfo>>,
     payment_method_subtype: common_enums::PaymentMethodType,
 }
 
+/// Container to hold the filtered payment methods enabled with required fields
 struct PaymentMethodsEnabledWithRequiredFieldsContainer {
     payment_methods_enabled: Vec<PaymentMethodsEnabledWithRequiredFields>,
 }
 
+/// Element Container to hold the filtered payment methods enabled with required fields and surcharge
 struct PaymentMethodsEnabledWithRequiredFieldsAndSurcharge {
     required_field:
         Option<std::collections::HashMap<String, api_models::payment_methods::RequiredFieldInfo>>,
@@ -131,12 +135,13 @@ struct PaymentMethodsEnabledWithRequiredFieldsAndSurcharge {
     surcharge: Option<api_models::payment_methods::SurchargeDetailsResponse>,
 }
 
+/// Container to hold the filtered payment methods enabled with required fields and surcharge
 struct PaymentMethodsEnabledWithRequiredFieldsAndSurchargeContainer {
     payment_methods_enabled: Vec<PaymentMethodsEnabledWithRequiredFieldsAndSurcharge>,
 }
 
 impl PaymentMethodsEnabledWithRequiredFieldsAndSurchargeContainer {
-    fn generate_response(self) -> api_models::payments::PaymentMethodListResponse {
+    fn generate_response(self) -> api_models::payments::PaymentMethodListResponseForPayments {
         let response_payment_methods = self
             .payment_methods_enabled
             .into_iter()
@@ -151,8 +156,8 @@ impl PaymentMethodsEnabledWithRequiredFieldsAndSurchargeContainer {
             })
             .collect();
 
-        api_models::payments::PaymentMethodListResponse {
-            payment_methods: response_payment_methods,
+        api_models::payments::PaymentMethodListResponseForPayments {
+            payment_methods_enabled: response_payment_methods,
             customer_payment_methods: Vec::new(),
         }
     }
@@ -178,6 +183,11 @@ impl PaymentMethodsEnabledWithRequiredFieldsContainer {
             payment_methods_enabled: details_with_surcharge,
         }
     }
+}
+
+/// Holds the payment methods enabled for a connector
+struct PaymentMethodsEnabled {
+    payment_methods_enabled: Vec<PaymentMethodsEnabledForConnector>,
 }
 
 impl PaymentMethodsEnabled {
@@ -215,7 +225,7 @@ impl PaymentMethodsEnabled {
                     PaymentMethodsEnabledForConnector {
                         payment_methods_enabled: request_payment_methods,
                         connector: connector_name.clone(),
-                        payment_method: payment_method,
+                        payment_method,
                     }
                 },
             )

@@ -1971,6 +1971,7 @@ pub struct ProfileCreate {
 
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
+    #[serde(default)]
     pub is_click_to_pay_enabled: bool,
 }
 

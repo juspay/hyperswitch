@@ -2022,7 +2022,7 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payment Methods - List",
+        "summary": "Payments - Payment Methods List",
         "description": "List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment",
         "operationId": "Retrieve Payment methods for a Payment",
         "parameters": [
@@ -13427,11 +13427,11 @@
       "PaymentMethodListResponseForPayments": {
         "type": "object",
         "required": [
-          "payment_methods",
+          "payment_methods_enabled",
           "customer_payment_methods"
         ],
         "properties": {
-          "payment_methods": {
+          "payment_methods_enabled": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
@@ -17155,8 +17155,7 @@
       "ProfileCreate": {
         "type": "object",
         "required": [
-          "profile_name",
-          "is_click_to_pay_enabled"
+          "profile_name"
         ],
         "properties": {
           "profile_name": {

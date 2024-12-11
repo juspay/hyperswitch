@@ -1698,7 +1698,8 @@ impl ConnectorStatusAndDisabledValidation<'_> {
             }
             (Some(disabled), _) => Some(*disabled),
             (None, common_enums::ConnectorStatus::Inactive) => Some(true),
-            (None, _) => None,
+            // Enable the connector if nothing is passed in the request
+            (None, _) => Some(false),
         };
 
         Ok((*connector_status, disabled))
@@ -2450,6 +2451,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
         };
         let (connector_status, disabled) =
             connector_status_and_disabled_validation.validate_status_and_disabled()?;
+
         let identifier = km_types::Identifier::Merchant(business_profile.merchant_id.clone());
         let merchant_recipient_data = if let Some(data) = &self.additional_merchant_data {
             Some(

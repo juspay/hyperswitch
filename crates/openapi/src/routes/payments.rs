@@ -716,7 +716,7 @@ pub(crate) enum ForceSync {
     False,
 }
 
-/// Payment Methods - List
+/// Payments - Payment Methods List
 ///
 /// List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment
 #[utoipa::path(
