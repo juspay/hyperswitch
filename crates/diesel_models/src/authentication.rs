@@ -154,6 +154,10 @@ pub enum AuthenticationUpdate {
     PostAuthorizationUpdate {
         authentication_lifecycle_status: common_enums::AuthenticationLifecycleStatus,
     },
+    AuthenticationStatusUpdate {
+        trans_status: common_enums::TransactionStatus,
+        authentication_status: common_enums::AuthenticationStatus,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, AsChangeset, Serialize, Deserialize)]
@@ -422,6 +426,14 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
                 acquirer_bin,
                 acquirer_merchant_id,
                 connector_metadata,
+                ..Default::default()
+            },
+            AuthenticationUpdate::AuthenticationStatusUpdate {
+                trans_status,
+                authentication_status,
+            } => Self {
+                trans_status: Some(trans_status),
+                authentication_status: Some(authentication_status),
                 ..Default::default()
             },
         }

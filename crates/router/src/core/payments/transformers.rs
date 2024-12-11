@@ -21,7 +21,7 @@ use hyperswitch_domain_models::payments::{PaymentConfirmData, PaymentIntentData}
 use hyperswitch_domain_models::ApiModelToDieselModelConvertor;
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
@@ -167,6 +167,7 @@ where
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -370,6 +371,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
 
@@ -503,6 +505,7 @@ pub async fn construct_router_data_for_psync<'a>(
         additional_merchant_data: None,
         header_payload,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
 
@@ -650,6 +653,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         header_payload,
         connector_mandate_request_reference_id: None,
         psd2_sca_exemption_type: None,
+        authentication_id: None,
     };
 
     Ok(router_data)
@@ -751,7 +755,7 @@ where
 
     let apple_pay_flow = payments::decide_apple_pay_flow(
         state,
-        &payment_data.payment_attempt.payment_method_type,
+        payment_data.payment_attempt.payment_method_type,
         Some(merchant_connector_account),
     );
 
@@ -847,6 +851,7 @@ where
         }),
         header_payload,
         connector_mandate_request_reference_id,
+        authentication_id: None,
         psd2_sca_exemption_type: payment_data.payment_intent.psd2_sca_exemption_type,
     };
 
@@ -2084,14 +2089,13 @@ where
     };
 
     metrics::PAYMENT_OPS_COUNT.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([
+        router_env::metric_attributes!(
             ("operation", format!("{:?}", operation)),
-            ("merchant", merchant_id.get_string_repr().to_owned()),
+            ("merchant", merchant_id.clone()),
             ("payment_method_type", payment_method_type),
             ("payment_method", payment_method),
-        ]),
+        ),
     );
 
     Ok(output)
@@ -3526,12 +3530,8 @@ impl
             currency: intent_amount_details.currency,
             shipping_cost: attempt_amount_details.shipping_cost,
             order_tax_amount: attempt_amount_details.order_tax_amount,
-            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
-                intent_amount_details.skip_external_tax_calculation,
-            ),
-            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
-                intent_amount_details.skip_surcharge_calculation,
-            ),
+            external_tax_calculation: intent_amount_details.skip_external_tax_calculation,
+            surcharge_calculation: intent_amount_details.skip_surcharge_calculation,
             surcharge_amount: attempt_amount_details.surcharge_amount,
             tax_on_surcharge: attempt_amount_details.tax_on_surcharge,
             net_amount: attempt_amount_details.net_amount,
@@ -3569,12 +3569,8 @@ impl
                     .tax_details
                     .as_ref()
                     .and_then(|tax_details| tax_details.get_default_tax_amount())),
-            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
-                intent_amount_details.skip_external_tax_calculation,
-            ),
-            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
-                intent_amount_details.skip_surcharge_calculation,
-            ),
+            external_tax_calculation: intent_amount_details.skip_external_tax_calculation,
+            surcharge_calculation: intent_amount_details.skip_surcharge_calculation,
             surcharge_amount: attempt_amount_details
                 .and_then(|attempt| attempt.surcharge_amount)
                 .or(intent_amount_details.surcharge_amount),
@@ -3629,72 +3625,10 @@ impl ForeignFrom<hyperswitch_domain_models::payments::AmountDetails>
             order_tax_amount: amount_details.tax_details.and_then(|tax_details| {
                 tax_details.default.map(|default| default.order_tax_amount)
             }),
-            external_tax_calculation: common_enums::TaxCalculationOverride::foreign_from(
-                amount_details.skip_external_tax_calculation,
-            ),
-            surcharge_calculation: common_enums::SurchargeCalculationOverride::foreign_from(
-                amount_details.skip_surcharge_calculation,
-            ),
+            external_tax_calculation: amount_details.skip_external_tax_calculation,
+            surcharge_calculation: amount_details.skip_surcharge_calculation,
             surcharge_amount: amount_details.surcharge_amount,
             tax_on_surcharge: amount_details.tax_on_surcharge,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl ForeignFrom<common_enums::TaxCalculationOverride>
-    for hyperswitch_domain_models::payments::TaxCalculationOverride
-{
-    fn foreign_from(tax_calculation_override: common_enums::TaxCalculationOverride) -> Self {
-        match tax_calculation_override {
-            common_enums::TaxCalculationOverride::Calculate => Self::Calculate,
-            common_enums::TaxCalculationOverride::Skip => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl ForeignFrom<hyperswitch_domain_models::payments::TaxCalculationOverride>
-    for common_enums::TaxCalculationOverride
-{
-    fn foreign_from(
-        tax_calculation_override: hyperswitch_domain_models::payments::TaxCalculationOverride,
-    ) -> Self {
-        match tax_calculation_override {
-            hyperswitch_domain_models::payments::TaxCalculationOverride::Calculate => {
-                Self::Calculate
-            }
-            hyperswitch_domain_models::payments::TaxCalculationOverride::Skip => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl ForeignFrom<common_enums::SurchargeCalculationOverride>
-    for hyperswitch_domain_models::payments::SurchargeCalculationOverride
-{
-    fn foreign_from(
-        surcharge_calculation_override: common_enums::SurchargeCalculationOverride,
-    ) -> Self {
-        match surcharge_calculation_override {
-            common_enums::SurchargeCalculationOverride::Calculate => Self::Calculate,
-            common_enums::SurchargeCalculationOverride::Skip => Self::Skip,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl ForeignFrom<hyperswitch_domain_models::payments::SurchargeCalculationOverride>
-    for common_enums::SurchargeCalculationOverride
-{
-    fn foreign_from(
-        surcharge_calculation_override: hyperswitch_domain_models::payments::SurchargeCalculationOverride,
-    ) -> Self {
-        match surcharge_calculation_override {
-            hyperswitch_domain_models::payments::SurchargeCalculationOverride::Calculate => {
-                Self::Calculate
-            }
-            hyperswitch_domain_models::payments::SurchargeCalculationOverride::Skip => Self::Skip,
         }
     }
 }

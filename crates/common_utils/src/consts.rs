@@ -119,6 +119,8 @@ pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
 
+/// Role ID for Tenant Admin
+pub const ROLE_ID_TENANT_ADMIN: &str = "tenant_admin";
 /// Role ID for Org Admin
 pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 /// Role ID for Internal View Only
