@@ -2606,7 +2606,6 @@ impl OutgoingWebhookCustomHttpHeaders {
         } else {
             // Show the first two and last two characters, mask the rest with '*'
             let mut masked_string = String::new();
-            let key_len = key.len();
             // Iterate through characters by their index
             for (index, character) in key.chars().enumerate() {
                 if index < 2 || index >= key_len - 2 {
