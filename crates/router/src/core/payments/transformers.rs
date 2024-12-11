@@ -8,7 +8,10 @@ use common_enums::{Currency, RequestIncrementalAuthorization};
 use common_utils::{
     consts::X_HS_LATENCY,
     fp_utils, pii,
-    types::{self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
+    types::{
+        self as common_utils_type, AmountConvertor, MinorUnit, StringMajorUnit,
+        StringMajorUnitForConnector,
+    },
 };
 use diesel_models::{
     ephemeral_key,
@@ -557,6 +560,28 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
                 .map(|order_detail| order_detail.expose())
                 .collect()
         });
+    let required_amount_type = StringMajorUnitForConnector;
+
+    let apple_pay_amount = required_amount_type
+        .convert(
+            payment_data
+            .payment_intent
+            .amount_details
+            .order_amount,
+            payment_data.payment_intent.amount_details.currency,
+        )
+        .change_context(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Failed to convert amount to string major unit for applePay".to_string(),
+        })?;
+
+    let apple_pay_recurring_details = payment_data
+        .payment_intent
+        .feature_metadata
+        .and_then(|feature_metadata| feature_metadata.apple_pay_recurring_details)
+        .map(|apple_pay_recurring_details| {
+            ForeignInto::foreign_into((apple_pay_recurring_details, apple_pay_amount))
+        });
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsSessionData {
         amount: payment_data
@@ -580,6 +605,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         order_details,
         email,
         minor_amount: payment_data.payment_intent.amount_details.order_amount,
+        apple_pay_recurring_details,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -3115,6 +3141,22 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
         // net_amount here would include amount, surcharge_amount and shipping_cost
         let net_amount = amount + surcharge_amount + shipping_cost;
 
+        let required_amount_type = StringMajorUnitForConnector;
+
+        let apple_pay_amount = required_amount_type
+            .convert(net_amount, payment_data.currency)
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Failed to convert amount to string major unit for applePay".to_string(),
+            })?;
+
+        let apple_pay_recurring_details = payment_data
+            .payment_intent
+            .feature_metadata
+            .and_then(|feature_metadata| feature_metadata.apple_pay_recurring_details)
+            .map(|apple_pay_recurring_details| {
+                ForeignInto::foreign_into((apple_pay_recurring_details, apple_pay_amount))
+            });
+
         Ok(Self {
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module
             minor_amount: amount,
@@ -3130,7 +3172,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             order_details,
             surcharge_details: payment_data.surcharge_details,
             email: payment_data.email,
-            apple_pay_recurring_details: payment_data.apple_pay_recurring_details,
+            apple_pay_recurring_details,
         })
     }
 }
@@ -3177,21 +3219,28 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
         // net_amount here would include amount, surcharge_amount and shipping_cost
         let net_amount = amount + surcharge_amount + shipping_cost;
 
+        let required_amount_type = StringMajorUnitForConnector;
+
+        let apple_pay_amount = required_amount_type
+            .convert(net_amount, payment_data.currency)
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Failed to convert amount to string major unit for applePay".to_string(),
+            })?;
+
         let apple_pay_recurring_details = payment_data
             .payment_intent
             .feature_metadata
-            .and_then(|feature_metadata| {
-                Some(
-                    feature_metadata
-                        .parse_value::<api_models::payments::FeatureMetadata>("FeatureMetadata")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed parsing FeatureMetadata"),
-                )
+            .map(|feature_metadata| {
+                feature_metadata
+                    .parse_value::<diesel_models::types::FeatureMetadata>("FeatureMetadata")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed parsing FeatureMetadata")
             })
             .transpose()?
-            .map(|feature_metadata| feature_metadata.apple_pay_recurring_details)
-            .flatten()
-            .map(ForeignInto::foreign_into);
+            .and_then(|feature_metadata| feature_metadata.apple_pay_recurring_details)
+            .map(|apple_pay_recurring_details| {
+                ForeignFrom::foreign_from((apple_pay_recurring_details, apple_pay_amount))
+            });
 
         Ok(Self {
             amount: net_amount.get_amount_as_i64(), //need to change once we move to connector module
@@ -3213,19 +3262,22 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
     }
 }
 
-impl ForeignFrom<api_models::payments::ApplePayRecurringDetails>
-    for api_models::payments::ApplePayRecurringPaymentRequest
+impl
+    ForeignFrom<(
+        diesel_models::types::ApplePayRecurringDetails,
+        StringMajorUnit,
+    )> for api_models::payments::ApplePayRecurringPaymentRequest
 {
     fn foreign_from(
-        apple_pay_recurring_details: api_models::payments::ApplePayRecurringDetails,
+        (apple_pay_recurring_details, net_amount): (
+            diesel_models::types::ApplePayRecurringDetails,
+            StringMajorUnit,
+        ),
     ) -> Self {
         Self {
             payment_description: apple_pay_recurring_details.payment_description,
             regular_billing: api_models::payments::ApplePayRegularBillingRequest {
-                amount: apple_pay_recurring_details
-                    .regular_billing
-                    .amount
-                    .to_string(),
+                amount: net_amount,
                 label: apple_pay_recurring_details.regular_billing.label,
                 payment_timing: api_models::payments::ApplePayPaymentTiming::Recurring,
                 recurring_payment_start_date: apple_pay_recurring_details
@@ -3236,13 +3288,64 @@ impl ForeignFrom<api_models::payments::ApplePayRecurringDetails>
                     .recurring_payment_end_date,
                 recurring_payment_interval_unit: apple_pay_recurring_details
                     .regular_billing
-                    .recurring_payment_interval_unit,
+                    .recurring_payment_interval_unit
+                    .map(ForeignFrom::foreign_from),
                 recurring_payment_interval_count: apple_pay_recurring_details
                     .regular_billing
                     .recurring_payment_interval_count,
             },
             billing_agreement: apple_pay_recurring_details.billing_agreement,
             management_url: apple_pay_recurring_details.management_url,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::types::ApplePayRecurringDetails>
+    for api_models::payments::ApplePayRecurringDetails
+{
+    fn foreign_from(
+        apple_pay_recurring_details: diesel_models::types::ApplePayRecurringDetails,
+    ) -> Self {
+        Self {
+            payment_description: apple_pay_recurring_details.payment_description,
+            regular_billing: ForeignFrom::foreign_from(apple_pay_recurring_details.regular_billing),
+            billing_agreement: apple_pay_recurring_details.billing_agreement,
+            management_url: apple_pay_recurring_details.management_url,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::types::ApplePayRegularBillingDetails>
+    for api_models::payments::ApplePayRegularBillingDetails
+{
+    fn foreign_from(
+        apple_pay_regular_billing: diesel_models::types::ApplePayRegularBillingDetails,
+    ) -> Self {
+        Self {
+            label: apple_pay_regular_billing.label,
+            recurring_payment_start_date: apple_pay_regular_billing.recurring_payment_start_date,
+            recurring_payment_end_date: apple_pay_regular_billing.recurring_payment_end_date,
+            recurring_payment_interval_unit: apple_pay_regular_billing
+                .recurring_payment_interval_unit
+                .map(ForeignFrom::foreign_from),
+            recurring_payment_interval_count: apple_pay_regular_billing
+                .recurring_payment_interval_count,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::types::RecurringPaymentIntervalUnit>
+    for api_models::payments::RecurringPaymentIntervalUnit
+{
+    fn foreign_from(
+        apple_pay_recurring_payment_interval_unit: diesel_models::types::RecurringPaymentIntervalUnit,
+    ) -> Self {
+        match apple_pay_recurring_payment_interval_unit {
+            diesel_models::types::RecurringPaymentIntervalUnit::Day => Self::Day,
+            diesel_models::types::RecurringPaymentIntervalUnit::Month => Self::Month,
+            diesel_models::types::RecurringPaymentIntervalUnit::Year => Self::Year,
+            diesel_models::types::RecurringPaymentIntervalUnit::Hour => Self::Hour,
+            diesel_models::types::RecurringPaymentIntervalUnit::Minute => Self::Minute,
         }
     }
 }

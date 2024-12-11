@@ -6069,13 +6069,15 @@ pub struct ApplePayRecurringPaymentRequest {
     /// A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment
     pub billing_agreement: Option<String>,
     /// A URL to a web page where the user can update or delete the payment method for the recurring payment
-    pub management_url: String,
+    #[schema(value_type = String, example = "https://hyperswitch.io")]
+    pub management_url: common_utils::types::Url,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayRegularBillingRequest {
     /// The amount of the recurring payment
-    pub amount: String,
+    #[schema(value_type = String, example = "38.02")]
+    pub amount: StringMajorUnit,
     /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
     pub label: String,
     /// The time that the payment occurs as part of a successful transaction
@@ -6389,13 +6391,12 @@ pub struct ApplePayRecurringDetails {
     /// A localized billing agreement that the payment sheet displays to the user before the user authorizes the payment
     pub billing_agreement: Option<String>,
     /// A URL to a web page where the user can update or delete the payment method for the recurring payment
-    pub management_url: String,
+    #[schema(value_type = String, example = "https://hyperswitch.io")]
+    pub management_url: common_utils::types::Url,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct ApplePayRegularBillingDetails {
-    /// The amount of the recurring payment
-    pub amount: i32,
     /// The label that Apple Pay displays to the user in the payment sheet with the recurring details
     pub label: String,
     /// The date of the first payment
