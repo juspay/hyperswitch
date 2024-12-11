@@ -24,6 +24,7 @@ use crate::{
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ApiEvent {
+    tenant_id: common_utils::id_type::TenantId,
     merchant_id: Option<common_utils::id_type::MerchantId>,
     api_flow: String,
     created_at_timestamp: i128,
@@ -47,6 +48,7 @@ pub struct ApiEvent {
 impl ApiEvent {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        tenant_id: common_utils::id_type::TenantId,
         merchant_id: Option<common_utils::id_type::MerchantId>,
         api_flow: &impl FlowMetric,
         request_id: &RequestId,
@@ -62,6 +64,7 @@ impl ApiEvent {
         http_method: &http::Method,
     ) -> Self {
         Self {
+            tenant_id,
             merchant_id,
             api_flow: api_flow.to_string(),
             created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,

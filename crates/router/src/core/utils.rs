@@ -215,6 +215,7 @@ pub async fn construct_payout_router_data<'a, F>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
 
@@ -396,6 +397,7 @@ pub async fn construct_refund_router_data<'a, F>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
 
@@ -605,11 +607,7 @@ pub fn validate_dispute_stage_and_dispute_status(
     common_utils::fp_utils::when(
         !(dispute_stage_validation && dispute_status_validation),
         || {
-            super::metrics::INCOMING_DISPUTE_WEBHOOK_VALIDATION_FAILURE_METRIC.add(
-                &super::metrics::CONTEXT,
-                1,
-                &[],
-            );
+            super::metrics::INCOMING_DISPUTE_WEBHOOK_VALIDATION_FAILURE_METRIC.add(1, &[]);
             Err(errors::WebhooksFlowError::DisputeWebhookValidationFailed)?
         },
     )
@@ -708,6 +706,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -805,6 +804,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -908,6 +908,7 @@ pub async fn construct_upload_file_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -1031,6 +1032,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<'a, F: Clone
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -1131,6 +1133,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)
@@ -1225,6 +1228,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
+        authentication_id: None,
         psd2_sca_exemption_type: None,
     };
     Ok(router_data)

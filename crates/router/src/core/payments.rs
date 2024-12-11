@@ -54,7 +54,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
 use redis_interface::errors::RedisError;
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_types::transformers::ForeignFrom;
 use scheduler::utils as pt_utils;
@@ -1001,12 +1001,13 @@ where
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_intent_operation_core<F, Req, Op, D>(
     state: &SessionState,
-    _req_state: ReqState,
+    req_state: ReqState,
     merchant_account: domain::MerchantAccount,
     profile: domain::Profile,
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
+    payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
 ) -> RouterResult<(D, Req, Option<domain::Customer>)>
 where
@@ -1022,8 +1023,6 @@ where
     let _validate_result = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
-
-    let payment_id = id_type::GlobalPaymentId::generate(&state.conf.cell_information.id.clone());
 
     tracing::Span::current().record("global_payment_id", payment_id.get_string_repr());
 
@@ -1051,6 +1050,22 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
+
+    let (_operation, payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
+            state,
+            req_state,
+            payment_data,
+            customer.clone(),
+            merchant_account.storage_scheme,
+            None,
+            &key_store,
+            None,
+            header_payload,
+        )
+        .await?;
+
     Ok((payment_data, req, customer))
 }
 
@@ -1436,6 +1451,7 @@ pub async fn payments_intent_core<F, Res, Req, Op, D>(
     key_store: domain::MerchantKeyStore,
     operation: Op,
     req: Req,
+    payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
 where
@@ -1453,6 +1469,7 @@ where
         key_store,
         operation.clone(),
         req,
+        payment_id,
         header_payload.clone(),
     )
     .await?;
@@ -1633,18 +1650,14 @@ pub trait PaymentRedirectFlow: Sync {
         req: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
         metrics::REDIRECTION_TRIGGERED.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([
+            router_env::metric_attributes!(
                 (
                     "connector",
                     req.connector.to_owned().unwrap_or("null".to_string()),
                 ),
-                (
-                    "merchant_id",
-                    merchant_account.get_id().get_string_repr().to_owned(),
-                ),
-            ]),
+                ("merchant_id", merchant_account.get_id().clone()),
+            ),
         );
         let connector = req.connector.clone().get_required_value("connector")?;
 
@@ -1706,12 +1719,8 @@ pub trait PaymentRedirectFlow: Sync {
         request: PaymentsRedirectResponseData,
     ) -> RouterResponse<api::RedirectionResponse> {
         metrics::REDIRECTION_TRIGGERED.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([(
-                "merchant_id",
-                merchant_account.get_id().get_string_repr().to_owned(),
-            )]),
+            router_env::metric_attributes!(("merchant_id", merchant_account.get_id().clone())),
         );
 
         let payment_flow_response = self
@@ -4320,7 +4329,7 @@ pub fn if_not_create_change_operation<'a, Op, F>(
     current: &'a Op,
 ) -> BoxedOperation<'a, F, api::PaymentsRequest, PaymentData<F>>
 where
-    F: Send + Clone,
+    F: Send + Clone + Sync,
     Op: Operation<F, api::PaymentsRequest, Data = PaymentData<F>> + Send + Sync,
     &'a Op: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
     PaymentStatus: Operation<F, api::PaymentsRequest, Data = PaymentData<F>>,
@@ -4561,11 +4570,7 @@ pub async fn apply_filters_on_payments(
             ))
         },
         &metrics::PAYMENT_LIST_LATENCY,
-        &metrics::CONTEXT,
-        &[router_env::opentelemetry::KeyValue::new(
-            "merchant_id",
-            merchant.get_id().clone(),
-        )],
+        router_env::metric_attributes!(("merchant_id", merchant.get_id().clone())),
     )
     .await
 }

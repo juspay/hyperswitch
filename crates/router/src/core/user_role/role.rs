@@ -76,8 +76,10 @@ pub async fn create_role(
     )
     .await?;
 
+    let user_role_info = user_from_token.get_role_info_from_db(&state).await?;
+
     if matches!(req.role_scope, RoleScope::Organization)
-        && user_from_token.role_id != common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN
+        && user_role_info.get_entity_type() != EntityType::Organization
     {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Non org admin user creating org level role");
@@ -116,14 +118,10 @@ pub async fn get_role_with_groups(
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
-        &state,
-        &role.role_id,
-        &user_from_token.merchant_id,
-        &user_from_token.org_id,
-    )
-    .await
-    .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let role_info =
+        roles::RoleInfo::from_role_id_and_org_id(&state, &role.role_id, &user_from_token.org_id)
+            .await
+            .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if role_info.is_internal() {
         return Err(UserErrors::InvalidRoleId.into());
@@ -144,14 +142,10 @@ pub async fn get_parent_info_for_role(
     user_from_token: UserFromToken,
     role: role_api::GetRoleRequest,
 ) -> UserResponse<role_api::RoleInfoWithParents> {
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
-        &state,
-        &role.role_id,
-        &user_from_token.merchant_id,
-        &user_from_token.org_id,
-    )
-    .await
-    .to_not_found_response(UserErrors::InvalidRoleId)?;
+    let role_info =
+        roles::RoleInfo::from_role_id_and_org_id(&state, &role.role_id, &user_from_token.org_id)
+            .await
+            .to_not_found_response(UserErrors::InvalidRoleId)?;
 
     if role_info.is_internal() {
         return Err(UserErrors::InvalidRoleId.into());
@@ -207,7 +201,7 @@ pub async fn update_role(
         utils::user_role::validate_role_groups(groups)?;
     }
 
-    let role_info = roles::RoleInfo::from_role_id_in_merchant_scope(
+    let role_info = roles::RoleInfo::from_role_id_in_lineage(
         &state,
         role_id,
         &user_from_token.merchant_id,
@@ -216,8 +210,10 @@ pub async fn update_role(
     .await
     .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
+    let user_role_info = user_from_token.get_role_info_from_db(&state).await?;
+
     if matches!(role_info.get_scope(), RoleScope::Organization)
-        && user_from_token.role_id != common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN
+        && user_role_info.get_entity_type() != EntityType::Organization
     {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Non org admin user changing org level role");
@@ -274,7 +270,7 @@ pub async fn list_roles_with_info(
     let user_role_entity = user_role_info.get_entity_type();
     let custom_roles =
         match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
-            EntityType::Organization => state
+            EntityType::Tenant | EntityType::Organization => state
                 .store
                 .list_roles_for_org_by_parameters(
                     &user_from_token.org_id,
@@ -347,7 +343,7 @@ pub async fn list_roles_at_entity_level(
         .collect::<Vec<_>>();
 
     let custom_roles = match req.entity_type {
-        EntityType::Organization => state
+        EntityType::Tenant | EntityType::Organization => state
             .store
             .list_roles_for_org_by_parameters(
                 &user_from_token.org_id,

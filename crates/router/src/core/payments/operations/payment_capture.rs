@@ -32,7 +32,7 @@ type PaymentCaptureOperation<'b, F> =
     BoxedOperation<'b, F, api::PaymentsCaptureRequest, payments::PaymentData<F>>;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
+impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -269,7 +269,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
+impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -326,8 +326,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest, payments::PaymentData<F>>
-    for PaymentCapture
+impl<F: Send + Clone + Sync>
+    ValidateRequest<F, api::PaymentsCaptureRequest, payments::PaymentData<F>> for PaymentCapture
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
