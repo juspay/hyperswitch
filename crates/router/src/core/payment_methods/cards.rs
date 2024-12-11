@@ -4558,12 +4558,6 @@ pub async fn filter_payment_methods(
                     if payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
                         .is_some()
-                        || payment_intent
-                            .and_then(|intent| intent.setup_future_usage)
-                            .map(|future_usage| {
-                                future_usage == common_enums::FutureUsage::OffSession
-                            })
-                            .unwrap_or(false)
                     {
                         context_values.push(dir::DirValue::PaymentType(
                             euclid::enums::PaymentType::NewMandate,
@@ -4582,14 +4576,7 @@ pub async fn filter_payment_methods(
 
                     payment_attempt
                         .map(|attempt| {
-                            attempt.mandate_data.is_none()
-                                && attempt.mandate_details.is_none()
-                                && payment_intent
-                                    .and_then(|intent| intent.setup_future_usage)
-                                    .map(|future_usage| {
-                                        future_usage == common_enums::FutureUsage::OnSession
-                                    })
-                                    .unwrap_or(false)
+                            attempt.mandate_data.is_none() && attempt.mandate_details.is_none()
                         })
                         .and_then(|res| {
                             res.then(|| {
