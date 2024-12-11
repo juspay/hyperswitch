@@ -20,6 +20,8 @@ use hyperswitch_domain_models::payments::{PaymentConfirmData, PaymentIntentData}
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::ApiModelToDieselModelConvertor;
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
+#[cfg(feature = "v2")]
+use masking::PeekInterface;
 use masking::{ExposeInterface, Maskable, Secret};
 use router_env::{instrument, tracing};
 
