@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use actix_web::http::header::HeaderMap;
 #[cfg(all(
     any(feature = "v2", feature = "v1"),
@@ -18,7 +20,6 @@ use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use masking::PeekInterface;
 use router_env::logger;
 use serde::Serialize;
-use std::str::FromStr;
 
 use self::blacklist::BlackList;
 #[cfg(all(feature = "partial-auth", feature = "v1"))]

@@ -1,10 +1,9 @@
 use common_utils::events::{ApiEventMetric, ApiEventsType};
 
-use crate::customers::CustomerId;
 #[cfg(all(feature = "v2", feature = "customer_v2"))]
 use crate::customers::GlobalId;
 use crate::customers::{
-    CustomerDeleteResponse, CustomerRequest, CustomerResponse, CustomerUpdateRequest,
+    CustomerDeleteResponse, CustomerId, CustomerRequest, CustomerResponse, CustomerUpdateRequest,
 };
 
 #[cfg(all(any(feature = "v1", feature = "v2"), not(feature = "customer_v2")))]

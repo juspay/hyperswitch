@@ -1,9 +1,7 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-
 use router_env::{instrument, tracing, Flow};
 
 use super::AppState;
-
 use crate::{
     core::{api_locking, payments::helpers},
     services::{api, authentication as auth},
