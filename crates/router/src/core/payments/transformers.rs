@@ -564,10 +564,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
 
     let apple_pay_amount = required_amount_type
         .convert(
-            payment_data
-            .payment_intent
-            .amount_details
-            .order_amount,
+            payment_data.payment_intent.amount_details.order_amount,
             payment_data.payment_intent.amount_details.currency,
         )
         .change_context(errors::ApiErrorResponse::PreconditionFailed {
