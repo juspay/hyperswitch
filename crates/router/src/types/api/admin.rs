@@ -131,11 +131,13 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
                     )
             })
             .transpose()?;
-        let masked_outgoing_webhook_custom_http_headers = outgoing_webhook_custom_http_headers
-            .map(|headers_map| OutgoingWebhookCustomHttpHeaders {
-                headers: headers_map,
-            })
-            .map(|headers| headers.get_masked_headers());
+        let masked_outgoing_webhook_custom_http_headers =
+            outgoing_webhook_custom_http_headers.map(|headers_map| {
+                OutgoingWebhookCustomHttpHeaders {
+                    headers: headers_map,
+                }
+                .get_masked_headers()
+            });
 
         Ok(Self {
             merchant_id: item.merchant_id,
@@ -208,11 +210,13 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             .map(admin::OrderFulfillmentTime::try_new)
             .transpose()
             .change_context(errors::ParsingError::IntegerOverflow)?;
-        let masked_outgoing_webhook_custom_http_headers = outgoing_webhook_custom_http_headers
-            .map(|headers_map| OutgoingWebhookCustomHttpHeaders {
-                headers: headers_map,
-            })
-            .map(|headers| headers.get_masked_headers());
+        let masked_outgoing_webhook_custom_http_headers =
+            outgoing_webhook_custom_http_headers.map(|headers_map| {
+                OutgoingWebhookCustomHttpHeaders {
+                    headers: headers_map,
+                }
+                .get_masked_headers()
+            });
 
         Ok(Self {
             merchant_id: item.merchant_id,
