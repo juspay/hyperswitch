@@ -54,7 +54,7 @@ use hyperswitch_domain_models::customer::CustomerUpdate;
 ))]
 use kgraph_utils::transformers::IntoDirValue;
 use masking::Secret;
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 use serde_json::json;
 use strum::IntoEnumIterator;
 
@@ -2438,7 +2438,7 @@ pub async fn add_card_to_locker(
     ),
     errors::VaultError,
 > {
-    metrics::STORED_TO_LOCKER.add(&metrics::CONTEXT, 1, &[]);
+    metrics::STORED_TO_LOCKER.add(1, &[]);
     let add_card_to_hs_resp = Box::pin(common_utils::metrics::utils::record_operation_time(
         async {
             add_card_hs(
@@ -2453,18 +2453,13 @@ pub async fn add_card_to_locker(
             .await
             .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
-                    &metrics::CONTEXT,
                     1,
-                    &[
-                        router_env::opentelemetry::KeyValue::new("locker", "rust"),
-                        router_env::opentelemetry::KeyValue::new("operation", "add"),
-                    ],
+                    router_env::metric_attributes!(("locker", "rust"), ("operation", "add")),
                 );
             })
         },
         &metrics::CARD_ADD_TIME,
-        &metrics::CONTEXT,
-        &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
+        router_env::metric_attributes!(("locker", "rust")),
     ))
     .await?;
 
@@ -2478,7 +2473,7 @@ pub async fn get_card_from_locker(
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
 ) -> errors::RouterResult<Card> {
-    metrics::GET_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
+    metrics::GET_FROM_LOCKER.add(1, &[]);
 
     let get_card_from_rs_locker_resp = common_utils::metrics::utils::record_operation_time(
         async {
@@ -2494,18 +2489,13 @@ pub async fn get_card_from_locker(
             .attach_printable("Failed while getting card from hyperswitch card vault")
             .inspect_err(|_| {
                 metrics::CARD_LOCKER_FAILURES.add(
-                    &metrics::CONTEXT,
                     1,
-                    &[
-                        router_env::opentelemetry::KeyValue::new("locker", "rust"),
-                        router_env::opentelemetry::KeyValue::new("operation", "get"),
-                    ],
+                    router_env::metric_attributes!(("locker", "rust"), ("operation", "get")),
                 );
             })
         },
         &metrics::CARD_GET_TIME,
-        &metrics::CONTEXT,
-        &[router_env::opentelemetry::KeyValue::new("locker", "rust")],
+        router_env::metric_attributes!(("locker", "rust")),
     )
     .await?;
 
@@ -2519,7 +2509,7 @@ pub async fn delete_card_from_locker(
     merchant_id: &id_type::MerchantId,
     card_reference: &str,
 ) -> errors::RouterResult<payment_methods::DeleteCardResp> {
-    metrics::DELETE_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
+    metrics::DELETE_FROM_LOCKER.add(1, &[]);
 
     common_utils::metrics::utils::record_operation_time(
         async move {
@@ -2527,17 +2517,12 @@ pub async fn delete_card_from_locker(
                 .await
                 .inspect_err(|_| {
                     metrics::CARD_LOCKER_FAILURES.add(
-                        &metrics::CONTEXT,
                         1,
-                        &[
-                            router_env::opentelemetry::KeyValue::new("locker", "rust"),
-                            router_env::opentelemetry::KeyValue::new("operation", "delete"),
-                        ],
+                        router_env::metric_attributes!(("locker", "rust"), ("operation", "delete")),
                     );
                 })
         },
         &metrics::CARD_DELETE_TIME,
-        &metrics::CONTEXT,
         &[],
     )
     .await
@@ -4573,6 +4558,12 @@ pub async fn filter_payment_methods(
                     if payment_attempt
                         .and_then(|attempt| attempt.mandate_details.as_ref())
                         .is_some()
+                        || payment_intent
+                            .and_then(|intent| intent.setup_future_usage)
+                            .map(|future_usage| {
+                                future_usage == common_enums::FutureUsage::OffSession
+                            })
+                            .unwrap_or(false)
                     {
                         context_values.push(dir::DirValue::PaymentType(
                             euclid::enums::PaymentType::NewMandate,
@@ -4591,7 +4582,14 @@ pub async fn filter_payment_methods(
 
                     payment_attempt
                         .map(|attempt| {
-                            attempt.mandate_data.is_none() && attempt.mandate_details.is_none()
+                            attempt.mandate_data.is_none()
+                                && attempt.mandate_details.is_none()
+                                && payment_intent
+                                    .and_then(|intent| intent.setup_future_usage)
+                                    .map(|future_usage| {
+                                        future_usage == common_enums::FutureUsage::OnSession
+                                    })
+                                    .unwrap_or(false)
                         })
                         .and_then(|res| {
                             res.then(|| {
@@ -5778,11 +5776,10 @@ impl TempLockerCardSupport {
             enums::PaymentMethod::Card,
         )
         .await?;
-        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TOKENIZED_DATA_COUNT.add(1, &[]);
         metrics::TASKS_ADDED_COUNT.add(
-            &metrics::CONTEXT,
             1,
-            &add_attributes([("flow", "DeleteTokenizeData")]),
+            router_env::metric_attributes!(("flow", "DeleteTokenizeData")),
         );
         Ok(card)
     }

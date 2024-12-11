@@ -21,7 +21,7 @@ use hyperswitch_domain_models::payments::{PaymentConfirmData, PaymentIntentData}
 use hyperswitch_domain_models::ApiModelToDieselModelConvertor;
 use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
 use masking::{ExposeInterface, Maskable, PeekInterface, Secret};
-use router_env::{instrument, metrics::add_attributes, tracing};
+use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
@@ -2089,14 +2089,13 @@ where
     };
 
     metrics::PAYMENT_OPS_COUNT.add(
-        &metrics::CONTEXT,
         1,
-        &add_attributes([
+        router_env::metric_attributes!(
             ("operation", format!("{:?}", operation)),
-            ("merchant", merchant_id.get_string_repr().to_owned()),
+            ("merchant", merchant_id.clone()),
             ("payment_method_type", payment_method_type),
             ("payment_method", payment_method),
-        ]),
+        ),
     );
 
     Ok(output)

@@ -71,55 +71,43 @@ pub async fn validate_role_name(
     Ok(())
 }
 
-pub async fn set_role_permissions_in_cache_by_user_role(
+pub async fn set_role_info_in_cache_by_user_role(
     state: &SessionState,
     user_role: &UserRole,
 ) -> bool {
-    let Some(ref merchant_id) = user_role.merchant_id else {
-        return false;
-    };
-
     let Some(ref org_id) = user_role.org_id else {
         return false;
     };
-    set_role_permissions_in_cache_if_required(
-        state,
-        user_role.role_id.as_str(),
-        merchant_id,
-        org_id,
-    )
-    .await
-    .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
-    .is_ok()
-}
-
-pub async fn set_role_permissions_in_cache_by_role_id_merchant_id_org_id(
-    state: &SessionState,
-    role_id: &str,
-    merchant_id: &id_type::MerchantId,
-    org_id: &id_type::OrganizationId,
-) -> bool {
-    set_role_permissions_in_cache_if_required(state, role_id, merchant_id, org_id)
+    set_role_info_in_cache_if_required(state, user_role.role_id.as_str(), org_id)
         .await
         .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
         .is_ok()
 }
 
-pub async fn set_role_permissions_in_cache_if_required(
+pub async fn set_role_info_in_cache_by_role_id_org_id(
     state: &SessionState,
     role_id: &str,
-    merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
+) -> bool {
+    set_role_info_in_cache_if_required(state, role_id, org_id)
+        .await
+        .map_err(|e| logger::error!("Error setting permissions in cache {:?}", e))
+        .is_ok()
+}
+
+pub async fn set_role_info_in_cache_if_required(
+    state: &SessionState,
+    role_id: &str,
     org_id: &id_type::OrganizationId,
 ) -> UserResult<()> {
     if roles::predefined_roles::PREDEFINED_ROLES.contains_key(role_id) {
         return Ok(());
     }
 
-    let role_info =
-        roles::RoleInfo::from_role_id_in_merchant_scope(state, role_id, merchant_id, org_id)
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error getting role_info from role_id")?;
+    let role_info = roles::RoleInfo::from_role_id_and_org_id(state, role_id, org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Error getting role_info from role_id")?;
 
     authz::set_role_info_in_cache(
         state,

@@ -2829,10 +2829,9 @@ pub enum PermissionGroup {
     ReconReportsView,
     ReconReportsManage,
     ReconOpsView,
-    // Alias is added for backward compatibility with database
-    // TODO: Remove alias post migration
-    #[serde(alias = "recon_ops")]
     ReconOpsManage,
+    // TODO: To be deprecated, make sure DB is migrated before removing
+    ReconOps,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq, Hash, strum::EnumIter)]

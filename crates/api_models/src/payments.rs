@@ -2103,14 +2103,29 @@ mod payment_method_data_serde {
                         if inner_map.is_empty() {
                             None
                         } else {
-                            Some(
-                                serde_json::from_value::<PaymentMethodData>(
-                                    payment_method_data_value,
-                                )
-                                .map_err(|serde_json_error| {
-                                    de::Error::custom(serde_json_error.to_string())
-                                })?,
+                            let payment_method_data = serde_json::from_value::<PaymentMethodData>(
+                                payment_method_data_value,
                             )
+                            .map_err(|serde_json_error| {
+                                de::Error::custom(serde_json_error.to_string())
+                            })?;
+                            let address_details = parsed_value
+                                .billing
+                                .as_ref()
+                                .and_then(|billing| billing.address.clone());
+                            match (payment_method_data.clone(), address_details.as_ref()) {
+                                (
+                                    PaymentMethodData::Card(ref mut card),
+                                    Some(billing_address_details),
+                                ) => {
+                                    if card.card_holder_name.is_none() {
+                                        card.card_holder_name =
+                                            billing_address_details.get_optional_full_name();
+                                    }
+                                    Some(PaymentMethodData::Card(card.clone()))
+                                }
+                                _ => Some(payment_method_data),
+                            }
                         }
                     } else {
                         Err(de::Error::custom("Expected a map for payment_method_data"))?

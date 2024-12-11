@@ -41,6 +41,7 @@ pub mod stax;
 pub mod taxjar;
 pub mod thunes;
 pub mod tsys;
+pub mod unified_authentication_service;
 pub mod volt;
 pub mod worldline;
 pub mod worldpay;
@@ -58,6 +59,7 @@ pub use self::{
     multisafepay::Multisafepay, nexinets::Nexinets, nexixpay::Nexixpay, nomupay::Nomupay,
     novalnet::Novalnet, payeezy::Payeezy, payu::Payu, powertranz::Powertranz,
     prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay, redsys::Redsys, shift4::Shift4,
-    square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys, volt::Volt,
-    worldline::Worldline, worldpay::Worldpay, xendit::Xendit, zen::Zen, zsl::Zsl,
+    square::Square, stax::Stax, taxjar::Taxjar, thunes::Thunes, tsys::Tsys,
+    unified_authentication_service::UnifiedAuthenticationService, volt::Volt, worldline::Worldline,
+    worldpay::Worldpay, xendit::Xendit, zen::Zen, zsl::Zsl,
 };

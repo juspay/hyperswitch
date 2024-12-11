@@ -1145,6 +1145,7 @@ default_imp_for_new_connector_integration_payouts!(
     connector::Threedsecureio,
     connector::Thunes,
     connector::Tsys,
+    connector::UnifiedAuthenticationService,
     connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
@@ -1748,6 +1749,7 @@ default_imp_for_new_connector_integration_frm!(
     connector::Threedsecureio,
     connector::Thunes,
     connector::Tsys,
+    connector::UnifiedAuthenticationService,
     connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
@@ -2216,6 +2218,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Threedsecureio,
     connector::Thunes,
     connector::Tsys,
+    connector::UnifiedAuthenticationService,
     connector::Volt,
     connector::Wellsfargo,
     connector::Wise,
@@ -2223,8 +2226,7 @@ default_imp_for_new_connector_integration_connector_authentication!(
     connector::Worldpay,
     connector::Zen,
     connector::Zsl,
-    connector::Plaid,
-    connector::CtpMastercard
+    connector::Plaid
 );
 
 macro_rules! default_imp_for_new_connector_integration_uas {
