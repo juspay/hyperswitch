@@ -1418,7 +1418,7 @@ impl EphemeralKey {
 #[cfg(feature = "v2")]
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/v2/ephemeral_keys")
+        web::scope("/v2/ephemeral-keys")
             .app_data(web::Data::new(config))
             .service(web::resource("").route(web::post().to(ephemeral_key_create)))
             .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))

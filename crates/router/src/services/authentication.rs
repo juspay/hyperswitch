@@ -1376,12 +1376,15 @@ where
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
-        let resource_type =
-            get_header_value_by_key(headers::X_RESOURCE_TYPE.to_string(), request_headers)?
-                .map(ephemeral_key::ResourceType::from_str)
-                .transpose()
-                .change_context(errors::ApiErrorResponse::Unauthorized)? // Should this be a 5xx?
-                .get_required_value("ResourceType")?;
+        let resource_type = HeaderMapStruct::new(request_headers)
+            .get_mandatory_header_value_by_key(headers::X_RESOURCE_TYPE)
+            .and_then(|val| {
+                ephemeral_key::ResourceType::from_str(val).change_context(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: format!("`{}` header is invalid", headers::X_RESOURCE_TYPE),
+                    },
+                )
+            })?;
 
         fp_utils::when(resource_type != ephemeral_key.resource_type, || {
             Err(errors::ApiErrorResponse::Unauthorized)
