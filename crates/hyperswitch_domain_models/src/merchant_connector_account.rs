@@ -600,7 +600,7 @@ common_utils::create_list_wrapper!(
         #[cfg(feature = "v2")]
         pub fn get_connector_and_supporting_payment_method_type_for_session_call(
             &self,
-        ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType)> {
+        ) -> Vec<(&MerchantConnectorAccount, common_enums::PaymentMethodType, common_enums::PaymentMethod)> {
             let connector_and_supporting_payment_method_type = self.iter().flat_map(|connector_account| {
                 connector_account
                     .get_parsed_payment_methods_enabled()
@@ -626,7 +626,7 @@ common_utils::create_list_wrapper!(
                                 is_invoke_sdk_client
                             })
                             .map(|payment_method_type| {
-                                (connector_account, payment_method_type.payment_method_type)
+                                (connector_account, payment_method_type.payment_method_type, parsed_payment_methods_enabled.payment_method)
                             })
                             .collect::<Vec<_>>()
                     })

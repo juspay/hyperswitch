@@ -427,7 +427,11 @@ where
                                 is_invoke_sdk_client && is_sent_in_request
                             })
                             .map(|payment_method_type| {
-                                (connector_account, payment_method_type.payment_method_type)
+                                (
+                                    connector_account,
+                                    payment_method_type.payment_method_type,
+                                    parsed_payment_methods_enabled.payment_method,
+                                )
                             })
                             .collect::<Vec<_>>()
                     })
@@ -438,7 +442,7 @@ where
         let mut session_connector_data =
             Vec::with_capacity(connector_and_supporting_payment_method_type.len());
 
-        for (merchant_connector_account, payment_method_type) in
+        for (merchant_connector_account, payment_method_type, payment_method) in
             connector_and_supporting_payment_method_type
         {
             let connector_type = api::GetToken::from(payment_method_type);
@@ -457,6 +461,7 @@ where
                         payment_method_type,
                         connector_data,
                         merchant_connector_account.business_sub_label.clone(),
+                        payment_method,
                     );
                     session_connector_data.push(new_session_connector_data)
                 }

@@ -1,24 +1,28 @@
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 use api_models::payments::PaymentsSessionRequest;
 use async_trait::async_trait;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::Encode};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::customer;
 use router_env::{instrument, logger, tracing};
 
-use super::{BoxedOperation, Domain, GetTracker, Operation, ValidateRequest};
+use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, operations, operations::ValidateStatusForOperation},
     },
-    routes::SessionState,
-    types::{api, domain, storage::enums},
+    routes::{app::ReqState, SessionState},
+    types::{api, domain, storage, storage::enums},
     utils::ext_traits::OptionExt,
 };
 
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentSessionIntent;
+
+type PaymentSessionOperation<'b, F> =
+    BoxedOperation<'b, F, PaymentsSessionRequest, payments::PaymentIntentData<F>>;
 
 impl ValidateStatusForOperation for PaymentSessionIntent {
     /// Validate if the current operation can be performed on the current status of the payment intent
@@ -131,6 +135,33 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsSess
     }
 }
 
+#[async_trait]
+impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsSessionRequest>
+    for PaymentSessionIntent
+{
+    #[instrument(skip_all)]
+    async fn update_trackers<'b>(
+        &'b self,
+        state: &'b SessionState,
+        _req_state: ReqState,
+        mut payment_data: payments::PaymentIntentData<F>,
+        _customer: Option<domain::Customer>,
+        storage_scheme: enums::MerchantStorageScheme,
+        _updated_customer: Option<customer::CustomerUpdate>,
+        key_store: &domain::MerchantKeyStore,
+        _frm_suggestion: Option<common_enums::FrmSuggestion>,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+    ) -> RouterResult<(
+        PaymentSessionOperation<'b, F>,
+        payments::PaymentIntentData<F>,
+    )>
+    where
+        F: 'b + Send,
+    {
+        todo!()
+    }
+}
+
 impl<F: Send + Clone> ValidateRequest<F, PaymentsSessionRequest, payments::PaymentIntentData<F>>
     for PaymentSessionIntent
 {
@@ -231,28 +262,31 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
 
         let session_connector_data: Vec<_> = connector_and_supporting_payment_method_type
             .into_iter()
-            .filter_map(|(merchant_connector_account, payment_method_type)| {
-                let connector_type = api::GetToken::from(payment_method_type);
+            .filter_map(
+                |(merchant_connector_account, payment_method_type, payment_method)| {
+                    let connector_type = api::GetToken::from(payment_method_type);
 
-                match api::ConnectorData::get_connector_by_name(
-                    &state.conf.connectors,
-                    &merchant_connector_account.connector_name.to_string(),
-                    connector_type,
-                    Some(merchant_connector_account.get_id()),
-                ) {
-                    Ok(connector_data) => Some(api::SessionConnectorData::new(
-                        payment_method_type,
-                        connector_data,
-                        None,
-                    )),
-                    Err(err) => {
-                        logger::error!(session_token_error=?err);
-                        None
+                    match api::ConnectorData::get_connector_by_name(
+                        &state.conf.connectors,
+                        &merchant_connector_account.connector_name.to_string(),
+                        connector_type,
+                        Some(merchant_connector_account.get_id()),
+                    ) {
+                        Ok(connector_data) => Some(api::SessionConnectorData::new(
+                            payment_method_type,
+                            connector_data,
+                            None,
+                            payment_method,
+                        )),
+                        Err(err) => {
+                            logger::error!(session_token_error=?err);
+                            None
+                        }
                     }
-                }
-            })
+                },
+            )
             .collect();
-        let session_connector_data = payments::perform_session_token_routing(
+        let session_token_routing_result = payments::perform_session_token_routing(
             state.clone(),
             merchant_account,
             merchant_key_store,
@@ -261,8 +295,47 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         )
         .await?;
 
+        let pre_routing = storage::PaymentRoutingInfo {
+            algorithm: None,
+            pre_routing_results: Some((|| {
+                let mut pre_routing_results: HashMap<
+                    common_enums::PaymentMethodType,
+                    storage::PreRoutingConnectorChoice,
+                > = HashMap::new();
+                for (pm_type, routing_choice) in session_token_routing_result.routing_result {
+                    let mut routable_choice_list = vec![];
+                    for choice in routing_choice {
+                        let routable_choice = api::routing::RoutableConnectorChoice {
+                            choice_kind: api::routing::RoutableChoiceKind::FullStruct,
+                            connector: choice
+                                .connector
+                                .connector_name
+                                .to_string()
+                                .parse::<common_enums::RoutableConnectors>()
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                            merchant_connector_id: choice.connector.merchant_connector_id.clone(),
+                        };
+                        routable_choice_list.push(routable_choice);
+                    }
+                    pre_routing_results.insert(
+                        pm_type,
+                        storage::PreRoutingConnectorChoice::Multiple(routable_choice_list),
+                    );
+                }
+                Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(pre_routing_results)
+            })()?),
+        };
+
+        // Store the routing results in payment intent
+        payment_data.payment_intent.prerouting_algorithm = Some(
+            pre_routing
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to serialize payment routing info to value")?,
+        );
+
         Ok(api::ConnectorCallType::SessionMultiple(
-            session_connector_data,
+            session_token_routing_result.final_result,
         ))
     }
 
