@@ -224,6 +224,7 @@ pub async fn update_role(
     role_id: &str,
 ) -> UserResponse<role_api::RoleInfoWithGroupsResponse> {
     let role_name = req.role_name.map(RoleName::new).transpose()?;
+
     let role_info = roles::RoleInfo::from_role_id_in_lineage(
         &state,
         role_id,
@@ -234,6 +235,7 @@ pub async fn update_role(
     .to_not_found_response(UserErrors::InvalidRoleOperation)?;
 
     let user_role_info = user_from_token.get_role_info_from_db(&state).await?;
+
     let max_from_scope_and_entity = cmp::max(
         user_role_info.get_entity_type(),
         EntityType::from(role_info.get_scope()),

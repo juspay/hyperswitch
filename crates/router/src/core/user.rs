@@ -2870,12 +2870,8 @@ pub async fn switch_org_for_user(
     )
     .await?;
 
-    utils::user_role::set_role_info_in_cache_by_role_id_org_id(
-        &state,
-        &role_id,
-        &request.org_id,
-    )
-    .await;
+    utils::user_role::set_role_info_in_cache_by_role_id_org_id(&state, &role_id, &request.org_id)
+        .await;
 
     let response = user_api::TokenResponse {
         token: token.clone(),
