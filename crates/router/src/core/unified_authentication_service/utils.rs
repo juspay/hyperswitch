@@ -11,6 +11,7 @@ use hyperswitch_domain_models::{
     router_data_v2::UasFlowData,
     router_request_types::unified_authentication_service::UasAuthenticationResponseData,
 };
+use masking::ExposeOptionInterface;
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -47,7 +48,7 @@ pub async fn update_trackers<F: Clone, Req>(
                 trans_status: common_enums::TransactionStatus::Success,
                 authentication_value: authentication_details
                     .dynamic_data_details
-                    .and_then(|data| data.dynamic_data_value),
+                    .and_then(|data| data.dynamic_data_value.expose_option()),
                 eci: authentication_details.eci,
             },
         },

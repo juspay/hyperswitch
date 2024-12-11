@@ -52,7 +52,7 @@ pub struct TokenDetails {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct DynamicData {
-    pub dynamic_data_value: Option<String>,
+    pub dynamic_data_value: Option<Secret<String>>,
     pub dynamic_data_type: String,
     pub ds_trans_id: Option<String>,
 }
