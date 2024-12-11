@@ -12061,6 +12061,14 @@
           }
         }
       },
+      "OverCaptureRequest": {
+        "type": "string",
+        "description": "Whether overcapture is requested or not",
+        "enum": [
+          "Enable",
+          "Skip"
+        ]
+      },
       "PayLaterData": {
         "oneOf": [
           {
@@ -14444,6 +14452,14 @@
               }
             ],
             "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -15157,7 +15173,8 @@
           "payment_link_enabled",
           "request_incremental_authorization",
           "expires_on",
-          "request_external_three_ds_authentication"
+          "request_external_three_ds_authentication",
+          "request_overcapture"
         ],
         "properties": {
           "id": {
@@ -15319,6 +15336,9 @@
           },
           "request_external_three_ds_authentication": {
             "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+          },
+          "request_overcapture": {
+            "$ref": "#/components/schemas/OverCaptureRequest"
           }
         },
         "additionalProperties": false
@@ -16203,6 +16223,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/External3dsAuthenticationRequest"
+              }
+            ],
+            "nullable": true
+          },
+          "request_overcapture": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OverCaptureRequest"
               }
             ],
             "nullable": true
@@ -17555,7 +17583,8 @@
         "type": "object",
         "required": [
           "profile_name",
-          "is_click_to_pay_enabled"
+          "is_click_to_pay_enabled",
+          "always_request_overcapture"
         ],
         "properties": {
           "profile_name": {
@@ -17719,6 +17748,12 @@
             "description": "Indicates if click to pay is enabled or not.",
             "default": false,
             "example": false
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
+            "default": false,
+            "example": false
           }
         },
         "additionalProperties": false
@@ -17752,7 +17787,8 @@
           "is_tax_connector_enabled",
           "is_network_tokenization_enabled",
           "should_collect_cvv_during_payment",
-          "is_click_to_pay_enabled"
+          "is_click_to_pay_enabled",
+          "always_request_overcapture"
         ],
         "properties": {
           "merchant_id": {
@@ -17936,6 +17972,12 @@
           "is_click_to_pay_enabled": {
             "type": "boolean",
             "description": "Indicates if click to pay is enabled or not.",
+            "default": false,
+            "example": false
+          },
+          "always_request_overcapture": {
+            "type": "boolean",
+            "description": "Indicates if the overcapture is always requested or not.",
             "default": false,
             "example": false
           }

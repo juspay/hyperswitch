@@ -512,6 +512,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::EnablePaymentLinkRequest,
         api_models::enums::RequestIncrementalAuthorization,
         api_models::enums::External3dsAuthenticationRequest,
+        api_models::enums::OverCaptureRequest,
         api_models::enums::TaxCalculationOverride,
         api_models::enums::SurchargeCalculationOverride,
         api_models::payments::FrmMessage,
