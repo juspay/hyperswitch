@@ -694,35 +694,7 @@ pub struct MerchantConnectorCreate {
     pub connector_account_details: Option<pii::SecretSerdeValue>,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
+    #[schema(value_type = PaymentMethodsEnabled)]
     pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
@@ -1058,35 +1030,7 @@ pub struct MerchantConnectorResponse {
     pub connector_account_details: pii::SecretSerdeValue,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
+    #[schema(value_type = Vec<PaymentMethodsEnabled>)]
     pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector
@@ -1383,35 +1327,7 @@ pub struct MerchantConnectorListResponse {
     pub profile_id: id_type::ProfileId,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
+    #[schema(value_type = Vec<PaymentMethodsEnabled>)]
     pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
 
     /// A boolean value to indicate if the connector is disabled. By default, its value is false.
@@ -1570,35 +1486,7 @@ pub struct MerchantConnectorUpdate {
     pub connector_account_details: Option<pii::SecretSerdeValue>,
 
     /// An object containing the details about the payment methods that need to be enabled under this merchant connector account
-    #[schema(example = json!([
-        {
-            "payment_method": "wallet",
-            "payment_method_types": [
-                "upi_collect",
-                "upi_intent"
-            ],
-            "payment_method_issuers": [
-                "labore magna ipsum",
-                "aute"
-            ],
-            "payment_schemes": [
-                "Discover",
-                "Discover"
-            ],
-            "accepted_currencies": {
-                "type": "enable_only",
-                "list": ["USD", "EUR"]
-            },
-            "accepted_countries": {
-                "type": "disable_only",
-                "list": ["FR", "DE","IN"]
-            },
-            "minimum_amount": 1,
-            "maximum_amount": 68607706,
-            "recurring_enabled": true,
-            "installment_payment_enabled": true
-        }
-    ]))]
+   #[schema(value_type = Option<Vec<PaymentMethodsEnabled>>)]
     pub payment_methods_enabled: Option<Vec<common_utils::types::PaymentMethodsEnabled>>,
 
     /// Webhook details of this merchant connector

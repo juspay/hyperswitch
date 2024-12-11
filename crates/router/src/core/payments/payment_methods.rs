@@ -19,7 +19,7 @@ pub async fn list_payment_methods(
     payment_id: id_type::GlobalPaymentId,
     _req: api_models::payments::PaymentMethodsListRequest,
     header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-) -> errors::RouterResponse<api_models::payments::PaymentMethodListResponse> {
+) -> errors::RouterResponse<api_models::payments::PaymentMethodListResponseForPayments> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
 
@@ -214,7 +214,7 @@ impl PaymentMethodsEnabled {
                     PaymentMethodsEnabledForConnector {
                         payment_methods_enabled: request_payment_methods,
                         connector: connector_name.clone(),
-                        payment_method: payment_method.clone(),
+                        payment_method: payment_method,
                     }
                 },
             )

@@ -87,9 +87,6 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::merchant_account::merchant_account_update,
         routes::merchant_account::profiles_list,
 
-        // Routes for payments
-        routes::payments::payments_connector_session,
-
         // Routes for profile
         routes::profile::profile_create,
         routes::profile::profile_retrieve,
@@ -126,6 +123,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payments::payments_get_intent,
         routes::payments::payments_confirm_intent,
         routes::payments::payment_status,
+        routes::payments::payments_connector_session,
+        routes::payments::list_payment_methods,
 
         //Routes for payment methods
         routes::payment_method::list_customer_payment_method_for_payment,
@@ -157,6 +156,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::payout_method_utils::PixBankTransferAdditionalData,
         common_utils::payout_method_utils::PaypalAdditionalData,
         common_utils::payout_method_utils::VenmoAdditionalData,
+        common_utils::types::PaymentMethodsEnabled,
+        api_models::payments::PaymentMethodListResponseForPayments,
         api_models::refunds::RefundRequest,
         api_models::refunds::RefundsCreateRequest,
         api_models::refunds::RefundErrorDetails,
@@ -259,7 +260,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::FrmConfigs,
         api_models::admin::FrmPaymentMethod,
         api_models::admin::FrmPaymentMethodType,
-        api_models::admin::PaymentMethodsEnabled,
+        // api_models::admin::PaymentMethodsEnabled,
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
         api_models::admin::MerchantConnectorWebhookDetails,

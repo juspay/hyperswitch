@@ -2570,6 +2570,35 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     }
 }
 
+#[cfg(feature= "v1")]
+struct PaymentMethodsEnabled<'a> {
+    payment_methods_enabled: &'a Option<Vec<api_models::admin::PaymentMethodsEnabled>>,
+}
+
+#[cfg(feature= "v1")]
+impl PaymentMethodsEnabled<'_> {
+    fn get_payment_methods_enabled(&self) -> RouterResult<Option<Vec<pii::SecretSerdeValue>>> {
+        let mut vec = Vec::new();
+        let payment_methods_enabled = match self.payment_methods_enabled.clone() {
+            Some(val) => {
+                for pm in val.into_iter() {
+                    let pm_value = pm
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed while encoding to serde_json::Value, PaymentMethod",
+                        )?;
+                    vec.push(Secret::new(pm_value))
+                }
+                Some(vec)
+            }
+            None => None,
+        };
+        Ok(payment_methods_enabled)
+    }
+}
+
+
 #[cfg(all(feature = "v1", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {

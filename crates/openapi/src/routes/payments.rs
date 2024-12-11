@@ -681,7 +681,7 @@ pub fn payments_get_intent() {}
   ),
   tag = "Payments",
   operation_id = "Confirm Payment Intent",
-  security(("publisable_key" = [])),
+  security(("publishable_key" = [])),
 )]
 #[cfg(feature = "v2")]
 pub fn payments_confirm_intent() {}
@@ -715,3 +715,23 @@ pub(crate) enum ForceSync {
     /// Do not force sync with the connector / processor. Get the status which is available in the database
     False,
 }
+
+/// Payment Methods - List
+///
+/// List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment
+#[utoipa::path(
+    get,
+    path = "/v2/payments/{id}/payment_methods",
+    params(
+        ("id" = String, Path, description = "The global payment id"),
+    ),
+    responses(
+        (status = 200, description = "Get the payment methods", body = PaymentMethodListResponseForPayments),
+        (status = 404, description = "No payment found with the given id")
+    ),
+    tag = "Payments",
+    operation_id = "Retrieve Payment methods for a Payment",
+    security(("publishable_key" = []))
+)]
+#[cfg(feature = "v2")]
+pub fn list_payment_methods() {}
