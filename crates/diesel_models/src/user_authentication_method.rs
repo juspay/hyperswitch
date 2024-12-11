@@ -17,6 +17,7 @@ pub struct UserAuthenticationMethod {
     pub allow_signup: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
+    pub email_domain: String,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -32,6 +33,7 @@ pub struct UserAuthenticationMethodNew {
     pub allow_signup: bool,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
+    pub email_domain: String,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]

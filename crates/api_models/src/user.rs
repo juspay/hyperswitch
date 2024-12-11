@@ -304,6 +304,7 @@ pub struct CreateUserAuthenticationMethodRequest {
     pub owner_type: common_enums::Owner,
     pub auth_method: AuthConfig,
     pub allow_signup: bool,
+    pub email_domain: String,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

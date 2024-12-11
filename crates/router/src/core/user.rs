@@ -7,7 +7,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
-use common_enums::EntityType;
+use common_enums::{EntityType, UserAuthType};
 use common_utils::{type_name, types::keymanager::Identifier};
 #[cfg(feature = "email")]
 use diesel_models::user_role::UserRoleUpdate;
@@ -168,9 +168,18 @@ pub async fn signin_token_only_flow(
     state: SessionState,
     request: user_api::SignInRequest,
 ) -> UserResponse<user_api::TokenResponse> {
+    let user_email = domain::UserEmail::from_pii_email(request.email)?;
+
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::Password,
+    )
+    .await?;
+
     let user_from_db: domain::UserFromStorage = state
         .global_store
-        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email)?)
+        .find_user_by_email(&user_email)
         .await
         .to_not_found_response(UserErrors::InvalidCredentials)?
         .into();
@@ -195,10 +204,16 @@ pub async fn connect_account(
     request: user_api::ConnectAccountRequest,
     auth_id: Option<String>,
 ) -> UserResponse<user_api::ConnectAccountResponse> {
-    let find_user = state
-        .global_store
-        .find_user_by_email(&domain::UserEmail::from_pii_email(request.email.clone())?)
-        .await;
+    let user_email = domain::UserEmail::from_pii_email(request.email.clone())?;
+
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::MagicLink,
+    )
+    .await?;
+
+    let find_user = state.global_store.find_user_by_email(&user_email).await;
 
     if let Ok(found_user) = find_user {
         let user_from_db: domain::UserFromStorage = found_user.into();
@@ -373,6 +388,13 @@ pub async fn forgot_password(
     auth_id: Option<String>,
 ) -> UserResponse<()> {
     let user_email = domain::UserEmail::from_pii_email(request.email)?;
+
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::Password,
+    )
+    .await?;
 
     let user_from_db = state
         .global_store
@@ -1667,7 +1689,15 @@ pub async fn send_verification_mail(
     req: user_api::SendVerifyEmailRequest,
     auth_id: Option<String>,
 ) -> UserResponse<()> {
-    let user_email = domain::UserEmail::try_from(req.email)?;
+    let user_email = domain::UserEmail::from_pii_email(req.email)?;
+
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &user_email,
+        UserAuthType::MagicLink,
+    )
+    .await?;
+
     let user = state
         .global_store
         .find_user_by_email(&user_email)
@@ -2263,6 +2293,7 @@ pub async fn create_user_authentication_method(
             allow_signup: req.allow_signup,
             created_at: now,
             last_modified_at: now,
+            email_domain: req.email_domain,
         })
         .await
         .to_duplicate_response(UserErrors::UserAuthMethodAlreadyExists)?;
@@ -2323,7 +2354,7 @@ pub async fn list_user_authentication_methods(
             .into_iter()
             .map(|auth_method| {
                 let auth_name = match (auth_method.auth_type, auth_method.public_config) {
-                    (common_enums::UserAuthType::OpenIdConnect, config) => {
+                    (UserAuthType::OpenIdConnect, config) => {
                         let open_id_public_config: Option<user_api::OpenIdConnectPublicConfig> =
                             config
                                 .map(|config| {
@@ -2449,6 +2480,13 @@ pub async fn sso_sign(
     )
     .await?;
 
+    utils::user::validate_email_domain_auth_type_using_db(
+        &state,
+        &email,
+        UserAuthType::OpenIdConnect,
+    )
+    .await?;
+
     // TODO: Use config to handle not found error
     let user_from_db: domain::UserFromStorage = state
         .global_store
@@ -2497,14 +2535,21 @@ pub async fn terminate_auth_select(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    let user_authentication_method = if let Some(id) = &req.id {
-        state
-            .store
-            .get_user_authentication_method_by_id(id)
-            .await
-            .to_not_found_response(UserErrors::InvalidUserAuthMethodOperation)?
-    } else {
-        DEFAULT_USER_AUTH_METHOD.clone()
+    let user_email = domain::UserEmail::from_pii_email(user_from_db.get_email())?;
+    let auth_methods = state
+        .store
+        .list_user_authentication_methods_for_email_domain(user_email.extract_domain()?)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let user_authentication_method = match (req.id, auth_methods.is_empty()) {
+        (Some(id), _) => auth_methods
+            .into_iter()
+            .find(|auth_method| auth_method.auth_id == id)
+            .ok_or(UserErrors::InvalidUserAuthMethodOperation)?
+            .into(),
+        (None, true) => DEFAULT_USER_AUTH_METHOD.clone(),
+        (None, false) => return Err(UserErrors::InvalidUserAuthMethodOperation.into()),
     };
 
     let current_flow = domain::CurrentFlow::new(user_token, domain::SPTFlow::AuthSelect.into())?;

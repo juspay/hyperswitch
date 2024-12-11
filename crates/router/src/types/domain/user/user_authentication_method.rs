@@ -14,4 +14,5 @@ pub static DEFAULT_USER_AUTH_METHOD: Lazy<UserAuthenticationMethod> =
         allow_signup: true,
         created_at: common_utils::date_time::now(),
         last_modified_at: common_utils::date_time::now(),
+        email_domain: String::from("default"),
     });

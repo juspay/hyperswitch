@@ -312,3 +312,23 @@ pub fn create_merchant_account_request_for_org(
         pm_collect_link_config: None,
     })
 }
+
+pub async fn validate_email_domain_auth_type_using_db(
+    state: &SessionState,
+    email: &domain::UserEmail,
+    required_auth_type: UserAuthType,
+) -> UserResult<()> {
+    let domain = email.extract_domain()?;
+    let user_auth_methods = state
+        .store
+        .list_user_authentication_methods_for_email_domain(domain)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    (user_auth_methods.is_empty()
+        || user_auth_methods
+            .iter()
+            .any(|auth_method| auth_method.auth_type == required_auth_type))
+    .then(|| ())
+    .ok_or(UserErrors::InvalidUserAuthMethodOperation.into())
+}
