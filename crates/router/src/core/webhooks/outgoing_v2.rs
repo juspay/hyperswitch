@@ -47,7 +47,6 @@ const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 #[instrument(skip_all)]
 pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     state: SessionState,
-    merchant_account: domain::MerchantAccount,
     business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
     event_type: enums::EventType,
@@ -55,12 +54,12 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     primary_object_id: String,
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
-    primary_object_created_at: Option<time::PrimitiveDateTime>,
+    primary_object_created_at: time::PrimitiveDateTime,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
         utils::get_idempotent_event_id(&primary_object_id, event_type, delivery_attempt);
-    let webhook_url_result = get_webhook_url_from_business_profile(&business_profile);
+    let webhook_url_result = get_webhook_url_from_profile(&business_profile);
 
     if !state.conf.webhooks.outgoing_enabled
         || webhook_url_result.is_err()
@@ -72,6 +71,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             "Outgoing webhooks are disabled in application configuration, or merchant webhook URL \
              could not be obtained; skipping outgoing webhooks for event"
         );
+        // If outgoing webhooks are disabled in application configuration or merchant webhook URL could not be obtained; skipping outgoing webhooks for event
         return Ok(());
     }
 
@@ -103,7 +103,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         created_at: now,
         merchant_id: Some(business_profile.merchant_id.clone()),
         business_profile_id: Some(business_profile.get_id().to_owned()),
-        primary_object_created_at,
+        primary_object_created_at: Some(primary_object_created_at),
         idempotent_event_id: Some(idempotent_event_id.clone()),
         initial_attempt_id: Some(event_id.clone()),
         request: Some(
@@ -139,6 +139,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         Ok(event) => Ok(event),
         Err(error) => {
             if error.current_context().is_db_unique_violation() {
+                // If the event_id already exists in the database, it indicates that the event for the resource has already been sent, so we skip the flow
                 logger::debug!("Event with idempotent ID `{idempotent_event_id}` already exists in the database");
                 return Ok(());
             } else {
@@ -220,7 +221,7 @@ async fn trigger_webhook_to_merchant(
     request_content: OutgoingWebhookRequestContent,
     delivery_attempt: enums::WebhookDeliveryAttempt,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    let webhook_url = get_webhook_url_from_business_profile(&business_profile)?;
+    let webhook_url = get_webhook_url_from_profile(&business_profile)?;
 
     let event_id = event.event_id;
 
@@ -269,13 +270,19 @@ async fn trigger_webhook_to_merchant(
                 .await?
             }
             Ok(response) => {
+                let response_struct = Response { response };
                 let status_code = response.status();
+                let is_webhook_notified = status_code.is_success();
+                let outgoing_webhook_response = response_struct
+                    .get_outgoing_webhook_response_content()
+                    .await;
                 let _updated_event = update_event_in_storage(
                     state.clone(),
+                    is_webhook_notified,
+                    outgoing_webhook_response,
                     merchant_key_store.clone(),
                     &business_profile.merchant_id,
                     &event_id,
-                    response,
                 )
                 .await?;
 
@@ -318,12 +325,16 @@ async fn trigger_webhook_to_merchant(
             }
             Ok(response) => {
                 let status_code = response.status();
+                let is_webhook_notified = status_code.is_success();
+                let outgoing_webhook_response =
+                    get_outgoing_webhook_response_content(response).await;
                 let _updated_event = update_event_in_storage(
                     state.clone(),
+                    is_webhook_notified,
+                    outgoing_webhook_response,
                     merchant_key_store.clone(),
                     &business_profile.merchant_id,
                     &event_id,
-                    response,
                 )
                 .await?;
 
@@ -358,7 +369,7 @@ async fn raise_webhooks_analytics_event(
     let key_manager_state: &KeyManagerState = &(&state).into();
     let event_id = event.event_id;
 
-    let error = if let Err(error) = trigger_webhook_result {
+    let error = trigger_webhook_result.err().and_then(|error| {
         logger::error!(?error, "Failed to send webhook to merchant");
 
         serde_json::to_value(error.current_context())
@@ -367,14 +378,16 @@ async fn raise_webhooks_analytics_event(
                 logger::error!(?error, "Failed to serialize outgoing webhook error as JSON");
             })
             .ok()
-    } else {
-        None
-    };
+    });
 
     let outgoing_webhook_event_content = content
         .as_ref()
         .and_then(api::OutgoingWebhookContent::get_outgoing_webhook_event_content)
-        .or_else(|| get_outgoing_webhook_event_content_from_event_metadata(event.metadata));
+        .or_else(|| {
+            event
+                .metadata
+                .map(OutgoingWebhookEventContent::foreign_from)
+        });
 
     // Fetch updated_event from db
     let updated_event = state
@@ -421,7 +434,7 @@ async fn raise_webhooks_analytics_event(
     state.event_handler().log_event(&webhook_event);
 }
 
-fn get_webhook_url_from_business_profile(
+fn get_webhook_url_from_profile(
     business_profile: &domain::Profile,
 ) -> CustomResult<String, errors::WebhooksFlowError> {
     let webhook_details = business_profile
@@ -505,59 +518,6 @@ enum ScheduleWebhookRetry {
     NoSchedule,
 }
 
-async fn update_event_if_client_error(
-    state: SessionState,
-    merchant_key_store: domain::MerchantKeyStore,
-    merchant_id: &common_utils::id_type::MerchantId,
-    event_id: &str,
-    error_message: String,
-) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
-    let is_webhook_notified = false;
-    let key_manager_state = &(&state).into();
-    let response_to_store = OutgoingWebhookResponseContent {
-        body: None,
-        headers: None,
-        status_code: None,
-        error_message: Some(error_message),
-    };
-
-    let event_update = domain::EventUpdate::UpdateResponse {
-        is_webhook_notified,
-        response: Some(
-            crypto_operation(
-                key_manager_state,
-                type_name!(domain::Event),
-                CryptoOperation::Encrypt(
-                    response_to_store
-                        .encode_to_string_of_json()
-                        .change_context(
-                            errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
-                        )
-                        .map(Secret::new)?,
-                ),
-                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
-                merchant_key_store.key.get_inner().peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_operation())
-            .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
-            .attach_printable("Failed to encrypt outgoing webhook response content")?,
-        ),
-    };
-
-    state
-        .store
-        .update_event_by_merchant_id_event_id(
-            key_manager_state,
-            merchant_id,
-            event_id,
-            event_update,
-            &merchant_key_store,
-        )
-        .await
-        .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
-}
-
 async fn api_client_error_handler(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
@@ -569,12 +529,20 @@ async fn api_client_error_handler(
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     // Not including detailed error message in response information since it contains too
     // much of diagnostic information to be exposed to the merchant.
-    update_event_if_client_error(
-        state.clone(),
+    let is_webhook_notified = false;
+    let response_to_store = OutgoingWebhookResponseContent {
+        body: None,
+        headers: None,
+        status_code: None,
+        error_message: Some("Unable to send request to merchant server".to_string()),
+    };
+    update_event_in_storage(
+        state,
+        is_webhook_notified,
+        response_to_store,
         merchant_key_store,
         merchant_id,
         event_id,
-        "Unable to send request to merchant server".to_string(),
     )
     .await?;
 
@@ -600,50 +568,60 @@ async fn api_client_error_handler(
     Err(error)
 }
 
+struct Response {
+    response: reqwest::Response,
+}
+
+impl Response {
+    pub async fn get_outgoing_webhook_response_content(self) -> OutgoingWebhookResponseContent {
+        let status_code = self.response.status();
+        let response_headers = self
+            .response
+            .headers()
+            .iter()
+            .map(|(name, value)| {
+                (
+                    name.as_str().to_owned(),
+                    value
+                        .to_str()
+                        .map(|s| Secret::from(String::from(s)))
+                        .unwrap_or_else(|error| {
+                            logger::warn!(
+                                "Response header {} contains non-UTF-8 characters: {error:?}",
+                                name.as_str()
+                            );
+                            Secret::from(String::from("Non-UTF-8 header value"))
+                        }),
+                )
+            })
+            .collect::<Vec<_>>();
+        let response_body = self
+            .response
+            .text()
+            .await
+            .map(Secret::from)
+            .unwrap_or_else(|error| {
+                logger::warn!("Response contains non-UTF-8 characters: {error:?}");
+                Secret::from(String::from("Non-UTF-8 response body"))
+            });
+        OutgoingWebhookResponseContent {
+            body: Some(response_body),
+            headers: Some(response_headers),
+            status_code: Some(status_code.as_u16()),
+            error_message: None,
+        }
+    }
+}
+
 async fn update_event_in_storage(
     state: SessionState,
+    is_webhook_notified: bool,
+    outgoing_webhook_response: OutgoingWebhookResponseContent,
     merchant_key_store: domain::MerchantKeyStore,
     merchant_id: &common_utils::id_type::MerchantId,
     event_id: &str,
-    response: reqwest::Response,
 ) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
-    let status_code = response.status();
-    let is_webhook_notified = status_code.is_success();
     let key_manager_state = &(&state).into();
-    let response_headers = response
-        .headers()
-        .iter()
-        .map(|(name, value)| {
-            (
-                name.as_str().to_owned(),
-                value
-                    .to_str()
-                    .map(|s| Secret::from(String::from(s)))
-                    .unwrap_or_else(|error| {
-                        logger::warn!(
-                            "Response header {} contains non-UTF-8 characters: {error:?}",
-                            name.as_str()
-                        );
-                        Secret::from(String::from("Non-UTF-8 header value"))
-                    }),
-            )
-        })
-        .collect::<Vec<_>>();
-    let response_body = response
-        .text()
-        .await
-        .map(Secret::from)
-        .unwrap_or_else(|error| {
-            logger::warn!("Response contains non-UTF-8 characters: {error:?}");
-            Secret::from(String::from("Non-UTF-8 response body"))
-        });
-    let response_to_store = OutgoingWebhookResponseContent {
-        body: Some(response_body),
-        headers: Some(response_headers),
-        status_code: Some(status_code.as_u16()),
-        error_message: None,
-    };
-
     let event_update = domain::EventUpdate::UpdateResponse {
         is_webhook_notified,
         response: Some(
@@ -651,7 +629,7 @@ async fn update_event_in_storage(
                 key_manager_state,
                 type_name!(domain::Event),
                 CryptoOperation::Encrypt(
-                    response_to_store
+                    outgoing_webhook_response
                         .encode_to_string_of_json()
                         .change_context(
                             errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
@@ -691,6 +669,17 @@ fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type
     )
 }
 
+fn increment_webhook_outgoing_not_received_count(merchant_id: &common_utils::id_type::MerchantId) {
+    metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::KeyValue::new(
+            MERCHANT_ID,
+            merchant_id.get_string_repr().to_owned(),
+        )],
+    );
+}
+
 async fn success_response_handler(
     state: SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -720,14 +709,7 @@ async fn error_response_handler(
     log_message: &'static str,
     _schedule_webhook_retry: ScheduleWebhookRetry,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
-    metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-        &metrics::CONTEXT,
-        1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            merchant_id.get_string_repr().to_owned(),
-        )],
-    );
+    increment_webhook_outgoing_not_received_count(merchant_id);
 
     let error = report!(errors::WebhooksFlowError::NotReceivedByMerchant);
     logger::warn!(?error, ?delivery_attempt, status_code, %log_message);
@@ -773,45 +755,47 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
     }
 }
 
-fn get_outgoing_webhook_event_content_from_event_metadata(
-    event_metadata: Option<storage::EventMetadata>,
-) -> Option<OutgoingWebhookEventContent> {
-    event_metadata.map(|metadata| match metadata {
-        diesel_models::EventMetadata::Payment { payment_id } => {
-            OutgoingWebhookEventContent::Payment {
-                payment_id,
-                content: serde_json::Value::Null,
+impl ForeignFrom<storage::EventMetadata> for OutgoingWebhookEventContent {
+    fn foreign_from(event_metadata: storage::EventMetadata) -> Self {
+        match event_metadata {
+            diesel_models::EventMetadata::Payment { payment_id } => {
+                OutgoingWebhookEventContent::Payment {
+                    payment_id,
+                    content: serde_json::Value::Null,
+                }
             }
+            diesel_models::EventMetadata::Payout { payout_id } => {
+                OutgoingWebhookEventContent::Payout {
+                    payout_id,
+                    content: serde_json::Value::Null,
+                }
+            }
+            diesel_models::EventMetadata::Refund {
+                payment_id,
+                refund_id,
+            } => OutgoingWebhookEventContent::Refund {
+                payment_id,
+                refund_id,
+                content: serde_json::Value::Null,
+            },
+            diesel_models::EventMetadata::Dispute {
+                payment_id,
+                attempt_id,
+                dispute_id,
+            } => OutgoingWebhookEventContent::Dispute {
+                payment_id,
+                attempt_id,
+                dispute_id,
+                content: serde_json::Value::Null,
+            },
+            diesel_models::EventMetadata::Mandate {
+                payment_method_id,
+                mandate_id,
+            } => OutgoingWebhookEventContent::Mandate {
+                payment_method_id,
+                mandate_id,
+                content: serde_json::Value::Null,
+            },
         }
-        diesel_models::EventMetadata::Payout { payout_id } => OutgoingWebhookEventContent::Payout {
-            payout_id,
-            content: serde_json::Value::Null,
-        },
-        diesel_models::EventMetadata::Refund {
-            payment_id,
-            refund_id,
-        } => OutgoingWebhookEventContent::Refund {
-            payment_id,
-            refund_id,
-            content: serde_json::Value::Null,
-        },
-        diesel_models::EventMetadata::Dispute {
-            payment_id,
-            attempt_id,
-            dispute_id,
-        } => OutgoingWebhookEventContent::Dispute {
-            payment_id,
-            attempt_id,
-            dispute_id,
-            content: serde_json::Value::Null,
-        },
-        diesel_models::EventMetadata::Mandate {
-            payment_method_id,
-            mandate_id,
-        } => OutgoingWebhookEventContent::Mandate {
-            payment_method_id,
-            mandate_id,
-            content: serde_json::Value::Null,
-        },
-    })
+    }
 }

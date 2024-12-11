@@ -504,7 +504,6 @@ async fn payments_incoming_webhook_flow(
                 // TODO: trigger an outgoing webhook to merchant
                 Box::pin(super::create_event_and_trigger_outgoing_webhook(
                     state,
-                    merchant_account,
                     profile,
                     &key_store,
                     outgoing_event_type,
@@ -512,7 +511,7 @@ async fn payments_incoming_webhook_flow(
                     payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
-                    Some(primary_object_created_at),
+                    primary_object_created_at,
                 ))
                 .await?;
             };
