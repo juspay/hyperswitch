@@ -246,18 +246,7 @@ pub struct ConnectorConfig {
 
 impl ConnectorConfig {
     fn new() -> Result<Self, String> {
-        #[cfg(all(
-            feature = "production",
-            not(any(feature = "sandbox", feature = "development"))
-        ))]
         let config = toml::from_str::<Self>(include_str!("../toml/production.toml"));
-        #[cfg(all(
-            feature = "sandbox",
-            not(any(feature = "production", feature = "development"))
-        ))]
-        let config = toml::from_str::<Self>(include_str!("../toml/sandbox.toml"));
-        #[cfg(feature = "development")]
-        let config = toml::from_str::<Self>(include_str!("../toml/development.toml"));
 
         #[cfg(not(any(feature = "sandbox", feature = "development", feature = "production")))]
         return Err(String::from(
