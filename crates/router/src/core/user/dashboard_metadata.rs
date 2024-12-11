@@ -480,7 +480,7 @@ async fn insert_metadata(
                     let send_email_result = state
                         .email_client
                         .compose_and_send_email(
-                            &email_types::get_base_url(&state),
+                            email_types::get_base_url(&state),
                             Box::new(email_contents),
                             state.conf.proxy.https_url.as_ref(),
                         )

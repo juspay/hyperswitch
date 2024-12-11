@@ -221,11 +221,11 @@ pub fn get_link_with_token(
     }
 }
 
-pub fn get_base_url(state: &SessionState) -> String {
+pub fn get_base_url(state: &SessionState) -> &str {
     if !state.conf.multitenancy.enabled {
-        state.conf.user.base_url.clone()
+        &state.conf.user.base_url
     } else {
-        state.tenant.user.control_center_url.clone()
+        &state.tenant.user.control_center_url
     }
 }
 
@@ -239,7 +239,7 @@ pub struct VerifyEmail {
 /// Currently only HTML is supported
 #[async_trait::async_trait]
 impl EmailData for VerifyEmail {
-    async fn get_email_data(&self, base_url: &String) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             None,
@@ -273,7 +273,7 @@ pub struct ResetPassword {
 
 #[async_trait::async_trait]
 impl EmailData for ResetPassword {
-    async fn get_email_data(&self, base_url: &String) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             None,
@@ -309,7 +309,7 @@ pub struct MagicLink {
 
 #[async_trait::async_trait]
 impl EmailData for MagicLink {
-    async fn get_email_data(&self, base_url: &String) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             None,
@@ -345,7 +345,7 @@ pub struct InviteUser {
 
 #[async_trait::async_trait]
 impl EmailData for InviteUser {
-    async fn get_email_data(&self, base_url: &String) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let token = EmailToken::new_token(
             self.recipient_email.clone(),
             Some(self.entity.clone()),
@@ -378,7 +378,7 @@ pub struct ReconActivation {
 
 #[async_trait::async_trait]
 impl EmailData for ReconActivation {
-    async fn get_email_data(&self, _base_url: &String) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let body = html::get_html_body(EmailBody::ReconActivation {
             user_name: self.user_name.clone().get_secret().expose(),
         });
@@ -424,7 +424,7 @@ impl BizEmailProd {
 
 #[async_trait::async_trait]
 impl EmailData for BizEmailProd {
-    async fn get_email_data(&self, _base_url: &String) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let body = html::get_html_body(EmailBody::BizEmailProd {
             user_name: self.user_name.clone().expose(),
             poc_email: self.poc_email.clone().expose(),
@@ -452,7 +452,7 @@ pub struct ProFeatureRequest {
 
 #[async_trait::async_trait]
 impl EmailData for ProFeatureRequest {
-    async fn get_email_data(&self, _base_url: &String) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let recipient = self.recipient_email.clone().into_inner();
 
         let body = html::get_html_body(EmailBody::ProFeatureRequest {
@@ -480,7 +480,7 @@ pub struct ApiKeyExpiryReminder {
 
 #[async_trait::async_trait]
 impl EmailData for ApiKeyExpiryReminder {
-    async fn get_email_data(&self, _base_url: &String) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let recipient = self.recipient_email.clone().into_inner();
 
         let body = html::get_html_body(EmailBody::ApiKeyExpiryReminder {
@@ -504,7 +504,7 @@ pub struct WelcomeToCommunity {
 
 #[async_trait::async_trait]
 impl EmailData for WelcomeToCommunity {
-    async fn get_email_data(&self, _base_url: &String) -> CustomResult<EmailContents, EmailError> {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
         let body = html::get_html_body(EmailBody::WelcomeToCommunity);
 
         Ok(EmailContents {
