@@ -1043,11 +1043,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         business_profile: &domain::Profile,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let is_click_to_pay_enabled = true;
+        let is_click_to_pay_enabled = todo!(); // fetch from business profile
 
         if let Some(payment_method) = payment_data.payment_attempt.payment_method {
             if payment_method == storage_enums::PaymentMethod::Card && is_click_to_pay_enabled {
-                let connector_name = CTP_MASTERCARD;
+                let connector_name = CTP_MASTERCARD; // since the above checks satisfies teh connector should be click to pay hence hardcoded the connector name
                 let connector_mca = helpers::get_merchant_connector_account(
                     state,
                     &business_profile.merchant_id,
