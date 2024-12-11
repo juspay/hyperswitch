@@ -11,8 +11,7 @@ use common_utils::{
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
-use masking::PeekInterface;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url;
 use utoipa::ToSchema;
