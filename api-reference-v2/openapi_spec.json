@@ -674,57 +674,6 @@
         ]
       }
     },
-    "/v2/payments/{payment_id}/create-external-sdk-tokens": {
-      "post": {
-        "tags": [
-          "Payments"
-        ],
-        "summary": "Payments - Session token",
-        "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
-        "operationId": "Create Session tokens for a Payment",
-        "parameters": [
-          {
-            "name": "payment_id",
-            "in": "path",
-            "description": "The identifier for payment",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PaymentsSessionRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Payment session object created or session token was retrieved from wallets",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaymentsSessionResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Missing mandatory fields"
-          }
-        },
-        "security": [
-          {
-            "publishable_key": []
-          }
-        ]
-      }
-    },
     "/v2/profiles": {
       "post": {
         "tags": [
@@ -1962,7 +1911,7 @@
         },
         "security": [
           {
-            "publisable_key": []
+            "publishable_key": []
           }
         ]
       }
@@ -2013,6 +1962,98 @@
         "security": [
           {
             "api_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payments/{payment_id}/create-external-sdk-tokens": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments - Session token",
+        "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
+        "operationId": "Create Session tokens for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentsSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Payment session object created or session token was retrieved from wallets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentsSessionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
+    "/v2/payments/{id}/payment_methods": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payment Methods - List",
+        "description": "List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment",
+        "operationId": "Retrieve Payment methods for a Payment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The global payment id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get the payment methods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodListResponseForPayments"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment found with the given id"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
           }
         ]
       }
@@ -10100,7 +10141,8 @@
         "required": [
           "connector_type",
           "connector_name",
-          "profile_id"
+          "profile_id",
+          "payment_methods_enabled"
         ],
         "properties": {
           "connector_type": {
@@ -10129,48 +10171,7 @@
             "nullable": true
           },
           "payment_methods_enabled": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentMethodsEnabled"
-            },
-            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
-            "example": [
-              {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
-                "recurring_enabled": true
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PaymentMethodsEnabled"
           },
           "connector_webhook_details": {
             "allOf": [
@@ -10313,6 +10314,7 @@
           "connector_name",
           "id",
           "profile_id",
+          "payment_methods_enabled",
           "status"
         ],
         "properties": {
@@ -10343,44 +10345,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
-            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
-            "example": [
-              {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
-                "recurring_enabled": true
-              }
-            ],
-            "nullable": true
+            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account"
           },
           "disabled": {
             "type": "boolean",
@@ -10424,6 +10389,7 @@
           "connector_name",
           "id",
           "profile_id",
+          "payment_methods_enabled",
           "status"
         ],
         "properties": {
@@ -10462,44 +10428,7 @@
             "items": {
               "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
-            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
-            "example": [
-              {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
-                "recurring_enabled": true
-              }
-            ],
-            "nullable": true
+            "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account"
           },
           "connector_webhook_details": {
             "allOf": [
@@ -10597,42 +10526,6 @@
               "$ref": "#/components/schemas/PaymentMethodsEnabled"
             },
             "description": "An object containing the details about the payment methods that need to be enabled under this merchant connector account",
-            "example": [
-              {
-                "accepted_countries": {
-                  "list": [
-                    "FR",
-                    "DE",
-                    "IN"
-                  ],
-                  "type": "disable_only"
-                },
-                "accepted_currencies": {
-                  "list": [
-                    "USD",
-                    "EUR"
-                  ],
-                  "type": "enable_only"
-                },
-                "installment_payment_enabled": true,
-                "maximum_amount": 68607706,
-                "minimum_amount": 1,
-                "payment_method": "wallet",
-                "payment_method_issuers": [
-                  "labore magna ipsum",
-                  "aute"
-                ],
-                "payment_method_types": [
-                  "upi_collect",
-                  "upi_intent"
-                ],
-                "payment_schemes": [
-                  "Discover",
-                  "Discover"
-                ],
-                "recurring_enabled": true
-              }
-            ],
             "nullable": true
           },
           "connector_webhook_details": {
@@ -13531,6 +13424,29 @@
           }
         }
       },
+      "PaymentMethodListResponseForPayments": {
+        "type": "object",
+        "required": [
+          "payment_methods",
+          "customer_payment_methods"
+        ],
+        "properties": {
+          "payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponsePaymentMethodTypes"
+            },
+            "description": "The list of payment methods that are enabled for the business profile"
+          },
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerPaymentMethod"
+            },
+            "description": "The list of payment methods that are saved by the given customer\nThis field is only returned if the customer_id is provided in the request"
+          }
+        }
+      },
       "PaymentMethodResponse": {
         "type": "object",
         "required": [
@@ -13778,10 +13694,7 @@
             "items": {
               "$ref": "#/components/schemas/RequestPaymentMethodTypes"
             },
-            "description": "Subtype of payment method",
-            "example": [
-              "credit"
-            ],
+            "description": "Payment method configuration, this includes all the filters associated with the payment method",
             "nullable": true
           }
         },
@@ -18358,14 +18271,6 @@
           "payment_method_subtype": {
             "$ref": "#/components/schemas/PaymentMethodType"
           },
-          "payment_experience": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PaymentExperienceTypes"
-            },
-            "description": "The list of payment experiences enabled, if applicable for a payment method type",
-            "nullable": true
-          },
           "card_networks": {
             "type": "array",
             "items": {
@@ -18382,25 +18287,9 @@
             "description": "The list of banks enabled, if applicable for a payment method type",
             "nullable": true
           },
-          "bank_debits": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BankDebitTypes"
-              }
-            ],
-            "nullable": true
-          },
-          "bank_transfers": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/BankTransferTypes"
-              }
-            ],
-            "nullable": true
-          },
           "required_fields": {
             "type": "object",
-            "description": "Required fields for the payment_method_type.",
+            "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors.",
             "additionalProperties": {
               "$ref": "#/components/schemas/RequiredFieldInfo"
             },
@@ -18412,11 +18301,6 @@
                 "$ref": "#/components/schemas/SurchargeDetailsResponse"
               }
             ],
-            "nullable": true
-          },
-          "pm_auth_connector": {
-            "type": "string",
-            "description": "auth service connector label for this payment method type, if exists",
             "nullable": true
           }
         }

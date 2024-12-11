@@ -23,9 +23,7 @@
   "navigation": [
     {
       "group": "Get Started",
-      "pages": [
-        "introduction"
-      ]
+      "pages": ["introduction"]
     },
     {
       "group": "Essentials",
@@ -41,6 +39,7 @@
         "api-reference/payments/payments--create-intent",
         "api-reference/payments/payments--get-intent",
         "api-reference/payments/payments--session-token",
+        "api-reference/payments/payment-methods--list",
         "api-reference/payments/payments--confirm-intent",
         "api-reference/payments/payments--get"
       ]
@@ -134,9 +133,7 @@
     "github": "https://github.com/juspay/hyperswitch",
     "linkedin": "https://www.linkedin.com/company/hyperswitch"
   },
-  "openapi": [
-    "openapi_spec.json"
-  ],
+  "openapi": ["openapi_spec.json"],
   "api": {
     "maintainOrder": true
   }
