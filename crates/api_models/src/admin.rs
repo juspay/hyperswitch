@@ -11,6 +11,7 @@ use common_utils::{
 use common_utils::{crypto::OptionalEncryptableName, ext_traits::ValueExt};
 #[cfg(feature = "v2")]
 use masking::ExposeInterface;
+use masking::PeekInterface;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url;
@@ -2190,7 +2191,7 @@ pub struct ProfileResponse {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
+    pub outgoing_webhook_custom_http_headers: Option<OutgoingWebhookCustomHttpHeaders>,
 
     /// Merchant Connector id to be stored for tax_calculator connector
     #[schema(value_type = Option<String>)]
@@ -2305,7 +2306,7 @@ pub struct ProfileResponse {
 
     /// These key-value pairs are sent as additional custom headers in the outgoing webhook request.
     #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
-    pub outgoing_webhook_custom_http_headers: Option<HashMap<String, Secret<String>>>,
+    pub outgoing_webhook_custom_http_headers: Option<OutgoingWebhookCustomHttpHeaders>,
 
     /// Will be used to determine the time till which your payment will be active once the payment session starts
     #[schema(value_type = Option<u32>, example = 900)]
@@ -2590,6 +2591,45 @@ pub struct BusinessPayoutLinkConfig {
     /// Allows for removing any validations / pre-requisites which are necessary in a production environment
     #[schema(value_type = Option<bool>, default = false)]
     pub payout_test_mode: Option<bool>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct OutgoingWebhookCustomHttpHeaders {
+    #[serde(flatten)]
+    pub headers: HashMap<String, Secret<String>>,
+}
+
+impl OutgoingWebhookCustomHttpHeaders {
+    fn mask_value(&self, key: &str) -> Secret<String> {
+        let key_len = key.len();
+        let masked_string = if key_len <= 4 {
+            "*".repeat(key_len)
+        } else {
+            // Show the first two and last two characters, mask the rest with '*'
+            let mut masked_string = String::new();
+            let key_len = key.len();
+            // Iterate through characters by their index
+            for (index, character) in key.chars().enumerate() {
+                if index < 2 || index >= key_len - 2 {
+                    masked_string.push(character); // Keep the first two and last two characters
+                } else {
+                    masked_string.push('*'); // Mask the middle characters
+                }
+            }
+            masked_string
+        };
+        Secret::new(masked_string)
+    }
+    pub fn get_masked_headers(&self) -> Self {
+        let mut masked_headers_hash_map: HashMap<String, Secret<String>> = HashMap::new();
+        for header in &self.headers {
+            let masked_value = self.mask_value(header.1.peek());
+            masked_headers_hash_map.insert(header.0.clone(), masked_value);
+        }
+        Self {
+            headers: masked_headers_hash_map,
+        }
+    }
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
