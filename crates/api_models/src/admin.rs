@@ -1970,6 +1970,10 @@ pub struct ProfileCreate {
     /// Indicates if click to pay is enabled or not.
     #[serde(default)]
     pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, String>>,
 }
 
 #[nutype::nutype(
@@ -2082,6 +2086,10 @@ pub struct ProfileCreate {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -2214,6 +2222,10 @@ pub struct ProfileResponse {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
@@ -2333,6 +2345,10 @@ pub struct ProfileResponse {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: bool,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -2459,6 +2475,10 @@ pub struct ProfileUpdate {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: Option<bool>,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -2566,6 +2586,10 @@ pub struct ProfileUpdate {
     /// Indicates if click to pay is enabled or not.
     #[schema(default = false, example = false)]
     pub is_click_to_pay_enabled: Option<bool>,
+
+    /// Product authentication ids
+    #[schema(value_type = Option<Object>, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
+    pub authentication_product_ids: Option<HashMap<String, String>>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
