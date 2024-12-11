@@ -1,12 +1,20 @@
 pub(crate) mod bool_wrappers {
-    use serde::{Deserialize, Serialize};
+    use std::ops::Deref;
 
+    use serde::{Deserialize, Serialize};
     /// Bool that represents if Extended Authorization is Applied or not
     #[derive(
         Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, diesel::expression::AsExpression,
     )]
     #[diesel(sql_type = diesel::sql_types::Bool)]
     pub struct ExtendedAuthorizationAppliedBool(bool);
+    impl Deref for ExtendedAuthorizationAppliedBool {
+        type Target = bool;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
     impl From<bool> for ExtendedAuthorizationAppliedBool {
         fn from(value: bool) -> Self {
             Self(value)
@@ -41,6 +49,13 @@ pub(crate) mod bool_wrappers {
     )]
     #[diesel(sql_type = diesel::sql_types::Bool)]
     pub struct RequestExtendedAuthorizationBool(bool);
+    impl Deref for RequestExtendedAuthorizationBool {
+        type Target = bool;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
     impl From<bool> for RequestExtendedAuthorizationBool {
         fn from(value: bool) -> Self {
             Self(value)
@@ -81,6 +96,13 @@ pub(crate) mod bool_wrappers {
     )]
     #[diesel(sql_type = diesel::sql_types::Bool)]
     pub struct AlwaysRequestExtendedAuthorization(bool);
+    impl Deref for AlwaysRequestExtendedAuthorization {
+        type Target = bool;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
     impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB>
         for AlwaysRequestExtendedAuthorization
     where

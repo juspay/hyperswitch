@@ -1,6 +1,7 @@
 pub use common_enums::enums::{PaymentMethod, PayoutType};
 #[cfg(feature = "dummy_connector")]
 use common_utils::errors;
+use common_utils::types;
 use utoipa::ToSchema;
 
 /// A connector is an integration to fulfill payments
@@ -310,6 +311,62 @@ impl Connector {
             .into())
         } else {
             Ok(())
+        }
+    }
+    pub fn get_request_extended_authorization(
+        &self,
+        intent_request_extended_authorization_optional: Option<
+            types::RequestExtendedAuthorizationBool,
+        >,
+        always_request_extended_authorization_optional: Option<
+            types::AlwaysRequestExtendedAuthorization,
+        >,
+        payment_method_optional: Option<PaymentMethod>,
+        payment_method_type_optional: Option<common_enums::PaymentMethodType>,
+    ) -> Option<types::RequestExtendedAuthorizationBool> {
+        if always_request_extended_authorization_optional.is_some_and(
+            |always_request_extended_authorization| *always_request_extended_authorization,
+        ) {
+            Some(true)
+        } else if intent_request_extended_authorization_optional.is_some_and(
+            |intent_request_extended_authorization| *intent_request_extended_authorization,
+        ) {
+            let supported_pms = self.get_payment_methods_supporting_extended_authorization();
+            let supported_pmts = self.get_payment_method_types_supporting_extended_authorization();
+            // check if payment method or payment method type is supported by the connector
+            Some(
+                match (payment_method_optional, payment_method_type_optional) {
+                    (Some(payment_method), Some(payment_method_type)) => {
+                        supported_pms.contains(&payment_method)
+                            && supported_pmts.contains(&payment_method_type)
+                    }
+                    (Some(payment_method), None) => supported_pms.contains(&payment_method),
+                    (None, Some(payment_method_type)) => {
+                        supported_pmts.contains(&payment_method_type)
+                    }
+                    (None, None) => false,
+                },
+            )
+        } else {
+            None
+        }
+        .map(types::RequestExtendedAuthorizationBool::from)
+    }
+    fn get_payment_methods_supporting_extended_authorization(self) -> Vec<PaymentMethod> {
+        match self {
+            Self::Stripe => vec![PaymentMethod::Card],
+            _ => vec![],
+        }
+    }
+    fn get_payment_method_types_supporting_extended_authorization(
+        self,
+    ) -> Vec<common_enums::PaymentMethodType> {
+        match self {
+            Self::Stripe => vec![
+                common_enums::PaymentMethodType::Credit,
+                common_enums::PaymentMethodType::Debit,
+            ],
+            _ => vec![],
         }
     }
 }
